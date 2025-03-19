@@ -2499,11 +2499,6 @@ body.light-mode input:checked + .toggle-slider {
     }
     
     .toggle-slider:before {
-        height: 12px;
-        width: 12px;
-    }
-    
-    input:checked + .toggle-slider:before {
         transform: translateX(16px);
     }
 }
@@ -2588,4 +2583,424 @@ body.light-mode input:checked + .toggle-slider {
 
 .logging-toggle-container.enabled {
     background-color: #2ecc71;
+}
+
+/* Add CSS for BGP Service Tab */
+.bgp-overview-card,
+.bgp-neighbors-card,
+.bgp-networks-card,
+.bgp-visualization-card {
+    background-color: #2d2d2d;
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    color: #e0e0e0;
+}
+
+.bgp-overview-card h4,
+.bgp-neighbors-card h4,
+.bgp-networks-card h4,
+.bgp-visualization-card h4 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: #e0e0e0;
+}
+
+.bgp-status-box {
+    background-color: #383838;
+    border-radius: 0.5rem;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    border: 1px solid #444;
+    padding: 1.5rem;
+}
+
+.bgp-route-propagation {
+    background-color: #383838;
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    border: 1px solid #444;
+}
+
+.bgp-propagation-diagram {
+    margin-bottom: 1.5rem;
+}
+
+.bgp-node {
+    background-color: var(--card-bg);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    text-align: center;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    box-shadow: var(--card-shadow);
+    border: 1px solid var(--border-color);
+}
+
+.bgp-node.local-as {
+    border-left: 4px solid #007bff;
+}
+
+.bgp-node.peer-as {
+    border-left: 4px solid #28a745;
+}
+
+.bgp-node.internet {
+    border-left: 4px solid #fd7e14;
+}
+
+.node-title {
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.node-value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.node-icon {
+    font-size: 1.5rem;
+    color: var(--text-muted);
+}
+
+.bgp-arrow {
+    font-size: 1.5rem;
+    color: var(--text-muted);
+}
+
+/* BGP Service Tab Styling - Dark Mode Fixes */
+.bgp-overview-card,
+.bgp-neighbors-card,
+.bgp-networks-card,
+.bgp-visualization-card {
+    background-color: #2d2d2d;
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    color: #e0e0e0;
+}
+
+.bgp-overview-card h4,
+.bgp-neighbors-card h4,
+.bgp-networks-card h4,
+.bgp-visualization-card h4 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: #e0e0e0;
+}
+
+.bgp-status-box {
+    background-color: #383838;
+    border-radius: 0.5rem;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    border: 1px solid #444;
+    padding: 1.5rem;
+}
+
+.light-mode .bgp-overview-card,
+.light-mode .bgp-neighbors-card,
+.light-mode .bgp-networks-card,
+.light-mode .bgp-visualization-card {
+    background-color: #fff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    color: #333;
+}
+
+.light-mode .bgp-overview-card h4,
+.light-mode .bgp-neighbors-card h4,
+.light-mode .bgp-networks-card h4,
+.light-mode .bgp-visualization-card h4 {
+    color: #333;
+}
+
+.light-mode .bgp-status-box {
+    background-color: #f8f9fa;
+    border-color: #dee2e6;
+}
+
+.bgp-route-propagation {
+    background-color: #383838;
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    border: 1px solid #444;
+}
+
+.light-mode .bgp-route-propagation {
+    background-color: #f8f9fa;
+    border-color: #dee2e6;
+}
+
+.bgp-propagation-description {
+    margin-top: 1rem;
+    color: #adb5bd;
+}
+
+.light-mode .bgp-propagation-description {
+    color: #6c757d;
+}
+
+.bgp-node.local-as {
+    border-left: 4px solid #007bff;
+}
+
+.bgp-node.peer-as {
+    border-left: 4px solid #28a745;
+}
+
+.bgp-node.internet {
+    border-left: 4px solid #fd7e14;
+}
+
+/* BGP Peer Cards */
+.bgp-peers-card {
+    background-color: #2d2d2d;
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    color: #e0e0e0;
+}
+
+.bgp-peers-card h4 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: #e0e0e0;
+}
+
+.bgp-peers-card .card {
+    background-color: #383838;
+    border: 1px solid #444;
+    border-radius: 0.5rem;
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.bgp-peers-card .card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.bgp-peers-card .card-header {
+    background-color: rgba(0, 0, 0, 0.2);
+    border-bottom: 1px solid #444;
+    padding: 0.75rem 1rem;
+}
+
+.bgp-peers-card .card-title {
+    font-size: 1rem;
+    color: #e0e0e0;
+}
+
+.bgp-peers-card .card-body {
+    padding: 1rem;
+}
+
+/* Light mode styles */
+.light-mode .bgp-peers-card {
+    background-color: #fff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    color: #333;
+}
+
+.light-mode .bgp-peers-card h4 {
+    color: #333;
+}
+
+.light-mode .bgp-peers-card .card {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+}
+
+.light-mode .bgp-peers-card .card:hover {
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.light-mode .bgp-peers-card .card-header {
+    background-color: rgba(0, 0, 0, 0.03);
+    border-bottom: 1px solid #dee2e6;
+}
+
+.light-mode .bgp-peers-card .card-title {
+    color: #333;
+}
+
+/* BGP Tables Styling */
+.bgp-neighbors-card .table,
+.bgp-networks-card .table {
+    color: #ffffff;
+}
+
+.bgp-neighbors-card .table th,
+.bgp-networks-card .table th {
+    color: #ffffff;
+    background-color: rgba(0, 0, 0, 0.2);
+    border-color: #444;
+    font-weight: 600;
+}
+
+.bgp-neighbors-card .table td,
+.bgp-networks-card .table td {
+    border-color: #444;
+    color: #ffffff;
+}
+
+.bgp-neighbors-card .table-striped tbody tr:nth-of-type(odd),
+.bgp-networks-card .table-striped tbody tr:nth-of-type(odd) {
+    background-color: rgba(0, 0, 0, 0.1);
+}
+
+.light-mode .bgp-neighbors-card .table,
+.light-mode .bgp-networks-card .table {
+    color: #333;
+}
+
+.light-mode .bgp-neighbors-card .table th,
+.light-mode .bgp-networks-card .table th {
+    color: #333;
+    background-color: rgba(0, 0, 0, 0.03);
+    border-color: #dee2e6;
+}
+
+.light-mode .bgp-neighbors-card .table td,
+.light-mode .bgp-networks-card .table td {
+    border-color: #dee2e6;
+}
+
+.light-mode .bgp-neighbors-card .table-striped tbody tr:nth-of-type(odd),
+.light-mode .bgp-networks-card .table-striped tbody tr:nth-of-type(odd) {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+/* BGP Tables Styling - Fix for dark mode */
+.bgp-neighbors-card table,
+.bgp-networks-card table,
+.table-responsive table {
+    color: #ffffff !important;
+}
+
+.bgp-neighbors-card table th,
+.bgp-networks-card table th,
+.table-responsive table th {
+    color: #ffffff !important;
+    font-weight: 600;
+}
+
+.bgp-neighbors-card table td,
+.bgp-networks-card table td,
+.table-responsive table td {
+    color: #ffffff !important;
+}
+
+/* Override Bootstrap table styles in dark mode */
+body.dark-mode .table,
+body.dark-mode .table th,
+body.dark-mode .table td {
+    color: #ffffff !important;
+}
+
+/* For light mode */
+body.light-mode .bgp-neighbors-card table,
+body.light-mode .bgp-networks-card table,
+body.light-mode .table-responsive table {
+    color: #333 !important;
+}
+
+body.light-mode .bgp-neighbors-card table th,
+body.light-mode .bgp-networks-card table th,
+body.light-mode .table-responsive table th {
+    color: #333 !important;
+}
+
+body.light-mode .bgp-neighbors-card table td,
+body.light-mode .bgp-networks-card table td,
+body.light-mode .table-responsive table td {
+    color: #333 !important;
+}
+
+/* VIF Interface Styling */
+.vif-interface {
+    background-color: rgba(13, 110, 253, 0.05) !important;
+}
+
+.vif-interface:hover {
+    background-color: rgba(13, 110, 253, 0.1) !important;
+}
+
+.vif-interface td {
+    padding-left: 0.5rem !important;
+}
+
+/* Interface type badges */
+.badge.wan {
+    background-color: #dc3545 !important;
+    color: white !important;
+}
+
+.badge.lan {
+    background-color: #28a745 !important;
+    color: white !important;
+}
+
+.badge.ethernet {
+    background-color: #0d6efd !important;
+    color: white !important;
+}
+
+.badge.loopback {
+    background-color: #6c757d !important;
+    color: white !important;
+}
+
+/* VIF Interface Styling - Dark Mode */
+.vif-interface {
+    background-color: rgba(13, 110, 253, 0.1) !important;
+}
+
+.vif-interface:hover {
+    background-color: rgba(13, 110, 253, 0.2) !important;
+}
+
+.vif-interface td i {
+    color: #0d6efd !important;
+}
+
+body.light-mode .vif-interface {
+    background-color: rgba(13, 110, 253, 0.05) !important;
+}
+
+body.light-mode .vif-interface:hover {
+    background-color: rgba(13, 110, 253, 0.1) !important;
+}
+
+/* Badge colors for dark mode */
+body.dark-mode .badge.ethernet {
+    background-color: #0d6efd !important;
+    color: white !important;
+}
+
+body.dark-mode .badge.vif {
+    background-color: #6610f2 !important;
+    color: white !important;
+}
+
+.badge.vif {
+    background-color: #6610f2 !important;
+    color: white !important;
 }

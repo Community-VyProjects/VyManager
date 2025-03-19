@@ -1,3 +1,4 @@
 /.env
 /static.zip
 /__pycache__
+/venv
