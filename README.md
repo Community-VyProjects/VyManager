@@ -63,19 +63,11 @@ set ENVIRONMENT=production
 start.bat
 ```
 
-Alternatively, you can run with Gunicorn directly:
+Alternatively, you can run with Uvicorn directly:
 
 ```bash
-gunicorn main:app -w 4 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000
+python -m uvicorn main:app --host 0.0.0.0 --port 8000
 ```
-
-### Security Considerations
-
-- **API Keys**: Store your VyOS API key securely as an environment variable, not in source code.
-- **SSL/TLS**: Use HTTPS in production with valid certificates.
-- **Firewall**: Restrict access to the application using a firewall.
-- **Rate Limiting**: Consider implementing API rate limiting to prevent abuse.
-- **Regular Updates**: Keep dependencies updated to patch security vulnerabilities.
 
 ## Development
 
@@ -85,14 +77,9 @@ For local development:
 # Run with hot-reload
 uvicorn main:app --reload
 ```
-
-## License
-
-[Your License]
-
 ## Acknowledgements
 
 - [FastAPI](https://fastapi.tiangolo.com/)
 - [VyOS](https://vyos.io/)
 - [Bootstrap](https://getbootstrap.com/)
-
+- [Cursor](https://www.cursor.com/) - Helped alot with some of the logic when i was stuck.
