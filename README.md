@@ -22,7 +22,7 @@ A web application for viewing and analyzing VyOS router configurations.
 
 1. Clone the repository:
    ```
-   git clone https://github.com/your-username/vyos-config-viewer.git
+   git clone https://github.com/MadsZBC/FastAPI-Vyos.git
    cd vyos-config-viewer
    ```
 
