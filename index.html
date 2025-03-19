@@ -1,0 +1,80 @@
+                    <!-- Nav Pills Menu -->
+                    <ul class="nav nav-pills mb-3" id="services-tabs">
+                        <li class="nav-item">
+                            <a class="nav-link active" data-target="dhcp-tab-content">
+                                <i class="fas fa-network-wired"></i> DHCP
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-target="dns-tab-content">
+                                <i class="fas fa-globe"></i> DNS
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-target="ntp-tab-content">
+                                <i class="far fa-clock"></i> NTP
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-target="ssh-tab-content">
+                                <i class="fas fa-terminal"></i> SSH
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-target="config-analysis-tab-content">
+                                <i class="fas fa-search"></i> Config Analysis
+                            </a>
+                        </li>
+                    </ul>
+
+                    <!-- Global Loading Indicator -->
+                    <div id="globalLoadingIndicator" style="display: none;" class="d-flex justify-content-center align-items-center position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-75 z-3">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+
+                    <!-- Tab Content -->
+                    <div class="tab-content">
+                        <!-- DHCP Tab Content -->
+                        <div class="tab-pane" id="dhcp-tab-content">
+                            <!-- ... existing DHCP tab content ... -->
+                        </div>
+
+                        <!-- DNS Tab Content -->
+                        <div class="tab-pane" id="dns-tab-content">
+                            <!-- ... existing DNS tab content ... -->
+                        </div>
+
+                        <!-- NTP Tab Content -->
+                        <div class="tab-pane" id="ntp-tab-content">
+                            <!-- ... existing NTP tab content ... -->
+                        </div>
+
+                        <!-- SSH Tab Content -->
+                        <div class="tab-pane" id="ssh-tab-content">
+                            <!-- ... existing SSH tab content ... -->
+                        </div>
+                        
+                        <!-- Configuration Analysis Tab Content -->
+                        <div class="tab-pane" id="config-analysis-tab-content">
+                            <div class="service-card">
+                                <div class="service-header">
+                                    <h5>
+                                        <i class="fas fa-search"></i> Configuration Analysis
+                                        <div class="service-description">Analyze configurations and unknown fields</div>
+                                    </h5>
+                                </div>
+                                <div class="service-body">
+                                    <div id="config-analysis-content" class="p-3">
+                                        <!-- Content will be loaded dynamically -->
+                                        <div class="d-flex justify-content-center py-5">
+                                            <div class="spinner-border text-primary" role="status">
+                                                <span class="visually-hidden">Loading...</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div> 

@@ -1,0 +1,19 @@
+# Core web framework
+fastapi>=0.104.0
+uvicorn>=0.23.2
+gunicorn>=23.0.0  # Note: Gunicorn is not supported on Windows, used for Linux/Unix deployments only
+jinja2>=3.1.2
+
+# Uvicorn adapters for better performance
+websockets>=11.0.3
+httptools>=0.6.0
+uvloop>=0.17.0 ; sys_platform != 'win32'  # uvloop doesn't support Windows
+
+# HTTP client
+httpx>=0.25.0
+
+# Utilities
+python-multipart>=0.0.6
+pydantic>=2.4.2
+certifi>=2023.7.22
+python-dotenv>=1.0.0 
