@@ -357,6 +357,14 @@ function setTheme(theme) {
     console.log(`Theme set to: ${theme}`);
 }
 
+// Initialize the ThemeManager when the DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize the theme manager
+    window.themeManager = new ThemeManager();
+    
+    // Other initialization code...
+});
+
 // Wait for DOM to be fully loaded
 document.addEventListener('DOMContentLoaded', function() {
     try {
@@ -1288,6 +1296,10 @@ class ThemeManager {
     }
     
     applyTheme(theme) {
+        // Set the data-bs-theme attribute for Bootstrap 5 dark mode
+        document.documentElement.setAttribute('data-bs-theme', theme);
+        
+        // Also keep backward compatibility with the old system
         if (theme === 'light') {
             document.body.classList.add('light-mode');
             document.body.classList.remove('dark-mode');
@@ -1482,95 +1494,108 @@ function populateNetworkGroups(data) {
 
 // Populate routing information
 function populateRoutingInfo(data) {
-    // Get routing information
-    const defaultGateway = getDefaultGateway(data);
-    const staticRoutes = data.protocols?.static?.route || {};
-    
-    // Get BGP networks if available
-    const bgpNetworks = data.protocols?.bgp?.['address-family']?.['ipv4-unicast']?.network || {};
-    
-    // Update default gateway information
+    // Routing section in the Network tab
     const defaultGatewayInfo = document.getElementById('default-gateway-info');
-    if (defaultGatewayInfo) {
-        defaultGatewayInfo.textContent = defaultGateway || 'Not configured';
-    }
-    
-    // Count total routes: static + bgp
-    const totalRouteCount = Object.keys(staticRoutes).length + Object.keys(bgpNetworks).length;
-    
-    // Update static routes count
     const staticRoutesCount = document.getElementById('static-routes-count');
-    if (staticRoutesCount) {
-        staticRoutesCount.textContent = `${totalRouteCount} routes configured`;
-    }
-    
-    // Populate routes table
     const routesTableBody = document.getElementById('routes-table-body');
     
-    if (!routesTableBody) return;
-    
-    // Clear existing content
-    routesTableBody.innerHTML = '';
-    
-    // If no routes, show a message
-    if (totalRouteCount === 0) {
-        routesTableBody.innerHTML = '<tr><td colspan="3" class="text-center">No routes configured</td></tr>';
+    if (!defaultGatewayInfo || !staticRoutesCount || !routesTableBody) {
+        console.warn("Routing information elements not found in the DOM");
         return;
     }
     
-    // Process each static route
-    Object.keys(staticRoutes).forEach(destination => {
-        const route = staticRoutes[destination];
-        
-        // Check if this is a next-hop route
-        const nextHops = route['next-hop'] || {};
-        
-        // If next-hop exists, create rows for each next hop
-        if (Object.keys(nextHops).length > 0) {
-            Object.keys(nextHops).forEach(nextHop => {
-                const settings = nextHops[nextHop];
-                const row = document.createElement('tr');
-                
-                // Extract distance or use default
-                const distance = settings.distance || '1';
-                
-                row.innerHTML = `
-                    <td>${destination}</td>
-                    <td>${nextHop}</td>
-                    <td>${distance}</td>
-                `;
-                
-                routesTableBody.appendChild(row);
-            });
+    // Find default gateway
+    const defaultGateway = getDefaultGateway(data);
+    
+    if (defaultGateway) {
+        defaultGatewayInfo.innerHTML = `
+            <strong>${defaultGateway.nextHop}</strong> via ${defaultGateway.interface}
+            <div class="small text-muted">Static route with distance ${defaultGateway.distance}</div>
+        `;
+    } else {
+        defaultGatewayInfo.innerHTML = '<span class="text-muted">No default gateway configured</span>';
+    }
+    
+    // Count static routes
+    let staticRoutes = 0;
+    
+    if (data && data.protocols && data.protocols.static && data.protocols.static.route) {
+        for (const network in data.protocols.static.route) {
+            if (Object.prototype.hasOwnProperty.call(data.protocols.static.route, network)) {
+                staticRoutes++;
+            }
         }
+    }
+    
+    staticRoutesCount.innerHTML = `
+        ${staticRoutes} static route${staticRoutes !== 1 ? 's' : ''} configured
+        <div class="mt-2">
+            <a href="/routing" class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-diagram-3 me-1"></i> View Full Routing Table
+            </a>
+        </div>
+    `;
+    
+    // Populate routes table
+    routesTableBody.innerHTML = '';
+    
+    if (data && data.protocols && data.protocols.static && data.protocols.static.route) {
+        const routes = data.protocols.static.route;
         
-        // Check if this is a blackhole route
-        if (route.blackhole) {
-            const row = document.createElement('tr');
-            const distance = route.blackhole.distance || '1';
+        // Get all routes as an array
+        const routesArray = Object.keys(routes).map(destination => {
+            return {
+                destination: destination,
+                ...routes[destination]
+            };
+        });
+        
+        // Sort routes: default route first, then by destination
+        routesArray.sort((a, b) => {
+            if (a.destination === '0.0.0.0/0') return -1;
+            if (b.destination === '0.0.0.0/0') return 1;
+            return a.destination.localeCompare(b.destination);
+        });
+        
+        for (const route of routesArray) {
+            const destination = route.destination;
+            let nextHopHtml = '';
             
+            if (route.next_hop) {
+                // Multiple next-hops
+                if (typeof route.next_hop === 'object' && !Array.isArray(route.next_hop)) {
+                    for (const nextHopKey in route.next_hop) {
+                        const nextHop = route.next_hop[nextHopKey];
+                        if (nextHop) {
+                            nextHopHtml += `<div>${nextHopKey}</div>`;
+                        }
+                    }
+                }
+            } else if (route.blackhole) {
+                nextHopHtml = '<span class="badge bg-warning text-dark">Blackhole</span>';
+            } else {
+                nextHopHtml = '<span class="text-muted">None</span>';
+            }
+            
+            const distance = route.distance || '1';
+            
+            const row = document.createElement('tr');
             row.innerHTML = `
                 <td>${destination}</td>
-                <td><span class="badge bg-danger">Blackhole</span></td>
+                <td>${nextHopHtml}</td>
                 <td>${distance}</td>
             `;
             
             routesTableBody.appendChild(row);
         }
-    });
-    
-    // Process BGP networks if any
-    Object.keys(bgpNetworks).forEach(network => {
+    } else {
+        // No static routes
         const row = document.createElement('tr');
-        
         row.innerHTML = `
-            <td>${network}</td>
-            <td><span class="badge bg-info">BGP Network</span></td>
-            <td>-</td>
+            <td colspan="3" class="text-center">No static routes configured</td>
         `;
-        
         routesTableBody.appendChild(row);
-    });
+    }
 }
 
 // Initialize the Firewall tab with detailed rule information
@@ -4874,12 +4899,42 @@ function isPrivateIP(ip) {
 
 // Get default gateway from static routes
 function getDefaultGateway(data) {
-    if (data.protocols?.static?.route?.['0.0.0.0/0']?.['next-hop']) {
-        const nextHops = Object.keys(data.protocols.static.route['0.0.0.0/0']['next-hop']);
-        if (nextHops.length > 0) {
-            return nextHops[0];
-        }
+    if (!data || !data.protocols || !data.protocols.static || !data.protocols.static.route) {
+        return null;
     }
+    
+    const defaultRoute = data.protocols.static.route['0.0.0.0/0'];
+    if (!defaultRoute || !defaultRoute['next-hop']) {
+        return null;
+    }
+    
+    try {
+        const nextHops = Object.keys(defaultRoute['next-hop']);
+        if (nextHops.length > 0) {
+            const nextHopIp = nextHops[0];
+            const nextHopData = defaultRoute['next-hop'][nextHopIp];
+            
+            // Extract interface and distance from next hop data
+            let interfaceName = "Unknown";
+            if (nextHopData && nextHopData.interface) {
+                interfaceName = nextHopData.interface;
+            }
+            
+            let distance = "1";
+            if (nextHopData && nextHopData.distance) {
+                distance = nextHopData.distance;
+            }
+            
+            return {
+                nextHop: nextHopIp,
+                interface: interfaceName,
+                distance: distance
+            };
+        }
+    } catch (error) {
+        console.error("Error parsing default gateway:", error);
+    }
+    
     return null;
 }
 

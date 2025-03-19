@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+
+{% block title %}Network Routing Table{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="/static/css/routing.css">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1 class="display-5 mb-1">Network Routing Table</h1>
+            <p class="text-secondary">View, search, and analyze your network routing data.</p>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="/" class="btn btn-outline-primary btn-lg back-to-network">
+                <i class="bi bi-arrow-left-circle me-2"></i>Back to Network Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <!-- Tabs Navigation -->
+                    <ul class="nav nav-tabs mb-4" id="routingTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="routes-tab" data-bs-toggle="tab" data-bs-target="#routes-tab-pane" type="button" role="tab" aria-controls="routes-tab-pane" aria-selected="true">
+                                <i class="bi bi-diagram-3 me-2"></i>Routes
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="vrf-tab" data-bs-toggle="tab" data-bs-target="#vrf-tab-pane" type="button" role="tab" aria-controls="vrf-tab-pane" aria-selected="false">
+                                <i class="bi bi-collection me-2"></i>VRF List
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="stats-tab" data-bs-toggle="tab" data-bs-target="#stats-tab-pane" type="button" role="tab" aria-controls="stats-tab-pane" aria-selected="false">
+                                <i class="bi bi-bar-chart me-2"></i>Statistics
+                            </button>
+                        </li>
+                    </ul>
+
+                    <!-- Tabs Content -->
+                    <div class="tab-content" id="routingTabsContent">
+                        <!-- Routes Tab -->
+                        <div class="tab-pane fade show active" id="routes-tab-pane" role="tabpanel" aria-labelledby="routes-tab" tabindex="0">
+                            <!-- Routing Controls -->
+                            <div class="routing-controls">
+                                <div class="input-group" style="max-width: 300px;">
+                                    <span class="input-group-text">
+                                        <i class="bi bi-search"></i>
+                                    </span>
+                                    <input type="text" id="route-search" class="form-control" placeholder="Search routes...">
+                                </div>
+                                
+                                <button id="refresh-routes" class="btn btn-outline-primary routing-action-btn">
+                                    <i class="bi bi-arrow-repeat"></i>
+                                    <span>Refresh</span>
+                                </button>
+                                
+                                <button id="show-all-routes" class="btn btn-outline-info routing-action-btn">
+                                    <i class="bi bi-eye"></i>
+                                    <span>Show All</span>
+                                </button>
+                                
+                                <button id="toggle-advanced-filter" class="btn btn-outline-secondary routing-action-btn" type="button" aria-expanded="false">
+                                    <i class="bi bi-filter"></i>
+                                    <span>Advanced Filter</span>
+                                </button>
+                            </div>
+                            
+                            <!-- Advanced Filter Panel -->
+                            <div class="collapse" id="advancedFilterPanel">
+                                <div class="filter-heading">Advanced Route Filtering</div>
+                                
+                                <div class="row filter-row">
+                                    <div class="col-md-4">
+                                        <label for="filter-protocol" class="form-label">Protocol</label>
+                                        <select id="filter-protocol" class="form-select">
+                                            <option value="">All Protocols</option>
+                                            <option value="connected">Connected</option>
+                                            <option value="static">Static</option>
+                                            <option value="bgp">BGP</option>
+                                            <option value="ospf">OSPF</option>
+                                            <option value="rip">RIP</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="filter-interface" class="form-label">Interface</label>
+                                        <select id="filter-interface" class="form-select">
+                                            <option value="">All Interfaces</option>
+                                            <!-- Populated dynamically -->
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="filter-status" class="form-label">Status</label>
+                                        <select id="filter-status" class="form-select">
+                                            <option value="">All</option>
+                                            <option value="active">Active</option>
+                                            <option value="inactive">Inactive</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <div class="row filter-row">
+                                    <div class="col-md-6">
+                                        <label for="filter-prefix" class="form-label">Network Prefix</label>
+                                        <input type="text" id="filter-prefix" class="form-control" placeholder="e.g. 192.168.1">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="filter-next-hop" class="form-label">Next Hop</label>
+                                        <input type="text" id="filter-next-hop" class="form-control" placeholder="e.g. 10.0.0.1">
+                                    </div>
+                                </div>
+                                
+                                <div class="filter-buttons">
+                                    <button id="reset-filters" class="btn btn-outline-secondary">
+                                        <i class="bi bi-x-circle me-1"></i>Reset
+                                    </button>
+                                    <button id="apply-filters" class="btn btn-primary">
+                                        <i class="bi bi-funnel me-1"></i>Apply Filters
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- VRF Tabs -->
+                            <div class="vrf-pills" id="vrf-pills">
+                                <!-- VRF tabs will be dynamically populated here -->
+                                <div class="d-flex align-items-center justify-content-center p-3">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                    <span class="ms-2">Loading VRFs...</span>
+                                </div>
+                            </div>
+
+                            <!-- VRF Heading -->
+                            <h5 id="vrf-heading" class="mb-3">Routes in VRF: default</h5>
+                            <div id="route-count" class="mb-3">Loading routes...</div>
+
+                            <!-- Routing Table -->
+                            <div class="table-responsive" id="routing-table-container">
+                                <div class="text-center p-4">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                    <p class="mt-2">Loading routing table data...</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- VRF Tab -->
+                        <div class="tab-pane fade" id="vrf-tab-pane" role="tabpanel" aria-labelledby="vrf-tab" tabindex="0">
+                            <div id="vrf-list-container">
+                                <div class="text-center p-4">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                    <p class="mt-2">Loading VRF data...</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Statistics Tab -->
+                        <div class="tab-pane fade" id="stats-tab-pane" role="tabpanel" aria-labelledby="stats-tab" tabindex="0">
+                            <div class="row" id="routing-stats-container">
+                                <div class="text-center p-4 col-12">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                    <p class="mt-2">Loading routing statistics...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Route Details Modal -->
+<div class="modal fade" id="routeDetailsModal" tabindex="-1" aria-labelledby="routeDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="routeDetailsModalLabel">Route Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="routeDetailsContent">
+                <!-- Route details will be populated here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/routing.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const routingTable = new NetworkRoutingTable();
+        routingTable.init();
+    });
+</script>
+{% endblock %} 
