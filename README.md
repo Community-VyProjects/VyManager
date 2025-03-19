@@ -77,6 +77,27 @@ For local development:
 # Run with hot-reload
 uvicorn main:app --reload
 ```
+
+## Setup using container
+
+There is also a container image that can you can build and run.
+
+1. Clone the repository:
+   ```
+   git clone https://github.com/MadsZBC/FastAPI-Vyos.git
+   cd vyos-config-viewer
+   ```
+
+2. Build the image
+   ```
+   podman build -t vyos-dash .
+   ```
+
+3. Execute the image
+   ```
+   podman run -v dot_env_file_path_here:/app/.env:ro -p 8000:8000 vyos-dash
+   ```
+
 ## Acknowledgements
 
 - [FastAPI](https://fastapi.tiangolo.com/)
