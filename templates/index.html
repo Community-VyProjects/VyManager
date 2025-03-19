@@ -225,8 +225,13 @@
             
             <!-- Network Tab -->
             <div class="tab-pane fade" id="network" role="tabpanel" aria-labelledby="network-tab">
-                <div class="alert alert-info py-2" role="alert">
-                    <i class="bi bi-info-circle me-2"></i> Detailed network interface configuration
+                <div class="alert alert-info py-2 d-flex justify-content-between align-items-center" role="alert">
+                    <div>
+                        <i class="bi bi-info-circle me-2"></i> Detailed network interface configuration
+                    </div>
+                    <a href="/refresh-network" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh Network Data
+                    </a>
                 </div>
                 
                 <!-- Network Interfaces Section -->
@@ -584,6 +589,11 @@
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="bgp-tab" data-bs-toggle="pill" data-bs-target="#bgp" type="button" role="tab">
+                            <i class="fas fa-project-diagram"></i> BGP
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
                         <button class="nav-link" id="ntp-tab" data-bs-toggle="pill" data-bs-target="#ntp" type="button" role="tab">
                             <i class="far fa-clock"></i> NTP
                         </button>
@@ -673,6 +683,35 @@
                                             <span class="visually-hidden">Loading...</span>
                                         </div>
                                         <p class="mt-2 text-muted">Loading DNS configuration...</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- BGP Tab -->
+                    <div class="tab-pane fade" id="bgp" role="tabpanel" aria-labelledby="bgp-tab">
+                        <div class="service-card">
+                            <div class="service-header">
+                                <div>
+                                    <h5>
+                                        <i class="fas fa-project-diagram"></i> BGP Service
+                                        <span class="badge bg-success ms-2">Active</span>
+                                    </h5>
+                                    <div class="service-description">Border Gateway Protocol configuration</div>
+                                </div>
+                                <button class="refresh-button" id="refreshBgp">
+                                    <i class="fas fa-sync-alt"></i> Refresh
+                                </button>
+                            </div>
+                            
+                            <div class="service-body">
+                                <div class="network-list" id="bgp-config">
+                                    <div class="text-center py-4">
+                                        <div class="spinner-border text-primary" role="status">
+                                            <span class="visually-hidden">Loading...</span>
+                                        </div>
+                                        <p class="mt-2 text-muted">Loading BGP configuration...</p>
                                     </div>
                                 </div>
                             </div>

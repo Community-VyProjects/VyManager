@@ -1495,16 +1495,22 @@ function populateRoutingInfo(data) {
     const defaultGateway = getDefaultGateway(data);
     const staticRoutes = data.protocols?.static?.route || {};
     
+    // Get BGP networks if available
+    const bgpNetworks = data.protocols?.bgp?.['address-family']?.['ipv4-unicast']?.network || {};
+    
     // Update default gateway information
     const defaultGatewayInfo = document.getElementById('default-gateway-info');
     if (defaultGatewayInfo) {
         defaultGatewayInfo.textContent = defaultGateway || 'Not configured';
     }
     
+    // Count total routes: static + bgp
+    const totalRouteCount = Object.keys(staticRoutes).length + Object.keys(bgpNetworks).length;
+    
     // Update static routes count
     const staticRoutesCount = document.getElementById('static-routes-count');
     if (staticRoutesCount) {
-        staticRoutesCount.textContent = `${Object.keys(staticRoutes).length} routes configured`;
+        staticRoutesCount.textContent = `${totalRouteCount} routes configured`;
     }
     
     // Populate routes table
@@ -1516,34 +1522,63 @@ function populateRoutingInfo(data) {
     routesTableBody.innerHTML = '';
     
     // If no routes, show a message
-    if (Object.keys(staticRoutes).length === 0) {
-        routesTableBody.innerHTML = '<tr><td colspan="3" class="text-center">No static routes configured</td></tr>';
+    if (totalRouteCount === 0) {
+        routesTableBody.innerHTML = '<tr><td colspan="3" class="text-center">No routes configured</td></tr>';
         return;
     }
     
-    // Process each route
+    // Process each static route
     Object.keys(staticRoutes).forEach(destination => {
         const route = staticRoutes[destination];
         
-        // Get next hops
+        // Check if this is a next-hop route
         const nextHops = route['next-hop'] || {};
         
-        // Create a row for each next hop
-        Object.keys(nextHops).forEach(nextHop => {
-            const settings = nextHops[nextHop];
+        // If next-hop exists, create rows for each next hop
+        if (Object.keys(nextHops).length > 0) {
+            Object.keys(nextHops).forEach(nextHop => {
+                const settings = nextHops[nextHop];
+                const row = document.createElement('tr');
+                
+                // Extract distance or use default
+                const distance = settings.distance || '1';
+                
+                row.innerHTML = `
+                    <td>${destination}</td>
+                    <td>${nextHop}</td>
+                    <td>${distance}</td>
+                `;
+                
+                routesTableBody.appendChild(row);
+            });
+        }
+        
+        // Check if this is a blackhole route
+        if (route.blackhole) {
             const row = document.createElement('tr');
-            
-            // Extract distance or use default
-            const distance = settings.distance || '1';
+            const distance = route.blackhole.distance || '1';
             
             row.innerHTML = `
                 <td>${destination}</td>
-                <td>${nextHop}</td>
+                <td><span class="badge bg-danger">Blackhole</span></td>
                 <td>${distance}</td>
             `;
             
             routesTableBody.appendChild(row);
-        });
+        }
+    });
+    
+    // Process BGP networks if any
+    Object.keys(bgpNetworks).forEach(network => {
+        const row = document.createElement('tr');
+        
+        row.innerHTML = `
+            <td>${network}</td>
+            <td><span class="badge bg-info">BGP Network</span></td>
+            <td>-</td>
+        `;
+        
+        routesTableBody.appendChild(row);
     });
 }
 
@@ -2218,26 +2253,46 @@ function updateNatFlowVisualization(data) {
 
 // Initialize the Services tab with network services configuration
 function initServicesTab(data) {
-    console.log("Initializing Services tab with data:", data);
+    console.log('Initializing Services tab');
+    console.log('Services data:', data.service);
     
-    // Get the services tab content container
-    const servicesTab = document.getElementById('services');
-    if (!servicesTab) {
-        console.error("Services tab element not found with ID 'services'");
-        return;
-    }
+    // Initialize DHCP Service
+    initDhcpService(data);
     
-    try {
-        // Initialize each service tab with its specific data
-        // The HTML structure is already set up in the template
-        initDhcpService(data);
-        initDnsService(data);
-        initNtpService(data);
-        initSshService(data);
-    } catch (error) {
-        console.error("Error initializing service tabs:", error);
-        showError(`Failed to initialize service tabs: ${error.message}`);
-    }
+    // Initialize BGP Service
+    initBgpService(data);
+    
+    // Initialize DNS Service (lazy load)
+    document.getElementById('dns-tab')?.addEventListener('click', function() {
+        initDnsService();
+    });
+    
+    // Initialize NTP Service (lazy load)
+    document.getElementById('ntp-tab')?.addEventListener('click', function() {
+        initNtpService();
+    });
+    
+    // Initialize SSH Service (lazy load)
+    document.getElementById('ssh-tab')?.addEventListener('click', function() {
+        initSshService();
+    });
+    
+    // Set up refresh button events
+    document.getElementById('refreshDns')?.addEventListener('click', function() {
+        initDnsService(true);
+    });
+    
+    document.getElementById('refreshBgp')?.addEventListener('click', function() {
+        initBgpService(data, true);
+    });
+    
+    document.getElementById('refreshNtp')?.addEventListener('click', function() {
+        initNtpService(true);
+    });
+    
+    document.getElementById('refreshSsh')?.addEventListener('click', function() {
+        initSshService(true);
+    });
 }
 
 // Initialize the DHCP Service tab
@@ -5458,4 +5513,493 @@ function downloadZippedLogFiles() {
             setTimeout(() => statusEl.classList.remove('show'), 3000);
         }
     }
+}
+
+// Initialize BGP service tab
+function initBgpService(data, forceRefresh = false) {
+    console.log('Initializing BGP service tab');
+    
+    const bgpConfigContainer = document.getElementById('bgp-config');
+    if (!bgpConfigContainer) return;
+    
+    // Clear existing content
+    bgpConfigContainer.innerHTML = '';
+    
+    // Get BGP configuration from the data
+    const bgpConfig = data.protocols?.bgp || {};
+    
+    // If no BGP configuration is found
+    if (Object.keys(bgpConfig).length === 0) {
+        bgpConfigContainer.innerHTML = `
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle me-2"></i>
+                BGP is not configured on this router
+            </div>
+        `;
+        return;
+    }
+    
+    // Get important BGP parameters
+    const routerId = bgpConfig.parameters?.['router-id'] || 'Not configured';
+    const systemAs = bgpConfig['system-as'] || 'Not configured';
+    const neighbors = bgpConfig.neighbor || {};
+    const addressFamilies = bgpConfig['address-family'] || {};
+    
+    // Create BGP overview card
+    const overviewCard = document.createElement('div');
+    overviewCard.className = 'bgp-overview-card mb-4';
+    overviewCard.innerHTML = `
+        <h4>BGP Overview</h4>
+        <div class="row">
+            <div class="col-md-6">
+                <div class="info-item">
+                    <span class="info-label">Router ID</span>
+                    <span class="info-value">${routerId}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Local AS</span>
+                    <span class="info-value">${systemAs}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Neighbors</span>
+                    <span class="info-value">${Object.keys(neighbors).length}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Networks</span>
+                    <span class="info-value">${Object.keys(addressFamilies?.['ipv4-unicast']?.network || {}).length}</span>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="bgp-status-box">
+                    <div class="display-6"><i class="fas fa-project-diagram me-2"></i> AS${systemAs}</div>
+                    <div class="mt-2">BGP Autonomous System</div>
+                </div>
+            </div>
+        </div>
+    `;
+    bgpConfigContainer.appendChild(overviewCard);
+    
+    // Create neighbors card
+    const neighborsCard = document.createElement('div');
+    neighborsCard.className = 'bgp-neighbors-card mb-4';
+    
+    // Neighbors header
+    const neighborsHeader = document.createElement('h4');
+    neighborsHeader.textContent = 'BGP Neighbors';
+    neighborsCard.appendChild(neighborsHeader);
+    
+    // Create neighbors table
+    const neighborsTable = document.createElement('div');
+    neighborsTable.className = 'table-responsive';
+    
+    if (Object.keys(neighbors).length === 0) {
+        neighborsTable.innerHTML = `
+            <div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                No BGP neighbors configured
+            </div>
+        `;
+    } else {
+        let tableHtml = `
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Neighbor IP</th>
+                        <th>Remote AS</th>
+                        <th>Update Source</th>
+                        <th>Multihop</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        
+        // Add a row for each neighbor
+        Object.entries(neighbors).forEach(([neighborIp, neighborConfig]) => {
+            const remoteAs = neighborConfig['remote-as'] || 'N/A';
+            const updateSource = neighborConfig['update-source'] || 'N/A';
+            const multihop = neighborConfig['ebgp-multihop'] || 'N/A';
+            const description = neighborConfig['description'] || 'N/A';
+            
+            tableHtml += `
+                <tr>
+                    <td>${neighborIp}</td>
+                    <td>${remoteAs}</td>
+                    <td>${updateSource}</td>
+                    <td>${multihop}</td>
+                    <td>${description}</td>
+                </tr>
+            `;
+        });
+        
+        tableHtml += `
+                </tbody>
+            </table>
+        `;
+        
+        neighborsTable.innerHTML = tableHtml;
+    }
+    
+    neighborsCard.appendChild(neighborsTable);
+    bgpConfigContainer.appendChild(neighborsCard);
+    
+    // Create networks card
+    const networksCard = document.createElement('div');
+    networksCard.className = 'bgp-networks-card mb-4';
+    
+    // Networks header
+    const networksHeader = document.createElement('h4');
+    networksHeader.textContent = 'Advertised Networks';
+    networksCard.appendChild(networksHeader);
+    
+    // Get networks from address families
+    const networks = addressFamilies?.['ipv4-unicast']?.network || {};
+    
+    if (Object.keys(networks).length === 0) {
+        networksCard.innerHTML += `
+            <div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                No networks configured for advertisement
+            </div>
+        `;
+    } else {
+        const networksList = document.createElement('div');
+        networksList.className = 'row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3';
+        
+        Object.keys(networks).forEach(network => {
+            const networkCard = document.createElement('div');
+            networkCard.className = 'col';
+            networkCard.innerHTML = `
+                <div class="card h-100" style="background-color: #383838; border: 1px solid #444;">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i class="fas fa-network-wired me-2"></i>
+                            ${network}
+                        </h5>
+                        <p class="card-text small text-muted">Advertised to peers</p>
+                    </div>
+                </div>
+            `;
+            networksList.appendChild(networkCard);
+        });
+        
+        networksCard.appendChild(networksList);
+    }
+    
+    bgpConfigContainer.appendChild(networksCard);
+    
+    // BGP Route Propagation Visualization
+    const visualizationCard = document.createElement('div');
+    visualizationCard.className = 'bgp-visualization-card';
+    
+    // Visualization header
+    const visualizationHeader = document.createElement('h4');
+    visualizationHeader.textContent = 'BGP Route Propagation';
+    visualizationCard.appendChild(visualizationHeader);
+    
+    // Create a more dynamic visualization that handles multiple peers
+    const visualizationContainer = document.createElement('div');
+    visualizationContainer.className = 'bgp-route-propagation';
+    
+    // Create the peer nodes dynamically based on the number of peers
+    let peerNodes = '';
+    const maxPeersToShow = 3; // Show up to 3 peers directly, then show a count for others
+    const neighborEntries = Object.entries(neighbors);
+    const displayedPeers = neighborEntries.slice(0, maxPeersToShow);
+    
+    // If there are more peers than we can display, show a count
+    const hasMorePeers = neighborEntries.length > maxPeersToShow;
+    const additionalPeersCount = neighborEntries.length - maxPeersToShow;
+    
+    // Create the main visualization
+    visualizationContainer.innerHTML = `
+        <div class="bgp-propagation-diagram mb-3">
+            <div class="row justify-content-center">
+                <div class="col-md-3 mb-3">
+                    <div class="bgp-node local-as">
+                        <div class="node-title">Local Router</div>
+                        <div class="node-value">AS ${systemAs}</div>
+                        <div class="node-icon"><i class="fas fa-server"></i></div>
+                    </div>
+                </div>
+                
+                <div class="col-md-1 d-flex align-items-center justify-content-center mb-3">
+                    <div class="bgp-arrow">
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+                </div>
+                
+                <div class="col-md-${neighborEntries.length > 1 ? '5' : '3'} mb-3">
+                    <div class="row">
+                        ${displayedPeers.map(([neighborIp, neighborConfig], index) => `
+                            <div class="col-${neighborEntries.length > 1 ? (neighborEntries.length > 2 ? '4' : '6') : '12'} mb-3">
+                                <div class="bgp-node peer-as">
+                                    <div class="node-title">BGP Peer</div>
+                                    <div class="node-value">AS ${neighborConfig['remote-as'] || 'Unknown'}</div>
+                                    <div class="small">${neighborIp}</div>
+                                    <div class="node-icon"><i class="fas fa-network-wired"></i></div>
+                                </div>
+                            </div>
+                        `).join('')}
+                        
+                        ${hasMorePeers ? `
+                            <div class="col-4 mb-3">
+                                <div class="bgp-node peer-as">
+                                    <div class="node-title">Additional Peers</div>
+                                    <div class="node-value">+${additionalPeersCount}</div>
+                                    <div class="small">Other BGP neighbors</div>
+                                    <div class="node-icon"><i class="fas fa-ellipsis-h"></i></div>
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+                
+                <div class="col-md-1 d-flex align-items-center justify-content-center mb-3">
+                    <div class="bgp-arrow">
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+                </div>
+                
+                <div class="col-md-3 mb-3">
+                    <div class="bgp-node internet">
+                        <div class="node-title">Internet</div>
+                        <div class="node-value">Global BGP</div>
+                        <div class="node-icon"><i class="fas fa-globe"></i></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bgp-propagation-description">
+            <p>Routes are exchanged between BGP peers using the standard BGP protocol mechanisms.</p>
+            <p class="small text-muted">AS ${systemAs} advertises ${Object.keys(networks).length} networks to ${Object.keys(neighbors).length} peer${Object.keys(neighbors).length > 1 ? 's' : ''}.</p>
+        </div>
+    `;
+    
+    visualizationCard.appendChild(visualizationContainer);
+    bgpConfigContainer.appendChild(visualizationCard);
+    
+    // If there are multiple peers, add a peers list section
+    if (neighborEntries.length > 1) {
+        // Create a detailed peers list card for more than 3 peers
+        const detailedPeersCard = document.createElement('div');
+        detailedPeersCard.className = 'bgp-peers-card mb-4';
+        
+        // Peers list header
+        const peersListHeader = document.createElement('h4');
+        peersListHeader.textContent = 'All BGP Peers';
+        detailedPeersCard.appendChild(peersListHeader);
+        
+        // Create peers list
+        const peersList = document.createElement('div');
+        peersList.className = 'row g-3';
+        
+        neighborEntries.forEach(([neighborIp, neighborConfig]) => {
+            const peerCard = document.createElement('div');
+            peerCard.className = 'col-md-6 col-lg-4';
+            peerCard.innerHTML = `
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-project-diagram me-2"></i>
+                            AS ${neighborConfig['remote-as'] || 'Unknown'}
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="info-item">
+                            <span class="info-label">Neighbor IP</span>
+                            <span class="info-value">${neighborIp}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Update Source</span>
+                            <span class="info-value">${neighborConfig['update-source'] || 'N/A'}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Multihop</span>
+                            <span class="info-value">${neighborConfig['ebgp-multihop'] || 'N/A'}</span>
+                        </div>
+                        ${neighborConfig['description'] ? `
+                        <div class="info-item">
+                            <span class="info-label">Description</span>
+                            <span class="info-value">${neighborConfig['description']}</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+            peersList.appendChild(peerCard);
+        });
+        
+        detailedPeersCard.appendChild(peersList);
+        
+        // Add it after the visualization card
+        bgpConfigContainer.appendChild(detailedPeersCard);
+    }
+}
+
+// Initialize DNS service tab
+function initDnsService(forceRefresh = false) {
+    console.log("Initializing DNS Service...");
+    const dnsStatusElement = document.getElementById('dns-status');
+    
+    if (!dnsStatusElement) {
+        console.error("DNS status element not found");
+        return;
+    }
+    
+    loadConfigData('', forceRefresh).then(result => {
+        // For debugging purposes
+        console.log("Full config data for DNS:", result);
+        
+        // Log the DNS service configuration specifically
+        if (result.data && result.data.service && result.data.service.dns) {
+            configLogger.logConfiguration({dns: result.data.service.dns}, 'DNS_SERVICE');
+        }
+        
+        // Check if DNS service data exists
+        const dnsService = result.data.service && result.data.service.dns;
+        
+        if (!dnsService || Object.keys(dnsService).length === 0) {
+            dnsStatusElement.innerHTML = `
+                <div class="p-4">
+                    <div class="alert alert-warning mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        DNS service is not configured
+                    </div>
+                </div>
+            `;
+            return;
+        }
+        
+        // Render DNS configuration
+        let html = `
+            <div class="network-list">
+                <div class="network-item">
+                    <div class="network-item-header">
+                        <h6>
+                            <i class="fas fa-globe"></i> DNS Service Configuration
+                        </h6>
+                        <span class="badge bg-success">Active</span>
+                    </div>
+                    <div class="network-item-body">
+        `;
+        
+        // Add nameservers if available
+        if (dnsService.nameserver) {
+            html += `
+                <div class="mb-3">
+                    <h6 class="mb-2">Nameservers</h6>
+                    <div class="row">
+            `;
+            
+            const nameservers = Array.isArray(dnsService.nameserver) 
+                ? dnsService.nameserver 
+                : [dnsService.nameserver];
+                
+            nameservers.forEach(ns => {
+                html += `
+                    <div class="col-md-4 mb-2">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-server me-2 text-primary"></i>
+                            <span class="subnet-badge">${ns}</span>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += `
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Add forwarding configuration if available
+        if (dnsService.forwarding) {
+            html += `
+                <div class="mb-3">
+                    <h6 class="mb-2">Forwarding</h6>
+                    <div class="d-flex align-items-center mb-2">
+                        <span class="me-2">Status:</span>
+                        <span class="badge bg-success">Enabled</span>
+                    </div>
+            `;
+            
+            if (dnsService.forwarding.cache_size) {
+                html += `
+                    <div class="d-flex align-items-center mb-2">
+                        <span class="me-2">Cache Size:</span>
+                        <span class="subnet-badge">${dnsService.forwarding.cache_size}</span>
+                    </div>
+                `;
+            }
+            
+            if (dnsService.forwarding["allow-from"]) {
+                html += `
+                    <div class="d-flex align-items-center mb-2">
+                        <span class="me-2">Allow From:</span>
+                        <span class="subnet-badge">${dnsService.forwarding["allow-from"]}</span>
+                    </div>
+                `;
+            }
+            
+            if (dnsService.forwarding.listen_address || dnsService.forwarding["listen-address"]) {
+                const listenAddressKey = dnsService.forwarding.listen_address ? 'listen_address' : 'listen-address';
+                
+                html += `
+                    <div class="mb-2">
+                        <div class="mb-1">Listen Addresses:</div>
+                        <div class="row">
+                `;
+                
+                const listenAddresses = Array.isArray(dnsService.forwarding[listenAddressKey]) 
+                    ? dnsService.forwarding[listenAddressKey] 
+                    : [dnsService.forwarding[listenAddressKey]];
+                    
+                listenAddresses.forEach(addr => {
+                    html += `
+                        <div class="col-md-4 mb-2">
+                            <span class="subnet-badge">${addr}</span>
+                        </div>
+                    `;
+                });
+                
+                html += `
+                        </div>
+                    </div>
+                `;
+            }
+            
+            html += `</div>`;
+        }
+        
+        // Close the network item divs
+        html += `
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        dnsStatusElement.innerHTML = html;
+        
+        // Initialize search functionality
+        const dnsSearch = document.getElementById('dnsSearch');
+        if (dnsSearch) {
+            dnsSearch.addEventListener('input', function(e) {
+                const searchTerm = e.target.value.toLowerCase();
+                // Implement search logic for DNS entries
+                console.log("Searching DNS entries:", searchTerm);
+            });
+        }
+    }).catch(error => {
+        console.error("Error fetching DNS configuration:", error);
+        dnsStatusElement.innerHTML = `
+            <div class="p-4">
+                <div class="alert alert-danger mb-0">
+                    <i class="fas fa-exclamation-circle me-2"></i>
+                    Error loading DNS service: ${error.message}
+                </div>
+            </div>
+        `;
+    });
 }

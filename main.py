@@ -95,6 +95,13 @@ async def interfaces_view(request: Request):
         "active_page": "interfaces"
     })
 
+@app.get("/refresh-network", response_class=HTMLResponse)
+async def refresh_network(request: Request):
+    # Clear the cache to ensure fresh data is loaded
+    global config_cache
+    config_cache = None
+    return RedirectResponse(url="/")
+
 @app.get("/dhcp", response_class=HTMLResponse)
 async def dhcp_view(request: Request):
     return templates.TemplateResponse("dhcp.html", {
