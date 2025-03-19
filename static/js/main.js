@@ -704,19 +704,8 @@ function updateDashboard(data) {
         const services = countServices(data);
         updateElementText('serviceCount', services);
         
-        // Update network topology details
-        updateElementText('internetDetails', `WAN: ${wanInterface ? wanInterface.address : 'N/A'}`);
-        updateElementText('routerDetails', hostname);
-        
-        // Update LAN details from the LAN interface
-        if (lanInterface) {
-            updateElementText('lanDetails', `LAN: ${lanInterface.network || lanInterface.address || 'N/A'}`);
-        } else {
-            updateElementText('lanDetails', 'LAN: N/A');
-        }
-        
-        // Update other network interfaces
-        updateOtherNetworks(interfaces, wanInterface, lanInterface);
+        // Use new function to update network topology including VIFs
+        populateNetworkOverview(data);
         
         // Update DHCP Server information
         console.log("DHCP detection - Checking DHCP service data:", data.service);
@@ -1319,13 +1308,15 @@ class ThemeManager {
 
 // Initialize the Network tab with detailed interface and routing information
 function initNetworkTab(data) {
-    // Fill in network interfaces table
-    populateNetworkInterfaces(data);
+    console.log('Initializing Network tab with data:', data);
     
-    // Fill in network groups table
+    // Populate interfaces information using the updated function that handles VIFs
+    populateInterfacesInfo(data);
+    
+    // Populate network groups
     populateNetworkGroups(data);
     
-    // Fill in routing information
+    // Populate routing information
     populateRoutingInfo(data);
 }
 
@@ -4719,9 +4710,28 @@ function countAllInterfaces(data) {
     if (data.interfaces) {
         // Count all interface types
         const interfaceTypes = ['ethernet', 'loopback', 'bridge', 'vlan', 'tunnel', 'wireguard', 'openvpn', 'pppoe'];
+        
+        // First, count main interfaces
         interfaceTypes.forEach(type => {
             if (data.interfaces[type]) {
+                // Add number of interfaces of this type
                 count += Object.keys(data.interfaces[type]).length;
+                
+                // Now check for VIF interfaces in ethernet interfaces
+                if (type === 'ethernet') {
+                    const ethernetInterfaces = data.interfaces[type];
+                    
+                    // Loop through each ethernet interface
+                    Object.keys(ethernetInterfaces).forEach(intfName => {
+                        const intf = ethernetInterfaces[intfName];
+                        
+                        // Check if it has VIF subinterfaces
+                        if (intf.vif) {
+                            // Add the number of VIF interfaces
+                            count += Object.keys(intf.vif).length;
+                        }
+                    });
+                }
             }
         });
     }
@@ -4749,6 +4759,25 @@ function getInterfaces(data) {
                     'hw-id': iface['hw-id'] || '',
                     mtu: iface.mtu || ''
                 };
+                
+                // Check for VIF interfaces and add them
+                if (type === 'ethernet' && iface.vif) {
+                    Object.keys(iface.vif).forEach(vifId => {
+                        const vifIface = iface.vif[vifId];
+                        const vifName = `${name}.${vifId}`;
+                        
+                        interfaces[vifName] = {
+                            name: vifName,
+                            type: 'vif',
+                            address: vifIface.address || 'No IP',
+                            description: vifIface.description || `VIF ${vifId} on ${name}`,
+                            'hw-id': iface['hw-id'] || '',
+                            mtu: vifIface.mtu || iface.mtu || '',
+                            parent: name,
+                            vifId: vifId
+                        };
+                    });
+                }
             });
         }
     });
@@ -6002,4 +6031,267 @@ function initDnsService(forceRefresh = false) {
             </div>
         `;
     });
+}
+
+function populateInterfacesInfo(data) {
+    const interfaces = data.interfaces || {};
+    
+    // Find the interfaces-table-body element
+    const interfacesTableBody = document.getElementById('interfaces-table-body');
+    if (!interfacesTableBody) return;
+    
+    // Clear existing content
+    interfacesTableBody.innerHTML = '';
+    
+    // Count physical and virtual interfaces
+    let interfaceCount = 0;
+    
+    // Process each interface type (ethernet, loopback, etc.)
+    Object.keys(interfaces).forEach(intfType => {
+        const interfacesOfType = interfaces[intfType] || {};
+        
+        // Process each interface of this type
+        Object.keys(interfacesOfType).forEach(intfName => {
+            const intf = interfacesOfType[intfName];
+            interfaceCount++;
+            
+            // Add a row for the primary interface
+            addInterfaceRow(interfacesTableBody, intfType, intfName, intf);
+            
+            // Check for and add VIF (Virtual Interface) entries
+            if (intf.vif) {
+                Object.keys(intf.vif).forEach(vifId => {
+                    const vifInterface = intf.vif[vifId];
+                    interfaceCount++;
+                    
+                    // Add a row for each VIF interface with proper formatting
+                    addInterfaceRow(interfacesTableBody, 'vif', `${intfName}.${vifId}`, vifInterface, intfName);
+                });
+            }
+        });
+    });
+    
+    // Update interface count badge
+    const interfacesCountElement = document.getElementById('interfaces-count');
+    if (interfacesCountElement) {
+        interfacesCountElement.textContent = interfaceCount;
+    }
+}
+
+// Helper function to add interface row to the table
+function addInterfaceRow(tableBody, intfType, intfName, intf, parentIntf = null) {
+    const row = document.createElement('tr');
+    
+    // Get interface details
+    const address = intf.address || 'No IP';
+    const description = intf.description || (parentIntf ? `VIF on ${parentIntf}` : '-');
+    const macAddress = intf['hw-id'] || '-';
+    const mtu = intf.mtu || '1500';
+    
+    // Create type label with appropriate styling
+    let typeLabel = '';
+    let typeClass = '';
+    
+    switch (intfType.toLowerCase()) {
+        case 'ethernet':
+            // Default to ETHERNET for ethernet interfaces without specific descriptions
+            typeLabel = 'ETHERNET';
+            typeClass = 'ethernet';
+            
+            // Only set as WAN or LAN if description explicitly indicates it
+            if (intf.description) {
+                const desc = intf.description.toLowerCase();
+                if (desc.includes('lan') || desc.includes('local')) {
+                    typeLabel = 'LAN';
+                    typeClass = 'lan';
+                } else if (desc.includes('wan') || desc.includes('mgmt') || desc.includes('external')) {
+                    typeLabel = 'WAN';
+                    typeClass = 'wan';
+                }
+            }
+            break;
+        case 'loopback':
+            typeLabel = 'LOOPBACK';
+            typeClass = 'loopback';
+            break;
+        case 'vif':
+            typeLabel = 'VIF';
+            typeClass = 'vif';
+            break;
+        default:
+            typeLabel = intfType.toUpperCase();
+            typeClass = intfType.toLowerCase();
+    }
+    
+    // Set HTML for the row
+    row.innerHTML = `
+        <td>${intfName}</td>
+        <td>${description}</td>
+        <td>${address}</td>
+        <td>${macAddress}</td>
+        <td>${mtu}</td>
+        <td>
+            <span class="badge rounded-pill ${typeClass}">${typeLabel}</span>
+        </td>
+    `;
+    
+    // Add a visual indication for VIF interfaces
+    if (intfType === 'vif') {
+        row.classList.add('vif-interface');
+        row.cells[0].innerHTML = `<i class="bi bi-diagram-3 me-1 text-info"></i> ${intfName}`;
+    }
+    
+    // Add the row to the table
+    tableBody.appendChild(row);
+}
+
+function populateNetworkOverview(data) {
+    const interfaces = data.interfaces || {};
+    
+    // Get elements
+    const internetDetails = document.getElementById('internetDetails');
+    const routerDetails = document.getElementById('routerDetails');
+    const lanDetails = document.getElementById('lanDetails');
+    const otherNetworksContainer = document.getElementById('other-networks-container');
+    
+    // Clear the other networks container
+    if (otherNetworksContainer) {
+        otherNetworksContainer.innerHTML = '';
+    }
+    
+    // Find hostname
+    const hostname = data.system?.['host-name'] || 'VyOS Router';
+    
+    // Find WAN and LAN interfaces
+    let wanInterface = null;
+    let lanInterface = null;
+    let otherInterfaces = [];
+    let vifInterfaces = [];
+    
+    // Process each interface type
+    Object.keys(interfaces).forEach(intfType => {
+        const interfacesOfType = interfaces[intfType] || {};
+        
+        // Process each interface of this type
+        Object.keys(interfacesOfType).forEach(intfName => {
+            const intf = interfacesOfType[intfName];
+            const address = intf.address || '';
+            const description = intf.description || '';
+            
+            // Determine if this is WAN or LAN
+            if (description && (description.toLowerCase().includes('wan') || 
+                description.toLowerCase().includes('mgmt') || 
+                description.toLowerCase().includes('external'))) {
+                wanInterface = { name: intfName, address, description };
+            } else if (description && (description.toLowerCase().includes('lan') || 
+                      description.toLowerCase().includes('local'))) {
+                lanInterface = { name: intfName, address, description };
+            } else if (intfName !== 'lo' && address) {
+                otherInterfaces.push({ name: intfName, address, description });
+            }
+            
+            // Check for VIF interfaces
+            if (intf.vif) {
+                Object.keys(intf.vif).forEach(vifId => {
+                    const vifInterface = intf.vif[vifId];
+                    const vifAddress = vifInterface.address || '';
+                    const vifDescription = vifInterface.description || `VIF ${vifId} on ${intfName}`;
+                    
+                    vifInterfaces.push({
+                        name: `${intfName}.${vifId}`,
+                        address: vifAddress,
+                        description: vifDescription,
+                        parent: intfName,
+                        vifId: vifId
+                    });
+                    
+                    // Optionally categorize VIF interfaces as LAN/WAN/Other based on address pattern
+                    if (vifAddress.startsWith('77.')) {
+                        // This is likely a WAN VIF
+                        if (!wanInterface) {
+                            wanInterface = { 
+                                name: `${intfName}.${vifId}`, 
+                                address: vifAddress, 
+                                description: vifDescription,
+                                isVif: true 
+                            };
+                        }
+                    } else if (vifAddress.startsWith('192.168.')) {
+                        // This is likely a LAN VIF
+                        if (!lanInterface) {
+                            lanInterface = { 
+                                name: `${intfName}.${vifId}`, 
+                                address: vifAddress, 
+                                description: vifDescription,
+                                isVif: true 
+                            };
+                        }
+                    }
+                });
+            }
+        });
+    });
+    
+    // Update interface details in the network overview
+    if (internetDetails) {
+        internetDetails.textContent = wanInterface ? `WAN: ${wanInterface.address}` : 'No WAN interface detected';
+    }
+    
+    if (routerDetails) {
+        routerDetails.textContent = hostname;
+    }
+    
+    if (lanDetails) {
+        lanDetails.textContent = lanInterface ? `LAN: ${lanInterface.address}` : 'No LAN interface detected';
+    }
+    
+    // Add other interfaces to the overview
+    if (otherNetworksContainer) {
+        // Add VIF interfaces
+        vifInterfaces.forEach(vif => {
+            // Skip VIFs that are already shown as main WAN/LAN
+            if ((wanInterface && wanInterface.isVif && wanInterface.name === vif.name) ||
+                (lanInterface && lanInterface.isVif && lanInterface.name === vif.name)) {
+                return;
+            }
+            
+            const vifNode = document.createElement('div');
+            vifNode.className = 'network-node other-network mb-2';
+            vifNode.innerHTML = `
+                <div class="d-flex align-items-center">
+                    <div class="node-icon me-2"><i class="bi bi-diagram-3 text-info"></i></div>
+                    <div>
+                        <div class="node-label">${vif.description}</div>
+                        <div class="node-details">${vif.name}: ${vif.address}</div>
+                    </div>
+                </div>
+            `;
+            otherNetworksContainer.appendChild(vifNode);
+        });
+        
+        // Add other physical interfaces
+        otherInterfaces.forEach(intf => {
+            const otherNode = document.createElement('div');
+            otherNode.className = 'network-node other-network mb-2';
+            otherNode.innerHTML = `
+                <div class="d-flex align-items-center">
+                    <div class="node-icon me-2"><i class="bi bi-ethernet"></i></div>
+                    <div>
+                        <div class="node-label">${intf.description || intf.name}</div>
+                        <div class="node-details">${intf.name}: ${intf.address}</div>
+                    </div>
+                </div>
+            `;
+            otherNetworksContainer.appendChild(otherNode);
+        });
+        
+        // If no other interfaces, show a message
+        if (otherInterfaces.length === 0 && vifInterfaces.length === 0) {
+            otherNetworksContainer.innerHTML = `
+                <div class="text-muted text-center py-3">
+                    <i class="bi bi-info-circle"></i> No additional networks configured
+                </div>
+            `;
+        }
+    }
 }

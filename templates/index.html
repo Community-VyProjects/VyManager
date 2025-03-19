@@ -229,9 +229,6 @@
                     <div>
                         <i class="bi bi-info-circle me-2"></i> Detailed network interface configuration
                     </div>
-                    <a href="/refresh-network" class="btn btn-sm btn-outline-primary">
-                        <i class="bi bi-arrow-clockwise"></i> Refresh Network Data
-                    </a>
                 </div>
                 
                 <!-- Network Interfaces Section -->
@@ -259,6 +256,13 @@
                                     </tr>
                                 </tbody>
                             </table>
+                        </div>
+                        
+                        <div class="text-muted small mt-2 ps-2">
+                            <div><i class="bi bi-diagram-3 text-info me-1"></i> <span class="badge rounded-pill vif">VIF</span> - Virtual interfaces (VLAN subinterfaces)</div>
+                            <div><span class="badge rounded-pill wan">WAN</span> - External/Internet-facing interfaces (determined by "WAN", "MGMT", or "External" in description)</div>
+                            <div><span class="badge rounded-pill lan">LAN</span> - Internal network interfaces (determined by "LAN" or "Local" in description)</div>
+                            <div><span class="badge rounded-pill ethernet">ETHERNET</span> - General ethernet interfaces (without specific LAN/WAN designation)</div>
                         </div>
                     </div>
                 </div>

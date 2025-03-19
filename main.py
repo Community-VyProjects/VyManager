@@ -462,53 +462,6 @@ def parse_dhcp_leases(leases_string):
     print(f"Parsed {len(leases)} leases across {len(subnet_leases)} subnets/pools")
     return subnet_leases if subnet_leases else {"LAN": []}
 
-# Clear cache endpoint
-@app.get("/clearcache")
-async def clear_cache():
-    global config_cache
-    config_cache = None
-    return RedirectResponse(url="/")
-
-@app.get("/api/dhcp_leases")
-async def get_dhcp_leases():
-    try:
-        # Prepare data for VyOS API
-        data = {
-            "op": "showDhcpServerLeases"
-        }
-        
-        # Configure client with proper cert validation
-        client_kwargs = {"timeout": 10.0}
-        
-        # Handle certificate verification based on settings
-        if TRUST_SELF_SIGNED:
-            client_kwargs["verify"] = False
-        elif CERT_PATH:
-            client_kwargs["verify"] = CERT_PATH
-        
-        async with httpx.AsyncClient(**client_kwargs) as client:
-            response = await client.post(
-                VYOS_API_URL,
-                files={
-                    'data': (None, json.dumps(data)),
-                    'key': (None, API_KEY)
-                }
-            )
-            
-            if response.status_code != 200:
-                return {
-                    "success": False,
-                    "error": f"API error: {response.status_code}"
-                }
-            
-            result = response.json()
-            return {
-                "success": True,
-                "data": result.get("data", [])
-            }
-            
-    except Exception as e:
-        return {"success": False, "error": str(e)}
 
 if __name__ == "__main__":
     import uvicorn

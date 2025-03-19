@@ -2933,3 +2933,74 @@ body.light-mode .bgp-networks-card table td,
 body.light-mode .table-responsive table td {
     color: #333 !important;
 }
+
+/* VIF Interface Styling */
+.vif-interface {
+    background-color: rgba(13, 110, 253, 0.05) !important;
+}
+
+.vif-interface:hover {
+    background-color: rgba(13, 110, 253, 0.1) !important;
+}
+
+.vif-interface td {
+    padding-left: 0.5rem !important;
+}
+
+/* Interface type badges */
+.badge.wan {
+    background-color: #dc3545 !important;
+    color: white !important;
+}
+
+.badge.lan {
+    background-color: #28a745 !important;
+    color: white !important;
+}
+
+.badge.ethernet {
+    background-color: #0d6efd !important;
+    color: white !important;
+}
+
+.badge.loopback {
+    background-color: #6c757d !important;
+    color: white !important;
+}
+
+/* VIF Interface Styling - Dark Mode */
+.vif-interface {
+    background-color: rgba(13, 110, 253, 0.1) !important;
+}
+
+.vif-interface:hover {
+    background-color: rgba(13, 110, 253, 0.2) !important;
+}
+
+.vif-interface td i {
+    color: #0d6efd !important;
+}
+
+body.light-mode .vif-interface {
+    background-color: rgba(13, 110, 253, 0.05) !important;
+}
+
+body.light-mode .vif-interface:hover {
+    background-color: rgba(13, 110, 253, 0.1) !important;
+}
+
+/* Badge colors for dark mode */
+body.dark-mode .badge.ethernet {
+    background-color: #0d6efd !important;
+    color: white !important;
+}
+
+body.dark-mode .badge.vif {
+    background-color: #6610f2 !important;
+    color: white !important;
+}
+
+.badge.vif {
+    background-color: #6610f2 !important;
+    color: white !important;
+}
