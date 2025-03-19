@@ -2238,7 +2238,10 @@ function updateNatFlowVisualization(data) {
     updateElementText('nat-translation-type', translationType);
     
     // Determine public IP for detail message
-    const publicIpWithoutMask = publicIp.split('/')[0];
+    let publicIpWithoutMask = 'unknown';
+    if (typeof publicIp === 'string' && publicIp) {
+        publicIpWithoutMask = publicIp.split('/')[0];
+    }
     updateElementText('nat-translation-detail', `Internal clients appear as ${publicIpWithoutMask} to external servers`);
 }
 
@@ -4858,6 +4861,9 @@ function getLanInterface(interfaces, data) {
 // Check if an IP address is private
 function isPrivateIP(ip) {
     if (!ip) return false;
+    
+    // Make sure ip is a string
+    if (typeof ip !== 'string') return false;
     
     // Extract IP address without CIDR notation
     const addr = ip.split('/')[0];
