@@ -92,8 +92,22 @@ async def get_routes():
                         if isinstance(json_data, dict):
                             # Process each prefix and its routes
                             for prefix, prefix_routes in json_data.items():
+                                # Debug logging
+                                print(f"Processing prefix: {prefix}")
+                                print(f"Type of prefix_routes: {type(prefix_routes)}")
+                                
+                                # Ensure prefix_routes is a list
+                                if not isinstance(prefix_routes, list):
+                                    print(f"Warning: prefix_routes is not a list for prefix {prefix}")
+                                    continue
+                                
                                 # Each prefix can have multiple route entries
                                 for route in prefix_routes:
+                                    # Ensure route is a dictionary
+                                    if not isinstance(route, dict):
+                                        print(f"Warning: route is not a dictionary: {route}")
+                                        continue
+                                    
                                     # Get the VRF name from the route, default to "default" if not specified
                                     vrf_name = route.get("vrfName", "default")
                                     
