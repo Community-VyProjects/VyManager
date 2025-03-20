@@ -67,14 +67,14 @@
                                     <span>Show All</span>
                                 </button>
                                 
-                                <button id="toggle-advanced-filter" class="btn btn-outline-secondary routing-action-btn" type="button" aria-expanded="false">
+                                <button id="toggle-advanced-filter" class="btn btn-outline-secondary routing-action-btn" type="button" data-bs-toggle="collapse" data-bs-target="#advanced-filter-panel" aria-expanded="false" aria-controls="advanced-filter-panel">
                                     <i class="bi bi-filter"></i>
                                     <span>Advanced Filter</span>
                                 </button>
                             </div>
                             
                             <!-- Advanced Filter Panel -->
-                            <div id="advanced-filter-panel" class="d-none">
+                            <div class="collapse" id="advanced-filter-panel">
                                 <div class="card mb-3">
                                     <div class="card-header">
                                         <i class="bi bi-funnel-fill me-2"></i>
@@ -97,12 +97,20 @@
                                                 </select>
                                             </div>
                                             <div class="col-md-3 mb-3">
-                                                <label for="filter-network" class="form-label">Network Prefix</label>
-                                                <input type="text" id="filter-network" class="form-control" placeholder="e.g. 192.168">
+                                                <label for="filter-status" class="form-label">Status</label>
+                                                <select id="filter-status" class="form-select">
+                                                    <option value="">All Status</option>
+                                                    <option value="active">Active</option>
+                                                    <option value="inactive">Inactive</option>
+                                                </select>
                                             </div>
                                             <div class="col-md-3 mb-3">
-                                                <label for="filter-nexthop" class="form-label">Next Hop</label>
-                                                <input type="text" id="filter-nexthop" class="form-control" placeholder="e.g. 10.0.0.1">
+                                                <label for="filter-prefix" class="form-label">Network Prefix</label>
+                                                <input type="text" id="filter-prefix" class="form-control" placeholder="e.g. 192.168">
+                                            </div>
+                                            <div class="col-md-3 mb-3">
+                                                <label for="filter-next-hop" class="form-label">Next Hop</label>
+                                                <input type="text" id="filter-next-hop" class="form-control" placeholder="e.g. 10.0.0.1">
                                             </div>
                                         </div>
                                         <div class="text-end">

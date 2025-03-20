@@ -90,17 +90,22 @@ class RoutingTable {
         const advancedFilterPanel = document.getElementById('advanced-filter-panel');
         if (toggleAdvancedFilter && advancedFilterPanel) {
             toggleAdvancedFilter.addEventListener('click', () => {
-                advancedFilterPanel.classList.toggle('d-none');
-                const isVisible = !advancedFilterPanel.classList.contains('d-none');
-                toggleAdvancedFilter.innerHTML = isVisible ? 
-                    '<i class="bi bi-funnel-fill me-1"></i> Hide Filters' : 
-                    '<i class="bi bi-filter me-1"></i> Advanced Filters';
-                    
-                // Update filter dropdowns when opening
-                if (isVisible) {
+                // Toggle the collapse using Bootstrap's Collapse API
+                const bsCollapse = new bootstrap.Collapse(advancedFilterPanel, {
+                    toggle: true
+                });
+                
+                // Update the button text based on the panel state
+                toggleAdvancedFilter.addEventListener('shown.bs.collapse', () => {
+                    toggleAdvancedFilter.innerHTML = '<i class="bi bi-funnel-fill me-1"></i> Hide Filters';
+                    // Update filter dropdowns when opening
                     this.populateInterfaceFilter();
                     this.populateProtocolFilter();
-                }
+                });
+                
+                toggleAdvancedFilter.addEventListener('hidden.bs.collapse', () => {
+                    toggleAdvancedFilter.innerHTML = '<i class="bi bi-filter me-1"></i> Advanced Filters';
+                });
             });
         }
         
@@ -108,7 +113,7 @@ class RoutingTable {
         const applyFilterButton = document.getElementById('apply-filters');
         if (applyFilterButton) {
             applyFilterButton.addEventListener('click', () => {
-                this.renderRoutes();
+                this.applyAdvancedFilters();
             });
         }
         
@@ -121,23 +126,23 @@ class RoutingTable {
         }
         
         // Individual filter inputs - apply on enter key
-        ['filter-network', 'filter-nexthop'].forEach(id => {
+        ['filter-prefix', 'filter-next-hop'].forEach(id => {
             const element = document.getElementById(id);
             if (element) {
                 element.addEventListener('keyup', (event) => {
                     if (event.key === 'Enter') {
-                        this.renderRoutes();
+                        this.applyAdvancedFilters();
                     }
                 });
             }
         });
         
         // Dropdown filters - apply on change
-        ['filter-protocol', 'filter-interface'].forEach(id => {
+        ['filter-protocol', 'filter-interface', 'filter-status'].forEach(id => {
             const element = document.getElementById(id);
             if (element) {
                 element.addEventListener('change', () => {
-                    this.renderRoutes();
+                    this.applyAdvancedFilters();
                 });
             }
         });
