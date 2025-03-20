@@ -407,40 +407,111 @@ def process_routes_data(json_data):
     """Process the parsed JSON data into our routes structure."""
     routes_by_vrf = {}
     
-    # Check if the data is already in VRF format
-    if isinstance(json_data, dict) and any(isinstance(v, dict) for v in json_data.values()):
-        # Data is organized by VRFs
-        for vrf_name, vrf_data in json_data.items():
-            routes_by_vrf[vrf_name] = []
-            if isinstance(vrf_data, dict):
-                # VRF contains prefix-organized routes
-                for prefix, prefix_routes in vrf_data.items():
-                    if isinstance(prefix_routes, list):
-                        for route in prefix_routes:
-                            if isinstance(route, dict):
-                                processed_route = process_single_route(prefix, route)
-                                routes_by_vrf[vrf_name].append(processed_route)
-    else:
-        # Try to handle the data as a flat structure
-        try:
-            # Attempt to process as a flat list of routes
-            default_vrf = []
-            for item in (json_data if isinstance(json_data, list) else [json_data]):
-                if isinstance(item, dict):
-                    vrf_name = item.get("vrfName", "default")
-                    if vrf_name not in routes_by_vrf:
-                        routes_by_vrf[vrf_name] = []
-                    
-                    prefix = item.get("prefix", item.get("network", ""))
-                    processed_route = process_single_route(prefix, item)
-                    routes_by_vrf[vrf_name].append(processed_route)
-            
-            if not routes_by_vrf and default_vrf:
-                routes_by_vrf["default"] = default_vrf
-        except Exception as e:
-            print(f"Error processing flat structure: {str(e)}")
+    print(f"Processing data of type: {type(json_data)}")
     
-    return routes_by_vrf
+    # Case 1: Data is a dictionary with VRFs as top level keys
+    if isinstance(json_data, dict):
+        # Check if this is VRF-organized or prefix-organized data
+        sample_value = next(iter(json_data.values())) if json_data else None
+        is_vrf_organized = isinstance(sample_value, dict) and any(isinstance(v, list) for v in sample_value.values())
+        
+        if is_vrf_organized:
+            print("Processing VRF-organized data structure")
+            # Handle VRF-organized data
+            for vrf_name, vrf_data in json_data.items():
+                if not isinstance(vrf_data, dict):
+                    print(f"Warning: VRF {vrf_name} data is not a dictionary")
+                    continue
+                
+                routes_by_vrf[vrf_name] = []
+                for prefix, prefix_routes in vrf_data.items():
+                    if not isinstance(prefix_routes, list):
+                        print(f"Warning: routes for prefix {prefix} in VRF {vrf_name} is not a list")
+                        continue
+                    
+                    for route in prefix_routes:
+                        if isinstance(route, dict):
+                            processed_route = process_single_route(prefix, route)
+                            routes_by_vrf[vrf_name].append(processed_route)
+        else:
+            print("Processing prefix-organized flat structure")
+            # Handle flat structure where routes are organized by prefix
+            total_prefixes = len(json_data)
+            processed_prefixes = 0
+            
+            for prefix, prefix_routes in json_data.items():
+                if isinstance(prefix_routes, list):
+                    for route in prefix_routes:
+                        if isinstance(route, dict):
+                            vrf_name = route.get("vrfName", "default")
+                            if vrf_name not in routes_by_vrf:
+                                routes_by_vrf[vrf_name] = []
+                            processed_route = process_single_route(prefix, route)
+                            routes_by_vrf[vrf_name].append(processed_route)
+                
+                processed_prefixes += 1
+                if processed_prefixes % 10 == 0:
+                    print(f"Processed {processed_prefixes}/{total_prefixes} prefixes")
+    
+    # Case 2: Data is a list of route objects
+    elif isinstance(json_data, list):
+        print("Processing list of route objects")
+        for route in json_data:
+            if isinstance(route, dict):
+                prefix = route.get("prefix", route.get("network", ""))
+                vrf_name = route.get("vrfName", "default")
+                if vrf_name not in routes_by_vrf:
+                    routes_by_vrf[vrf_name] = []
+                processed_route = process_single_route(prefix, route)
+                routes_by_vrf[vrf_name].append(processed_route)
+    
+    # Case 3: Data is a string that needs to be parsed line by line
+    elif isinstance(json_data, str):
+        print("Processing string data line by line")
+        lines = json_data.strip().split('\n')
+        for line in lines:
+            if not line.strip():
+                continue
+            try:
+                line_data = json.loads(line)
+                if isinstance(line_data, dict):
+                    # Process each line as a separate route or group of routes
+                    for prefix, routes in line_data.items():
+                        if isinstance(routes, list):
+                            for route in routes:
+                                if isinstance(route, dict):
+                                    vrf_name = route.get("vrfName", "default")
+                                    if vrf_name not in routes_by_vrf:
+                                        routes_by_vrf[vrf_name] = []
+                                    processed_route = process_single_route(prefix, route)
+                                    routes_by_vrf[vrf_name].append(processed_route)
+            except json.JSONDecodeError as e:
+                print(f"Warning: Could not parse line: {line[:100]}...")
+                continue
+    
+    # Log the results
+    if routes_by_vrf:
+        print("\nProcessing Results:")
+        for vrf, routes in routes_by_vrf.items():
+            print(f"VRF {vrf}: processed {len(routes)} routes")
+            if routes:
+                sample_size = min(3, len(routes))
+                print(f"Sample prefixes in {vrf}: {[r['prefix'] for r in routes[:sample_size]]}")
+                # Log a sample route in detail for verification
+                print(f"Sample route details from {vrf}:")
+                print(json.dumps(routes[0], indent=2))
+    else:
+        print("Warning: No routes were processed")
+    
+    # Sort VRFs to ensure consistent order
+    sorted_vrfs = {}
+    if "default" in routes_by_vrf:
+        sorted_vrfs["default"] = routes_by_vrf["default"]
+    for vrf in sorted(routes_by_vrf.keys()):
+        if vrf != "default":
+            sorted_vrfs[vrf] = routes_by_vrf[vrf]
+    
+    return sorted_vrfs
 
 def process_single_route(prefix, route_data):
     """Process a single route entry."""
@@ -450,15 +521,17 @@ def process_single_route(prefix, route_data):
         "protocol": route_data.get("protocol", "unknown"),
         "selected": route_data.get("selected", False),
         "installed": route_data.get("installed", False),
-        "nexthops": []
+        "nexthops": [],
+        "prefixLen": route_data.get("prefixLen", 0),  # Add prefix length
+        "distance": route_data.get("distance", 0),
+        "metric": route_data.get("metric", 0),
+        "uptime": route_data.get("uptime", ""),
+        "table": route_data.get("table", 0),
+        "internalStatus": route_data.get("internalStatus", 0),
+        "internalFlags": route_data.get("internalFlags", 0)
     }
     
-    # Add optional fields
-    for field in ["distance", "metric", "uptime", "destSelected", "internalStatus", "internalFlags"]:
-        if field in route_data:
-            processed_route[field] = route_data[field]
-    
-    # Process nexthops
+    # Process nexthops with more detailed information
     if "nexthops" in route_data and isinstance(route_data["nexthops"], list):
         for nexthop in route_data["nexthops"]:
             if isinstance(nexthop, dict):
@@ -468,7 +541,11 @@ def process_single_route(prefix, route_data):
                     "active": nexthop.get("active", False),
                     "weight": nexthop.get("weight", 1),
                     "directlyConnected": nexthop.get("directlyConnected", False),
-                    "recursive": nexthop.get("recursive", False)
+                    "recursive": nexthop.get("recursive", False),
+                    "fib": nexthop.get("fib", False),
+                    "flags": nexthop.get("flags", 0),
+                    "afi": nexthop.get("afi", ""),
+                    "interfaceIndex": nexthop.get("interfaceIndex", 0)
                 }
                 processed_route["nexthops"].append(processed_nexthop)
     
