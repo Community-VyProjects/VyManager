@@ -1,0 +1,602 @@
+/* Network Routing Table Styles */
+
+.routing-container {
+    margin-bottom: 2rem;
+}
+
+.route-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.route-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.route-search {
+    max-width: 300px;
+}
+
+.vrf-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.vrf-pills {
+    background-color: var(--bs-tertiary-bg);
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+}
+
+.vrf-selector {
+    margin: 0.25rem;
+    transition: all 0.2s ease-in-out;
+}
+
+.vrf-selector:hover {
+    transform: translateY(-2px);
+}
+
+.route-tooltip {
+    background-color: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.25rem;
+    padding: 0.5rem;
+    box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.1);
+    max-width: 300px;
+}
+
+.position-relative:hover .route-tooltip {
+    display: block;
+}
+
+/* Route details modal */
+.route-details th {
+    width: 30%;
+}
+
+/* Highlight active connections */
+tr.table-success td {
+    background-color: rgba(var(--bs-success-rgb), 0.1);
+}
+
+/* Interface type badges */
+.badge.vif {
+    background-color: var(--bs-secondary);
+    color: white;
+}
+
+.badge.wan {
+    background-color: var(--bs-danger);
+    color: white;
+}
+
+.badge.lan {
+    background-color: var(--bs-success);
+    color: white;
+}
+
+.badge.ethernet {
+    background-color: #0dcaf0;
+    color: #000;
+}
+
+.badge.loopback {
+    background-color: #20c997;
+    color: #000;
+}
+
+/* Protocol badges */
+.badge.bgp {
+    background-color: #fd7e14;
+}
+
+.badge.connected {
+    background-color: #198754;
+}
+
+.badge.static {
+    background-color: #6f42c1;
+}
+
+.badge.ospf {
+    background-color: #0d6efd;
+}
+
+.badge.rip {
+    background-color: #dc3545;
+}
+
+/* Network routing statistics */
+.routing-stat {
+    background-color: var(--bs-tertiary-bg);
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    border-radius: 0.25rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.routing-stat:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 0.5rem 1rem rgba(var(--bs-body-color-rgb), 0.15);
+}
+
+.routing-stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.routing-stat-label {
+    font-size: 0.875rem;
+    color: var(--bs-secondary-color);
+}
+
+/* Protocol distribution */
+.protocol-distribution {
+    margin-top: 1.5rem;
+}
+
+.protocol-bar {
+    height: 2rem;
+    display: flex;
+    margin-bottom: 1rem;
+    border-radius: 0.25rem;
+    overflow: hidden;
+}
+
+.protocol-bar-segment {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 0.8rem;
+    font-weight: bold;
+    transition: width 0.5s ease;
+}
+
+.protocol-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.protocol-legend-item {
+    display: flex;
+    align-items: center;
+    font-size: 0.875rem;
+}
+
+.protocol-legend-color {
+    width: 1rem;
+    height: 1rem;
+    border-radius: 0.25rem;
+    margin-right: 0.5rem;
+}
+
+/* Dark mode adjustments */
+[data-bs-theme="dark"] {
+    --interface-vif-color: #6c757d;
+    --interface-wan-color: #dc3545;
+    --interface-lan-color: #198754;
+    --interface-ethernet-color: #0d6efd;
+    --interface-loopback-color: #6f42c1;
+    
+    --protocol-bgp-color: #0d6efd;
+    --protocol-connected-color: #198754;
+    --protocol-static-color: #6c757d;
+    --protocol-ospf-color: #0dcaf0;
+    --protocol-rip-color: #ffc107;
+    --route-tooltip-bg: var(--bs-dark-bg-subtle, #2b3035);
+    --route-tooltip-border: var(--bs-border-color-translucent, #495057);
+}
+
+[data-bs-theme="dark"] .routing-stat {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-color: var(--bs-border-color);
+}
+
+[data-bs-theme="dark"] .route-tooltip {
+    background-color: var(--bs-dark);
+    border-color: var(--bs-dark-border-subtle);
+    box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.3);
+}
+
+[data-bs-theme="dark"] tr.table-success td {
+    background-color: rgba(25, 135, 84, 0.2);
+}
+
+[data-bs-theme="dark"] .vrf-pills {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Make sure all badges are visible in dark mode */
+[data-bs-theme="dark"] .badge {
+    color: white;
+}
+
+[data-bs-theme="dark"] .badge.rip {
+    color: #000;
+}
+
+/* Responsiveness */
+@media (max-width: 767.98px) {
+    .route-actions {
+        flex-direction: column;
+        align-items: flex-end;
+    }
+    
+    .route-search {
+        max-width: 100%;
+        width: 100%;
+    }
+    
+    #vrf-heading {
+        font-size: 1rem;
+    }
+}
+
+/* Advanced Filter Panel */
+#advancedFilterPanel {
+    background-color: var(--bs-tertiary-bg);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--bs-border-color);
+}
+
+.filter-row {
+    margin-bottom: 1rem;
+}
+
+.filter-heading {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: var(--bs-body-color);
+}
+
+.filter-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+/* Interface Badges */
+.badge.tunnel {
+    background-color: #6610f2;
+    color: #fff;
+}
+
+.badge.vlan {
+    background-color: #0d6efd;
+    color: #fff;
+}
+
+.badge.port-channel {
+    background-color: #fd7e14;
+    color: #000;
+}
+
+/* Action buttons in the routing table */
+.route-details-btn {
+    transition: all 0.2s;
+}
+
+.route-details-btn:hover {
+    transform: scale(1.1);
+}
+
+/* Top controls */
+.routing-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    align-items: center;
+}
+
+.routing-action-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.routing-action-btn i {
+    font-size: 1.1rem;
+}
+
+/* Route count display */
+#route-count {
+    padding: 0.5rem 0;
+    font-size: 0.9rem;
+    color: var(--bs-secondary-color);
+}
+
+/* Make routing table responsive */
+@media (max-width: 768px) {
+    .table-responsive {
+        border: 0;
+    }
+    
+    .routing-controls {
+        flex-direction: column;
+    }
+    
+    .filter-row {
+        flex-direction: column;
+    }
+    
+    .filter-row > div {
+        margin-bottom: 0.5rem;
+    }
+}
+
+/* Dark mode adjustments */
+[data-bs-theme="dark"] .routing-stat:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.3);
+}
+
+[data-bs-theme="dark"] .badge.ethernet,
+[data-bs-theme="dark"] .badge.loopback,
+[data-bs-theme="dark"] .badge.port-channel {
+    color: #212529;
+}
+
+/* Dark mode table adjustments */
+[data-bs-theme="dark"] .table {
+    color: var(--bs-body-color);
+    border-color: var(--bs-border-color);
+}
+
+[data-bs-theme="dark"] .table-hover > tbody > tr:hover {
+    color: var(--bs-body-color);
+    background-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+/* Light mode hover enhancement */
+.table-hover > tbody > tr:hover {
+    background-color: rgba(0, 0, 0, 0.075) !important;
+    transition: background-color 0.15s ease-in-out;
+}
+
+[data-bs-theme="dark"] .table-success {
+    --bs-table-bg: rgba(25, 135, 84, 0.2);
+    --bs-table-color: var(--bs-body-color);
+    color: var(--bs-body-color);
+}
+
+[data-bs-theme="dark"] .table-secondary {
+    --bs-table-bg: rgba(108, 117, 125, 0.2);
+    --bs-table-color: var(--bs-body-color);
+    color: var(--bs-body-color);
+}
+
+/* Add hover styles for different table row states */
+[data-bs-theme="dark"] .table-hover > tbody > tr.table-success:hover {
+    background-color: rgba(25, 135, 84, 0.3) !important;
+}
+
+[data-bs-theme="dark"] .table-hover > tbody > tr.table-secondary:hover {
+    background-color: rgba(108, 117, 125, 0.3) !important;
+}
+
+/* Light mode row state hover styles */
+.table-hover > tbody > tr.table-success:hover {
+    background-color: rgba(25, 135, 84, 0.2) !important;
+}
+
+.table-hover > tbody > tr.table-secondary:hover {
+    background-color: rgba(108, 117, 125, 0.2) !important;
+}
+
+/* Modal styling for dark mode */
+[data-bs-theme="dark"] .modal-content {
+    background-color: var(--bs-body-bg);
+    border-color: var(--bs-border-color);
+}
+
+[data-bs-theme="dark"] .modal-header {
+    border-bottom-color: var(--bs-border-color);
+}
+
+[data-bs-theme="dark"] .modal-footer {
+    border-top-color: var(--bs-border-color);
+}
+
+/* Back to Network button */
+.back-to-network {
+    transition: all 0.2s ease-in-out;
+    border-width: 2px;
+}
+
+.back-to-network:hover {
+    transform: translateX(-5px);
+    box-shadow: 0 0.25rem 0.5rem rgba(var(--bs-primary-rgb), 0.25);
+}
+
+@media (max-width: 768px) {
+    .back-to-network {
+        margin-top: 1rem;
+        width: 100%;
+    }
+}
+
+/* Interface badges */
+.interface-badge {
+    font-size: 0.8rem;
+    font-weight: normal;
+    padding: 0.25em 0.5em;
+    border-radius: 0.25em;
+    display: inline-block;
+}
+
+.interface-ethernet {
+    background-color: var(--bs-blue);
+    color: #fff;
+}
+
+.interface-loopback {
+    background-color: var(--bs-teal);
+    color: #000;
+}
+
+.interface-tunnel {
+    background-color: var(--bs-purple);
+    color: #fff;
+}
+
+.interface-vlan {
+    background-color: var(--bs-pink);
+    color: #fff;
+}
+
+.interface-serial {
+    background-color: var(--bs-orange);
+    color: #000;
+}
+
+.interface-port-channel {
+    background-color: var(--bs-indigo);
+    color: #fff;
+}
+
+.interface-unknown {
+    background-color: var(--bs-secondary);
+    color: #fff;
+}
+
+/* Dark mode interface badge adjustments */
+[data-bs-theme="dark"] .interface-ethernet,
+[data-bs-theme="dark"] .interface-loopback,
+[data-bs-theme="dark"] .interface-serial {
+    color: var(--bs-dark);
+}
+
+/* Nexthop rows styling */
+.nexthop-row {
+    background-color: rgba(var(--bs-tertiary-bg-rgb), 0.5);
+}
+
+.nexthop-row td {
+    border-top: none !important;
+    padding-top: 0.4rem;
+    padding-bottom: 0.4rem;
+}
+
+/* VRF Tabs */
+.vrf-tab {
+    margin-right: 0.5rem;
+    margin-bottom: 0.5rem;
+    border: 1px solid var(--bs-border-color);
+    background-color: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    transition: all 0.2s ease;
+}
+
+.vrf-tab:hover {
+    background-color: var(--bs-tertiary-bg);
+    border-color: var(--bs-primary);
+}
+
+.vrf-tab.active {
+    background-color: var(--bs-primary);
+    border-color: var(--bs-primary);
+    color: #fff;
+}
+
+/* VRF protocol stats */
+.vrf-protocol-stat {
+    display: inline-flex;
+    align-items: center;
+    margin-right: 1rem;
+    margin-top: 0.5rem;
+}
+
+.protocol-count {
+    margin-left: 0.25rem;
+    font-size: 0.875rem;
+    color: var(--bs-secondary-color);
+}
+
+/* Additional Interface Types */
+.interface-bridge {
+    background-color: var(--bs-cyan);
+    color: #000;
+}
+
+.interface-ppp {
+    background-color: var(--bs-green);
+    color: #fff;
+}
+
+.interface-wireless {
+    background-color: var(--bs-yellow);
+    color: #000;
+}
+
+.interface-vxlan {
+    background-color: var(--bs-purple);
+    color: #fff;
+}
+
+/* Dark mode adjustments */
+[data-bs-theme="dark"] .interface-bridge,
+[data-bs-theme="dark"] .interface-wireless {
+    color: var(--bs-dark);
+}
+
+/* Protocol badge styles */
+.protocol-badge {
+    font-size: 0.8rem;
+    font-weight: normal;
+    padding: 0.25em 0.75em;
+    border-radius: 0.25em;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Additional color classes for badges */
+.bg-teal {
+    background-color: #20c997;
+    color: white;
+}
+
+.bg-indigo {
+    background-color: #6610f2;
+    color: white;
+}
+
+.bg-purple {
+    background-color: #6f42c1;
+    color: white;
+}
+
+/* Responsive styles for mobile */
+@media (max-width: 576px) {
+    .routing-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .routing-action-btn {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .interface-badge, .protocol-badge {
+        display: inline-block;
+        margin-bottom: 0.25rem;
+    }
+} 

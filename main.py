@@ -9,6 +9,7 @@ import pathlib
 from typing import Optional
 import random
 from dotenv import load_dotenv
+from routes import router as routes_router
 
 # Load environment variables from .env file
 load_dotenv()
@@ -49,6 +50,9 @@ app = FastAPI(
     openapi_url=None if IS_PRODUCTION else "/openapi.json"
 )
 
+# Include route-specific endpoints
+app.include_router(routes_router, prefix="/api")
+
 # Security middleware for production
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
@@ -60,7 +64,7 @@ async def add_security_headers(request: Request, call_next):
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-XSS-Protection"] = "1; mode=block"
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-        response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; font-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; img-src 'self' data:;"
+        response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; font-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; img-src 'self' data:;"
     
     return response
 
@@ -93,6 +97,13 @@ async def interfaces_view(request: Request):
     return templates.TemplateResponse("interfaces.html", {
         "request": request,
         "active_page": "interfaces"
+    })
+
+@app.get("/routing", response_class=HTMLResponse)
+async def routing_view(request: Request):
+    return templates.TemplateResponse("routing.html", {
+        "request": request,
+        "active_page": "network"
     })
 
 @app.get("/refresh-network", response_class=HTMLResponse)
