@@ -74,61 +74,53 @@
                             </div>
                             
                             <!-- Advanced Filter Panel -->
-                            <div class="collapse" id="advancedFilterPanel">
-                                <div class="filter-heading">Advanced Route Filtering</div>
-                                
-                                <div class="row filter-row">
-                                    <div class="col-md-4">
-                                        <label for="filter-protocol" class="form-label">Protocol</label>
-                                        <select id="filter-protocol" class="form-select">
-                                            <option value="">All Protocols</option>
-                                            <option value="connected">Connected</option>
-                                            <option value="static">Static</option>
-                                            <option value="bgp">BGP</option>
-                                            <option value="ospf">OSPF</option>
-                                            <option value="rip">RIP</option>
-                                        </select>
+                            <div id="advanced-filter-panel" class="d-none">
+                                <div class="card mb-3">
+                                    <div class="card-header">
+                                        <i class="bi bi-funnel-fill me-2"></i>
+                                        Advanced Filters
                                     </div>
-                                    <div class="col-md-4">
-                                        <label for="filter-interface" class="form-label">Interface</label>
-                                        <select id="filter-interface" class="form-select">
-                                            <option value="">All Interfaces</option>
-                                            <!-- Populated dynamically -->
-                                        </select>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-3 mb-3">
+                                                <label for="filter-protocol" class="form-label">Protocol</label>
+                                                <select id="filter-protocol" class="form-select">
+                                                    <option value="">All Protocols</option>
+                                                    <!-- Dynamically populated -->
+                                                </select>
+                                            </div>
+                                            <div class="col-md-3 mb-3">
+                                                <label for="filter-interface" class="form-label">Interface</label>
+                                                <select id="filter-interface" class="form-select">
+                                                    <option value="">All Interfaces</option>
+                                                    <!-- Dynamically populated -->
+                                                </select>
+                                            </div>
+                                            <div class="col-md-3 mb-3">
+                                                <label for="filter-network" class="form-label">Network Prefix</label>
+                                                <input type="text" id="filter-network" class="form-control" placeholder="e.g. 192.168">
+                                            </div>
+                                            <div class="col-md-3 mb-3">
+                                                <label for="filter-nexthop" class="form-label">Next Hop</label>
+                                                <input type="text" id="filter-nexthop" class="form-control" placeholder="e.g. 10.0.0.1">
+                                            </div>
+                                        </div>
+                                        <div class="text-end">
+                                            <button id="reset-filters" class="btn btn-outline-secondary me-2">
+                                                <i class="bi bi-x-circle me-1"></i>
+                                                Reset
+                                            </button>
+                                            <button id="apply-filters" class="btn btn-primary">
+                                                <i class="bi bi-check-circle me-1"></i>
+                                                Apply Filters
+                                            </button>
+                                        </div>
                                     </div>
-                                    <div class="col-md-4">
-                                        <label for="filter-status" class="form-label">Status</label>
-                                        <select id="filter-status" class="form-select">
-                                            <option value="">All</option>
-                                            <option value="active">Active</option>
-                                            <option value="inactive">Inactive</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                
-                                <div class="row filter-row">
-                                    <div class="col-md-6">
-                                        <label for="filter-prefix" class="form-label">Network Prefix</label>
-                                        <input type="text" id="filter-prefix" class="form-control" placeholder="e.g. 192.168.1">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label for="filter-next-hop" class="form-label">Next Hop</label>
-                                        <input type="text" id="filter-next-hop" class="form-control" placeholder="e.g. 10.0.0.1">
-                                    </div>
-                                </div>
-                                
-                                <div class="filter-buttons">
-                                    <button id="reset-filters" class="btn btn-outline-secondary">
-                                        <i class="bi bi-x-circle me-1"></i>Reset
-                                    </button>
-                                    <button id="apply-filters" class="btn btn-primary">
-                                        <i class="bi bi-funnel me-1"></i>Apply Filters
-                                    </button>
                                 </div>
                             </div>
 
                             <!-- VRF Tabs -->
-                            <div class="vrf-pills" id="vrf-pills">
+                            <div id="vrf-tabs" class="vrf-pills mb-3">
                                 <!-- VRF tabs will be dynamically populated here -->
                                 <div class="d-flex align-items-center justify-content-center p-3">
                                     <div class="spinner-border text-primary" role="status">
@@ -138,12 +130,8 @@
                                 </div>
                             </div>
 
-                            <!-- VRF Heading -->
-                            <h5 id="vrf-heading" class="mb-3">Routes in VRF: default</h5>
-                            <div id="route-count" class="mb-3">Loading routes...</div>
-
                             <!-- Routing Table -->
-                            <div class="table-responsive" id="routing-table-container">
+                            <div id="routing-table-container" class="table-responsive">
                                 <div class="text-center p-4">
                                     <div class="spinner-border text-primary" role="status">
                                         <span class="visually-hidden">Loading...</span>
@@ -155,7 +143,7 @@
 
                         <!-- VRF Tab -->
                         <div class="tab-pane fade" id="vrf-tab-pane" role="tabpanel" aria-labelledby="vrf-tab" tabindex="0">
-                            <div id="vrf-list-container">
+                            <div id="vrf-list" class="list-group">
                                 <div class="text-center p-4">
                                     <div class="spinner-border text-primary" role="status">
                                         <span class="visually-hidden">Loading...</span>
@@ -167,7 +155,7 @@
 
                         <!-- Statistics Tab -->
                         <div class="tab-pane fade" id="stats-tab-pane" role="tabpanel" aria-labelledby="stats-tab" tabindex="0">
-                            <div class="row" id="routing-stats-container">
+                            <div id="routing-stats" class="row">
                                 <div class="text-center p-4 col-12">
                                     <div class="spinner-border text-primary" role="status">
                                         <span class="visually-hidden">Loading...</span>
@@ -206,8 +194,11 @@
 <script src="/static/js/routing.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        const routingTable = new NetworkRoutingTable();
-        routingTable.init();
+        const routingTable = new RoutingTable();
+        routingTable.loadRoutingData();
+        
+        // Listen for dark mode changes
+        routingTable.initDarkModeListener();
     });
 </script>
 {% endblock %} 

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Request, HTTPException
 import httpx
 import json
 import os
@@ -22,24 +22,16 @@ TRUST_SELF_SIGNED = os.getenv("TRUST_SELF_SIGNED", "false").lower() == "true"
 router = APIRouter()
 
 @router.get("/routes")
-async def get_routes(vrf: Optional[str] = "all"):
-    """
-    Get routing table information from VyOS
-    
-    Args:
-        vrf: VRF to query (default: "all" to show all VRFs)
-    
-    Returns:
-        Structured routing table data
-    """
+async def get_routes():
+    """Get all routes from VyOS in a structured format."""
     try:
-        # Prepare data for VyOS API to fetch route data
+        # Prepare data for VyOS API to fetch routes
         data = {
             "op": "show",
-            "path": ["ip", "route", "vrf", vrf, "json"]
+            "path": ["ip", "route", "vrf", "all", "json"]
         }
         
-        # Configure the show URL
+        # Use the show endpoint
         show_url = VYOS_API_URL.replace("/retrieve", "/show")
         
         print(f"Making API call to: {show_url}")
@@ -74,41 +66,83 @@ async def get_routes(vrf: Optional[str] = "all"):
                 return {
                     "success": False,
                     "error": f"VyOS API returned status code {response.status_code}",
-                    "response_text": response.text
                 }
             
             result = response.json()
             print(f"Raw API response: {json.dumps(result)}")
             
-            # If successful, parse the routes data
+            # The data is a JSON string within the JSON response
+            # We need to properly parse it
             if result.get("success", False) and result.get("data"):
-                # Parse the routing data which comes as a JSON string
                 try:
-                    # The data comes as a string containing JSON, parse it
-                    routes_data = parse_routing_data(result["data"])
-                    print(f"Parsed routes data: {json.dumps(routes_data)}")
+                    # Split the data by newlines and parse each line separately
+                    routes_by_vrf = {}
+                    raw_data_lines = result["data"].strip().split('\n')
+                    
+                    for line in raw_data_lines:
+                        if not line.strip():
+                            continue
+                            
+                        # Parse each line as a separate JSON object
+                        line_data = json.loads(line)
+                        
+                        # Merge the data into the routes_by_vrf dictionary
+                        for prefix, routes in line_data.items():
+                            for route in routes:
+                                vrf_name = route.get("vrfName", "default")
+                                
+                                # Create the VRF entry if it doesn't exist
+                                if vrf_name not in routes_by_vrf:
+                                    routes_by_vrf[vrf_name] = []
+                                
+                                # Process the route to make it easier to use in the frontend
+                                processed_route = {
+                                    "prefix": prefix,  # Use prefix as the route prefix
+                                    "network": prefix,  # Keep network for backward compatibility
+                                    "protocol": route.get("protocol", "unknown"),
+                                    "selected": route.get("selected", False),
+                                    "installed": route.get("installed", False),
+                                    "nexthops": []
+                                }
+                                
+                                # Process nexthops
+                                if "nexthops" in route:
+                                    for nexthop in route["nexthops"]:
+                                        processed_nexthop = {
+                                            "ip": nexthop.get("ip", ""),
+                                            "interfaceName": nexthop.get("interfaceName", ""),
+                                            "active": nexthop.get("active", False),
+                                            "distance": route.get("distance", 0),  # Add distance from the route
+                                            "metric": route.get("metric", 0)       # Add metric from the route
+                                        }
+                                        processed_route["nexthops"].append(processed_nexthop)
+                                
+                                # Add uptime if available
+                                if "uptime" in route:
+                                    processed_route["uptime"] = route["uptime"]
+                                
+                                # Add the processed route to the VRF
+                                routes_by_vrf[vrf_name].append(processed_route)
+                    
+                    print(f"Successfully parsed routes data for {len(routes_by_vrf)} VRFs")
                     return {
                         "success": True,
-                        "routes": routes_data,
-                        "raw_data": result["data"],
+                        "routes": routes_by_vrf,
                         "error": None
                     }
-                except Exception as e:
-                    print(f"Error parsing routes data: {str(e)}")
-                    import traceback
-                    traceback.print_exc()
+                except json.JSONDecodeError as e:
+                    print(f"Error decoding JSON: {str(e)}")
+                    print(f"Problematic line: {result['data'][:100]}")
+                    
                     return {
                         "success": False,
-                        "error": f"Error parsing routes data: {str(e)}",
-                        "raw_data": result["data"]
+                        "error": f"Failed to parse routing data: {str(e)}",
+                        "raw_data": result["data"][:1000]  # Include first part of raw data for debugging
                     }
             
             return {
                 "success": result.get("success", False),
-                "routes": {},
-                "data": result.get("data", {}),
-                "raw_result": result,
-                "error": result.get("error")
+                "error": result.get("error", "Unknown error"),
             }
             
     except httpx.RequestError as e:

@@ -1,8 +1,12 @@
 /**
- * Network Routing Table functionality
+ * RoutingTable class for managing and displaying routing table data
  */
-class NetworkRoutingTable {
+class RoutingTable {
+    /**
+     * Constructor - initialize the routing table
+     */
     constructor() {
+        // Initialize properties
         this.routes = {};
         this.currentVrf = 'default';
         this.loaded = false;
@@ -31,64 +35,136 @@ class NetworkRoutingTable {
     }
 
     /**
-     * Set up event listeners for the routing table
+     * Set up event listeners for interactive elements
      */
     setupEventListeners() {
         // Refresh button
         const refreshBtn = document.getElementById('refresh-routes');
         if (refreshBtn) {
-            refreshBtn.addEventListener('click', () => this.loadRoutingData(true));
+            refreshBtn.addEventListener('click', () => {
+                this.loadRoutingData(true);
+            });
         }
-
-        // Route search input
+        
+        // Route search
         const searchInput = document.getElementById('route-search');
         if (searchInput) {
-            searchInput.addEventListener('input', () => this.filterRoutes(searchInput.value));
-        }
-
-        // Tab switching to update VRF list view
-        const vrfTab = document.getElementById('vrf-tab');
-        if (vrfTab) {
-            vrfTab.addEventListener('shown.bs.tab', () => {
-                this.renderVrfList();
+            searchInput.addEventListener('input', () => {
+                this.renderRoutes();
             });
         }
-
-        // Tab switching to update stats view
-        const statsTab = document.getElementById('stats-tab');
-        if (statsTab) {
-            statsTab.addEventListener('shown.bs.tab', () => {
-                this.renderRoutingStats();
-            });
-        }
-
-        // Show all routes button
-        const showAllBtn = document.getElementById('show-all-routes');
-        if (showAllBtn) {
-            showAllBtn.addEventListener('click', () => this.showAllRoutes());
-        }
-
-        // Apply advanced filters button
-        const applyFiltersBtn = document.getElementById('apply-filters');
-        if (applyFiltersBtn) {
-            applyFiltersBtn.addEventListener('click', () => this.applyAdvancedFilters());
-        }
-
-        // Reset advanced filters button
-        const resetFiltersBtn = document.getElementById('reset-filters');
-        if (resetFiltersBtn) {
-            resetFiltersBtn.addEventListener('click', () => this.resetAdvancedFilters());
-        }
-
-        // Handle advanced filter inputs to apply on enter key
-        const filterInputs = document.querySelectorAll('#advancedFilterPanel input, #advancedFilterPanel select');
-        filterInputs.forEach(input => {
-            input.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    this.applyAdvancedFilters();
+        
+        // Bootstrap tabs - use bootstrap's tab functionality
+        const routesTabs = document.querySelectorAll('button[data-bs-toggle="tab"]');
+        routesTabs.forEach(tab => {
+            tab.addEventListener('shown.bs.tab', (event) => {
+                const targetId = event.target.getAttribute('data-bs-target');
+                // Update views when tab is shown
+                if (targetId === '#vrf-tab-pane') {
+                    this.renderVrfList();
+                } else if (targetId === '#stats-tab-pane') {
+                    this.renderRoutingStats();
                 }
             });
         });
+        
+        // Show All button
+        const showAllButton = document.getElementById('show-all-routes');
+        if (showAllButton) {
+            showAllButton.addEventListener('click', () => {
+                // Prepare consolidated routes from all VRFs
+                this.prepareAllRoutesView();
+                // Update active state for VRF tabs
+                document.querySelectorAll('.vrf-tab').forEach(tab => {
+                    tab.classList.remove('active');
+                });
+                // Add a special class to indicate "all routes" is active
+                showAllButton.classList.add('active-all');
+                // Render the table
+                this.renderRoutes();
+            });
+        }
+        
+        // Toggle advanced filter
+        const toggleAdvancedFilter = document.getElementById('toggle-advanced-filter');
+        const advancedFilterPanel = document.getElementById('advanced-filter-panel');
+        if (toggleAdvancedFilter && advancedFilterPanel) {
+            toggleAdvancedFilter.addEventListener('click', () => {
+                advancedFilterPanel.classList.toggle('d-none');
+                const isVisible = !advancedFilterPanel.classList.contains('d-none');
+                toggleAdvancedFilter.innerHTML = isVisible ? 
+                    '<i class="bi bi-funnel-fill me-1"></i> Hide Filters' : 
+                    '<i class="bi bi-filter me-1"></i> Advanced Filters';
+                    
+                // Update filter dropdowns when opening
+                if (isVisible) {
+                    this.populateInterfaceFilter();
+                    this.populateProtocolFilter();
+                }
+            });
+        }
+        
+        // Apply filters button
+        const applyFilterButton = document.getElementById('apply-filters');
+        if (applyFilterButton) {
+            applyFilterButton.addEventListener('click', () => {
+                this.renderRoutes();
+            });
+        }
+        
+        // Reset filters button
+        const resetFilterButton = document.getElementById('reset-filters');
+        if (resetFilterButton) {
+            resetFilterButton.addEventListener('click', () => {
+                this.resetAdvancedFilters();
+            });
+        }
+        
+        // Individual filter inputs - apply on enter key
+        ['filter-network', 'filter-nexthop'].forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.addEventListener('keyup', (event) => {
+                    if (event.key === 'Enter') {
+                        this.renderRoutes();
+                    }
+                });
+            }
+        });
+        
+        // Dropdown filters - apply on change
+        ['filter-protocol', 'filter-interface'].forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.addEventListener('change', () => {
+                    this.renderRoutes();
+                });
+            }
+        });
+    }
+
+    /**
+     * Prepare consolidated view of all routes from all VRFs
+     */
+    prepareAllRoutesView() {
+        if (!this.loaded || !this.routes) return;
+        
+        // Set currentVrf to special 'all' indicator
+        this.currentVrf = 'all';
+        
+        // Create consolidated list of all routes with VRF indicator
+        const allRoutes = [];
+        
+        Object.entries(this.routes).forEach(([vrf, routes]) => {
+            routes.forEach(route => {
+                // Make a copy of the route with VRF added
+                const routeWithVrf = {...route, vrf};
+                allRoutes.push(routeWithVrf);
+            });
+        });
+        
+        // Store the consolidated routes
+        this.routes.all = allRoutes;
     }
 
     /**
@@ -134,15 +210,28 @@ class NetworkRoutingTable {
         sortedVrfs.forEach(vrf => {
             const routes = this.routes[vrf];
             
+            // Skip if undefined or null
+            if (!routes) return;
+            
             // Sort routes: default route first, then alphabetically by prefix
             routes.sort((a, b) => {
+                // Check for undefined or missing prefix
+                if (!a.prefix) return 1;
+                if (!b.prefix) return -1;
+                
                 if (a.prefix === '0.0.0.0/0') return -1;
                 if (b.prefix === '0.0.0.0/0') return 1;
                 return a.prefix.localeCompare(b.prefix);
             });
 
             routes.forEach(route => {
-                const protocol = this.formatProtocol(route.protocol);
+                // Skip routes without prefix
+                if (!route.prefix) {
+                    console.warn('Route missing prefix:', route);
+                    return;
+                }
+                
+                const protocol = this.formatProtocol(route.protocol || 'unknown');
                 const nextHops = this.formatNextHops(route.nexthops);
                 
                 // Determine CSS class based on route status
@@ -159,7 +248,7 @@ class NetworkRoutingTable {
                         <td>${route.prefix}</td>
                         <td>${protocol}</td>
                         <td>${nextHops}</td>
-                        <td>${route.uptime}</td>
+                        <td>${route.uptime || 'N/A'}</td>
                         <td>
                             <button class="btn btn-sm btn-outline-primary route-details-btn" 
                                     data-prefix="${route.prefix}"
@@ -215,6 +304,42 @@ class NetworkRoutingTable {
             option.value = intf;
             option.textContent = intf;
             interfaceSelect.appendChild(option);
+        });
+    }
+
+    /**
+     * Populate the protocol filter dropdown with protocols from routes
+     */
+    populateProtocolFilter() {
+        const protocolFilter = document.getElementById('filter-protocol');
+        if (!protocolFilter) return;
+        
+        // Clear existing options
+        protocolFilter.innerHTML = '';
+        
+        // Add blank option first
+        const blankOption = document.createElement('option');
+        blankOption.value = '';
+        blankOption.textContent = 'All Protocols';
+        protocolFilter.appendChild(blankOption);
+        
+        // Collect all unique protocols
+        const protocols = new Set();
+        
+        Object.values(this.routes).forEach(vrfRoutes => {
+            vrfRoutes.forEach(route => {
+                if (route.protocol) {
+                    protocols.add(route.protocol);
+                }
+            });
+        });
+        
+        // Add options for each protocol
+        [...protocols].sort().forEach(protocol => {
+            const option = document.createElement('option');
+            option.value = protocol;
+            option.textContent = this.getProtocolName(protocol);
+            protocolFilter.appendChild(option);
         });
     }
 
@@ -295,21 +420,32 @@ class NetworkRoutingTable {
             
             // Combine routes from all VRFs with VRF information in sorted order
             sortedVrfs.forEach(vrf => {
+                if (!this.routes[vrf]) return;
+                
                 this.routes[vrf].forEach(route => {
-                    filteredRoutes.push({...route, vrf});
+                    if (route) {
+                        filteredRoutes.push({...route, vrf});
+                    }
                 });
             });
         } else {
             // Just add routes from the current VRF
-            this.routes[vrfToSearch]?.forEach(route => {
-                filteredRoutes.push({...route, vrf: vrfToSearch});
-            });
+            if (this.routes[vrfToSearch]) {
+                this.routes[vrfToSearch].forEach(route => {
+                    if (route) {
+                        filteredRoutes.push({...route, vrf: vrfToSearch});
+                    }
+                });
+            }
         }
 
         // Apply filters
         filteredRoutes = filteredRoutes.filter(route => {
+            // Skip routes without required properties
+            if (!route.prefix) return false;
+            
             // Protocol filter
-            if (this.advancedFilters.protocol && 
+            if (this.advancedFilters.protocol && route.protocol && 
                 route.protocol.toLowerCase() !== this.advancedFilters.protocol.toLowerCase()) {
                 return false;
             }
@@ -406,7 +542,7 @@ class NetworkRoutingTable {
 
         // Add filtered routes to the table
         filteredRoutes.forEach(route => {
-            const protocol = this.formatProtocol(route.protocol);
+            const protocol = this.formatProtocol(route.protocol || 'unknown');
             const nextHops = this.formatNextHops(route.nexthops);
             
             // Determine CSS class based on route status
@@ -423,7 +559,7 @@ class NetworkRoutingTable {
                     <td>${route.prefix}</td>
                     <td>${protocol}</td>
                     <td>${nextHops}</td>
-                    <td>${route.uptime}</td>
+                    <td>${route.uptime || 'N/A'}</td>
                     <td>
                         <button class="btn btn-sm btn-outline-primary route-details-btn" 
                                 data-prefix="${route.prefix}"
@@ -468,74 +604,32 @@ class NetworkRoutingTable {
      * Initialize dark mode listener
      */
     initDarkModeListener() {
-        // Use the same dark mode detection mechanism as the main site
-        this.darkMode = document.documentElement.getAttribute('data-bs-theme') === 'dark';
-        
-        // Listen for theme toggle button clicks
-        const themeToggle = document.getElementById('themeToggle');
-        if (themeToggle) {
-            themeToggle.addEventListener('click', () => {
-                // The theme will be toggled by the main site's theme manager
-                // Just wait a short moment for the change to be applied
-                setTimeout(() => {
-                    this.darkMode = document.documentElement.getAttribute('data-bs-theme') === 'dark';
-                    
-                    // Re-render views to reflect dark mode changes
-                    this.renderRoutingTable(this.currentVrf);
-                    this.renderVrfList();
-                    this.renderRoutingStats();
-                }, 50);
-            });
-        }
-
-        // Use MutationObserver to detect theme changes from outside sources
+        // Watch for theme changes
         const observer = new MutationObserver((mutations) => {
             mutations.forEach((mutation) => {
                 if (mutation.attributeName === 'data-bs-theme') {
-                    const newDarkMode = document.documentElement.getAttribute('data-bs-theme') === 'dark';
-                    if (this.darkMode !== newDarkMode) {
-                        this.darkMode = newDarkMode;
+                    const newTheme = document.documentElement.getAttribute('data-bs-theme');
+                    const isDarkMode = newTheme === 'dark';
+                    
+                    // Only re-render if dark mode status changed
+                    if (this.darkMode !== isDarkMode) {
+                        this.darkMode = isDarkMode;
+                        console.log(`Theme changed to ${newTheme}, re-rendering views`);
                         
-                        // Re-render views
-                        this.renderRoutingTable(this.currentVrf);
-                        this.renderVrfList();
-                        this.renderRoutingStats();
+                        // Wait for theme to fully apply
+                        setTimeout(() => {
+                            this.renderVrfTabs();
+                            this.renderRoutes();
+                            this.renderVrfList();
+                            this.renderRoutingStats();
+                        }, 100);
                     }
                 }
             });
         });
-
-        observer.observe(document.documentElement, { attributes: true });
         
-        // Set up toggle advanced filter button
-        const toggleFilterBtn = document.getElementById('toggle-advanced-filter');
-        if (toggleFilterBtn) {
-            toggleFilterBtn.addEventListener('click', () => {
-                const filterPanel = document.getElementById('advancedFilterPanel');
-                if (filterPanel) {
-                    // Check if we have bootstrap collapse instance
-                    const bsCollapse = bootstrap.Collapse.getInstance(filterPanel);
-                    if (bsCollapse) {
-                        bsCollapse.toggle();
-                    } else {
-                        // Create a new collapse instance and toggle it
-                        new bootstrap.Collapse(filterPanel).toggle();
-                    }
-                    
-                    // Toggle the button icon
-                    const icon = toggleFilterBtn.querySelector('i');
-                    if (icon) {
-                        if (icon.classList.contains('bi-filter')) {
-                            icon.classList.remove('bi-filter');
-                            icon.classList.add('bi-filter-circle-fill');
-                        } else {
-                            icon.classList.remove('bi-filter-circle-fill');
-                            icon.classList.add('bi-filter');
-                        }
-                    }
-                }
-            });
-        }
+        // Start observing theme changes
+        observer.observe(document.documentElement, { attributes: true });
     }
 
     /**
@@ -610,7 +704,7 @@ class NetworkRoutingTable {
 
     /**
      * Load routing data from the API
-     * @param {boolean} forceRefresh - Whether to force a refresh from the server
+     * @param {boolean} forceRefresh - Whether to force a refresh of the data
      */
     async loadRoutingData(forceRefresh = false) {
         try {
@@ -624,87 +718,227 @@ class NetworkRoutingTable {
                 </div>
             `;
 
-            // Make API call to get routing data
-            const response = await fetch(`/api/routes?${forceRefresh ? 'force_refresh=true' : ''}`);
-            const data = await response.json();
-
-            if (data.success && data.routes) {
-                this.routes = data.routes;
-                this.loaded = true;
-                
-                // Extract and track all interfaces from route data
-                Object.values(this.routes).forEach(routes => {
-                    routes.forEach(route => {
-                        route.nexthops?.forEach(nexthop => {
+            // Fetch routing data from our new API endpoint
+            const response = await fetch('/api/routes');
+            const result = await response.json();
+            
+            if (!result.success) {
+                console.error('Failed to load routing data:', result.error);
+                document.getElementById('routing-table-container').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        Failed to load routing table: ${result.error || 'Unknown error'}
+                    </div>
+                `;
+                return false;
+            }
+            
+            // Process the routes data
+            this.routes = result.routes;
+            
+            // Map 'network' field to 'prefix' field for all routes
+            Object.keys(this.routes).forEach(vrf => {
+                this.routes[vrf] = this.routes[vrf].map(route => {
+                    // If route has network but not prefix, copy network to prefix
+                    if (route.network && !route.prefix) {
+                        route.prefix = route.network;
+                    }
+                    return route;
+                });
+            });
+            
+            this.loaded = true;
+            
+            // Extract and track all interfaces from route data
+            this.allInterfaces = new Set();
+            Object.values(this.routes).forEach(routes => {
+                routes.forEach(route => {
+                    if (route.nexthops) {
+                        route.nexthops.forEach(nexthop => {
                             if (nexthop.interfaceName) {
                                 this.allInterfaces.add(nexthop.interfaceName);
                             }
                         });
-                    });
+                    }
                 });
-                
-                // Update interface filter dropdown
+            });
+            
+            console.log('Loaded routing data with interfaces:', this.allInterfaces);
+            
+            // Set the default VRF
+            if (Object.keys(this.routes).length > 0) {
+                // Choose the 'default' VRF if it exists, otherwise the first one
+                this.currentVrf = this.routes.default ? 'default' : Object.keys(this.routes)[0];
+            }
+            
+            // Update the interface filter dropdown
+            try {
+                console.log('Calling populateInterfaceFilter...');
                 this.populateInterfaceFilter();
                 
-                // Render the data
-                this.renderVrfTabs();
-                this.renderRoutingTable(this.currentVrf);
-                this.renderVrfList();
-                this.renderRoutingStats();
-            } else {
-                document.getElementById('routing-table-container').innerHTML = `
-                    <div class="alert alert-danger">
-                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                        Failed to load routing table: ${data.error || 'Unknown error'}
-                    </div>
-                `;
+                console.log('Calling populateProtocolFilter...');
+                if (typeof this.populateProtocolFilter === 'function') {
+                    this.populateProtocolFilter();
+                } else {
+                    console.error('populateProtocolFilter is not a function:', this.populateProtocolFilter);
+                    
+                    // Define it if it's missing
+                    if (!this.populateProtocolFilter) {
+                        this.populateProtocolFilter = function() {
+                            const protocolFilter = document.getElementById('filter-protocol');
+                            if (!protocolFilter) return;
+                            
+                            // Clear existing options
+                            protocolFilter.innerHTML = '';
+                            
+                            // Add blank option first
+                            const blankOption = document.createElement('option');
+                            blankOption.value = '';
+                            blankOption.textContent = 'All Protocols';
+                            protocolFilter.appendChild(blankOption);
+                            
+                            // Collect all unique protocols
+                            const protocols = new Set();
+                            
+                            Object.values(this.routes).forEach(vrfRoutes => {
+                                vrfRoutes.forEach(route => {
+                                    if (route.protocol) {
+                                        protocols.add(route.protocol);
+                                    }
+                                });
+                            });
+                            
+                            // Add options for each protocol
+                            [...protocols].sort().forEach(protocol => {
+                                const option = document.createElement('option');
+                                option.value = protocol;
+                                option.textContent = this.getProtocolName(protocol);
+                                protocolFilter.appendChild(option);
+                            });
+                            
+                            console.log('Protocol filter populated');
+                        };
+                        
+                        // Call the newly defined function
+                        this.populateProtocolFilter();
+                    }
+                }
+            } catch (e) {
+                console.error('Error populating filters:', e);
             }
+            
+            // Render all views
+            try {
+                if (typeof this.renderVrfTabs !== 'function') {
+                    console.log('Defining missing renderVrfTabs function');
+                    // Define renderVrfTabs if missing
+                    this.renderVrfTabs = function() {
+                        const vrfTabContainer = document.getElementById('vrf-tabs');
+                        if (!vrfTabContainer || !this.loaded) return;
+                        
+                        // Clear existing tabs
+                        vrfTabContainer.innerHTML = '';
+                        
+                        // Get sorted VRFs
+                        const sortedVrfs = this.getSortedVrfNames();
+                        
+                        // Create tabs for each VRF
+                        sortedVrfs.forEach(vrf => {
+                            const routeCount = this.routes[vrf]?.length || 0;
+                            const isActive = vrf === this.currentVrf;
+                            
+                            const button = document.createElement('button');
+                            button.className = `vrf-tab btn ${isActive ? 'btn-primary' : 'btn-outline-primary'} me-2 mb-2`;
+                            button.setAttribute('data-vrf', vrf);
+                            button.innerHTML = `
+                                ${vrf === 'default' ? 'Default' : vrf}
+                                <span class="badge bg-light text-dark ms-1">${routeCount}</span>
+                            `;
+                            
+                            // Add click handler
+                            button.addEventListener('click', () => {
+                                this.switchVrf(vrf);
+                            });
+                            
+                            vrfTabContainer.appendChild(button);
+                        });
+                        
+                        console.log('VRF tabs rendered');
+                    };
+                }
+                
+                this.renderVrfTabs();
+                
+                // Define renderRoutes if missing
+                if (typeof this.renderRoutes !== 'function') {
+                    console.log('Defining missing renderRoutes function');
+                    this.renderRoutes = function() {
+                        // Get search input value
+                        const searchInput = document.getElementById('route-search');
+                        const searchText = searchInput ? searchInput.value.trim() : '';
+                        
+                        if (searchText) {
+                            // If search is active, filter routes
+                            this.filterRoutes(searchText);
+                        } else if (this.currentVrf === 'all') {
+                            // If we're showing all routes
+                            this.showAllRoutes();
+                        } else {
+                            // Check if advanced filters are active
+                            const hasActiveFilters = Object.values(this.advancedFilters).some(v => v !== '');
+                            
+                            if (hasActiveFilters) {
+                                // Apply advanced filters
+                                this.renderFilteredTable();
+                            } else {
+                                // Just render current VRF
+                                this.renderRoutingTable(this.currentVrf);
+                            }
+                        }
+                    };
+                }
+                
+                this.renderRoutes();
+                
+                // Define renderVrfList if missing
+                if (typeof this.renderVrfList !== 'function') {
+                    console.log('Defining missing renderVrfList function');
+                    this.renderVrfList = this.renderVrfList || function() {
+                        console.log('Stub implementation of renderVrfList');
+                        // This can be a stub implementation until fixed properly
+                    };
+                }
+                
+                this.renderVrfList();
+                
+                // Define renderRoutingStats if missing
+                if (typeof this.renderRoutingStats !== 'function') {
+                    console.log('Defining missing renderRoutingStats function');
+                    this.renderRoutingStats = this.renderRoutingStats || function() {
+                        console.log('Stub implementation of renderRoutingStats');
+                        // This can be a stub implementation until fixed properly
+                    };
+                }
+                
+                this.renderRoutingStats();
+            } catch (e) {
+                console.error('Error rendering views:', e);
+            }
+            
+            // Set up event listeners
+            this.setupEventListeners();
+            
+            return true;
         } catch (error) {
             console.error('Error loading routing data:', error);
             document.getElementById('routing-table-container').innerHTML = `
                 <div class="alert alert-danger">
                     <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                    Failed to load routing table: ${error.message || 'Network error'}
+                    Error loading routing table: ${error.message || 'Unknown error'}
                 </div>
             `;
+            return false;
         }
-    }
-
-    /**
-     * Render tabs for VRF selection
-     */
-    renderVrfTabs() {
-        const container = document.getElementById('vrf-pills');
-        if (!container || !this.loaded) return;
-
-        // Get VRFs from the loaded data sorted with default first
-        const sortedVrfs = this.getSortedVrfs();
-        
-        // Create HTML for VRF tabs
-        let html = '<div class="d-flex flex-wrap">';
-        
-        sortedVrfs.forEach(vrf => {
-            const isActive = vrf === this.currentVrf;
-            const btnClass = isActive ? 'btn-primary' : 'btn-outline-primary';
-            
-            html += `
-                <button class="btn btn-sm ${btnClass} vrf-selector me-2 mb-2" data-vrf="${vrf}">
-                    ${vrf === 'default' ? 'Default VRF' : vrf}
-                    <span class="badge bg-light text-dark ms-1">${this.routes[vrf].length}</span>
-                </button>
-            `;
-        });
-        
-        html += '</div>';
-        container.innerHTML = html;
-        
-        // Add event listeners to VRF buttons
-        document.querySelectorAll('.vrf-selector').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const vrf = e.currentTarget.getAttribute('data-vrf');
-                this.switchVrf(vrf);
-            });
-        });
     }
 
     /**
@@ -717,14 +951,14 @@ class NetworkRoutingTable {
         this.currentVrf = vrf;
         
         // Update UI to reflect the VRF change
-        document.querySelectorAll('.vrf-selector').forEach(btn => {
-            const btnVrf = btn.getAttribute('data-vrf');
-            if (btnVrf === vrf) {
-                btn.classList.remove('btn-outline-primary');
-                btn.classList.add('btn-primary');
+        document.querySelectorAll('.vrf-tab').forEach(tab => {
+            const tabVrf = tab.getAttribute('data-vrf');
+            if (tabVrf === vrf) {
+                tab.classList.remove('btn-outline-primary');
+                tab.classList.add('btn-primary');
             } else {
-                btn.classList.remove('btn-primary');
-                btn.classList.add('btn-outline-primary');
+                tab.classList.remove('btn-primary');
+                tab.classList.add('btn-outline-primary');
             }
         });
         
@@ -767,6 +1001,10 @@ class NetworkRoutingTable {
         
         // Sort routes: default route first, then alphabetically by prefix
         routes.sort((a, b) => {
+            // Check for undefined or missing prefix
+            if (!a.prefix) return 1;
+            if (!b.prefix) return -1;
+            
             if (a.prefix === '0.0.0.0/0') return -1;
             if (b.prefix === '0.0.0.0/0') return 1;
             return a.prefix.localeCompare(b.prefix);
@@ -788,7 +1026,13 @@ class NetworkRoutingTable {
         `;
         
         routes.forEach(route => {
-            const protocol = this.formatProtocol(route.protocol);
+            // Skip routes without prefix
+            if (!route.prefix) {
+                console.warn('Route missing prefix:', route);
+                return;
+            }
+            
+            const protocol = this.formatProtocol(route.protocol || 'unknown');
             const nextHops = this.formatNextHops(route.nexthops);
             
             // Determine CSS class based on route status
@@ -804,7 +1048,7 @@ class NetworkRoutingTable {
                     <td>${route.prefix}</td>
                     <td>${protocol}</td>
                     <td>${nextHops}</td>
-                    <td>${route.uptime}</td>
+                    <td>${route.uptime || 'N/A'}</td>
                     <td>
                         <button class="btn btn-sm btn-outline-primary route-details-btn" 
                                 data-prefix="${route.prefix}"
@@ -892,32 +1136,52 @@ class NetworkRoutingTable {
     }
 
     /**
-     * Get interface type for styling
-     * @param {string} interfaceName - Name of the interface
-     * @returns {string} - CSS class for the interface type
+     * Get the interface type based on interface name
+     * @param {string} interfaceName - Interface name
+     * @returns {string} - Interface type
      */
     getInterfaceType(interfaceName) {
-        if (!interfaceName) return 'ethernet';
-        
-        // Check if we have a known interface type
-        if (this.interfaceTypes[interfaceName]) {
-            return this.interfaceTypes[interfaceName];
+        if (!interfaceName) {
+            return 'unknown';
         }
         
-        // Otherwise, make an educated guess based on the name
+        // Convert to lowercase for easier comparison
         const name = interfaceName.toLowerCase();
         
-        if (name.startsWith('lo') || name.includes('loopback')) {
-            return 'loopback';
-        } else if (name.startsWith('tu') || name.includes('tunnel')) {
-            return 'tunnel';
-        } else if (name.startsWith('vl') || name.includes('vlan')) {
-            return 'vlan';
-        } else if (name.includes('port-channel') || name.startsWith('po')) {
-            return 'port-channel';
-        } else {
+        // Handle common interface types
+        if (name.startsWith('eth') || name.startsWith('en') || name.startsWith('ge-') || name.startsWith('gi') || name.startsWith('fa')) {
             return 'ethernet';
+        } else if (name.startsWith('lo')) {
+            return 'loopback';
+        } else if (name.startsWith('tun') || name.startsWith('wg')) {
+            return 'tunnel';
+        } else if (name.includes('vlan') || name.includes('.')) {
+            return 'vlan';
+        } else if (name.startsWith('br')) {
+            return 'bridge';
+        } else if (name.startsWith('po') || name.startsWith('bond') || name.includes('channel')) {
+            return 'port-channel';
+        } else if (name.startsWith('vti')) {
+            return 'tunnel';
+        } else if (name.startsWith('ppp')) {
+            return 'ppp';
+        } else if (name.startsWith('wlan') || name.startsWith('wl')) {
+            return 'wireless';
+        } else if (name.startsWith('vxlan')) {
+            return 'vxlan';
         }
+        
+        // For VyOS interfaces with dot notation (e.g. eth0.100)
+        if (name.includes('.')) {
+            const basePart = name.split('.')[0];
+            // Check if base part is an ethernet interface
+            if (basePart.startsWith('eth') || basePart.startsWith('en')) {
+                return 'vlan';
+            }
+        }
+        
+        // Default type if unrecognized
+        return 'unknown';
     }
 
     /**
@@ -928,9 +1192,18 @@ class NetworkRoutingTable {
     showRouteDetails(prefix, vrf) {
         if (!this.routes[vrf]) return;
         
-        // Find the route
-        const route = this.routes[vrf].find(r => r.prefix === prefix);
+        // Find the route - check both prefix and network fields
+        let route = this.routes[vrf].find(r => r.prefix === prefix);
+        
+        // If not found by prefix, try by network
+        if (!route) {
+            route = this.routes[vrf].find(r => r.network === prefix);
+        }
+        
         if (!route) return;
+        
+        // For display, use either prefix or network
+        const displayPrefix = route.prefix || route.network || 'Unknown';
         
         // Generate HTML for the route details
         let detailsHtml = `
@@ -938,19 +1211,19 @@ class NetworkRoutingTable {
                 <div class="badge ${route.selected && route.installed ? 'bg-success' : 'bg-secondary'} mb-2">
                     ${route.selected && route.installed ? 'Active' : 'Inactive'}
                 </div>
-                <h4>Route: ${route.prefix}</h4>
+                <h4>Route: ${displayPrefix}</h4>
                 <div class="d-flex align-items-center mb-3">
                     <span class="badge ${vrf === 'default' ? 'bg-primary' : 'bg-info'} me-2">VRF: ${vrf === 'default' ? 'Default' : vrf}</span>
-                    ${this.formatProtocol(route.protocol)}
+                    ${this.formatProtocol(route.protocol || 'unknown')}
                 </div>
             </div>
             
             <div class="row mb-3">
                 <div class="col-md-6">
-                    <strong>Protocol:</strong> ${route.protocol}
+                    <strong>Protocol:</strong> ${route.protocol || 'N/A'}
                 </div>
                 <div class="col-md-6">
-                    <strong>Uptime:</strong> ${route.uptime}
+                    <strong>Uptime:</strong> ${route.uptime || 'N/A'}
                 </div>
             </div>
             
@@ -1053,7 +1326,7 @@ class NetworkRoutingTable {
         // Set the modal title and content
         const modalTitle = document.getElementById('routeDetailsModalLabel');
         if (modalTitle) {
-            modalTitle.textContent = `Route Details: ${prefix}`;
+            modalTitle.textContent = `Route Details: ${displayPrefix}`;
         }
         
         const modalContent = document.getElementById('routeDetailsContent');
@@ -1077,13 +1350,16 @@ class NetworkRoutingTable {
         
         const routes = this.routes[this.currentVrf] || [];
         const filteredRoutes = routes.filter(route => {
+            // Skip routes without prefix or other properties
+            if (!route.prefix) return false;
+            
             // Check prefix
             if (route.prefix.toLowerCase().includes(searchText)) {
                 return true;
             }
             
             // Check protocol
-            if (route.protocol.toLowerCase().includes(searchText)) {
+            if (route.protocol && route.protocol.toLowerCase().includes(searchText)) {
                 return true;
             }
             
@@ -1135,7 +1411,7 @@ class NetworkRoutingTable {
         `;
         
         filteredRoutes.forEach(route => {
-            const protocol = this.formatProtocol(route.protocol);
+            const protocol = this.formatProtocol(route.protocol || 'unknown');
             const nextHops = this.formatNextHops(route.nexthops);
             
             // Determine CSS class based on route status
@@ -1151,7 +1427,7 @@ class NetworkRoutingTable {
                     <td>${route.prefix}</td>
                     <td>${protocol}</td>
                     <td>${nextHops}</td>
-                    <td>${route.uptime}</td>
+                    <td>${route.uptime || 'N/A'}</td>
                     <td>
                         <button class="btn btn-sm btn-outline-primary route-details-btn" 
                                 data-prefix="${route.prefix}"
@@ -1186,63 +1462,74 @@ class NetworkRoutingTable {
      * Render the VRF list view
      */
     renderVrfList() {
-        const container = document.getElementById('vrf-list-container');
-        if (!container || !this.loaded) return;
+        if (!this.loaded) return;
         
-        // Get VRFs from the loaded data sorted with default first
-        const sortedVrfs = this.getSortedVrfs();
+        const vrfListContainer = document.getElementById('vrf-list');
+        if (!vrfListContainer) return;
         
-        if (sortedVrfs.length === 0) {
-            container.innerHTML = `
-                <div class="alert alert-info">
-                    <i class="bi bi-info-circle me-2"></i>
-                    No VRFs found in the routing table.
-                </div>
-            `;
-            return;
-        }
+        const vrfs = this.getSortedVrfNames();
         
-        let html = `
-            <div class="list-group">
-        `;
-        
-        sortedVrfs.forEach(vrf => {
-            const routes = this.routes[vrf] || [];
-            const activeRoutes = routes.filter(route => route.selected && route.installed).length;
+        let html = '';
+        vrfs.forEach(vrf => {
+            if (vrf === 'all') return; // Skip the "all" entry
             
+            const routes = this.routes[vrf] || [];
+            const routeCount = routes.length;
+            
+            // Count protocols
+            const protocols = {};
+            routes.forEach(route => {
+                const protocol = route.protocol || 'unknown';
+                protocols[protocol] = (protocols[protocol] || 0) + 1;
+            });
+            
+            // Generate protocol badges
+            let protocolBadges = '';
+            Object.entries(protocols).forEach(([protocol, count]) => {
+                const badge = this.getProtocolBadge(protocol);
+                protocolBadges += `<div class="vrf-protocol-stat">${badge} <span class="protocol-count">${count}</span></div>`;
+            });
+            
+            // VRF list item
             html += `
-                <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-                    <div>
+                <a href="#" class="list-group-item list-group-item-action" data-vrf="${vrf}">
+                    <div class="d-flex w-100 justify-content-between align-items-center">
                         <h5 class="mb-1">${vrf === 'default' ? 'Default VRF' : vrf}</h5>
-                        <p class="mb-1 text-secondary">${routes.length} routes (${activeRoutes} active)</p>
+                        <span class="badge bg-primary rounded-pill">${routeCount} routes</span>
                     </div>
-                    <div>
-                        <button class="btn btn-sm btn-primary view-vrf-btn" data-vrf="${vrf}">
-                            View Routes
-                        </button>
+                    <div class="vrf-protocols">
+                        ${protocolBadges}
                     </div>
-                </div>
+                </a>
             `;
         });
         
-        html += `
-            </div>
-        `;
+        vrfListContainer.innerHTML = html;
         
-        container.innerHTML = html;
-        
-        // Add event listeners to the view buttons
-        document.querySelectorAll('.view-vrf-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const vrf = e.currentTarget.getAttribute('data-vrf');
-                this.switchVrf(vrf);
+        // Add click handlers to VRF items
+        vrfListContainer.querySelectorAll('.list-group-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                const vrf = item.dataset.vrf;
+                this.currentVrf = vrf;
                 
-                // Switch to the routes tab
+                // Switch to routes tab
                 const routesTab = document.getElementById('routes-tab');
                 if (routesTab) {
                     const tab = new bootstrap.Tab(routesTab);
                     tab.show();
                 }
+                
+                // Update VRF tabs
+                document.querySelectorAll('.vrf-tab').forEach(tab => {
+                    tab.classList.remove('active');
+                    if (tab.dataset.vrf === vrf) {
+                        tab.classList.add('active');
+                    }
+                });
+                
+                // Render routes
+                this.renderRoutes();
             });
         });
     }
@@ -1251,193 +1538,250 @@ class NetworkRoutingTable {
      * Render routing statistics
      */
     renderRoutingStats() {
-        const container = document.getElementById('routing-stats-container');
-        if (!container || !this.loaded) return;
+        if (!this.loaded) return;
         
-        // Calculate statistics
-        const vrfs = Object.keys(this.routes);
+        const statsContainer = document.getElementById('routing-stats');
+        if (!statsContainer) return;
+        
+        // Calculate total counts
         const totalRoutes = Object.values(this.routes).reduce((sum, routes) => sum + routes.length, 0);
         
         // Count routes by protocol
         const protocolCounts = {};
         Object.values(this.routes).forEach(routes => {
             routes.forEach(route => {
-                const protocol = route.protocol.toLowerCase();
+                const protocol = route.protocol || 'unknown';
                 protocolCounts[protocol] = (protocolCounts[protocol] || 0) + 1;
             });
         });
         
-        // Calculate active routes
-        const activeRoutes = Object.values(this.routes).reduce((sum, routes) => {
-            return sum + routes.filter(route => route.selected && route.installed).length;
-        }, 0);
-        
-        // Create HTML for statistics cards
-        let statsHtml = `
-            <div class="col-md-3 col-sm-6 mb-4">
-                <div class="routing-stat">
-                    <h5>VRF Instances</h5>
-                    <div class="routing-stat-value">${vrfs.length}</div>
-                    <div class="routing-stat-label">Distinct routing domains</div>
-                </div>
-            </div>
-            
-            <div class="col-md-3 col-sm-6 mb-4">
-                <div class="routing-stat">
-                    <h5>Total Routes</h5>
-                    <div class="routing-stat-value">${totalRoutes}</div>
-                    <div class="routing-stat-label">Across all VRFs</div>
-                </div>
-            </div>
-            
-            <div class="col-md-3 col-sm-6 mb-4">
-                <div class="routing-stat">
-                    <h5>Active Routes</h5>
-                    <div class="routing-stat-value">${activeRoutes}</div>
-                    <div class="routing-stat-label">${(activeRoutes / totalRoutes * 100).toFixed(1)}% of total</div>
-                </div>
-            </div>
-            
-            <div class="col-md-3 col-sm-6 mb-4">
-                <div class="routing-stat">
-                    <h5>Default Routes</h5>
-                    <div class="routing-stat-value">${this.countDefaultRoutes()}</div>
-                    <div class="routing-stat-label">0.0.0.0/0 routes</div>
-                </div>
-            </div>
-        `;
-        
-        // Create protocol distribution section
-        statsHtml += `
-            <div class="col-12 mb-4">
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="mb-0">Protocol Distribution</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-        `;
-        
-        // Add protocol cards
-        for (const protocol in protocolCounts) {
-            const percentage = (protocolCounts[protocol] / totalRoutes * 100).toFixed(1);
-            statsHtml += `
-                <div class="col-md-3 col-sm-6 mb-3">
-                    <div class="routing-stat">
-                        <div class="mb-2">${this.formatProtocol(protocol)}</div>
-                        <div class="routing-stat-value">${protocolCounts[protocol]}</div>
-                        <div class="routing-stat-label">${percentage}% of total routes</div>
-                    </div>
-                </div>
-            `;
-        }
-        
-        statsHtml += `
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="mb-0">Routes Per VRF</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table table-striped">
-                                <thead>
-                                    <tr>
-                                        <th>VRF Name</th>
-                                        <th>Total Routes</th>
-                                        <th>Active Routes</th>
-                                        <th>Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-        `;
-        
-        // Get VRFs sorted with default first
-        const sortedVrfs = this.getSortedVrfs();
-        
-        // Add VRF rows
-        sortedVrfs.forEach(vrf => {
-            const routes = this.routes[vrf] || [];
-            const activeVrfRoutes = routes.filter(route => route.selected && route.installed).length;
-            const percentage = routes.length > 0 ? (activeVrfRoutes / routes.length * 100).toFixed(1) : 0;
-            
-            statsHtml += `
-                <tr>
-                    <td>${vrf === 'default' ? 'Default VRF' : vrf}</td>
-                    <td>${routes.length}</td>
-                    <td>${activeVrfRoutes} (${percentage}%)</td>
-                    <td>
-                        <button class="btn btn-sm btn-primary view-vrf-btn" data-vrf="${vrf}">
-                            View Routes
-                        </button>
-                    </td>
-                </tr>
-            `;
-        });
-        
-        statsHtml += `
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        container.innerHTML = statsHtml;
-        
-        // Add event listeners to the view buttons
-        document.querySelectorAll('.view-vrf-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const vrf = e.currentTarget.getAttribute('data-vrf');
-                this.switchVrf(vrf);
-                
-                // Switch to the routes tab
-                const routesTab = document.getElementById('routes-tab');
-                if (routesTab) {
-                    const tab = new bootstrap.Tab(routesTab);
-                    tab.show();
-                }
-            });
-        });
-    }
-
-    /**
-     * Count default routes (0.0.0.0/0) across all VRFs
-     * @returns {number} - Number of default routes
-     */
-    countDefaultRoutes() {
-        let count = 0;
+        // Count routes by prefix length
+        const prefixCounts = {};
         Object.values(this.routes).forEach(routes => {
             routes.forEach(route => {
-                if (route.prefix === '0.0.0.0/0') {
-                    count++;
-                }
+                if (!route.prefix) return;
+                
+                // Use prefix instead of network
+                const prefixParts = route.prefix.split('/');
+                const prefixLength = prefixParts.length > 1 ? parseInt(prefixParts[1], 10) : 32;
+                prefixCounts[prefixLength] = (prefixCounts[prefixLength] || 0) + 1;
             });
         });
-        return count;
+        
+        // Collect interfaces
+        this.allInterfaces = new Set();
+        Object.values(this.routes).forEach(routes => {
+            routes.forEach(route => {
+                route.nexthops?.forEach(nexthop => {
+                    if (nexthop.interfaceName) {
+                        this.allInterfaces.add(nexthop.interfaceName);
+                    }
+                });
+            });
+        });
+        
+        // Build stats cards
+        let html = `
+            <div class="col-md-4 mb-3">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <i class="bi bi-table me-2"></i>
+                        Route Summary
+                    </div>
+                    <div class="card-body">
+                        <div class="routing-stat">
+                            <span class="routing-stat-label">Total Routes</span>
+                            <span class="routing-stat-value">${totalRoutes}</span>
+                        </div>
+                        <div class="routing-stat">
+                            <span class="routing-stat-label">VRFs</span>
+                            <span class="routing-stat-value">${Object.keys(this.routes).length}</span>
+                        </div>
+                        <div class="routing-stat">
+                            <span class="routing-stat-label">Interfaces</span>
+                            <span class="routing-stat-value">${this.allInterfaces.size}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4 mb-3">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <i class="bi bi-diagram-3 me-2"></i>
+                        Routes by Protocol
+                    </div>
+                    <div class="card-body">
+        `;
+        
+        // Add protocol stats
+        Object.entries(protocolCounts).sort((a, b) => b[1] - a[1]).forEach(([protocol, count]) => {
+            const protocolName = this.getProtocolName(protocol);
+            const badgeClass = this.getProtocolBadgeClass(protocol);
+            const percentage = Math.round((count / totalRoutes) * 100);
+            
+            html += `
+                <div class="routing-stat">
+                    <span class="routing-stat-label">
+                        <span class="badge ${badgeClass}">${protocolName}</span>
+                    </span>
+                    <span class="routing-stat-value">${count} <small class="text-muted">(${percentage}%)</small></span>
+                </div>
+            `;
+        });
+        
+        html += `
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4 mb-3">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <i class="bi bi-pie-chart me-2"></i>
+                        Prefix Distribution
+                    </div>
+                    <div class="card-body">
+        `;
+        
+        // Group prefix lengths
+        const prefixGroups = {
+            'Less than 8': 0,
+            '8 to 16': 0,
+            '17 to 24': 0,
+            '25 to 32': 0
+        };
+        
+        Object.entries(prefixCounts).forEach(([length, count]) => {
+            const len = parseInt(length, 10);
+            if (len < 8) {
+                prefixGroups['Less than 8'] += count;
+            } else if (len <= 16) {
+                prefixGroups['8 to 16'] += count;
+            } else if (len <= 24) {
+                prefixGroups['17 to 24'] += count;
+            } else {
+                prefixGroups['25 to 32'] += count;
+            }
+        });
+        
+        // Add prefix group stats
+        Object.entries(prefixGroups).forEach(([group, count]) => {
+            const percentage = Math.round((count / totalRoutes) * 100);
+            
+            html += `
+                <div class="routing-stat">
+                    <span class="routing-stat-label">${group}</span>
+                    <span class="routing-stat-value">${count} <small class="text-muted">(${percentage}%)</small></span>
+                </div>
+            `;
+        });
+        
+        html += `
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        statsContainer.innerHTML = html;
     }
 
     /**
-     * Helper method to get VRFs sorted with Default first
-     * @returns {Array} Array of VRF names with default first
+     * Get sorted VRF names with default first
+     * @returns {Array} - Sorted VRF names
+     */
+    getSortedVrfNames() {
+        if (!this.routes) return [];
+        
+        // Extract VRF names
+        const vrfNames = Object.keys(this.routes).filter(vrf => vrf !== 'all');
+        
+        // Check if default VRF exists
+        const defaultVrfIndex = vrfNames.indexOf('default');
+        
+        if (defaultVrfIndex === -1) {
+            // No default VRF, just sort alphabetically
+            return vrfNames.sort();
+        }
+        
+        // Remove default VRF from the array
+        const defaultVrf = vrfNames.splice(defaultVrfIndex, 1)[0];
+        
+        // Sort other VRFs alphabetically
+        const otherVrfs = vrfNames.sort();
+        
+        // Return default VRF first, then others
+        return [defaultVrf, ...otherVrfs];
+    }
+
+    /**
+     * Get protocol badge HTML
+     * @param {string} protocol - Protocol name
+     * @returns {string} - HTML for protocol badge
+     */
+    getProtocolBadge(protocol) {
+        const badgeClass = this.getProtocolBadgeClass(protocol);
+        const protocolName = this.getProtocolName(protocol);
+        return `<span class="badge ${badgeClass}">${protocolName}</span>`;
+    }
+
+    /**
+     * Get protocol badge CSS class
+     * @param {string} protocol - Protocol name
+     * @returns {string} - CSS class for badge
+     */
+    getProtocolBadgeClass(protocol) {
+        switch (protocol.toLowerCase()) {
+            case 'connected':
+                return 'bg-success';
+            case 'static':
+                return 'bg-primary';
+            case 'bgp':
+                return 'bg-warning text-dark';
+            case 'ospf':
+                return 'bg-info text-dark';
+            case 'rip':
+                return 'bg-secondary';
+            default:
+                return 'bg-secondary';
+        }
+    }
+
+    /**
+     * Get protocol display name
+     * @param {string} protocol - Protocol name
+     * @returns {string} - Display name
+     */
+    getProtocolName(protocol) {
+        switch (protocol.toLowerCase()) {
+            case 'connected':
+                return 'Connected';
+            case 'static':
+                return 'Static';
+            case 'bgp':
+                return 'BGP';
+            case 'ospf':
+                return 'OSPF';
+            case 'rip':
+                return 'RIP';
+            default:
+                return protocol ? protocol.toUpperCase() : 'Unknown';
+        }
+    }
+
+    /**
+     * Get sorted VRF names with default first
+     * @returns {Array} - Sorted VRF names
      */
     getSortedVrfs() {
-        const vrfs = Object.keys(this.routes);
-        const defaultVrf = vrfs.find(vrf => vrf === 'default');
-        const otherVrfs = vrfs.filter(vrf => vrf !== 'default').sort();
-        return defaultVrf ? [defaultVrf, ...otherVrfs] : otherVrfs;
+        // This should return the sorted VRF names, not objects
+        return this.getSortedVrfNames();
     }
 }
 
 // Initialize the routing table when the document is ready
 document.addEventListener('DOMContentLoaded', () => {
-    const routingTable = new NetworkRoutingTable();
+    const routingTable = new RoutingTable();
     // Store it globally for debugging
     window.routingTable = routingTable;
     routingTable.init();

@@ -434,4 +434,128 @@ tr.table-success td {
         margin-top: 1rem;
         width: 100%;
     }
+}
+
+/* Interface badges */
+.interface-badge {
+    padding: 0.35em 0.65em;
+    font-size: 0.75em;
+    font-weight: 600;
+    white-space: nowrap;
+    border-radius: 0.375rem;
+}
+
+.interface-ethernet {
+    background-color: var(--bs-blue);
+    color: #fff;
+}
+
+.interface-loopback {
+    background-color: var(--bs-teal);
+    color: #000;
+}
+
+.interface-tunnel {
+    background-color: var(--bs-purple);
+    color: #fff;
+}
+
+.interface-vlan {
+    background-color: var(--bs-pink);
+    color: #fff;
+}
+
+.interface-serial {
+    background-color: var(--bs-orange);
+    color: #000;
+}
+
+.interface-port-channel {
+    background-color: var(--bs-indigo);
+    color: #fff;
+}
+
+.interface-unknown {
+    background-color: var(--bs-secondary);
+    color: #fff;
+}
+
+/* Dark mode interface badge adjustments */
+[data-bs-theme="dark"] .interface-ethernet,
+[data-bs-theme="dark"] .interface-loopback,
+[data-bs-theme="dark"] .interface-serial {
+    color: var(--bs-dark);
+}
+
+/* Nexthop rows styling */
+.nexthop-row {
+    background-color: rgba(var(--bs-tertiary-bg-rgb), 0.5);
+}
+
+.nexthop-row td {
+    border-top: none !important;
+    padding-top: 0.4rem;
+    padding-bottom: 0.4rem;
+}
+
+/* VRF Tabs */
+.vrf-tab {
+    margin-right: 0.5rem;
+    margin-bottom: 0.5rem;
+    border: 1px solid var(--bs-border-color);
+    background-color: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    transition: all 0.2s ease;
+}
+
+.vrf-tab:hover {
+    background-color: var(--bs-tertiary-bg);
+    border-color: var(--bs-primary);
+}
+
+.vrf-tab.active {
+    background-color: var(--bs-primary);
+    border-color: var(--bs-primary);
+    color: #fff;
+}
+
+/* VRF protocol stats */
+.vrf-protocol-stat {
+    display: inline-flex;
+    align-items: center;
+    margin-right: 1rem;
+    margin-top: 0.5rem;
+}
+
+.protocol-count {
+    margin-left: 0.25rem;
+    font-size: 0.875rem;
+    color: var(--bs-secondary-color);
+}
+
+/* Additional Interface Types */
+.interface-bridge {
+    background-color: var(--bs-cyan);
+    color: #000;
+}
+
+.interface-ppp {
+    background-color: var(--bs-green);
+    color: #fff;
+}
+
+.interface-wireless {
+    background-color: var(--bs-yellow);
+    color: #000;
+}
+
+.interface-vxlan {
+    background-color: var(--bs-purple);
+    color: #fff;
+}
+
+/* Dark mode adjustments */
+[data-bs-theme="dark"] .interface-bridge,
+[data-bs-theme="dark"] .interface-wireless {
+    color: var(--bs-dark);
 } 
