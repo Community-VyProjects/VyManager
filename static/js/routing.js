@@ -1080,108 +1080,188 @@ class RoutingTable {
     }
 
     /**
-     * Format protocol name with badge
-     * @param {string} protocol - The routing protocol
-     * @returns {string} - Formatted HTML for the protocol badge
-     */
-    formatProtocol(protocol) {
-        // Use consistent protocol classes that match our CSS
-        const lowerProtocol = protocol.toLowerCase();
-        
-        // Check if we have a specific class for this protocol
-        const validProtocols = ['static', 'connected', 'bgp', 'ospf', 'rip'];
-        const badgeClass = validProtocols.includes(lowerProtocol) ? lowerProtocol : 'secondary';
-        
-        return `<span class="badge ${badgeClass}">${protocol}</span>`;
-    }
-
-    /**
-     * Format next hops for display
-     * @param {Array} nexthops - Array of next hop information
-     * @returns {string} - Formatted HTML
+     * Format next hop information with badges for interface types
+     * @param {Array} nexthops - Array of next hop objects
+     * @returns {string} - HTML string of formatted next hops
      */
     formatNextHops(nexthops) {
         if (!nexthops || nexthops.length === 0) {
-            return '<span class="text-muted">None</span>';
+            return '<span class="text-muted">No next hop</span>';
         }
         
-        let hopHtml = '';
-        
-        nexthops.forEach((hop, index) => {
-            if (index > 0) {
-                hopHtml += '<br>';
+        return nexthops.map(hop => {
+            let interfaceHtml = '';
+            let nextHopHtml = '';
+            
+            // Format interface with color-coded badge based on interface type
+            if (hop.interfaceName) {
+                const interfaceType = this.getInterfaceType(hop.interfaceName);
+                const badgeClass = this.getInterfaceBadgeClass(interfaceType);
+                interfaceHtml = `<span class="badge ${badgeClass} interface-badge">${hop.interfaceName}</span>`;
             }
             
-            // Process interface
-            const interfaceHtml = hop.interfaceName ? 
-                `<span class="badge ${this.getInterfaceType(hop.interfaceName)}">${hop.interfaceName}</span>` : 
-                '';
-            
-            // Create next hop display
+            // Format next hop IP if available, adding "(recursive)" label for recursive next hops
             if (hop.ip) {
-                hopHtml += `
-                    <div class="d-flex align-items-center gap-2">
-                        <small>${hop.ip}</small>
-                        ${interfaceHtml}
-                    </div>
-                `;
-            } else if (hop.interfaceName) {
-                hopHtml += interfaceHtml;
-            } else {
-                hopHtml += '<span class="text-muted">Direct</span>';
+                // If there's no interface but there is an IP, it's likely a recursive next hop
+                const isRecursive = !hop.interfaceName;
+                nextHopHtml = `<code>${hop.ip}${isRecursive ? ' <small>(recursive)</small>' : ''}</code>`;
             }
-        });
-        
-        return hopHtml;
+            
+            // Return either next hop IP, interface badge, or both (interface first, then IP)
+            if (interfaceHtml && nextHopHtml) {
+                return `${interfaceHtml} ${nextHopHtml}`;
+            } else if (nextHopHtml) {
+                return nextHopHtml;
+            } else if (interfaceHtml) {
+                return interfaceHtml;
+            } else {
+                return '<span class="text-muted">Unknown</span>';
+            }
+        }).join('<br>');
     }
-
+    
     /**
-     * Get the interface type based on interface name
-     * @param {string} interfaceName - Interface name
-     * @returns {string} - Interface type
+     * Get the interface type based on the interface name
+     * @param {string} interfaceName - The name of the interface
+     * @returns {string} - The type of the interface (ethernet, loopback, vlan, etc.)
      */
     getInterfaceType(interfaceName) {
-        if (!interfaceName) {
-            return 'unknown';
-        }
+        if (!interfaceName) return 'other';
         
-        // Convert to lowercase for easier comparison
         const name = interfaceName.toLowerCase();
         
-        // Handle common interface types
-        if (name.startsWith('eth') || name.startsWith('en') || name.startsWith('ge-') || name.startsWith('gi') || name.startsWith('fa')) {
-            return 'ethernet';
-        } else if (name.startsWith('lo')) {
-            return 'loopback';
-        } else if (name.startsWith('tun') || name.startsWith('wg')) {
-            return 'tunnel';
-        } else if (name.includes('vlan') || name.includes('.')) {
-            return 'vlan';
-        } else if (name.startsWith('br')) {
-            return 'bridge';
-        } else if (name.startsWith('po') || name.startsWith('bond') || name.includes('channel')) {
-            return 'port-channel';
-        } else if (name.startsWith('vti')) {
-            return 'tunnel';
-        } else if (name.startsWith('ppp')) {
-            return 'ppp';
-        } else if (name.startsWith('wlan') || name.startsWith('wl')) {
-            return 'wireless';
-        } else if (name.startsWith('vxlan')) {
-            return 'vxlan';
-        }
-        
-        // For VyOS interfaces with dot notation (e.g. eth0.100)
-        if (name.includes('.')) {
-            const basePart = name.split('.')[0];
-            // Check if base part is an ethernet interface
-            if (basePart.startsWith('eth') || basePart.startsWith('en')) {
-                return 'vlan';
+        if (name.startsWith('eth')) {
+            if (name.includes('.')) {
+                return 'vlan';  // VLAN interface (subinterface)
+            } else {
+                return 'ethernet';  // Physical Ethernet
             }
+        } else if (name.startsWith('lo')) {
+            return 'loopback';  // Loopback
+        } else if (name.startsWith('tun')) {
+            return 'tunnel';  // Tunnel
+        } else if (name.startsWith('vtun')) {
+            return 'vpn';  // VPN
+        } else if (name.startsWith('ppp')) {
+            return 'ppp';  // PPP
+        } else if (name.startsWith('wlan') || name.startsWith('wl')) {
+            return 'wireless';  // Wireless
+        } else if (name.startsWith('br')) {
+            return 'bridge';  // Bridge
+        } else if (name.startsWith('bond')) {
+            return 'bond';  // Bond
+        } else {
+            return 'other';  // Other or unknown
         }
+    }
+    
+    /**
+     * Get the CSS class for an interface badge based on its type
+     * @param {string} type - The interface type
+     * @returns {string} - The CSS class for the badge
+     */
+    getInterfaceBadgeClass(type) {
+        switch (type) {
+            case 'ethernet':
+                return 'bg-primary';
+            case 'vlan':
+                return 'bg-info';
+            case 'loopback':
+                return 'bg-secondary';
+            case 'tunnel':
+                return 'bg-dark';
+            case 'vpn':
+                return 'bg-success';
+            case 'ppp':
+                return 'bg-warning text-dark';
+            case 'wireless':
+                return 'bg-danger';
+            case 'bridge':
+                return 'bg-teal';
+            case 'bond':
+                return 'bg-indigo';
+            default:
+                return 'bg-secondary';
+        }
+    }
+    
+    /**
+     * Format a protocol with a colored badge
+     * @param {string} protocol - The protocol name
+     * @returns {string} - HTML string with a colored badge
+     */
+    formatProtocol(protocol) {
+        const protocolName = this.getProtocolName(protocol);
+        const badgeClass = this.getProtocolBadgeClass(protocol);
+        return `<span class="badge ${badgeClass} protocol-badge">${protocolName}</span>`;
+    }
+    
+    /**
+     * Get a user-friendly name for a routing protocol
+     * @param {string} protocol - The protocol identifier
+     * @returns {string} - User-friendly protocol name
+     */
+    getProtocolName(protocol) {
+        if (!protocol) return 'Unknown';
         
-        // Default type if unrecognized
-        return 'unknown';
+        switch (protocol.toLowerCase()) {
+            case 'kernel':
+                return 'Kernel';
+            case 'connected':
+                return 'Connected';
+            case 'static':
+                return 'Static';
+            case 'rip':
+                return 'RIP';
+            case 'ospf':
+                return 'OSPF';
+            case 'bgp':
+                return 'BGP';
+            case 'isis':
+                return 'IS-IS';
+            case 'eigrp':
+                return 'EIGRP';
+            case 'local':
+                return 'Local';
+            case 'undefined':
+                return 'Unknown';
+            default:
+                return protocol;
+        }
+    }
+    
+    /**
+     * Get the CSS class for a protocol badge
+     * @param {string} protocol - The protocol identifier
+     * @returns {string} - The CSS class for the badge
+     */
+    getProtocolBadgeClass(protocol) {
+        if (!protocol) return 'bg-secondary';
+        
+        switch (protocol.toLowerCase()) {
+            case 'kernel':
+                return 'bg-secondary';
+            case 'connected':
+                return 'bg-success';
+            case 'static':
+                return 'bg-primary';
+            case 'rip':
+                return 'bg-info';
+            case 'ospf':
+                return 'bg-warning text-dark';
+            case 'bgp':
+                return 'bg-danger';
+            case 'isis':
+                return 'bg-dark';
+            case 'eigrp':
+                return 'bg-purple';
+            case 'local':
+                return 'bg-info';
+            case 'undefined':
+                return 'bg-secondary';
+            default:
+                return 'bg-secondary';
+        }
     }
 
     /**
@@ -1237,38 +1317,34 @@ class RoutingTable {
             </div>
         `;
         
-        // Add next hop information
+        // Add next hops details if available
         if (route.nexthops && route.nexthops.length > 0) {
             detailsHtml += `
-                <h5 class="mt-3 mb-2">Next Hops</h5>
+                <h5 class="mt-4 mb-3">Next Hops</h5>
                 <div class="table-responsive">
-                    <table class="table table-sm">
+                    <table class="table table-sm table-hover">
                         <thead>
                             <tr>
-                                <th>IP Address</th>
                                 <th>Interface</th>
+                                <th>IP Address</th>
+                                <th>Active</th>
                                 <th>Weight</th>
-                                <th>Status</th>
                             </tr>
                         </thead>
                         <tbody>
             `;
             
             route.nexthops.forEach(hop => {
-                const interfaceDisplay = hop.interfaceName ? 
-                    `<span class="badge ${this.getInterfaceType(hop.interfaceName)}">${hop.interfaceName}</span>` : 
-                    '<span class="text-muted">N/A</span>';
+                const interfaceType = this.getInterfaceType(hop.interfaceName);
+                const badgeClass = this.getInterfaceBadgeClass(interfaceType);
+                const isRecursive = !hop.interfaceName && hop.ip;
                 
                 detailsHtml += `
                     <tr>
-                        <td>${hop.ip || 'Connected'}</td>
-                        <td>${interfaceDisplay}</td>
-                        <td>${hop.weight || 'N/A'}</td>
-                        <td>
-                            <span class="badge ${hop.active ? 'bg-success' : 'bg-secondary'}">
-                                ${hop.active ? 'Active' : 'Inactive'}
-                            </span>
-                        </td>
+                        <td>${hop.interfaceName ? `<span class="badge ${badgeClass}">${hop.interfaceName}</span>` : '<span class="text-muted">-</span>'}</td>
+                        <td>${hop.ip ? `${hop.ip}${isRecursive ? ' <small>(recursive)</small>' : ''}` : '<span class="text-muted">-</span>'}</td>
+                        <td>${hop.active ? '<span class="badge bg-success">Yes</span>' : '<span class="badge bg-secondary">No</span>'}</td>
+                        <td>${hop.weight || '1'}</td>
                     </tr>
                 `;
             });
@@ -1278,60 +1354,37 @@ class RoutingTable {
                     </table>
                 </div>
             `;
-        } else {
-            detailsHtml += `
-                <div class="alert alert-info">
-                    <i class="bi bi-info-circle me-2"></i>
-                    No next hop information available.
-                </div>
-            `;
         }
         
-        // Add additional information if available
-        if (route.adminDistance || route.metric || route.sourcePeer) {
+        // Add additional route information if available
+        if (route.distance !== undefined || route.metric !== undefined) {
             detailsHtml += `
-                <h5 class="mt-3 mb-2">Additional Information</h5>
+                <h5 class="mt-4 mb-3">Route Metrics</h5>
                 <div class="row">
-            `;
-            
-            if (route.adminDistance) {
-                detailsHtml += `
-                    <div class="col-md-4 mb-2">
-                        <strong>Admin Distance:</strong> ${route.adminDistance}
+                    ${route.distance !== undefined ? `
+                    <div class="col-md-6 mb-2">
+                        <strong>Administrative Distance:</strong> ${route.distance}
                     </div>
-                `;
-            }
-            
-            if (route.metric) {
-                detailsHtml += `
-                    <div class="col-md-4 mb-2">
+                    ` : ''}
+                    ${route.metric !== undefined ? `
+                    <div class="col-md-6 mb-2">
                         <strong>Metric:</strong> ${route.metric}
                     </div>
-                `;
-            }
-            
-            if (route.sourcePeer) {
-                detailsHtml += `
-                    <div class="col-md-4 mb-2">
-                        <strong>Source Peer:</strong> ${route.sourcePeer}
-                    </div>
-                `;
-            }
-            
-            detailsHtml += `
+                    ` : ''}
                 </div>
             `;
         }
         
-        // Set the modal title and content
-        const modalTitle = document.getElementById('routeDetailsModalLabel');
-        if (modalTitle) {
-            modalTitle.textContent = `Route Details: ${displayPrefix}`;
-        }
-        
+        // Update the modal content
         const modalContent = document.getElementById('routeDetailsContent');
         if (modalContent) {
             modalContent.innerHTML = detailsHtml;
+        }
+        
+        // Update the modal title
+        const modalTitle = document.getElementById('routeDetailsModalLabel');
+        if (modalTitle) {
+            modalTitle.textContent = `Route Details: ${displayPrefix}`;
         }
     }
 
@@ -1731,6 +1784,8 @@ class RoutingTable {
      * @returns {string} - CSS class for badge
      */
     getProtocolBadgeClass(protocol) {
+        if (!protocol) return 'bg-secondary';
+        
         switch (protocol.toLowerCase()) {
             case 'connected':
                 return 'bg-success';
@@ -1753,6 +1808,8 @@ class RoutingTable {
      * @returns {string} - Display name
      */
     getProtocolName(protocol) {
+        if (!protocol) return 'Unknown';
+        
         switch (protocol.toLowerCase()) {
             case 'connected':
                 return 'Connected';
