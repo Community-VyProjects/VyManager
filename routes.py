@@ -75,61 +75,190 @@ async def get_routes():
             # We need to properly parse it
             if result.get("success", False) and result.get("data"):
                 try:
-                    # Split the data by newlines and parse each line separately
-                    routes_by_vrf = {}
-                    raw_data_lines = result["data"].strip().split('\n')
+                    # The issue is that VyOS API is returning a string with JSON that has embedded newlines
+                    # Clean up the data string first by replacing problematic newlines
+                    raw_data = result["data"]
+                    # First attempt - try to clean up the data by replacing newlines properly
+                    cleaned_data = raw_data.replace('\\n', ' ').replace('\n', ' ')
                     
-                    for line in raw_data_lines:
-                        if not line.strip():
-                            continue
-                            
-                        # Parse each line as a separate JSON object
-                        line_data = json.loads(line)
+                    # Try to parse the entire response as a single JSON object
+                    try:
+                        json_data = json.loads(cleaned_data)
+                        print("Successfully parsed JSON data after cleaning newlines")
                         
-                        # Merge the data into the routes_by_vrf dictionary
-                        for prefix, routes in line_data.items():
-                            for route in routes:
-                                vrf_name = route.get("vrfName", "default")
-                                
-                                # Create the VRF entry if it doesn't exist
+                        # Process the routes by VRF
+                        routes_by_vrf = {}
+                        
+                        if isinstance(json_data, dict):
+                            # Process each VRF in the json_data
+                            for vrf_name, vrf_routes in json_data.items():
                                 if vrf_name not in routes_by_vrf:
                                     routes_by_vrf[vrf_name] = []
                                 
-                                # Process the route to make it easier to use in the frontend
-                                processed_route = {
-                                    "prefix": prefix,  # Use prefix as the route prefix
-                                    "network": prefix,  # Keep network for backward compatibility
-                                    "protocol": route.get("protocol", "unknown"),
-                                    "selected": route.get("selected", False),
-                                    "installed": route.get("installed", False),
-                                    "nexthops": []
-                                }
-                                
-                                # Process nexthops
-                                if "nexthops" in route:
-                                    for nexthop in route["nexthops"]:
-                                        processed_nexthop = {
-                                            "ip": nexthop.get("ip", ""),
-                                            "interfaceName": nexthop.get("interfaceName", ""),
-                                            "active": nexthop.get("active", False),
-                                            "distance": route.get("distance", 0),  # Add distance from the route
-                                            "metric": route.get("metric", 0)       # Add metric from the route
+                                # Process each prefix in the VRF
+                                for prefix, prefix_routes in vrf_routes.items():
+                                    for route in prefix_routes:
+                                        # Process the route
+                                        processed_route = {
+                                            "prefix": prefix,  # Use prefix as the route prefix
+                                            "network": prefix,  # Keep network for backward compatibility
+                                            "protocol": route.get("protocol", "unknown"),
+                                            "selected": route.get("selected", False),
+                                            "installed": route.get("installed", False),
+                                            "nexthops": []
                                         }
-                                        processed_route["nexthops"].append(processed_nexthop)
+                                        
+                                        # Add other properties that might be useful
+                                        if "distance" in route:
+                                            processed_route["distance"] = route["distance"]
+                                        if "metric" in route:
+                                            processed_route["metric"] = route["metric"]
+                                        if "uptime" in route:
+                                            processed_route["uptime"] = route["uptime"]
+                                        
+                                        # Process nexthops
+                                        if "nexthops" in route:
+                                            for nexthop in route["nexthops"]:
+                                                processed_nexthop = {
+                                                    "ip": nexthop.get("ip", ""),
+                                                    "interfaceName": nexthop.get("interfaceName", ""),
+                                                    "active": nexthop.get("active", False),
+                                                    "weight": nexthop.get("weight", 1)
+                                                }
+                                                processed_route["nexthops"].append(processed_nexthop)
+                                        
+                                        # Add the processed route to the VRF
+                                        routes_by_vrf[vrf_name].append(processed_route)
+                        
+                        print(f"Successfully parsed routes data for {len(routes_by_vrf)} VRFs")
+                        return {
+                            "success": True,
+                            "routes": routes_by_vrf,
+                            "error": None
+                        }
+                    except json.JSONDecodeError as e:
+                        print(f"Error parsing cleaned JSON: {str(e)}")
+                        print("Falling back to manual parsing...")
+                        
+                        # Fallback to the original parsing method with line-by-line processing
+                        try:
+                            # Split the data by newlines and parse each line separately
+                            routes_by_vrf = {}
+                            raw_data_lines = result["data"].strip().split('\n')
+                            
+                            for line in raw_data_lines:
+                                if not line.strip():
+                                    continue
                                 
-                                # Add uptime if available
-                                if "uptime" in route:
-                                    processed_route["uptime"] = route["uptime"]
+                                # Try to clean the line before parsing
+                                try:
+                                    # First try to parse as is
+                                    line_data = json.loads(line)
+                                except json.JSONDecodeError:
+                                    # If that fails, try to clean line by removing internal newlines
+                                    cleaned_line = line.replace('\\n', ' ')
+                                    try:
+                                        line_data = json.loads(cleaned_line)
+                                    except json.JSONDecodeError:
+                                        print(f"Could not parse line: {line[:100]}...")
+                                        continue
                                 
-                                # Add the processed route to the VRF
-                                routes_by_vrf[vrf_name].append(processed_route)
-                    
-                    print(f"Successfully parsed routes data for {len(routes_by_vrf)} VRFs")
-                    return {
-                        "success": True,
-                        "routes": routes_by_vrf,
-                        "error": None
-                    }
+                                # Merge the data into the routes_by_vrf dictionary
+                                for prefix, routes in line_data.items():
+                                    for route in routes:
+                                        vrf_name = route.get("vrfName", "default")
+                                        
+                                        # Create the VRF entry if it doesn't exist
+                                        if vrf_name not in routes_by_vrf:
+                                            routes_by_vrf[vrf_name] = []
+                                        
+                                        # Process the route to make it easier to use in the frontend
+                                        processed_route = {
+                                            "prefix": prefix,  # Use prefix as the route prefix
+                                            "network": prefix,  # Keep network for backward compatibility
+                                            "protocol": route.get("protocol", "unknown"),
+                                            "selected": route.get("selected", False),
+                                            "installed": route.get("installed", False),
+                                            "nexthops": []
+                                        }
+                                        
+                                        # Add uptime if available
+                                        if "uptime" in route:
+                                            processed_route["uptime"] = route["uptime"]
+                                        
+                                        # Process nexthops
+                                        if "nexthops" in route:
+                                            for nexthop in route["nexthops"]:
+                                                processed_nexthop = {
+                                                    "ip": nexthop.get("ip", ""),
+                                                    "interfaceName": nexthop.get("interfaceName", ""),
+                                                    "active": nexthop.get("active", False),
+                                                    "distance": route.get("distance", 0),
+                                                    "metric": route.get("metric", 0)
+                                                }
+                                                processed_route["nexthops"].append(processed_nexthop)
+                                        
+                                        # Add the processed route to the VRF
+                                        routes_by_vrf[vrf_name].append(processed_route)
+                            
+                            print(f"Successfully parsed routes data for {len(routes_by_vrf)} VRFs using fallback method")
+                            return {
+                                "success": True,
+                                "routes": routes_by_vrf,
+                                "error": None
+                            }
+                        except Exception as e:
+                            print(f"Fallback parsing failed: {str(e)}")
+                            # Try one more approach: manual fix
+                            try:
+                                # Try to fix the JSON data by finding the actual structure
+                                corrected_json = fix_json_structure(raw_data)
+                                json_data = json.loads(corrected_json)
+                                print("Fixed JSON with manual correction")
+                                
+                                # Process the data as before
+                                routes_by_vrf = {}
+                                
+                                for vrf_name, vrf_routes in json_data.items():
+                                    if vrf_name not in routes_by_vrf:
+                                        routes_by_vrf[vrf_name] = []
+                                    
+                                    for prefix, prefix_routes in vrf_routes.items():
+                                        for route in prefix_routes:
+                                            processed_route = {
+                                                "prefix": prefix,
+                                                "network": prefix,
+                                                "protocol": route.get("protocol", "unknown"),
+                                                "selected": route.get("selected", False),
+                                                "installed": route.get("installed", False),
+                                                "nexthops": [],
+                                                "uptime": route.get("uptime", "N/A")
+                                            }
+                                            
+                                            if "nexthops" in route:
+                                                for nexthop in route["nexthops"]:
+                                                    processed_nexthop = {
+                                                        "ip": nexthop.get("ip", ""),
+                                                        "interfaceName": nexthop.get("interfaceName", ""),
+                                                        "active": nexthop.get("active", False)
+                                                    }
+                                                    processed_route["nexthops"].append(processed_nexthop)
+                                            
+                                            routes_by_vrf[vrf_name].append(processed_route)
+                                
+                                print(f"Successfully parsed routes data for {len(routes_by_vrf)} VRFs using manual correction")
+                                return {
+                                    "success": True,
+                                    "routes": routes_by_vrf,
+                                    "error": None
+                                }
+                            except Exception as e:
+                                print(f"Manual JSON correction failed: {str(e)}")
+                                return {
+                                    "success": False,
+                                    "error": f"Failed to parse routing data after multiple attempts: {str(e)}",
+                                    "raw_data": raw_data[:1000]
+                                }
                 except json.JSONDecodeError as e:
                     print(f"Error decoding JSON: {str(e)}")
                     print(f"Problematic line: {result['data'][:100]}")
@@ -137,7 +266,7 @@ async def get_routes():
                     return {
                         "success": False,
                         "error": f"Failed to parse routing data: {str(e)}",
-                        "raw_data": result["data"][:1000]  # Include first part of raw data for debugging
+                        "raw_data": result["data"][:1000]
                     }
             
             return {
@@ -235,3 +364,9 @@ def parse_routing_data(routes_string):
             sorted_vrfs[vrf] = routes_by_vrf[vrf]
     
     return sorted_vrfs 
+
+# Helper function to fix JSON with newlines
+def fix_json_structure(json_string):
+    """Attempt to fix a malformed JSON string that has embedded newlines"""
+    # Replace newlines inside the JSON structure
+    return json_string.replace('\\n', ' ').replace('\n', '') 
