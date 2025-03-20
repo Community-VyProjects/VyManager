@@ -90,80 +90,48 @@ async def get_routes():
                         routes_by_vrf = {}
                         
                         if isinstance(json_data, dict):
-                            # Process each VRF in the json_data
-                            for vrf_name, vrf_routes in json_data.items():
-                                if vrf_name not in routes_by_vrf:
-                                    routes_by_vrf[vrf_name] = []
-                                
-                                # Handle case where vrf_routes is a list
-                                if isinstance(vrf_routes, list):
-                                    for route in vrf_routes:
-                                        # Process the route directly since it's already in list format
-                                        processed_route = {
-                                            "prefix": route.get("prefix", ""),  # Try to get prefix from route
-                                            "network": route.get("network", ""),  # Try to get network from route
-                                            "protocol": route.get("protocol", "unknown"),
-                                            "selected": route.get("selected", False),
-                                            "installed": route.get("installed", False),
-                                            "nexthops": []
-                                        }
-                                        
-                                        # Add other properties that might be useful
-                                        if "distance" in route:
-                                            processed_route["distance"] = route["distance"]
-                                        if "metric" in route:
-                                            processed_route["metric"] = route["metric"]
-                                        if "uptime" in route:
-                                            processed_route["uptime"] = route["uptime"]
-                                        
-                                        # Process nexthops
-                                        if "nexthops" in route:
-                                            for nexthop in route["nexthops"]:
-                                                processed_nexthop = {
-                                                    "ip": nexthop.get("ip", ""),
-                                                    "interfaceName": nexthop.get("interfaceName", ""),
-                                                    "active": nexthop.get("active", False),
-                                                    "weight": nexthop.get("weight", 1)
-                                                }
-                                                processed_route["nexthops"].append(processed_nexthop)
-                                        
-                                        # Add the processed route to the VRF
-                                        routes_by_vrf[vrf_name].append(processed_route)
-                                else:
-                                    # Original dictionary processing
-                                    for prefix, prefix_routes in vrf_routes.items():
-                                        for route in prefix_routes:
-                                            # Process the route
-                                            processed_route = {
-                                                "prefix": prefix,  # Use prefix as the route prefix
-                                                "network": prefix,  # Keep network for backward compatibility
-                                                "protocol": route.get("protocol", "unknown"),
-                                                "selected": route.get("selected", False),
-                                                "installed": route.get("installed", False),
-                                                "nexthops": []
+                            # Process each prefix and its routes
+                            for prefix, prefix_routes in json_data.items():
+                                # Each prefix can have multiple route entries
+                                for route in prefix_routes:
+                                    # Get the VRF name from the route, default to "default" if not specified
+                                    vrf_name = route.get("vrfName", "default")
+                                    
+                                    # Initialize the VRF entry if it doesn't exist
+                                    if vrf_name not in routes_by_vrf:
+                                        routes_by_vrf[vrf_name] = []
+                                    
+                                    # Process the route
+                                    processed_route = {
+                                        "prefix": prefix,  # Use prefix as the route prefix
+                                        "network": prefix,  # Keep network for backward compatibility
+                                        "protocol": route.get("protocol", "unknown"),
+                                        "selected": route.get("selected", False),
+                                        "installed": route.get("installed", False),
+                                        "nexthops": []
+                                    }
+                                    
+                                    # Add other properties that might be useful
+                                    if "distance" in route:
+                                        processed_route["distance"] = route["distance"]
+                                    if "metric" in route:
+                                        processed_route["metric"] = route["metric"]
+                                    if "uptime" in route:
+                                        processed_route["uptime"] = route["uptime"]
+                                    
+                                    # Process nexthops
+                                    if "nexthops" in route:
+                                        for nexthop in route["nexthops"]:
+                                            processed_nexthop = {
+                                                "ip": nexthop.get("ip", ""),
+                                                "interfaceName": nexthop.get("interfaceName", ""),
+                                                "active": nexthop.get("active", False),
+                                                "weight": nexthop.get("weight", 1)
                                             }
-                                            
-                                            # Add other properties that might be useful
-                                            if "distance" in route:
-                                                processed_route["distance"] = route["distance"]
-                                            if "metric" in route:
-                                                processed_route["metric"] = route["metric"]
-                                            if "uptime" in route:
-                                                processed_route["uptime"] = route["uptime"]
-                                            
-                                            # Process nexthops
-                                            if "nexthops" in route:
-                                                for nexthop in route["nexthops"]:
-                                                    processed_nexthop = {
-                                                        "ip": nexthop.get("ip", ""),
-                                                        "interfaceName": nexthop.get("interfaceName", ""),
-                                                        "active": nexthop.get("active", False),
-                                                        "weight": nexthop.get("weight", 1)
-                                                    }
-                                                    processed_route["nexthops"].append(processed_nexthop)
-                                            
-                                            # Add the processed route to the VRF
-                                            routes_by_vrf[vrf_name].append(processed_route)
+                                            processed_route["nexthops"].append(processed_nexthop)
+                                    
+                                    # Add the processed route to the VRF
+                                    routes_by_vrf[vrf_name].append(processed_route)
                         
                         print(f"Successfully parsed routes data for {len(routes_by_vrf)} VRFs")
                         return {
