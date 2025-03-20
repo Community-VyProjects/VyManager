@@ -90,62 +90,67 @@ async def get_routes():
                         routes_by_vrf = {}
                         
                         if isinstance(json_data, dict):
-                            # Process each prefix and its routes
-                            for prefix, prefix_routes in json_data.items():
-                                # Debug logging
-                                print(f"Processing prefix: {prefix}")
-                                print(f"Type of prefix_routes: {type(prefix_routes)}")
+                            # First level keys are VRF names
+                            for vrf_name, vrf_data in json_data.items():
+                                # Initialize the VRF entry
+                                routes_by_vrf[vrf_name] = []
                                 
-                                # Ensure prefix_routes is a list
-                                if not isinstance(prefix_routes, list):
-                                    print(f"Warning: prefix_routes is not a list for prefix {prefix}")
+                                # Debug logging
+                                print(f"Processing VRF: {vrf_name}")
+                                
+                                # Ensure vrf_data is a dictionary
+                                if not isinstance(vrf_data, dict):
+                                    print(f"Warning: VRF data is not a dictionary for VRF {vrf_name}")
                                     continue
                                 
-                                # Each prefix can have multiple route entries
-                                for route in prefix_routes:
-                                    # Ensure route is a dictionary
-                                    if not isinstance(route, dict):
-                                        print(f"Warning: route is not a dictionary: {route}")
+                                # Process each prefix in this VRF
+                                for prefix, prefix_routes in vrf_data.items():
+                                    # Debug logging
+                                    print(f"Processing prefix: {prefix}")
+                                    
+                                    # Ensure prefix_routes is a list
+                                    if not isinstance(prefix_routes, list):
+                                        print(f"Warning: prefix_routes is not a list for prefix {prefix}")
                                         continue
                                     
-                                    # Get the VRF name from the route, default to "default" if not specified
-                                    vrf_name = route.get("vrfName", "default")
-                                    
-                                    # Initialize the VRF entry if it doesn't exist
-                                    if vrf_name not in routes_by_vrf:
-                                        routes_by_vrf[vrf_name] = []
-                                    
-                                    # Process the route
-                                    processed_route = {
-                                        "prefix": prefix,  # Use prefix as the route prefix
-                                        "network": prefix,  # Keep network for backward compatibility
-                                        "protocol": route.get("protocol", "unknown"),
-                                        "selected": route.get("selected", False),
-                                        "installed": route.get("installed", False),
-                                        "nexthops": []
-                                    }
-                                    
-                                    # Add other properties that might be useful
-                                    if "distance" in route:
-                                        processed_route["distance"] = route["distance"]
-                                    if "metric" in route:
-                                        processed_route["metric"] = route["metric"]
-                                    if "uptime" in route:
-                                        processed_route["uptime"] = route["uptime"]
-                                    
-                                    # Process nexthops
-                                    if "nexthops" in route:
-                                        for nexthop in route["nexthops"]:
-                                            processed_nexthop = {
-                                                "ip": nexthop.get("ip", ""),
-                                                "interfaceName": nexthop.get("interfaceName", ""),
-                                                "active": nexthop.get("active", False),
-                                                "weight": nexthop.get("weight", 1)
-                                            }
-                                            processed_route["nexthops"].append(processed_nexthop)
-                                    
-                                    # Add the processed route to the VRF
-                                    routes_by_vrf[vrf_name].append(processed_route)
+                                    # Process each route for this prefix
+                                    for route in prefix_routes:
+                                        # Ensure route is a dictionary
+                                        if not isinstance(route, dict):
+                                            print(f"Warning: route is not a dictionary: {route}")
+                                            continue
+                                        
+                                        # Process the route
+                                        processed_route = {
+                                            "prefix": prefix,  # Use prefix as the route prefix
+                                            "network": prefix,  # Keep network for backward compatibility
+                                            "protocol": route.get("protocol", "unknown"),
+                                            "selected": route.get("selected", False),
+                                            "installed": route.get("installed", False),
+                                            "nexthops": []
+                                        }
+                                        
+                                        # Add other properties that might be useful
+                                        if "distance" in route:
+                                            processed_route["distance"] = route["distance"]
+                                        if "metric" in route:
+                                            processed_route["metric"] = route["metric"]
+                                        if "uptime" in route:
+                                            processed_route["uptime"] = route["uptime"]
+                                        
+                                        # Process nexthops
+                                        if "nexthops" in route:
+                                            for nexthop in route["nexthops"]:
+                                                processed_nexthop = {
+                                                    "ip": nexthop.get("ip", ""),
+                                                    "interfaceName": nexthop.get("interfaceName", ""),
+                                                    "active": nexthop.get("active", False),
+                                                    "weight": nexthop.get("weight", 1)
+                                                }
+                                                processed_route["nexthops"].append(processed_nexthop)
+                                        
+                                        # Add the processed route to the VRF
+                                        routes_by_vrf[vrf_name].append(processed_route)
                         
                         print(f"Successfully parsed routes data for {len(routes_by_vrf)} VRFs")
                         return {
