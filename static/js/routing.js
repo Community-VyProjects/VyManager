@@ -727,12 +727,22 @@ class RoutingTable {
             const response = await fetch('/api/routes');
             const result = await response.json();
             
-            if (!result.success) {
-                console.error('Failed to load routing data:', result.error);
+            // Check if we have any routes
+            if (!result.routes || Object.keys(result.routes).length === 0) {
                 document.getElementById('routing-table-container').innerHTML = `
-                    <div class="alert alert-danger">
-                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                        Failed to load routing table: ${result.error || 'Unknown error'}
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        No routes found
+                    </div>
+                `;
+                return false;
+            }
+            
+            if (!result.success) {
+                document.getElementById('routing-table-container').innerHTML = `
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        No routes found
                     </div>
                 `;
                 return false;
@@ -937,9 +947,9 @@ class RoutingTable {
         } catch (error) {
             console.error('Error loading routing data:', error);
             document.getElementById('routing-table-container').innerHTML = `
-                <div class="alert alert-danger">
-                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                    Error loading routing table: ${error.message || 'Unknown error'}
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    No routes found
                 </div>
             `;
             return false;
