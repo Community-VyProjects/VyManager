@@ -19,6 +19,7 @@ class RoutingTable {
             prefix: '',
             nextHop: ''
         };
+        this.defaultGateway = null; // Store default gateway information
         // Get the theme from document element
         this.darkMode = document.documentElement.getAttribute('data-bs-theme') === 'dark';
     }
@@ -764,6 +765,10 @@ class RoutingTable {
             
             this.loaded = true;
             
+            // Find and store the default gateway
+            this.defaultGateway = this.findDefaultGateway();
+            console.log('Default Gateway:', this.defaultGateway);
+            
             // Extract and track all interfaces from route data
             this.allInterfaces = new Set();
             Object.values(this.routes).forEach(routes => {
@@ -942,6 +947,9 @@ class RoutingTable {
             
             // Set up event listeners
             this.setupEventListeners();
+            
+            // Update UI with default gateway information
+            this.updateDefaultGatewayInfo();
             
             return true;
         } catch (error) {
@@ -1848,6 +1856,118 @@ class RoutingTable {
     getSortedVrfs() {
         // This should return the sorted VRF names, not objects
         return this.getSortedVrfNames();
+    }
+
+    /**
+     * Find the default gateway (0.0.0.0/0 route) in the routing table
+     * @returns {object|null} - Default gateway information or null if not found
+     */
+    findDefaultGateway() {
+        // Check if routes are loaded
+        if (!this.loaded || !this.routes) return null;
+        
+        // Look in default VRF first
+        let defaultRoutes = this.routes.default || [];
+        
+        // Find the 0.0.0.0/0 route (default route)
+        let defaultRoute = defaultRoutes.find(route => route.prefix === '0.0.0.0/0');
+        
+        // If not found in default VRF, check other VRFs
+        if (!defaultRoute) {
+            for (const vrf in this.routes) {
+                if (vrf === 'default' || vrf === 'all') continue;
+                
+                const vrfRoutes = this.routes[vrf];
+                const route = vrfRoutes.find(r => r.prefix === '0.0.0.0/0');
+                
+                if (route) {
+                    defaultRoute = route;
+                    break;
+                }
+            }
+        }
+        
+        // If no default route found, return null
+        if (!defaultRoute) return null;
+        
+        // Extract gateway information from the default route
+        const gateway = {
+            prefix: defaultRoute.prefix,
+            vrf: defaultRoute.vrf || 'default',
+            protocol: defaultRoute.protocol,
+            nexthop: null,
+            interface: null
+        };
+        
+        // Get next hop information if available
+        if (defaultRoute.nexthops && defaultRoute.nexthops.length > 0) {
+            // Get the first active next hop or just the first one if none are marked active
+            const activeNextHop = defaultRoute.nexthops.find(hop => hop.active) || defaultRoute.nexthops[0];
+            
+            if (activeNextHop) {
+                gateway.nexthop = activeNextHop.ip;
+                gateway.interface = activeNextHop.interfaceName;
+            }
+        }
+        
+        return gateway;
+    }
+
+    /**
+     * Update UI with default gateway information
+     */
+    updateDefaultGatewayInfo() {
+        // Check if default gateway was found
+        if (!this.defaultGateway) return;
+        
+        // Try to update the default gateway information on the dashboard
+        const defaultGatewayEl = document.getElementById('defaultGateway');
+        if (defaultGatewayEl) {
+            if (this.defaultGateway.nexthop) {
+                let gatewayText = this.defaultGateway.nexthop;
+                if (this.defaultGateway.interface) {
+                    gatewayText += ` (${this.defaultGateway.interface})`;
+                }
+                defaultGatewayEl.textContent = gatewayText;
+            } else {
+                defaultGatewayEl.textContent = 'Not configured';
+            }
+        }
+        
+        // Update default gateway info in routes section if it exists
+        const routeInfoEl = document.getElementById('default-gateway-info');
+        if (routeInfoEl) {
+            if (this.defaultGateway.nexthop) {
+                let infoHtml = `
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-globe me-2 text-primary"></i>
+                        <div>
+                            <div class="fw-bold">${this.defaultGateway.nexthop}</div>
+                            <div class="small text-muted">
+                                Interface: ${this.defaultGateway.interface || 'N/A'} | 
+                                Protocol: ${this.getProtocolName(this.defaultGateway.protocol)}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                routeInfoEl.innerHTML = infoHtml;
+            } else {
+                routeInfoEl.textContent = 'No default gateway configured';
+            }
+        }
+        
+        // Export default gateway info to window object so other scripts can use it
+        window.defaultGatewayInfo = this.defaultGateway;
+    }
+
+    /**
+     * Export the default gateway information for use in other scripts
+     * This static method allows accessing default gateway info without an instance
+     * 
+     * @returns {Object|null} - The default gateway information or null if not found
+     */
+    static getDefaultGatewayInfo() {
+        return window.defaultGatewayInfo || null;
     }
 }
 

@@ -676,7 +676,15 @@ function updateDashboard(data) {
         
         // Update default gateway
         const defaultGateway = getDefaultGateway(data);
-        updateElementText('defaultGateway', defaultGateway || 'N/A');
+        if (defaultGateway) {
+            let gatewayText = defaultGateway.nextHop;
+            if (defaultGateway.interface) {
+                gatewayText += ` (${defaultGateway.interface})`;
+            }
+            updateElementText('defaultGateway', gatewayText);
+        } else {
+            updateElementText('defaultGateway', 'Not configured');
+        }
         
         // Update network information
         const interfaces = getInterfaces(data);
@@ -792,8 +800,75 @@ function updateDashboard(data) {
         }
         updateElementText('sshAccess', sshStatus);
         
+        // Update system information card with detailed information
+        updateSystemInfo(data);
     } catch (error) {
         console.error('Error updating dashboard:', error);
+    }
+}
+
+/**
+ * Update the system information card with detailed information
+ * @param {Object} data - The configuration data object
+ */
+function updateSystemInfo(data) {
+    if (!data) return;
+    
+    try {
+        // System information elements
+        const hostnameEl = document.getElementById('system-hostname');
+        const defaultGatewayEl = document.getElementById('system-default-gateway');
+        const wanInterfaceEl = document.getElementById('system-wan-interface');
+        const lanInterfaceEl = document.getElementById('system-lan-interface');
+        
+        // Update hostname if element exists
+        if (hostnameEl) {
+            const hostname = data.system && data.system['host-name'] ? data.system['host-name'] : 'Unknown';
+            hostnameEl.textContent = hostname;
+        }
+        
+        // Get interfaces info
+        const interfaces = getInterfaces(data);
+        const wanInterface = getWanInterface(interfaces, data);
+        const lanInterface = getLanInterface(interfaces, data);
+        
+        // Update WAN interface if element exists
+        if (wanInterfaceEl && wanInterface) {
+            wanInterfaceEl.textContent = `${wanInterface.name} (${wanInterface.address})`;
+        }
+        
+        // Update LAN interface if element exists
+        if (lanInterfaceEl && lanInterface) {
+            lanInterfaceEl.textContent = `${lanInterface.name} (${lanInterface.address})`;
+        }
+        
+        // Update default gateway with detailed information
+        if (defaultGatewayEl) {
+            const defaultGateway = getDefaultGateway(data);
+            if (defaultGateway) {
+                // Build gateway info with protocol details
+                let gatewayHtml = `<span class="fw-medium">${defaultGateway.nextHop}</span>`;
+                
+                // Add interface if available
+                if (defaultGateway.interface) {
+                    gatewayHtml += ` via <span class="text-primary">${defaultGateway.interface}</span>`;
+                }
+                
+                // Add protocol info
+                if (defaultGateway.protocol) {
+                    gatewayHtml += ` <span class="badge bg-info text-dark small">${defaultGateway.protocol}</span>`;
+                } else if (defaultGateway.type) {
+                    gatewayHtml += ` <span class="badge bg-secondary text-white small">${defaultGateway.type}</span>`;
+                }
+                
+                // Set the HTML content
+                defaultGatewayEl.innerHTML = gatewayHtml;
+            } else {
+                defaultGatewayEl.textContent = 'Not configured';
+            }
+        }
+    } catch (error) {
+        console.error('Error updating system information:', error);
     }
 }
 
@@ -1508,9 +1583,27 @@ function populateRoutingInfo(data) {
     const defaultGateway = getDefaultGateway(data);
     
     if (defaultGateway) {
+        // Format based on the information available
+        let protocolInfo = '';
+        if (defaultGateway.protocol) {
+            protocolInfo = defaultGateway.protocol;
+        } else if (defaultGateway.distance) {
+            protocolInfo = `Static route with distance ${defaultGateway.distance}`;
+        } else {
+            protocolInfo = 'Static route';
+        }
+        
         defaultGatewayInfo.innerHTML = `
-            <strong>${defaultGateway.nextHop}</strong> via ${defaultGateway.interface}
-            <div class="small text-muted">Static route with distance ${defaultGateway.distance}</div>
+            <div class="d-flex align-items-center">
+                <i class="bi bi-globe me-2 text-primary"></i>
+                <div>
+                    <div class="fw-bold">${defaultGateway.nextHop}</div>
+                    <div class="small text-muted">
+                        Interface: ${defaultGateway.interface} | 
+                        ${protocolInfo}
+                    </div>
+                </div>
+            </div>
         `;
     } else {
         defaultGatewayInfo.innerHTML = '<span class="text-muted">No default gateway configured</span>';
@@ -4897,8 +4990,20 @@ function isPrivateIP(ip) {
     return /^(10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|192\.168\.)/.test(addr);
 }
 
-// Get default gateway from static routes
+// Get default gateway from static routes or routing table
 function getDefaultGateway(data) {
+    // Check if we have default gateway info from routing.js
+    if (window.defaultGatewayInfo && window.defaultGatewayInfo.nexthop) {
+        console.log('Using default gateway info from routing.js:', window.defaultGatewayInfo);
+        return {
+            nextHop: window.defaultGatewayInfo.nexthop,
+            interface: window.defaultGatewayInfo.interface || 'Unknown',
+            protocol: window.defaultGatewayInfo.protocol || 'Unknown',
+            type: '0.0.0.0/0 route'
+        };
+    }
+    
+    // Fall back to original implementation
     if (!data || !data.protocols || !data.protocols.static || !data.protocols.static.route) {
         return null;
     }
@@ -4928,7 +5033,8 @@ function getDefaultGateway(data) {
             return {
                 nextHop: nextHopIp,
                 interface: interfaceName,
-                distance: distance
+                distance: distance,
+                type: 'static route'
             };
         }
     } catch (error) {
