@@ -664,147 +664,48 @@ async function initDashboard() {
 function updateDashboard(data) {
     console.log("Updating dashboard with data:", data);
     
-    if (!data) {
-        console.error('No data provided to update dashboard');
-        return;
+    // Count interfaces
+    const interfaceCount = countAllInterfaces(data);
+    document.getElementById('interfaceCount').textContent = interfaceCount;
+    
+    // Count firewall rules
+    const firewallRuleCount = countFirewallRules(data);
+    console.log(`Total firewall rules counted for dashboard: ${firewallRuleCount}`);
+    
+    // Update the counters in both the main dashboard and the tab
+    document.getElementById('firewallRuleCount').textContent = firewallRuleCount;
+    
+    // Also update the counter in the firewall tab if it exists
+    const activeFirewallRulesElement = document.querySelector('.Active.firewall.rules');
+    if (activeFirewallRulesElement) {
+        console.log(`Updating firewall tab counter to: ${firewallRuleCount}`);
+        activeFirewallRulesElement.textContent = firewallRuleCount;
     }
     
-    try {
-        // Get system information
-        const hostname = data.system && data.system['host-name'] ? data.system['host-name'] : 'Unknown';
-        updateElementText('hostname', hostname);
-        
-        // Update default gateway
-        const defaultGateway = getDefaultGateway(data);
-        if (defaultGateway) {
-            let gatewayText = defaultGateway.nextHop;
-            if (defaultGateway.interface) {
-                gatewayText += ` (${defaultGateway.interface})`;
-            }
-            updateElementText('defaultGateway', gatewayText);
-        } else {
-            updateElementText('defaultGateway', 'Not configured');
-        }
-        
-        // Update network information
-        const interfaces = getInterfaces(data);
-        const wanInterface = getWanInterface(interfaces, data);
-        const lanInterface = getLanInterface(interfaces, data);
-        
-        // Count interfaces - include all types (ethernet, loopback, etc.)
-        const interfaceCount = countAllInterfaces(data);
-        updateElementText('interfaceCount', interfaceCount);
-        
-        // Update interface details
-        if (wanInterface) {
-            updateElementText('wanInterface', `${wanInterface.name} (${wanInterface.address})`);
-        } else {
-            updateElementText('wanInterface', 'N/A');
-        }
-        
-        if (lanInterface) {
-            updateElementText('lanInterface', `${lanInterface.name} (${lanInterface.address})`);
-        } else {
-            updateElementText('lanInterface', 'N/A');
-        }
-        
-        // Count firewall rules from all rule groups
-        const firewallRules = countFirewallRules(data);
-        updateElementText('firewallRuleCount', firewallRules);
-        
-        // Count NAT rules
-        const natRules = countNatRules(data);
-        updateElementText('natRuleCount', natRules);
-        
-        // Count enabled services
-        const services = countServices(data);
-        updateElementText('serviceCount', services);
-        
-        // Use new function to update network topology including VIFs
-        populateNetworkOverview(data);
-        
-        // Update DHCP Server information
-        console.log("DHCP detection - Checking DHCP service data:", data.service);
-        let dhcpStatus = 'Disabled';
-        let dhcpPools = [];
-
-        // Based on console logs, we see the service is using 'dhcp-server' not 'dhcp'
-        // Check for DHCP pools in the 'dhcp-server' path
-        if (data.service?.['dhcp-server']?.['shared-network-name']) {
-            const networks = data.service['dhcp-server']['shared-network-name'];
-            console.log("DHCP shared networks found:", networks);
-            
-            // Process each network to find subnets (pools)
-            Object.entries(networks).forEach(([networkName, network]) => {
-                console.log(`Processing network ${networkName}:`, network);
-                if (network.subnet) {
-                    const networkPools = Object.keys(network.subnet);
-                    console.log("DHCP pools in network:", networkPools);
-                    dhcpPools = dhcpPools.concat(networkPools);
-                }
-            });
-        }
-
-        // Check for direct pools in 'dhcp-server'
-        if (data.service?.['dhcp-server']?.subnet) {
-            const directPools = Object.keys(data.service['dhcp-server'].subnet);
-            console.log("DHCP direct pools found:", directPools);
-            dhcpPools = dhcpPools.concat(directPools);
-        }
-
-        console.log("DHCP pools detected:", dhcpPools);
-
-        // If any pools were found, DHCP is enabled
-        if (dhcpPools.length > 0) {
-            dhcpStatus = `Enabled (${dhcpPools.length} pool${dhcpPools.length !== 1 ? 's' : ''})`;
-        }
-
-        console.log("Final DHCP status:", dhcpStatus);
-        updateElementText('dhcpServer', dhcpStatus);
-        
-        // Update DNS Forwarding information
-        let dnsStatus = 'Disabled';
-        if (data.service && data.service.dns && data.service.dns.forwarding) {
-            const dnsForwarding = data.service.dns.forwarding;
-            if (dnsForwarding['listen-address'] || dnsForwarding['name-server']) {
-                let dnsListeners = '';
-                if (dnsForwarding['listen-address']) {
-                    const listeners = Array.isArray(dnsForwarding['listen-address']) 
-                        ? dnsForwarding['listen-address'] 
-                        : [dnsForwarding['listen-address']];
-                    dnsListeners = ` on ${listeners.join(', ')}`;
-                }
-                dnsStatus = `Enabled${dnsListeners}`;
-            }
-        }
-        updateElementText('dnsForwarding', dnsStatus);
-        
-        // Update SSH Access information
-        let sshStatus = 'Disabled';
-        if (data.service && data.service.ssh) {
-            const sshService = data.service.ssh;
-            let sshPort = sshService.port || '22';
-            if (Array.isArray(sshPort)) {
-                sshPort = sshPort[0];
-            }
-            
-            let sshAddresses = '';
-            if (sshService['listen-address']) {
-                const listeners = Array.isArray(sshService['listen-address'])
-                    ? sshService['listen-address']
-                    : [sshService['listen-address']];
-                sshAddresses = ` on ${listeners.join(', ')}`;
-            }
-            
-            sshStatus = `Enabled (Port ${sshPort}${sshAddresses})`;
-        }
-        updateElementText('sshAccess', sshStatus);
-        
-        // Update system information card with detailed information
-        updateSystemInfo(data);
-    } catch (error) {
-        console.error('Error updating dashboard:', error);
-    }
+    // Count NAT rules
+    const natRuleCount = countNatRules(data);
+    document.getElementById('natRuleCount').textContent = natRuleCount;
+    
+    // Count services
+    const serviceCount = countServices(data);
+    document.getElementById('serviceCount').textContent = serviceCount;
+    
+    // Update system info
+    updateSystemInfo(data);
+    
+    // Get interfaces for network visualization
+    const interfaces = getInterfaces(data);
+    
+    // Determine WAN/LAN interfaces
+    const wanInterface = getWanInterface(interfaces, data);
+    const lanInterface = getLanInterface(interfaces, data);
+    
+    // Update other networks visualization
+    updateOtherNetworks(interfaces, wanInterface, lanInterface);
+    
+    // Show dashboard content
+    document.getElementById('loadingIndicator').classList.add('d-none');
+    document.getElementById('dashboardContent').classList.remove('d-none');
 }
 
 /**
@@ -1693,6 +1594,14 @@ function populateRoutingInfo(data) {
 
 // Initialize the Firewall tab with detailed rule information
 function initFirewallTab(data) {
+    // Display detected VyOS version
+    const vyosVersion = detectVyosVersion(data);
+    const versionIndicator = document.getElementById('vyos-version-indicator');
+    if (versionIndicator) {
+        versionIndicator.textContent = `VyOS ${vyosVersion} detected`;
+        versionIndicator.className = 'badge bg-info';
+    }
+    
     // Populate input rules table
     populateInputRules(data);
     
@@ -1718,8 +1627,8 @@ function populateInputRules(data) {
     // Clear existing content
     tableBody.innerHTML = '';
     
-    // Extract input filter rules
-    const inputRules = data.firewall?.ipv4?.input?.filter?.rule || {};
+    // Extract input filter rules using version-aware helper
+    const inputRules = getInputRules(data);
     
     // If no rules, show a message
     if (Object.keys(inputRules).length === 0) {
@@ -1770,8 +1679,8 @@ function populateInputRules(data) {
         }
         
         if (rule.source?.['group']) {
-            const groupType = Object.keys(rule.source.group)[0];
-            const groupName = rule.source.group[groupType];
+            const groupType = Object.keys(rule.source.group)[0] || '';
+            const groupName = groupType && rule.source.group[groupType] ? rule.source.group[groupType] : 'any';
             details.push(`<span class="badge bg-secondary">Source Group: ${groupName}</span>`);
         }
         
@@ -1781,7 +1690,14 @@ function populateInputRules(data) {
         
         // Add state information if present
         if (rule.state) {
-            const states = Object.keys(rule.state).join(', ');
+            let states = '';
+            if (Array.isArray(rule.state)) {
+                // Handle VyOS 1.5 state format (array)
+                states = rule.state.join(', ');
+            } else {
+                // Handle VyOS 1.4 state format (object with keys)
+                states = Object.keys(rule.state).join(', ');
+            }
             details.push(`<span class="badge bg-info">State: ${states}</span>`);
         }
         
@@ -1804,8 +1720,8 @@ function populateForwardRules(data) {
     // Clear existing content
     tableBody.innerHTML = '';
     
-    // Extract forward filter rules
-    const forwardRules = data.firewall?.ipv4?.forward?.filter?.rule || {};
+    // Extract forward filter rules using version-aware helper
+    const forwardRules = getForwardRules(data);
     
     // If no rules, show a message
     if (Object.keys(forwardRules).length === 0) {
@@ -1858,14 +1774,18 @@ function populateForwardRules(data) {
         if (rule.destination?.port) {
             details.push(`<span class="badge bg-info">Port: ${rule.destination.port}</span>`);
         }
+
+        if (rule.destination?.address) {
+            details.push(`<span class="badge bg-secondary">Dest: ${rule.destination.address}</span>`);
+        }
         
         if (rule['jump-target']) {
             details.push(`<span class="badge bg-primary">Jump to: ${rule['jump-target']}</span>`);
         }
         
         if (rule.destination?.group) {
-            const groupType = Object.keys(rule.destination.group)[0];
-            const groupName = rule.destination.group[groupType];
+            const groupType = Object.keys(rule.destination.group)[0] || '';
+            const groupName = groupType && rule.destination.group[groupType] ? rule.destination.group[groupType] : 'any';
             details.push(`<span class="badge bg-secondary">Dest Group: ${groupName}</span>`);
         }
         
@@ -1888,8 +1808,13 @@ function populateNamedRuleSets(data) {
     // Clear existing content
     container.innerHTML = '';
     
-    // Extract named rule sets
-    const namedRuleSets = data.firewall?.name || {};
+    const vyosVersion = detectVyosVersion(data);
+    console.log(`Populating named rule sets for VyOS ${vyosVersion}`);
+    
+    // Extract named rule sets using version-aware helper
+    const namedRuleSets = getFirewallNamedRuleSets(data);
+    
+    console.log(`Found ${Object.keys(namedRuleSets).length} named rule sets:`, Object.keys(namedRuleSets));
     
     // If no named rule sets, show a message
     if (Object.keys(namedRuleSets).length === 0) {
@@ -1903,6 +1828,8 @@ function populateNamedRuleSets(data) {
     // Create rule set panels
     sortedRuleSetNames.forEach(ruleSetName => {
         const ruleSet = namedRuleSets[ruleSetName];
+        console.log(`Processing ruleset '${ruleSetName}'`, ruleSet);
+        
         const ruleSetPanel = document.createElement('div');
         ruleSetPanel.className = 'card mb-3';
         
@@ -1929,6 +1856,7 @@ function populateNamedRuleSets(data) {
         // Create rules table
         const rules = ruleSet.rule || {};
         const ruleCount = Object.keys(rules).length;
+        console.log(`Ruleset '${ruleSetName}' has ${ruleCount} rules`);
         
         const bodyContent = document.createElement('div');
         bodyContent.className = 'card-body p-2';
@@ -1960,6 +1888,8 @@ function populateNamedRuleSets(data) {
             // Add each rule
             sortedRuleNumbers.forEach(ruleNumber => {
                 const rule = rules[ruleNumber];
+                console.log(`Ruleset '${ruleSetName}' rule ${ruleNumber}:`, rule);
+                
                 const row = document.createElement('tr');
                 
                 // Determine action and its styling
@@ -1990,8 +1920,28 @@ function populateNamedRuleSets(data) {
                     details.push(`<span class="badge bg-secondary">In: ${interfaceValue}</span>`);
                 }
                 
+                if (rule.destination?.address) {
+                    details.push(`<span class="badge bg-secondary">Dest: ${rule.destination.address}</span>`);
+                }
+                
+                if (rule.destination?.port) {
+                    details.push(`<span class="badge bg-info">Port: ${rule.destination.port}</span>`);
+                }
+                
+                if (rule.source?.address) {
+                    details.push(`<span class="badge bg-secondary">Source: ${rule.source.address}</span>`);
+                }
+                
+                // Add state information handling both VyOS 1.4 and 1.5 formats
                 if (rule.state) {
-                    const states = Object.keys(rule.state).join(', ');
+                    let states = '';
+                    if (Array.isArray(rule.state)) {
+                        // Handle VyOS 1.5 state format (array)
+                        states = rule.state.join(', ');
+                    } else {
+                        // Handle VyOS 1.4 state format (object with keys)
+                        states = Object.keys(rule.state).join(', ');
+                    }
                     details.push(`<span class="badge bg-info">State: ${states}</span>`);
                 }
                 
@@ -2017,6 +1967,21 @@ function populateNamedRuleSets(data) {
     });
 }
 
+// Helper function to get global state policies in either VyOS 1.4 or 1.5 format
+function getGlobalStatePolicies(data) {
+    const vyosVersion = detectVyosVersion(data);
+    
+    if (vyosVersion === '1.5') {
+        // In VyOS 1.5, state policies might be stored differently
+        // Check common locations based on the sample data
+        // This might need adjustment based on actual VyOS 1.5 data exploration
+        return data.firewall?.['global-options']?.['state-policy'] || {};
+    } else {
+        // Default VyOS 1.4 path
+        return data.firewall?.['global-options']?.['state-policy'] || {};
+    }
+}
+
 // Populate global policies
 function populateGlobalPolicies(data) {
     const tableBody = document.getElementById('global-policies-table-body');
@@ -2026,8 +1991,8 @@ function populateGlobalPolicies(data) {
     // Clear existing content
     tableBody.innerHTML = '';
     
-    // Extract global policies
-    const globalPolicies = data.firewall?.['global-options']?.['state-policy'] || {};
+    // Extract global policies using the helper function
+    const globalPolicies = getGlobalStatePolicies(data);
     
     // If no policies, show a message
     if (Object.keys(globalPolicies).length === 0) {
@@ -2076,11 +2041,12 @@ function populateFirewallGroups(data) {
     // Clear existing content
     tableBody.innerHTML = '';
     
-    // Extract firewall groups
-    const interfaceGroups = data.firewall?.group?.['interface-group'] || {};
-    const networkGroups = data.firewall?.group?.['network-group'] || {};
-    const addressGroups = data.firewall?.group?.['address-group'] || {};
-    const portGroups = data.firewall?.group?.['port-group'] || {};
+    // Extract firewall groups using version-aware helper
+    const groups = getFirewallGroups(data);
+    const interfaceGroups = groups.interfaceGroups;
+    const networkGroups = groups.networkGroups;
+    const addressGroups = groups.addressGroups;
+    const portGroups = groups.portGroups;
     
     // Combine all groups
     const allGroups = {};
@@ -5046,29 +5012,96 @@ function getDefaultGateway(data) {
 
 // Count firewall rules
 function countFirewallRules(data) {
-    let count = 0;
+    // If no data, return 0
+    if (!data || !data.firewall) {
+        console.log("No firewall data found");
+        return '0';
+    }
     
-    // Count rules in named firewall rule sets
-    if (data.firewall?.name) {
-        Object.keys(data.firewall.name).forEach(groupName => {
-            const group = data.firewall.name[groupName];
-            if (group.rule) {
-                count += Object.keys(group.rule).length;
-            }
+    let totalRuleCount = 0;
+    const vyosVersion = detectVyosVersion(data);
+    console.log(`Counting firewall rules for VyOS ${vyosVersion}`);
+    
+    if (vyosVersion === '1.5') {
+        // Count rules in named rulesets for VyOS 1.5
+        // IPv4 rules
+        const ipv4NamedRuleSets = data.firewall?.ipv4?.name || {};
+        console.log(`VyOS 1.5: Found ${Object.keys(ipv4NamedRuleSets).length} IPv4 named rulesets`);
+        
+        Object.keys(ipv4NamedRuleSets).forEach(ruleSetName => {
+            const ruleSet = ipv4NamedRuleSets[ruleSetName];
+            const rules = ruleSet.rule || {};
+            const rulesInSet = Object.keys(rules).length;
+            console.log(`  - Ruleset '${ruleSetName}' has ${rulesInSet} rules`);
+            totalRuleCount += rulesInSet;
+        });
+        
+        // IPv6 rules
+        const ipv6NamedRuleSets = data.firewall?.ipv6?.name || {};
+        console.log(`VyOS 1.5: Found ${Object.keys(ipv6NamedRuleSets).length} IPv6 named rulesets`);
+        
+        Object.keys(ipv6NamedRuleSets).forEach(ruleSetName => {
+            const ruleSet = ipv6NamedRuleSets[ruleSetName];
+            const rules = ruleSet.rule || {};
+            const rulesInSet = Object.keys(rules).length;
+            console.log(`  - Ruleset '${ruleSetName}' has ${rulesInSet} rules`);
+            totalRuleCount += rulesInSet;
+        });
+    } else {
+        // Count rules in VyOS 1.4 format
+        console.log("Counting VyOS 1.4 format rules");
+        
+        // Count IPv4 input rules
+        const inputRules = data.firewall?.ipv4?.input?.filter?.rule || {};
+        const inputRuleCount = Object.keys(inputRules).length;
+        console.log(`VyOS 1.4: Found ${inputRuleCount} IPv4 input rules`);
+        totalRuleCount += inputRuleCount;
+        
+        // Count IPv4 forward rules
+        const forwardRules = data.firewall?.ipv4?.forward?.filter?.rule || {};
+        const forwardRuleCount = Object.keys(forwardRules).length;
+        console.log(`VyOS 1.4: Found ${forwardRuleCount} IPv4 forward rules`);
+        totalRuleCount += forwardRuleCount;
+        
+        // Count IPv4 output rules
+        const outputRules = data.firewall?.ipv4?.output?.filter?.rule || {};
+        const outputRuleCount = Object.keys(outputRules).length;
+        console.log(`VyOS 1.4: Found ${outputRuleCount} IPv4 output rules`);
+        totalRuleCount += outputRuleCount;
+        
+        // Count IPv6 input rules
+        const inputRulesIPv6 = data.firewall?.ipv6?.input?.filter?.rule || {};
+        const inputRuleCountIPv6 = Object.keys(inputRulesIPv6).length;
+        console.log(`VyOS 1.4: Found ${inputRuleCountIPv6} IPv6 input rules`);
+        totalRuleCount += inputRuleCountIPv6;
+        
+        // Count IPv6 forward rules
+        const forwardRulesIPv6 = data.firewall?.ipv6?.forward?.filter?.rule || {};
+        const forwardRuleCountIPv6 = Object.keys(forwardRulesIPv6).length;
+        console.log(`VyOS 1.4: Found ${forwardRuleCountIPv6} IPv6 forward rules`);
+        totalRuleCount += forwardRuleCountIPv6;
+        
+        // Count IPv6 output rules
+        const outputRulesIPv6 = data.firewall?.ipv6?.output?.filter?.rule || {};
+        const outputRuleCountIPv6 = Object.keys(outputRulesIPv6).length;
+        console.log(`VyOS 1.4: Found ${outputRuleCountIPv6} IPv6 output rules`);
+        totalRuleCount += outputRuleCountIPv6;
+        
+        // Count named rule sets
+        const namedRuleSets = data.firewall?.name || {};
+        console.log(`VyOS 1.4: Found ${Object.keys(namedRuleSets).length} named rulesets`);
+        
+        Object.keys(namedRuleSets).forEach(ruleSetName => {
+            const ruleSet = namedRuleSets[ruleSetName];
+            const rules = ruleSet.rule || {};
+            const rulesInSet = Object.keys(rules).length;
+            console.log(`  - Ruleset '${ruleSetName}' has ${rulesInSet} rules`);
+            totalRuleCount += rulesInSet;
         });
     }
     
-    // Count rules in ipv4 input filter
-    if (data.firewall?.ipv4?.input?.filter?.rule) {
-        count += Object.keys(data.firewall.ipv4.input.filter.rule).length;
-    }
-    
-    // Count rules in ipv4 forward filter
-    if (data.firewall?.ipv4?.forward?.filter?.rule) {
-        count += Object.keys(data.firewall.ipv4.forward.filter.rule).length;
-    }
-    
-    return count || '0';
+    console.log(`Total firewall rules counted: ${totalRuleCount}`);
+    return totalRuleCount.toString();
 }
 
 // Count NAT rules
@@ -6461,4 +6494,188 @@ function populateNetworkOverview(data) {
             `;
         }
     }
+}
+
+// Helper functions to handle different VyOS versions (1.4 vs 1.5)
+function detectVyosVersion(data) {
+    // VyOS 1.5 has firewall.ipv4.name structure
+    if (data.firewall?.ipv4?.name) {
+        return '1.5';
+    }
+    // VyOS 1.4 has firewall.name structure (or check input/forward/etc)
+    else if (data.firewall?.name || data.firewall?.ipv4?.input) {
+        return '1.4';
+    }
+    // Default to 1.4 if structure is unclear
+    return '1.4';
+}
+
+function getFirewallNamedRuleSets(data) {
+    const vyosVersion = detectVyosVersion(data);
+    console.log(`Getting named rule sets for VyOS ${vyosVersion}`);
+    
+    let namedRuleSets = {};
+    
+    if (vyosVersion === '1.5') {
+        // Combine IPv4 and IPv6 rulesets for VyOS 1.5
+        const ipv4Rules = data.firewall?.ipv4?.name || {};
+        const ipv6Rules = data.firewall?.ipv6?.name || {};
+        
+        console.log(`VyOS 1.5: Found ${Object.keys(ipv4Rules).length} IPv4 named rulesets`);
+        console.log(`VyOS 1.5: Found ${Object.keys(ipv6Rules).length} IPv6 named rulesets`);
+        
+        // Merge the two objects
+        namedRuleSets = { ...ipv4Rules, ...ipv6Rules };
+    } else {
+        // For VyOS 1.4, the rulesets are under firewall.name
+        namedRuleSets = data.firewall?.name || {};
+        console.log(`VyOS 1.4: Found ${Object.keys(namedRuleSets).length} named rulesets`);
+        
+        // If we have direct rules, we should also represent them as named rulesets
+        const inputRules = data.firewall?.ipv4?.input?.filter?.rule || {};
+        if (Object.keys(inputRules).length > 0) {
+            console.log(`VyOS 1.4: Adding a synthetic ruleset for ${Object.keys(inputRules).length} input chain rules`);
+            namedRuleSets['Input-Chain'] = {
+                'default-action': 'reject', // A typical default for input
+                rule: inputRules
+            };
+        }
+        
+        const forwardRules = data.firewall?.ipv4?.forward?.filter?.rule || {};
+        if (Object.keys(forwardRules).length > 0) {
+            console.log(`VyOS 1.4: Adding a synthetic ruleset for ${Object.keys(forwardRules).length} forward chain rules`);
+            namedRuleSets['Forward-Chain'] = {
+                'default-action': 'drop', // A typical default for forward
+                rule: forwardRules
+            };
+        }
+        
+        const outputRules = data.firewall?.ipv4?.output?.filter?.rule || {};
+        if (Object.keys(outputRules).length > 0) {
+            console.log(`VyOS 1.4: Adding a synthetic ruleset for ${Object.keys(outputRules).length} output chain rules`);
+            namedRuleSets['Output-Chain'] = {
+                'default-action': 'accept', // A typical default for output
+                rule: outputRules
+            };
+        }
+    }
+    
+    console.log(`Total named rulesets found: ${Object.keys(namedRuleSets).length}`);
+    return namedRuleSets;
+}
+
+function getInputRules(data) {
+    const vyosVersion = detectVyosVersion(data);
+    console.log(`Getting input rules for VyOS ${vyosVersion}`);
+    
+    if (vyosVersion === '1.5') {
+        // In 1.5, input rules might be in a named ruleset like FILTER-IN
+        const namedRules = data.firewall?.ipv4?.name || {};
+        // Look for a ruleset with a name like FILTER-IN (common convention)
+        const inputRuleset = namedRules['FILTER-IN'] || {};
+        const rules = inputRuleset.rule || {};
+        console.log(`VyOS 1.5: Found ${Object.keys(rules).length} input rules in FILTER-IN`);
+        return rules;
+    } else {
+        // In 1.4, they're directly in the input.filter.rule path or in the name structure
+        const directRules = data.firewall?.ipv4?.input?.filter?.rule || {};
+        
+        // If we have direct rules, use those
+        if (Object.keys(directRules).length > 0) {
+            console.log(`VyOS 1.4: Found ${Object.keys(directRules).length} direct input rules`);
+            return directRules;
+        }
+        
+        // Otherwise, check for rules in the 'name' structure
+        const namedRules = data.firewall?.name || {};
+        // Look for an input rule set
+        for (const [name, ruleSet] of Object.entries(namedRules)) {
+            if (name.toLowerCase().includes('input') || name.toLowerCase().includes('in')) {
+                const rules = ruleSet.rule || {};
+                console.log(`VyOS 1.4: Found ${Object.keys(rules).length} input rules in named ruleset '${name}'`);
+                return rules;
+            }
+        }
+        
+        console.log("VyOS 1.4: No input rules found in any expected location");
+        return {};
+    }
+}
+
+function getInputRulesIPv6(data) {
+    const vyosVersion = detectVyosVersion(data);
+    
+    if (vyosVersion === '1.5') {
+        // In 1.5, IPv6 input rules might be in a named ruleset like FILTER-IN6
+        const namedRules = data.firewall?.ipv6?.name || {};
+        // Look for a ruleset with a name like FILTER-IN6 (common convention)
+        const inputRuleset = namedRules['FILTER-IN6'] || {};
+        return inputRuleset.rule || {};
+    } else {
+        // In 1.4, they're directly in the input.filter.rule path for IPv6
+        return data.firewall?.ipv6?.input?.filter?.rule || {};
+    }
+}
+
+function getForwardRules(data) {
+    const vyosVersion = detectVyosVersion(data);
+    console.log(`Getting forward rules for VyOS ${vyosVersion}`);
+    
+    if (vyosVersion === '1.5') {
+        // In 1.5, forward rules might be in a named ruleset like FILTER-FORWARD
+        const namedRules = data.firewall?.ipv4?.name || {};
+        // Look for a ruleset with a name like FILTER-FORWARD (common convention)
+        const forwardRuleset = namedRules['FILTER-FORWARD'] || {};
+        const rules = forwardRuleset.rule || {};
+        console.log(`VyOS 1.5: Found ${Object.keys(rules).length} forward rules in FILTER-FORWARD`);
+        return rules;
+    } else {
+        // In 1.4, they're directly in the forward.filter.rule path or in the name structure
+        const directRules = data.firewall?.ipv4?.forward?.filter?.rule || {};
+        
+        // If we have direct rules, use those
+        if (Object.keys(directRules).length > 0) {
+            console.log(`VyOS 1.4: Found ${Object.keys(directRules).length} direct forward rules`);
+            return directRules;
+        }
+        
+        // Otherwise, check for rules in the 'name' structure
+        const namedRules = data.firewall?.name || {};
+        // Look for a forward rule set
+        for (const [name, ruleSet] of Object.entries(namedRules)) {
+            if (name.toLowerCase().includes('forward') || name.toLowerCase().includes('fwd')) {
+                const rules = ruleSet.rule || {};
+                console.log(`VyOS 1.4: Found ${Object.keys(rules).length} forward rules in named ruleset '${name}'`);
+                return rules;
+            }
+        }
+        
+        console.log("VyOS 1.4: No forward rules found in any expected location");
+        return {};
+    }
+}
+
+function getForwardRulesIPv6(data) {
+    const vyosVersion = detectVyosVersion(data);
+    
+    if (vyosVersion === '1.5') {
+        // In 1.5, IPv6 forward rules might be in a named ruleset like FILTER-FORWARD6
+        const namedRules = data.firewall?.ipv6?.name || {};
+        // Look for a ruleset with a name like FILTER-FORWARD6 (common convention)
+        const forwardRuleset = namedRules['FILTER-FORWARD6'] || {};
+        return forwardRuleset.rule || {};
+    } else {
+        // In 1.4, they're directly in the forward.filter.rule path for IPv6
+        return data.firewall?.ipv6?.forward?.filter?.rule || {};
+    }
+}
+
+function getFirewallGroups(data) {
+    // Firewall groups structure should be similar in both versions
+    return {
+        interfaceGroups: data.firewall?.group?.['interface-group'] || {},
+        networkGroups: data.firewall?.group?.['network-group'] || {},
+        addressGroups: data.firewall?.group?.['address-group'] || {},
+        portGroups: data.firewall?.group?.['port-group'] || {}
+    };
 }

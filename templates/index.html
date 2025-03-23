@@ -337,8 +337,13 @@
             
             <!-- Firewall Tab -->
             <div class="tab-pane fade" id="firewall" role="tabpanel" aria-labelledby="firewall-tab">
-                <div class="alert alert-warning py-2" role="alert">
-                    <i class="bi bi-info-circle me-2"></i> Firewall rules and security settings
+                <div class="alert alert-warning py-2 d-flex justify-content-between align-items-center" role="alert">
+                    <div>
+                        <i class="bi bi-info-circle me-2"></i> Firewall rules and security settings
+                    </div>
+                    <div>
+                        <span class="badge bg-secondary" id="vyos-version-indicator">Detecting VyOS version...</span>
+                    </div>
                 </div>
                 
                 <!-- Firewall Rules Section -->
