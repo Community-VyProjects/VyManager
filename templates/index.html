@@ -55,6 +55,11 @@
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="vpn-tab" data-bs-toggle="tab" data-bs-target="#vpn" type="button" role="tab" aria-controls="vpn" aria-selected="false">
+                        <i class="bi bi-shield-lock"></i> VPN
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
                     <button class="nav-link" id="services-tab" data-bs-toggle="tab" data-bs-target="#services" type="button" role="tab" aria-controls="services" aria-selected="false">
                         <i class="bi bi-gear"></i> Services
                     </button>
@@ -874,6 +879,105 @@
                     </div>
                 </div>
             </div>
+            
+            <!-- VPN Tab -->
+            <div class="tab-pane fade" id="vpn" role="tabpanel" aria-labelledby="vpn-tab">
+                <div class="alert alert-info py-2 d-flex justify-content-between align-items-center" role="alert">
+                    <div>
+                        <i class="bi bi-info-circle me-2"></i> Virtual Private Network configurations and tunnels
+                    </div>
+                    <div>
+                        <a href="/vpn" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-shield-lock"></i> Detailed VPN View
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- VPN Stats Cards -->
+                <div class="row g-2 mb-3">
+                    <div class="col-md-4">
+                        <div class="stat-card compact">
+                            <div class="stat-card-header">
+                                <h3>WireGuard</h3>
+                                <i class="bi bi-shield-lock stat-icon"></i>
+                            </div>
+                            <div class="stat-card-body">
+                                <div class="stat-number" id="wireguard-tunnel-count">--</div>
+                                <div class="stat-desc">WireGuard tunnels</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="stat-card compact">
+                            <div class="stat-card-header">
+                                <h3>WireGuard Peers</h3>
+                                <i class="bi bi-people stat-icon"></i>
+                            </div>
+                            <div class="stat-card-body">
+                                <div class="stat-number" id="wireguard-peer-count">--</div>
+                                <div class="stat-desc">Connected peers</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="stat-card compact">
+                            <div class="stat-card-header">
+                                <h3>Route Tables</h3>
+                                <i class="bi bi-signpost-split stat-icon"></i>
+                            </div>
+                            <div class="stat-card-body">
+                                <div class="stat-number" id="vpn-route-count">--</div>
+                                <div class="stat-desc">VPN routing tables</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- WireGuard Overview Section -->
+                <div class="dashboard-card compact mb-3">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h3>WireGuard Interfaces</h3>
+                        <span class="badge bg-primary rounded-pill" id="dashboard-wireguard-interface-count">0</span>
+                    </div>
+                    <div class="card-body p-2">
+                        <div id="dashboard-wireguard-interfaces">
+                            <!-- Will be populated by JavaScript -->
+                            <div class="text-center py-3">
+                                <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <span class="ms-2">Loading WireGuard interfaces...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- VPN Routing Section -->
+                <div class="dashboard-card compact">
+                    <div class="card-header">
+                        <h3>VPN Routing</h3>
+                    </div>
+                    <div class="card-body p-2">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Table Name</th>
+                                        <th>Routes</th>
+                                        <th>Interface</th>
+                                        <th>Description</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="vpn-routing-table-body">
+                                    <tr>
+                                        <td colspan="4" class="text-center">Loading VPN routing tables...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -900,4 +1004,5 @@
         }
     }
 </script>
+<script src="/static/js/vpn.js"></script>
 {% endblock %} 

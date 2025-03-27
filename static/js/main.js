@@ -490,75 +490,78 @@ function initializeTabsHandlers() {
 
 // Fetch configuration data with retry logic
 async function loadConfigData(endpoint = '', forceRefresh = false, retryCount = 3, retryDelay = 1000) {
-    try {
-        // Check cache first unless forced refresh
-        const cacheKey = `config_${endpoint}`;
+    // Build the API URL
+    const apiUrl = endpoint ? `/api/${endpoint}` : '/config';
+    
+    // Check cache unless force refresh is requested
+    if (!forceRefresh) {
+        const cacheKey = `vyos_config_${endpoint || 'main'}`;
         const cachedData = sessionStorage.getItem(cacheKey);
         
-        if (!forceRefresh && cachedData) {
-            console.log(`Using cached configuration data for: ${endpoint || 'main'}`);
-            return JSON.parse(cachedData);
+        if (cachedData) {
+            try {
+                return JSON.parse(cachedData);
+            } catch (error) {
+                console.warn('Failed to parse cached data:', error);
+                // Continue to fetching fresh data
+            }
         }
-        
+    }
+    
+    try {
         // Show loading indicator safely
         const loadingIndicator = document.getElementById('loadingIndicator');
         if (loadingIndicator) {
-            loadingIndicator.classList.add('d-block');
             loadingIndicator.classList.remove('d-none');
+            loadingIndicator.classList.add('d-block');
         }
         
-        // Use the correct endpoint: /config instead of /vyos-config
-        const url = `/config${endpoint ? '?path=' + endpoint : ''}${forceRefresh ? (endpoint ? '&' : '?') + 'force_refresh=true' : ''}`;
+        // Add force_refresh parameter if needed
+        const url = `${apiUrl}${forceRefresh ? '?force_refresh=true' : ''}`;
         console.log(`Fetching config from: ${url}`);
         
-        let response;
-        try {
-            response = await fetch(url, {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': 'application/json'
-                },
-                cache: 'no-cache'
-            });
-        } catch (fetchError) {
-            // Network error - retry if we have retries left
-            if (retryCount > 0) {
-                console.warn(`Network error, retrying (${retryCount} attempts left): ${fetchError.message}`);
+        // Implement retry logic
+        let attempt = 0;
+        let lastError = null;
+        
+        while (attempt < retryCount) {
+            try {
+                const response = await fetch(url);
                 
-                // Wait before retrying
-                await new Promise(resolve => setTimeout(resolve, retryDelay));
+                if (!response.ok) {
+                    throw new Error(`API request failed with status ${response.status}`);
+                }
                 
-                // Recursive retry with exponential backoff
-                return loadConfigData(endpoint, forceRefresh, retryCount - 1, retryDelay * 2);
+                const result = await response.json();
+                
+                // Cache successful result
+                if (result && result.success) {
+                    const cacheKey = `vyos_config_${endpoint || 'main'}`;
+                    sessionStorage.setItem(cacheKey, JSON.stringify(result));
+                }
+                
+                // Hide loading indicator safely
+                if (loadingIndicator) {
+                    loadingIndicator.classList.remove('d-block');
+                    loadingIndicator.classList.add('d-none');
+                }
+                
+                return result;
+            } catch (error) {
+                lastError = error;
+                console.warn(`Attempt ${attempt + 1}/${retryCount} failed:`, error);
+                
+                // Wait before retry
+                if (attempt < retryCount - 1) {
+                    await new Promise(resolve => setTimeout(resolve, retryDelay));
+                }
+                
+                attempt++;
             }
-            throw fetchError;
         }
         
-        if (!response.ok) {
-            throw new Error(`Failed to fetch configuration data: ${response.status} ${response.statusText}`);
-        }
-        
-        // Parse response data
-        const result = await response.json();
-        
-        // Check if the result has the expected structure
-        if (!result.success) {
-            throw new Error(result.error || 'Failed to fetch configuration data');
-        }
-        
-        // Log the configuration with our logger
-        configLogger.logConfiguration(result.data, 'API_FETCH');
-        
-        // Cache the result
-        configCache = result.data;
-        
-        // Hide loading indicator safely
-        if (loadingIndicator) {
-            loadingIndicator.classList.remove('d-block');
-            loadingIndicator.classList.add('d-none');
-        }
-        
-        return result;
+        // If we get here, all retries failed
+        throw lastError || new Error('Failed to load configuration data after multiple attempts');
     } catch (error) {
         console.error('Error loading configuration data:', error);
         
@@ -572,91 +575,76 @@ async function loadConfigData(endpoint = '', forceRefresh = false, retryCount = 
         // Show error notification
         showError(`Failed to load configuration data: ${error.message}. Please try again later.`);
         
-        // Return empty data structure on error
-        return { data: {} };
+        // Return empty result structure on error
+        return { success: false, data: {}, error: error.message };
     }
 }
 
+// Expose loadConfigData to the window object for use by other scripts
+window.loadConfigData = loadConfigData;
+
 // Initialize dashboard
 async function initDashboard() {
-    console.log("Initializing dashboard...");
-    
-    // Get UI elements
-    const loadingIndicator = document.getElementById('loadingIndicator');
-    const dashboardContent = document.getElementById('dashboardContent');
-    const errorAlert = document.getElementById('errorAlert');
-    
-    // Make sure loading indicator is visible and dashboard is hidden
-    if (loadingIndicator) {
-        loadingIndicator.classList.add('d-block');
-        loadingIndicator.classList.remove('d-none');
-    }
-    if (dashboardContent) {
-        dashboardContent.classList.add('d-none');
-        dashboardContent.classList.remove('d-block');
-    }
-    if (errorAlert) {
-        errorAlert.classList.add('d-none');
-        errorAlert.classList.remove('d-block');
-    }
-    
     try {
-        // Load configuration data - force refresh to always get latest data
-        const result = await loadConfigData('', true);
-        const data = result.data || {};
+        // Show loading indicator
+        document.getElementById('loadingIndicator').classList.remove('d-none');
+        document.getElementById('dashboardContent').classList.add('d-none');
+        document.getElementById('errorAlert').classList.add('d-none');
+
+        // Set up theme handling
+        const themeManager = new ThemeManager();
+        themeManager.init();
+
+        // Initialize logging toggle
+        createLoggingToggle();
         
-        // Update dashboard with data if it exists
-        if (Object.keys(data).length > 0) {
-            try {
-                updateDashboard(data);
-                
-                // Also initialize other tabs with the same data if they exist
-                if (typeof initNetworkTab === 'function') initNetworkTab(data);
-                if (typeof initFirewallTab === 'function') initFirewallTab(data);
-                if (typeof initNatTab === 'function') initNatTab(data);
-                if (typeof initServicesTab === 'function') initServicesTab(data);
-                if (typeof initSystemTab === 'function') initSystemTab(data);
-                
-                // Show dashboard content when everything is loaded
-                if (dashboardContent) {
-                    dashboardContent.classList.remove('d-none');
-                    dashboardContent.classList.add('d-block');
-                }
-            } catch (updateError) {
-                console.error('Error updating dashboard:', updateError);
-                
-                // Show error alert
-                if (errorAlert) {
-                    errorAlert.textContent = `Failed to update dashboard: ${updateError.message}`;
-                    errorAlert.classList.remove('d-none');
-                    errorAlert.classList.add('d-block');
-                }
-            }
-        } else {
-            console.error('No configuration data available');
+        // Set up tabs event handlers
+        initializeTabsHandlers();
+        
+        // Load configuration data
+        const config = await loadConfigData();
+        
+        if (config && config.success) {
+            // Store configuration data for use in other functions
+            window.configData = config.data;
             
-            // Show error alert
-            if (errorAlert) {
-                errorAlert.textContent = 'No configuration data available. Please check your connection and try again.';
-                errorAlert.classList.remove('d-none');
-                errorAlert.classList.add('d-block');
+            // Update dashboard with config data
+            updateDashboard(config.data);
+            
+            // Update the system info section
+            updateSystemInfo(config.data);
+            
+            // Setup tab-specific data
+            initNetworkTab(config.data);
+            initFirewallTab(config.data);
+            initNatTab(config.data);
+            initServicesTab(config.data);
+            initSystemTab(config.data);
+            
+            // Initialize VPN tab if available
+            if (typeof initDashboardVpnIntegration === 'function') {
+                initDashboardVpnIntegration();
             }
+            
+            // Start configuration logging if enabled
+            const configLogger = new ConfigurationLogger();
+            if (localStorage.getItem('configLoggingEnabled') === 'true') {
+                configLogger.toggleLogging(true);
+                configLogger.logConfiguration(config.data, 'initial_load');
+            }
+            
+            // Hide loading indicator and show content
+            document.getElementById('loadingIndicator').classList.add('d-none');
+            document.getElementById('dashboardContent').classList.remove('d-none');
+        } else {
+            throw new Error('Failed to load configuration data');
         }
     } catch (error) {
         console.error('Dashboard initialization error:', error);
         
-        // Show error alert
-        if (errorAlert) {
-            errorAlert.textContent = `Dashboard initialization error: ${error.message}`;
-            errorAlert.classList.remove('d-none');
-            errorAlert.classList.add('d-block');
-        }
-    } finally {
-        // Hide loading indicator when done
-        if (loadingIndicator) {
-            loadingIndicator.classList.remove('d-block');
-            loadingIndicator.classList.add('d-none');
-        }
+        // Show error message
+        document.getElementById('loadingIndicator').classList.add('d-none');
+        document.getElementById('errorAlert').classList.remove('d-none');
     }
 }
 

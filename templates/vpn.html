@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+
+{% block title %}VyOS VPN Configuration{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <div>
+            <h1 class="h3 m-0">VPN Configuration</h1>
+            <p class="text-muted small mb-0">Virtual Private Network settings and status</p>
+        </div>
+        <a href="/" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back to Dashboard
+        </a>
+    </div>
+    
+    <!-- Loading Indicator -->
+    <div id="vpnLoadingIndicator" class="text-center my-2">
+        <div class="spinner-border spinner-border-sm text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <span class="ms-2">Loading VPN configuration...</span>
+    </div>
+    
+    <!-- Error Alert -->
+    <div id="vpnErrorAlert" class="alert alert-danger d-none" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+        <span>Failed to load VPN configuration data.</span>
+    </div>
+    
+    <!-- VPN Content -->
+    <div id="vpnContent" class="d-none">
+        <!-- VPN Types Navigation -->
+        <div class="nav-tabs-container mb-2">
+            <ul class="nav nav-tabs" id="vpnTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#vpn-overview" type="button" role="tab" aria-controls="vpn-overview" aria-selected="true">
+                        <i class="bi bi-grid"></i> Overview
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="wireguard-tab" data-bs-toggle="tab" data-bs-target="#wireguard" type="button" role="tab" aria-controls="wireguard" aria-selected="false">
+                        <i class="bi bi-shield-lock"></i> WireGuard
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="openvpn-tab" data-bs-toggle="tab" data-bs-target="#openvpn" type="button" role="tab" aria-controls="openvpn" aria-selected="false">
+                        <i class="bi bi-hdd-network"></i> OpenVPN
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="ipsec-tab" data-bs-toggle="tab" data-bs-target="#ipsec" type="button" role="tab" aria-controls="ipsec" aria-selected="false">
+                        <i class="bi bi-lock"></i> IPsec
+                    </button>
+                </li>
+            </ul>
+        </div>
+        
+        <!-- Tab Content -->
+        <div class="tab-content" id="vpnTabsContent">
+            <!-- VPN Overview Tab -->
+            <div class="tab-pane fade show active" id="vpn-overview" role="tabpanel" aria-labelledby="overview-tab">
+                <div class="alert alert-primary py-2" role="alert">
+                    <i class="bi bi-info-circle me-2"></i> Summary of your VPN configurations
+                </div>
+                
+                <!-- Stats Cards -->
+                <div class="row g-2">
+                    <div class="col-md-4">
+                        <div class="stat-card compact">
+                            <div class="stat-card-header">
+                                <h3>WireGuard Tunnels</h3>
+                                <i class="bi bi-shield-lock stat-icon"></i>
+                            </div>
+                            <div class="stat-card-body">
+                                <div class="stat-number" id="wireguardCount">--</div>
+                                <div class="stat-desc">Active WireGuard tunnels</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="stat-card compact">
+                            <div class="stat-card-header">
+                                <h3>OpenVPN Tunnels</h3>
+                                <i class="bi bi-hdd-network stat-icon"></i>
+                            </div>
+                            <div class="stat-card-body">
+                                <div class="stat-number" id="openvpnCount">--</div>
+                                <div class="stat-desc">Active OpenVPN tunnels</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="stat-card compact">
+                            <div class="stat-card-header">
+                                <h3>IPsec Tunnels</h3>
+                                <i class="bi bi-lock stat-icon"></i>
+                            </div>
+                            <div class="stat-card-body">
+                                <div class="stat-number" id="ipsecCount">--</div>
+                                <div class="stat-desc">Active IPsec tunnels</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- VPN Connections Overview -->
+                <div class="dashboard-card compact mt-3">
+                    <div class="card-header">
+                        <h3>Active VPN Connections</h3>
+                    </div>
+                    <div class="card-body p-2">
+                        <div id="vpn-connections-overview">
+                            <!-- Will be populated by JavaScript -->
+                            <div class="text-center py-3">
+                                <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <span class="ms-2">Loading VPN connections...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- WireGuard Tab -->
+            <div class="tab-pane fade" id="wireguard" role="tabpanel" aria-labelledby="wireguard-tab">
+                <div class="alert alert-info py-2" role="alert">
+                    <i class="bi bi-info-circle me-2"></i> WireGuard VPN tunnels and peers
+                </div>
+                
+                <!-- WireGuard Interfaces Section -->
+                <div class="dashboard-card compact mb-3">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h3>WireGuard Interfaces</h3>
+                        <span class="badge bg-primary rounded-pill" id="wireguard-interfaces-count">0</span>
+                    </div>
+                    <div class="card-body p-2">
+                        <div id="wireguard-interfaces-container">
+                            <!-- Will be populated by JavaScript -->
+                            <div class="text-center py-3">
+                                <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <span class="ms-2">Loading WireGuard interfaces...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- WireGuard Peers Section -->
+                <div class="dashboard-card compact">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h3>WireGuard Peers</h3>
+                        <span class="badge bg-primary rounded-pill" id="wireguard-peers-count">0</span>
+                    </div>
+                    <div class="card-body p-2">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Interface</th>
+                                        <th>Status</th>
+                                        <th>Peer Name</th>
+                                        <th>Public Key</th>
+                                        <th>Endpoint</th>
+                                        <th>Transfer</th>
+                                        <th>Allowed IPs</th>
+                                        <th>Options</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="wireguard-peers-table-body">
+                                    <tr>
+                                        <td colspan="9" class="text-center">Loading WireGuard peers...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- OpenVPN Tab -->
+            <div class="tab-pane fade" id="openvpn" role="tabpanel" aria-labelledby="openvpn-tab">
+                <div class="alert alert-info py-2" role="alert">
+                    <i class="bi bi-info-circle me-2"></i> OpenVPN server and client configurations
+                </div>
+                
+                <div class="dashboard-card compact">
+                    <div class="card-header">
+                        <h3>OpenVPN Configuration</h3>
+                    </div>
+                    <div class="card-body p-2">
+                        <div id="openvpn-container" class="text-center py-3">
+                            <p>No OpenVPN configurations found</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- IPsec Tab -->
+            <div class="tab-pane fade" id="ipsec" role="tabpanel" aria-labelledby="ipsec-tab">
+                <div class="alert alert-info py-2" role="alert">
+                    <i class="bi bi-info-circle me-2"></i> IPsec VPN tunnels and security associations
+                </div>
+                
+                <div class="dashboard-card compact">
+                    <div class="card-header">
+                        <h3>IPsec Configuration</h3>
+                    </div>
+                    <div class="card-body p-2">
+                        <div id="ipsec-container" class="text-center py-3">
+                            <p>No IPsec configurations found</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/vpn.js"></script>
+{% endblock %} 

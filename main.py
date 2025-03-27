@@ -120,6 +120,13 @@ async def dhcp_view(request: Request):
         "active_page": "dhcp"
     })
 
+@app.get("/vpn", response_class=HTMLResponse)
+async def vpn_view(request: Request):
+    return templates.TemplateResponse("vpn.html", {
+        "request": request,
+        "active_page": "vpn"
+    })
+
 @app.get("/section/{path:path}", response_class=HTMLResponse)
 async def section_view(request: Request, path: str):
     # Convert path to title
@@ -142,6 +149,11 @@ async def section_view(request: Request, path: str):
         return templates.TemplateResponse("dhcp.html", {
             "request": request,
             "active_page": "dhcp"
+        })
+    elif path == "vpn" or path.startswith("interfaces/wireguard"):
+        return templates.TemplateResponse("vpn.html", {
+            "request": request,
+            "active_page": "vpn"
         })
     else:
         # Use generic section template for other sections
