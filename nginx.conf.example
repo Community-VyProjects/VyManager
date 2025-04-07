@@ -1,6 +1,6 @@
 server {
     listen 80;
-    server_name yourdomain.com;
+    server_name example.com;
     
     # Redirect HTTP to HTTPS
     return 301 https://$host$request_uri;
@@ -8,11 +8,11 @@ server {
 
 server {
     listen 443 ssl;
-    server_name yourdomain.com;
+    server_name example.com;
     
     # SSL configuration
-    ssl_certificate /path/to/your/fullchain.pem;
-    ssl_certificate_key /path/to/your/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/example.com/privkey.pem;
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_prefer_server_ciphers on;
     ssl_ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-GCM-SHA384;
@@ -24,7 +24,7 @@ server {
     add_header X-Frame-Options "DENY" always;
     add_header X-XSS-Protection "1; mode=block" always;
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;" always;
+    add_header Content-Security-Policy "default-src 'self'; connect-src 'self' https://example.com http://localhost:8000 https://*.example.com; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:;" always;
     
     # Frontend (Next.js)
     location / {
@@ -63,13 +63,6 @@ server {
             add_header 'Content-Length' 0;
             return 204;
         }
-    }
-    
-    # Static files (optional, if not served through Next.js)
-    location /static/ {
-        alias /path/to/your/static/files/;
-        expires 30d;
-        add_header Cache-Control "public, max-age=2592000";
     }
     
     # Large file uploads
