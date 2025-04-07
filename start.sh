@@ -70,7 +70,7 @@ if [ ! -d "venv" ]; then
         exit 1
     fi
 fi
-
+cp .env-sample .env
 # Activate virtual environment
 log "Activating virtual environment..."
 source venv/bin/activate
