@@ -1,0 +1,55 @@
+# Git
+.git
+.gitignore
+.github
+
+# Docker
+.docker
+docker-compose*.yml
+Dockerfile*
+.dockerignore
+
+# Node.js
+frontend/node_modules
+frontend/.pnp
+frontend/.pnp.js
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/.npm
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+env/
+.venv
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Environment
+.env
+!.env.example
+
+# Documentation
+README*.md
+LICENSE
+CODE_OF_CONDUCT.md
+
+# Build outputs
+frontend/.next/
+frontend/out/
+
+# Development/IDE specific
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+.DS_Store
+Thumbs.db 

@@ -1,106 +1,106 @@
-# VyOS Configuration Viewer
+# VyOS Configuration Manager
 
-A web application for viewing and analyzing VyOS router configurations.
-DEMO: https://vyosipam.beosai.io/
+A modern web interface for managing VyOS router configurations.
+
 ## Features
 
-- Dashboard with system overview
-- Network interfaces visualization
-- Firewall rules management
-- NAT configuration display
-- DHCP and DNS service management
-- Configuration logging with anomaly detection
+- **Dashboard Overview**: View system info, interfaces, and services at a glance
+- **Configuration Management**: Browse and edit VyOS configurations through a user-friendly interface
+- **Interface Management**: See details of all network interfaces and edit their properties
+- **Firewall Management**: Configure firewall rules, policies, and address groups
+- **Routing**: Manage static routes, dynamic routing protocols, and view routing tables
+- **NAT**: Configure source and destination NAT rules
+- **VPN**: Manage VPN configurations and monitor connections
+- **Services**: Configure DHCP, DNS, NTP, and SSH services
+- **Modern UI**: Built with Next.js, React, TypeScript, and Tailwind CSS for a responsive experience
+- **Dark Mode**: Optimized dark interface for reduced eye strain
 
-## Production Deployment
+## Architecture
 
-### Prerequisites
+This project consists of two main components:
 
-- Python 3.8 or higher (3.11 Tested)
-- VyOS router with HTTP API enabled (1.4 Is currently tested and working)
+1. **Backend API**: Python-based FastAPI application that interfaces with VyOS CLI to manage configurations
+2. **Frontend**: Next.js application built with React, TypeScript, and Shadcn UI components
 
-### Setup
+## Prerequisites
 
-1. Clone the repository:
-   ```
-   git clone https://github.com/MadsZBC/FastAPI-Vyos.git
-   cd vyos-config-viewer
-   ```
+- Node.js 18+ for the frontend
+- Python 3.11+ for the backend
+- VyOS router with API access enabled
+- Docker and Docker Compose (optional, for containerized deployment)
 
-2. Create a virtual environment:
-   ```
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
+## Installation
 
-3. Install dependencies:
-   ```
-   pip install -r requirements.txt
-   ```
+### Using Docker (Recommended)
 
-4. Configure environment variables:
-   ```
-   cp .env.sample .env
-   ```
-   Edit the `.env` file with your VyOS router API details.
-
-### Running in Production
-
-#### Linux/macOS
+The easiest way to run the application is using Docker Compose:
 
 ```bash
-# Set executable permission
-chmod +x start.sh
+# Create a .env file with your VyOS router configuration
+# See .env.example for required variables
 
-# Run in production mode
-ENVIRONMENT=production ./start.sh
+# Build and start the container
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
 ```
 
-#### Windows
+For more detailed Docker instructions, see [README-docker.md](README-docker.md).
 
-```batch
-# Run in production mode
-set ENVIRONMENT=production
-start.bat
-```
+### Manual Installation
 
-Alternatively, you can run with Uvicorn directly:
+#### Backend
 
 ```bash
-python -m uvicorn main:app --host 0.0.0.0 --port 8000
+# Install Python dependencies
+pip install -r requirements.txt
+
+# Configure your VyOS connection in .env file
+# See .env.example for required variables
+
+# Run the backend server
+uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
-## Development
-
-For local development:
+#### Frontend
 
 ```bash
-# Run with hot-reload
-uvicorn main:app --reload
+# Navigate to the frontend directory
+cd frontend
+
+# Install dependencies
+npm install
+
+# Start the development server
+npm run dev
+
+# Build for production
+npm run build
+npm start
 ```
 
-## Setup using container
+## Configuration
 
-There is also a container image that can you can build and run.
+Create a `.env` file in the root directory with the following configuration:
 
-1. Clone the repository:
-   ```
-   git clone https://github.com/MadsZBC/FastAPI-Vyos.git
-   cd vyos-config-viewer
-   ```
+```
+VYOS_HOST=your-vyos-router-ip
+VYOS_API_KEY=your-api-key
+VYOS_HTTPS=true
+TRUST_SELF_SIGNED=true  # For self-signed certificates
+ENVIRONMENT=production  # or development
+```
 
-2. Build the image
-   ```
-   podman build -t vyos-dash .
-   ```
+## Accessing the Application
 
-3. Execute the image
-   ```
-   podman run -v dot_env_file_path_here:/app/.env:ro -p 8000:8000 vyos-dash
-   ```
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:8000
 
-## Acknowledgements
+## License
 
-- [FastAPI](https://fastapi.tiangolo.com/)
-- [VyOS](https://vyos.io/)
-- [Bootstrap](https://getbootstrap.com/)
-- [Cursor](https://www.cursor.com/) - Helped alot with some of the logic when i was stuck.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
