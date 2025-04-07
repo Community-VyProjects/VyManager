@@ -3,7 +3,7 @@
 echo "=============================================================="
 echo "VyOS Configuration Viewer - Setup and Launch"
 echo "=============================================================="
-
+mkdir static
 # Check if Python is installed
 if ! command -v python3 &>/dev/null; then
     echo "ERROR: Python 3 is not installed or not in PATH"
@@ -73,13 +73,87 @@ echo "Host: $HOST"
 echo "Port: $PORT"
 echo "=============================================================="
 
+# Start backend server
 if [ "$ENVIRONMENT" = "production" ]; then
-    echo "Running with Gunicorn on $HOST:$PORT with $WORKERS workers"
-    gunicorn main:app -w $WORKERS -k uvicorn.workers.UvicornWorker -b $HOST:$PORT
-else
     echo "Running with Uvicorn on $HOST:$PORT"
-    uvicorn main:app --host $HOST --port $PORT --reload
+    # Start backend in background
+    python -m uvicorn main:app --host $HOST --port $PORT &
+    BACKEND_PID=$!
 fi
+
+# Check if frontend directory exists
+if [ -d "frontend" ]; then
+    echo "=============================================================="
+    echo "Starting Frontend application..."
+    echo "=============================================================="
+    
+    # Navigate to frontend directory
+    cd frontend
+    
+    # Check if Node.js is installed
+    if ! command -v node &>/dev/null; then
+        echo "ERROR: Node.js is not installed or not in PATH"
+        echo "Please install Node.js 16 or higher"
+        kill $BACKEND_PID  # Kill backend process
+        exit 1
+    fi
+    
+    # Check if npm is installed
+    if ! command -v npm &>/dev/null; then
+        echo "ERROR: npm is not installed or not in PATH"
+        echo "Please install npm"
+        kill $BACKEND_PID  # Kill backend process
+        exit 1
+    fi
+    
+    # Install dependencies if node_modules doesn't exist or package.json has changed
+    if [ ! -d "node_modules" ] || [ "package.json" -nt "node_modules" ]; then
+        echo "Installing frontend dependencies..."
+        npm install
+        if [ $? -ne 0 ]; then
+            echo "ERROR: Failed to install frontend dependencies"
+            kill $BACKEND_PID  # Kill backend process
+            exit 1
+        fi
+    fi
+    
+    # Start frontend based on environment
+    if [ "$ENVIRONMENT" = "production" ]; then
+        echo "Building and starting frontend in production mode..."
+        npm run build && npm start &
+    else
+        echo "Starting frontend in development mode..."
+        npm run dev &
+    fi
+    
+    FRONTEND_PID=$!
+    cd ..  # Return to the root directory
+    
+    echo "Frontend started successfully!"
+else
+    echo "Frontend directory not found. Skipping frontend startup."
+fi
+
+echo "=============================================================="
+echo "All services started. Press Ctrl+C to stop."
+echo "=============================================================="
+
+# Wait for user to press Ctrl+C and then cleanup
+cleanup() {
+    echo "Stopping services..."
+    if [ -n "$FRONTEND_PID" ]; then
+        kill $FRONTEND_PID
+    fi
+    if [ -n "$BACKEND_PID" ]; then
+        kill $BACKEND_PID
+    fi
+    exit 0
+}
+
+trap cleanup INT TERM
+
+# Keep script running until Ctrl+C is pressed
+wait
 
 # If the app exits with an error, print a message
 if [ $? -ne 0 ]; then
