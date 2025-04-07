@@ -156,10 +156,14 @@ app = FastAPI(
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, change this to your frontend domain
+    # Allow requests from any origin when behind a reverse proxy
+    # In production with nginx, this is safe as nginx handles the actual domain restrictions
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allow_headers=["Content-Type", "Authorization", "X-Requested-With", "X-CSRF-Token"],
+    expose_headers=["Content-Length", "Content-Type"],
+    max_age=86400,  # Cache preflight requests for 24 hours
 )
 
 # Create API router
