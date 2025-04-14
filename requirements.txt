@@ -13,7 +13,7 @@ uvloop>=0.17.0 ; sys_platform != 'win32'  # uvloop doesn't support Windows
 httpx>=0.23.0
 
 # Utilities
-python-multipart==0.0.6
+python-multipart==0.0.18
 pydantic==2.3.0
 certifi>=2023.7.22
 python-dotenv==1.0.0 
