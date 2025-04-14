@@ -15,6 +15,7 @@ import { StatusBadge } from "@/components/status-badge"
 import { ConfigDisplay } from "@/components/config-display"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import InterfacesPage from "./interfaces/page"
+import ServicesPage from "./services/page"
 import FirewallPage from "./firewall/page"
 import RoutingPage from "./routing/page"
 import VPNPage from "./vpn/page"
@@ -387,6 +388,9 @@ export default function RootPage() {
             )}
             {activeTab === "interfaces" && (
               <InterfacesPage />
+            )}
+            {activeTab === "services" && (
+              <ServicesPage />
             )}
             {activeTab === "firewall" && (
               <FirewallPage />
