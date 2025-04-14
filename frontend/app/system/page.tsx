@@ -118,6 +118,7 @@ export default function SystemPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
+          <h1 className="text-2xl font-bold text-cyan-400">System</h1>
           <p className="text-slate-400">Manage system settings and maintenance</p>
         </div>
         <Button 

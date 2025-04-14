@@ -307,6 +307,7 @@ export default function AdvancedPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
+          <h1 className="text-2xl font-bold text-cyan-400">Advanced</h1>
           <p className="text-slate-400">Advanced system configuration and diagnostics</p>
         </div>
         <div className="flex gap-2">

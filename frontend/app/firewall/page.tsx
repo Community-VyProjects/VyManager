@@ -456,6 +456,7 @@ export default function FirewallPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
+          <h1 className="text-2xl font-bold text-cyan-400">Firewall</h1>
           <p className="text-slate-400">Manage firewall rules and policies to secure your network</p>
         </div>
         <Button className="bg-cyan-600 hover:bg-cyan-700" onClick={() => openNewRuleDialog()}>

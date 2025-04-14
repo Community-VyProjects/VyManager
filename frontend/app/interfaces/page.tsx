@@ -419,6 +419,7 @@ export default function InterfacesPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
+          <h1 className="text-2xl font-bold mb-6 hidden md:block text-cyan-400">Interfaces</h1>
           <p className="text-slate-400">Manage your network connectivity and interface settings</p>
         </div>
         <Button className="bg-cyan-600 hover:bg-cyan-700" onClick={openNewInterfaceDialog}>
