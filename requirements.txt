@@ -14,6 +14,6 @@ httpx>=0.23.0
 
 # Utilities
 python-multipart==0.0.18
-pydantic==2.3.0
+pydantic==2.4.0
 certifi>=2023.7.22
 python-dotenv==1.0.0 
