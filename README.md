@@ -2,6 +2,10 @@
 
 A modern web interface for managing VyOS router configurations.
 
+**Currently being developed for VyOS 1.4-sagitta (full) and 1.5-circinus (partial)**
+
+![image](https://github.com/user-attachments/assets/c4063b1c-d3a9-4ced-8e75-c272f297c0ff)
+
 ## Features
 
 - **Dashboard Overview**: View system info, interfaces, and services at a glance
