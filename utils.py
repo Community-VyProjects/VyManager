@@ -2,6 +2,22 @@ import httpx
 import json
 from typing import List, Dict, Any, Union, Optional
 
+def merge_cidr_parts(parts):
+    import re
+    merged = []
+    i = 0
+    while i < len(parts):
+        if (
+            i + 1 < len(parts) and
+            re.match(r"\d+\.\d+\.\d+\.\d+$", parts[i]) and
+            parts[i + 1].isdigit()
+        ):
+            merged.append(f"{parts[i]}/{parts[i + 1]}")
+            i += 2
+        else:
+            merged.append(parts[i])
+            i += 1
+    return merged
 
 class PathBuilder:
     """
