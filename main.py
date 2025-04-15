@@ -397,6 +397,8 @@ async def api_show(path: str):
     Example: GET /api/show/interfaces
     """
     path_parts = path.split("/")
+    path_parts = merge_cidr_parts(path_parts)
+
     return await dynamic_vyos_api_handler("show", path_parts)
 
 # API Routes for 'showConfig' operations (configuration retrieval)
@@ -431,6 +433,7 @@ async def api_config(path: str = ""):
             print(f"Fetching configuration for path: {path} from VyOS router")
             # Split the path and build the method chain
             path_parts = path.split("/")
+            path_parts = merge_cidr_parts(path_parts)
             method = vyos_client.showConfig
             for part in path_parts:
                 if part:  # Skip empty parts
@@ -541,6 +544,7 @@ async def api_configure_delete(path: str, value: Optional[str] = None):
         path = urllib.parse.unquote(path)
     
     path_parts = path.split("/")
+    path_parts = merge_cidr_parts(path_parts)
     
     # Filter out empty strings that may result from splitting
     path_parts = [part for part in path_parts if part]
@@ -565,6 +569,7 @@ async def api_configure_comment(path: str, value: Optional[str] = None):
         path = urllib.parse.unquote(path)
     
     path_parts = path.split("/")
+    path_parts = merge_cidr_parts(path_parts)
     
     # Filter out empty strings that may result from splitting
     path_parts = [part for part in path_parts if part]
@@ -663,6 +668,8 @@ async def api_generate(path: str):
     Example: POST /api/generate/pki/wireguard/key-pair
     """
     path_parts = path.split("/")
+    path_parts = merge_cidr_parts(path_parts)
+
     return await dynamic_vyos_api_handler("generate", path_parts)
 
 # API Routes for 'reset' operations
@@ -674,6 +681,8 @@ async def api_reset(path: str):
     Example: POST /api/reset/ip/bgp/192.0.2.11
     """
     path_parts = path.split("/")
+    path_parts = merge_cidr_parts(path_parts)
+    
     return await dynamic_vyos_api_handler("reset", path_parts)
 
 # API Routes for 'image' operations
