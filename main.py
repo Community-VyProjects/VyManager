@@ -17,6 +17,7 @@ import datetime as import_datetime
 # Import the VyOS API wrapper
 from client import VyOSClient
 from utils import VyOSAPIError
+from utils import merge_cidr_parts
 
 # Load environment variables from .env file
 load_dotenv()
@@ -513,9 +514,10 @@ async def api_configure_set(path: str, value: Optional[str] = None):
     if '%2F' in path:
         # Decode URL-encoded slashes and split the path
         path = urllib.parse.unquote(path)
-    
+        
     path_parts = path.split("/")
-    
+    path_parts = merge_cidr_parts(path_parts)
+
     # Filter out empty strings that may result from splitting
     path_parts = [part for part in path_parts if part]
     
