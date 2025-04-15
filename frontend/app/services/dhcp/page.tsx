@@ -490,7 +490,7 @@ export default function DhcpPage() {
                             <dl className="space-y-2">
                               <div className="flex justify-between">
                                 <dt className="text-sm text-slate-400">Default Router</dt>
-                                <dd className="text-sm font-medium text-slate-200">{network.defaultRouter}</dd>
+                                <dd className="text-sm font-medium text-slate-200">{network.defaultRouter || 'Not set'}</dd>
                               </div>
                               <div className="flex justify-between">
                                 <dt className="text-sm text-slate-400">Domain Name</dt>
