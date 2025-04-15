@@ -1414,7 +1414,7 @@ export default function RoutingPage() {
                     <SelectValue placeholder="Select interface" />
                   </SelectTrigger>
                   <SelectContent className="bg-slate-800 border-slate-700 text-white">
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
                     {interfaces.map(iface => (
                       <SelectItem key={iface} value={iface}>{iface}</SelectItem>
                     ))}
