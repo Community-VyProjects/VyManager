@@ -718,7 +718,7 @@ export default function RoutingPage() {
                   {routingTable?.routes.map((route, index) => (
                     <TableRow key={index} className="hover:bg-slate-700/50">
                       <TableCell className="font-mono">
-                        {route.destination}/{route.prefix_length}
+                        {route.destination.includes('/') ? route.destination : `${route.destination}/${route.prefix_length}`}
                       </TableCell>
                       <TableCell>
                         <Badge className={`${
