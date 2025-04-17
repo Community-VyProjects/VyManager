@@ -83,7 +83,8 @@ export default function AdvancedPage() {
       });
       
       if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
+        const json = await response.json();
+        throw new Error(`API error: ${json.error ?? 'Unknown error'}`);
       }
       
       const data = await response.json();
@@ -116,7 +117,8 @@ export default function AdvancedPage() {
       const response = await fetch(endpoint);
       
       if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
+        const json = await response.json();
+        throw new Error(`API error: ${json.error ?? 'Unknown error'}`);
       }
       
       const data = await response.json();
@@ -162,7 +164,8 @@ export default function AdvancedPage() {
           });
           
           if (!response.ok) {
-            throw new Error(`API error: ${response.status}`);
+            const json = await response.json();
+            throw new Error(`API error: ${json.error ?? 'Unknown error'}`);
           }
           
           const data = await response.json();
