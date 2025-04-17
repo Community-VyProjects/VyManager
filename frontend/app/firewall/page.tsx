@@ -160,7 +160,8 @@ export default function FirewallPage() {
       });
       
       if (!createResponse.ok) {
-        throw new Error(`Failed to create rule: ${createResponse.statusText}`);
+        const json = await createResponse.json();
+        throw new Error(`Failed to create rule: ${json.error ?? 'Unknown error'}`);
       }
       
       // Set action

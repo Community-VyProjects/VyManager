@@ -185,7 +185,8 @@ export default function InterfacesPage() {
       });
       
       if (!createResponse.ok) {
-        throw new Error(`Failed to create interface: ${createResponse.statusText}`);
+        const json = await createResponse.json();
+        throw new Error(`Failed to create interface: ${json.error ?? 'Unknown error'}`);        
       }
       
       // Set description if provided
@@ -199,7 +200,8 @@ export default function InterfacesPage() {
         });
         
         if (!response.ok) {
-          throw new Error(`Failed to set description: ${response.statusText}`);
+          const json = await response.json();
+          throw new Error(`Failed to set description: ${json.error ?? 'Unknown error'}`);
         }
       }
       
@@ -214,7 +216,8 @@ export default function InterfacesPage() {
         });
         
         if (!response.ok) {
-          throw new Error(`Failed to set address: ${response.statusText}`);
+          const json = await response.json();
+          throw new Error(`Failed to set address: ${json.error ?? 'Unknown error'}`);
         }
       }
       
@@ -229,7 +232,8 @@ export default function InterfacesPage() {
         });
         
         if (!response.ok) {
-          throw new Error(`Failed to set disable state: ${response.statusText}`);
+          const json = await response.json();
+          throw new Error(`Failed to set disable state: ${json.error ?? 'Unknown error'}`);
         }
       }
       
