@@ -953,14 +953,22 @@ export default function FirewallPage() {
                                 {rule.state && (
                                   <div className="flex flex-col gap-1">
                                     <span className="text-slate-400 font-medium">State Tracking:</span>
-                                    {Object.entries(rule.state).map(([key, value]) => (
-                                      <div key={`state-${key}`} className="flex items-center gap-2 ml-2">
-                                        <span className="text-slate-400">{key}:</span>
+                                    {typeof rule.state === 'string' ? (
+                                      <div className="flex items-center gap-2 ml-2">
                                         <span className="text-white font-mono bg-slate-800 px-2 py-1 rounded text-xs">
-                                          {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                                          {rule.state}
                                         </span>
                                       </div>
-                                    ))}
+                                    ) : (
+                                      Object.entries(rule.state).map(([key, value]) => (
+                                        <div key={`state-${key}`} className="flex items-center gap-2 ml-2">
+                                          <span className="text-slate-400">{key}:</span>
+                                          <span className="text-white font-mono bg-slate-800 px-2 py-1 rounded text-xs">
+                                            {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                                          </span>
+                                        </div>
+                                      ))
+                                    )}
                                   </div>
                                 )}
                               </div>
