@@ -1322,26 +1322,62 @@ export default function RoutingPage() {
                                 </TableCell>
                                 <TableCell>
                                   <div className="space-y-1">
-                                    {Object.entries(rule.match).map(([key, value], j) => (
-                                      <div key={j} className="flex items-center gap-1">
-                                        <span className="text-xs text-slate-400">{key}:</span>
-                                        <Badge variant="outline" className="border-purple-700 text-purple-400">
-                                          {value as string}
-                                        </Badge>
-                                      </div>
-                                    ))}
+                                    {Object.entries(rule.match || {}).map(([key, value], j) => {
+                                      // Format the value into a readable string
+                                      let displayValue = value;
+                                      if (typeof value === 'object' && value !== null) {
+                                        // Handle nested objects by getting all key-value pairs
+                                        const formatNestedObject = (obj: any, parentKey?: string): string => {
+                                          const entries = Object.entries(obj);
+                                          if (entries.length === 0) return '';
+                                          
+                                          const [k, v] = entries[0];
+                                          if (typeof v === 'object' && v !== null) {
+                                            return formatNestedObject(v, k);
+                                          }
+                                          return `${parentKey ? `${parentKey} ` : ''}${k} ${v}`;
+                                        };
+                                        displayValue = formatNestedObject(value);
+                                      }
+                                      return (
+                                        <div key={j} className="flex items-center gap-1">
+                                          <span className="text-xs text-muted-foreground">{key}:</span>
+                                          <Badge variant="secondary">
+                                            {String(displayValue)}
+                                          </Badge>
+                                        </div>
+                                      );
+                                    })}
                                   </div>
                                 </TableCell>
                                 <TableCell>
                                   <div className="space-y-1">
-                                    {Object.entries(rule.set).map(([key, value], j) => (
-                                      <div key={j} className="flex items-center gap-1">
-                                        <span className="text-xs text-slate-400">{key}:</span>
-                                        <Badge variant="outline" className="border-blue-700 text-blue-400">
-                                          {value as string}
-                                        </Badge>
-                                      </div>
-                                    ))}
+                                    {Object.entries(rule.set || {}).map(([key, value], j) => {
+                                      // Format the value into a readable string
+                                      let displayValue = value;
+                                      if (typeof value === 'object' && value !== null) {
+                                        // Handle nested objects by getting all key-value pairs
+                                        const formatNestedObject = (obj: any, parentKey?: string): string => {
+                                          const entries = Object.entries(obj);
+                                          if (entries.length === 0) return '';
+                                          
+                                          const [k, v] = entries[0];
+                                          if (typeof v === 'object' && v !== null) {
+                                            return formatNestedObject(v, k);
+                                          }
+                                          return `${parentKey ? `${parentKey} ` : ''}${k} ${v}`;
+                                        };
+                                        displayValue = formatNestedObject(value);
+                                      }
+                                      return (
+                                        <div key={j} className="flex items-center gap-1">
+                                          <span className="text-xs text-muted-foreground">{key}:</span>
+                                          <Badge variant="outline">
+                                            {String(displayValue)}
+                                          </Badge>
+                                        </div>
+                                      );
+                                    })}
                                   </div>
                                 </TableCell>
                               </TableRow>
