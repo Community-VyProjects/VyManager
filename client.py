@@ -20,7 +20,7 @@ from endpoints.image import ImageEndpoint
 from endpoints.config_file import ConfigFileEndpoint
 from endpoints.reboot import RebootEndpoint
 from endpoints.poweroff import PoweroffEndpoint
-
+from endpoints.graphql import GraphQLEndpoint
 
 class PathBuilder:
     """
@@ -344,6 +344,18 @@ class VyOSClient:
             Awaitable for the API response
         """
         return self.execute_request("/poweroff", "poweroff", ["now"])
+    
+    @property
+    def graphql(self):
+        """
+        Get the GraphQL endpoint.
+        
+        Returns:
+            GraphQLEndpoint instance
+        """
+        if not hasattr(self, '_graphql'):
+            self._graphql = GraphQLEndpoint(self)
+        return self._graphql
     
     @property
     def image(self):
