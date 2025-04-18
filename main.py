@@ -13,8 +13,6 @@ from fastapi.middleware.cors import CORSMiddleware
 import asyncio
 import uvicorn
 import datetime as import_datetime
-import aiohttp
-from pydantic import BaseModel
 
 # Import the VyOS API wrapper
 from client import VyOSClient
