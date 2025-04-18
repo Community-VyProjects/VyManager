@@ -1083,6 +1083,76 @@ async def api_routing_table():
             content=error_response,
             media_type="application/json"
         )
+    
+@api_router.get("/containers")
+async def get_containers():
+    """Get containers and images from VyOS router"""
+    if not vyos_client:
+        return {
+            "success": False,
+            "error": "VyOS client not initialized",
+            "data": {
+                "containers": [],
+                "images": []
+            }
+        }
+    
+    try:
+        # Execute queries in parallel using the client's GraphQL endpoint
+        containers_result, images_result = await asyncio.gather(
+            vyos_client.graphql.operation("ShowContainerContainer"),
+            vyos_client.graphql.operation("ShowImageContainer")
+        )
+        
+        # Check for top-level errors
+        if not containers_result.get("success") or not images_result.get("success"):
+            error_msg = f"GraphQL query failed: {containers_result.get('error') or images_result.get('error')}"
+            return {
+                "success": False,
+                "error": error_msg,
+                "data": {
+                    "containers": [],
+                    "images": []
+                }
+            }
+        
+        # Get the operation results
+        container_op = containers_result.get("data", {}).get("ShowContainerContainer", {})
+        image_op = images_result.get("data", {}).get("ShowImageContainer", {})
+        
+        # Check for operation-level errors
+        if not container_op.get("success") or not image_op.get("success"):
+            error_msg = f"Operation failed: {container_op.get('errors') or image_op.get('errors')}"
+            return {
+                "success": False,
+                "error": error_msg,
+                "data": {
+                    "containers": [],
+                    "images": []
+                }
+            }
+        
+        # Extract the data safely
+        containers_data = container_op.get("data", {}).get("result", []) or []
+        images_data = image_op.get("data", {}).get("result", []) or []
+        
+        return {
+            "success": True,
+            "error": None,
+            "data": {
+                "containers": containers_data,
+                "images": images_data
+            }
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "data": {
+                "containers": [],
+                "images": []
+            }
+        }
 
 # For backwards compatibility, redirect /dhcpleases to the new API endpoint
 @app.get("/dhcpleases")

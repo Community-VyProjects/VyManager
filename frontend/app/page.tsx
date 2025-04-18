@@ -10,7 +10,7 @@ import { ConfigTree } from "@/components/config-tree"
 import { ConfigEditor } from "@/components/config-editor"
 import { InterfacesList } from "@/components/interfaces-list"
 import { Separator } from "@/components/ui/separator"
-import { Loader2, RefreshCw, Settings, Network, Shield, Route, Globe, Server, MoreHorizontal, AlertCircle, Home, Info, Activity, ChevronDown, ChevronRight, Database, Wifi, Clock, Terminal, ArrowLeftRight } from "lucide-react"
+import { Loader2, RefreshCw, Settings, Network, Shield, Route, Globe, Server, MoreHorizontal, AlertCircle, Home, Info, Activity, ChevronDown, ChevronRight, Database, Wifi, Clock, Terminal, ArrowLeftRight, Box } from "lucide-react"
 import { StatusBadge } from "@/components/status-badge"
 import { ConfigDisplay } from "@/components/config-display"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -23,6 +23,7 @@ import SystemPage from "./system/page"
 import DashboardPage from "./dashboard/page"
 import AdvancedPage from "./advanced/page"
 import NatPage from "./nat/page"
+import ContainersPage from "./containers/page"
 
 // Dynamic import with loading fallbacks for service pages
 import dynamic from "next/dynamic"
@@ -246,7 +247,7 @@ export default function RootPage() {
             
             <div className="flex-1 py-4">
               <nav className="space-y-1 px-2">
-                <Button 
+                <Button
                   variant={activeTab === "dashboard" ? "default" : "ghost"} 
                   className={`w-full justify-start gap-2 mb-1 ${activeTab === "dashboard" ? "bg-cyan-600 hover:bg-cyan-700" : "text-slate-300 hover:text-white hover:bg-slate-800"}`}
                   onClick={(e) => navigateToTab("dashboard", e)}
@@ -254,7 +255,7 @@ export default function RootPage() {
                   <Home className="h-4 w-4" />
                   Dashboard
                 </Button>
-                <Button 
+                <Button
                   variant={activeTab === "interfaces" ? "default" : "ghost"} 
                   className={`w-full justify-start gap-2 mb-1 ${activeTab === "interfaces" ? "bg-cyan-600 hover:bg-cyan-700" : "text-slate-300 hover:text-white hover:bg-slate-800"}`}
                   onClick={(e) => navigateToTab("interfaces", e)}
@@ -262,7 +263,15 @@ export default function RootPage() {
                   <Network className="h-4 w-4" />
                   Network Interfaces
                 </Button>
-                <Button 
+                <Button
+                  variant={activeTab === "containers" ? "default" : "ghost"}
+                  className={`w-full justify-start gap-2 mb-1 ${activeTab === "containers" ? "bg-cyan-600 hover:bg-cyan-700" : "text-slate-300 hover:text-white hover:bg-slate-800"}`}
+                  onClick={(e) => navigateToTab("containers", e)}
+                >
+                  <Box className="h-4 w-4" />
+                  Containers
+                </Button>                  
+                <Button
                   variant={activeTab === "firewall" ? "default" : "ghost"} 
                   className={`w-full justify-start gap-2 mb-1 ${activeTab === "firewall" ? "bg-cyan-600 hover:bg-cyan-700" : "text-slate-300 hover:text-white hover:bg-slate-800"}`}
                   onClick={(e) => navigateToTab("firewall", e)}
@@ -270,7 +279,7 @@ export default function RootPage() {
                   <Shield className="h-4 w-4" />
                   Firewall
                 </Button>
-                <Button 
+                <Button
                   variant={activeTab === "nat" ? "default" : "ghost"} 
                   className={`w-full justify-start gap-2 mb-1 ${activeTab === "nat" ? "bg-cyan-600 hover:bg-cyan-700" : "text-slate-300 hover:text-white hover:bg-slate-800"}`}
                   onClick={(e) => navigateToTab("nat", e)}
@@ -278,7 +287,7 @@ export default function RootPage() {
                   <ArrowLeftRight className="h-4 w-4" />
                   NAT
                 </Button>
-                <Button 
+                <Button
                   variant={activeTab === "routing" ? "default" : "ghost"} 
                   className={`w-full justify-start gap-2 mb-1 ${activeTab === "routing" ? "bg-cyan-600 hover:bg-cyan-700" : "text-slate-300 hover:text-white hover:bg-slate-800"}`}
                   onClick={(e) => navigateToTab("routing", e)}
@@ -286,7 +295,7 @@ export default function RootPage() {
                   <Route className="h-4 w-4" />
                   Routing
                 </Button>
-                <Button 
+                <Button
                   variant={activeTab === "vpn" ? "default" : "ghost"} 
                   className={`w-full justify-start gap-2 mb-1 ${activeTab === "vpn" ? "bg-cyan-600 hover:bg-cyan-700" : "text-slate-300 hover:text-white hover:bg-slate-800"}`}
                   onClick={(e) => navigateToTab("vpn", e)}
@@ -312,7 +321,7 @@ export default function RootPage() {
                       <ChevronRight className="h-4 w-4" />
                     )}
                   </Button>
-                  
+                    
                   {servicesExpanded && (
                     <div className="pl-4 mt-1 space-y-1">
                       <Button 
@@ -388,6 +397,9 @@ export default function RootPage() {
             )}
             {activeTab === "interfaces" && (
               <InterfacesPage />
+            )}
+            {activeTab === "containers" && (
+              <ContainersPage />
             )}
             {activeTab === "services" && (
               <ServicesPage />
