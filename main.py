@@ -968,7 +968,7 @@ async def api_routing_table():
     Example: GET /api/routingtable
     
     Returns:
-        JSON with formatted routing table information
+        JSON with formatted routing table information organized by VRF
     """
     if not vyos_client:
         return JSONResponse(
@@ -989,52 +989,87 @@ async def api_routing_table():
             try:
                 # The data is a JSON string inside the data field, need to parse it
                 import json
-                routes_data = json.loads(result["data"])
-                
-                # Format the data for better readability
-                formatted_routes = []
+
+                # FRR 1.4 mangles multiple VRFs into concatenated JSON strings
+                # ex. "{global}{vrf1}{vrf2}". This causes json.loads() to fail.
+                # This code splits the string into a list of JSON objects, then merges them into a single dictionary
+                parts = result['data'].split('}\n{')
+                if len(parts) > 1:
+                    parts = [parts[0] + '}'] + ['{' + part + '}' for part in parts[1:-1]] + ['{' + parts[-1]]
+
+                    # Merge into a single dictionary
+                    routes_data = {}
+                    for obj in parts:
+                        routes_data.update(json.loads(obj))
+                else:
+                    routes_data = json.loads(result["data"].split('}{}')[0])
+
+                # Create a dictionary to store routes by VRF
+                routes_by_vrf = {}
+                total_routes = 0
 
                 # Check if the data has a default key; indicates using 1.5
                 if routes_data.get("default"):
-                    route_path = routes_data.get("default")
+                    vrf_list = list(routes_data.keys())
+                    route_new_format = True
                 else:
-                    route_path = routes_data                
-                
-                for prefix, routes_list in route_path.items():
-                    for route in routes_list:
-                        # Extract the key information for each route
-                        formatted_route = {
-                            "destination": prefix,
-                            "prefix_length": route.get("prefixLen"),
-                            "protocol": route.get("protocol"),
-                            "vrf": route.get("vrfName"),
-                            "selected": route.get("selected", False),
-                            "installed": route.get("installed", False),
-                            "distance": route.get("distance"),
-                            "metric": route.get("metric"),
-                            "uptime": route.get("uptime", ""),
-                            "nexthops": []
-                        }
-                        
-                        # Process next hops
-                        nexthops = route.get("nexthops", [])
-                        for nexthop in nexthops:
-                            nh_info = {
-                                "ip": nexthop.get("ip", "directly connected"),
-                                "interface": nexthop.get("interfaceName", ""),
-                                "active": nexthop.get("active", False),
-                                "directly_connected": nexthop.get("directlyConnected", False)
+                    vrf_list = ['default']
+                    route_new_format = False
+
+                for vrf in vrf_list:
+                    if route_new_format:
+                        route_path = routes_data.get(vrf)
+                    else:
+                        route_path = routes_data
+
+                    for prefix, routes_list in route_path.items():
+                        for route in routes_list:
+                            # Skip loopback address routes
+                            if '127.0.0.0/8' in prefix:
+                                continue
+
+                            # Get the VRF name, default to "default" if not specified
+                            vrf_name = route.get("vrfName", "default")
+                            
+                            # Initialize the VRF entry if it doesn't exist
+                            if vrf_name not in routes_by_vrf:
+                                routes_by_vrf[vrf_name] = []
+                            
+                            # Extract the key information for each route
+                            formatted_route = {
+                                "destination": prefix,
+                                "prefix_length": route.get("prefixLen"),
+                                "protocol": route.get("protocol"),
+                                "vrf": vrf_name,
+                                "selected": route.get("selected", False),
+                                "installed": route.get("installed", False),
+                                "distance": route.get("distance"),
+                                "metric": route.get("metric"),
+                                "uptime": route.get("uptime", ""),
+                                "nexthops": []
                             }
-                            formatted_route["nexthops"].append(nh_info)
-                        
-                        formatted_routes.append(formatted_route)
-                
+                            
+                            # Process next hops
+                            nexthops = route.get("nexthops", [])
+                            for nexthop in nexthops:
+                                nh_info = {
+                                    "ip": nexthop.get("ip", "directly connected"),
+                                    "interface": nexthop.get("interfaceName", ""),
+                                    "active": nexthop.get("active", False),
+                                    "directly_connected": nexthop.get("directlyConnected", False)
+                                }
+                                formatted_route["nexthops"].append(nh_info)
+                            
+                            # Add the route to its VRF's list
+                            routes_by_vrf[vrf_name].append(formatted_route)
+                            total_routes += 1
+
                 # Create a formatted response with proper JSON structure
                 response_data = {
                     "success": True,
-                    "routes": formatted_routes,
+                    "routes_by_vrf": routes_by_vrf,
                     "error": None,
-                    "count": len(formatted_routes),
+                    "count": total_routes,
                     "timestamp": import_datetime.datetime.now().isoformat()
                 }
                 
@@ -1049,7 +1084,6 @@ async def api_routing_table():
                     status_code=500,
                     content={
                         "success": False,
-                        "routes": [],
                         "error": f"Failed to parse routing table data: {str(e)}"
                     },
                     media_type="application/json"
@@ -1059,7 +1093,7 @@ async def api_routing_table():
             status_code=500,
             content={
                 "success": result.get("success", False),
-                "routes": [],
+                "routes_by_vrf": {},
                 "error": result.get("error", "Unknown error")
             },
             media_type="application/json"
