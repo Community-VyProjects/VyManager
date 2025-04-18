@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/components/ui/use-toast';
+import { RefreshCw, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface Container {
   id: string;
@@ -184,6 +186,29 @@ export default function ContainersPage() {
 
   return (
     <div className="container mx-auto p-4">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-cyan-400">Containers</h1>
+          <p className="text-slate-400">View containers and images</p>
+        </div>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={fetchData}
+            className="bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700"
+            disabled={isRefreshing}
+          >
+            {isRefreshing ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4 mr-2" />
+            )}
+            Refresh
+          </Button>
+        </div>
+      </div>
+
       <Card>
         <CardHeader>
           <CardTitle>Containers</CardTitle>
