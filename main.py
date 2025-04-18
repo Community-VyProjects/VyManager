@@ -13,6 +13,8 @@ from fastapi.middleware.cors import CORSMiddleware
 import asyncio
 import uvicorn
 import datetime as import_datetime
+import aiohttp
+from pydantic import BaseModel
 
 # Import the VyOS API wrapper
 from client import VyOSClient
@@ -1089,6 +1091,57 @@ async def api_routing_table():
 async def legacy_dhcpleases_redirect():
     """Legacy endpoint that redirects to the new API endpoint"""
     return RedirectResponse(url="/api/dhcp/leases")
+
+class GraphQLQuery(BaseModel):
+    query: str
+
+async def make_graphql_query(query: str):
+    """Make a GraphQL query to the VyOS router"""
+    try:
+        async with aiohttp.ClientSession() as session:
+            url = f"https://{VYOS_HOST}/graphql"
+            headers = {
+                'Content-Type': 'application/json',
+                'X-API-Key': API_KEY
+            }
+            payload = {"query": query}
+            
+            print(f"Making GraphQL query to {url}")
+            print(f"Query: {query}")
+            
+            async with session.post(url, json=payload, headers=headers, ssl=False) as response:
+                print(f"Response status: {response.status}")
+                if response.status == 200:
+                    data = await response.json()
+                    print(f"GraphQL Response: {data}")
+                    return data
+                else:
+                    error_text = await response.text()
+                    error_msg = f"GraphQL query failed with status {response.status}. Response: {error_text}"
+                    print(error_msg)
+                    return {
+                        "success": False,
+                        "errors": [error_msg],
+                        "data": None
+                    }
+    except Exception as e:
+        error_msg = f"Error making GraphQL query: {str(e)}"
+        print(error_msg)
+        return {
+            "success": False,
+            "errors": [error_msg],
+            "data": None
+        }
+
+@api_router.post("/graphql")
+async def graphql_endpoint(query_data: GraphQLQuery):
+    """Handle GraphQL queries"""
+    return await make_graphql_query(query_data.query)
+
+@api_router.get("/key")
+async def get_api_key():
+    """Get the VyOS API key"""
+    return {"key": API_KEY}
 
 # Include API router
 app.include_router(api_router)
