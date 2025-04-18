@@ -993,8 +993,14 @@ async def api_routing_table():
                 
                 # Format the data for better readability
                 formatted_routes = []
+
+                # Check if the data has a default key; indicates using 1.5
+                if routes_data.get("default"):
+                    route_path = routes_data.get("default")
+                else:
+                    route_path = routes_data                
                 
-                for prefix, routes_list in routes_data.items():
+                for prefix, routes_list in route_path.items():
                     for route in routes_list:
                         # Extract the key information for each route
                         formatted_route = {
