@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { toast } from '@/components/ui/use-toast';
 
 interface Container {
   id: string;
@@ -14,6 +15,22 @@ interface Container {
   created_at: string;
   ports: any;
   mounts: string[];
+  command: string[] | null;
+  cid_file: string;
+  exited: boolean;
+  exit_code: number;
+  image_id: string;
+  is_infra: boolean;
+  labels: Record<string, string> | null;
+  namespaces: Record<string, any>;
+  networks: any[];
+  pid: number;
+  pod: string;
+  pod_name: string;
+  restarts: number;
+  size: any;
+  started_at: number;
+  created: number;
 }
 
 interface ContainerImage {
@@ -35,26 +52,11 @@ interface ContainerImage {
 }
 
 interface ContainerResponse {
+  success: boolean;
+  error: string | null;
   data: {
-    ShowContainerContainer: {
-      success: boolean;
-      errors: string[] | null;
-      data: {
-        result: Container[];
-      };
-    };
-  };
-}
-
-interface ImageResponse {
-  data: {
-    ShowImageContainer: {
-      success: boolean;
-      errors: string[] | null;
-      data: {
-        result: ContainerImage[];
-      };
-    };
+    containers: Container[];
+    images: ContainerImage[];
   };
 }
 
@@ -63,65 +65,70 @@ export default function ContainersPage() {
   const [images, setImages] = useState<ContainerImage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
+  const fetchData = async () => {
+    setIsRefreshing(true);
+    try {
+      console.log("Fetching containers data from:", `${apiUrl}/api/containers`);
+      const response = await fetch(`${apiUrl}/api/containers`);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({
+          error: `Server error: ${response.status} ${response.statusText}`
+        }));
+        
+        console.error("Error response:", errorData);
+        
+        toast({
+          variant: "destructive",
+          title: "Error connecting to VyOS router",
+          description: errorData.error || `Server returned ${response.status} ${response.statusText}`
+        });
+        
+        setError("Connection error");
+        return;
+      }
+      
+      const data: ContainerResponse = await response.json();
+      console.log("Received container data:", data);
+      
+      if (data.success) {
+        console.log("Setting containers:", data.data.containers);
+        console.log("Setting images:", data.data.images);
+        setContainers(data.data.containers);
+        setImages(data.data.images);
+        setError(null);
+        toast({
+          title: "Containers loaded",
+          description: "Successfully loaded container information"
+        });
+      } else {
+        console.error("API error:", data);
+        toast({
+          variant: "destructive",
+          title: "Error loading containers",
+          description: data.error || "Could not load container information"
+        });
+        setError(data.error || "Failed to load data");
+      }
+    } catch (error) {
+      console.error("Error fetching containers:", error);
+      toast({
+        variant: "destructive",
+        title: "Connection error",
+        description: "Could not connect to the API server. Please check that the backend is running."
+      });
+      setError("Connection error");
+    } finally {
+      setLoading(false);
+      setIsRefreshing(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // First fetch the API key
-        const keyResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/key`);
-        if (!keyResponse.ok) {
-          throw new Error('Failed to fetch API key');
-        }
-        const { key } = await keyResponse.json();
-
-        // Fetch both containers and images in parallel
-        const [containersResponse, imagesResponse] = await Promise.all([
-          fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/graphql`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              query: `{ShowContainerContainer (data: {key: "${key}"}) {success errors data {result}}}`
-            }),
-          }),
-          fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/graphql`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              query: `{ShowImageContainer (data: {key: "${key}"}) {success errors data {result}}}`
-            }),
-          })
-        ]);
-
-        if (!containersResponse.ok || !imagesResponse.ok) {
-          throw new Error(`HTTP error! status: ${!containersResponse.ok ? containersResponse.status : imagesResponse.status}`);
-        }
-
-        const containersData = (await containersResponse.json()) as ContainerResponse;
-        const imagesData = (await imagesResponse.json()) as ImageResponse;
-        
-        if (containersData.data?.ShowContainerContainer.success && imagesData.data?.ShowImageContainer.success) {
-          setContainers(containersData.data.ShowContainerContainer.data.result);
-          setImages(imagesData.data.ShowImageContainer.data.result);
-        } else {
-          setError(
-            containersData.data?.ShowContainerContainer.errors?.[0] || 
-            imagesData.data?.ShowImageContainer.errors?.[0] || 
-            'Failed to fetch data'
-          );
-        }
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Error fetching data';
-        setError(errorMessage);
-        console.error('Error fetching data:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchData();
     // Refresh every 30 seconds
     const interval = setInterval(fetchData, 30000);
