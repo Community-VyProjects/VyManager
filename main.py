@@ -412,6 +412,27 @@ async def api_check_unsaved():
         "error": None
     })
 
+# API Route setting unsaved changes state
+@api_router.post("/set-unsaved-changes/{value}")
+async def api_set_unsaved_changes(value: bool):
+    """
+    Set whether there are unsaved changes (value field, boolean).
+
+    Example: POST /api/set-unsaved-changes/false
+
+    Response:
+    {
+        "success": True,
+        "error": null
+    }
+    """
+    global UNSAVED_CHANGES # Define global usage of UNSAVED_CHANGES state
+    UNSAVED_CHANGES = value # Set UNSAVED_CHANGES state to value
+    return JSONResponse(content={
+        "success": True,
+        "error": None
+    })
+
 # API Routes for 'show' operations
 @api_router.get("/show/{path:path}")
 async def api_show(path: str):
