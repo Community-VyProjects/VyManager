@@ -88,6 +88,8 @@ npm start
 
 ## Configuration
 
+For each one, you can find an example .env configuration file in the belonging directories.
+
 Create a `.env` file in the root directory with the following configuration:
 
 ```
@@ -96,6 +98,11 @@ VYOS_API_KEY=your-api-key
 VYOS_HTTPS=true
 TRUST_SELF_SIGNED=true  # For self-signed certificates
 ENVIRONMENT=production  # or development
+```
+
+Create a `.env` file in the /frontend directory with the following configuration:
+```
+NEXT_PUBLIC_API_URL=http://localhost:8000
 ```
 
 ## Accessing the Application
