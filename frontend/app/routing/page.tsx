@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 interface NextHop {
   ip: string;
@@ -37,7 +38,9 @@ interface Route {
 
 interface RoutingTable {
   success: boolean;
-  routes: Route[];
+  routes_by_vrf: {
+    [vrf: string]: Route[];
+  };
   error: string | null;
   count: number;
   timestamp: string;
@@ -171,6 +174,7 @@ export default function RoutingPage() {
     table: 'main'
   })
   const [isAddingRoute, setIsAddingRoute] = useState(false)
+  const [selectedVrf, setSelectedVrf] = useState<string>("default")
 
   const fetchConfig = async () => {
     setIsLoadingConfig(true)
@@ -636,6 +640,11 @@ export default function RoutingPage() {
   const pimConfig = getPimConfig();
   const routeMaps = getRouteMaps();
 
+  const getVrfs = (): string[] => {
+    if (!routingTable?.routes_by_vrf) return ["default"];
+    return Object.keys(routingTable.routes_by_vrf).sort();
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -702,6 +711,27 @@ export default function RoutingPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
+              <div className="mb-6">
+                <div className="bg-slate-800 border border-slate-700 rounded-md p-4">
+                  <div className="flex flex-wrap gap-2">
+                    {getVrfs().map((vrf) => (
+                      <Button
+                        key={vrf}
+                        variant={selectedVrf === vrf ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setSelectedVrf(vrf)}
+                        className={`${
+                          selectedVrf === vrf 
+                            ? "bg-cyan-600 hover:bg-cyan-700 text-white" 
+                            : "bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700 hover:text-white"
+                        } whitespace-nowrap`}
+                      >
+                        {vrf === "default" ? "Default VRF" : `VRF: ${vrf}`}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              </div>
               <Table>
                 <TableHeader className="bg-slate-900">
                   <TableRow>
@@ -715,7 +745,7 @@ export default function RoutingPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {routingTable?.routes.map((route, index) => (
+                  {routingTable?.routes_by_vrf[selectedVrf]?.map((route, index) => (
                     <TableRow key={index} className="hover:bg-slate-700/50">
                       <TableCell className="font-mono">
                         {route.destination.includes('/') ? route.destination : `${route.destination}/${route.prefix_length}`}
@@ -724,7 +754,7 @@ export default function RoutingPage() {
                         <Badge className={`${
                           route.protocol === 'static' ? 'bg-blue-600' : 
                           route.protocol === 'connected' ? 'bg-green-600' : 
-                          route.protocol === 'ospf' ? 'bg-purple-600' : 
+                          route.protocol === 'ospf' ? 'bg-purple-600' :                      
                           route.protocol === 'bgp' ? 'bg-amber-600' : 
                           'bg-slate-600'
                         }`}>
@@ -758,25 +788,25 @@ export default function RoutingPage() {
                   ))}
                 </TableBody>
               </Table>
-              {(!routingTable?.routes || routingTable.routes.length === 0) && (
+              {(!routingTable?.routes_by_vrf[selectedVrf] || routingTable.routes_by_vrf[selectedVrf].length === 0) && (
                 <div className="text-center py-8">
                   <Route className="h-12 w-12 text-slate-600 mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-slate-300 mb-2">No Routes Found</h3>
-                  <p className="text-slate-400 mb-4">There are no active routes in the routing table.</p>
+                  <p className="text-slate-400 mb-4">There are no active routes in the {selectedVrf === "default" ? "default" : selectedVrf} VRF.</p>
                 </div>
               )}
             </CardContent>
             <CardFooter className="flex justify-between border-t border-slate-700 p-4">
               <div className="text-xs text-slate-400">
-                Total routes: {routingTable?.count || 0}
+                Total routes in {selectedVrf === "default" ? "default" : selectedVrf} VRF: {routingTable?.routes_by_vrf[selectedVrf]?.length || 0}
               </div>
               <Button 
                 variant="outline" 
                 size="sm" 
-                className="bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700"
-                onClick={fetchRoutingTable}
+                onClick={() => fetchRoutingTable()}
+                className="flex items-center gap-2"
               >
-                <Loader2 className={`h-4 w-4 mr-2 ${isLoadingRoutes ? 'animate-spin' : ''}`} />
+                <RefreshCw className="h-4 w-4" />
                 Refresh
               </Button>
             </CardFooter>
