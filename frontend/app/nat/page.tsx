@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
+import { executeSavingMethod } from "../utils"
 
 export default function NatPage() {
   const [isLoadingConfig, setIsLoadingConfig] = useState(true)
@@ -195,6 +196,8 @@ export default function NatPage() {
         description: `Successfully created ${natType} NAT rule ${newNatRuleData.ruleNumber}`
       });
 
+      executeSavingMethod();
+            
       setNewNatRuleDialogOpen(false);
       refreshData();
     } catch (error) {
@@ -228,6 +231,8 @@ export default function NatPage() {
         title: "NAT Rule Deleted",
         description: `Successfully deleted ${type} NAT rule ${ruleNumber}`
       });
+
+      executeSavingMethod();
 
       refreshData();
     } catch (error) {
