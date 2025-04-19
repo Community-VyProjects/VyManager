@@ -57,6 +57,7 @@ import ContainersPage from "./containers/page";
 
 // Dynamic import with loading fallbacks for service pages
 import dynamic from "next/dynamic";
+import { executeSavingMethod } from "./utils";
 
 const DhcpPage = dynamic(() => import("./services/dhcp/page"), {
   loading: () => (
@@ -272,6 +273,7 @@ export default function RootPage() {
   };
 
   const fetchConfig = async () => {
+    executeSavingMethod();
     setLoading(true);
     try {
       const response = await fetch(`${API_URL}/api/config`);

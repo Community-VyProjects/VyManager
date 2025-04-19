@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from '@/components/ui/use-toast';
 import { RefreshCw, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { executeSavingMethod } from "../utils"
 
 interface Container {
   id: string;
@@ -72,6 +73,7 @@ export default function ContainersPage() {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
   const fetchData = async () => {
+    executeSavingMethod();
     setIsRefreshing(true);
     try {
       console.log("Fetching containers data from:", `${apiUrl}/api/containers`);

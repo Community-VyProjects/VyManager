@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import { executeSavingMethod } from "@/app/utils"
 
 interface NTPServer {
   name: string;
@@ -47,6 +48,7 @@ export default function NTPPage() {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
   const fetchConfig = async () => {
+    executeSavingMethod();
     setIsLoading(true)
     try {
       const response = await fetch(`${apiUrl}/api/config`);

@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
+import { executeSavingMethod } from "@/app/utils"
 
 export default function FirewallGroupsPage() {
   const [isLoadingConfig, setIsLoadingConfig] = useState(true)
@@ -28,6 +29,7 @@ export default function FirewallGroupsPage() {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
   const fetchConfig = async () => {
+    executeSavingMethod();
     setIsLoadingConfig(true)
     try {
       const response = await fetch(`${apiUrl}/api/config`);

@@ -12,6 +12,7 @@ import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
+import { executeSavingMethod } from "../utils"
 
 export default function FirewallPage() {
   const [isLoadingConfig, setIsLoadingConfig] = useState(true)
@@ -36,6 +37,7 @@ export default function FirewallPage() {
   const [isUpdatingRule, setIsUpdatingRule] = useState(false)
 
   const fetchConfig = async () => {
+    executeSavingMethod();
     setIsLoadingConfig(true)
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';

@@ -52,6 +52,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { executeSavingMethod } from "../utils";
 
 export default function SystemPage() {
   const [isLoading, setIsLoading] = useState(true);
@@ -63,6 +64,7 @@ export default function SystemPage() {
   const [isChangingHostname, setIsChangingHostname] = useState(false);
 
   const fetchConfig = async () => {
+    executeSavingMethod();
     setIsLoading(true);
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
@@ -96,8 +98,6 @@ export default function SystemPage() {
       setIsLoading(false);
     }
   };
-
-  const savingMethod = sessionStorage.getItem("savingMethod") || "confirmation";
 
   const changeSavingMethod = async (newSavingMethod: string) => {
     setIsChangingSavingMethod(true);
@@ -263,7 +263,7 @@ export default function SystemPage() {
                           </p>
                         </div>
                         <Select
-                          value={savingMethod}
+                          value={sessionStorage.getItem("savingMethod") || "confirmation"}
                           onValueChange={changeSavingMethod}
                           disabled={isChangingSavingMethod}
                         >

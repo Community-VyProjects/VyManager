@@ -36,6 +36,7 @@ export default function NatPage() {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
   const fetchConfig = async () => {
+    executeSavingMethod();
     setIsLoadingConfig(true)
     try {
       const response = await fetch(`${apiUrl}/api/config`);
@@ -195,8 +196,6 @@ export default function NatPage() {
         title: "NAT Rule Created",
         description: `Successfully created ${natType} NAT rule ${newNatRuleData.ruleNumber}`
       });
-
-      executeSavingMethod();
             
       setNewNatRuleDialogOpen(false);
       refreshData();
@@ -231,8 +230,6 @@ export default function NatPage() {
         title: "NAT Rule Deleted",
         description: `Successfully deleted ${type} NAT rule ${ruleNumber}`
       });
-
-      executeSavingMethod();
 
       refreshData();
     } catch (error) {

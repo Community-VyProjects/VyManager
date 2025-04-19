@@ -1,6 +1,5 @@
 import { toast } from "@/components/ui/use-toast";
 
-
 export async function executeSavingMethod() {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
   const response = await fetch(`${apiUrl}/api/check-unsaved-changes`);

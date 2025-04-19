@@ -37,6 +37,7 @@ export default function InterfacesPage() {
   })
 
   const fetchConfig = async () => {
+    executeSavingMethod();
     setIsLoadingConfig(true)
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
@@ -373,8 +374,6 @@ export default function InterfacesPage() {
         title: "Interface updated",
         description: `Successfully updated ${selectedInterface.name}`,
       });
-      
-      executeSavingMethod();
 
       // Reload configuration
       await fetchConfig();
