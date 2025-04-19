@@ -1,4 +1,4 @@
-# VyOS Configuration Manager
+# VyManager
 
 Modern web interface to make configuring, deploying and monitoring VyOS routers easier
 
