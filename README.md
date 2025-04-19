@@ -4,6 +4,8 @@ Modern web interface to make configuring, deploying and monitoring VyOS routers 
 
 Feel free to join our official Discord community! https://discord.gg/k9SSkK7wPQ
 
+We need your opinion at https://github.com/Community-VyProjects/VyManager/issues/53
+
 **Currently being developed for VyOS 1.4-sagitta (full) and 1.5-circinus (partial)**
 
 ![image](https://github.com/user-attachments/assets/c4063b1c-d3a9-4ced-8e75-c272f297c0ff)
