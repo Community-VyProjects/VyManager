@@ -491,7 +491,7 @@ export default function RootPage() {
           <div className="flex flex-col h-full">
             <div className="p-4 border-b border-slate-700 bg-slate-800">
               <h1 className="text-xl font-bold text-cyan-400">
-                NextGen Manager
+                VyManager
               </h1>
               <div className="mt-2 flex items-center">
                 <StatusBadge status={error ? "disconnected" : "connected"} />

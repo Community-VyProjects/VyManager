@@ -17,7 +17,7 @@ A clear and concise description of what you want to happen.
 A clear and concise description of any alternative solutions or features you've considered.
 
 **Commands in question**
-Any related commands and/or system details from Vyos would be helpfull. Take a look at Wiki https://github.com/MadsZBC/FastAPI-Vyos/wiki
+Any related commands and/or system details from Vyos would be helpfull. Take a look at Wiki https://github.com/Community-VyProjects/VyManager/wiki
 
 
 **Additional context**

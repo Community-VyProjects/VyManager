@@ -2,7 +2,7 @@
 SETLOCAL
 
 echo ==============================================================
-echo VyOS Configuration Viewer - Setup and Launch
+echo VyManager - Setup and Launch
 echo ==============================================================
 
 REM Check if Python is installed

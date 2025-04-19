@@ -21,7 +21,7 @@ log() {
 }
 
 log "=============================================================="
-log "VyOS Configuration Viewer - Setup and Launch"
+log "VyManager - Setup and Launch"
 log "=============================================================="
 
 # Kill existing screen sessions if they exist
@@ -108,7 +108,7 @@ LOG_LEVEL=${LOG_LEVEL:-info}
 ENVIRONMENT=${ENVIRONMENT:-development}
 
 log "=============================================================="
-log "Starting VyOS Configuration Viewer in $ENVIRONMENT mode..."
+log "Starting VyManager in $ENVIRONMENT mode..."
 log "Host: $HOST"
 log "Backend Port: $PORT"
 log "Frontend Port: $FRONTEND_PORT"

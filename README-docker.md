@@ -21,6 +21,11 @@ TRUST_SELF_SIGNED=true  # Set to true if your VyOS router uses a self-signed cer
 ENVIRONMENT=production  # or development
 ```
 
+2. Create a `.env` file in the /frontend directory with the following configuration:
+```
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
+
 ## Build and Run Using Docker Compose (Recommended)
 
 The simplest way to run the application is using Docker Compose:

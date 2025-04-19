@@ -37,4 +37,4 @@ If applicable, add screenshots to help explain your problem.
 **Additional context**
 Add any other context about the problem here.
 Remember you can also give logs!
-https://github.com/MadsZBC/FastAPI-Vyos/wiki
+https://github.com/Community-VyProjects/VyManager/wiki

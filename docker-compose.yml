@@ -1,6 +1,6 @@
 
 services:
-  vyosapi:
+  vymanager:
     build:
       context: .
       dockerfile: Dockerfile
