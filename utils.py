@@ -1,20 +1,28 @@
 import httpx
 import json
 from typing import List, Dict, Any, Union, Optional
+import ipaddress
 
 def merge_cidr_parts(parts):
-    import re
+    if len(parts) > 5000:
+        print("CIDR merging failed: Input too large, skipping merge.")
+        return parts
+
     merged = []
     i = 0
     while i < len(parts):
-        if (
-            i + 1 < len(parts) and
-            re.match(r"\d+\.\d+\.\d+\.\d+$", parts[i]) and
-            parts[i + 1].isdigit()
-        ):
-            merged.append(f"{parts[i]}/{parts[i + 1]}")
-            i += 2
-        else:
+        try:
+            if (
+                i + 1 < len(parts)
+                and ipaddress.ip_address(parts[i])
+                and parts[i + 1].isdigit()
+            ):
+                merged.append(f"{parts[i]}/{parts[i + 1]}")
+                i += 2
+            else:
+                merged.append(parts[i])
+                i += 1
+        except ValueError:
             merged.append(parts[i])
             i += 1
     return merged
