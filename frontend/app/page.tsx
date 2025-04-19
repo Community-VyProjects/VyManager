@@ -703,10 +703,10 @@ export default function RootPage() {
       <AlertDialog open={showRevertDialog} onOpenChange={setShowRevertDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogTitle>Reboot required - Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action will revert all unsaved changes and reboot the VyOS
-              router. Any unsaved configuration will be lost.
+              This action will revert all unsaved changes and reboot VyOS.
+              Any unsaved configuration will be lost.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
