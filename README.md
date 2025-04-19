@@ -1,6 +1,8 @@
 # VyOS Configuration Manager
 
-A modern web interface for managing VyOS router configurations.
+Modern web interface to make configuring, deploying and monitoring VyOS routers easier
+
+Feel free to join our official Discord community! https://discord.gg/k9SSkK7wPQ
 
 **Currently being developed for VyOS 1.4-sagitta (full) and 1.5-circinus (partial)**
 
@@ -103,7 +105,7 @@ ENVIRONMENT=production  # or development
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under GPL-3.0 - see the [LICENSE](LICENSE) file for details.
 
 ## Contributing
 
