@@ -253,7 +253,7 @@ export default function RootPage() {
   useEffect(() => {
     checkForUnsavedChanges();
 
-    const interval = setInterval(checkForUnsavedChanges, 30000);
+    const interval = setInterval(checkForUnsavedChanges, 3000);
     return () => clearInterval(interval);
   });
 
