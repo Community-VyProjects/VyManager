@@ -333,7 +333,7 @@ class VyOSClient:
         Returns:
             Awaitable for the API response
         """
-        return self.execute_request("/reboot", "reboot", ["now"])
+        return PathBuilder(self, "/reboot", "reboot", ["now"])
     
     @property
     def poweroff(self):
@@ -343,7 +343,7 @@ class VyOSClient:
         Returns:
             Awaitable for the API response
         """
-        return self.execute_request("/poweroff", "poweroff", ["now"])
+        return PathBuilder(self, "/poweroff", "poweroff", ["now"])
     
     @property
     def graphql(self):
