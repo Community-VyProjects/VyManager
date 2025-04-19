@@ -754,9 +754,8 @@ export default function RoutingPage() {
                         <Badge className={`${
                           route.protocol === 'static' ? 'bg-blue-600' : 
                           route.protocol === 'connected' ? 'bg-green-600' : 
-                          route.protocol === 'ospf' ? 'bg-purple-600' : 
-                          route.protocol === 'kernel' ? 'bg-amber-600' :
-                          route.protocol === 'local' ? 'bg-cyan-600' :
+                          route.protocol === 'ospf' ? 'bg-purple-600' :                      
+                          route.protocol === 'bgp' ? 'bg-amber-600' : 
                           'bg-slate-600'
                         }`}>
                           {route.protocol}
