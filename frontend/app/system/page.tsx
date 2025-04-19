@@ -278,9 +278,6 @@ export default function SystemPage() {
                             <SelectItem value="direct">
                               Direct Save (high lockout risk)
                             </SelectItem>
-                            <SelectItem value="timer">
-                              Timer (medium lockout risk)
-                            </SelectItem>
                             <SelectItem value="confirmation">
                               Manual confirmation (low lockout risk)
                             </SelectItem>
