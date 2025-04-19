@@ -59,6 +59,40 @@ import ContainersPage from "./containers/page";
 import dynamic from "next/dynamic";
 import { executeSavingMethod } from "./utils";
 
+
+// Create simplified alert dialog components
+const AlertDialog = ({ open, onOpenChange, children }: { open: boolean, onOpenChange: (open: boolean) => void, children: React.ReactNode }) => (
+  open ? <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">{children}</div> : null
+);
+
+const AlertDialogContent = ({ className, children }: { className?: string, children: React.ReactNode }) => (
+  <div className={`bg-slate-900 border border-slate-700 rounded-lg p-6 max-w-md ${className}`}>{children}</div>
+);
+
+const AlertDialogHeader = ({ children }: { children: React.ReactNode }) => (
+  <div className="mb-4">{children}</div>
+);
+
+const AlertDialogFooter = ({ children }: { children: React.ReactNode }) => (
+  <div className="flex justify-end gap-2 mt-6">{children}</div>
+);
+
+const AlertDialogTitle = ({ className, children }: { className?: string, children: React.ReactNode }) => (
+  <h2 className={`text-xl font-semibold ${className}`}>{children}</h2>
+);
+
+const AlertDialogDescription = ({ className, children }: { className?: string, children: React.ReactNode }) => (
+  <p className={`mt-2 ${className}`}>{children}</p>
+);
+
+const AlertDialogAction = ({ className, onClick, children }: { className?: string, onClick?: () => void, children: React.ReactNode }) => (
+  <Button className={className} onClick={onClick}>{children}</Button>
+);
+
+const AlertDialogCancel = ({ className, onClick, children }: { className?: string, onClick?: () => void, children: React.ReactNode }) => (
+  <Button variant="outline" className={className} onClick={onClick}>{children}</Button>
+);
+
 const DhcpPage = dynamic(() => import("./services/dhcp/page"), {
   loading: () => (
     <div className="flex items-center justify-center h-full">
@@ -111,8 +145,62 @@ export default function RootPage() {
   const [servicesExpanded, setServicesExpanded] = useState(false);
   const [quickActionExpanded, setQuickActionExpanded] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [showRevertDialog, setShowRevertDialog] = useState(false);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+
+  const revertUnsavedChanges = async () => {
+    try {
+      const responseState = await fetch(
+        `${API_URL}/api/set-unsaved-changes/false`,
+        {
+          method: "POST",
+          headers: {
+            accept: "application/json",
+          },
+        }
+      );
+
+      if (!responseState.ok) {
+        throw new Error(
+          `Server returned ${responseState.status} ${responseState.statusText}`
+        );
+      }
+
+      const response = await fetch(`${API_URL}/api/reboot`, {
+        method: "POST",
+        headers: {
+          accept: "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          `Server returned ${response.status} ${response.statusText}`
+        );
+      }
+
+      const data = await response.json();
+
+      if (data.success === true) {
+        toast({
+          title: "Unsaved changes will be reverted",
+          description: `VyOS is rebooting...`,
+        });
+      } else {
+        throw new Error(data.error || "Failed to reboot VyOS");
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error reverting changes",
+        description:
+          error instanceof Error ? error.message : "Unknown error occurred",
+      });
+    } finally {
+      setShowRevertDialog(false);
+    }
+  };
 
   const confirmUnsavedChanges = async () => {
     const response = await fetch(`${API_URL}/api/config-file/save`, {
@@ -155,50 +243,6 @@ export default function RootPage() {
       fetchConfig();
     } else {
       throw new Error(data.error || "Failed to save configuration");
-    }
-  };
-
-  const revertUnsavedChanges = async () => {
-    const responseState = await fetch(
-      `${API_URL}/api/set-unsaved-changes/false`,
-      {
-        method: "POST",
-        headers: {
-          accept: "application/json",
-        },
-      }
-    );
-
-    if (!responseState.ok) {
-      throw new Error(
-        `Server returned ${responseState.status} ${responseState.statusText}`
-      );
-    }
-
-    const response = await fetch(`${API_URL}/api/reboot`, {
-      method: "POST",
-      headers: {
-        accept: "application/json",
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(
-        `Server returned ${response.status} ${response.statusText}`
-      );
-    }
-
-    const data = await response.json();
-
-    if (data.success === true) {
-      toast({
-        title: "Unsaved changes will be reverted",
-        description: `VyOS will reboot`,
-      });
-    } else {
-      throw new Error(
-        data.error || "Failed to reboot VyOS"
-      );
     }
   };
 
@@ -400,33 +444,33 @@ export default function RootPage() {
               <div className="mt-2 flex items-center">
                 <StatusBadge status={error ? "disconnected" : "connected"} />
               </div>
-              {/* Unsaved changes notification */}
-              {hasUnsavedChanges && (
-                <div className="mt-3 p-2 bg-amber-900/50 border border-amber-700 rounded-md">
-                  <div className="flex items-center gap-2 text-amber-200 text-sm">
-                    <AlertCircle className="h-4 w-4" />
-                    <span>You have unsaved changes</span>
-                  </div>
-                  <div className="mt-2 flex gap-2">
-                    <Button
-                      variant="outline"
-                      className="bg-blue-800 hover:bg-amber-700 text-slate-200 border-blue-700 h-6"
-                      onClick={confirmUnsavedChanges}
-                    >
-                      <Save className="h-3 w-3 mr-1" />
-                      Save
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="bg-red-800 hover:bg-slate-700 text-slate-200 border-slate-700 h-6"
-                      onClick={revertUnsavedChanges}
-                    >
-                      <RefreshCw className="h-3 w-3 mr-1" />
-                      Revert
-                    </Button>
-                  </div>
-                </div>
-              )}
+       {/* Update the Revert button in the sidebar to show the dialog */}
+       {hasUnsavedChanges && (
+        <div className="mt-3 p-2 bg-amber-900/50 border border-amber-700 rounded-md">
+          <div className="flex items-center gap-2 text-amber-200 text-sm">
+            <AlertCircle className="h-4 w-4" />
+            <span>You have unsaved changes</span>
+          </div>
+          <div className="mt-2 flex gap-2">
+            <Button
+              variant="outline"
+              className="bg-blue-800 hover:bg-amber-700 text-slate-200 border-blue-700 h-6"
+              onClick={confirmUnsavedChanges}
+            >
+              <Save className="h-3 w-3 mr-1" />
+              Save
+            </Button>
+            <Button
+              variant="outline"
+              className="bg-red-800 hover:bg-slate-700 text-slate-200 border-slate-700 h-6"
+              onClick={() => setShowRevertDialog(true)}
+            >
+              <RefreshCw className="h-3 w-3 mr-1" />
+              Revert
+            </Button>
+          </div>
+        </div>
+       )}
             </div>
             <div className="flex-1 py-4">
               <nav className="space-y-1 px-2">
@@ -655,6 +699,27 @@ export default function RootPage() {
           </div>
         </div>
       </div>
+
+      <AlertDialog open={showRevertDialog} onOpenChange={setShowRevertDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action will revert all unsaved changes and reboot the VyOS
+              router. Any unsaved configuration will be lost.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowRevertDialog(false)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={revertUnsavedChanges}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Confirm Reboot
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
