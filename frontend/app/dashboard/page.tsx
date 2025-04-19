@@ -11,6 +11,7 @@ import {
 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
+import { executeSavingMethod } from "../utils"
 
 export default function DashboardPage() {
   const [isLoadingConfig, setIsLoadingConfig] = useState(true)
@@ -18,6 +19,7 @@ export default function DashboardPage() {
   const [isConnected, setIsConnected] = useState(false)
   
   const fetchConfig = async () => {
+    executeSavingMethod();
     setIsLoadingConfig(true)
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';

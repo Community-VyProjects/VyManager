@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
+import { executeSavingMethod } from "../utils"
 
 export default function NatPage() {
   const [isLoadingConfig, setIsLoadingConfig] = useState(true)
@@ -35,6 +36,7 @@ export default function NatPage() {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
   const fetchConfig = async () => {
+    executeSavingMethod();
     setIsLoadingConfig(true)
     try {
       const response = await fetch(`${apiUrl}/api/config`);
@@ -194,7 +196,7 @@ export default function NatPage() {
         title: "NAT Rule Created",
         description: `Successfully created ${natType} NAT rule ${newNatRuleData.ruleNumber}`
       });
-
+            
       setNewNatRuleDialogOpen(false);
       refreshData();
     } catch (error) {

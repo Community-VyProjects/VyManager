@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { executeSavingMethod } from "../utils"
 
 export default function InterfacesPage() {
   const [isLoadingConfig, setIsLoadingConfig] = useState(true)
@@ -36,6 +37,7 @@ export default function InterfacesPage() {
   })
 
   const fetchConfig = async () => {
+    executeSavingMethod();
     setIsLoadingConfig(true)
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
@@ -372,7 +374,7 @@ export default function InterfacesPage() {
         title: "Interface updated",
         description: `Successfully updated ${selectedInterface.name}`,
       });
-      
+
       // Reload configuration
       await fetchConfig();
       setEditInterfaceDialogOpen(false);

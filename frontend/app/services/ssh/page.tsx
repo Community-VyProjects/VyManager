@@ -15,6 +15,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { InfoIcon } from "lucide-react"
+import { executeSavingMethod } from "@/app/utils"
 
 interface SSHConfig {
   port?: number;
@@ -56,6 +57,7 @@ export default function SSHPage() {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
   const fetchConfig = async () => {
+    executeSavingMethod();
     setIsLoading(true)
     try {
       const response = await fetch(`${apiUrl}/api/config`);

@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Loader2, RefreshCw, Clock, Database, Network, Plus, Server } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import { executeSavingMethod } from "../../utils"
 
 interface DHCPLease {
   ip_address: string
@@ -220,6 +221,7 @@ export default function DhcpPage() {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
   
   const fetchData = async () => {
+    executeSavingMethod();
     setIsRefreshing(true);
     try {
       // Fetch DHCP leases

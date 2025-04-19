@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { executeSavingMethod } from "../utils";
 
 interface ServiceStatus {
   active: boolean;
@@ -287,6 +288,7 @@ export default function ServicesPage() {
   };
 
   const fetchConfig = async () => {
+    executeSavingMethod();
     setIsLoadingConfig(true);
     try {
       const response = await fetch(`${apiUrl}/api/config`);

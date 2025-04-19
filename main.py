@@ -19,6 +19,9 @@ from client import VyOSClient
 from utils import VyOSAPIError
 from utils import merge_cidr_parts
 
+# Temporarily state (to be migrated soon in Redis)
+UNSAVED_CHANGES = False
+
 # Load environment variables from .env file
 load_dotenv()
 
@@ -387,6 +390,48 @@ async def dynamic_vyos_api_handler(endpoint_type, path_parts=None):
             status_code=500,
             content=error_response
         )
+        
+# API Route for checking for unsaved changes
+@api_router.get("/check-unsaved-changes")
+async def api_check_unsaved():
+    """
+    Returns whether there are unsaved changes (data field).
+
+    Example: GET /api/check-unsaved-changes
+
+    Response:
+    {
+        "success": True,
+        "data": true,
+        "error": null
+    }
+    """
+    return JSONResponse(content={
+        "success": True,
+        "data": UNSAVED_CHANGES,
+        "error": None
+    })
+
+# API Route setting unsaved changes state
+@api_router.post("/set-unsaved-changes/{value}")
+async def api_set_unsaved_changes(value: bool):
+    """
+    Set whether there are unsaved changes (value field, boolean).
+
+    Example: POST /api/set-unsaved-changes/false
+
+    Response:
+    {
+        "success": True,
+        "error": null
+    }
+    """
+    global UNSAVED_CHANGES # Define global usage of UNSAVED_CHANGES state
+    UNSAVED_CHANGES = value # Set UNSAVED_CHANGES state to value
+    return JSONResponse(content={
+        "success": True,
+        "error": None
+    })
 
 # API Routes for 'show' operations
 @api_router.get("/show/{path:path}")
@@ -528,6 +573,9 @@ async def api_configure_set(path: str, value: Optional[str] = None):
         # Append the value as the last part of the path
         path_parts.append(value)
     
+    global UNSAVED_CHANGES # Define global usage of UNSAVED_CHANGES state
+    UNSAVED_CHANGES = True # Set UNSAVED_CHANGES state true
+
     print(f"configure_set with path_parts: {path_parts}")
     return await dynamic_vyos_api_handler("configure_set", path_parts)
 
@@ -552,7 +600,10 @@ async def api_configure_delete(path: str, value: Optional[str] = None):
     if value:
         # Append the value as the last part of the path
         path_parts.append(value)
-    
+
+    global UNSAVED_CHANGES # Define global usage of UNSAVED_CHANGES state
+    UNSAVED_CHANGES = True # Set UNSAVED_CHANGES state true
+
     print(f"configure_delete with path_parts: {path_parts}")
     return await dynamic_vyos_api_handler("configure_delete", path_parts)
 
@@ -577,7 +628,10 @@ async def api_configure_comment(path: str, value: Optional[str] = None):
     if value:
         # Append the value as the last part of the path
         path_parts.append(value)
-    
+        
+    global UNSAVED_CHANGES # Define global usage of UNSAVED_CHANGES state
+    UNSAVED_CHANGES = True # Set UNSAVED_CHANGES state true
+
     print(f"configure_comment with path_parts: {path_parts}")
     return await dynamic_vyos_api_handler("configure_comment", path_parts)
 
@@ -593,6 +647,8 @@ async def api_configure_batch(operations: List[Dict[str, Any]]):
         {"op": "delete", "path": ["interfaces", "ethernet", "eth0", "disable"]}
     ]
     """
+    global UNSAVED_CHANGES
+    UNSAVED_CHANGES = True
     if not vyos_client:
         return JSONResponse(
             status_code=500,

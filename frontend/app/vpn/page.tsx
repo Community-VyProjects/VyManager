@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import QRCode from "react-qr-code"
+import { executeSavingMethod } from "../utils"
 
 export default function VPNPage() {
   const [isLoading, setIsLoading] = useState(true)
@@ -34,6 +35,7 @@ export default function VPNPage() {
   const [clientConfig, setClientConfig] = useState<string>("")
 
   const fetchConfig = async () => {
+    executeSavingMethod();
     setIsLoading(true)
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';

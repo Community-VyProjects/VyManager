@@ -14,7 +14,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import { executeSavingMethod } from "../utils"
 import { ScrollArea } from "@/components/ui/scroll-area"
+
 
 interface NextHop {
   ip: string;
@@ -177,6 +179,7 @@ export default function RoutingPage() {
   const [selectedVrf, setSelectedVrf] = useState<string>("default")
 
   const fetchConfig = async () => {
+    executeSavingMethod();
     setIsLoadingConfig(true)
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
