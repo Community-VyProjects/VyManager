@@ -1056,7 +1056,11 @@ async def api_routing_table():
                     # Merge into a single dictionary
                     routes_data = {}
                     for obj in parts:
-                        routes_data.update(json.loads(obj))
+                        data = json.loads(obj)
+                        for prefix, routes in data.items():
+                            for route in routes:
+                                vrf = route.get("vrfName", "default")
+                                routes_data.setdefault(vrf, {}).setdefault(prefix, []).append(route)  
                 else:
                     routes_data = json.loads(result["data"].split('}{}')[0])
 
