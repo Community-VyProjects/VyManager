@@ -1,6 +1,8 @@
 # VyOS Configuration Manager
 
-A modern web interface for managing VyOS router configurations.
+Modern web interface to make configuring, deploying and monitoring VyOS routers easier
+
+Feel free to join our official Discord community! https://discord.gg/k9SSkK7wPQ
 
 **Currently being developed for VyOS 1.4-sagitta (full) and 1.5-circinus (partial)**
 
@@ -86,6 +88,8 @@ npm start
 
 ## Configuration
 
+For each one, you can find an example .env configuration file in the belonging directories.
+
 Create a `.env` file in the root directory with the following configuration:
 
 ```
@@ -96,6 +100,11 @@ TRUST_SELF_SIGNED=true  # For self-signed certificates
 ENVIRONMENT=production  # or development
 ```
 
+Create a `.env` file in the /frontend directory with the following configuration:
+```
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
+
 ## Accessing the Application
 
 - Frontend: http://localhost:3000
@@ -103,7 +112,7 @@ ENVIRONMENT=production  # or development
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under GPL-3.0 - see the [LICENSE](LICENSE) file for details.
 
 ## Contributing
 
