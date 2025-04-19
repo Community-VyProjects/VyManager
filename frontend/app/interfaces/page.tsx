@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { executeSavingMethod } from "../utils"
 
 export default function InterfacesPage() {
   const [isLoadingConfig, setIsLoadingConfig] = useState(true)
@@ -373,6 +374,8 @@ export default function InterfacesPage() {
         description: `Successfully updated ${selectedInterface.name}`,
       });
       
+      executeSavingMethod();
+
       // Reload configuration
       await fetchConfig();
       setEditInterfaceDialogOpen(false);
