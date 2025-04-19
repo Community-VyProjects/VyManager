@@ -16,7 +16,9 @@ export async function executeSavingMethod() {
   if (data.success === true && data.data !== null) {
     unsavedChanges = data.data;
   } else {
-    throw new Error(data.error || "Failed to confirm if there are unsaved changes");
+    throw new Error(
+      data.error || "Failed to confirm if there are unsaved changes"
+    );
   }
 
   if (unsavedChanges === true) {
@@ -26,10 +28,10 @@ export async function executeSavingMethod() {
     if (savingMethod === "direct") {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
       const response = await fetch(`${apiUrl}/api/config-file/save`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'accept': 'application/json'
-        }
+          accept: "application/json",
+        },
       });
       var unsavedChanges = false;
 
@@ -46,6 +48,23 @@ export async function executeSavingMethod() {
           title: "Configuration saved successfully",
           description: `Current saving method is: ${savingMethod}`,
         });
+
+        // Because the saving method is direct, immediately mark unsavedChanges as false
+        const responseState = await fetch(
+          `${apiUrl}/api/set-unsaved-changes/false`,
+          {
+            method: "POST",
+            headers: {
+              accept: "application/json",
+            },
+          }
+        );
+
+        if (!responseState.ok) {
+          throw new Error(
+            `Server returned ${responseState.status} ${responseState.statusText}`
+          );
+        }
       } else {
         throw new Error(data.error || "Failed to save configuration");
       }
