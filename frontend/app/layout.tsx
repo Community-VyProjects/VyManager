@@ -7,8 +7,8 @@ import { Toaster } from '@/components/ui/toaster'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'VyOS Configuration Manager',
-  description: 'A modern interface for managing VyOS router configurations',
+  title: 'VyManager',
+  description: 'Modern web interface to make configuring, deploying and monitoring VyOS routers easier',
 }
 
 export default function RootLayout({

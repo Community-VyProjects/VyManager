@@ -149,7 +149,7 @@ else:
 
 # Create FastAPI app with appropriate settings
 app = FastAPI(
-    title="VyOS Configuration Manager",
+    title="VyManager",
     description="API for managing VyOS router configurations",
     version="1.0.0",
     docs_url=None if IS_PRODUCTION else "/docs",

@@ -490,7 +490,8 @@ export default function RootPage() {
         <div className="w-64 border-r border-slate-700 bg-slate-900 hidden md:block">
           <div className="flex flex-col h-full">
             <div className="p-4 border-b border-slate-700 bg-slate-800">
-              <h1 className="text-xl font-bold text-cyan-400">
+              <h1 className="text-xl font-bold text-cyan-400 flex items-center gap-2">
+                <img src="/favicon.ico" width="25" height="25" />
                 VyManager
               </h1>
               <div className="mt-2 flex items-center">
@@ -548,7 +549,7 @@ export default function RootPage() {
                   onClick={(e) => navigateToTab("interfaces", e)}
                 >
                   <Network className="h-4 w-4" />
-                  Network Interfaces
+                  Interfaces
                 </Button>
                 <Button
                   variant={activeTab === "containers" ? "default" : "ghost"}
@@ -722,7 +723,7 @@ export default function RootPage() {
               <div className="text-xs text-slate-500">
                 Made with love by{" "}
                 <a href="https://github.com/Community-VyProjects">
-                  Community-VyProjects
+                  VyProjects
                 </a>
               </div>
               <ThemeToggle />

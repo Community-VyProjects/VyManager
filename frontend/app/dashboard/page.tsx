@@ -84,7 +84,8 @@ export default function DashboardPage() {
       natRules: 0,
       firewallGroups: 0,
       staticRoutes: 0,
-      dynamicRoutingProtocols: 0
+      dynamicRoutingProtocols: 0,
+      containers: 0
     };
     
     // Count total interfaces
@@ -109,6 +110,9 @@ export default function DashboardPage() {
     
     // Count services
     const serviceCount = Object.keys(config.service || {}).length;
+       
+    // Count containers
+    const containerCount = Object.keys(config.container || {}).length;
     
     // Count NAT rules
     const sourceNatRules = config.nat?.source?.rule ? Object.keys(config.nat.source.rule).length : 0;
@@ -137,6 +141,7 @@ export default function DashboardPage() {
       interfaces: interfaceCount,
       firewallRules,
       services: serviceCount,
+      containers: containerCount,
       natRules,
       firewallGroups,
       staticRoutes,
@@ -191,7 +196,7 @@ export default function DashboardPage() {
         </Alert>
       )}
       
-      <div className="grid gap-4 md:grid-cols-3 mb-6">
+      <div className="grid gap-4 md:grid-cols-4 mb-6">
         <Card className="bg-gradient-to-br from-slate-800 to-slate-900 border-slate-700 shadow-lg hover:shadow-cyan-900/20">
           <CardHeader className="pb-2 border-b border-slate-700">
             <CardTitle className="text-cyan-400">Interfaces</CardTitle>
@@ -248,6 +253,26 @@ export default function DashboardPage() {
             >
               <Server className="h-3 w-3" />
               Manage services
+            </Button>
+          </CardFooter>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-slate-800 to-slate-900 border-slate-700 shadow-lg hover:shadow-amber-900/20">
+          <CardHeader className="pb-2 border-b border-slate-700">
+            <CardTitle className="text-purple-400">Containers</CardTitle>
+            <CardDescription className="text-slate-400">Available containers and images</CardDescription>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <p className="text-4xl font-bold text-white">{stats.containers}</p>
+          </CardContent>
+          <CardFooter className="pt-0">
+            <Button 
+              variant="ghost" 
+              className="w-full text-xs gap-1 text-purple-400 hover:text-purple-300 hover:bg-slate-800"
+              onClick={(e) => navigateToTab("containers", e)}
+            >
+              <Shield className="h-3 w-3" />
+              Manage containers
             </Button>
           </CardFooter>
         </Card>
@@ -508,4 +533,4 @@ export default function DashboardPage() {
       </div>
     </div>
   );
-} 
+}
