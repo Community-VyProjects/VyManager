@@ -722,7 +722,7 @@ export default function RootPage() {
             <div className="p-4 border-t border-slate-700 flex justify-between items-center">
               <div className="text-xs text-slate-500">
                 Made with love by{" "}
-                <a href="https://github.com/Community-VyProjects">
+                <a href="https://vyprojects.org">
                   VyProjects
                 </a>
               </div>
