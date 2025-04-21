@@ -28,19 +28,30 @@ class GraphQLEndpoint:
             self.ssl_context = True
         print(f"GraphQL endpoint initialized with base URL: {self.base_url}")
     
-    async def operation(self, name: str) -> Dict[str, Any]:
+    async def operation(self, name: str, data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Execute a GraphQL operation.
         
         Args:
             name: The name of the operation (e.g., 'ShowContainerContainer', 'ShowImageContainer')
+            data: Optional dictionary of additional data parameters (e.g., {'intf_name': 'eth0'})
             
         Returns:
             Dict containing the operation response
         """
+        # Start with the required API key
+        operation_data = {"key": self.client.api_key}
+        
+        # Add any additional data parameters
+        if data:
+            operation_data.update(data)
+        
+        # Convert the data dictionary to a string of key-value pairs
+        data_str = ", ".join(f'{k}: "{v}"' for k, v in operation_data.items())
+        
         query = """
         {
-            %s(data: {key: "%s"}) {
+            %s(data: {%s}) {
                 success
                 errors
                 data {
@@ -48,7 +59,7 @@ class GraphQLEndpoint:
                 }
             }
         }
-        """ % (name, self.client.api_key)
+        """ % (name, data_str)
         return await self.query(query)
     
     async def query(self, query: str) -> Dict[str, Any]:
