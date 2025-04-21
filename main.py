@@ -1184,74 +1184,40 @@ async def api_routing_table():
             media_type="application/json"
         )
     
-@api_router.get("/containers")
-async def get_containers():
-    """Get containers and images from VyOS router"""
+@api_router.post("/graphql")
+async def graphql_endpoint(request: Request):
+    """Generic GraphQL endpoint that accepts operation names and variables"""
     if not vyos_client:
         return {
             "success": False,
             "error": "VyOS client not initialized",
-            "data": {
-                "containers": [],
-                "images": []
-            }
+            "data": None
         }
     
     try:
-        # Execute queries in parallel using the client's GraphQL endpoint
-        containers_result, images_result = await asyncio.gather(
-            vyos_client.graphql.operation("ShowContainerContainer"),
-            vyos_client.graphql.operation("ShowImageContainer")
-        )
+        # Get the request body
+        body = await request.json()
+        operation_name = body.get("operationName")
+        variables = body.get("variables", {})  # Get variables if provided, default to empty dict
         
-        # Check for top-level errors
-        if not containers_result.get("success") or not images_result.get("success"):
-            error_msg = f"GraphQL query failed: {containers_result.get('error') or images_result.get('error')}"
+        if not operation_name:
             return {
                 "success": False,
-                "error": error_msg,
-                "data": {
-                    "containers": [],
-                    "images": []
-                }
+                "error": "Operation name is required",
+                "data": None
             }
         
-        # Get the operation results
-        container_op = containers_result.get("data", {}).get("ShowContainerContainer", {})
-        image_op = images_result.get("data", {}).get("ShowImageContainer", {})
+        # Call the operation method on the GraphQL endpoint
+        result = await vyos_client.graphql.operation(name=operation_name, data=variables)
         
-        # Check for operation-level errors
-        if not container_op.get("success") or not image_op.get("success"):
-            error_msg = f"Operation failed: {container_op.get('errors') or image_op.get('errors')}"
-            return {
-                "success": False,
-                "error": error_msg,
-                "data": {
-                    "containers": [],
-                    "images": []
-                }
-            }
+        # Return the raw GraphQL response
+        return result
         
-        # Extract the data safely
-        containers_data = container_op.get("data", {}).get("result", []) or []
-        images_data = image_op.get("data", {}).get("result", []) or []
-        
-        return {
-            "success": True,
-            "error": None,
-            "data": {
-                "containers": containers_data,
-                "images": images_data
-            }
-        }
     except Exception as e:
         return {
             "success": False,
             "error": str(e),
-            "data": {
-                "containers": [],
-                "images": []
-            }
+            "data": None
         }
 
 # For backwards compatibility, redirect /dhcpleases to the new API endpoint
@@ -1352,6 +1318,64 @@ def parse_dhcp_leases(leases_string):
             continue
     
     return subnet_leases if subnet_leases else {"LAN": []}
+
+@api_router.get("/myinterfaces")
+async def get_interfaces():
+    """Get interface information from VyOS router"""
+    if not vyos_client:
+        return {
+            "success": False,
+            "error": "VyOS client not initialized",
+            "data": {
+                "interfaces": []
+            }
+        }
+    
+    try:
+        # Execute query using the client's GraphQL endpoint
+        result = await vyos_client.graphql.operation(
+            name="ShowInterfaces",
+            data={"intf_type": "ethernet"}
+        )
+        
+        # Check for query execution errors
+        if not result.get("success"):
+            return {
+                "success": False,
+                "error": result.get("error", "Unknown error"),
+                "data": {
+                    "interfaces": []
+                }
+            }
+        
+        # Extract the data from the GraphQL response
+        data = result.get("data", {})
+        if not data:
+            return {
+                "success": True,
+                "error": None,
+                "data": {
+                    "interfaces": []
+                }
+            }
+        
+        # Return the formatted response
+        return {
+            "success": True,
+            "error": None,
+            "data": {
+                "interfaces": data
+            }
+        }
+        
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "data": {
+                "interfaces": []
+            }
+        }
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=3001, reload=True) 
