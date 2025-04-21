@@ -76,12 +76,32 @@ export default function ContainersPage() {
     executeSavingMethod();
     setIsRefreshing(true);
     try {
-      console.log("Fetching containers data from:", `${apiUrl}/api/containers`);
-      const response = await fetch(`${apiUrl}/api/containers`);
+      // Make parallel requests for containers and images
+      const [containersResponse, imagesResponse] = await Promise.all([
+        fetch(`${apiUrl}/api/graphql`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            operationName: 'ShowContainerContainer'
+          })
+        }),
+        fetch(`${apiUrl}/api/graphql`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            operationName: 'ShowImageContainer'
+          })
+        })
+      ]);
       
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({
-          error: `Server error: ${response.status} ${response.statusText}`
+      if (!containersResponse.ok || !imagesResponse.ok) {
+        const errorResponse = !containersResponse.ok ? containersResponse : imagesResponse;
+        const errorData = await errorResponse.json().catch(() => ({
+          error: `Server error: ${errorResponse.status} ${errorResponse.statusText}`
         }));
         
         console.error("Error response:", errorData);
@@ -89,37 +109,48 @@ export default function ContainersPage() {
         toast({
           variant: "destructive",
           title: "Error connecting to VyOS router",
-          description: errorData.error || `Server returned ${response.status} ${response.statusText}`
+          description: errorData.error || `Server returned ${errorResponse.status} ${errorResponse.statusText}`
         });
         
         setError("Connection error");
         return;
       }
       
-      const data: ContainerResponse = await response.json();
-      console.log("Received container data:", data);
+      const [containersData, imagesData] = await Promise.all([
+        containersResponse.json(),
+        imagesResponse.json()
+      ]);
       
-      if (data.success) {
-        console.log("Setting containers:", data.data.containers);
-        console.log("Setting images:", data.data.images);
-        setContainers(data.data.containers);
-        setImages(data.data.images);
+      // Extract the nested data from the GraphQL response
+      const containersList = containersData?.data?.ShowContainerContainer?.data?.result || [];
+      const imagesList = imagesData?.data?.ShowImageContainer?.data?.result || [];
+      
+      // Check if we have valid data from both endpoints
+      const containersSuccess = containersData?.data?.ShowContainerContainer?.success;
+      const imagesSuccess = imagesData?.data?.ShowImageContainer?.success;
+      
+      if (containersSuccess && imagesSuccess) {
+        setContainers(containersList);
+        setImages(imagesList);
         setError(null);
+        
         toast({
           title: "Containers loaded",
-          description: "Successfully loaded container information"
+          description: `Successfully loaded ${containersList.length} containers and ${imagesList.length} images`
         });
       } else {
-        console.error("API error:", data);
+        const containerError = containersData?.data?.ShowContainerContainer?.errors;
+        const imageError = imagesData?.data?.ShowImageContainer?.errors;
+        console.error("Failed to load containers/images:", { containerError, imageError });
         toast({
           variant: "destructive",
           title: "Error loading containers",
-          description: data.error || "Could not load container information"
+          description: containerError || imageError || "Could not load container information"
         });
-        setError(data.error || "Failed to load data");
+        setError("Failed to load data");
       }
     } catch (error) {
-      console.error("Error fetching containers:", error);
+      console.error("Connection error:", error);
       toast({
         variant: "destructive",
         title: "Connection error",
