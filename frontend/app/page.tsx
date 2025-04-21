@@ -22,6 +22,7 @@ import {
   RefreshCw,
   Save,
   Settings,
+  Power,
   Network,
   Shield,
   Route,
@@ -40,10 +41,11 @@ import {
   Terminal,
   ArrowLeftRight,
   Box,
+  PowerOff,
+  PowerSquare,
+  PowerCircle,
 } from "lucide-react";
 import { StatusBadge } from "@/components/status-badge";
-import { ConfigDisplay } from "@/components/config-display";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import InterfacesPage from "./interfaces/page";
 import ServicesPage from "./services/page";
 import FirewallPage from "./firewall/page";
@@ -185,12 +187,35 @@ const HTTPSPage = dynamic(() => import("./services/https/page"), {
   ),
 });
 
+const PoweroffPage = dynamic(() => import("./power/poweroff/page"), {
+  loading: () => (
+    <div className="flex items-center justify-center h-full">
+      <div className="flex flex-col items-center gap-4">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="text-lg font-medium">Loading Poweroff page...</p>
+      </div>
+    </div>
+  ),
+});
+
+const RebootPage = dynamic(() => import("./power/reboot/page"), {
+  loading: () => (
+    <div className="flex items-center justify-center h-full">
+      <div className="flex flex-col items-center gap-4">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="text-lg font-medium">Loading Reboot page...</p>
+      </div>
+    </div>
+  ),
+});
+
 export default function RootPage() {
   const [loading, setLoading] = useState(true);
   const [configData, setConfigData] = useState<any>({});
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("dashboard");
   const [servicesExpanded, setServicesExpanded] = useState(false);
+  const [powerExpanded, setPowerExpanded] = useState(false);
   const [quickActionExpanded, setQuickActionExpanded] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showRevertDialog, setShowRevertDialog] = useState(false);
@@ -365,6 +390,11 @@ export default function RootPage() {
     // Expand services menu if a service tab is selected
     if (["dhcp", "ntp", "ssh", "https"].includes(tab)) {
       setServicesExpanded(true);
+    }
+
+    // Expand power menu if a service tab is selected
+    if (["poweroff", "reboot"].includes(tab)) {
+      setPowerExpanded(true);
     }
   };
 
@@ -692,6 +722,60 @@ export default function RootPage() {
                   )}
                 </div>
 
+                {/* Power actions Dropdown */}
+                <div className="mb-1">
+                  <Button
+                    variant="ghost"
+                    className={`w-full justify-between items-center text-slate-300 hover:text-white hover:bg-slate-800 ${
+                      activeTab === "poweroff" ||
+                      activeTab === "reboot" ||
+                      powerExpanded
+                        ? "bg-slate-800"
+                        : ""
+                    }`}
+                    onClick={(e) => setPowerExpanded(!powerExpanded)}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Power className="h-4 w-4" />
+                      <span>Power</span>
+                    </div>
+                    {powerExpanded ? (
+                      <ChevronDown className="h-4 w-4" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4" />
+                    )}
+                  </Button>
+
+                  {powerExpanded && (
+                    <div className="pl-4 mt-1 space-y-1">
+                      <Button
+                        variant={activeTab === "poweroff" ? "default" : "ghost"}
+                        className={`w-full justify-start gap-2 ${
+                          activeTab === "poweroff"
+                            ? "bg-cyan-600 hover:bg-cyan-700"
+                            : "text-slate-300 hover:text-white hover:bg-slate-800"
+                        }`}
+                        onClick={(e) => navigateToTab("poweroff", e)}
+                      >
+                        <PowerOff className="h-4 w-4" />
+                        Poweroff
+                      </Button>
+                      <Button
+                        variant={activeTab === "reboot" ? "default" : "ghost"}
+                        className={`w-full justify-start gap-2 ${
+                          activeTab === "reboot"
+                            ? "bg-cyan-600 hover:bg-cyan-700"
+                            : "text-slate-300 hover:text-white hover:bg-slate-800"
+                        }`}
+                        onClick={(e) => navigateToTab("reboot", e)}
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                        Reboot
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
                 <Button
                   variant={activeTab === "system" ? "default" : "ghost"}
                   className={`w-full justify-start gap-2 mb-1 ${
@@ -704,6 +788,7 @@ export default function RootPage() {
                   <Settings className="h-4 w-4" />
                   System
                 </Button>
+
                 <Button
                   variant={activeTab === "advanced" ? "default" : "ghost"}
                   className={`w-full justify-start gap-2 mb-1 ${
@@ -722,9 +807,7 @@ export default function RootPage() {
             <div className="p-4 border-t border-slate-700 flex justify-between items-center">
               <div className="text-xs text-slate-500">
                 Made with love by{" "}
-                <a href="https://vyprojects.org">
-                  VyProjects
-                </a>
+                <a href="https://vyprojects.org">VyProjects</a>
               </div>
               <ThemeToggle />
             </div>
@@ -747,6 +830,8 @@ export default function RootPage() {
             {activeTab === "ntp" && <NTPPage />}
             {activeTab === "ssh" && <SSHPage />}
             {activeTab === "https" && <HTTPSPage />}
+            {activeTab === "poweroff" && <PoweroffPage />}
+            {activeTab === "reboot" && <RebootPage />}
             {activeTab === "system" && <SystemPage />}
             {activeTab === "advanced" && <AdvancedPage />}
           </div>
