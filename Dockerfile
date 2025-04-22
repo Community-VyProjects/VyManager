@@ -37,7 +37,8 @@ COPY main.py client.py utils.py ./
 COPY frontend/app/ ./static/
 COPY templates/ ./templates/
 COPY endpoints/ ./endpoints/
-COPY .env.example ./.env.example
+# Prevent Docker crash on creation when people have renamed the .env.example file instead of copying & editing it
+RUN [ -f .env.example ] && cp .env.example .env.example || echo "No .env.example to copy (make sure you've already created a .env file)"
 
 # Create necessary directories
 RUN mkdir -p /app/static /app/templates
