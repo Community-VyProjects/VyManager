@@ -2,19 +2,20 @@
 
 Modern web interface to make configuring, deploying and monitoring VyOS routers easier
 
-**VyOS Version Support:** Currently being developed for VyOS 1.4-sagitta **(full)** and 1.5-circinus **(partial)**
+## VyOS Version Support
+Currently being developed for:
+- VyOS 1.4-sagitta **(full)**
+- VyOS 1.5-circinus **(partial)**
+
+**[Skip to Configuration and Installation](https://github.com/Community-VyProjects/VyManager#configuration)**
+
+**[Live Demo](https://vymanager.vyprojects.org)**
+
+[We need your input at](https://github.com/Community-VyProjects/VyManager/issues/53)
+
+[Feel free to join our official Discord community](https://discord.gg/k9SSkK7wPQ)
 
 ![alt text](image.png)
-
----
-
-Skip to Configuration and Installation: https://github.com/Community-VyProjects/VyManager#configuration
-
-Live Demo: https://vymanager.vyprojects.org
-
-We need your input at: https://github.com/Community-VyProjects/VyManager/issues/53
-
-Feel free to join our official Discord community: https://discord.gg/k9SSkK7wPQ
 
 ---
 
@@ -41,9 +42,9 @@ This project consists of two main components:
 
 ## Prerequisites
 
-- Node.js 18+ for the frontend
-- Python 3.11+ for the backend
-- VyOS router with API access enabled
+- Node.js 18+ for the frontend (only for manual install)
+- Python 3.11+ for the backend (only for manual install)
+- VyOS router with API access enabled (see configuration for securely enabling API access)
 - Docker and Docker Compose (optional, for containerized deployment)
 
 ---
@@ -68,10 +69,9 @@ Setup the HTTPS REST API in your VyOS router(s), using the following CLI command
 4. (optional) Enable GraphQL functionality:
 ``` set service https api graphql ```
 
-5. Save your changes in CLI:
-``` commit ```
+5. Save your changes in CLI (run these **two** commands chronologically):
+``` commit ```, then ``` save ```
 
-``` save ```
 
 ### Step 2) Environment values:
 Next you will need to configure your environment configuration files, make sure you configure both .env files in /frontend and root!
