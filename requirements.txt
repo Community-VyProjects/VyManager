@@ -17,4 +17,3 @@ python-multipart==0.0.18
 pydantic==2.4.0
 certifi>=2023.7.22
 python-dotenv==1.0.0 
-cache>=1.0.3
