@@ -33,7 +33,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy backend source code
-COPY main.py client.py utils.py ./
+COPY main.py client.py cache.py utils.py ./
 COPY frontend/app/ ./static/
 COPY templates/ ./templates/
 COPY endpoints/ ./endpoints/
