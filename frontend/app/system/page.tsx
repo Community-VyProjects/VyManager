@@ -57,10 +57,12 @@ import { executeSavingMethod } from "../utils";
 export default function SystemPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [config, setConfig] = useState<any>(null);
+  const [performancePriority, setPerformancePriority] = useState<string>("");
   const [activeTab, setActiveTab] = useState("general");
   const [hostnameDialogOpen, setHostnameDialogOpen] = useState(false);
   const [newHostname, setNewHostname] = useState("");
   const [isChangingSavingMethod, setIsChangingSavingMethod] = useState(false);
+  const [isChangingPerformanceProfile, setIsChangingPerformanceProfile] = useState(false);
   const [isChangingHostname, setIsChangingHostname] = useState(false);
 
   const fetchConfig = async () => {
@@ -82,6 +84,9 @@ export default function SystemPage() {
         setConfig(data.data);
         if (data.data.system?.["host-name"]) {
           setNewHostname(data.data.system["host-name"]);
+        }
+        if (data.data.system?.["option"]?.["performance"] && typeof (data.data.system?.["option"]?.["performance"]) == "string") {
+          setPerformancePriority(data.data.system?.["option"]?.["performance"]);
         }
       } else {
         throw new Error(data.error || "Failed to load configuration");
@@ -179,6 +184,64 @@ export default function SystemPage() {
     }
   };
 
+  const changePerformanceProfile = async (newPerformanceProfile: string) => {
+    setIsChangingPerformanceProfile(true);
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+
+    try {
+      // Set new performance profile
+      var response;
+      if (newPerformanceProfile == "none") // If performance profile is none, delete system option performance
+      {
+        response = await fetch(
+          `${apiUrl}/api/configure/delete/system/option/performance`,
+          {
+            method: "POST",
+            headers: {
+              accept: "application/json",
+            },
+          }
+        );
+      }
+      else {
+        response = await fetch(
+          `${apiUrl}/api/configure/set/system/option/performance?value=${encodeURIComponent(
+            newPerformanceProfile
+          )}`,
+          {
+            method: "POST",
+            headers: {
+              accept: "application/json",
+            },
+          }
+        );
+      }
+
+      if (!response.ok) {
+        throw new Error(`Failed to change performance profile: ${response.statusText}`);
+      }
+
+      toast({
+        title: "Performance Profile Changed",
+        description: `Performance profile has been updated to: ${newPerformanceProfile}`,
+      });
+
+      await fetchConfig(); // Refresh configuration
+
+      // No need to fetch config as this is a client-side only change
+    } catch (error) {
+      console.error("Error changing performance profile:", error);
+      toast({
+        variant: "destructive",
+        title: "Failed to change performance profile",
+        description:
+          error instanceof Error ? error.message : "An unknown error occurred",
+      });
+    } finally {
+      setIsChangingPerformanceProfile(false);
+    }
+  };
+
   useEffect(() => {
     fetchConfig();
   }, []);
@@ -254,6 +317,40 @@ export default function SystemPage() {
               <CardContent>
                 <div className="grid gap-4">
                   <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-slate-900 p-4 rounded-md">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center">
+                          <Clock className="h-4 w-4 mr-2 text-slate-400" />
+                          <p className="text-sm text-slate-400">
+                            Performance Profile
+                          </p>
+                        </div>
+                        <Select
+                          value={performancePriority || "none"}
+                          onValueChange={changePerformanceProfile}
+                          disabled={isChangingPerformanceProfile}
+                        >
+                          <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
+                            {isChangingPerformanceProfile ? (
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
+                              <SelectValue placeholder="Select performance profile" />
+                            )}
+                          </SelectTrigger>
+                          <SelectContent className="bg-slate-800 border-slate-700 text-white">
+                            <SelectItem value="throughput">
+                              Prefer maximum throughput
+                            </SelectItem>
+                            <SelectItem value="latency">
+                              Prefer lowest latency
+                            </SelectItem>
+                            <SelectItem value="none">
+                              Don't prefer anything
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
                     <div className="bg-slate-900 p-4 rounded-md">
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center">
@@ -408,12 +505,12 @@ export default function SystemPage() {
                                     value.level === "debug"
                                       ? "bg-purple-600"
                                       : value.level === "info"
-                                      ? "bg-blue-600"
-                                      : value.level === "warning"
-                                      ? "bg-amber-600"
-                                      : value.level === "error"
-                                      ? "bg-red-600"
-                                      : "bg-slate-600"
+                                        ? "bg-blue-600"
+                                        : value.level === "warning"
+                                          ? "bg-amber-600"
+                                          : value.level === "error"
+                                            ? "bg-red-600"
+                                            : "bg-slate-600"
                                   }
                                 >
                                   {value.level}
@@ -639,10 +736,10 @@ export default function SystemPage() {
                       <p className="text-slate-200">
                         {config?.service?.https?.["allow-client"]?.address
                           ? Array.isArray(
-                              config.service.https["allow-client"].address
-                            )
+                            config.service.https["allow-client"].address
+                          )
                             ? config.service.https["allow-client"].address
-                                .length
+                              .length
                             : "1"
                           : "0"}
                       </p>
@@ -730,10 +827,10 @@ export default function SystemPage() {
                           "shared-network-name"
                         ]
                           ? Object.keys(
-                              config.service["dhcp-server"][
-                                "shared-network-name"
-                              ]
-                            ).length
+                            config.service["dhcp-server"][
+                            "shared-network-name"
+                            ]
+                          ).length
                           : "0"}
                       </p>
                     </div>
