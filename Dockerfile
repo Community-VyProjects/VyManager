@@ -115,11 +115,11 @@ kill $BACKEND_PID\n\
 
 # Set environment variables
 ENV NODE_ENV=production
-ENV BACKEND_PORT=8000
+ENV BACKEND_PORT=3001
 ENV FRONTEND_PORT=3000
 
 # Expose ports
-EXPOSE 3000 8000
+EXPOSE 3000 3001
 
 # Set the entrypoint
 ENTRYPOINT ["/app/start-services.sh"] 
