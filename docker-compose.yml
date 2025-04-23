@@ -6,16 +6,16 @@ services:
       dockerfile: Dockerfile
     ports:
       - "3000:3000"  # Frontend port
-      - "8000:8000"  # Backend API port
+      - "3001:3001"  # Backend API port
     environment:
       - NODE_ENV=production
-      - BACKEND_PORT=8000
+      - BACKEND_PORT=3001
       - FRONTEND_PORT=3000
     volumes:
       - ./.env:/app/config/.env:ro  # Mount .env file as read-only
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/show/version"]
+      test: ["CMD", "curl", "-f", "http://localhost:3001/api/show/version"]
       interval: 30s
       timeout: 10s
       retries: 3
