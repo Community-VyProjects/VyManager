@@ -261,7 +261,7 @@ export default function SystemPage() {
                           <p className="text-sm text-slate-400">
                             Saving Method
                           </p>
-                          <p className="text-sm text-slate-400">Caution! This setting is currently only being stored in your browser's session storage. This means this option can be lost sometimes and you may need to reconfigure it. You may need to verify the option set is correct when you want to make any changes in a new browser.</p>
+                          <p className="text-xs text-center text-red-400">Caution! This setting is currently only being stored in your browser's session storage. This means this option can be lost sometimes and you may need to reconfigure it. You may need to verify the option set is correct when you want to make any changes in a new browser.</p>
                         </div>
                         <Select
                           value={sessionStorage.getItem("savingMethod") || "confirmation"}
