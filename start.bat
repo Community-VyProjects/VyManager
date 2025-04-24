@@ -67,7 +67,7 @@ IF EXIST .env (
 )
 
 REM Set default values if not provided in .env
-IF "%PORT%"=="" SET PORT=8000
+IF "%PORT%"=="" SET PORT=3001
 IF "%HOST%"=="" SET HOST=0.0.0.0
 IF "%WORKERS%"=="" SET WORKERS=4
 IF "%ENVIRONMENT%"=="" SET ENVIRONMENT=development

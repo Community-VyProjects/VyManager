@@ -13,7 +13,7 @@ RUN source venv/bin/activate
 RUN pip install -r requirements.txt
 
 # Setup port
-EXPOSE 8000
+EXPOSE 3001
 
 # Set the entrypoint
 RUN chmod +x start.sh

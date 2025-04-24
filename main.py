@@ -1,31 +1,32 @@
-from fastapi import FastAPI, Request, APIRouter, HTTPException, Query
+from fastapi import FastAPI, Request, APIRouter, HTTPException, Query, Depends
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 import json
 import os
 import pathlib
 import traceback
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Callable, Awaitable
 import urllib.parse
 from dotenv import load_dotenv
-from fastapi.middleware.cors import CORSMiddleware
 import asyncio
 import uvicorn
-import datetime as import_datetime
+import datetime
+from functools import lru_cache
 
 # Import the VyOS API wrapper
 from client import VyOSClient
-from utils import VyOSAPIError
-from utils import merge_cidr_parts
+from utils import VyOSAPIError, merge_cidr_parts
+from cache import cache, cached, invalidate_cache
 
-# Temporarily state (to be migrated soon in Redis)
+# Application state
 UNSAVED_CHANGES = False
 
 # Load environment variables from .env file
 load_dotenv()
 
-# Get the base directory of the application
+# Directory configuration
 BASE_DIR = pathlib.Path(__file__).parent
 STATIC_DIR = BASE_DIR / "static"
 TEMPLATES_DIR = BASE_DIR / "templates"
@@ -35,64 +36,31 @@ ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 IS_PRODUCTION = ENVIRONMENT.lower() == "production"
 
 # API and security settings
-API_KEY = os.getenv("VYOS_API_KEY", "")
+API_KEY = os.getenv("VYOS_API_KEY", "Kode30050264")
 VYOS_HOST = os.getenv("VYOS_HOST", "")
 VYOS_API_URL = os.getenv("VYOS_API_URL", "")
 CERT_PATH = os.getenv("CERT_PATH", "")
 TRUST_SELF_SIGNED = os.getenv("TRUST_SELF_SIGNED", "false").lower() == "true"
 HTTPS = os.getenv("VYOS_HTTPS", "true").lower() == "true"
 
-# Log environment settings
-print(f"Environment: {ENVIRONMENT}")
-print(f"Production Mode: {IS_PRODUCTION}")
-print(f"TRUST_SELF_SIGNED: {TRUST_SELF_SIGNED}")
+# Debug: Print the actual environment variables being used
+print(f"DEBUG: Using VYOS_HOST={VYOS_HOST}")
+print(f"DEBUG: Using API_KEY={API_KEY}")
 
-# Security warning for production with self-signed certificates
-if IS_PRODUCTION and TRUST_SELF_SIGNED:
-    print("WARNING: Using insecure SSL certificate validation in production mode!")
-    print("This is a security risk and should only be used in development environments.")
-    print("Consider obtaining a valid SSL certificate for production use.")
-
-# Initialize VyOS client
-# Try to extract host from VYOS_API_URL if VYOS_HOST is not set
+# Extract host from VYOS_API_URL if VYOS_HOST is not set
 if not VYOS_HOST and VYOS_API_URL:
     try:
         parsed_url = urllib.parse.urlparse(VYOS_API_URL)
         VYOS_HOST = parsed_url.netloc
-        print(f"Extracted host from VYOS_API_URL: {VYOS_HOST}")
-    except Exception as e:
-        print(f"Failed to extract host from VYOS_API_URL: {e}")
+        print(f"DEBUG: Extracted VYOS_HOST from API URL: {VYOS_HOST}")
+    except Exception:
+        pass
 
-# Print initialization parameters for debugging
-print(f"VyOS Configuration:")
-print(f"  Host: {VYOS_HOST}")
-print(f"  API Key: {'Set' if API_KEY else 'Not Set'}")
-print(f"  HTTPS: {HTTPS}")
-print(f"  Trust Self-Signed: {TRUST_SELF_SIGNED}")
-print(f"  Certificate Path: {CERT_PATH if CERT_PATH else 'Not Set'}")
-
+# VyOS client initialization
 vyos_client = None
-if not VYOS_HOST or not API_KEY:
-    print(f"CRITICAL ERROR: Cannot initialize VyOS client - missing required configuration!")
-    missing = []
-    if not VYOS_HOST:
-        missing.append("VYOS_HOST")
-    if not API_KEY:
-        missing.append("VYOS_API_KEY")
-    
-    print(f"Missing required environment variables: {', '.join(missing)}")
-    print("Application will start but all API requests will fail!")
-    print("Please set the required environment variables and restart the application.")
-    print("\nTo fix this issue:")
-    print("1. Create or update your .env file with the following variables:")
-    print(f"   VYOS_HOST=your-vyos-router-ip-or-hostname")
-    print(f"   VYOS_API_KEY=your-api-key")
-    print(f"   VYOS_HTTPS=true")
-    print(f"   TRUST_SELF_SIGNED=true  # If your VyOS router uses a self-signed certificate")
-    print("2. Restart the application")
-else:
+if VYOS_HOST and API_KEY:
     try:
-        print(f"Initializing VyOS client for host: {VYOS_HOST}")
+        print(f"DEBUG: Initializing VyOSClient with host={VYOS_HOST} and API_KEY={API_KEY}")
         vyos_client = VyOSClient(
             host=VYOS_HOST,
             api_key=API_KEY,
@@ -100,54 +68,28 @@ else:
             cert_path=CERT_PATH,
             trust_self_signed=TRUST_SELF_SIGNED
         )
-        print(f"VyOS client successfully initialized!")
         
-        # Test connection immediately to verify it's working
+        # Test connection in background after startup
         async def test_connection():
             try:
-                print("Testing connection to VyOS router...")
+                print(f"DEBUG: Testing connection with API_KEY={API_KEY}")
                 success, error_msg = await vyos_client.test_connection()
-                
-                if success:
-                    print("✅ Successfully connected to VyOS router!")
-                    print("Configuration data is available and API is operational.")
-                else:
+                if not success:
                     print(f"❌ CRITICAL: Connection test failed - {error_msg}")
-                    print("All API requests will likely fail with the same error.")
-                    print("\nPossible solutions:")
-                    print("1. Check that the VyOS router is running and accessible from this server")
-                    print("2. Verify the API service is enabled on the VyOS router")
-                    print("3. Check that the API key is correct")
-                    print("4. If using HTTPS, verify SSL certificate settings")
-                    print("   - For self-signed certificates, set TRUST_SELF_SIGNED=true")
-                    print("5. Check network connectivity (firewalls, routing, etc.)")
-                    print("6. Verify the VyOS API service is properly configured on the router")
-                    print("   - Run 'show service https' on the VyOS router to check")
             except Exception as e:
                 print(f"❌ CRITICAL: Connection test to VyOS router failed: {e}")
-                print(f"Stack trace:\n{traceback.format_exc()}")
-                print("All API requests will likely fail with the same error.")
-                print("\nPossible solutions:")
-                print("1. Check that the VyOS router is running and accessible from this server")
-                print("2. Verify the API service is enabled on the VyOS router")
-                print("3. Check that the API key is correct")
-                print("4. If using HTTPS, verify SSL certificate settings")
-                print("5. Check network connectivity and firewall rules")
-        
-        # Schedule the connection test to run soon after startup
-        asyncio.create_task(test_connection())
-        
+                
     except Exception as e:
         print(f"CRITICAL ERROR: Failed to initialize VyOS client: {e}")
-        print(f"Stack trace:\n{traceback.format_exc()}")
-        print("Application will start but all API requests will fail!")
-        print("\nPossible solutions:")
-        print("1. Check your .env configuration")
-        print("2. Verify the VyOS host is correctly specified")
-        print("3. Ensure the API key is valid")
-        print("4. Restart the application after fixing the configuration")
+else:
+    missing = []
+    if not VYOS_HOST:
+        missing.append("VYOS_HOST")
+    if not API_KEY:
+        missing.append("VYOS_API_KEY")
+    print(f"CRITICAL ERROR: Cannot initialize VyOS client - missing required configuration: {', '.join(missing)}")
 
-# Create FastAPI app with appropriate settings
+# Create FastAPI app
 app = FastAPI(
     title="VyManager",
     description="API for managing VyOS router configurations",
@@ -160,14 +102,12 @@ app = FastAPI(
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    # Allow requests from any origin when behind a reverse proxy
-    # In production with nginx, this is safe as nginx handles the actual domain restrictions
     allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["Content-Type", "Authorization", "X-Requested-With", "X-CSRF-Token"],
     expose_headers=["Content-Length", "Content-Type"],
-    max_age=86400,  # Cache preflight requests for 24 hours
+    max_age=86400,
 )
 
 # Create API router
@@ -188,22 +128,22 @@ async def add_security_headers(request: Request, call_next):
     
     return response
 
-# Mount static files with absolute path
+# Mount static files
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
-# Global variable to cache the full config data
-config_cache = None
-
-# Utility function to handle API exceptions
-async def handle_vyos_request(request_func, *args, **kwargs):
-    """Generic handler for VyOS API requests with error handling"""
+# Dependency for VyOS client
+def get_vyos_client():
     if not vyos_client:
-        return {
-            "success": False,
-            "error": "VyOS client not initialized. Check your environment variables."
-        }
-    
+        raise HTTPException(
+            status_code=503,
+            detail="VyOS client not initialized. Check your environment variables."
+        )
+    return vyos_client
+
+# Helper for handling VyOS API requests
+async def handle_vyos_request(request_func: Callable[..., Awaitable[Any]], *args, **kwargs) -> Dict[str, Any]:
+    """Generic handler for VyOS API requests with error handling"""
     try:
         result = await request_func(*args, **kwargs)
         return result
@@ -219,151 +159,142 @@ async def handle_vyos_request(request_func, *args, **kwargs):
             "traceback": traceback.format_exc() if not IS_PRODUCTION else None
         }
 
-# Dynamic API endpoint handlers
-# These functions enable routing API requests to the appropriate VyOS API method
-async def dynamic_vyos_api_handler(endpoint_type, path_parts=None):
-    """
-    Dynamically route API requests to the appropriate VyOS API method
-    
-    Args:
-        endpoint_type: The type of endpoint (show, showConfig, configure, etc.)
-        path_parts: List of path parts to pass to the VyOS API
-        
-    Returns:
-        The VyOS API response
-    """
+# Cache key generator for dynamic API handler
+def get_cache_key(endpoint_type: str, path_parts: Optional[List[str]] = None) -> str:
+    """Generate a cache key for the dynamic API handler"""
+    if path_parts:
+        return f"dynamic:{endpoint_type}:{':'.join([str(p) for p in path_parts])}"
+    return f"dynamic:{endpoint_type}"
+
+# Dynamic API endpoint handler
+async def dynamic_vyos_api_handler(endpoint_type: str, path_parts: Optional[List[str]] = None) -> JSONResponse:
+    """Dynamically route API requests to the appropriate VyOS API method"""
     if not vyos_client:
         return JSONResponse(
-            status_code=500,
+            status_code=503,
             content={
                 "success": False,
                 "error": "VyOS client not initialized. Check your environment variables."
             }
         )
     
+    # Determine if this is a read-only operation that can be cached
+    read_only = endpoint_type in ["showConfig", "show"]
+    
+    # Try to get from cache for read-only operations
+    if read_only:
+        cache_key = get_cache_key(endpoint_type, path_parts)
+        cached_result = cache.get(cache_key)
+        if cached_result:
+            return JSONResponse(content=cached_result)
+    
     try:
         # Get the appropriate client method based on endpoint_type
-        if endpoint_type == "showConfig":
-            method = vyos_client.showConfig
-        elif endpoint_type == "show":
-            method = vyos_client.show
-        elif endpoint_type == "configure_set":
-            method = vyos_client.configure.set
-        elif endpoint_type == "configure_delete":
-            method = vyos_client.configure.delete
-        elif endpoint_type == "configure_comment":
-            method = vyos_client.configure.comment
-        elif endpoint_type == "generate":
-            method = vyos_client.generate
-        elif endpoint_type == "reset":
-            method = vyos_client.reset
-        elif endpoint_type == "image":
-            method = vyos_client.image
-        elif endpoint_type == "config_file":
-            method = vyos_client.config_file
-        elif endpoint_type == "reboot":
-            method = vyos_client.reboot
-        elif endpoint_type == "poweroff":
-            method = vyos_client.poweroff
-        else:
+        method_map = {
+            "showConfig": vyos_client.showConfig,
+            "show": vyos_client.show,
+            "configure_set": vyos_client.configure.set,
+            "configure_delete": vyos_client.configure.delete,
+            "configure_comment": vyos_client.configure.comment,
+            "generate": vyos_client.generate,
+            "reset": vyos_client.reset,
+            "image": vyos_client.image,
+            "config_file": vyos_client.config_file,
+            "reboot": vyos_client.reboot,
+            "poweroff": vyos_client.poweroff
+        }
+        
+        method = method_map.get(endpoint_type)
+        if not method:
             return JSONResponse(
                 status_code=400,
-                content={
-                    "success": False,
-                    "error": f"Unknown endpoint type: {endpoint_type}"
-                }
+                content={"success": False, "error": f"Unknown endpoint type: {endpoint_type}"}
             )
         
-        # Execute the method with the path parts instead of trying to chain attributes
-        # This fixes the issue with trying to use function objects as attribute containers
+        # Execute the method with the path parts
         if path_parts:
-            # For configure operations, the method is already a function that accepts a path list
             if endpoint_type.startswith("configure_"):
                 result = await method(path_parts)
             else:
-                # For other operations, we need to call the method directly
-                # Join the path parts with a period to match the expected input format
-                path_str = '.'.join(path_parts)
-                # Evaluate the method chain dynamically using eval or getattr
                 try:
-                    # Try to create a method chain using getattr
                     curr_method = method
                     for part in path_parts:
                         if hasattr(curr_method, part):
                             curr_method = getattr(curr_method, part)
                         else:
-                            # If we can't chain further, break and pass the remaining parts as arguments
                             break
-                    
-                    # Call the method with any remaining path parts as arguments
                     result = await curr_method()
-                except Exception as chain_error:
-                    # If method chaining fails, fall back to passing the path as an argument
-                    print(f"Error in method chaining: {str(chain_error)}")
+                except Exception:
                     result = await method(path_parts)
         else:
-            # No path parts, just call the method
             result = await method()
         
-        # Ensure result is a valid JSON-serializable object
+        # Ensure result is JSON-serializable
         if not isinstance(result, dict):
-            # If result is not a dictionary, try to convert it to one
             try:
-                # If it's a string that might be JSON, try to parse it
                 if isinstance(result, str):
-                    # Check if it looks like JSON
                     if result.strip().startswith('{') or result.strip().startswith('['):
                         try:
-                            import json
                             parsed_result = json.loads(result)
+                            
+                            # Cache read-only results
+                            if read_only:
+                                cache.set(cache_key, parsed_result, ttl=300)
+                                
                             return JSONResponse(content=parsed_result)
-                        except json.JSONDecodeError as json_err:
-                            # If parsing fails, wrap the string in a dictionary
+                        except json.JSONDecodeError:
                             return JSONResponse(
                                 status_code=500,
                                 content={
                                     "success": False,
-                                    "error": f"Invalid JSON response from VyOS: {str(json_err)}",
-                                    "raw_data": result[:1000]  # Include part of the raw data for debugging
+                                    "error": "Invalid JSON response from VyOS",
+                                    "raw_data": result[:1000]
                                 }
                             )
                     else:
-                        # It's a regular string, not JSON
-                        return JSONResponse(content={
-                            "success": True,
-                            "data": result,
-                            "error": None
-                        })
+                        response_data = {"success": True, "data": result, "error": None}
+                        
+                        # Cache read-only results
+                        if read_only:
+                            cache.set(cache_key, response_data, ttl=300)
+                            
+                        return JSONResponse(content=response_data)
                 else:
-                    # It's some other non-dictionary type
-                    return JSONResponse(content={
-                        "success": True,
-                        "data": str(result),
-                        "error": None
-                    })
-            except Exception as conversion_err:
+                    response_data = {"success": True, "data": str(result), "error": None}
+                    
+                    # Cache read-only results
+                    if read_only:
+                        cache.set(cache_key, response_data, ttl=300)
+                        
+                    return JSONResponse(content=response_data)
+            except Exception as e:
                 return JSONResponse(
                     status_code=500,
                     content={
                         "success": False,
-                        "error": f"Failed to process VyOS response: {str(conversion_err)}",
+                        "error": f"Failed to process VyOS response: {str(e)}",
                         "raw_data": str(result)[:1000] if result else None
                     }
                 )
         
-        # Verify that the result is JSON serializable
+        # Cache read-only results
+        if read_only:
+            try:
+                json.dumps(result)  # Verify serialization
+                cache.set(cache_key, result, ttl=300)
+            except (TypeError, ValueError):
+                pass  # Skip caching if not serializable
+        
+        # Verify JSON serialization
         try:
-            import json
-            # Test serializing the result
             json.dumps(result)
             return JSONResponse(content=result)
-        except (TypeError, ValueError, OverflowError) as json_err:
-            # If serialization fails, sanitize the result
+        except (TypeError, ValueError, OverflowError) as e:
             return JSONResponse(
                 status_code=500,
                 content={
                     "success": False,
-                    "error": f"Response contains non-serializable data: {str(json_err)}",
+                    "error": f"Response contains non-serializable data: {str(e)}",
                     "raw_data": str(result)[:1000] if result else None
                 }
             )
@@ -371,295 +302,178 @@ async def dynamic_vyos_api_handler(endpoint_type, path_parts=None):
     except VyOSAPIError as e:
         return JSONResponse(
             status_code=500,
-            content={
-                "success": False,
-                "error": f"VyOS API Error: {e.message}"
-            }
+            content={"success": False, "error": f"VyOS API Error: {e.message}"}
         )
     except Exception as e:
-        error_response = {
-            "success": False,
-            "error": str(e)
-        }
-        
-        # Include traceback in development mode
+        error_response = {"success": False, "error": str(e)}
         if not IS_PRODUCTION:
             error_response["traceback"] = traceback.format_exc()
-            
-        return JSONResponse(
-            status_code=500,
-            content=error_response
-        )
-        
-# API Route for checking for unsaved changes
+        return JSONResponse(status_code=500, content=error_response)
+
+# API Routes for unsaved changes state management
 @api_router.get("/check-unsaved-changes")
 async def api_check_unsaved():
-    """
-    Returns whether there are unsaved changes (data field).
-
-    Example: GET /api/check-unsaved-changes
-
-    Response:
-    {
-        "success": True,
-        "data": true,
-        "error": null
-    }
-    """
+    """Returns whether there are unsaved changes"""
     return JSONResponse(content={
         "success": True,
         "data": UNSAVED_CHANGES,
         "error": None
     })
 
-# API Route setting unsaved changes state
 @api_router.post("/set-unsaved-changes/{value}")
 async def api_set_unsaved_changes(value: bool):
-    """
-    Set whether there are unsaved changes (value field, boolean).
-
-    Example: POST /api/set-unsaved-changes/false
-
-    Response:
-    {
-        "success": True,
-        "error": null
-    }
-    """
-    global UNSAVED_CHANGES # Define global usage of UNSAVED_CHANGES state
-    UNSAVED_CHANGES = value # Set UNSAVED_CHANGES state to value
-    return JSONResponse(content={
-        "success": True,
-        "error": None
-    })
+    """Set whether there are unsaved changes"""
+    global UNSAVED_CHANGES
+    UNSAVED_CHANGES = value
+    return JSONResponse(content={"success": True, "error": None})
 
 # API Routes for 'show' operations
 @api_router.get("/show/{path:path}")
+@cached(ttl=300, key_prefix="show")
 async def api_show(path: str):
-    """
-    Handle 'show' operation API calls with dynamic paths
-    
-    Example: GET /api/show/interfaces
-    """
+    """Handle 'show' operation API calls with dynamic paths"""
     path_parts = path.split("/")
     path_parts = merge_cidr_parts(path_parts)
-
     return await dynamic_vyos_api_handler("show", path_parts)
 
-# API Routes for 'showConfig' operations (configuration retrieval)
+# API Routes for 'showConfig' operations
 @api_router.get("/config/{path:path}")
-async def api_config(path: str = ""):
-    """
-    Handle configuration retrieval API calls with dynamic paths
-    
-    Example: GET /api/config/interfaces/ethernet/eth0
-    """
-    # Log the request
-    print(f"Received request for config path: '{path}'")
-    
-    # Check if VyOS client is initialized
-    if not vyos_client:
-        print("Error: VyOS client not initialized")
-        return JSONResponse(
-            status_code=503,  # Service Unavailable
-            content={
-                "success": False,
-                "error": "VyOS client not initialized. Please check your environment configuration and restart the server.",
-                "data": None
-            }
-        )
-    
+@cached(ttl=300, key_prefix="config")
+async def api_config(path: str = "", client: VyOSClient = Depends(get_vyos_client)):
+    """Handle configuration retrieval API calls with dynamic paths"""
     try:
-        # If path is empty, return the full config
         if not path:
-            print("Fetching full configuration from VyOS router")
-            method = vyos_client.showConfig
+            method = client.showConfig
         else:
-            print(f"Fetching configuration for path: {path} from VyOS router")
-            # Split the path and build the method chain
             path_parts = path.split("/")
             path_parts = merge_cidr_parts(path_parts)
-            method = vyos_client.showConfig
+            path_parts = [part for part in path_parts if part]
+            
+            method = client.showConfig
             for part in path_parts:
-                if part:  # Skip empty parts
-                    try:
-                        method = getattr(method, part)
-                    except AttributeError as e:
-                        print(f"AttributeError: {e} - Path part '{part}' is invalid")
-                        return JSONResponse(
-                            status_code=400,
-                            content={
-                                "success": False,
-                                "error": f"Invalid path segment: '{part}'",
-                                "valid_path": path.split(part)[0]
-                            }
-                        )
+                try:
+                    method = getattr(method, part)
+                except AttributeError:
+                    return JSONResponse(
+                        status_code=400,
+                        content={
+                            "success": False,
+                            "error": f"Invalid path segment: '{part}'",
+                            "valid_path": path.split(part)[0]
+                        }
+                    )
         
-        # Execute the method
-        print("Executing API call to VyOS router...")
         result = await method()
-        print(f"API call result type: {type(result)}")
         
-        # Safely convert result to a JSON response
+        # Verify JSON serialization
         try:
-            # Test serialization
-            import json
             json.dumps(result)
-            print("Response successfully serialized to JSON")
             return JSONResponse(content=result)
-        except (TypeError, ValueError, OverflowError) as json_err:
-            print(f"JSON serialization error: {json_err}")
-            # If serialization fails, sanitize the result
+        except (TypeError, ValueError, OverflowError) as e:
             return JSONResponse(
                 status_code=500,
                 content={
                     "success": False,
-                    "error": f"Response contains non-serializable data: {str(json_err)}",
+                    "error": f"Response contains non-serializable data: {str(e)}",
                     "raw_data": str(result)[:1000] if result else None
                 }
             )
         
     except VyOSAPIError as e:
-        print(f"VyOS API Error: {e.message}")
         return JSONResponse(
             status_code=500,
-            content={
-                "success": False,
-                "error": f"VyOS API Error: {e.message}",
-                "data": None
-            }
+            content={"success": False, "error": f"VyOS API Error: {e.message}", "data": None}
         )
     except Exception as e:
-        print(f"Unexpected error: {str(e)}")
-        import traceback
-        trace = traceback.format_exc()
-        print(trace)
-        
         error_response = {
             "success": False,
             "error": f"Error communicating with VyOS router: {str(e)}",
             "data": None
         }
         
-        # Include traceback in development mode
         if not IS_PRODUCTION:
-            error_response["traceback"] = trace
+            error_response["traceback"] = traceback.format_exc()
             
-        return JSONResponse(
-            status_code=500,
-            content=error_response
-        )
+        return JSONResponse(status_code=500, content=error_response)
 
-# API Routes for 'configure' operations with different methods
+# Configure operations
 @api_router.post("/configure/set/{path:path}")
 async def api_configure_set(path: str, value: Optional[str] = None):
-    """
-    Handle 'set' configuration operations
-    
-    Example: POST /api/configure/set/interfaces/ethernet/eth0/description?value=WAN
-    """
-    # Check if path contains URL-encoded slashes (%2F)
+    """Handle 'set' configuration operations"""
     if '%2F' in path:
-        # Decode URL-encoded slashes and split the path
         path = urllib.parse.unquote(path)
         
     path_parts = path.split("/")
     path_parts = merge_cidr_parts(path_parts)
-
-    # Filter out empty strings that may result from splitting
     path_parts = [part for part in path_parts if part]
     
     if value:
-        # Append the value as the last part of the path
         path_parts.append(value)
     
-    global UNSAVED_CHANGES # Define global usage of UNSAVED_CHANGES state
-    UNSAVED_CHANGES = True # Set UNSAVED_CHANGES state true
-
-    print(f"configure_set with path_parts: {path_parts}")
+    global UNSAVED_CHANGES
+    UNSAVED_CHANGES = True
+    
+    # Invalidate relevant caches when modifying configuration
+    invalidate_cache(pattern="config")
+    invalidate_cache(pattern="show")
+    
     return await dynamic_vyos_api_handler("configure_set", path_parts)
 
 @api_router.post("/configure/delete/{path:path}")
 async def api_configure_delete(path: str, value: Optional[str] = None):
-    """
-    Handle 'delete' configuration operations
-    
-    Example: POST /api/configure/delete/interfaces/ethernet/eth0/description
-    """
-    # Check if path contains URL-encoded slashes (%2F)
+    """Handle 'delete' configuration operations"""
     if '%2F' in path:
-        # Decode URL-encoded slashes and split the path
         path = urllib.parse.unquote(path)
     
     path_parts = path.split("/")
     path_parts = merge_cidr_parts(path_parts)
-    
-    # Filter out empty strings that may result from splitting
     path_parts = [part for part in path_parts if part]
     
     if value:
-        # Append the value as the last part of the path
         path_parts.append(value)
 
-    global UNSAVED_CHANGES # Define global usage of UNSAVED_CHANGES state
-    UNSAVED_CHANGES = True # Set UNSAVED_CHANGES state true
-
-    print(f"configure_delete with path_parts: {path_parts}")
+    global UNSAVED_CHANGES
+    UNSAVED_CHANGES = True
+    
+    # Invalidate relevant caches when modifying configuration
+    invalidate_cache(pattern="config")
+    invalidate_cache(pattern="show")
+    
     return await dynamic_vyos_api_handler("configure_delete", path_parts)
 
 @api_router.post("/configure/comment/{path:path}")
 async def api_configure_comment(path: str, value: Optional[str] = None):
-    """
-    Handle 'comment' configuration operations
-    
-    Example: POST /api/configure/comment/interfaces/ethernet/eth0?value=WAN Interface
-    """
-    # Check if path contains URL-encoded slashes (%2F)
+    """Handle 'comment' configuration operations"""
     if '%2F' in path:
-        # Decode URL-encoded slashes and split the path
         path = urllib.parse.unquote(path)
     
     path_parts = path.split("/")
     path_parts = merge_cidr_parts(path_parts)
-    
-    # Filter out empty strings that may result from splitting
     path_parts = [part for part in path_parts if part]
     
     if value:
-        # Append the value as the last part of the path
         path_parts.append(value)
         
-    global UNSAVED_CHANGES # Define global usage of UNSAVED_CHANGES state
-    UNSAVED_CHANGES = True # Set UNSAVED_CHANGES state true
-
-    print(f"configure_comment with path_parts: {path_parts}")
-    return await dynamic_vyos_api_handler("configure_comment", path_parts)
-
-# Batch configuration operations
-@api_router.post("/configure/batch")
-async def api_configure_batch(operations: List[Dict[str, Any]]):
-    """
-    Handle batch configuration operations
-    
-    Example: POST /api/configure/batch
-    Body: [
-        {"op": "set", "path": ["interfaces", "ethernet", "eth0", "description", "WAN"]},
-        {"op": "delete", "path": ["interfaces", "ethernet", "eth0", "disable"]}
-    ]
-    """
     global UNSAVED_CHANGES
     UNSAVED_CHANGES = True
-    if not vyos_client:
-        return JSONResponse(
-            status_code=500,
-            content={
-                "success": False,
-                "error": "VyOS client not initialized. Check your environment variables."
-            }
-        )
+    
+    # Invalidate relevant caches when modifying configuration
+    invalidate_cache(pattern="config")
+    
+    return await dynamic_vyos_api_handler("configure_comment", path_parts)
+
+@api_router.post("/configure/batch")
+async def api_configure_batch(operations: List[Dict[str, Any]], client: VyOSClient = Depends(get_vyos_client)):
+    """Handle batch configuration operations"""
+    global UNSAVED_CHANGES
+    UNSAVED_CHANGES = True
+    
+    # Invalidate relevant caches when modifying configuration
+    invalidate_cache(pattern="config")
+    invalidate_cache(pattern="show")
     
     try:
-        batch = vyos_client.configure.batch()
+        batch = client.configure.batch()
         
         for operation in operations:
             op = operation.get("op")
@@ -668,10 +482,7 @@ async def api_configure_batch(operations: List[Dict[str, Any]]):
             if not op or not path:
                 return JSONResponse(
                     status_code=400,
-                    content={
-                        "success": False,
-                        "error": "Each operation must have 'op' and 'path' fields"
-                    }
+                    content={"success": False, "error": "Each operation must have 'op' and 'path' fields"}
                 )
             
             if op == "set":
@@ -683,10 +494,7 @@ async def api_configure_batch(operations: List[Dict[str, Any]]):
             else:
                 return JSONResponse(
                     status_code=400,
-                    content={
-                        "success": False,
-                        "error": f"Unknown operation: {op}"
-                    }
+                    content={"success": False, "error": f"Unknown operation: {op}"}
                 )
         
         result = await batch.execute()
@@ -695,287 +503,199 @@ async def api_configure_batch(operations: List[Dict[str, Any]]):
     except VyOSAPIError as e:
         return JSONResponse(
             status_code=500,
-            content={
-                "success": False,
-                "error": f"VyOS API Error: {e.message}"
-            }
+            content={"success": False, "error": f"VyOS API Error: {e.message}"}
         )
     except Exception as e:
-        error_response = {
-            "success": False,
-            "error": str(e)
-        }
+        error_response = {"success": False, "error": str(e)}
         
-        # Include traceback in development mode
         if not IS_PRODUCTION:
             error_response["traceback"] = traceback.format_exc()
             
-        return JSONResponse(
-            status_code=500,
-            content=error_response
-        )
+        return JSONResponse(status_code=500, content=error_response)
 
-# API Routes for 'generate' operations
+# Generic operation routes
 @api_router.post("/generate/{path:path}")
 async def api_generate(path: str):
-    """
-    Handle 'generate' operations
-    
-    Example: POST /api/generate/pki/wireguard/key-pair
-    """
+    """Handle 'generate' operations"""
     path_parts = path.split("/")
     path_parts = merge_cidr_parts(path_parts)
-
     return await dynamic_vyos_api_handler("generate", path_parts)
 
-# API Routes for 'reset' operations
 @api_router.post("/reset/{path:path}")
 async def api_reset(path: str):
-    """
-    Handle 'reset' operations
-    
-    Example: POST /api/reset/ip/bgp/192.0.2.11
-    """
+    """Handle 'reset' operations"""
     path_parts = path.split("/")
     path_parts = merge_cidr_parts(path_parts)
-    
     return await dynamic_vyos_api_handler("reset", path_parts)
 
-# API Routes for 'image' operations
+# Image management operations
 @api_router.post("/image/add")
-async def api_image_add(url: str):
-    """
-    Handle 'image add' operations
-    
-    Example: POST /api/image/add?url=https://example.com/vyos-image.iso
-    """
-    if not vyos_client:
-        return JSONResponse(
-            status_code=500,
-            content={
-                "success": False,
-                "error": "VyOS client not initialized. Check your environment variables."
-            }
-        )
-    
+async def api_image_add(url: str, client: VyOSClient = Depends(get_vyos_client)):
+    """Handle 'image add' operations"""
     try:
-        result = await vyos_client.image.add(url)
+        result = await client.image.add(url)
         return JSONResponse(content=result)
     except Exception as e:
-        error_response = {
-            "success": False,
-            "error": str(e)
-        }
-        
-        # Include traceback in development mode
+        error_response = {"success": False, "error": str(e)}
         if not IS_PRODUCTION:
             error_response["traceback"] = traceback.format_exc()
-            
-        return JSONResponse(
-            status_code=500,
-            content=error_response
-        )
+        return JSONResponse(status_code=500, content=error_response)
 
 @api_router.post("/image/delete")
-async def api_image_delete(name: str):
-    """
-    Handle 'image delete' operations
-    
-    Example: POST /api/image/delete?name=1.3-rolling-202006070117
-    """
-    if not vyos_client:
-        return JSONResponse(
-            status_code=500,
-            content={
-                "success": False,
-                "error": "VyOS client not initialized. Check your environment variables."
-            }
-        )
-    
+async def api_image_delete(name: str, client: VyOSClient = Depends(get_vyos_client)):
+    """Handle 'image delete' operations"""
     try:
-        result = await vyos_client.image.delete(name)
+        result = await client.image.delete(name)
         return JSONResponse(content=result)
     except Exception as e:
-        error_response = {
-            "success": False,
-            "error": str(e)
-        }
-        
-        # Include traceback in development mode
+        error_response = {"success": False, "error": str(e)}
         if not IS_PRODUCTION:
             error_response["traceback"] = traceback.format_exc()
-            
-        return JSONResponse(
-            status_code=500,
-            content=error_response
-        )
+        return JSONResponse(status_code=500, content=error_response)
 
-# API Routes for 'config-file' operations
+# Config file operations
 @api_router.post("/config-file/save")
-async def api_config_file_save(file: Optional[str] = None):
-    """
-    Handle 'config-file save' operations
-    
-    Example: POST /api/config-file/save?file=/config/test.config
-    """
-    if not vyos_client:
-        return JSONResponse(
-            status_code=500,
-            content={
-                "success": False,
-                "error": "VyOS client not initialized. Check your environment variables."
-            }
-        )
-    
+async def api_config_file_save(file: Optional[str] = None, client: VyOSClient = Depends(get_vyos_client)):
+    """Handle 'config-file save' operations"""
     try:
-        result = await vyos_client.config_file.save(file)
+        result = await client.config_file.save(file)
+        
+        # Invalidate configuration cache after saving
+        invalidate_cache(pattern="config")
+        
         return JSONResponse(content=result)
     except Exception as e:
-        error_response = {
-        "success": False,
-            "error": str(e)
-        }
-        
-        # Include traceback in development mode
+        error_response = {"success": False, "error": str(e)}
         if not IS_PRODUCTION:
             error_response["traceback"] = traceback.format_exc()
-            
-        return JSONResponse(
-            status_code=500,
-            content=error_response
-        )
+        return JSONResponse(status_code=500, content=error_response)
 
 @api_router.post("/config-file/load")
-async def api_config_file_load(file: str):
-    """
-    Handle 'config-file load' operations
-    
-    Example: POST /api/config-file/load?file=/config/test.config
-    """
-    if not vyos_client:
-        return JSONResponse(
-            status_code=500,
-            content={
-                "success": False,
-                "error": "VyOS client not initialized. Check your environment variables."
-            }
-        )
-    
+async def api_config_file_load(file: str, client: VyOSClient = Depends(get_vyos_client)):
+    """Handle 'config-file load' operations"""
     try:
-        result = await vyos_client.config_file.load(file)
+        result = await client.config_file.load(file)
+        
+        # Invalidate all caches after loading configuration
+        invalidate_cache()
+        
         return JSONResponse(content=result)
     except Exception as e:
-        error_response = {
-            "success": False,
-            "error": str(e)
-        }
-        
-        # Include traceback in development mode
+        error_response = {"success": False, "error": str(e)}
         if not IS_PRODUCTION:
             error_response["traceback"] = traceback.format_exc()
-            
-        return JSONResponse(
-            status_code=500,
-            content=error_response
-        )
+        return JSONResponse(status_code=500, content=error_response)
 
-# API Routes for 'reboot' operations
+# System operations
 @api_router.post("/reboot")
-async def api_reboot():
-    """
-    Handle 'reboot' operations
-    
-    Example: POST /api/reboot
-    """
-    if not vyos_client:
-        return JSONResponse(
-            status_code=500,
-            content={
-                "success": False,
-                "error": "VyOS client not initialized. Check your environment variables."
-            }
-        )
-    
+async def api_reboot(client: VyOSClient = Depends(get_vyos_client)):
+    """Handle 'reboot' operations"""
     try:
-        result = await vyos_client.reboot()
+        result = await client.reboot()
         return JSONResponse(content=result)
     except Exception as e:
-        error_response = {
-            "success": False,
-            "error": str(e)
-        }
-        
-        # Include traceback in development mode
+        error_response = {"success": False, "error": str(e)}
         if not IS_PRODUCTION:
             error_response["traceback"] = traceback.format_exc()
-            
-        return JSONResponse(
-            status_code=500,
-            content=error_response
-        )
+        return JSONResponse(status_code=500, content=error_response)
 
-# API Routes for 'poweroff' operations
 @api_router.post("/poweroff")
-async def api_poweroff():
-    """
-    Handle 'poweroff' operations
-    
-    Example: POST /api/poweroff
-    """
-    if not vyos_client:
-        return JSONResponse(
-            status_code=500,
-            content={
-                "success": False,
-                "error": "VyOS client not initialized. Check your environment variables."
-            }
-        )
-    
+async def api_poweroff(client: VyOSClient = Depends(get_vyos_client)):
+    """Handle 'poweroff' operations"""
     try:
-        result = await vyos_client.poweroff()
+        result = await client.poweroff()
         return JSONResponse(content=result)
     except Exception as e:
-        error_response = {
-                    "success": False,
-            "error": str(e)
-        }
-        
-        # Include traceback in development mode
+        error_response = {"success": False, "error": str(e)}
         if not IS_PRODUCTION:
             error_response["traceback"] = traceback.format_exc()
-            
-        return JSONResponse(
-            status_code=500,
-            content=error_response
-        )
+        return JSONResponse(status_code=500, content=error_response)
 
-# API Routes for DHCP leases (replacement for the old /dhcpleases endpoint)
-@api_router.get("/dhcp/leases")
-async def api_dhcp_leases():
-    """
-    Get DHCP server leases information
+# DHCP leases parsing
+@lru_cache(maxsize=16)
+def parse_dhcp_leases(leases_string: str) -> Dict[str, List[Dict[str, str]]]:
+    """Parse the DHCP leases string into a structured format"""
+    lines = leases_string.strip().split('\n')
     
-    Example: GET /api/dhcp/leases
+    if len(lines) < 2:
+        return {}
     
-    Returns:
-        JSON with DHCP leases information organized by subnet/pool
-    """
-    if not vyos_client:
-        return JSONResponse(
-            status_code=500,
-            content={
-                "success": False,
-                "error": "VyOS client not initialized. Check your environment variables."
-            }
-        )
+    leases = []
+    subnet_leases = {}
     
-    try:
-        # Use the VyOS client to get DHCP leases
-        result = await vyos_client.show.dhcp.server.leases()
+    for i in range(1, len(lines)):
+        line = lines[i].strip()
         
-        # If successful, parse the leases data
+        if not line or '---' in line:
+            continue
+        
+        parts = line.split()
+        
+        if len(parts) < 5:
+            continue
+        
+        try:
+            ip_address = parts[0] if len(parts) > 0 else "Unknown"
+            mac_address = parts[1] if len(parts) > 1 else "Unknown"
+            state = parts[2] if len(parts) > 2 else "Unknown"
+            
+            lease_start = "Unknown"
+            lease_end = "Unknown"
+            remaining = "Unknown"
+            pool = "Unknown"
+            hostname = "Unknown"
+            origin = "Unknown"
+            
+            if len(parts) > 3:
+                lease_start = f"{parts[3]} {parts[4]}" if len(parts) > 4 else parts[3]
+                
+            if len(parts) > 5:
+                lease_end = f"{parts[5]} {parts[6]}" if len(parts) > 6 else parts[5]
+            
+            if len(parts) > 7:
+                remaining = parts[7]
+            
+            if len(parts) > 8:
+                pool = parts[8]
+            
+            if len(parts) > 9:
+                hostname = parts[9]
+            
+            if len(parts) > 10:
+                origin = parts[10]
+            
+            lease = {
+                "ip_address": ip_address,
+                "mac_address": mac_address,
+                "state": state,
+                "lease_start": lease_start,
+                "lease_end": lease_end,
+                "remaining": remaining,
+                "pool": pool,
+                "hostname": hostname,
+                "origin": origin
+            }
+            
+            leases.append(lease)
+            
+            if pool not in subnet_leases:
+                subnet_leases[pool] = []
+            subnet_leases[pool].append(lease)
+            
+        except Exception:
+            continue
+    
+    return subnet_leases if subnet_leases else {"LAN": []}
+
+# DHCP leases API
+@api_router.get("/dhcp/leases")
+@cached(ttl=300, key_prefix="dhcp_leases")
+async def api_dhcp_leases(client: VyOSClient = Depends(get_vyos_client)):
+    """Get DHCP server leases information"""
+    try:
+        result = await client.show.dhcp.server.leases()
+        
         if result.get("success", False) and result.get("data"):
-            # Parse the leases data which comes as a formatted string
             leases_data = parse_dhcp_leases(result["data"])
             return JSONResponse(content={
                 "success": True,
@@ -995,65 +715,30 @@ async def api_dhcp_leases():
     except VyOSAPIError as e:
         return JSONResponse(
             status_code=500,
-            content={
-                "success": False,
-                "error": f"VyOS API Error: {e.message}"
-            }
+            content={"success": False, "error": f"VyOS API Error: {e.message}"}
         )
     except Exception as e:
-        error_response = {
-            "success": False,
-            "error": str(e)
-        }
-        
-        # Include traceback in development mode
+        error_response = {"success": False, "error": str(e)}
         if not IS_PRODUCTION:
             error_response["traceback"] = traceback.format_exc()
-            
-        return JSONResponse(
-            status_code=500,
-            content=error_response
-        )
+        return JSONResponse(status_code=500, content=error_response)
 
-# API Routes for routing table information
+# Routing table API
 @api_router.get("/routingtable")
-async def api_routing_table():
-    """
-    Get routing table information from the VyOS router
-    
-    Example: GET /api/routingtable
-    
-    Returns:
-        JSON with formatted routing table information organized by VRF
-    """
-    if not vyos_client:
-        return JSONResponse(
-            status_code=500,
-            content={
-                "success": False,
-                "error": "VyOS client not initialized. Check your environment variables."
-            },
-            media_type="application/json"
-        )
-    
+@cached(ttl=300, key_prefix="routing_table")
+async def api_routing_table(client: VyOSClient = Depends(get_vyos_client)):
+    """Get routing table information from the VyOS router"""
     try:
-        # Use the VyOS client to get all routes (vrf/all/json)
-        result = await vyos_client.show.ip.route.vrf.all.json()
+        result = await client.show.ip.route.vrf.all.json()
         
-        # If successful, parse the data
         if result.get("success", False) and result.get("data"):
             try:
-                # The data is a JSON string inside the data field, need to parse it
                 import json
 
-                # FRR 1.4 mangles multiple VRFs into concatenated JSON strings
-                # ex. "{global}{vrf1}{vrf2}". This causes json.loads() to fail.
-                # This code splits the string into a list of JSON objects, then merges them into a single dictionary
+                # Handle FRR 1.4 multiple VRF JSON format
                 parts = result['data'].split('}\n{')
                 if len(parts) > 1:
                     parts = [parts[0] + '}'] + ['{' + part + '}' for part in parts[1:-1]] + ['{' + parts[-1]]
-
-                    # Merge into a single dictionary
                     routes_data = {}
                     for obj in parts:
                         data = json.loads(obj)
@@ -1064,11 +749,10 @@ async def api_routing_table():
                 else:
                     routes_data = json.loads(result["data"].split('}{}')[0])
 
-                # Create a dictionary to store routes by VRF
                 routes_by_vrf = {}
                 total_routes = 0
 
-                # Check if the data has a default key; indicates using 1.5
+                # Check if using FRR 1.5 format
                 if routes_data.get("default"):
                     vrf_list = list(routes_data.keys())
                     route_new_format = True
@@ -1088,14 +772,11 @@ async def api_routing_table():
                             if '127.0.0.0/8' in prefix:
                                 continue
 
-                            # Get the VRF name, default to "default" if not specified
                             vrf_name = route.get("vrfName", "default")
                             
-                            # Initialize the VRF entry if it doesn't exist
                             if vrf_name not in routes_by_vrf:
                                 routes_by_vrf[vrf_name] = []
                             
-                            # Extract the key information for each route
                             formatted_route = {
                                 "destination": prefix,
                                 "prefix_length": route.get("prefixLen"),
@@ -1109,7 +790,6 @@ async def api_routing_table():
                                 "nexthops": []
                             }
                             
-                            # Process next hops
                             nexthops = route.get("nexthops", [])
                             for nexthop in nexthops:
                                 nh_info = {
@@ -1120,32 +800,23 @@ async def api_routing_table():
                                 }
                                 formatted_route["nexthops"].append(nh_info)
                             
-                            # Add the route to its VRF's list
                             routes_by_vrf[vrf_name].append(formatted_route)
                             total_routes += 1
 
-                # Create a formatted response with proper JSON structure
                 response_data = {
                     "success": True,
                     "routes_by_vrf": routes_by_vrf,
                     "error": None,
                     "count": total_routes,
-                    "timestamp": import_datetime.datetime.now().isoformat()
+                    "timestamp": datetime.datetime.now().isoformat()
                 }
                 
-                # Return the JSON response with indentation for better readability
-                return JSONResponse(
-                    content=response_data,
-                    status_code=200,
-                    media_type="application/json"
-                )
+                return JSONResponse(content=response_data, media_type="application/json")
+                
             except json.JSONDecodeError as e:
                 return JSONResponse(
                     status_code=500,
-                    content={
-                        "success": False,
-                        "error": f"Failed to parse routing table data: {str(e)}"
-                    },
+                    content={"success": False, "error": f"Failed to parse routing table data: {str(e)}"},
                     media_type="application/json"
                 )
         
@@ -1162,162 +833,107 @@ async def api_routing_table():
     except VyOSAPIError as e:
         return JSONResponse(
             status_code=500,
-            content={
-                "success": False,
-                "error": f"VyOS API Error: {e.message}"
-            },
+            content={"success": False, "error": f"VyOS API Error: {e.message}"},
             media_type="application/json"
         )
     except Exception as e:
-        error_response = {
-            "success": False,
-            "error": str(e)
-        }
-        
-        # Include traceback in development mode
+        error_response = {"success": False, "error": str(e)}
         if not IS_PRODUCTION:
             error_response["traceback"] = traceback.format_exc()
-            
-        return JSONResponse(
-            status_code=500,
-            content=error_response,
-            media_type="application/json"
-        )
-    
+        return JSONResponse(status_code=500, content=error_response, media_type="application/json")
+
+# GraphQL API
 @api_router.post("/graphql")
-async def graphql_endpoint(request: Request):
-    """Generic GraphQL endpoint that accepts operation names and variables"""
-    if not vyos_client:
-        return {
-            "success": False,
-            "error": "VyOS client not initialized",
-            "data": None
-        }
-    
+async def graphql_endpoint(request: Request, client: VyOSClient = Depends(get_vyos_client)):
+    """GraphQL endpoint that accepts operation names and variables"""
     try:
-        # Get the request body
         body = await request.json()
         operation_name = body.get("operationName")
-        variables = body.get("variables", {})  # Get variables if provided, default to empty dict
+        variables = body.get("variables", {})
         
         if not operation_name:
-            return {
-                "success": False,
-                "error": "Operation name is required",
-                "data": None
-            }
+            return {"success": False, "error": "Operation name is required", "data": None}
         
-        # Call the operation method on the GraphQL endpoint
-        result = await vyos_client.graphql.operation(name=operation_name, data=variables)
-        
-        # Return the raw GraphQL response
+        result = await client.graphql.operation(name=operation_name, data=variables)
         return result
         
     except Exception as e:
-        return {
-            "success": False,
-            "error": str(e),
-            "data": None
-        }
+        return {"success": False, "error": str(e), "data": None}
 
-# For backwards compatibility, redirect /dhcpleases to the new API endpoint
+# Legacy redirect for backwards compatibility
 @app.get("/dhcpleases")
 async def legacy_dhcpleases_redirect():
     """Legacy endpoint that redirects to the new API endpoint"""
     return RedirectResponse(url="/api/dhcp/leases")
 
+# Cache management routes
+@api_router.get("/cache/stats")
+async def api_cache_stats():
+    """Get cache statistics"""
+    return JSONResponse(content={
+        "success": True,
+        "stats": cache.stats(),
+        "error": None
+    })
+
+@api_router.post("/cache/clear")
+async def api_cache_clear(pattern: Optional[str] = None):
+    """Clear the cache"""
+    if pattern:
+        count = cache.delete_pattern(pattern)
+        message = f"Cleared {count} cache entries matching pattern: {pattern}"
+    else:
+        cache.clear()
+        message = "Cache cleared completely"
+    
+    return JSONResponse(content={
+        "success": True,
+        "message": message,
+        "error": None
+    })
+
 # Include API router
 app.include_router(api_router)
 
-# Helper function for parsing DHCP leases (kept for backward compatibility)
-def parse_dhcp_leases(leases_string):
-    """Parse the DHCP leases string into a structured format"""
-    lines = leases_string.strip().split('\n')
+# Startup event to run connection test
+@app.on_event("startup")
+async def startup_event():
+    if vyos_client:
+        asyncio.create_task(test_connection())
+
+@app.get("/", response_class=HTMLResponse)
+async def index(request: Request):
+    """Serve the main application page"""
+    return templates.TemplateResponse("index.html", {"request": request})
+
+@app.get("/dashboard", response_class=HTMLResponse)
+async def dashboard(request: Request):
+    """Serve the dashboard page"""
+    # Get cache statistics
+    cache_stats = cache.stats()
     
-    # Skip the first line (header) and extract field positions
-    if len(lines) < 2:
-        return {}
+    # Format the statistics for display
+    hit_rate_percent = round(cache_stats["hit_rate"] * 100, 2)
+    uptime_minutes = round(cache_stats["uptime"] / 60, 2)
     
-    # Create a more flexible parsing approach
-    leases = []
-    subnet_leases = {}
+    cache_data = {
+        "items": cache_stats["items"],
+        "hits": cache_stats["hits"],
+        "misses": cache_stats["misses"],
+        "hit_rate": f"{hit_rate_percent}%",
+        "uptime": f"{uptime_minutes} minutes"
+    }
     
-    # Skip the header line and separator line
-    # Start parsing from line 2 (index 1) onwards
-    for i in range(1, len(lines)):
-        line = lines[i].strip()
-        
-        # Skip separator lines or empty lines
-        if not line or '---' in line:
-            continue
-        
-        # Split the line by whitespace
-        parts = line.split()
-        
-        # Check if we have enough parts for a valid lease entry
-        if len(parts) < 5:
-            continue
-        
-        try:
-            # Extract data based on position
-            ip_address = parts[0] if len(parts) > 0 else "Unknown"
-            mac_address = parts[1] if len(parts) > 1 else "Unknown"
-            state = parts[2] if len(parts) > 2 else "Unknown"
-            
-            # The lease start and expiration might be multiple fields depending on the date format
-            lease_start = "Unknown"
-            lease_end = "Unknown"
-            remaining = "Unknown"
-            pool = "Unknown"
-            hostname = "Unknown"
-            origin = "Unknown"
-            
-            # Depending on the format, adjust the field extraction
-            if len(parts) > 3:
-                lease_start = f"{parts[3]} {parts[4]}" if len(parts) > 4 else parts[3]
-                
-            if len(parts) > 5:
-                lease_end = f"{parts[5]} {parts[6]}" if len(parts) > 6 else parts[5]
-            
-            # Remaining fields
-            if len(parts) > 7:
-                remaining = parts[7]
-            
-            if len(parts) > 8:
-                pool = parts[8]  # Assuming pool is at index 8
-            
-            if len(parts) > 9:
-                hostname = parts[9]  # Assuming hostname is at index 9
-            
-            if len(parts) > 10:
-                origin = parts[10]  # Assuming origin is at index 10
-            
-            # Create a lease object
-            lease = {
-                "ip_address": ip_address,
-                "mac_address": mac_address,
-                "state": state,
-                "lease_start": lease_start,
-                "lease_end": lease_end,
-                "remaining": remaining,
-                "pool": pool,
-                "hostname": hostname,
-                "origin": origin
-            }
-            
-            # Add to the list of leases
-            leases.append(lease)
-            
-            # Group by subnet/pool - use the pool name (network name) as the key
-            # This is important because VyOS reports the network name in the Pool column
-            if pool not in subnet_leases:
-                subnet_leases[pool] = []
-            subnet_leases[pool].append(lease)
-            
-        except Exception as e:
-            continue
-    
-    return subnet_leases if subnet_leases else {"LAN": []}
+    return templates.TemplateResponse(
+        "dashboard.html", 
+        {
+            "request": request, 
+            "cache_data": cache_data,
+            "app_version": "1.0.0",
+            "vyos_host": VYOS_HOST,
+            "is_production": IS_PRODUCTION
+        }
+    )
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=3001, reload=True) 

@@ -33,7 +33,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy backend source code
-COPY main.py client.py utils.py ./
+COPY main.py client.py cache.py utils.py ./
 COPY frontend/app/ ./static/
 COPY templates/ ./templates/
 COPY endpoints/ ./endpoints/
@@ -86,7 +86,7 @@ fi\n\
 \n\
 # Start backend server in the background\n\
 cd /app\n\
-uvicorn main:app --host 0.0.0.0 --port ${BACKEND_PORT:-8000} &\n\
+uvicorn main:app --host 0.0.0.0 --port ${BACKEND_PORT:-3001} &\n\
 BACKEND_PID=$!\n\
 \n\
 # Start frontend server\n\
@@ -115,11 +115,11 @@ kill $BACKEND_PID\n\
 
 # Set environment variables
 ENV NODE_ENV=production
-ENV BACKEND_PORT=8000
+ENV BACKEND_PORT=3001
 ENV FRONTEND_PORT=3000
 
 # Expose ports
-EXPOSE 3000 8000
+EXPOSE 3000 3001
 
 # Set the entrypoint
 ENTRYPOINT ["/app/start-services.sh"] 

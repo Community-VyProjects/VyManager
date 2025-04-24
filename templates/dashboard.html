@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VyManager Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/styles.css') }}">
+    <style>
+        .dashboard-card {
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+        }
+        
+        .dashboard-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #0d6efd;
+        }
+        
+        .stat-label {
+            font-size: 0.9rem;
+            color: #6c757d;
+            text-transform: uppercase;
+        }
+        
+        .cache-actions {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container my-4">
+        <header class="d-flex justify-content-between align-items-center mb-4">
+            <h1>VyManager Dashboard</h1>
+            <div class="d-flex align-items-center">
+                <span class="badge bg-primary me-2">v{{ app_version }}</span>
+                <span class="badge bg-secondary">{{ vyos_host }}</span>
+            </div>
+        </header>
+        
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card dashboard-card">
+                    <div class="card-header bg-primary text-white">
+                        <h4 class="mb-0">Cache Statistics</h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3 col-sm-6 text-center mb-3">
+                                <div class="stat-value">{{ cache_data.items }}</div>
+                                <div class="stat-label">Cached Items</div>
+                            </div>
+                            <div class="col-md-3 col-sm-6 text-center mb-3">
+                                <div class="stat-value">{{ cache_data.hits }}</div>
+                                <div class="stat-label">Cache Hits</div>
+                            </div>
+                            <div class="col-md-3 col-sm-6 text-center mb-3">
+                                <div class="stat-value">{{ cache_data.misses }}</div>
+                                <div class="stat-label">Cache Misses</div>
+                            </div>
+                            <div class="col-md-3 col-sm-6 text-center mb-3">
+                                <div class="stat-value">{{ cache_data.hit_rate }}</div>
+                                <div class="stat-label">Hit Rate</div>
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-center cache-actions">
+                            <button class="btn btn-danger me-2" id="clearCacheBtn">Clear All Cache</button>
+                            <button class="btn btn-warning me-2" id="clearConfigCache">Clear Config Cache</button>
+                            <button class="btn btn-info" id="clearShowCache">Clear Show Cache</button>
+                        </div>
+                    </div>
+                    <div class="card-footer text-muted">
+                        Cache Uptime: {{ cache_data.uptime }}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-12">
+                <div class="card dashboard-card">
+                    <div class="card-header bg-success text-white">
+                        <h4 class="mb-0">System Status</h4>
+                    </div>
+                    <div class="card-body">
+                        <p>App is running in <strong>{{ 'Production' if is_production else 'Development' }}</strong> mode.</p>
+                        <p>Connected to VyOS router at <strong>{{ vyos_host }}</strong></p>
+                        <p>Cache will automatically refresh every <strong>30-60 seconds</strong> depending on the endpoint.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Clear all cache button
+            document.getElementById('clearCacheBtn').addEventListener('click', function() {
+                clearCache('');
+            });
+            
+            // Clear config cache button
+            document.getElementById('clearConfigCache').addEventListener('click', function() {
+                clearCache('config');
+            });
+            
+            // Clear show cache button
+            document.getElementById('clearShowCache').addEventListener('click', function() {
+                clearCache('show');
+            });
+            
+            function clearCache(pattern) {
+                fetch('/api/cache/clear' + (pattern ? `?pattern=${pattern}` : ''), {
+                    method: 'POST'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(data.message);
+                        // Reload the page to refresh stats
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 500);
+                    } else {
+                        alert('Error clearing cache: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error clearing cache: ' + error.message);
+                });
+            }
+        });
+    </script>
+</body>
+</html> 

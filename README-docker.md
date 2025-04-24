@@ -23,7 +23,7 @@ ENVIRONMENT=production  # or development
 
 2. Create a `.env` file in the /frontend directory with the following configuration:
 ```
-NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_API_URL=http://localhost:3001
 ```
 
 ## Build and Run Using Docker Compose (Recommended)
@@ -50,7 +50,7 @@ If you prefer to use Docker commands directly:
 docker build -t vyosapi .
 
 # Run the Docker container
-docker run -p 3000:3000 -p 8000:8000 -v $(pwd)/.env:/app/config/.env:ro --name vyosapi vyosapi
+docker run -p 3000:3000 -p 3001:3001 -v $(pwd)/.env:/app/config/.env:ro --name vyosapi vyosapi
 
 # View logs
 docker logs -f vyosapi
@@ -64,7 +64,7 @@ docker stop vyosapi
 After starting the container:
 
 - The Next.js frontend is available at: http://localhost:3000
-- The FastAPI backend API is available at: http://localhost:8000
+- The FastAPI backend API is available at: http://localhost:3001
 
 ## Production Deployment Considerations
 
