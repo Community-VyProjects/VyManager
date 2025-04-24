@@ -100,7 +100,7 @@ else
 fi
 
 # Default values if not provided in .env
-PORT=${PORT:-8000}
+PORT=${PORT:-3001}
 FRONTEND_PORT=${FRONTEND_PORT:-3000}
 HOST=${HOST:-0.0.0.0}
 WORKERS=${WORKERS:-1}  # Default to 1 worker to avoid duplicate processes

@@ -91,7 +91,7 @@ ENVIRONMENT=production  # or development
 2) Configuration in /frontend directory:
 Create a `.env` file in the /frontend directory with the following configuration:
 ```
-NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_API_URL=http://localhost:3001
 ```
 
 ---
@@ -127,7 +127,7 @@ pip install -r requirements.txt
 # See .env.example for required variables
 
 # Run the backend server
-uvicorn main:app --host 0.0.0.0 --port 8000
+uvicorn main:app --host 0.0.0.0 --port 3001
 ```
 
 #### Frontend
@@ -150,7 +150,7 @@ npm start
 ## Accessing the Application
 
 - Frontend: http://localhost:3000
-- Backend API: http://localhost:8000
+- Backend API: http://localhost:3001
 
 - Frontend (Development mode - live refresh): http://localhost:8005
 

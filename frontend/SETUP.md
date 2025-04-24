@@ -13,10 +13,10 @@ If your backend is running on a different host or port, create a `.env.local` fi
 NEXT_PUBLIC_API_URL=http://your-backend-host:port/api
 ```
 
-For example, if your backend is running on port 8000:
+For example, if your backend is running on port 3001:
 
 ```
-NEXT_PUBLIC_API_URL=http://localhost:8000/api
+NEXT_PUBLIC_API_URL=http://localhost:3001/api
 ```
 
 ## Troubleshooting Connection Issues

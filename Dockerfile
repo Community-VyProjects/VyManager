@@ -86,7 +86,7 @@ fi\n\
 \n\
 # Start backend server in the background\n\
 cd /app\n\
-uvicorn main:app --host 0.0.0.0 --port ${BACKEND_PORT:-8000} &\n\
+uvicorn main:app --host 0.0.0.0 --port ${BACKEND_PORT:-3001} &\n\
 BACKEND_PID=$!\n\
 \n\
 # Start frontend server\n\
