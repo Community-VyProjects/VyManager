@@ -4,7 +4,7 @@
 
 import { frontendCache } from './cache';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -174,7 +174,7 @@ export async function fetchApi(endpoint: string, options: RequestInit = {}) {
 // Generic API client function with typing
 async function apiClient<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE_URL}/api${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
-  
+
   try {
     const response = await fetch(url, {
       headers: {
@@ -182,38 +182,31 @@ async function apiClient<T>(endpoint: string, options: RequestInit = {}): Promis
       },
       ...options,
     });
-    
-    let errorText = '';
-    try {
-      // Try to parse error as JSON
-      const contentType = response.headers.get('content-type');
-      if (contentType && contentType.includes('application/json')) {
-        const errorData = await response.json();
-        errorText = JSON.stringify(errorData);
-      } else {
-        errorText = await response.text();
-      }
-    } catch (textError) {
-      errorText = `Failed to read error response: ${textError}`;
+
+    const contentType = response.headers.get('content-type');
+    let body: any = null;
+
+    if (contentType?.includes('application/json')) {
+      body = await response.json();
+    } else {
+      body = await response.text();
     }
-    
+
     if (!response.ok) {
+      const errorText = typeof body === 'string' ? body : JSON.stringify(body);
       throw new Error(`API error (${response.status}): ${errorText}`);
     }
-    
-    const data = await response.json();
-    if (!data.success && data.error) {
-      throw new Error(`API error: ${data.error}`);
+
+    if (typeof body !== 'object' || !body.success) {
+      throw new Error(`API error: ${body?.error || 'Unknown error'}`);
     }
-    
-    return data as T;
+
+    return body as T;
   } catch (error) {
-    // Enhance fetch errors with more details
     if (error instanceof TypeError && error.message === 'Failed to fetch') {
-      throw new Error(`Network error: Could not connect to API at ${url}. Make sure the backend server is running on port 8000.`);
+      throw new Error(`Network error: Could not connect to API at ${url}. Make sure the backend server is running on port 3001.`);
     }
-    
-    // Re-throw all other errors
+
     throw error;
   }
 }
