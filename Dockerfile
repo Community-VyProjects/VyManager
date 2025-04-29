@@ -30,6 +30,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy backend requirements and install dependencies
 COPY requirements.txt .
+RUN apt-get update && apt-get install -y curl build-essential && \
+    curl https://sh.rustup.rs -sSf | sh -s -- -y && \
+    export PATH="$HOME/.cargo/bin:$PATH"
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy backend source code
