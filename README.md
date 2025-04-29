@@ -9,11 +9,11 @@ Currently being developed for:
 
 **[Skip to Configuration and Installation](https://github.com/Community-VyProjects/VyManager#configuration)**
 
-**[Live Demo](https://vymanager.vyprojects.org)**
+**Feel free to add a star ⭐ to our project if you like to use it!**
 
-[We need your input at](https://github.com/Community-VyProjects/VyManager/issues/53)
+[💭 Feel free to join our official Discord community](https://discord.gg/k9SSkK7wPQ)
 
-[Feel free to join our official Discord community](https://discord.gg/k9SSkK7wPQ)
+**[Live Demo (limited uptime during some periods)](https://vymanager.vyprojects.org)**
 
 ![alt text](image.png)
 
