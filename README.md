@@ -45,7 +45,7 @@ This project consists of two main components:
 - Node.js 18+ for the frontend (only for manual install)
 - Python 3.11+ for the backend (only for manual install)
 - VyOS router with API access enabled (see configuration for securely enabling API access)
-- Docker and Docker Compose (optional, for containerized deployment)
+- Docker and Docker Compose or Podman and Podman Compose (optional, for containerized deployment)
 
 ---
 
@@ -74,10 +74,10 @@ Setup the HTTPS REST API in your VyOS router(s), using the following CLI command
 
 
 ### Step 2) Environment values:
-Next you will need to configure your environment configuration files, make sure you configure both .env files in /frontend and root!
+Next you will need to configure your environment configuration files, make sure you configure both .env files in /frontend and /backend!
 For each one, you can find an example .env configuration file in the belonging directories.
 
-1) Configuration in root path:
+1) Configuration in /backend path:
 Create a `.env` file in the root directory with the following configuration:
 
 ```
@@ -98,22 +98,38 @@ NEXT_PUBLIC_API_URL=http://localhost:3001
 
 ## Installation
 
-### Using Docker (Recommended)
+### Using Containers (Recommended)
 
-The easiest way to run the application is using Docker Compose:
+The easiest way to run the application is using either Docker Compose or Podman Compose, for such make sure you have both docker and docker-compose or podman and podman-compose installed:
 
+#### Docker
 ```bash
 # Create a .env file with your VyOS router configuration
 # See .env.example for required variables
 
+cd container
+
 # Build and start the container
-docker-compose up -d
+docker-compose -f env_file_compose.yaml up -d
 
 # View logs
-docker-compose logs -f
+docker-compose -f env_file_compose.yaml logs -f
+```
+#### Podman
+```bash
+# Create a .env file with your VyOS router configuration
+# See .env.example for required variables
+
+cd container
+
+# Build and start the container
+podman compose -f env_file_compose.yaml up -d
+
+# View logs
+podman compose -f env_file_compose.yaml logs -f
 ```
 
-For more detailed Docker instructions, see [README-docker.md](README-docker.md).
+For more detailed Docker and Podman instructions, see [README-docker.md](docs/README-container.md).
 
 ### Manual Installation
 
