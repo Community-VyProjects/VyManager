@@ -1,0 +1,34 @@
+services:
+  vymanager-backend:
+    build:
+      context: ..
+      dockerfile: container/backend/Containerfile
+    ports:
+       - "3001:3001"
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      - VYOS_HOST=VYOS_IP_HERE
+      - VYOS_HTTPS=true
+      - VYOS_API_KEY=VYOS_API_KEY_HERE
+      - CERT_PATH=  # Optional, path to custom certificate
+      - TRUST_SELF_SIGNED=true  # Set to true to accept self-signed certificates (not recommended for production)
+      - ENVIRONMENT=production  # Set to 'production' for production mode
+      - BACKEND_PORT=3001
+      - WORKERS=4
+
+  vymanager-frontend:
+    build: 
+      context: ..
+      dockerfile: container/frontend/Containerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:3001
+      - NODE_ENV=production  # Set to 'production' for production mode
+      - FRONTEND_PORT=3000
+
+    depends_on:
+      - vymanager-backend

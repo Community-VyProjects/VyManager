@@ -1,0 +1,19 @@
+# Core web framework
+fastapi==0.115.12
+uvicorn==0.34.2
+aiohttp==3.11.18
+jinja2==3.1.6
+
+# Uvicorn adapters for better performance
+websockets==15.0.1
+httptools==0.6.4
+uvloop==0.21.0 ; sys_platform != 'win32'  # uvloop doesn't support Windows
+
+# HTTP client
+httpx==0.28.1
+
+# Utilities
+python-multipart==0.0.20
+pydantic==2.11.4
+certifi==2025.4.26
+python-dotenv==1.0.0 
