@@ -14,7 +14,7 @@ if [ ! -f .env ]; then
 else 
     # Load environment variables from .env
     log "INFO: Reading environment variables from .env file"
-    export $(grep -v '^#' .env | xargs)
+    export $(grep -v '^#' .env | grep -E '^\s*[A-Za-z_][A-Za-z0-9_]*=' | xargs)
 fi
 
 # Default values if not provided in .env

@@ -23,7 +23,7 @@ if [ ! -f .env ]; then
     log "WARNING: No .env file found. Will use environment variables and defaults instead."
 else
     # Load environment variables from .env
-    export $(grep -v '^#' .env | xargs)
+    export $(grep -v '^#' .env | grep -E '^\s*[A-Za-z_][A-Za-z0-9_]*=' | xargs)
 fi
 
 # Default values if not provided in .env
