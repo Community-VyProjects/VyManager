@@ -36,9 +36,6 @@ The simplest way to run the application is using Compose:
 
 cd container
 
-# Use env_file_compose.yaml as compose
-mv env_file_compose.yaml compose.yaml
-
 # Build and start the container
 docker-compose -f env_file_compose.yaml up -d
 
@@ -54,9 +51,6 @@ docker-compose -f env_file_compose.yaml down
 
 cd container
 
-# Use env_file_compose.yaml as compose
-mv env_file_compose.yaml compose.yaml
-
 # Build and start the container
 podman compose -f env_file_compose.yaml up -d
 
@@ -71,6 +65,7 @@ podman compose -f env_file_compose.yaml down
 ## Build and Run Using Docker or Podman directly
 
 If you prefer to use Docker or Podman commands directly, the example below is with docker, but works the same for podman, simply change `docker` to `podman`:
+*Note: If you are getting an error like "sd-bus call: Interactive authentication required.: Permission denied" make sure to use sudo while running the commands.*
 
 ```bash
 
