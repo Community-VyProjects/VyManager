@@ -1,0 +1,5 @@
+# Convert to LF endings
+*.sh text eol=lf
+*.env text eol=lf
+*.py text eol=lf
+*.txt text eol=lf
