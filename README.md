@@ -60,7 +60,7 @@ Setup the HTTPS REST API in your VyOS router(s), using the following CLI command
 ``` conf ```
 
 2. Create a HTTPS key:
->💡Security Notice: replace KEY with a really secure key, it's like a password! You will need to enter this password in your root .env file in the next steps!
+>💡Security Notice: replace KEY with a really secure key, it's like a password! You will need to enter this password in your backend .env file in the next steps!
 ``` set service https api keys id fastapi key KEY ```
 
 3. (only required on VyOS 1.5 and above) Enable the REST functionality:
