@@ -1,5 +1,2 @@
-# Convert to LF endings
-*.sh text eol=lf
-*.env text eol=lf
-*.py text eol=lf
-*.txt text eol=lf
+# Convert everything to LF endings (to prevent issues on Windows deployments, which uses CRLF)
+* text=auto eol=lf
