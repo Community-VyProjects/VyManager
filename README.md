@@ -142,11 +142,19 @@ OIDC_ADMIN_ROLES=admin,superuser
 
 The easiest way to run the application is using either Docker Compose or Podman Compose, for such make sure you have both docker and docker-compose or podman and podman-compose installed:
 
-#### Docker
+#### Using Prebuilt Docker Images
 ```bash
-# Create a .env file with your VyOS router configuration
-# See .env.example for required variables
+cd container
 
+# Build and start the container
+docker-compose -f prebuilt_images_compose.yaml up -d
+
+# View logs
+docker-compose -f prebuilt_images_compose.yaml logs -f
+```
+
+#### Building Your Own Docker Images
+```bash
 cd container
 
 # Build and start the container
@@ -155,11 +163,9 @@ docker-compose -f env_file_compose.yaml up -d
 # View logs
 docker-compose -f env_file_compose.yaml logs -f
 ```
+
 #### Podman
 ```bash
-# Create a .env file with your VyOS router configuration
-# See .env.example for required variables
-
 cd container
 
 # Build and start the container
@@ -169,7 +175,7 @@ podman compose -f env_file_compose.yaml up -d
 podman compose -f env_file_compose.yaml logs -f
 ```
 
-For more detailed Docker and Podman instructions, see [README-docker.md](docs/README-container.md).
+For more detailed instructions, see [README-docker.md](docs/README-container.md).
 
 ### Manual Installation
 
@@ -205,10 +211,8 @@ npm start
 
 ## Accessing the Application
 
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:3001
-
-- Frontend (Development mode - live refresh): http://localhost:8005
+- Frontend (Next.js): http://localhost:3000
+- Backend API (FastAPI): http://localhost:3001
 
 ## License
 
