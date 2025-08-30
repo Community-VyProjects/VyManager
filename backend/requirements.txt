@@ -1,7 +1,7 @@
 # Core web framework
 fastapi==0.115.12
 uvicorn==0.34.2
-aiohttp==3.11.18
+aiohttp==3.12.14
 jinja2==3.1.6
 
 # Uvicorn adapters for better performance
