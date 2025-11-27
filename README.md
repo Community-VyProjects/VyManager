@@ -17,6 +17,13 @@ We now flexibly support all active VyOS versions, including rolling releases.
 
 VyManager is a full-stack application for managing VyOS routers, consisting of a modern Next.js frontend and a powerful FastAPI backend.
 
+<img width="1911" height="862" alt="image" src="https://github.com/user-attachments/assets/b23d2eb2-32bc-4e01-9d62-7eefc76e1526" />
+<img width="532" height="403" alt="image" src="https://github.com/user-attachments/assets/eb1070eb-4996-4669-a165-d555d191173c" />
+<img width="1919" height="933" alt="image" src="https://github.com/user-attachments/assets/caf5c99d-3b13-4ed8-a917-f64dda914911" />
+<img width="1919" height="933" alt="image" src="https://github.com/user-attachments/assets/2f883341-8d2c-4022-a33d-17f9a93e33a7" />
+<img width="1919" height="935" alt="image" src="https://github.com/user-attachments/assets/0ef645db-7c62-4f07-8b00-309f81773b3a" />
+
+
 ---
 
 ## 🚀 Quick Start
