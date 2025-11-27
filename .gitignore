@@ -1,48 +1,121 @@
-# Environment files
-/.env
-/.env.*
-!/.env.example
+# VyManager Monorepo .gitignore
 
-# Python artifacts
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-venv/
-ENV/
-env/
-.venv
-.pytest_cache/
-.coverage
-htmlcov/
-.tox/
+# ============================================
+# FRONTEND (Next.js)
+# ============================================
 
-# Node/Next.js artifacts
-node_modules/
-.next/
-out/
-.npm
-.yarn/
+# dependencies
+frontend/node_modules
+frontend/.pnp
+frontend/.pnp.*
+frontend/.yarn/*
+!frontend/.yarn/patches
+!frontend/.yarn/plugins
+!frontend/.yarn/releases
+!frontend/.yarn/versions
+
+# testing
+frontend/coverage
+
+# next.js
+frontend/.next/
+frontend/out/
+
+# production
+frontend/build
+
+# typescript
+frontend/*.tsbuildinfo
+frontend/next-env.d.ts
+
+# ============================================
+# BACKEND (Python/FastAPI)
+# ============================================
+
+# Python virtual environment
+backend/venv/
+backend/bin/
+backend/lib/
+backend/lib64
+backend/include/
+backend/pyvenv.cfg
+
+# Python cache
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*.py[cod]
+backend/*$py.class
+backend/*.so
+
+# Distribution / packaging
+backend/.Python
+backend/build/
+backend/develop-eggs/
+backend/dist/
+backend/downloads/
+backend/eggs/
+backend/.eggs/
+backend/lib64/
+backend/parts/
+backend/sdist/
+backend/var/
+backend/wheels/
+backend/*.egg-info/
+backend/.installed.cfg
+backend/*.egg
+
+# PyInstaller
+backend/*.manifest
+backend/*.spec
+
+# Unit test / coverage reports
+backend/htmlcov/
+backend/.tox/
+backend/.coverage
+backend/.coverage.*
+backend/.cache
+backend/nosetests.xml
+backend/coverage.xml
+backend/*.cover
+backend/.pytest_cache/
+
+# ============================================
+# SHARED / ROOT
+# ============================================
+
+# Environment variables
+.env
+.env.local
+.env*.local
+frontend/.env*
+backend/.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+*.pem
+Thumbs.db
+
+# Logs
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+.pnpm-debug.log*
 
-# Docker artifacts
-.docker/
+# Docker
 docker-compose.override.yml
-docker-volumes/
 
-# System files
-.DS_Store
-Thumbs.db
-*.swp
-*.swo
-.idea/
-.vscode/
-*.sublime-project
-*.sublime-workspace
+# Misc
+.vercel
 
-# Project-specific
-/static.zip
-/static
+# Claude Code files
+CLAUDE.md
+.claude/
+.claude*

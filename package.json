@@ -1,0 +1,33 @@
+{
+  "name": "vymanager-open-beta",
+  "version": "1.0.0",
+  "description": "VyManager Open Beta Community Release - Monorepo for Frontend and Backend for VyOS Management",
+  "private": true,
+  "scripts": {
+    "dev": "docker compose up",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && python3 -m uvicorn app:app --reload --host 0.0.0.0 --port 8000",
+    "dev:down": "docker compose down",
+    "build": "cd frontend && npm run build",
+    "build:docker": "docker compose build",
+    "start": "docker compose up -d",
+    "stop": "docker compose down",
+    "logs": "docker compose logs -f",
+    "logs:frontend": "docker compose logs -f frontend",
+    "logs:backend": "docker compose logs -f backend",
+    "install:frontend": "cd frontend && npm install",
+    "install:backend": "cd backend && python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt",
+    "clean": "docker compose down -v && rm -rf frontend/node_modules frontend/.next backend/__pycache__ backend/**/__pycache__",
+    "lint:frontend": "cd frontend && npm run lint",
+    "type-check:frontend": "cd frontend && npx tsc --noEmit"
+  },
+  "keywords": [
+    "vyos",
+    "router",
+    "management",
+    "nextjs",
+    "fastapi"
+  ],
+  "author": "",
+  "license": "ISC"
+}

@@ -1,0 +1,133 @@
+// Prisma Schema for VyManager Authentication & RBAC
+// Better Auth compatible schema with role-based access control
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// Better Auth Core Models
+// ============================================================================
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // RBAC
+  role          Role      @default(VIEWER)
+
+  // Relations
+  sessions      Session[]
+  accounts      Account[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model Account {
+  id           String  @id @default(cuid())
+  accountId    String
+  providerId   String
+  userId       String
+  accessToken  String? @db.Text
+  refreshToken String? @db.Text
+  idToken      String? @db.Text
+  accessTokenExpiresAt DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope        String?
+  password     String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@map("accounts")
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([identifier, value])
+  @@map("verifications")
+}
+
+// ============================================================================
+// RBAC - Role Based Access Control
+// ============================================================================
+
+enum Role {
+  SUPER_ADMIN   // Full access to everything including user management
+  ADMIN         // Can manage all VyOS configs but not users
+  NETWORK_ADMIN // Can manage network settings (interfaces, NAT, firewall)
+  OPERATOR      // Can view and make changes to specific features
+  VIEWER        // Read-only access to all pages
+}
+
+// Role Permissions Matrix
+// Define what each role can access
+
+model RolePermission {
+  id         String   @id @default(cuid())
+  role       Role
+  resource   String   // e.g., "firewall", "dhcp", "nat", "interfaces", "users"
+  action     Action   // e.g., READ, CREATE, UPDATE, DELETE
+  createdAt  DateTime @default(now())
+
+  @@unique([role, resource, action])
+  @@map("role_permissions")
+}
+
+enum Action {
+  READ
+  CREATE
+  UPDATE
+  DELETE
+  MANAGE  // Full control (all actions)
+}
+
+// Audit Log for tracking all user actions
+model AuditLog {
+  id          String   @id @default(cuid())
+  userId      String
+  userEmail   String
+  action      String   // e.g., "CREATE_FIREWALL_RULE", "DELETE_NAT_RULE"
+  resource    String   // e.g., "firewall.rule.100"
+  details     Json?    // Additional context
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}

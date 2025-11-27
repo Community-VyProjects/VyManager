@@ -1,0 +1,85 @@
+services:
+  # PostgreSQL Database for Authentication
+  postgres:
+    image: postgres:16-alpine
+    container_name: vymanager-postgres
+    environment:
+      POSTGRES_USER: vymanager
+      POSTGRES_PASSWORD: vymanager_secure_password
+      POSTGRES_DB: vymanager_auth
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - vymanager-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vymanager -d vymanager_auth"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: vymanager-backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./backend/.env
+    volumes:
+      - ./backend:/app
+      - /app/lib
+      - /app/bin
+      - /app/include
+    restart: unless-stopped
+    networks:
+      - vymanager-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/docs"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: vymanager-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - NEXT_PUBLIC_API_URL=http://backend:8000
+      - DATABASE_URL=postgresql://vymanager:vymanager_secure_password@postgres:5432/vymanager_auth
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:-your-super-secret-key-change-in-production}
+      - BETTER_AUTH_URL=${BETTER_AUTH_URL:-http://localhost:3000}
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      - TRUSTED_ORIGINS=${TRUSTED_ORIGINS:-}
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      backend:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - vymanager-network
+
+networks:
+  vymanager-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
