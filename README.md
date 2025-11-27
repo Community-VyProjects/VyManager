@@ -1,21 +1,19 @@
-# VyManager
-## Open Beta Community Release
+# 🖥️ VyManager - Enterprise-grade VyOS Router Management System
 
-Open beta release. Expect lower stability and bugs.
+Modern web interface to make configuring, deploying and monitoring VyOS routers easier
 
-This release provides a lot of structural improvements over the older legacy version.
+## 🎯 Open Beta Community Release
 
+Open beta release. Expect lower stability and bugs. This release provides a lot of structural improvements over the older legacy version. 
 We now flexibly support all active VyOS versions, including rolling releases.
 
 **[➡️ Skip to Quick Start](https://github.com/Community-VyProjects/VyManager/tree/beta#prerequisites)**
 
-[💭 Feel free to join our official Discord community](https://discord.gg/k9SSkK7wPQ)
+[💭 Join our official Discord community to receive updates](https://discord.gg/k9SSkK7wPQ)
 
 *Give us a star ⭐ to support us!*
 
-## Enterprise-grade VyOS Router Management System
-
-VyManager is a full-stack application for managing VyOS routers, consisting of a modern Next.js frontend and a powerful FastAPI backend.
+### 📸 Screenshots
 
 <img width="1911" height="862" alt="image" src="https://github.com/user-attachments/assets/b23d2eb2-32bc-4e01-9d62-7eefc76e1526" />
 <img width="532" height="403" alt="image" src="https://github.com/user-attachments/assets/eb1070eb-4996-4669-a165-d555d191173c" />
