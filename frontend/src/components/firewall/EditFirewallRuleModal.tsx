@@ -62,10 +62,10 @@ export function EditFirewallRuleModal({
   const [protocolInvert, setProtocolInvert] = useState(false);
 
   // Source fields
-  const [sourceMode, setSourceMode] = useState<"address" | "group">("address");
+  const [sourceMode, setSourceMode] = useState<"any" | "address" | "group" | "geoip" | "mac">("any");
   const [sourceAddress, setSourceAddress] = useState("");
   const [sourceAddressInvert, setSourceAddressInvert] = useState(false);
-  const [sourcePortMode, setSourcePortMode] = useState<"port" | "group">("port");
+  const [sourcePortMode, setSourcePortMode] = useState<"any" | "port" | "group">("any");
   const [sourcePort, setSourcePort] = useState("");
   const [sourcePortGroup, setSourcePortGroup] = useState("");
   const [sourceMac, setSourceMac] = useState("");
@@ -75,10 +75,10 @@ export function EditFirewallRuleModal({
   const [sourceGroupName, setSourceGroupName] = useState("");
 
   // Destination fields
-  const [destMode, setDestMode] = useState<"address" | "group">("address");
+  const [destMode, setDestMode] = useState<"any" | "address" | "group" | "geoip">("any");
   const [destAddress, setDestAddress] = useState("");
   const [destAddressInvert, setDestAddressInvert] = useState(false);
-  const [destPortMode, setDestPortMode] = useState<"port" | "group">("port");
+  const [destPortMode, setDestPortMode] = useState<"any" | "port" | "group">("any");
   const [destPort, setDestPort] = useState("");
   const [destPortGroup, setDestPortGroup] = useState("");
   const [destGeoipCountry, setDestGeoipCountry] = useState<string[]>([]);
@@ -251,34 +251,30 @@ export function EditFirewallRuleModal({
 
     // Source - determine mode and parse address/port
     // Reset defaults
-    setSourceMode("address");
+    setSourceMode("any");
     setSourceAddress("");
     setSourceAddressInvert(false);
     setSourceGroupType("");
     setSourceGroupName("");
-    setSourcePortMode("port");
+    setSourcePortMode("any");
     setSourcePort("");
     setSourcePortGroup("");
+    setSourceMac("");
+    setSourceGeoipCountry([]);
+    setSourceGeoipInverse(false);
 
-    // Load address/network group if present
-    if (rule.source?.group && Object.keys(rule.source.group).length > 0) {
-      const entries = Object.entries(rule.source.group);
-      for (const [type, name] of entries) {
-        if (type === "port-group") {
-          // Port group
-          setSourcePortMode("group");
-          setSourcePortGroup(name);
-        } else {
-          // Address/network group
-          setSourceMode("group");
-          setSourceGroupType(type);
-          setSourceGroupName(name);
-        }
-      }
-    }
-
-    // Load address if present (overrides group mode for address)
-    if (rule.source?.address) {
+    // Determine source mode based on what's present
+    if (rule.source?.mac_address) {
+      // MAC address mode
+      setSourceMode("mac");
+      setSourceMac(rule.source.mac_address);
+    } else if (rule.source?.geoip && rule.source.geoip.country_code && rule.source.geoip.country_code.length > 0) {
+      // GeoIP mode
+      setSourceMode("geoip");
+      setSourceGeoipCountry(rule.source.geoip.country_code);
+      setSourceGeoipInverse(rule.source.geoip.inverse_match || false);
+    } else if (rule.source?.address) {
+      // Address mode
       setSourceMode("address");
       const addr = rule.source.address;
       if (addr.startsWith("!")) {
@@ -288,48 +284,58 @@ export function EditFirewallRuleModal({
         setSourceAddress(addr);
         setSourceAddressInvert(false);
       }
+    } else if (rule.source?.group) {
+      // Check if it's an address/network group (not port group)
+      const entries = Object.entries(rule.source.group);
+      let hasAddressGroup = false;
+      for (const [type, name] of entries) {
+        if (type !== "port-group") {
+          // Address/network/domain/mac group
+          setSourceMode("group");
+          setSourceGroupType(type);
+          setSourceGroupName(name);
+          hasAddressGroup = true;
+          break;
+        }
+      }
+      if (!hasAddressGroup) {
+        // Only port group present, keep mode as "any"
+        setSourceMode("any");
+      }
     }
 
-    // Load port if present (overrides group mode for port)
+    // Handle port separately (can coexist with any address mode)
     if (rule.source?.port) {
       setSourcePortMode("port");
       setSourcePort(rule.source.port);
+    } else if (rule.source?.group && rule.source.group["port-group"]) {
+      setSourcePortMode("group");
+      setSourcePortGroup(rule.source.group["port-group"]);
+    } else {
+      setSourcePortMode("any");
     }
-
-    setSourceMac(rule.source?.mac_address || "");
-    setSourceGeoipCountry(rule.source?.geoip?.country_code || []);
-    setSourceGeoipInverse(rule.source?.geoip?.inverse_match || false);
 
     // Destination - determine mode and parse address/port
     // Reset defaults
-    setDestMode("address");
+    setDestMode("any");
     setDestAddress("");
     setDestAddressInvert(false);
     setDestGroupType("");
     setDestGroupName("");
-    setDestPortMode("port");
+    setDestPortMode("any");
     setDestPort("");
     setDestPortGroup("");
+    setDestGeoipCountry([]);
+    setDestGeoipInverse(false);
 
-    // Load address/network group if present
-    if (rule.destination?.group && Object.keys(rule.destination.group).length > 0) {
-      const entries = Object.entries(rule.destination.group);
-      for (const [type, name] of entries) {
-        if (type === "port-group") {
-          // Port group
-          setDestPortMode("group");
-          setDestPortGroup(name);
-        } else {
-          // Address/network group
-          setDestMode("group");
-          setDestGroupType(type);
-          setDestGroupName(name);
-        }
-      }
-    }
-
-    // Load address if present (overrides group mode for address)
-    if (rule.destination?.address) {
+    // Determine destination mode based on what's present
+    if (rule.destination?.geoip && rule.destination.geoip.country_code && rule.destination.geoip.country_code.length > 0) {
+      // GeoIP mode
+      setDestMode("geoip");
+      setDestGeoipCountry(rule.destination.geoip.country_code);
+      setDestGeoipInverse(rule.destination.geoip.inverse_match || false);
+    } else if (rule.destination?.address) {
+      // Address mode
       setDestMode("address");
       const addr = rule.destination.address;
       if (addr.startsWith("!")) {
@@ -339,16 +345,36 @@ export function EditFirewallRuleModal({
         setDestAddress(addr);
         setDestAddressInvert(false);
       }
+    } else if (rule.destination?.group) {
+      // Check if it's an address/network group (not port group)
+      const entries = Object.entries(rule.destination.group);
+      let hasAddressGroup = false;
+      for (const [type, name] of entries) {
+        if (type !== "port-group") {
+          // Address/network/domain group
+          setDestMode("group");
+          setDestGroupType(type);
+          setDestGroupName(name);
+          hasAddressGroup = true;
+          break;
+        }
+      }
+      if (!hasAddressGroup) {
+        // Only port group present, keep mode as "any"
+        setDestMode("any");
+      }
     }
 
-    // Load port if present (overrides group mode for port)
+    // Handle port separately (can coexist with any address mode)
     if (rule.destination?.port) {
       setDestPortMode("port");
       setDestPort(rule.destination.port);
+    } else if (rule.destination?.group && rule.destination.group["port-group"]) {
+      setDestPortMode("group");
+      setDestPortGroup(rule.destination.group["port-group"]);
+    } else {
+      setDestPortMode("any");
     }
-
-    setDestGeoipCountry(rule.destination?.geoip?.country_code || []);
-    setDestGeoipInverse(rule.destination?.geoip?.inverse_match || false);
 
     // State
     setStateEstablished(rule.state?.established || false);
@@ -441,7 +467,7 @@ export function EditFirewallRuleModal({
       }
     }
 
-    if (sourceMac.trim()) {
+    if (sourceMode === "mac" && sourceMac.trim()) {
       const error = getMACAddressError(sourceMac.trim());
       if (error) {
         setSourceMacError(error);
@@ -491,27 +517,49 @@ export function EditFirewallRuleModal({
       }
 
       // Source
-      const hasSource =
+      const hasSourceAddress =
         (sourceMode === "address" && sourceAddress.trim()) ||
-        (sourcePortMode === "port" && sourcePort.trim()) ||
-        (sourcePortMode === "group" && sourcePortGroup.trim()) ||
-        sourceMac.trim() ||
-        sourceGeoipCountry.length > 0 ||
-        (sourceMode === "group" && sourceGroupType && sourceGroupType !== "none" && sourceGroupName);
+        (sourceMode === "group" && sourceGroupType && sourceGroupType !== "none" && sourceGroupName) ||
+        (sourceMode === "geoip" && sourceGeoipCountry.length > 0) ||
+        (sourceMode === "mac" && sourceMac.trim());
 
-      if (hasSource) {
+      const hasSourcePort =
+        (sourcePortMode === "port" && sourcePort.trim()) ||
+        (sourcePortMode === "group" && sourcePortGroup.trim());
+
+      const hasSource = hasSourceAddress || hasSourcePort;
+
+      // Check if we need to clear source (switching to "any" mode when rule had source before)
+      const hadSource = rule.source && (
+        rule.source.address ||
+        rule.source.mac_address ||
+        rule.source.geoip ||
+        (rule.source.group && Object.keys(rule.source.group).some(k => k !== "port-group"))
+      );
+
+      if (hasSource || (sourceMode === "any" && hadSource)) {
         config.source = {};
 
-        // Handle address - either direct address or address/network group
+        // Handle address mode - mutually exclusive with group, geoip, and mac
         if (sourceMode === "address" && sourceAddress.trim()) {
           const addr = sourceAddress.trim();
           config.source.address = sourceAddressInvert ? `!${addr}` : addr;
         } else if (sourceMode === "group" && sourceGroupType && sourceGroupType !== "none" && sourceGroupName) {
-          // Address or network group
+          // Address or network group - mutually exclusive with address, geoip, and mac
           config.source.group = { [sourceGroupType]: sourceGroupName };
+        } else if (sourceMode === "geoip" && sourceGeoipCountry.length > 0) {
+          // GeoIP - mutually exclusive with address, group, and mac
+          config.source.geoip = {
+            country_code: sourceGeoipCountry,
+            inverse_match: sourceGeoipInverse || undefined,
+          };
+        } else if (sourceMode === "mac" && sourceMac.trim()) {
+          // MAC address - mutually exclusive with address, group, and geoip
+          config.source.mac_address = sourceMac.trim();
         }
+        // If sourceMode === "any" and hadSource, config.source stays as {} which will trigger deletion
 
-        // Handle port - either direct port or port group (separate from address group)
+        // Handle port - either direct port or port group (separate from address/group/geoip/mac)
         if (sourcePortMode === "port" && sourcePort.trim()) {
           config.source.port = sourcePort.trim();
         } else if (sourcePortMode === "group" && sourcePortGroup.trim()) {
@@ -521,40 +569,47 @@ export function EditFirewallRuleModal({
           }
           config.source.group["port-group"] = sourcePortGroup;
         }
-
-        if (sourceMac.trim()) config.source.mac_address = sourceMac.trim();
-
-        if (sourceGeoipCountry.length > 0) {
-          config.source.geoip = {
-            country_code: sourceGeoipCountry,
-            inverse_match: sourceGeoipInverse || undefined,
-          };
-        }
-      } else {
-        config.source = null;
       }
 
       // Destination
-      const hasDest =
+      const hasDestAddress =
         (destMode === "address" && destAddress.trim()) ||
-        (destPortMode === "port" && destPort.trim()) ||
-        (destPortMode === "group" && destPortGroup.trim()) ||
-        destGeoipCountry.length > 0 ||
-        (destMode === "group" && destGroupType && destGroupType !== "none" && destGroupName);
+        (destMode === "group" && destGroupType && destGroupType !== "none" && destGroupName) ||
+        (destMode === "geoip" && destGeoipCountry.length > 0);
 
-      if (hasDest) {
+      const hasDestPort =
+        (destPortMode === "port" && destPort.trim()) ||
+        (destPortMode === "group" && destPortGroup.trim());
+
+      const hasDest = hasDestAddress || hasDestPort;
+
+      // Check if we need to clear destination (switching to "any" mode when rule had destination before)
+      const hadDest = rule.destination && (
+        rule.destination.address ||
+        rule.destination.geoip ||
+        (rule.destination.group && Object.keys(rule.destination.group).some(k => k !== "port-group"))
+      );
+
+      if (hasDest || (destMode === "any" && hadDest)) {
         config.destination = {};
 
-        // Handle address - either direct address or address/network group
+        // Handle address mode - mutually exclusive with group and geoip
         if (destMode === "address" && destAddress.trim()) {
           const addr = destAddress.trim();
           config.destination.address = destAddressInvert ? `!${addr}` : addr;
         } else if (destMode === "group" && destGroupType && destGroupType !== "none" && destGroupName) {
-          // Address or network group
+          // Address or network group - mutually exclusive with address and geoip
           config.destination.group = { [destGroupType]: destGroupName };
+        } else if (destMode === "geoip" && destGeoipCountry.length > 0) {
+          // GeoIP - mutually exclusive with address and group
+          config.destination.geoip = {
+            country_code: destGeoipCountry,
+            inverse_match: destGeoipInverse || undefined,
+          };
         }
+        // If destMode === "any" and hadDest, config.destination stays as {} which will trigger deletion
 
-        // Handle port - either direct port or port group (separate from address group)
+        // Handle port - either direct port or port group (separate from address/group/geoip)
         if (destPortMode === "port" && destPort.trim()) {
           config.destination.port = destPort.trim();
         } else if (destPortMode === "group" && destPortGroup.trim()) {
@@ -564,15 +619,6 @@ export function EditFirewallRuleModal({
           }
           config.destination.group["port-group"] = destPortGroup;
         }
-
-        if (destGeoipCountry.length > 0) {
-          config.destination.geoip = {
-            country_code: destGeoipCountry,
-            inverse_match: destGeoipInverse || undefined,
-          };
-        }
-      } else {
-        config.destination = null;
       }
 
       // State
@@ -912,7 +958,13 @@ export function EditFirewallRuleModal({
             {/* Mode Selection */}
             <div className="space-y-3">
               <Label>Source Match Type</Label>
-              <RadioGroup value={sourceMode} onValueChange={(value: "address" | "group") => setSourceMode(value)}>
+              <RadioGroup value={sourceMode} onValueChange={(value: "any" | "address" | "group" | "geoip" | "mac") => setSourceMode(value)}>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="any" id="source-any-mode" />
+                  <Label htmlFor="source-any-mode" className="cursor-pointer font-normal">
+                    Any (no source restriction)
+                  </Label>
+                </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="address" id="source-address-mode" />
                   <Label htmlFor="source-address-mode" className="cursor-pointer font-normal">
@@ -923,6 +975,18 @@ export function EditFirewallRuleModal({
                   <RadioGroupItem value="group" id="source-group-mode" />
                   <Label htmlFor="source-group-mode" className="cursor-pointer font-normal">
                     Firewall Group
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="geoip" id="source-geoip-mode" />
+                  <Label htmlFor="source-geoip-mode" className="cursor-pointer font-normal">
+                    GeoIP (country codes)
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="mac" id="source-mac-mode" />
+                  <Label htmlFor="source-mac-mode" className="cursor-pointer font-normal">
+                    MAC Address
                   </Label>
                 </div>
               </RadioGroup>
@@ -1041,97 +1105,9 @@ export function EditFirewallRuleModal({
               </div>
             )}
 
-            {/* Port and MAC (available in both modes) */}
-            <div className="space-y-4">
-              <div className="space-y-3">
-                <Label>Source Port</Label>
-                <RadioGroup value={sourcePortMode} onValueChange={(value: "port" | "group") => setSourcePortMode(value)}>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="port" id="edit-source-port-mode" />
-                    <Label htmlFor="edit-source-port-mode" className="cursor-pointer font-normal">
-                      Port Number/Range
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="group" id="edit-source-port-group-mode" />
-                    <Label htmlFor="edit-source-port-group-mode" className="cursor-pointer font-normal">
-                      Port Group
-                    </Label>
-                  </div>
-                </RadioGroup>
-
-                {sourcePortMode === "port" && (
-                  <div className="pl-6 border-l-2 border-primary/20 space-y-2">
-                    <Input
-                      id="sourcePort"
-                      value={sourcePort}
-                      onChange={(e) => {
-                        setSourcePort(e.target.value);
-                        setSourcePortError(null);
-                      }}
-                      placeholder="80,443,telnet,8080-8090"
-                      className={sourcePortError ? "border-destructive" : ""}
-                    />
-                    {sourcePortError ? (
-                      <p className="text-xs text-destructive flex items-center gap-1">
-                        <AlertCircle className="h-3 w-3" />
-                        {sourcePortError}
-                      </p>
-                    ) : (
-                      <p className="text-xs text-muted-foreground">
-                        Port number, range, service name, or comma-separated list (e.g., 80,443,telnet,8080-8090)
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {sourcePortMode === "group" && (
-                  <div className="pl-6 border-l-2 border-primary/20">
-                    <Select value={sourcePortGroup} onValueChange={setSourcePortGroup}>
-                      <SelectTrigger id="sourcePortGroup">
-                        <SelectValue placeholder="Select port group" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {portGroups.map((g) => (
-                          <SelectItem key={g.name} value={g.name}>
-                            {g.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-
-                <p className="text-xs text-muted-foreground">
-                  Port specification requires TCP/UDP protocol
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="sourceMac">Source MAC Address</Label>
-                <Input
-                  id="sourceMac"
-                  value={sourceMac}
-                  onChange={(e) => {
-                    setSourceMac(e.target.value);
-                    setSourceMacError(null);
-                  }}
-                  placeholder="aa:bb:cc:dd:ee:ff"
-                  className={sourceMacError ? "border-destructive" : ""}
-                />
-                {sourceMacError ? (
-                  <p className="text-xs text-destructive flex items-center gap-1">
-                    <AlertCircle className="h-3 w-3" />
-                    {sourceMacError}
-                  </p>
-                ) : (
-                  <p className="text-xs text-muted-foreground">
-                    Format: aa:bb:cc:dd:ee:ff
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-3">
+            {/* GeoIP Mode */}
+            {sourceMode === "geoip" && (
+              <div className="space-y-4 pl-6 border-l-2 border-primary/20">
                 <CountryMultiSelect
                   id="sourceGeoipCountry"
                   label="Source GeoIP Countries"
@@ -1149,6 +1125,108 @@ export function EditFirewallRuleModal({
                   </Label>
                 </div>
               </div>
+            )}
+
+            {/* MAC Address Mode */}
+            {sourceMode === "mac" && (
+              <div className="space-y-4 pl-6 border-l-2 border-primary/20">
+                <div className="space-y-2">
+                  <Label htmlFor="sourceMac">Source MAC Address</Label>
+                  <Input
+                    id="sourceMac"
+                    value={sourceMac}
+                    onChange={(e) => {
+                      setSourceMac(e.target.value);
+                      setSourceMacError(null);
+                    }}
+                    placeholder="aa:bb:cc:dd:ee:ff"
+                    className={sourceMacError ? "border-destructive" : ""}
+                  />
+                  {sourceMacError ? (
+                    <p className="text-xs text-destructive flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      {sourceMacError}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      Format: aa:bb:cc:dd:ee:ff
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Port Selection (available for all modes) */}
+            <div className="space-y-3 pt-4 border-t">
+              <Label>Source Port</Label>
+              <RadioGroup value={sourcePortMode} onValueChange={(value: "any" | "port" | "group") => setSourcePortMode(value)}>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="any" id="edit-source-port-any-mode" />
+                  <Label htmlFor="edit-source-port-any-mode" className="cursor-pointer font-normal">
+                    Any (no port restriction)
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="port" id="edit-source-port-mode" />
+                  <Label htmlFor="edit-source-port-mode" className="cursor-pointer font-normal">
+                    Port Number/Range
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="group" id="edit-source-port-group-mode" />
+                  <Label htmlFor="edit-source-port-group-mode" className="cursor-pointer font-normal">
+                    Port Group
+                  </Label>
+                </div>
+              </RadioGroup>
+
+              {sourcePortMode === "port" && (
+                <div className="pl-6 border-l-2 border-primary/20 space-y-2">
+                  <Input
+                    id="sourcePort"
+                    value={sourcePort}
+                    onChange={(e) => {
+                      setSourcePort(e.target.value);
+                      setSourcePortError(null);
+                    }}
+                    placeholder="80,443,telnet,8080-8090"
+                    className={sourcePortError ? "border-destructive" : ""}
+                  />
+                  {sourcePortError ? (
+                    <p className="text-xs text-destructive flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      {sourcePortError}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      Port number, range, service name, or comma-separated list (e.g., 80,443,telnet,8080-8090)
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {sourcePortMode === "group" && (
+                <div className="pl-6 border-l-2 border-primary/20">
+                  <Select value={sourcePortGroup} onValueChange={setSourcePortGroup}>
+                    <SelectTrigger id="sourcePortGroup">
+                      <SelectValue placeholder="Select port group" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {portGroups.map((g) => (
+                        <SelectItem key={g.name} value={g.name}>
+                          {g.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {(sourcePortMode === "port" || sourcePortMode === "group") && (
+                <p className="text-xs text-muted-foreground">
+                  Port specification requires TCP/UDP protocol
+                </p>
+              )}
             </div>
           </TabsContent>
 
@@ -1157,7 +1235,13 @@ export function EditFirewallRuleModal({
             {/* Mode Selection */}
             <div className="space-y-3">
               <Label>Destination Match Type</Label>
-              <RadioGroup value={destMode} onValueChange={(value: "address" | "group") => setDestMode(value)}>
+              <RadioGroup value={destMode} onValueChange={(value: "any" | "address" | "group" | "geoip") => setDestMode(value)}>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="any" id="dest-any-mode" />
+                  <Label htmlFor="dest-any-mode" className="cursor-pointer font-normal">
+                    Any (no destination restriction)
+                  </Label>
+                </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="address" id="dest-address-mode" />
                   <Label htmlFor="dest-address-mode" className="cursor-pointer font-normal">
@@ -1168,6 +1252,12 @@ export function EditFirewallRuleModal({
                   <RadioGroupItem value="group" id="dest-group-mode" />
                   <Label htmlFor="dest-group-mode" className="cursor-pointer font-normal">
                     Firewall Group
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="geoip" id="dest-geoip-mode" />
+                  <Label htmlFor="dest-geoip-mode" className="cursor-pointer font-normal">
+                    GeoIP (country codes)
                   </Label>
                 </div>
               </RadioGroup>
@@ -1286,10 +1376,38 @@ export function EditFirewallRuleModal({
               </div>
             )}
 
-            {/* Port Selection */}
-            <div className="space-y-3">
+            {/* GeoIP Mode */}
+            {destMode === "geoip" && (
+              <div className="space-y-4 pl-6 border-l-2 border-primary/20">
+                <CountryMultiSelect
+                  id="destGeoipCountry"
+                  label="Destination GeoIP Countries"
+                  value={destGeoipCountry}
+                  onChange={setDestGeoipCountry}
+                />
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="destGeoipInverse"
+                    checked={destGeoipInverse}
+                    onCheckedChange={(checked) => setDestGeoipInverse(checked as boolean)}
+                  />
+                  <Label htmlFor="destGeoipInverse" className="text-sm font-normal cursor-pointer">
+                    Exclude countries (inverse match)
+                  </Label>
+                </div>
+              </div>
+            )}
+
+            {/* Port Selection (available for all modes) */}
+            <div className="space-y-3 pt-4 border-t">
               <Label>Destination Port</Label>
-              <RadioGroup value={destPortMode} onValueChange={(value: "port" | "group") => setDestPortMode(value)}>
+              <RadioGroup value={destPortMode} onValueChange={(value: "any" | "port" | "group") => setDestPortMode(value)}>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="any" id="edit-dest-port-any-mode" />
+                  <Label htmlFor="edit-dest-port-any-mode" className="cursor-pointer font-normal">
+                    Any (no port restriction)
+                  </Label>
+                </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="port" id="edit-dest-port-mode" />
                   <Label htmlFor="edit-dest-port-mode" className="cursor-pointer font-normal">
@@ -1346,28 +1464,11 @@ export function EditFirewallRuleModal({
                 </div>
               )}
 
-              <p className="text-xs text-muted-foreground">
-                Port specification requires TCP/UDP protocol
-              </p>
-            </div>
-
-            <div className="space-y-3">
-              <CountryMultiSelect
-                id="destGeoipCountry"
-                label="Destination GeoIP Countries"
-                value={destGeoipCountry}
-                onChange={setDestGeoipCountry}
-              />
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="destGeoipInverse"
-                  checked={destGeoipInverse}
-                  onCheckedChange={(checked) => setDestGeoipInverse(checked as boolean)}
-                />
-                <Label htmlFor="destGeoipInverse" className="text-sm font-normal cursor-pointer">
-                  Exclude countries (inverse match)
-                </Label>
-              </div>
+              {(destPortMode === "port" || destPortMode === "group") && (
+                <p className="text-xs text-muted-foreground">
+                  Port specification requires TCP/UDP protocol
+                </p>
+              )}
             </div>
           </TabsContent>
 

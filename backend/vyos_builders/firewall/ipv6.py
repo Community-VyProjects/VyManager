@@ -229,6 +229,16 @@ class FirewallIPv6BatchBuilder:
         path = self.mappers[self.mapper_key].get_rule_source_geoip_inverse_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
+    def delete_rule_source_geoip(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallIPv6BatchBuilder":
+        """Delete the entire source GeoIP node (used when removing the last country)."""
+        path = self.mappers[self.mapper_key].get_rule_source_geoip_path(chain, rule_number, is_custom)
+        return self.add_delete(path)
+
+    def delete_rule_source(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallIPv6BatchBuilder":
+        """Delete the entire source node (used when switching to 'any')."""
+        path = self.mappers[self.mapper_key].get_rule_source_path(chain, rule_number, is_custom)
+        return self.add_delete(path)
+
     def set_rule_source_group_address(self, chain: str, rule_number: int, group_name: str, is_custom: bool = False) -> "FirewallIPv6BatchBuilder":
         """Set source address group."""
         path = self.mappers[self.mapper_key].get_rule_source_group_address(chain, rule_number, group_name, is_custom)
@@ -311,6 +321,16 @@ class FirewallIPv6BatchBuilder:
     def delete_rule_destination_geoip_inverse(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallIPv6BatchBuilder":
         """Delete destination GeoIP inverse match."""
         path = self.mappers[self.mapper_key].get_rule_destination_geoip_inverse_path(chain, rule_number, is_custom)
+        return self.add_delete(path)
+
+    def delete_rule_destination_geoip(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallIPv6BatchBuilder":
+        """Delete the entire destination GeoIP node (used when removing the last country)."""
+        path = self.mappers[self.mapper_key].get_rule_destination_geoip_path(chain, rule_number, is_custom)
+        return self.add_delete(path)
+
+    def delete_rule_destination(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallIPv6BatchBuilder":
+        """Delete the entire destination node (used when switching to 'any')."""
+        path = self.mappers[self.mapper_key].get_rule_destination_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     def set_rule_destination_group_address(self, chain: str, rule_number: int, group_name: str, is_custom: bool = False) -> "FirewallIPv6BatchBuilder":
