@@ -2,6 +2,12 @@
 
 Modern web interface to make configuring, deploying and monitoring VyOS routers easier
 
+**Legacy version. This version will be announced EOL soon. Try out our [open beta](https://github.com/Community-VyProjects/VyManager/tree/beta).**
+
+---
+
+## VyManager Legacy
+
 ## VyOS Version Support
 Currently being developed for:
 - VyOS 1.4-sagitta **(full)**
