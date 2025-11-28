@@ -200,6 +200,18 @@ class FirewallIPv4Mapper(BaseFeatureMapper):
             return ["firewall", "ipv4", "name", chain, "rule", str(rule_number), "source", "geoip", "inverse-match"]
         return ["firewall", "ipv4", chain, "filter", "rule", str(rule_number), "source", "geoip", "inverse-match"]
 
+    def get_rule_source_geoip_path(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
+        """Get command path for source GeoIP node (for deletion of entire geoip section)."""
+        if is_custom:
+            return ["firewall", "ipv4", "name", chain, "rule", str(rule_number), "source", "geoip"]
+        return ["firewall", "ipv4", chain, "filter", "rule", str(rule_number), "source", "geoip"]
+
+    def get_rule_source_path(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
+        """Get command path for entire source node (for deletion when switching to 'any')."""
+        if is_custom:
+            return ["firewall", "ipv4", "name", chain, "rule", str(rule_number), "source"]
+        return ["firewall", "ipv4", chain, "filter", "rule", str(rule_number), "source"]
+
     def get_rule_source_group_address(self, chain: str, rule_number: int, group_name: str, is_custom: bool = False) -> List[str]:
         """Get command path for setting source address group."""
         if is_custom:
@@ -323,6 +335,18 @@ class FirewallIPv4Mapper(BaseFeatureMapper):
         if is_custom:
             return ["firewall", "ipv4", "name", chain, "rule", str(rule_number), "destination", "geoip", "inverse-match"]
         return ["firewall", "ipv4", chain, "filter", "rule", str(rule_number), "destination", "geoip", "inverse-match"]
+
+    def get_rule_destination_geoip_path(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
+        """Get command path for destination GeoIP node (for deletion of entire geoip section)."""
+        if is_custom:
+            return ["firewall", "ipv4", "name", chain, "rule", str(rule_number), "destination", "geoip"]
+        return ["firewall", "ipv4", chain, "filter", "rule", str(rule_number), "destination", "geoip"]
+
+    def get_rule_destination_path(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
+        """Get command path for entire destination node (for deletion when switching to 'any')."""
+        if is_custom:
+            return ["firewall", "ipv4", "name", chain, "rule", str(rule_number), "destination"]
+        return ["firewall", "ipv4", chain, "filter", "rule", str(rule_number), "destination"]
 
     def get_rule_destination_group_address(self, chain: str, rule_number: int, group_name: str, is_custom: bool = False) -> List[str]:
         """Get command path for setting destination address group."""

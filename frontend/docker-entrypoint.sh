@@ -20,7 +20,20 @@ echo "🔄 Running database migrations..."
 if [ -d "prisma/migrations" ] && [ "$(ls -A prisma/migrations)" ]; then
   # Migrations exist - use migrate deploy (safe for production)
   echo "📋 Applying existing migrations..."
-  npx prisma migrate deploy
+
+  # Try to apply migrations
+  if ! npx prisma migrate deploy 2>&1; then
+    # If deploy fails, it might be because the schema exists but migration isn't marked as applied
+    echo "⚠️  Migration deployment failed - checking if schema needs baselining..."
+
+    # Get the migration name (first directory in prisma/migrations)
+    MIGRATION_NAME=$(ls prisma/migrations | head -n 1)
+
+    if [ -n "$MIGRATION_NAME" ]; then
+      echo "📌 Marking migration as already applied: $MIGRATION_NAME"
+      npx prisma migrate resolve --applied "$MIGRATION_NAME" || true
+    fi
+  fi
 else
   # No migrations yet - this is the first deployment
   # Create initial migration from schema

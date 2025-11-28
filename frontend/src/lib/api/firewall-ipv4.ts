@@ -454,42 +454,46 @@ class FirewallIPv4Service {
 
     // Update source (simplified - delete old, set new if changed)
     if (hasChanged(config.source, currentRule.source)) {
-      // Delete old source settings
-      if (currentRule.source?.address) {
-        operations.push({ op: "delete_rule_source_address" });
-      }
-      if (currentRule.source?.port) {
-        operations.push({ op: "delete_rule_source_port" });
-      }
-      if (currentRule.source?.mac_address) {
-        operations.push({ op: "delete_rule_source_mac_address" });
-      }
-      if (currentRule.source?.geoip) {
-        if (currentRule.source.geoip.country_code) {
-          operations.push({ op: "delete_rule_source_geoip_country" });
+      // Check if we're clearing to "any" (empty object)
+      const isAny = config.source && Object.keys(config.source).length === 0;
+
+      if (isAny) {
+        // When switching to "any", delete the entire source node
+        operations.push({ op: "delete_rule_source" });
+      } else {
+        // Delete old source settings individually
+        if (currentRule.source?.address) {
+          operations.push({ op: "delete_rule_source_address" });
         }
-        if (currentRule.source.geoip.inverse_match) {
-          operations.push({ op: "delete_rule_source_geoip_inverse" });
+        if (currentRule.source?.port) {
+          operations.push({ op: "delete_rule_source_port" });
         }
-      }
-      if (currentRule.source?.group) {
-        // Delete ALL existing groups (address, network, port, etc.)
-        for (const [groupType] of Object.entries(currentRule.source.group)) {
-          if (groupType.includes("address")) {
-            operations.push({ op: "delete_rule_source_group_address" });
-          } else if (groupType.includes("network")) {
-            operations.push({ op: "delete_rule_source_group_network" });
-          } else if (groupType.includes("port")) {
-            operations.push({ op: "delete_rule_source_group_port" });
-          } else if (groupType.includes("mac")) {
-            operations.push({ op: "delete_rule_source_group_mac" });
-          } else if (groupType.includes("domain")) {
-            operations.push({ op: "delete_rule_source_group_domain" });
+        if (currentRule.source?.mac_address) {
+          operations.push({ op: "delete_rule_source_mac_address" });
+        }
+        if (currentRule.source?.geoip) {
+          // When removing all GeoIP settings, delete the entire geoip node
+          operations.push({ op: "delete_rule_source_geoip" });
+        }
+        if (currentRule.source?.group) {
+          // Delete ALL existing groups (address, network, port, etc.)
+          for (const [groupType] of Object.entries(currentRule.source.group)) {
+            if (groupType.includes("address")) {
+              operations.push({ op: "delete_rule_source_group_address" });
+            } else if (groupType.includes("network")) {
+              operations.push({ op: "delete_rule_source_group_network" });
+            } else if (groupType.includes("port")) {
+              operations.push({ op: "delete_rule_source_group_port" });
+            } else if (groupType.includes("mac")) {
+              operations.push({ op: "delete_rule_source_group_mac" });
+            } else if (groupType.includes("domain")) {
+              operations.push({ op: "delete_rule_source_group_domain" });
+            }
           }
         }
       }
 
-      // Set new source settings
+      // Set new source settings (only if not "any")
       if (config.source) {
         if (config.source.address) {
           operations.push({ op: "set_rule_source_address", value: config.source.address });
@@ -532,39 +536,43 @@ class FirewallIPv4Service {
 
     // Update destination (similar to source)
     if (hasChanged(config.destination, currentRule.destination)) {
-      // Delete old destination settings
-      if (currentRule.destination?.address) {
-        operations.push({ op: "delete_rule_destination_address" });
-      }
-      if (currentRule.destination?.port) {
-        operations.push({ op: "delete_rule_destination_port" });
-      }
-      if (currentRule.destination?.geoip) {
-        if (currentRule.destination.geoip.country_code) {
-          operations.push({ op: "delete_rule_destination_geoip_country" });
+      // Check if we're clearing to "any" (empty object)
+      const isAny = config.destination && Object.keys(config.destination).length === 0;
+
+      if (isAny) {
+        // When switching to "any", delete the entire destination node
+        operations.push({ op: "delete_rule_destination" });
+      } else {
+        // Delete old destination settings individually
+        if (currentRule.destination?.address) {
+          operations.push({ op: "delete_rule_destination_address" });
         }
-        if (currentRule.destination.geoip.inverse_match) {
-          operations.push({ op: "delete_rule_destination_geoip_inverse" });
+        if (currentRule.destination?.port) {
+          operations.push({ op: "delete_rule_destination_port" });
         }
-      }
-      if (currentRule.destination?.group) {
-        // Delete ALL existing groups (address, network, port, etc.)
-        for (const [groupType] of Object.entries(currentRule.destination.group)) {
-          if (groupType.includes("address")) {
-            operations.push({ op: "delete_rule_destination_group_address" });
-          } else if (groupType.includes("network")) {
-            operations.push({ op: "delete_rule_destination_group_network" });
-          } else if (groupType.includes("port")) {
-            operations.push({ op: "delete_rule_destination_group_port" });
-          } else if (groupType.includes("mac")) {
-            operations.push({ op: "delete_rule_destination_group_mac" });
-          } else if (groupType.includes("domain")) {
-            operations.push({ op: "delete_rule_destination_group_domain" });
+        if (currentRule.destination?.geoip) {
+          // When removing all GeoIP settings, delete the entire geoip node
+          operations.push({ op: "delete_rule_destination_geoip" });
+        }
+        if (currentRule.destination?.group) {
+          // Delete ALL existing groups (address, network, port, etc.)
+          for (const [groupType] of Object.entries(currentRule.destination.group)) {
+            if (groupType.includes("address")) {
+              operations.push({ op: "delete_rule_destination_group_address" });
+            } else if (groupType.includes("network")) {
+              operations.push({ op: "delete_rule_destination_group_network" });
+            } else if (groupType.includes("port")) {
+              operations.push({ op: "delete_rule_destination_group_port" });
+            } else if (groupType.includes("mac")) {
+              operations.push({ op: "delete_rule_destination_group_mac" });
+            } else if (groupType.includes("domain")) {
+              operations.push({ op: "delete_rule_destination_group_domain" });
+            }
           }
         }
       }
 
-      // Set new destination settings
+      // Set new destination settings (only if not "any")
       if (config.destination) {
         if (config.destination.address) {
           operations.push({ op: "set_rule_destination_address", value: config.destination.address });
