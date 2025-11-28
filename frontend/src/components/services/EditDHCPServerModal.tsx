@@ -24,6 +24,52 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
+// Validation helper functions
+const isValidIPv4 = (ip: string): boolean => {
+  const ipv4Regex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+  const match = ip.match(ipv4Regex);
+  if (!match) return false;
+  return match.slice(1).every(octet => {
+    const num = parseInt(octet);
+    return num >= 0 && num <= 255;
+  });
+};
+
+const isValidCIDR = (cidr: string): boolean => {
+  const parts = cidr.split('/');
+  if (parts.length !== 2) return false;
+  const [ip, prefix] = parts;
+  if (!isValidIPv4(ip)) return false;
+  const prefixNum = parseInt(prefix);
+  return prefixNum >= 0 && prefixNum <= 32;
+};
+
+const isValidDomain = (domain: string): boolean => {
+  // Allow FQDN and simple hostnames
+  const domainRegex = /^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)*[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$/;
+  return domainRegex.test(domain) && domain.length <= 253;
+};
+
+const ipToNumber = (ip: string): number => {
+  return ip.split('.').reduce((acc, octet) => (acc << 8) + parseInt(octet), 0) >>> 0;
+};
+
+const isIPInSubnet = (ip: string, subnet: string): boolean => {
+  if (!isValidIPv4(ip) || !isValidCIDR(subnet)) return false;
+  const [subnetIP, prefixStr] = subnet.split('/');
+  const prefix = parseInt(prefixStr);
+  const mask = (0xFFFFFFFF << (32 - prefix)) >>> 0;
+  const ipNum = ipToNumber(ip);
+  const subnetNum = ipToNumber(subnetIP);
+  return (ipNum & mask) === (subnetNum & mask);
+};
+
+const isValidIPRange = (start: string, stop: string, subnet: string): boolean => {
+  if (!isValidIPv4(start) || !isValidIPv4(stop)) return false;
+  if (!isIPInSubnet(start, subnet) || !isIPInSubnet(stop, subnet)) return false;
+  return ipToNumber(start) <= ipToNumber(stop);
+};
+
 interface EditDHCPServerModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -124,26 +170,111 @@ export function EditDHCPServerModal({
   };
 
   const validateForm = (): boolean => {
+    // Default router validation
     if (!defaultRouter.trim()) {
       setError("Default router (gateway) is required");
       return false;
     }
-    if (nameServers.filter((ns) => ns.trim()).length === 0) {
+    if (!isValidIPv4(defaultRouter.trim())) {
+      setError("Invalid default router IP address");
+      return false;
+    }
+    if (!isIPInSubnet(defaultRouter.trim(), subnet.subnet)) {
+      setError("Default router must be within the subnet");
+      return false;
+    }
+
+    // Name servers validation
+    const validNameServers = nameServers.filter((ns) => ns.trim());
+    if (validNameServers.length === 0) {
       setError("At least one name server is required");
       return false;
     }
+    for (const ns of validNameServers) {
+      if (!isValidIPv4(ns.trim())) {
+        setError(`Invalid name server IP address: ${ns}`);
+        return false;
+      }
+    }
+
+    // Domain name validation
     if (!domainName.trim()) {
       setError("Domain name is required");
       return false;
     }
+    if (!isValidDomain(domainName.trim())) {
+      setError("Invalid domain name format");
+      return false;
+    }
+
+    // Domain search validation
+    for (const ds of domainSearch.filter(d => d.trim())) {
+      if (!isValidDomain(ds.trim())) {
+        setError(`Invalid domain search format: ${ds}`);
+        return false;
+      }
+    }
+
+    // Lease validation
     if (!lease.trim()) {
       setError("Lease time is required");
       return false;
     }
-    if (ranges.length === 0 || ranges.every((r) => !r.start || !r.stop)) {
+    const leaseNum = parseInt(lease);
+    if (isNaN(leaseNum) || leaseNum <= 0) {
+      setError("Lease time must be a positive number");
+      return false;
+    }
+
+    // DHCP ranges validation
+    const validRanges = ranges.filter((r) => r.start.trim() && r.stop.trim());
+    if (validRanges.length === 0) {
       setError("At least one DHCP range with start and stop addresses is required");
       return false;
     }
+    for (const range of validRanges) {
+      if (!isValidIPRange(range.start.trim(), range.stop.trim(), subnet.subnet)) {
+        setError(`Invalid DHCP range: ${range.start} - ${range.stop}. Both IPs must be valid, within subnet, and start must be <= stop`);
+        return false;
+      }
+    }
+
+    // Exclude addresses validation
+    for (const exclude of excludes.filter(e => e.trim())) {
+      if (!isValidIPv4(exclude.trim())) {
+        setError(`Invalid exclude IP address: ${exclude}`);
+        return false;
+      }
+      if (!isIPInSubnet(exclude.trim(), subnet.subnet)) {
+        setError(`Exclude address ${exclude} must be within the subnet`);
+        return false;
+      }
+    }
+
+    // Time servers validation
+    for (const ts of timeServers.filter(t => t.trim())) {
+      if (!isValidIPv4(ts.trim())) {
+        setError(`Invalid time server IP address: ${ts}`);
+        return false;
+      }
+    }
+
+    // NTP servers validation (must be IP addresses, not FQDNs)
+    for (const ntp of ntpServers.filter(n => n.trim())) {
+      if (!isValidIPv4(ntp.trim())) {
+        setError(`Invalid NTP server IP address: ${ntp}. NTP servers must be IP addresses, not hostnames`);
+        return false;
+      }
+    }
+
+    // WINS servers validation
+    for (const wins of winsServers.filter(w => w.trim())) {
+      if (!isValidIPv4(wins.trim())) {
+        setError(`Invalid WINS server IP address: ${wins}`);
+        return false;
+      }
+    }
+
     return true;
   };
 
@@ -610,7 +741,7 @@ export function EditDHCPServerModal({
 
                 {capabilities?.fields.ntp_servers.supported && (
                   <div>
-                    <Label>NTP Servers</Label>
+                    <Label>NTP Servers (IP Address Only)</Label>
                     <div className="space-y-2 mt-2">
                     {ntpServers.length === 0 ? (
                       <Button
@@ -629,7 +760,7 @@ export function EditDHCPServerModal({
                             <Input
                               value={ntp}
                               onChange={(e) => updateNtpServer(index, e.target.value)}
-                              placeholder="e.g., pool.ntp.org"
+                              placeholder="e.g., 192.168.1.1"
                             />
                             <Button
                               type="button"
