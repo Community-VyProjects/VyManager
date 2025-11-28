@@ -1,4 +1,5 @@
-# 🖥️ VyManager - Enterprise-grade VyOS Router Management System
+# 🖥️ VyManager
+## Enterprise-grade VyOS Router Management System
 
 Modern web interface to make configuring, deploying and monitoring VyOS routers easier
 
@@ -7,11 +8,13 @@ Modern web interface to make configuring, deploying and monitoring VyOS routers 
 Open beta release. Expect lower stability and bugs. This release provides a lot of structural improvements over the older legacy version. 
 We now flexibly support all active VyOS versions, including rolling releases.
 
-**[➡️ Skip to Quick Start](https://github.com/Community-VyProjects/VyManager/tree/beta#prerequisites)**
+### [➡️ Skip to Quick Start](https://github.com/Community-VyProjects/VyManager/tree/beta#prerequisites)
 
-[💭 Join our official Discord community to receive updates](https://discord.gg/k9SSkK7wPQ)
+**[💭 Join our Discord community to receive official updates](https://discord.gg/k9SSkK7wPQ)**
 
-*Give us a star ⭐ to support us!*
+**Give us a star ⭐ to support us!**
+
+---
 
 ### 📸 Screenshots
 
@@ -86,7 +89,9 @@ VYOS_VERIFY_SSL=false
 VYOS_TIMEOUT=10
 ```
 
-### Step 3) Edit `docker-compose.yml` and fill in your configuration values
+### Step 3) Edit `docker-compose.yml` and change specific configuration values:
+Change `NEXT_PUBLIC_API_URL` and `DATABASE_URL` in `docker-compose.yml`.
+Leave the other configuration values which already have a default reference to .env files (indicated by the `${X}` sign)
 
 ---
 
