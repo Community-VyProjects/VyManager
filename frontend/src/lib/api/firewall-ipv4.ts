@@ -763,21 +763,62 @@ class FirewallIPv4Service {
   }
 
   /**
-   * Helper: Delete a rule
+   * Helper: Delete a rule and automatically renumber remaining rules
    */
   async deleteRule(chain: string, ruleNumber: number, isCustomChain: boolean): Promise<any> {
+    // First, get current config to find all rules in this chain
+    const config = await this.getConfig();
+
+    let rulesInChain: FirewallRule[] = [];
+    if (isCustomChain) {
+      const customChain = config.custom_chains.find(c => c.name === chain);
+      rulesInChain = customChain?.rules || [];
+    } else {
+      // Get rules from the appropriate base chain
+      if (chain === "forward") {
+        rulesInChain = config.forward_rules;
+      } else if (chain === "input") {
+        rulesInChain = config.input_rules;
+      } else if (chain === "output") {
+        rulesInChain = config.output_rules;
+      }
+    }
+
+    // Delete the rule
     const operations: FirewallBatchOperation[] = [
       isCustomChain
         ? { op: "delete_custom_chain_rule" }
         : { op: "delete_base_chain_rule" },
     ];
 
-    return this.batchConfigure({
+    await this.batchConfigure({
       chain,
       rule_number: ruleNumber,
       is_custom_chain: isCustomChain,
       operations,
     });
+
+    // Find all rules with numbers greater than the deleted rule
+    const rulesToRenumber = rulesInChain
+      .filter(r => r.rule_number > ruleNumber)
+      .sort((a, b) => a.rule_number - b.rule_number);
+
+    // If there are rules to renumber, trigger a reorder
+    if (rulesToRenumber.length > 0) {
+      const reorderRequest: ReorderFirewallRequest = {
+        chain,
+        is_custom_chain: isCustomChain,
+        rules: rulesToRenumber.map(rule => ({
+          old_number: rule.rule_number,
+          new_number: rule.rule_number - 1, // Shift down by 1
+          rule_data: rule
+        }))
+      };
+
+      await this.reorderRules(reorderRequest);
+    }
+
+    return { success: true };
   }
 
   /**
