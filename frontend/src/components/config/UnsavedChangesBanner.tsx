@@ -86,7 +86,7 @@ export function UnsavedChangesBanner() {
     <>
       <div
         className={cn(
-          "fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-blue-600 to-cyan-500",
+          "fixed top-0 left-64 right-0 z-50 bg-gradient-to-r from-blue-600 to-cyan-500",
           "shadow-lg border-b border-blue-700/20"
         )}
       >

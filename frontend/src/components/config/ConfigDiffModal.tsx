@@ -58,7 +58,7 @@ export function ConfigDiffModal({ open, onOpenChange, diff }: ConfigDiffModalPro
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-4xl h-[80vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileJson className="h-5 w-5" />
@@ -111,7 +111,7 @@ export function ConfigDiffModal({ open, onOpenChange, diff }: ConfigDiffModalPro
 
           {/* Added Tab */}
           <TabsContent value="added" className="flex-1 overflow-hidden mt-4">
-            <ScrollArea className="h-full">
+            <ScrollArea className="h-[calc(80vh-280px)]">
               {Object.keys(added).length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   No items added
@@ -143,7 +143,7 @@ export function ConfigDiffModal({ open, onOpenChange, diff }: ConfigDiffModalPro
 
           {/* Removed Tab */}
           <TabsContent value="removed" className="flex-1 overflow-hidden mt-4">
-            <ScrollArea className="h-full">
+            <ScrollArea className="h-[calc(80vh-280px)]">
               {Object.keys(removed).length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   No items removed
@@ -175,7 +175,7 @@ export function ConfigDiffModal({ open, onOpenChange, diff }: ConfigDiffModalPro
 
           {/* Modified Tab */}
           <TabsContent value="modified" className="flex-1 overflow-hidden mt-4">
-            <ScrollArea className="h-full">
+            <ScrollArea className="h-[calc(80vh-280px)]">
               {Object.keys(modified).length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   No items modified
