@@ -1,12 +1,12 @@
-# VyManager
+# 🖥️ VyManager
 
 Modern web interface to make configuring, deploying and monitoring VyOS routers easier
 
-**Legacy version. This version will be announced EOL soon. Try out our [open beta](https://github.com/Community-VyProjects/VyManager/tree/beta).**
+## ❌ Legacy version. This version will be announced End of Life very soon. Migrate to our widely improved [Open Beta](https://github.com/Community-VyProjects/VyManager/tree/beta).
 
 ---
 
-## VyManager Legacy
+### 🔐 VyManager Legacy
 
 ## VyOS Version Support
 Currently being developed for:
@@ -18,8 +18,6 @@ Currently being developed for:
 **Feel free to add a star ⭐ to our project if you like to use it!**
 
 [💭 Feel free to join our official Discord community](https://discord.gg/k9SSkK7wPQ)
-
-**[Live Demo (limited uptime during some periods)](https://vymanager.vyprojects.org)**
 
 ![alt text](image.png)
 
