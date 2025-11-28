@@ -86,15 +86,6 @@ VYOS_VERIFY_SSL=false
 VYOS_TIMEOUT=10
 ```
 
-#### Frontend Configuration
-
-Edit `frontend/.env.local`:
-
-```env
-# API Endpoint
-NEXT_PUBLIC_API_URL=http://localhost:8000
-```
-
 ### Step 3) Edit `docker-compose.yml` and fill in your configuration values
 
 ---
