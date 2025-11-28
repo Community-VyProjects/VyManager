@@ -73,6 +73,23 @@ export interface DHCPConfigResponse {
   total_static_mappings: number;
 }
 
+export interface DHCPLease {
+  ip_address: string;
+  mac_address: string;
+  state: string;
+  lease_start: string;
+  lease_expiration: string;
+  remaining: string;
+  pool: string;
+  hostname?: string;
+  origin: string;
+}
+
+export interface DHCPLeasesResponse {
+  leases: DHCPLease[];
+  total: number;
+}
+
 interface DHCPFieldCapability {
   supported: boolean;
   description: string;
@@ -209,6 +226,13 @@ class DHCPService {
     return apiClient.get<DHCPConfigResponse>("/vyos/dhcp/config", {
       refresh: refresh.toString(),
     });
+  }
+
+  /**
+   * Get active DHCP leases
+   */
+  async getLeases(): Promise<DHCPLeasesResponse> {
+    return apiClient.get<DHCPLeasesResponse>("/vyos/dhcp/leases");
   }
 
   /**

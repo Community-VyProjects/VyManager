@@ -39,6 +39,7 @@ import {
   Activity,
   Wifi,
   Monitor,
+  Link,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
@@ -47,6 +48,7 @@ import {
   type DHCPSharedNetwork,
   type DHCPSubnet,
   type DHCPCapabilitiesResponse,
+  type DHCPLease,
 } from "@/lib/api/dhcp";
 import { cn } from "@/lib/utils";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
@@ -63,19 +65,6 @@ function formatLease(seconds: string): string {
   return `${Math.floor(secs / 60)}m`;
 }
 
-// Mock lease interface - will be replaced with actual backend interface
-interface DHCPLease {
-  ip_address: string;
-  mac_address: string;
-  hostname: string;
-  network: string;
-  subnet: string;
-  state: "active" | "expired" | "released";
-  lease_start: string;
-  lease_end: string;
-  remaining: string;
-}
-
 export default function DHCPPage() {
   const [config, setConfig] = useState<DHCPConfigResponse | null>(null);
   const [capabilities, setCapabilities] = useState<DHCPCapabilitiesResponse | null>(null);
@@ -85,7 +74,7 @@ export default function DHCPPage() {
   const [expandedNetworks, setExpandedNetworks] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState("servers");
 
-  // Lease states (will be populated when backend endpoint is ready)
+  // Lease states
   const [leases, setLeases] = useState<DHCPLease[]>([]);
   const [leasesLoading, setLeasesLoading] = useState(false);
   const [leaseSearchQuery, setLeaseSearchQuery] = useState("");
@@ -126,17 +115,14 @@ export default function DHCPPage() {
     }
   };
 
-  // TODO: Replace with actual API call when backend endpoint is ready
   const fetchLeases = async () => {
     try {
       setLeasesLoading(true);
-      // const leasesData = await dhcpService.getLeases();
-      // setLeases(leasesData);
-
-      // Mock data for now
-      setLeases([]);
+      const leasesData = await dhcpService.getLeases();
+      setLeases(leasesData.leases);
     } catch (err) {
       console.error("Error fetching leases:", err);
+      setLeases([]);
     } finally {
       setLeasesLoading(false);
     }
@@ -160,18 +146,14 @@ export default function DHCPPage() {
   };
 
   const handleViewSubnetLeases = (network: string, subnet: string) => {
-    // TODO: Filter actual leases when data is available
-    const subnetLeases = leases.filter(
-      (l) => l.network === network && l.subnet === subnet
-    );
+    // Filter leases by pool (pool matches the subnet CIDR)
+    const subnetLeases = leases.filter((l) => l.pool === subnet);
     setSelectedSubnetLeases({ network, subnet, leases: subnetLeases });
   };
 
-  // Get lease count for a subnet (will work when data is available)
+  // Get lease count for a subnet
   const getSubnetLeaseCount = (network: string, subnet: string): number => {
-    return leases.filter(
-      (l) => l.network === network && l.subnet === subnet && l.state === "active"
-    ).length;
+    return leases.filter((l) => l.pool === subnet && l.state === "active").length;
   };
 
   // Filter shared networks based on search
@@ -189,8 +171,8 @@ export default function DHCPPage() {
     (lease) =>
       lease.ip_address.toLowerCase().includes(leaseSearchQuery.toLowerCase()) ||
       lease.mac_address.toLowerCase().includes(leaseSearchQuery.toLowerCase()) ||
-      lease.hostname.toLowerCase().includes(leaseSearchQuery.toLowerCase()) ||
-      lease.network.toLowerCase().includes(leaseSearchQuery.toLowerCase())
+      (lease.hostname && lease.hostname.toLowerCase().includes(leaseSearchQuery.toLowerCase())) ||
+      lease.pool.toLowerCase().includes(leaseSearchQuery.toLowerCase())
   );
 
   const totalSubnets = config?.total_subnets || 0;
@@ -367,23 +349,31 @@ export default function DHCPPage() {
                     </CardContent>
                   </Card>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
                     {filteredNetworks.map((network) => {
                       const isExpanded = expandedNetworks.has(network.name);
+                      const totalStatic = network.subnets.reduce(
+                        (sum, s) => sum + s.static_mappings.length,
+                        0
+                      );
+                      const totalActive = network.subnets.reduce(
+                        (sum, s) => sum + getSubnetLeaseCount(network.name, s.subnet),
+                        0
+                      );
 
                       return (
-                        <Card key={network.name} className="overflow-hidden">
+                        <Card key={network.name} className="overflow-hidden border-border/50 shadow-sm">
                           {/* Network Header */}
                           <div
-                            className="p-4 bg-card hover:bg-accent/5 cursor-pointer transition-colors border-b border-border"
+                            className="p-4 bg-gradient-to-r from-card to-card/50 hover:from-accent/10 hover:to-accent/5 cursor-pointer transition-all border-b border-border"
                             onClick={() => toggleNetwork(network.name)}
                           >
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-4 flex-1">
+                            <div className="flex items-start justify-between">
+                              <div className="flex items-start gap-3 flex-1 min-w-0">
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="h-8 w-8 p-0"
+                                  className="h-8 w-8 p-0 hover:bg-accent/50 flex-shrink-0"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     toggleNetwork(network.name);
@@ -396,40 +386,49 @@ export default function DHCPPage() {
                                   )}
                                 </Button>
 
-                                <div className="flex items-center gap-3">
-                                  <Server className="h-5 w-5 text-blue-500" />
-                                  <div>
-                                    <h3 className="font-semibold text-foreground">
-                                      {network.name}
-                                    </h3>
-                                    <div className="flex items-center gap-4 mt-1">
-                                      <span className="text-sm text-muted-foreground">
-                                        {network.subnets.length} subnet
-                                        {network.subnets.length !== 1 ? "s" : ""}
-                                      </span>
+                                <div className="flex items-start gap-3 flex-1 min-w-0">
+                                  <div className="p-2 rounded-lg bg-blue-500/10 flex-shrink-0">
+                                    <Server className="h-5 w-5 text-blue-500" />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <h3 className="font-semibold text-foreground text-base truncate">
+                                        {network.name}
+                                      </h3>
                                       {network.authoritative && (
-                                        <Badge variant="outline" className="text-xs">
+                                        <Badge variant="outline" className="text-xs bg-blue-500/5 border-blue-500/20">
                                           Authoritative
                                         </Badge>
                                       )}
-                                      {network.domain_name && (
-                                        <span className="text-sm text-muted-foreground">
-                                          Domain: {network.domain_name}
-                                        </span>
-                                      )}
                                     </div>
+                                    <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
+                                      <span className="flex items-center gap-1.5">
+                                        <Network className="h-3.5 w-3.5" />
+                                        {network.subnets.length} subnet{network.subnets.length !== 1 ? "s" : ""}
+                                      </span>
+                                    </div>
+                                    {network.domain_name && (
+                                      <div className="text-xs text-muted-foreground mt-1 truncate">
+                                        {network.domain_name}
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                               </div>
 
-                              <div className="flex items-center gap-2">
-                                <Badge variant="secondary">
-                                  {network.subnets.reduce(
-                                    (sum, s) => sum + s.static_mappings.length,
-                                    0
-                                  )}{" "}
-                                  static
-                                </Badge>
+                              <div className="flex flex-col gap-2 flex-shrink-0 ml-3">
+                                <div className="flex items-center gap-2">
+                                  <div className="text-right">
+                                    <div className="text-xs text-muted-foreground">Active</div>
+                                    <div className="text-sm font-semibold text-emerald-500">{totalActive}</div>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <div className="text-right">
+                                    <div className="text-xs text-muted-foreground">Static</div>
+                                    <div className="text-sm font-semibold text-foreground">{totalStatic}</div>
+                                  </div>
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -530,7 +529,7 @@ export default function DHCPPage() {
                                               )
                                             }
                                           >
-                                            <Wifi className="h-3 w-3 mr-1" />
+                                            <Link className="h-3 w-3 mr-1" />
                                             {activeCount}
                                           </Badge>
                                         </TableCell>
@@ -624,9 +623,6 @@ export default function DHCPPage() {
                           ? "No leases match your search criteria"
                           : "No active DHCP leases found. Leases will appear here once devices request IP addresses."}
                       </p>
-                      <p className="text-xs text-muted-foreground/60 mt-2">
-                        Backend endpoint for leases pending implementation
-                      </p>
                     </CardContent>
                   ) : (
                     <Table>
@@ -635,8 +631,7 @@ export default function DHCPPage() {
                           <TableHead>IP Address</TableHead>
                           <TableHead>MAC Address</TableHead>
                           <TableHead>Hostname</TableHead>
-                          <TableHead>Network</TableHead>
-                          <TableHead>Subnet</TableHead>
+                          <TableHead>Pool</TableHead>
                           <TableHead>State</TableHead>
                           <TableHead>Expires</TableHead>
                         </TableRow>
@@ -658,19 +653,14 @@ export default function DHCPPage() {
                                 )}
                               </div>
                             </TableCell>
-                            <TableCell>{lease.network}</TableCell>
-                            <TableCell className="font-mono text-sm">
-                              {lease.subnet}
-                            </TableCell>
+                            <TableCell>{lease.pool}</TableCell>
                             <TableCell>
                               <Badge
-                                variant={
-                                  lease.state === "active"
-                                    ? "default"
-                                    : lease.state === "expired"
-                                    ? "destructive"
-                                    : "secondary"
-                                }
+                                variant="outline"
+                                className={cn(
+                                  lease.state === "active" && "bg-green-500/10 text-green-500 border-green-500/20",
+                                  lease.state === "expired" && "bg-red-500/10 text-red-500 border-red-500/20"
+                                )}
                               >
                                 {lease.state}
                               </Badge>
