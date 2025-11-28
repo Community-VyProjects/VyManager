@@ -161,6 +161,27 @@ class VyOSResponse(BaseModel):
     error: Optional[str] = None
 
 
+class DHCPLease(BaseModel):
+    """DHCP active lease information."""
+
+    ip_address: str = Field(..., description="IP address leased")
+    mac_address: str = Field(..., description="MAC address of client")
+    state: str = Field(..., description="Lease state (active, expired, etc.)")
+    lease_start: str = Field(..., description="Lease start time")
+    lease_expiration: str = Field(..., description="Lease expiration time")
+    remaining: str = Field(..., description="Remaining lease time")
+    pool: str = Field(..., description="Pool name")
+    hostname: Optional[str] = Field(None, description="Client hostname")
+    origin: str = Field(..., description="Lease origin (local, remote)")
+
+
+class DHCPLeasesResponse(BaseModel):
+    """Response containing DHCP leases."""
+
+    leases: List[DHCPLease] = []
+    total: int = 0
+
+
 # ============================================================================
 # API Endpoints
 # ============================================================================
@@ -506,6 +527,81 @@ async def get_dhcp_config(refresh: bool = False):
             total_subnets=total_subnets,
             total_static_mappings=total_static_mappings,
         )
+
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Device not found in registry")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/leases", response_model=DHCPLeasesResponse)
+async def get_dhcp_leases():
+    """
+    Get all active DHCP leases from VyOS.
+
+    Uses the 'show dhcp server leases' command via the VyOS API.
+    Results are cached to improve performance and reduce API calls.
+
+    Returns:
+        List of active DHCP leases with details like IP, MAC, hostname, expiration, etc.
+    """
+    if CONFIGURED_DEVICE_NAME is None:
+        raise HTTPException(
+            status_code=503, detail="No device configured. Check .env file."
+        )
+
+    try:
+        service = device_registry.get(CONFIGURED_DEVICE_NAME)
+
+        # Use the show command to get DHCP leases
+        # This returns tabular data that we need to parse
+        response = service.device.show(path=["dhcp", "server", "leases"])
+
+        if response.status != 200 or not response.result:
+            return DHCPLeasesResponse(leases=[], total=0)
+
+        # Parse the output - it comes as a string table
+        output = response.result
+        if not output:
+            return DHCPLeasesResponse(leases=[], total=0)
+
+        leases = []
+        lines = output.strip().split('\n')
+
+        # Skip header lines (usually first 2 lines: header row and separator)
+        data_lines = []
+        for i, line in enumerate(lines):
+            # Skip header and separator lines
+            if i < 2 or not line.strip() or line.startswith('-'):
+                continue
+            data_lines.append(line)
+
+        # Parse each lease line
+        for line in data_lines:
+            # Split by multiple spaces to handle the tabular format
+            parts = line.split()
+            if len(parts) < 9:  # Minimum expected fields
+                continue
+
+            try:
+                lease = DHCPLease(
+                    ip_address=parts[0],
+                    mac_address=parts[1],
+                    state=parts[2],
+                    lease_start=f"{parts[3]} {parts[4]}",  # Date and time
+                    lease_expiration=f"{parts[5]} {parts[6]}",  # Date and time
+                    remaining=parts[7],
+                    pool=parts[8],
+                    hostname=parts[9] if len(parts) > 9 else None,
+                    origin=parts[10] if len(parts) > 10 else "local"
+                )
+                leases.append(lease)
+            except (IndexError, ValueError) as e:
+                # Skip malformed lines
+                print(f"Warning: Could not parse lease line: {line}. Error: {e}")
+                continue
+
+        return DHCPLeasesResponse(leases=leases, total=len(leases))
 
     except KeyError:
         raise HTTPException(status_code=404, detail="Device not found in registry")
