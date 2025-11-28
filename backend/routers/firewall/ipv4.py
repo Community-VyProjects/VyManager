@@ -268,14 +268,23 @@ async def get_firewall_ipv4_config(refresh: bool = False):
 
             # Parse state
             state = None
-            state_data = rule_data.get("state", {})
+            state_data = rule_data.get("state")
             if state_data:
-                state = FirewallRuleState(
-                    established="established" in state_data or state_data.get("established") == "",
-                    new="new" in state_data or state_data.get("new") == "",
-                    related="related" in state_data or state_data.get("related") == "",
-                    invalid="invalid" in state_data or state_data.get("invalid") == ""
-                )
+                # State can be either a list ["established", "related"] or a dict
+                if isinstance(state_data, list):
+                    state = FirewallRuleState(
+                        established="established" in state_data,
+                        new="new" in state_data,
+                        related="related" in state_data,
+                        invalid="invalid" in state_data
+                    )
+                elif isinstance(state_data, dict):
+                    state = FirewallRuleState(
+                        established="established" in state_data or state_data.get("established") == "",
+                        new="new" in state_data or state_data.get("new") == "",
+                        related="related" in state_data or state_data.get("related") == "",
+                        invalid="invalid" in state_data or state_data.get("invalid") == ""
+                    )
 
             # Parse interface
             interface = None
