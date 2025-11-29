@@ -10,7 +10,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { ChevronDown, Shield, Network, Server, Settings, LayoutDashboard, Route, Lock, LogOut, User } from "lucide-react";
+import { ChevronDown, Shield, Network, Server, Settings, LayoutDashboard, Route, Lock, LogOut, User, FileText } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { systemService, type SystemInfo } from "@/lib/api/system";
@@ -59,7 +59,21 @@ const navigation: NavItem[] = [
     children: [
       { title: "BGP", href: "/routing/bgp" },
       { title: "OSPF", href: "/routing/ospf" },
-      { title: "Policy", href: "/routing/policy" },
+    ],
+  },
+  {
+    title: "Policies",
+    icon: FileText,
+    children: [
+      { title: "Access List", href: "/policies/access-list" },
+      { title: "Prefix List", href: "/policies/prefix-list" },
+      { title: "Route", href: "/policies/route" },
+      { title: "Route Map", href: "/policies/route-map" },
+      { title: "Local Route", href: "/policies/local-route" },
+      { title: "BGP AS", href: "/policies/bgp-as" },
+      { title: "BGP Community", href: "/policies/bgp-community" },
+      { title: "BGP Extended Community", href: "/policies/bgp-extended-community" },
+      { title: "BGP Large Community", href: "/policies/bgp-large-community" },
     ],
   },
   {
