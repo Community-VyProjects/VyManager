@@ -57,8 +57,10 @@ const navigation: NavItem[] = [
     title: "Routing",
     icon: Route,
     children: [
-      { title: "BGP", href: "/routing/bgp" },
-      { title: "OSPF", href: "/routing/ospf" },
+      { title: "Unicast Protocols", href: "/routing/unicast-protocols" },
+      { title: "Static & Failover", href: "/routing/static-failover" },
+      { title: "Routing Infrastructure", href: "/routing/infrastructure" },
+      { title: "Multicast", href: "/routing/multicast" },
     ],
   },
   {
