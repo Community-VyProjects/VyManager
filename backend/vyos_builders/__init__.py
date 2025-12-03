@@ -9,6 +9,9 @@ from .interfaces import EthernetInterfaceBuilderMixin, DummyInterfaceBuilderMixi
 from .firewall import FirewallGroupsBatchBuilder, FirewallIPv4BatchBuilder, FirewallIPv6BatchBuilder
 from .nat import NATBatchBuilder
 from .dhcp import DHCPBatchBuilder
+from .static_routes import StaticRoutesBatchBuilder
+from .route_map import RouteMapBatchBuilder
+from .access_list import AccessListBatchBuilder
 
 # Directly use the self-contained builders
 EthernetBatchBuilder = EthernetInterfaceBuilderMixin
@@ -22,4 +25,7 @@ __all__ = [
     "FirewallIPv6BatchBuilder",
     "NATBatchBuilder",
     "DHCPBatchBuilder",
+    "StaticRoutesBatchBuilder",
+    "RouteMapBatchBuilder",
+    "AccessListBatchBuilder",
 ]
