@@ -16,6 +16,8 @@ from routers.firewall import ipv4 as firewall_ipv4
 from routers.firewall import ipv6 as firewall_ipv6
 from routers.nat import nat
 from routers.dhcp import dhcp
+from routers.static_routes import static_routes
+from routers.route_map import route_map
 from routers import system
 from routers.config import config as config_router
 
@@ -56,6 +58,8 @@ async def lifespan(app: FastAPI):
             firewall_ipv6.set_configured_device_name(name)
             nat.set_configured_device_name(name)
             dhcp.set_configured_device_name(name)
+            static_routes.set_configured_device_name(name)
+            route_map.set_configured_device_name(name)
             system.set_configured_device_name(name)
             config_router.set_configured_device_name(name)
 
@@ -100,6 +104,8 @@ async def lifespan(app: FastAPI):
     firewall_ipv6.set_configured_device_name(None)
     nat.set_configured_device_name(None)
     dhcp.set_configured_device_name(None)
+    static_routes.set_configured_device_name(None)
+    route_map.set_configured_device_name(None)
     system.set_configured_device_name(None)
     config_router.set_configured_device_name(None)
     print("✓ Cleanup complete\n")
@@ -150,6 +156,8 @@ firewall_ipv4.set_device_registry(device_registry)
 firewall_ipv6.set_device_registry(device_registry)
 nat.set_device_registry(device_registry)
 dhcp.set_device_registry(device_registry)
+static_routes.set_device_registry(device_registry)
+route_map.set_device_registry(device_registry)
 system.set_device_registry(device_registry)
 config_router.set_device_registry(device_registry)
 
@@ -161,6 +169,8 @@ app.include_router(firewall_ipv4.router)
 app.include_router(firewall_ipv6.router)
 app.include_router(nat.router)
 app.include_router(dhcp.router)
+app.include_router(static_routes.router)
+app.include_router(route_map.router)
 app.include_router(system.router)
 app.include_router(config_router.router)
 

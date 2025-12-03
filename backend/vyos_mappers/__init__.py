@@ -16,6 +16,10 @@ from .nat import NATMapper
 from .nat.nat_versions import get_nat_mapper
 from .dhcp import DHCPMapper
 from .dhcp.dhcp_versions import get_dhcp_mapper
+from .static_routes import StaticRoutesMapper
+from .static_routes.static_routes_versions import get_static_routes_mapper
+from .route_map import RouteMapMapper
+from .route_map.route_map_versions import get_route_map_mapper
 
 # Auto-register all mappers
 # Ethernet uses factory for version-specific mappers
@@ -32,6 +36,10 @@ CommandMapperRegistry.register_feature("firewall_ipv6", get_firewall_ipv6_mapper
 CommandMapperRegistry.register_feature("nat", get_nat_mapper)
 # DHCP uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("dhcp", get_dhcp_mapper)
+# Static Routes uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("static_routes", get_static_routes_mapper)
+# Route Map uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("route_map", get_route_map_mapper)
 
 __all__ = [
     "BaseFeatureMapper",
@@ -43,4 +51,6 @@ __all__ = [
     "FirewallIPv6Mapper",
     "NATMapper",
     "DHCPMapper",
+    "StaticRoutesMapper",
+    "RouteMapMapper",
 ]

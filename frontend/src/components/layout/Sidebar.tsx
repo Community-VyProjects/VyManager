@@ -160,7 +160,7 @@ export function Sidebar() {
   return (
     <div className="flex h-screen w-64 flex-col border-r border-border bg-card">
       {/* Header */}
-      <div className="flex h-16 items-center border-b border-border px-6">
+      <div className="flex h-16 items-center border-b border-border px-6 shrink-0">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center">
             <Image
@@ -180,7 +180,7 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <ScrollArea className="flex-1 px-3 py-4">
+      <ScrollArea className="flex-1 px-3 py-4 min-h-0">
         <nav className="space-y-1">
           {navigation.map((item) => {
             const Icon = item.icon;
@@ -262,7 +262,7 @@ export function Sidebar() {
       </ScrollArea>
 
       {/* Footer */}
-      <div className="border-t border-border p-4 space-y-3">
+      <div className="border-t border-border p-4 space-y-3 shrink-0">
         {/* User Info */}
         <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
