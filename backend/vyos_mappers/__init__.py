@@ -20,6 +20,8 @@ from .static_routes import StaticRoutesMapper
 from .static_routes.static_routes_versions import get_static_routes_mapper
 from .route_map import RouteMapMapper
 from .route_map.route_map_versions import get_route_map_mapper
+from .access_list import AccessListMapper
+from .access_list.access_list_versions import get_access_list_mapper
 
 # Auto-register all mappers
 # Ethernet uses factory for version-specific mappers
@@ -40,6 +42,8 @@ CommandMapperRegistry.register_feature("dhcp", get_dhcp_mapper)
 CommandMapperRegistry.register_feature("static_routes", get_static_routes_mapper)
 # Route Map uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("route_map", get_route_map_mapper)
+# Access List uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("access_list", get_access_list_mapper)
 
 __all__ = [
     "BaseFeatureMapper",
@@ -53,4 +57,5 @@ __all__ = [
     "DHCPMapper",
     "StaticRoutesMapper",
     "RouteMapMapper",
+    "AccessListMapper",
 ]

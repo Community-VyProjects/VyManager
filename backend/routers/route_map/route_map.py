@@ -524,67 +524,9 @@ async def route_map_batch_configure(request: RouteMapBatchRequest):
 # ============================================================================
 # Additional Helper Endpoints
 # ============================================================================
-
-
-@router.delete("/route-map/{name}")
-async def delete_route_map(name: str):
-    """
-    Delete an entire route-map.
-
-    Args:
-        name: Route-map name
-    """
-    if CONFIGURED_DEVICE_NAME is None:
-        raise HTTPException(status_code=503, detail="No device configured.")
-
-    try:
-        service = device_registry.get(CONFIGURED_DEVICE_NAME)
-        version = service.get_version()
-        builder = RouteMapBatchBuilder(version=version)
-
-        builder.delete_route_map(name)
-
-        # Execute batch
-        response = service.execute_batch(builder)
-
-        return VyOSResponse(
-            success=response.status == 200,
-            data={"message": f"Route-map {name} deleted"},
-            error=response.error if response.error else None
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.delete("/route-map/{name}/rule/{rule_number}")
-async def delete_route_map_rule(name: str, rule_number: int):
-    """
-    Delete a specific rule from a route-map.
-
-    Args:
-        name: Route-map name
-        rule_number: Rule number to delete
-    """
-    if CONFIGURED_DEVICE_NAME is None:
-        raise HTTPException(status_code=503, detail="No device configured.")
-
-    try:
-        service = device_registry.get(CONFIGURED_DEVICE_NAME)
-        version = service.get_version()
-        builder = RouteMapBatchBuilder(version=version)
-
-        builder.delete_rule(name, str(rule_number))
-
-        # Execute batch
-        response = service.execute_batch(builder)
-
-        return VyOSResponse(
-            success=response.status == 200,
-            data={"message": f"Rule {rule_number} deleted from route-map {name}"},
-            error=response.error if response.error else None
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+# All operations use the batch endpoint above
+# No direct DELETE endpoints - use /batch for all operations
+# ============================================================================
 
 
 # ============================================================================

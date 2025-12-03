@@ -11,9 +11,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircle, Plus, Trash2 } from "lucide-react";
 import { staticRoutesService } from "@/lib/api/static-routes";
-import { ethernetService } from "@/lib/api/ethernet";
+import { apiClient } from "@/lib/api/client";
 import type { StaticRoutesCapabilities } from "@/lib/api/static-routes";
-import type { EthernetInterface } from "@/lib/api/types/ethernet";
 
 interface CreateStaticRouteModalProps {
   open: boolean;
@@ -41,7 +40,7 @@ export function CreateStaticRouteModal({ open, onOpenChange, onSuccess, routeTyp
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [capabilities, setCapabilities] = useState<StaticRoutesCapabilities | null>(null);
-  const [availableInterfaces, setAvailableInterfaces] = useState<EthernetInterface[]>([]);
+  const [availableInterfaces, setAvailableInterfaces] = useState<string[]>([]);
 
   // Form fields
   const [destination, setDestination] = useState("");
@@ -85,56 +84,28 @@ export function CreateStaticRouteModal({ open, onOpenChange, onSuccess, routeTyp
 
   const loadInterfaces = async () => {
     try {
-      const config = await ethernetService.getConfig();
+      const interfaceNames: string[] = [];
 
-      // Flatten interfaces to include VLANs
-      const allInterfaces: EthernetInterface[] = [];
-
-      for (const iface of config.interfaces) {
-        // Add the main interface
-        allInterfaces.push(iface);
-
-        // Add VIF (VLAN) sub-interfaces
-        if (iface.vif && iface.vif.length > 0) {
-          for (const vif of iface.vif) {
-            allInterfaces.push({
-              name: `${iface.name}.${vif.vlan_id}`,
-              type: 'vlan',
-              addresses: vif.addresses || [],
-              description: vif.description || null,
-              vrf: vif.vrf || null,
-            } as EthernetInterface);
-          }
-        }
-
-        // Add VIF-S (Service VLAN) sub-interfaces
-        if (iface.vif_s && iface.vif_s.length > 0) {
-          for (const vif_s of iface.vif_s) {
-            allInterfaces.push({
-              name: `${iface.name}.${vif_s.vlan_id}`,
-              type: 'vlan',
-              addresses: vif_s.addresses || [],
-              description: vif_s.description || null,
-              vrf: vif_s.vrf || null,
-            } as EthernetInterface);
-
-            // Add VIF-C (Customer VLAN) under VIF-S
-            if (vif_s.vif_c && vif_s.vif_c.length > 0) {
-              for (const vif_c of vif_s.vif_c) {
-                allInterfaces.push({
-                  name: `${iface.name}.${vif_s.vlan_id}.${vif_c.vlan_id}`,
-                  type: 'vlan',
-                  addresses: vif_c.addresses || [],
-                  description: vif_c.description || null,
-                  vrf: vif_c.vrf || null,
-                } as EthernetInterface);
-              }
-            }
-          }
-        }
+      // Fetch ethernet interfaces
+      try {
+        const ethernetConfig = await apiClient.get<{ interfaces: Array<{ name: string }> }>("/vyos/ethernet/config");
+        interfaceNames.push(...ethernetConfig.interfaces.map(iface => iface.name));
+      } catch (err) {
+        console.error("Failed to load ethernet interfaces:", err);
       }
 
-      setAvailableInterfaces(allInterfaces);
+      // Fetch dummy interfaces
+      try {
+        const dummyConfig = await apiClient.get<{ interfaces: Array<{ name: string }> }>("/vyos/dummy/config");
+        interfaceNames.push(...dummyConfig.interfaces.map(iface => iface.name));
+      } catch (err) {
+        console.error("Failed to load dummy interfaces:", err);
+      }
+
+      // Sort interfaces alphabetically
+      interfaceNames.sort();
+
+      setAvailableInterfaces(interfaceNames);
     } catch (err) {
       console.error("Failed to load interfaces:", err);
     }
@@ -473,9 +444,9 @@ export function CreateStaticRouteModal({ open, onOpenChange, onSuccess, routeTyp
                             <SelectValue placeholder="Select interface" />
                           </SelectTrigger>
                           <SelectContent>
-                            {availableInterfaces.map((eth) => (
-                              <SelectItem key={eth.name} value={eth.name}>
-                                {eth.name}
+                            {availableInterfaces.map((interfaceName) => (
+                              <SelectItem key={interfaceName} value={interfaceName}>
+                                {interfaceName}
                               </SelectItem>
                             ))}
                           </SelectContent>

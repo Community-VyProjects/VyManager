@@ -11,6 +11,7 @@ from .nat import NATBatchBuilder
 from .dhcp import DHCPBatchBuilder
 from .static_routes import StaticRoutesBatchBuilder
 from .route_map import RouteMapBatchBuilder
+from .access_list import AccessListBatchBuilder
 
 # Directly use the self-contained builders
 EthernetBatchBuilder = EthernetInterfaceBuilderMixin
@@ -26,4 +27,5 @@ __all__ = [
     "DHCPBatchBuilder",
     "StaticRoutesBatchBuilder",
     "RouteMapBatchBuilder",
+    "AccessListBatchBuilder",
 ]

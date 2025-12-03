@@ -180,18 +180,28 @@ class RouteMapService {
    * Delete an entire route-map
    */
   async deleteRouteMap(name: string): Promise<any> {
-    const result = await apiClient.delete(`/vyos/route-map/route-map/${name}`);
-    await this.refreshConfig();
-    return result;
+    const operations: RouteMapBatchOperation[] = [];
+    operations.push({ op: "delete_route_map" });
+
+    return this.batchConfigure({
+      name,
+      rule_number: 0, // Not used for delete_route_map
+      operations,
+    });
   }
 
   /**
    * Delete a specific rule from a route-map
    */
   async deleteRule(name: string, ruleNumber: number): Promise<any> {
-    const result = await apiClient.delete(`/vyos/route-map/route-map/${name}/rule/${ruleNumber}`);
-    await this.refreshConfig();
-    return result;
+    const operations: RouteMapBatchOperation[] = [];
+    operations.push({ op: "delete_rule" });
+
+    return this.batchConfigure({
+      name,
+      rule_number: ruleNumber,
+      operations,
+    });
   }
 
   /**
