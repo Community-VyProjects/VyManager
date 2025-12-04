@@ -22,6 +22,8 @@ from .route_map import RouteMapMapper
 from .route_map.route_map_versions import get_route_map_mapper
 from .access_list import AccessListMapper
 from .access_list.access_list_versions import get_access_list_mapper
+from .prefix_list import PrefixListMapper
+from .prefix_list.prefix_list_versions import get_prefix_list_mapper
 
 # Auto-register all mappers
 # Ethernet uses factory for version-specific mappers
@@ -44,6 +46,8 @@ CommandMapperRegistry.register_feature("static_routes", get_static_routes_mapper
 CommandMapperRegistry.register_feature("route_map", get_route_map_mapper)
 # Access List uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("access_list", get_access_list_mapper)
+# Prefix List uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("prefix_list", get_prefix_list_mapper)
 
 __all__ = [
     "BaseFeatureMapper",
@@ -58,4 +62,5 @@ __all__ = [
     "StaticRoutesMapper",
     "RouteMapMapper",
     "AccessListMapper",
+    "PrefixListMapper",
 ]
