@@ -12,6 +12,7 @@ from .dhcp import DHCPBatchBuilder
 from .static_routes import StaticRoutesBatchBuilder
 from .route_map import RouteMapBatchBuilder
 from .access_list import AccessListBatchBuilder
+from .prefix_list import PrefixListBatchBuilder
 
 # Directly use the self-contained builders
 EthernetBatchBuilder = EthernetInterfaceBuilderMixin
@@ -28,4 +29,5 @@ __all__ = [
     "StaticRoutesBatchBuilder",
     "RouteMapBatchBuilder",
     "AccessListBatchBuilder",
+    "PrefixListBatchBuilder",
 ]
