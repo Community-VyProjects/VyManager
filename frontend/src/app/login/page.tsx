@@ -8,7 +8,6 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { signIn, signUp } from "@/lib/auth-client";
 import { Shield, Loader2, AlertCircle } from "lucide-react";
-import Image from "next/image";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -102,14 +101,12 @@ export default function LoginPage() {
             <div className="relative w-20 h-20 mb-4">
               <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 blur-xl" />
               <div className="relative w-20 h-20 rounded-2xl overflow-hidden shadow-lg shadow-primary/10">
-                <Image
+                <img
                   src="/vy-icon.png"
                   alt="VyManager Logo"
                   width={80}
                   height={80}
                   className="object-contain"
-                  priority
-                  loader={({ src }) => src}
                 />
               </div>
             </div>
