@@ -218,15 +218,15 @@ class RouteMapMapper(BaseFeatureMapper):
 
     def get_set_community_add(self, name: str, rule: str, community: str) -> List[str]:
         """Set community add."""
-        return ["policy", "route-map", name, "rule", rule, "set", "community", community, "add"]
+        return ["policy", "route-map", name, "rule", rule, "set", "community", "add", community]
 
     def get_set_community_replace(self, name: str, rule: str, community: str) -> List[str]:
         """Set community replace."""
-        return ["policy", "route-map", name, "rule", rule, "set", "community", community, "replace"]
+        return ["policy", "route-map", name, "rule", rule, "set", "community", "replace", community]
 
     def get_set_community_delete(self, name: str, rule: str, community: str) -> List[str]:
         """Set community delete."""
-        return ["policy", "route-map", name, "rule", rule, "set", "community", community, "delete"]
+        return ["policy", "route-map", name, "rule", rule, "set", "community", "delete", community]
 
     def get_set_community_none(self, name: str, rule: str) -> List[str]:
         """Set community none."""
@@ -234,15 +234,15 @@ class RouteMapMapper(BaseFeatureMapper):
 
     def get_set_large_community_add(self, name: str, rule: str, community: str) -> List[str]:
         """Set large-community add."""
-        return ["policy", "route-map", name, "rule", rule, "set", "large-community", community, "add"]
+        return ["policy", "route-map", name, "rule", rule, "set", "large-community", "add", community]
 
     def get_set_large_community_replace(self, name: str, rule: str, community: str) -> List[str]:
         """Set large-community replace."""
-        return ["policy", "route-map", name, "rule", rule, "set", "large-community", community, "replace"]
+        return ["policy", "route-map", name, "rule", rule, "set", "large-community", "replace", community]
 
     def get_set_large_community_delete(self, name: str, rule: str, community: str) -> List[str]:
         """Set large-community delete."""
-        return ["policy", "route-map", name, "rule", rule, "set", "large-community", community, "delete"]
+        return ["policy", "route-map", name, "rule", rule, "set", "large-community", "delete", community]
 
     def get_set_large_community_none(self, name: str, rule: str) -> List[str]:
         """Set large-community none."""

@@ -51,11 +51,17 @@ export interface SetActions {
   as_path_prepend?: string | null;
   as_path_prepend_last_as?: number | null;
 
-  // BGP Communities
-  community_value?: string | null;
-  community_action?: string | null;  // add|replace|delete|none
-  large_community_value?: string | null;
-  large_community_action?: string | null;  // add|replace|delete|none
+  // BGP Communities (separate fields for each action to support multiple simultaneous operations)
+  community_add_values?: string[] | null;
+  community_delete_values?: string[] | null;
+  community_replace_values?: string[] | null;
+  community_remove_all?: boolean;
+
+  // Large Communities (separate fields for each action)
+  large_community_add_values?: string[] | null;
+  large_community_delete_values?: string[] | null;
+  large_community_replace_values?: string[] | null;
+  large_community_remove_all?: boolean;
   extcommunity_bandwidth?: string | null;
   extcommunity_rt?: string | null;
   extcommunity_soo?: string | null;
@@ -536,21 +542,44 @@ class RouteMapService {
     if (set.as_path_prepend) operations.push({ op: "set_as_path_prepend", value: set.as_path_prepend });
     if (set.as_path_prepend_last_as !== undefined && set.as_path_prepend_last_as !== null) operations.push({ op: "set_as_path_prepend_last_as", value: set.as_path_prepend_last_as.toString() });
 
-    // Communities
-    if (set.community_action === "none") {
+    // Communities (separate fields for each action to support multiple simultaneous operations)
+    if (set.community_add_values && set.community_add_values.length > 0) {
+      for (const community of set.community_add_values) {
+        operations.push({ op: "set_community_add", value: community });
+      }
+    }
+    if (set.community_delete_values && set.community_delete_values.length > 0) {
+      for (const community of set.community_delete_values) {
+        operations.push({ op: "set_community_delete", value: community });
+      }
+    }
+    if (set.community_replace_values && set.community_replace_values.length > 0) {
+      for (const community of set.community_replace_values) {
+        operations.push({ op: "set_community_replace", value: community });
+      }
+    }
+    if (set.community_remove_all) {
       operations.push({ op: "set_community_none" });
-    } else if (set.community_value && set.community_action) {
-      if (set.community_action === "add") operations.push({ op: "set_community_add", value: set.community_value });
-      if (set.community_action === "replace") operations.push({ op: "set_community_replace", value: set.community_value });
-      if (set.community_action === "delete") operations.push({ op: "set_community_delete", value: set.community_value });
     }
 
-    if (set.large_community_action === "none") {
+    // Large Communities (separate fields for each action)
+    if (set.large_community_add_values && set.large_community_add_values.length > 0) {
+      for (const community of set.large_community_add_values) {
+        operations.push({ op: "set_large_community_add", value: community });
+      }
+    }
+    if (set.large_community_delete_values && set.large_community_delete_values.length > 0) {
+      for (const community of set.large_community_delete_values) {
+        operations.push({ op: "set_large_community_delete", value: community });
+      }
+    }
+    if (set.large_community_replace_values && set.large_community_replace_values.length > 0) {
+      for (const community of set.large_community_replace_values) {
+        operations.push({ op: "set_large_community_replace", value: community });
+      }
+    }
+    if (set.large_community_remove_all) {
       operations.push({ op: "set_large_community_none" });
-    } else if (set.large_community_value && set.large_community_action) {
-      if (set.large_community_action === "add") operations.push({ op: "set_large_community_add", value: set.large_community_value });
-      if (set.large_community_action === "replace") operations.push({ op: "set_large_community_replace", value: set.large_community_value });
-      if (set.large_community_action === "delete") operations.push({ op: "set_large_community_delete", value: set.large_community_value });
     }
 
     // Extcommunity

@@ -7,7 +7,10 @@ export default async function proxy(request: NextRequest) {
   const publicRoutes = ["/login", "/api/auth"];
   const isPublicRoute = publicRoutes.some((route) => pathname.startsWith(route));
 
-  if (isPublicRoute) {
+  // Allow static files (images, fonts, etc.)
+  const isStaticFile = pathname.match(/\.(ico|png|jpg|jpeg|gif|svg|webp|woff|woff2|ttf|eot)$/i);
+
+  if (isPublicRoute || isStaticFile) {
     return NextResponse.next();
   }
 

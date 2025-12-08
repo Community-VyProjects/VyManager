@@ -85,11 +85,17 @@ class SetActions(BaseModel):
     as_path_prepend: Optional[str] = None
     as_path_prepend_last_as: Optional[int] = None
 
-    # BGP Communities
-    community_value: Optional[str] = None
-    community_action: Optional[str] = None  # add|replace|delete|none
-    large_community_value: Optional[str] = None
-    large_community_action: Optional[str] = None  # add|replace|delete|none
+    # BGP Communities (separate fields for each action to support multiple simultaneous operations)
+    community_add_values: Optional[List[str]] = None
+    community_delete_values: Optional[List[str]] = None
+    community_replace_values: Optional[List[str]] = None
+    community_remove_all: bool = False
+
+    # Large Communities (separate fields for each action)
+    large_community_add_values: Optional[List[str]] = None
+    large_community_delete_values: Optional[List[str]] = None
+    large_community_replace_values: Optional[List[str]] = None
+    large_community_remove_all: bool = False
     extcommunity_bandwidth: Optional[str] = None
     extcommunity_rt: Optional[str] = None
     extcommunity_soo: Optional[str] = None
@@ -381,37 +387,32 @@ def parse_set_actions(set_data: dict) -> SetActions:
         set_actions.as_path_prepend = as_path.get("prepend")
         set_actions.as_path_prepend_last_as = int(as_path["prepend-last-as"]) if "prepend-last-as" in as_path else None
 
-    # Communities
+    # Communities (parse into separate fields for each action)
+    # Note: VyOS returns a string for single values, list for multiple values
     if "community" in set_data:
         comm = set_data["community"]
         if "none" in comm:
-            set_actions.community_action = "none"
-        else:
-            for comm_val, comm_data in comm.items():
-                set_actions.community_value = comm_val
-                if isinstance(comm_data, dict):
-                    if "add" in comm_data:
-                        set_actions.community_action = "add"
-                    elif "replace" in comm_data:
-                        set_actions.community_action = "replace"
-                    elif "delete" in comm_data:
-                        set_actions.community_action = "delete"
+            set_actions.community_remove_all = True
+        if "add" in comm:
+            # Normalize to list (VyOS returns string if single value, list if multiple)
+            set_actions.community_add_values = comm["add"] if isinstance(comm["add"], list) else [comm["add"]]
+        if "replace" in comm:
+            set_actions.community_replace_values = comm["replace"] if isinstance(comm["replace"], list) else [comm["replace"]]
+        if "delete" in comm:
+            set_actions.community_delete_values = comm["delete"] if isinstance(comm["delete"], list) else [comm["delete"]]
 
-    # Large Communities
+    # Large Communities (parse into separate fields for each action)
+    # Note: VyOS returns a string for single values, list for multiple values
     if "large-community" in set_data:
         lc = set_data["large-community"]
         if "none" in lc:
-            set_actions.large_community_action = "none"
-        else:
-            for lc_val, lc_data in lc.items():
-                set_actions.large_community_value = lc_val
-                if isinstance(lc_data, dict):
-                    if "add" in lc_data:
-                        set_actions.large_community_action = "add"
-                    elif "replace" in lc_data:
-                        set_actions.large_community_action = "replace"
-                    elif "delete" in lc_data:
-                        set_actions.large_community_action = "delete"
+            set_actions.large_community_remove_all = True
+        if "add" in lc:
+            set_actions.large_community_add_values = lc["add"] if isinstance(lc["add"], list) else [lc["add"]]
+        if "replace" in lc:
+            set_actions.large_community_replace_values = lc["replace"] if isinstance(lc["replace"], list) else [lc["replace"]]
+        if "delete" in lc:
+            set_actions.large_community_delete_values = lc["delete"] if isinstance(lc["delete"], list) else [lc["delete"]]
 
     # Extcommunity
     if "extcommunity" in set_data:
@@ -667,26 +668,31 @@ async def reorder_route_map_rules(request: ReorderRouteMapRequest):
             if set_actions.as_path_prepend_last_as is not None:
                 builder.set_as_path_prepend_last_as(request.route_map_name, str(new_number), str(set_actions.as_path_prepend_last_as))
 
-            # Communities
-            if set_actions.community_value:
-                action = set_actions.community_action or "add"
-                if action == "add":
-                    builder.set_community_add(request.route_map_name, str(new_number), set_actions.community_value)
-                elif action == "replace":
-                    builder.set_community_replace(request.route_map_name, str(new_number), set_actions.community_value)
-                elif action == "delete":
-                    builder.set_community_delete(request.route_map_name, str(new_number), set_actions.community_value)
-                elif action == "none":
-                    builder.set_community_none(request.route_map_name, str(new_number))
+            # Communities (handles separate add/delete/replace operations)
+            if set_actions.community_add_values:
+                for community in set_actions.community_add_values:
+                    builder.set_community_add(request.route_map_name, str(new_number), community)
+            if set_actions.community_delete_values:
+                for community in set_actions.community_delete_values:
+                    builder.set_community_delete(request.route_map_name, str(new_number), community)
+            if set_actions.community_replace_values:
+                for community in set_actions.community_replace_values:
+                    builder.set_community_replace(request.route_map_name, str(new_number), community)
+            if set_actions.community_remove_all:
+                builder.set_community_none(request.route_map_name, str(new_number))
 
-            if set_actions.large_community_value:
-                action = set_actions.large_community_action or "add"
-                if action == "add":
-                    builder.set_large_community_add(request.route_map_name, str(new_number), set_actions.large_community_value)
-                elif action == "replace":
-                    builder.set_large_community_replace(request.route_map_name, str(new_number), set_actions.large_community_value)
-                elif action == "delete":
-                    builder.set_large_community_delete(request.route_map_name, str(new_number), set_actions.large_community_value)
+            # Large Communities (handles separate add/delete/replace operations)
+            if set_actions.large_community_add_values:
+                for large_community in set_actions.large_community_add_values:
+                    builder.set_large_community_add(request.route_map_name, str(new_number), large_community)
+            if set_actions.large_community_delete_values:
+                for large_community in set_actions.large_community_delete_values:
+                    builder.set_large_community_delete(request.route_map_name, str(new_number), large_community)
+            if set_actions.large_community_replace_values:
+                for large_community in set_actions.large_community_replace_values:
+                    builder.set_large_community_replace(request.route_map_name, str(new_number), large_community)
+            if set_actions.large_community_remove_all:
+                builder.set_large_community_none(request.route_map_name, str(new_number))
 
             if set_actions.extcommunity_bandwidth:
                 builder.set_extcommunity_bandwidth(request.route_map_name, str(new_number), set_actions.extcommunity_bandwidth)

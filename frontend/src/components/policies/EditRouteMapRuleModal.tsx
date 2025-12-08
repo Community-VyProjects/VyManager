@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, X, Plus } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { routeMapService } from "@/lib/api/route-map";
 import type { RouteMapRule, MatchConditions, SetActions } from "@/lib/api/route-map";
 
@@ -84,11 +85,38 @@ export function EditRouteMapRuleModal({
   const [setAsPathPrepend, setSetAsPathPrepend] = useState("");
   const [setAsPathPrependLastAs, setSetAsPathPrependLastAs] = useState("");
 
-  // Set Actions - Communities
-  const [setCommunityValue, setSetCommunityValue] = useState("");
-  const [setCommunityAction, setSetCommunityAction] = useState("");
-  const [setLargeCommunityValue, setSetLargeCommunityValue] = useState("");
-  const [setLargeCommunityAction, setSetLargeCommunityAction] = useState("");
+  // Set Actions - Communities (restructured for multiple actions)
+  // Community Add
+  const [communityAddValues, setCommunityAddValues] = useState<string[]>([]);
+  const [communityAddEnabled, setCommunityAddEnabled] = useState(false);
+  const [newCommunityAdd, setNewCommunityAdd] = useState("");
+  // Community Delete
+  const [communityDeleteValues, setCommunityDeleteValues] = useState<string[]>([]);
+  const [communityDeleteEnabled, setCommunityDeleteEnabled] = useState(false);
+  const [newCommunityDelete, setNewCommunityDelete] = useState("");
+  // Community Replace
+  const [communityReplaceValues, setCommunityReplaceValues] = useState<string[]>([]);
+  const [communityReplaceEnabled, setCommunityReplaceEnabled] = useState(false);
+  const [newCommunityReplace, setNewCommunityReplace] = useState("");
+  // Community Remove All
+  const [communityRemoveAll, setCommunityRemoveAll] = useState(false);
+
+  // Large Communities (restructured for multiple actions)
+  // Large Community Add
+  const [largeCommunityAddValues, setLargeCommunityAddValues] = useState<string[]>([]);
+  const [largeCommunityAddEnabled, setLargeCommunityAddEnabled] = useState(false);
+  const [newLargeCommunityAdd, setNewLargeCommunityAdd] = useState("");
+  // Large Community Delete
+  const [largeCommunityDeleteValues, setLargeCommunityDeleteValues] = useState<string[]>([]);
+  const [largeCommunityDeleteEnabled, setLargeCommunityDeleteEnabled] = useState(false);
+  const [newLargeCommunityDelete, setNewLargeCommunityDelete] = useState("");
+  // Large Community Replace
+  const [largeCommunityReplaceValues, setLargeCommunityReplaceValues] = useState<string[]>([]);
+  const [largeCommunityReplaceEnabled, setLargeCommunityReplaceEnabled] = useState(false);
+  const [newLargeCommunityReplace, setNewLargeCommunityReplace] = useState("");
+  // Large Community Remove All
+  const [largeCommunityRemoveAll, setLargeCommunityRemoveAll] = useState(false);
+
   const [setExtcommunityBandwidth, setSetExtcommunityBandwidth] = useState("");
   const [setExtcommunityRt, setSetExtcommunityRt] = useState("");
   const [setExtcommunitySoo, setSetExtcommunitySoo] = useState("");
@@ -126,6 +154,160 @@ export function EditRouteMapRuleModal({
       loadRuleData(rule);
     }
   }, [open, rule]);
+
+  // Community action toggle handlers with mutual exclusivity
+  const handleCommunityActionToggle = (action: 'add' | 'delete' | 'replace' | 'removeAll') => {
+    if (action === 'add') {
+      const newState = !communityAddEnabled;
+      setCommunityAddEnabled(newState);
+      if (newState) {
+        // Clear exclusive actions
+        setCommunityReplaceEnabled(false);
+        setCommunityReplaceValues([]);
+        setCommunityRemoveAll(false);
+      }
+    } else if (action === 'delete') {
+      const newState = !communityDeleteEnabled;
+      setCommunityDeleteEnabled(newState);
+      if (newState) {
+        // Clear exclusive actions
+        setCommunityReplaceEnabled(false);
+        setCommunityReplaceValues([]);
+        setCommunityRemoveAll(false);
+      }
+    } else if (action === 'replace') {
+      const newState = !communityReplaceEnabled;
+      setCommunityReplaceEnabled(newState);
+      if (newState) {
+        // Clear other actions
+        setCommunityAddEnabled(false);
+        setCommunityAddValues([]);
+        setCommunityDeleteEnabled(false);
+        setCommunityDeleteValues([]);
+        setCommunityRemoveAll(false);
+      }
+    } else if (action === 'removeAll') {
+      const newState = !communityRemoveAll;
+      setCommunityRemoveAll(newState);
+      if (newState) {
+        // Clear all other actions
+        setCommunityAddEnabled(false);
+        setCommunityAddValues([]);
+        setCommunityDeleteEnabled(false);
+        setCommunityDeleteValues([]);
+        setCommunityReplaceEnabled(false);
+        setCommunityReplaceValues([]);
+      }
+    }
+  };
+
+  // Community Add handlers
+  const handleAddCommunityAdd = () => {
+    if (newCommunityAdd.trim()) {
+      setCommunityAddValues([...communityAddValues, newCommunityAdd.trim()]);
+      setNewCommunityAdd("");
+    }
+  };
+  const handleRemoveCommunityAdd = (index: number) => {
+    setCommunityAddValues(communityAddValues.filter((_, i) => i !== index));
+  };
+
+  // Community Delete handlers
+  const handleAddCommunityDelete = () => {
+    if (newCommunityDelete.trim()) {
+      setCommunityDeleteValues([...communityDeleteValues, newCommunityDelete.trim()]);
+      setNewCommunityDelete("");
+    }
+  };
+  const handleRemoveCommunityDelete = (index: number) => {
+    setCommunityDeleteValues(communityDeleteValues.filter((_, i) => i !== index));
+  };
+
+  // Community Replace handlers
+  const handleAddCommunityReplace = () => {
+    if (newCommunityReplace.trim()) {
+      setCommunityReplaceValues([...communityReplaceValues, newCommunityReplace.trim()]);
+      setNewCommunityReplace("");
+    }
+  };
+  const handleRemoveCommunityReplace = (index: number) => {
+    setCommunityReplaceValues(communityReplaceValues.filter((_, i) => i !== index));
+  };
+
+  // Large Community action toggle handlers with mutual exclusivity
+  const handleLargeCommunityActionToggle = (action: 'add' | 'delete' | 'replace' | 'removeAll') => {
+    if (action === 'add') {
+      const newState = !largeCommunityAddEnabled;
+      setLargeCommunityAddEnabled(newState);
+      if (newState) {
+        setLargeCommunityReplaceEnabled(false);
+        setLargeCommunityReplaceValues([]);
+        setLargeCommunityRemoveAll(false);
+      }
+    } else if (action === 'delete') {
+      const newState = !largeCommunityDeleteEnabled;
+      setLargeCommunityDeleteEnabled(newState);
+      if (newState) {
+        setLargeCommunityReplaceEnabled(false);
+        setLargeCommunityReplaceValues([]);
+        setLargeCommunityRemoveAll(false);
+      }
+    } else if (action === 'replace') {
+      const newState = !largeCommunityReplaceEnabled;
+      setLargeCommunityReplaceEnabled(newState);
+      if (newState) {
+        setLargeCommunityAddEnabled(false);
+        setLargeCommunityAddValues([]);
+        setLargeCommunityDeleteEnabled(false);
+        setLargeCommunityDeleteValues([]);
+        setLargeCommunityRemoveAll(false);
+      }
+    } else if (action === 'removeAll') {
+      const newState = !largeCommunityRemoveAll;
+      setLargeCommunityRemoveAll(newState);
+      if (newState) {
+        setLargeCommunityAddEnabled(false);
+        setLargeCommunityAddValues([]);
+        setLargeCommunityDeleteEnabled(false);
+        setLargeCommunityDeleteValues([]);
+        setLargeCommunityReplaceEnabled(false);
+        setLargeCommunityReplaceValues([]);
+      }
+    }
+  };
+
+  // Large Community Add handlers
+  const handleAddLargeCommunityAdd = () => {
+    if (newLargeCommunityAdd.trim()) {
+      setLargeCommunityAddValues([...largeCommunityAddValues, newLargeCommunityAdd.trim()]);
+      setNewLargeCommunityAdd("");
+    }
+  };
+  const handleRemoveLargeCommunityAdd = (index: number) => {
+    setLargeCommunityAddValues(largeCommunityAddValues.filter((_, i) => i !== index));
+  };
+
+  // Large Community Delete handlers
+  const handleAddLargeCommunityDelete = () => {
+    if (newLargeCommunityDelete.trim()) {
+      setLargeCommunityDeleteValues([...largeCommunityDeleteValues, newLargeCommunityDelete.trim()]);
+      setNewLargeCommunityDelete("");
+    }
+  };
+  const handleRemoveLargeCommunityDelete = (index: number) => {
+    setLargeCommunityDeleteValues(largeCommunityDeleteValues.filter((_, i) => i !== index));
+  };
+
+  // Large Community Replace handlers
+  const handleAddLargeCommunityReplace = () => {
+    if (newLargeCommunityReplace.trim()) {
+      setLargeCommunityReplaceValues([...largeCommunityReplaceValues, newLargeCommunityReplace.trim()]);
+      setNewLargeCommunityReplace("");
+    }
+  };
+  const handleRemoveLargeCommunityReplace = (index: number) => {
+    setLargeCommunityReplaceValues(largeCommunityReplaceValues.filter((_, i) => i !== index));
+  };
 
   const loadRuleData = (ruleData: RouteMapRule) => {
     // Basic fields
@@ -172,10 +354,55 @@ export function EditRouteMapRuleModal({
     setSetAsPathExclude(set.as_path_exclude || "");
     setSetAsPathPrepend(set.as_path_prepend || "");
     setSetAsPathPrependLastAs(set.as_path_prepend_last_as !== null ? String(set.as_path_prepend_last_as) : "");
-    setSetCommunityValue(set.community_value || "");
-    setSetCommunityAction(set.community_action || "");
-    setSetLargeCommunityValue(set.large_community_value || "");
-    setSetLargeCommunityAction(set.large_community_action || "");
+
+    // Communities - parse separate fields
+    if (set.community_add_values && set.community_add_values.length > 0) {
+      setCommunityAddValues(set.community_add_values);
+      setCommunityAddEnabled(true);
+    } else {
+      setCommunityAddValues([]);
+      setCommunityAddEnabled(false);
+    }
+    if (set.community_delete_values && set.community_delete_values.length > 0) {
+      setCommunityDeleteValues(set.community_delete_values);
+      setCommunityDeleteEnabled(true);
+    } else {
+      setCommunityDeleteValues([]);
+      setCommunityDeleteEnabled(false);
+    }
+    if (set.community_replace_values && set.community_replace_values.length > 0) {
+      setCommunityReplaceValues(set.community_replace_values);
+      setCommunityReplaceEnabled(true);
+    } else {
+      setCommunityReplaceValues([]);
+      setCommunityReplaceEnabled(false);
+    }
+    setCommunityRemoveAll(set.community_remove_all || false);
+
+    // Large Communities - parse separate fields
+    if (set.large_community_add_values && set.large_community_add_values.length > 0) {
+      setLargeCommunityAddValues(set.large_community_add_values);
+      setLargeCommunityAddEnabled(true);
+    } else {
+      setLargeCommunityAddValues([]);
+      setLargeCommunityAddEnabled(false);
+    }
+    if (set.large_community_delete_values && set.large_community_delete_values.length > 0) {
+      setLargeCommunityDeleteValues(set.large_community_delete_values);
+      setLargeCommunityDeleteEnabled(true);
+    } else {
+      setLargeCommunityDeleteValues([]);
+      setLargeCommunityDeleteEnabled(false);
+    }
+    if (set.large_community_replace_values && set.large_community_replace_values.length > 0) {
+      setLargeCommunityReplaceValues(set.large_community_replace_values);
+      setLargeCommunityReplaceEnabled(true);
+    } else {
+      setLargeCommunityReplaceValues([]);
+      setLargeCommunityReplaceEnabled(false);
+    }
+    setLargeCommunityRemoveAll(set.large_community_remove_all || false);
+
     setSetExtcommunityBandwidth(set.extcommunity_bandwidth || "");
     setSetExtcommunityRt(set.extcommunity_rt || "");
     setSetExtcommunitySoo(set.extcommunity_soo || "");
@@ -261,10 +488,35 @@ export function EditRouteMapRuleModal({
       if (setAsPathExclude.trim()) set.as_path_exclude = setAsPathExclude.trim();
       if (setAsPathPrepend.trim()) set.as_path_prepend = setAsPathPrepend.trim();
       if (setAsPathPrependLastAs.trim()) set.as_path_prepend_last_as = parseInt(setAsPathPrependLastAs);
-      if (setCommunityValue.trim()) set.community_value = setCommunityValue.trim();
-      if (setCommunityAction.trim()) set.community_action = setCommunityAction.trim();
-      if (setLargeCommunityValue.trim()) set.large_community_value = setLargeCommunityValue.trim();
-      if (setLargeCommunityAction.trim()) set.large_community_action = setLargeCommunityAction.trim();
+
+      // Handle communities - send all enabled actions in single payload
+      if (communityAddEnabled && communityAddValues.length > 0) {
+        set.community_add_values = communityAddValues;
+      }
+      if (communityDeleteEnabled && communityDeleteValues.length > 0) {
+        set.community_delete_values = communityDeleteValues;
+      }
+      if (communityReplaceEnabled && communityReplaceValues.length > 0) {
+        set.community_replace_values = communityReplaceValues;
+      }
+      if (communityRemoveAll) {
+        set.community_remove_all = true;
+      }
+
+      // Handle large communities - send all enabled actions in single payload
+      if (largeCommunityAddEnabled && largeCommunityAddValues.length > 0) {
+        set.large_community_add_values = largeCommunityAddValues;
+      }
+      if (largeCommunityDeleteEnabled && largeCommunityDeleteValues.length > 0) {
+        set.large_community_delete_values = largeCommunityDeleteValues;
+      }
+      if (largeCommunityReplaceEnabled && largeCommunityReplaceValues.length > 0) {
+        set.large_community_replace_values = largeCommunityReplaceValues;
+      }
+      if (largeCommunityRemoveAll) {
+        set.large_community_remove_all = true;
+      }
+
       if (setExtcommunityBandwidth.trim()) set.extcommunity_bandwidth = setExtcommunityBandwidth.trim();
       if (setExtcommunityRt.trim()) set.extcommunity_rt = setExtcommunityRt.trim();
       if (setExtcommunitySoo.trim()) set.extcommunity_soo = setExtcommunitySoo.trim();
@@ -781,58 +1033,270 @@ export function EditRouteMapRuleModal({
                 <AccordionContent className="space-y-4 pt-4">
                   <div className="space-y-4">
                     <h4 className="font-medium text-sm">Standard Community</h4>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-4 border border-border rounded-lg p-4">
+                      {/* Add Communities */}
                       <div className="space-y-2">
-                        <Label htmlFor="setCommunityValue">Community Value</Label>
-                        <Input
-                          id="setCommunityValue"
-                          placeholder="e.g., 65000:100 or local-as"
-                          value={setCommunityValue}
-                          onChange={(e) => setSetCommunityValue(e.target.value)}
-                        />
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                            id="communityAdd"
+                            checked={communityAddEnabled}
+                            onCheckedChange={() => handleCommunityActionToggle('add')}
+                            disabled={loading || communityReplaceEnabled || communityRemoveAll}
+                          />
+                          <Label htmlFor="communityAdd" className="font-medium cursor-pointer">
+                            Add Communities
+                          </Label>
+                        </div>
+                        {communityAddEnabled && (
+                          <div className="ml-6 space-y-2">
+                            {communityAddValues.map((community, index) => (
+                              <div key={index} className="flex items-center gap-2">
+                                <Badge variant="secondary" className="font-mono">{community}</Badge>
+                                <Button type="button" variant="ghost" size="sm" onClick={() => handleRemoveCommunityAdd(index)}>
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ))}
+                            <div className="flex gap-2">
+                              <Input
+                                value={newCommunityAdd}
+                                onChange={(e) => setNewCommunityAdd(e.target.value)}
+                                placeholder="e.g., 65000:100 or local-as"
+                                onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddCommunityAdd())}
+                              />
+                              <Button type="button" variant="outline" size="sm" onClick={handleAddCommunityAdd}>
+                                <Plus className="h-4 w-4 mr-1" />
+                                Add
+                              </Button>
+                            </div>
+                          </div>
+                        )}
                       </div>
+
+                      {/* Delete Communities */}
                       <div className="space-y-2">
-                        <Label htmlFor="setCommunityAction">Action</Label>
-                        <Select value={setCommunityAction || "unset"} onValueChange={(val) => setSetCommunityAction(val === "unset" ? "" : val)}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select action" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="unset">None</SelectItem>
-                            <SelectItem value="add">Add</SelectItem>
-                            <SelectItem value="replace">Replace</SelectItem>
-                            <SelectItem value="delete">Delete</SelectItem>
-                            <SelectItem value="none">Remove All</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                            id="communityDelete"
+                            checked={communityDeleteEnabled}
+                            onCheckedChange={() => handleCommunityActionToggle('delete')}
+                            disabled={loading || communityReplaceEnabled || communityRemoveAll}
+                          />
+                          <Label htmlFor="communityDelete" className="font-medium cursor-pointer">
+                            Delete Communities
+                          </Label>
+                        </div>
+                        {communityDeleteEnabled && (
+                          <div className="ml-6 space-y-2">
+                            {communityDeleteValues.map((community, index) => (
+                              <div key={index} className="flex items-center gap-2">
+                                <Badge variant="secondary" className="font-mono">{community}</Badge>
+                                <Button type="button" variant="ghost" size="sm" onClick={() => handleRemoveCommunityDelete(index)}>
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ))}
+                            <div className="flex gap-2">
+                              <Input
+                                value={newCommunityDelete}
+                                onChange={(e) => setNewCommunityDelete(e.target.value)}
+                                placeholder="e.g., 65000:200"
+                                onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddCommunityDelete())}
+                              />
+                              <Button type="button" variant="outline" size="sm" onClick={handleAddCommunityDelete}>
+                                <Plus className="h-4 w-4 mr-1" />
+                                Add
+                              </Button>
+                            </div>
+                            <p className="text-xs text-muted-foreground">Note: Community dropdown will be added in future update</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Replace All With */}
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                            id="communityReplace"
+                            checked={communityReplaceEnabled}
+                            onCheckedChange={() => handleCommunityActionToggle('replace')}
+                            disabled={loading || communityAddEnabled || communityDeleteEnabled || communityRemoveAll}
+                          />
+                          <Label htmlFor="communityReplace" className="font-medium cursor-pointer">
+                            Replace All With
+                          </Label>
+                        </div>
+                        {communityReplaceEnabled && (
+                          <div className="ml-6 space-y-2">
+                            {communityReplaceValues.map((community, index) => (
+                              <div key={index} className="flex items-center gap-2">
+                                <Badge variant="secondary" className="font-mono">{community}</Badge>
+                                <Button type="button" variant="ghost" size="sm" onClick={() => handleRemoveCommunityReplace(index)}>
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ))}
+                            <div className="flex gap-2">
+                              <Input
+                                value={newCommunityReplace}
+                                onChange={(e) => setNewCommunityReplace(e.target.value)}
+                                placeholder="e.g., 65000:300"
+                                onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddCommunityReplace())}
+                              />
+                              <Button type="button" variant="outline" size="sm" onClick={handleAddCommunityReplace}>
+                                <Plus className="h-4 w-4 mr-1" />
+                                Add
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Remove All */}
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id="communityRemoveAll"
+                          checked={communityRemoveAll}
+                          onCheckedChange={() => handleCommunityActionToggle('removeAll')}
+                          disabled={loading || communityAddEnabled || communityDeleteEnabled || communityReplaceEnabled}
+                        />
+                        <Label htmlFor="communityRemoveAll" className="font-medium cursor-pointer">
+                          Remove All Communities
+                        </Label>
                       </div>
                     </div>
 
                     <h4 className="font-medium text-sm pt-4">Large Community</h4>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-4 border border-border rounded-lg p-4">
+                      {/* Add Large Communities */}
                       <div className="space-y-2">
-                        <Label htmlFor="setLargeCommunityValue">Large Community Value</Label>
-                        <Input
-                          id="setLargeCommunityValue"
-                          placeholder="e.g., 65000:1:100"
-                          value={setLargeCommunityValue}
-                          onChange={(e) => setSetLargeCommunityValue(e.target.value)}
-                        />
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                            id="largeCommunityAdd"
+                            checked={largeCommunityAddEnabled}
+                            onCheckedChange={() => handleLargeCommunityActionToggle('add')}
+                            disabled={loading || largeCommunityReplaceEnabled || largeCommunityRemoveAll}
+                          />
+                          <Label htmlFor="largeCommunityAdd" className="font-medium cursor-pointer">
+                            Add Large Communities
+                          </Label>
+                        </div>
+                        {largeCommunityAddEnabled && (
+                          <div className="ml-6 space-y-2">
+                            {largeCommunityAddValues.map((community, index) => (
+                              <div key={index} className="flex items-center gap-2">
+                                <Badge variant="secondary" className="font-mono">{community}</Badge>
+                                <Button type="button" variant="ghost" size="sm" onClick={() => handleRemoveLargeCommunityAdd(index)}>
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ))}
+                            <div className="flex gap-2">
+                              <Input
+                                value={newLargeCommunityAdd}
+                                onChange={(e) => setNewLargeCommunityAdd(e.target.value)}
+                                placeholder="e.g., 65000:1:100"
+                                onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddLargeCommunityAdd())}
+                              />
+                              <Button type="button" variant="outline" size="sm" onClick={handleAddLargeCommunityAdd}>
+                                <Plus className="h-4 w-4 mr-1" />
+                                Add
+                              </Button>
+                            </div>
+                          </div>
+                        )}
                       </div>
+
+                      {/* Delete Large Communities */}
                       <div className="space-y-2">
-                        <Label htmlFor="setLargeCommunityAction">Action</Label>
-                        <Select value={setLargeCommunityAction || "unset"} onValueChange={(val) => setSetLargeCommunityAction(val === "unset" ? "" : val)}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select action" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="unset">None</SelectItem>
-                            <SelectItem value="add">Add</SelectItem>
-                            <SelectItem value="replace">Replace</SelectItem>
-                            <SelectItem value="delete">Delete</SelectItem>
-                            <SelectItem value="none">Remove All</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                            id="largeCommunityDelete"
+                            checked={largeCommunityDeleteEnabled}
+                            onCheckedChange={() => handleLargeCommunityActionToggle('delete')}
+                            disabled={loading || largeCommunityReplaceEnabled || largeCommunityRemoveAll}
+                          />
+                          <Label htmlFor="largeCommunityDelete" className="font-medium cursor-pointer">
+                            Delete Large Communities
+                          </Label>
+                        </div>
+                        {largeCommunityDeleteEnabled && (
+                          <div className="ml-6 space-y-2">
+                            {largeCommunityDeleteValues.map((community, index) => (
+                              <div key={index} className="flex items-center gap-2">
+                                <Badge variant="secondary" className="font-mono">{community}</Badge>
+                                <Button type="button" variant="ghost" size="sm" onClick={() => handleRemoveLargeCommunityDelete(index)}>
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ))}
+                            <div className="flex gap-2">
+                              <Input
+                                value={newLargeCommunityDelete}
+                                onChange={(e) => setNewLargeCommunityDelete(e.target.value)}
+                                placeholder="e.g., 65000:2:200"
+                                onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddLargeCommunityDelete())}
+                              />
+                              <Button type="button" variant="outline" size="sm" onClick={handleAddLargeCommunityDelete}>
+                                <Plus className="h-4 w-4 mr-1" />
+                                Add
+                              </Button>
+                            </div>
+                            <p className="text-xs text-muted-foreground">Note: Community dropdown will be added in future update</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Replace All Large Communities With */}
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                            id="largeCommunityReplace"
+                            checked={largeCommunityReplaceEnabled}
+                            onCheckedChange={() => handleLargeCommunityActionToggle('replace')}
+                            disabled={loading || largeCommunityAddEnabled || largeCommunityDeleteEnabled || largeCommunityRemoveAll}
+                          />
+                          <Label htmlFor="largeCommunityReplace" className="font-medium cursor-pointer">
+                            Replace All With
+                          </Label>
+                        </div>
+                        {largeCommunityReplaceEnabled && (
+                          <div className="ml-6 space-y-2">
+                            {largeCommunityReplaceValues.map((community, index) => (
+                              <div key={index} className="flex items-center gap-2">
+                                <Badge variant="secondary" className="font-mono">{community}</Badge>
+                                <Button type="button" variant="ghost" size="sm" onClick={() => handleRemoveLargeCommunityReplace(index)}>
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ))}
+                            <div className="flex gap-2">
+                              <Input
+                                value={newLargeCommunityReplace}
+                                onChange={(e) => setNewLargeCommunityReplace(e.target.value)}
+                                placeholder="e.g., 65000:3:300"
+                                onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddLargeCommunityReplace())}
+                              />
+                              <Button type="button" variant="outline" size="sm" onClick={handleAddLargeCommunityReplace}>
+                                <Plus className="h-4 w-4 mr-1" />
+                                Add
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Remove All Large Communities */}
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id="largeCommunityRemoveAll"
+                          checked={largeCommunityRemoveAll}
+                          onCheckedChange={() => handleLargeCommunityActionToggle('removeAll')}
+                          disabled={loading || largeCommunityAddEnabled || largeCommunityDeleteEnabled || largeCommunityReplaceEnabled}
+                        />
+                        <Label htmlFor="largeCommunityRemoveAll" className="font-medium cursor-pointer">
+                          Remove All Large Communities
+                        </Label>
                       </div>
                     </div>
 
