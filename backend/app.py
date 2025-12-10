@@ -21,6 +21,8 @@ from routers.route_map import route_map
 from routers.access_list import access_list
 from routers.prefix_list import prefix_list
 from routers.local_route import local_route
+from routers.route import route
+from routers.as_path_list import as_path_list
 from routers import system
 from routers.config import config as config_router
 
@@ -66,6 +68,8 @@ async def lifespan(app: FastAPI):
             access_list.set_configured_device_name(name)
             prefix_list.set_configured_device_name(name)
             local_route.set_configured_device_name(name)
+            route.set_configured_device_name(name)
+            as_path_list.set_configured_device_name(name)
             system.set_configured_device_name(name)
             config_router.set_configured_device_name(name)
 
@@ -115,6 +119,8 @@ async def lifespan(app: FastAPI):
     access_list.set_configured_device_name(None)
     prefix_list.set_configured_device_name(None)
     local_route.set_configured_device_name(None)
+    route.set_configured_device_name(None)
+    as_path_list.set_configured_device_name(None)
     system.set_configured_device_name(None)
     config_router.set_configured_device_name(None)
     print("✓ Cleanup complete\n")
@@ -170,6 +176,8 @@ route_map.set_device_registry(device_registry)
 access_list.set_device_registry(device_registry)
 prefix_list.set_device_registry(device_registry)
 local_route.set_device_registry(device_registry)
+route.set_device_registry(device_registry)
+as_path_list.set_device_registry(device_registry)
 system.set_device_registry(device_registry)
 config_router.set_device_registry(device_registry)
 
@@ -186,6 +194,8 @@ app.include_router(route_map.router)
 app.include_router(access_list.router)
 app.include_router(prefix_list.router)
 app.include_router(local_route.router)
+app.include_router(route.router)
+app.include_router(as_path_list.router)
 app.include_router(system.router)
 app.include_router(config_router.router)
 
