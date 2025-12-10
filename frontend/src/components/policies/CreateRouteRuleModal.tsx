@@ -529,7 +529,7 @@ export function CreateRouteRuleModal({
                   <Label htmlFor="sourceAddress">Source Address</Label>
                   <Input
                     id="sourceAddress"
-                    placeholder="192.168.1.0/24"
+                    placeholder={policyType === "route6" ? "2001:db8::/32" : "192.168.1.0/24"}
                     value={sourceAddress}
                     onChange={(e) => setSourceAddress(e.target.value)}
                     disabled={loading}
@@ -551,7 +551,7 @@ export function CreateRouteRuleModal({
                   <Label htmlFor="destAddress">Destination Address</Label>
                   <Input
                     id="destAddress"
-                    placeholder="10.0.0.0/8"
+                    placeholder={policyType === "route6" ? "fd00::/8" : "10.0.0.0/8"}
                     value={destAddress}
                     onChange={(e) => setDestAddress(e.target.value)}
                     disabled={loading}

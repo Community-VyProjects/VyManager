@@ -436,10 +436,30 @@ def parse_match_conditions(rule_data: dict, match: MatchConditions):
         else:
             match.icmpv6_type_name = icmpv6_type_name_value
 
-    # Packet characteristics (can be string or list)
+    # Packet characteristics
+    # Fragment can be: string, list, or dict with keys like "match-frag": {}
     fragment_value = rule_data.get("fragment")
-    if isinstance(fragment_value, list):
-        match.fragment = fragment_value[0] if fragment_value else None
+    if isinstance(fragment_value, dict):
+        # Extract which fragment option is set
+        # Note: VyOS may show both keys, but we prioritize match-frag over match-non-frag
+        if "match-frag" in fragment_value:
+            match.fragment = "match-frag"
+        elif "match-non-frag" in fragment_value:
+            match.fragment = "match-non-frag"
+        else:
+            match.fragment = None
+    elif isinstance(fragment_value, list):
+        frag_val = fragment_value[0] if fragment_value else None
+        if isinstance(frag_val, dict):
+            # Handle list of dicts
+            if "match-frag" in frag_val:
+                match.fragment = "match-frag"
+            elif "match-non-frag" in frag_val:
+                match.fragment = "match-non-frag"
+            else:
+                match.fragment = None
+        else:
+            match.fragment = frag_val
     else:
         match.fragment = fragment_value
 
@@ -715,12 +735,16 @@ def _get_value(data, key):
     return value
 
 
-def _recreate_match_conditions(builder, policy_type: str, policy_name: str, rule_num: str, match: dict):
-    """Recreate all match conditions for a rule during reorder."""
+def _recreate_match_conditions(builder, policy_type: str, policy_name: str, rule_num: str, rule_data: dict):
+    """Recreate all match conditions for a rule during reorder.
+
+    Note: In VyOS config, match conditions are at the root level of rule_data,
+    not under a 'match' key.
+    """
 
     # Source conditions
-    if "source" in match:
-        src = match["source"]
+    if "source" in rule_data:
+        src = rule_data["source"]
         if "address" in src:
             addr = _get_value(src, "address")
             if addr:
@@ -757,8 +781,8 @@ def _recreate_match_conditions(builder, policy_type: str, policy_name: str, rule
                     builder.set_match_source_group_port(policy_type, policy_name, rule_num, g)
 
     # Destination conditions
-    if "destination" in match:
-        dst = match["destination"]
+    if "destination" in rule_data:
+        dst = rule_data["destination"]
         if "address" in dst:
             addr = _get_value(dst, "address")
             if addr:
@@ -795,22 +819,22 @@ def _recreate_match_conditions(builder, policy_type: str, policy_name: str, rule
                     builder.set_match_destination_group_port(policy_type, policy_name, rule_num, g)
 
     # Protocol
-    if "protocol" in match:
-        proto = _get_value(match, "protocol")
+    if "protocol" in rule_data:
+        proto = _get_value(rule_data, "protocol")
         if proto:
             builder.set_match_protocol(policy_type, policy_name, rule_num, proto)
 
     # TCP
-    if "tcp" in match:
-        tcp = match["tcp"]
+    if "tcp" in rule_data:
+        tcp = rule_data["tcp"]
         if "flags" in tcp:
             flags = _get_value(tcp, "flags")
             if flags:
                 builder.set_match_tcp_flags(policy_type, policy_name, rule_num, flags)
 
     # ICMP
-    if "icmp" in match:
-        icmp = match["icmp"]
+    if "icmp" in rule_data:
+        icmp = rule_data["icmp"]
         if "code" in icmp:
             code = _get_value(icmp, "code")
             if code:
@@ -825,8 +849,8 @@ def _recreate_match_conditions(builder, policy_type: str, policy_name: str, rule
                 builder.set_match_icmp_type_name(policy_type, policy_name, rule_num, type_name)
 
     # ICMPv6
-    if "icmpv6" in match:
-        icmpv6 = match["icmpv6"]
+    if "icmpv6" in rule_data:
+        icmpv6 = rule_data["icmpv6"]
         if "code" in icmpv6:
             code = _get_value(icmpv6, "code")
             if code:
@@ -841,39 +865,57 @@ def _recreate_match_conditions(builder, policy_type: str, policy_name: str, rule
                 builder.set_match_icmpv6_type_name(policy_type, policy_name, rule_num, type_name)
 
     # Packet characteristics
-    if "fragment" in match:
-        frag = _get_value(match, "fragment")
+    if "fragment" in rule_data:
+        frag = rule_data.get("fragment")
         if frag:
-            builder.set_match_fragment(policy_type, policy_name, rule_num, frag)
+            # Fragment can be a string or an object with keys like "match-frag": {}
+            if isinstance(frag, dict):
+                # Extract the key name (match-frag or match-non-frag)
+                if "match-frag" in frag:
+                    builder.set_match_fragment(policy_type, policy_name, rule_num, "match-frag")
+                elif "match-non-frag" in frag:
+                    builder.set_match_fragment(policy_type, policy_name, rule_num, "match-non-frag")
+            elif isinstance(frag, str):
+                builder.set_match_fragment(policy_type, policy_name, rule_num, frag)
+            elif isinstance(frag, list) and frag:
+                # Handle array case
+                frag_val = frag[0]
+                if isinstance(frag_val, dict):
+                    if "match-frag" in frag_val:
+                        builder.set_match_fragment(policy_type, policy_name, rule_num, "match-frag")
+                    elif "match-non-frag" in frag_val:
+                        builder.set_match_fragment(policy_type, policy_name, rule_num, "match-non-frag")
+                else:
+                    builder.set_match_fragment(policy_type, policy_name, rule_num, frag_val)
 
-    if "packet-type" in match:
-        pkt_type = _get_value(match, "packet-type")
+    if "packet-type" in rule_data:
+        pkt_type = _get_value(rule_data, "packet-type")
         if pkt_type:
             builder.set_match_packet_type(policy_type, policy_name, rule_num, pkt_type)
 
-    if "packet-length" in match:
-        pkt_len = _get_value(match, "packet-length")
+    if "packet-length" in rule_data:
+        pkt_len = _get_value(rule_data, "packet-length")
         if pkt_len:
             builder.set_match_packet_length(policy_type, policy_name, rule_num, pkt_len)
 
-    if "packet-length-exclude" in match:
-        pkt_len_exc = _get_value(match, "packet-length-exclude")
+    if "packet-length-exclude" in rule_data:
+        pkt_len_exc = _get_value(rule_data, "packet-length-exclude")
         if pkt_len_exc:
             builder.set_match_packet_length_exclude(policy_type, policy_name, rule_num, pkt_len_exc)
 
-    if "dscp" in match:
-        dscp = _get_value(match, "dscp")
+    if "dscp" in rule_data:
+        dscp = _get_value(rule_data, "dscp")
         if dscp:
             builder.set_match_dscp(policy_type, policy_name, rule_num, dscp)
 
-    if "dscp-exclude" in match:
-        dscp_exc = _get_value(match, "dscp-exclude")
+    if "dscp-exclude" in rule_data:
+        dscp_exc = _get_value(rule_data, "dscp-exclude")
         if dscp_exc:
             builder.set_match_dscp_exclude(policy_type, policy_name, rule_num, dscp_exc)
 
     # State
-    if "state" in match:
-        state_value = match["state"]
+    if "state" in rule_data:
+        state_value = rule_data["state"]
         if isinstance(state_value, list):
             # Send each state individually
             for s in state_value:
@@ -890,25 +932,25 @@ def _recreate_match_conditions(builder, policy_type: str, policy_name: str, rule
                 builder.set_match_state(policy_type, policy_name, rule_num, state_value)
 
     # IPsec
-    if "ipsec" in match:
-        ipsec = _get_value(match, "ipsec")
+    if "ipsec" in rule_data:
+        ipsec = _get_value(rule_data, "ipsec")
         if ipsec:
             builder.set_match_ipsec(policy_type, policy_name, rule_num, ipsec)
 
     # Marks
-    if "mark" in match:
-        mark = _get_value(match, "mark")
+    if "mark" in rule_data:
+        mark = _get_value(rule_data, "mark")
         if mark:
             builder.set_match_mark(policy_type, policy_name, rule_num, mark)
 
-    if "connection-mark" in match:
-        conn_mark = _get_value(match, "connection-mark")
+    if "connection-mark" in rule_data:
+        conn_mark = _get_value(rule_data, "connection-mark")
         if conn_mark:
             builder.set_match_connection_mark(policy_type, policy_name, rule_num, conn_mark)
 
     # TTL
-    if "ttl" in match:
-        ttl = match["ttl"]
+    if "ttl" in rule_data:
+        ttl = rule_data["ttl"]
         if "eq" in ttl:
             val = _get_value(ttl, "eq")
             if val:
@@ -923,8 +965,8 @@ def _recreate_match_conditions(builder, policy_type: str, policy_name: str, rule
                 builder.set_match_ttl(policy_type, policy_name, rule_num, "lt", val)
 
     # Hop limit (IPv6 TTL)
-    if "hop-limit" in match:
-        hop = match["hop-limit"]
+    if "hop-limit" in rule_data:
+        hop = rule_data["hop-limit"]
         if "eq" in hop:
             val = _get_value(hop, "eq")
             if val:
@@ -939,8 +981,8 @@ def _recreate_match_conditions(builder, policy_type: str, policy_name: str, rule
                 builder.set_match_hop_limit(policy_type, policy_name, rule_num, "lt", val)
 
     # Time-based
-    if "time" in match:
-        time = match["time"]
+    if "time" in rule_data:
+        time = rule_data["time"]
         if "monthdays" in time:
             val = _get_value(time, "monthdays")
             if val:
@@ -969,8 +1011,8 @@ def _recreate_match_conditions(builder, policy_type: str, policy_name: str, rule
                 builder.set_match_time_weekdays(policy_type, policy_name, rule_num, val)
 
     # Rate limiting
-    if "limit" in match:
-        limit = match["limit"]
+    if "limit" in rule_data:
+        limit = rule_data["limit"]
         if "burst" in limit:
             val = _get_value(limit, "burst")
             if val:
@@ -980,8 +1022,8 @@ def _recreate_match_conditions(builder, policy_type: str, policy_name: str, rule
             if val:
                 builder.set_match_limit_rate(policy_type, policy_name, rule_num, val)
 
-    if "recent" in match:
-        recent = match["recent"]
+    if "recent" in rule_data:
+        recent = rule_data["recent"]
         if "count" in recent:
             val = _get_value(recent, "count")
             if val:
@@ -1111,13 +1153,17 @@ async def reorder_rules(request: ReorderRequest):
             if "log" in rule_data:
                 builder.set_rule_log(request.policy_type, request.policy_name, str(new_rule_num))
 
-            # Recreate match conditions
-            if "match" in rule_data:
-                _recreate_match_conditions(builder, request.policy_type, request.policy_name, str(new_rule_num), rule_data["match"])
+            # Recreate match conditions (they are at root level, not under 'match' key)
+            _recreate_match_conditions(builder, request.policy_type, request.policy_name, str(new_rule_num), rule_data)
 
             # Recreate set actions
             if "set" in rule_data:
                 _recreate_set_actions(builder, request.policy_type, request.policy_name, str(new_rule_num), rule_data["set"])
+
+            # Handle action drop (can be at root level)
+            if "action" in rule_data and rule_data["action"] == "drop":
+                # TODO: Add set_action_drop method to builder
+                pass
 
         # Execute batch
         response = service.execute_batch(builder)

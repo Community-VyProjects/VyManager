@@ -32,6 +32,7 @@ import { EditRouteRuleModal } from "@/components/policies/EditRouteRuleModal";
 import { DeleteRouteRuleModal } from "@/components/policies/DeleteRouteRuleModal";
 import { RouteRuleRow } from "@/components/policies/RouteRuleRow";
 import { RouteReorderBanner } from "@/components/policies/RouteReorderBanner";
+import { ManagePolicyInterfacesModal } from "@/components/policies/ManagePolicyInterfacesModal";
 import { cn } from "@/lib/utils";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { apiClient } from "@/lib/api/client";
@@ -60,6 +61,8 @@ export default function RoutePage() {
   const [showDeleteRuleModal, setShowDeleteRuleModal] = useState(false);
   const [selectedRule, setSelectedRule] = useState<any>(null);
 
+  const [showManageInterfacesModal, setShowManageInterfacesModal] = useState(false);
+
   // Drag and drop states
   const [reorderedRules, setReorderedRules] = useState<any[]>([]);
   const [originalRules, setOriginalRules] = useState<any[]>([]);
@@ -68,10 +71,7 @@ export default function RoutePage() {
   const [savingReorder, setSavingReorder] = useState(false);
 
   // Interface management states
-  const [availableInterfaces, setAvailableInterfaces] = useState<Array<{name: string, type: string, description?: string}>>([]);
   const [policyInterfaces, setPolicyInterfaces] = useState<Array<{name: string, type: string}>>([]);
-  const [loadingInterfaces, setLoadingInterfaces] = useState(false);
-  const [selectedInterfaceToAdd, setSelectedInterfaceToAdd] = useState<string>("");
 
   // Drag and drop sensors
   const sensors = useSensors(
@@ -258,36 +258,6 @@ export default function RoutePage() {
   };
 
   // Interface management functions
-  const loadInterfaces = async () => {
-    try {
-      const [ethernetResponse, dummyResponse] = await Promise.all([
-        apiClient.get<{interfaces: Array<{name: string, type: string, description?: string, vif?: Array<{vlan_id: string, description?: string}>}>}>("/vyos/ethernet/config"),
-        apiClient.get<{interfaces: Array<{name: string, type: string, description?: string}>}>("/vyos/dummy/config"),
-      ]);
-
-      const allInterfaces = [
-        ...ethernetResponse.interfaces.flatMap(i => {
-          const interfaces = [{name: i.name, type: "ethernet", description: i.description}];
-          // Add VLANs if they exist
-          if (i.vif && Array.isArray(i.vif)) {
-            i.vif.forEach(vlan => {
-              interfaces.push({
-                name: `${i.name}.${vlan.vlan_id}`,
-                type: "ethernet",
-                description: vlan.description || `VLAN ${vlan.vlan_id}`,
-              });
-            });
-          }
-          return interfaces;
-        }),
-        ...dummyResponse.interfaces.map(i => ({name: i.name, type: "dummy", description: i.description})),
-      ];
-      setAvailableInterfaces(allInterfaces);
-    } catch (err) {
-      console.error("Failed to load interfaces:", err);
-    }
-  };
-
   const loadPolicyInterfaces = async () => {
     if (!selectedPolicyName) {
       setPolicyInterfaces([]);
@@ -295,7 +265,6 @@ export default function RoutePage() {
     }
 
     try {
-      setLoadingInterfaces(true);
       const config = await routeService.getConfig(true);
       const policies = selectedPolicyType === "route" ? config.ipv4_policies : config.ipv6_policies;
       const policy = policies.find(p => p.name === selectedPolicyName);
@@ -308,62 +277,8 @@ export default function RoutePage() {
     } catch (err) {
       console.error("Failed to load policy interfaces:", err);
       setPolicyInterfaces([]);
-    } finally {
-      setLoadingInterfaces(false);
     }
   };
-
-  const handleAddInterface = async (interfaceName: string) => {
-    if (!selectedPolicyName || !interfaceName) return;
-
-    const iface = availableInterfaces.find(i => i.name === interfaceName);
-    if (!iface) return;
-
-    try {
-      setLoadingInterfaces(true);
-      await routeService.addInterfaceToPolicy(
-        selectedPolicyType,
-        selectedPolicyName,
-        iface.type,
-        iface.name
-      );
-      await loadPolicyInterfaces();
-      setSelectedInterfaceToAdd(""); // Reset the select dropdown
-    } catch (err) {
-      console.error("Failed to add interface:", err);
-      setError(err instanceof Error ? err.message : "Failed to add interface");
-    } finally {
-      setLoadingInterfaces(false);
-    }
-  };
-
-  const handleRemoveInterface = async (interfaceName: string) => {
-    if (!selectedPolicyName) return;
-
-    const iface = policyInterfaces.find(i => i.name === interfaceName);
-    if (!iface) return;
-
-    try {
-      setLoadingInterfaces(true);
-      await routeService.removeInterfaceFromPolicy(
-        selectedPolicyType,
-        selectedPolicyName,
-        iface.type,
-        iface.name
-      );
-      await loadPolicyInterfaces();
-    } catch (err) {
-      console.error("Failed to remove interface:", err);
-      setError(err instanceof Error ? err.message : "Failed to remove interface");
-    } finally {
-      setLoadingInterfaces(false);
-    }
-  };
-
-  // Load interfaces when component mounts
-  useEffect(() => {
-    loadInterfaces();
-  }, []);
 
   // Load policy interfaces when selected policy changes
   useEffect(() => {
@@ -583,60 +498,36 @@ export default function RoutePage() {
                           {policyInterfaces.length}
                         </Badge>
                       </div>
-                      <Select
-                        value={selectedInterfaceToAdd}
-                        onValueChange={handleAddInterface}
-                        disabled={loadingInterfaces || !selectedPolicyName}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setShowManageInterfacesModal(true)}
+                        disabled={!selectedPolicyName}
                       >
-                        <SelectTrigger className="w-48 h-8">
-                          <SelectValue placeholder="Add interface..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {availableInterfaces
-                            .filter(iface => !policyInterfaces.find(pi => pi.name === iface.name))
-                            .map((iface) => (
-                              <SelectItem key={iface.name} value={iface.name}>
-                                {iface.name} ({iface.type}){iface.description && ` - ${iface.description}`}
-                              </SelectItem>
-                            ))}
-                        </SelectContent>
-                      </Select>
+                        <Network className="h-4 w-4 mr-2" />
+                        Manage Interfaces
+                      </Button>
                     </div>
 
                     {policyInterfaces.length === 0 ? (
                       <div className="text-center py-4">
                         <p className="text-sm text-muted-foreground">
-                          No interfaces configured. Add an interface to apply this policy.
+                          No interfaces configured. Click "Manage Interfaces" to assign interfaces.
                         </p>
                       </div>
                     ) : (
                       <div className="flex flex-wrap gap-2">
-                        {policyInterfaces.map((iface) => {
-                          const details = availableInterfaces.find(i => i.name === iface.name);
-                          return (
-                            <Badge
-                              key={iface.name}
-                              variant="outline"
-                              className="px-3 py-1.5 flex items-center gap-2 bg-background"
-                            >
-                              <Network className="h-3 w-3" />
-                              <span className="font-mono text-sm">{iface.name}</span>
-                              <span className="text-muted-foreground text-xs">({iface.type})</span>
-                              {details?.description && (
-                                <span className="text-muted-foreground text-xs">• {details.description}</span>
-                              )}
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleRemoveInterface(iface.name)}
-                                disabled={loadingInterfaces}
-                                className="h-4 w-4 p-0 ml-1 hover:bg-destructive/10 hover:text-destructive"
-                              >
-                                <X className="h-3 w-3" />
-                              </Button>
-                            </Badge>
-                          );
-                        })}
+                        {policyInterfaces.map((iface) => (
+                          <Badge
+                            key={iface.name}
+                            variant="outline"
+                            className="px-3 py-1.5 flex items-center gap-2 bg-background"
+                          >
+                            <Network className="h-3 w-3" />
+                            <span className="font-mono text-sm">{iface.name}</span>
+                            <span className="text-muted-foreground text-xs">({iface.type})</span>
+                          </Badge>
+                        ))}
                       </div>
                     )}
                   </CardContent>
@@ -802,6 +693,17 @@ export default function RoutePage() {
               />
             </>
           )}
+
+          <ManagePolicyInterfacesModal
+            open={showManageInterfacesModal}
+            onOpenChange={setShowManageInterfacesModal}
+            policyType={selectedPolicyType}
+            policyName={selectedPolicyName || ""}
+            onSuccess={() => {
+              loadPolicyInterfaces();
+              fetchData(true);
+            }}
+          />
         </>
       )}
     </AppLayout>

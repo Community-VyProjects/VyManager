@@ -28,6 +28,7 @@ from .local_route import LocalRouteMapper
 from .local_route.local_route_versions import get_local_route_mapper
 from .route import RouteMapper
 from .route.route_versions import get_route_mapper
+from .as_path_list import AsPathListMapper
 
 # Auto-register all mappers
 # Ethernet uses factory for version-specific mappers
@@ -56,6 +57,8 @@ CommandMapperRegistry.register_feature("prefix_list", get_prefix_list_mapper)
 CommandMapperRegistry.register_feature("local_route", get_local_route_mapper)
 # Route uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("route", get_route_mapper)
+# AS Path List uses direct class (no version differences)
+CommandMapperRegistry.register_feature("as_path_list", AsPathListMapper)
 
 __all__ = [
     "BaseFeatureMapper",
@@ -73,4 +76,5 @@ __all__ = [
     "PrefixListMapper",
     "LocalRouteMapper",
     "RouteMapper",
+    "AsPathListMapper",
 ]

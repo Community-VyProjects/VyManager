@@ -15,6 +15,7 @@ from .access_list import AccessListBatchBuilder
 from .prefix_list import PrefixListBatchBuilder
 from .local_route import LocalRouteBatchBuilder
 from .route import RouteBatchBuilder
+from .as_path_list import AsPathListBatchBuilder
 
 # Directly use the self-contained builders
 EthernetBatchBuilder = EthernetInterfaceBuilderMixin
@@ -34,4 +35,5 @@ __all__ = [
     "PrefixListBatchBuilder",
     "LocalRouteBatchBuilder",
     "RouteBatchBuilder",
+    "AsPathListBatchBuilder",
 ]
