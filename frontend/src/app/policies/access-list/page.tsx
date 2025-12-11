@@ -512,7 +512,7 @@ export default function AccessListPage() {
                               <TableHead>Action</TableHead>
                               <TableHead>Description</TableHead>
                               <TableHead>Source</TableHead>
-                              <TableHead>Destination</TableHead>
+                              {selectedListType === "ipv4" && <TableHead>Destination</TableHead>}
                               <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                           </TableHeader>
@@ -525,6 +525,7 @@ export default function AccessListPage() {
                                 <AccessListRuleRow
                                   key={rule.rule_number}
                                   rule={rule}
+                                  listType={selectedListType}
                                   onEdit={setEditingRule}
                                   onDelete={setDeletingRule}
                                 />

@@ -32,7 +32,11 @@ export interface MatchConditions {
   ip_nexthop_prefix_len?: number | null;
   ip_nexthop_prefix_list?: string | null;
   ip_nexthop_type?: string | null;
+  ipv6_nexthop_access_list?: string | null;
   ipv6_nexthop_address?: string | null;
+  ipv6_nexthop_prefix_len?: number | null;
+  ipv6_nexthop_prefix_list?: string | null;
+  ipv6_nexthop_type?: string | null;
 
   // Route Source
   ip_route_source_access_list?: string | null;

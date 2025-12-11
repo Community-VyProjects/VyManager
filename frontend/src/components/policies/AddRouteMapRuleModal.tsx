@@ -14,6 +14,12 @@ import { AlertCircle, X, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { routeMapService } from "@/lib/api/route-map";
 import type { RouteMapRule, MatchConditions, SetActions } from "@/lib/api/route-map";
+import { asPathListService } from "@/lib/api/as-path-list";
+import { communityListService } from "@/lib/api/community-list";
+import { extcommunityListService } from "@/lib/api/extcommunity-list";
+import { largeCommunityListService } from "@/lib/api/large-community-list";
+import { accessListService } from "@/lib/api/access-list";
+import { prefixListService } from "@/lib/api/prefix-list";
 
 interface AddRouteMapRuleModalProps {
   open: boolean;
@@ -71,8 +77,12 @@ export function AddRouteMapRuleModal({
   const [matchIpNexthopAddress, setMatchIpNexthopAddress] = useState("");
   const [matchIpNexthopPrefixLen, setMatchIpNexthopPrefixLen] = useState("");
   const [matchIpNexthopPrefixList, setMatchIpNexthopPrefixList] = useState("");
-  const [matchIpNexthopType, setMatchIpNexthopType] = useState("");
+  const [matchIpNexthopType, setMatchIpNexthopType] = useState(false);
+  const [matchIpv6NexthopAccessList, setMatchIpv6NexthopAccessList] = useState("");
   const [matchIpv6NexthopAddress, setMatchIpv6NexthopAddress] = useState("");
+  const [matchIpv6NexthopPrefixLen, setMatchIpv6NexthopPrefixLen] = useState("");
+  const [matchIpv6NexthopPrefixList, setMatchIpv6NexthopPrefixList] = useState("");
+  const [matchIpv6NexthopType, setMatchIpv6NexthopType] = useState(false);
 
   // Match Conditions - Route Source
   const [matchIpRouteSourceAccessList, setMatchIpRouteSourceAccessList] = useState("");
@@ -150,6 +160,54 @@ export function AddRouteMapRuleModal({
   const [setTable, setSetTable] = useState("");
   const [setTag, setSetTag] = useState("");
 
+  // Dropdown options loaded from API
+  const [asPathLists, setAsPathLists] = useState<string[]>([]);
+  const [communityLists, setCommunityLists] = useState<string[]>([]);
+  const [extcommunityLists, setExtcommunityLists] = useState<string[]>([]);
+  const [largeCommunityLists, setLargeCommunityLists] = useState<string[]>([]);
+  const [ipv4AccessLists, setIpv4AccessLists] = useState<string[]>([]);
+  const [ipv6AccessLists, setIpv6AccessLists] = useState<string[]>([]);
+  const [ipv4PrefixLists, setIpv4PrefixLists] = useState<string[]>([]);
+  const [ipv6PrefixLists, setIpv6PrefixLists] = useState<string[]>([]);
+
+  // Load dropdown options when modal opens
+  useEffect(() => {
+    if (open) {
+      loadDropdownOptions();
+    }
+  }, [open]);
+
+  const loadDropdownOptions = async () => {
+    try {
+      const [
+        asPathConfig,
+        communityConfig,
+        extcommunityConfig,
+        largeCommunityConfig,
+        accessListConfig,
+        prefixListConfig
+      ] = await Promise.all([
+        asPathListService.getConfig(),
+        communityListService.getConfig(),
+        extcommunityListService.getConfig(),
+        largeCommunityListService.getConfig(),
+        accessListService.getConfig(),
+        prefixListService.getConfig(),
+      ]);
+
+      setAsPathLists(asPathConfig.as_path_lists.map(list => list.name));
+      setCommunityLists(communityConfig.community_lists.map(list => list.name));
+      setExtcommunityLists(extcommunityConfig.extcommunity_lists.map(list => list.name));
+      setLargeCommunityLists(largeCommunityConfig.large_community_lists.map(list => list.name));
+      setIpv4AccessLists(accessListConfig.ipv4_lists.map(list => list.number));
+      setIpv6AccessLists(accessListConfig.ipv6_lists.map(list => list.number));
+      setIpv4PrefixLists(prefixListConfig.ipv4_lists.map(list => list.name));
+      setIpv6PrefixLists(prefixListConfig.ipv6_lists.map(list => list.name));
+    } catch (err) {
+      console.error("Failed to load dropdown options:", err);
+    }
+  };
+
   // Calculate next rule number when modal opens
   useEffect(() => {
     if (open) {
@@ -165,6 +223,9 @@ export function AddRouteMapRuleModal({
       setRuleNumber(maxRuleNumber + 1);
     }
   };
+
+  // Community list names are already loaded in communityLists, largeCommunityLists, extcommunityLists
+  // We'll use those directly for the delete dropdowns
 
   // Community Action Toggle Handlers with Mutual Exclusivity
   const handleCommunityActionToggle = (action: 'add' | 'delete' | 'replace' | 'removeAll') => {
@@ -344,8 +405,12 @@ export function AddRouteMapRuleModal({
     setMatchIpNexthopAddress("");
     setMatchIpNexthopPrefixLen("");
     setMatchIpNexthopPrefixList("");
-    setMatchIpNexthopType("");
+    setMatchIpNexthopType(false);
+    setMatchIpv6NexthopAccessList("");
     setMatchIpv6NexthopAddress("");
+    setMatchIpv6NexthopPrefixLen("");
+    setMatchIpv6NexthopPrefixList("");
+    setMatchIpv6NexthopType(false);
     setMatchIpRouteSourceAccessList("");
     setMatchIpRouteSourcePrefixList("");
     setMatchInterface("");
@@ -439,8 +504,12 @@ export function AddRouteMapRuleModal({
       if (matchIpNexthopAddress.trim()) match.ip_nexthop_address = matchIpNexthopAddress.trim();
       if (matchIpNexthopPrefixLen.trim()) match.ip_nexthop_prefix_len = parseInt(matchIpNexthopPrefixLen);
       if (matchIpNexthopPrefixList.trim()) match.ip_nexthop_prefix_list = matchIpNexthopPrefixList.trim();
-      if (matchIpNexthopType.trim()) match.ip_nexthop_type = matchIpNexthopType.trim();
+      if (matchIpNexthopType) match.ip_nexthop_type = "blackhole";
+      if (matchIpv6NexthopAccessList.trim()) match.ipv6_nexthop_access_list = matchIpv6NexthopAccessList.trim();
       if (matchIpv6NexthopAddress.trim()) match.ipv6_nexthop_address = matchIpv6NexthopAddress.trim();
+      if (matchIpv6NexthopPrefixLen.trim()) match.ipv6_nexthop_prefix_len = parseInt(matchIpv6NexthopPrefixLen);
+      if (matchIpv6NexthopPrefixList.trim()) match.ipv6_nexthop_prefix_list = matchIpv6NexthopPrefixList.trim();
+      if (matchIpv6NexthopType) match.ipv6_nexthop_type = "blackhole";
       if (matchIpRouteSourceAccessList.trim()) match.ip_route_source_access_list = matchIpRouteSourceAccessList.trim();
       if (matchIpRouteSourcePrefixList.trim()) match.ip_route_source_prefix_list = matchIpRouteSourcePrefixList.trim();
       if (matchInterface.trim()) match.interface = matchInterface.trim();
@@ -610,12 +679,17 @@ export function AddRouteMapRuleModal({
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="matchAsPath">AS Path List</Label>
-                      <Input
-                        id="matchAsPath"
-                        placeholder="AS path list name"
-                        value={matchAsPath}
-                        onChange={(e) => setMatchAsPath(e.target.value)}
-                      />
+                      <Select value={matchAsPath || "none"} onValueChange={(val) => setMatchAsPath(val === "none" ? "" : val)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select AS path list" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">None</SelectItem>
+                          {asPathLists.map((name) => (
+                            <SelectItem key={name} value={name}>{name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
 
                     <div className="space-y-2">
@@ -635,12 +709,17 @@ export function AddRouteMapRuleModal({
 
                     <div className="space-y-2">
                       <Label htmlFor="matchCommunityList">Community List</Label>
-                      <Input
-                        id="matchCommunityList"
-                        placeholder="Community list name"
-                        value={matchCommunityList}
-                        onChange={(e) => setMatchCommunityList(e.target.value)}
-                      />
+                      <Select value={matchCommunityList || "none"} onValueChange={(val) => setMatchCommunityList(val === "none" ? "" : val)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select community list" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">None</SelectItem>
+                          {communityLists.map((name) => (
+                            <SelectItem key={name} value={name}>{name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <div className="flex items-center space-x-2 mt-2">
                         <Checkbox
                           id="matchCommunityExact"
@@ -655,22 +734,32 @@ export function AddRouteMapRuleModal({
 
                     <div className="space-y-2">
                       <Label htmlFor="matchExtcommunity">Extended Community</Label>
-                      <Input
-                        id="matchExtcommunity"
-                        placeholder="Extcommunity list name"
-                        value={matchExtcommunity}
-                        onChange={(e) => setMatchExtcommunity(e.target.value)}
-                      />
+                      <Select value={matchExtcommunity || "none"} onValueChange={(val) => setMatchExtcommunity(val === "none" ? "" : val)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select extended community list" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">None</SelectItem>
+                          {extcommunityLists.map((name) => (
+                            <SelectItem key={name} value={name}>{name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
 
                     <div className="space-y-2">
                       <Label htmlFor="matchLargeCommunityList">Large Community List</Label>
-                      <Input
-                        id="matchLargeCommunityList"
-                        placeholder="Large community list name"
-                        value={matchLargeCommunityList}
-                        onChange={(e) => setMatchLargeCommunityList(e.target.value)}
-                      />
+                      <Select value={matchLargeCommunityList || "none"} onValueChange={(val) => setMatchLargeCommunityList(val === "none" ? "" : val)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select large community list" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">None</SelectItem>
+                          {largeCommunityLists.map((name) => (
+                            <SelectItem key={name} value={name}>{name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
 
                     <div className="space-y-2">
@@ -804,12 +893,17 @@ export function AddRouteMapRuleModal({
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="matchIpNexthopAccessList">Access List</Label>
-                        <Input
-                          id="matchIpNexthopAccessList"
-                          placeholder="Access list number/name"
-                          value={matchIpNexthopAccessList}
-                          onChange={(e) => setMatchIpNexthopAccessList(e.target.value)}
-                        />
+                        <Select value={matchIpNexthopAccessList || "none"} onValueChange={(val) => setMatchIpNexthopAccessList(val === "none" ? "" : val)}>
+                          <SelectTrigger id="matchIpNexthopAccessList">
+                            <SelectValue placeholder="Select access list" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">None</SelectItem>
+                            {ipv4AccessLists.map((number) => (
+                              <SelectItem key={number} value={number}>{number}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="matchIpNexthopAddress">Address</Label>
@@ -822,12 +916,17 @@ export function AddRouteMapRuleModal({
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="matchIpNexthopPrefixList">Prefix List</Label>
-                        <Input
-                          id="matchIpNexthopPrefixList"
-                          placeholder="Prefix list name"
-                          value={matchIpNexthopPrefixList}
-                          onChange={(e) => setMatchIpNexthopPrefixList(e.target.value)}
-                        />
+                        <Select value={matchIpNexthopPrefixList || "none"} onValueChange={(val) => setMatchIpNexthopPrefixList(val === "none" ? "" : val)}>
+                          <SelectTrigger id="matchIpNexthopPrefixList">
+                            <SelectValue placeholder="Select prefix list" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">None</SelectItem>
+                            {ipv4PrefixLists.map((name) => (
+                              <SelectItem key={name} value={name}>{name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="matchIpNexthopPrefixLen">Prefix Length</Label>
@@ -840,25 +939,80 @@ export function AddRouteMapRuleModal({
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="matchIpNexthopType">Type</Label>
-                        <Input
-                          id="matchIpNexthopType"
-                          placeholder="e.g., blackhole"
-                          value={matchIpNexthopType}
-                          onChange={(e) => setMatchIpNexthopType(e.target.value)}
-                        />
+                        <div className="flex items-center space-x-2 pt-7">
+                          <Checkbox
+                            id="matchIpNexthopType"
+                            checked={matchIpNexthopType}
+                            onCheckedChange={(checked) => setMatchIpNexthopType(checked as boolean)}
+                          />
+                          <Label htmlFor="matchIpNexthopType" className="cursor-pointer">
+                            Blackhole Type
+                          </Label>
+                        </div>
                       </div>
                     </div>
 
                     <h4 className="font-medium text-sm pt-4">IPv6 Next-Hop</h4>
-                    <div className="space-y-2">
-                      <Label htmlFor="matchIpv6NexthopAddress">Address</Label>
-                      <Input
-                        id="matchIpv6NexthopAddress"
-                        placeholder="e.g., 2001:db8::1"
-                        value={matchIpv6NexthopAddress}
-                        onChange={(e) => setMatchIpv6NexthopAddress(e.target.value)}
-                      />
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="matchIpv6NexthopAccessList">Access List</Label>
+                        <Select value={matchIpv6NexthopAccessList || "none"} onValueChange={(val) => setMatchIpv6NexthopAccessList(val === "none" ? "" : val)}>
+                          <SelectTrigger id="matchIpv6NexthopAccessList">
+                            <SelectValue placeholder="Select access list" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">None</SelectItem>
+                            {ipv6AccessLists.map((number) => (
+                              <SelectItem key={number} value={number}>{number}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="matchIpv6NexthopAddress">Address</Label>
+                        <Input
+                          id="matchIpv6NexthopAddress"
+                          placeholder="e.g., 2001:db8::1"
+                          value={matchIpv6NexthopAddress}
+                          onChange={(e) => setMatchIpv6NexthopAddress(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="matchIpv6NexthopPrefixList">Prefix List</Label>
+                        <Select value={matchIpv6NexthopPrefixList || "none"} onValueChange={(val) => setMatchIpv6NexthopPrefixList(val === "none" ? "" : val)}>
+                          <SelectTrigger id="matchIpv6NexthopPrefixList">
+                            <SelectValue placeholder="Select prefix list" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">None</SelectItem>
+                            {ipv6PrefixLists.map((name) => (
+                              <SelectItem key={name} value={name}>{name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="matchIpv6NexthopPrefixLen">Prefix Length</Label>
+                        <Input
+                          id="matchIpv6NexthopPrefixLen"
+                          type="number"
+                          placeholder="0-128"
+                          value={matchIpv6NexthopPrefixLen}
+                          onChange={(e) => setMatchIpv6NexthopPrefixLen(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex items-center space-x-2 pt-7">
+                          <Checkbox
+                            id="matchIpv6NexthopType"
+                            checked={matchIpv6NexthopType}
+                            onCheckedChange={(checked) => setMatchIpv6NexthopType(checked as boolean)}
+                          />
+                          <Label htmlFor="matchIpv6NexthopType" className="cursor-pointer">
+                            Blackhole Type
+                          </Label>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </AccordionContent>
@@ -1057,19 +1211,31 @@ export function AddRouteMapRuleModal({
                                 </Button>
                               </div>
                             ))}
-                            <div className="flex gap-2">
-                              <Input
-                                value={newCommunityDelete}
-                                onChange={(e) => setNewCommunityDelete(e.target.value)}
-                                placeholder="e.g., 65000:200"
-                                onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddCommunityDelete())}
-                              />
-                              <Button type="button" variant="outline" size="sm" onClick={handleAddCommunityDelete}>
-                                <Plus className="h-4 w-4 mr-1" />
-                                Add
-                              </Button>
+                            <div className="space-y-2">
+                              <Select
+                                value="none"
+                                onValueChange={(value) => {
+                                  if (value !== "none" && !communityDeleteValues.includes(value)) {
+                                    setCommunityDeleteValues([...communityDeleteValues, value]);
+                                  }
+                                }}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select community list to delete" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="none">Select community list...</SelectItem>
+                                  {communityLists.map((listName) => (
+                                    <SelectItem key={listName} value={listName} disabled={communityDeleteValues.includes(listName)}>
+                                      {listName}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <p className="text-xs text-muted-foreground">
+                                Select community list(s) to delete all matching communities
+                              </p>
                             </div>
-                            <p className="text-xs text-muted-foreground">Note: Community dropdown will be added in future update</p>
                           </div>
                         )}
                       </div>
@@ -1191,19 +1357,31 @@ export function AddRouteMapRuleModal({
                                 </Button>
                               </div>
                             ))}
-                            <div className="flex gap-2">
-                              <Input
-                                value={newLargeCommunityDelete}
-                                onChange={(e) => setNewLargeCommunityDelete(e.target.value)}
-                                placeholder="e.g., 65000:2:200"
-                                onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddLargeCommunityDelete())}
-                              />
-                              <Button type="button" variant="outline" size="sm" onClick={handleAddLargeCommunityDelete}>
-                                <Plus className="h-4 w-4 mr-1" />
-                                Add
-                              </Button>
+                            <div className="space-y-2">
+                              <Select
+                                value="none"
+                                onValueChange={(value) => {
+                                  if (value !== "none" && !largeCommunityDeleteValues.includes(value)) {
+                                    setLargeCommunityDeleteValues([...largeCommunityDeleteValues, value]);
+                                  }
+                                }}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select large community list to delete" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="none">Select large community list...</SelectItem>
+                                  {largeCommunityLists.map((listName) => (
+                                    <SelectItem key={listName} value={listName} disabled={largeCommunityDeleteValues.includes(listName)}>
+                                      {listName}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <p className="text-xs text-muted-foreground">
+                                Select large community list(s) to delete all matching communities
+                              </p>
                             </div>
-                            <p className="text-xs text-muted-foreground">Note: Community dropdown will be added in future update</p>
                           </div>
                         )}
                       </div>

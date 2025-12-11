@@ -44,6 +44,7 @@ class AccessListRule(BaseModel):
     source_type: Optional[str] = None  # any, host, inverse-mask, network
     source_address: Optional[str] = None
     source_mask: Optional[str] = None
+    source_exact_match: Optional[bool] = None  # IPv6 exact-match flag
     destination_type: Optional[str] = None  # any, host, inverse-mask, network
     destination_address: Optional[str] = None
     destination_mask: Optional[str] = None
@@ -264,40 +265,43 @@ async def get_access_list_config(refresh: bool = False):
             rules_config = list_config.get("rule", {})
             
             for rule_num, rule_config in rules_config.items():
-                # Parse source (IPv6 only supports any and network)
+                # Parse source (IPv6 supports any, exact-match, and network)
+                # Note: any can coexist with exact-match OR network
+                # But exact-match and network are mutually exclusive
                 source_type = None
                 source_address = None
+                source_exact_match = False
                 source_data = rule_config.get("source", {})
 
                 if isinstance(source_data, dict):
+                    # Check for "any" flag
                     if "any" in source_data:
                         source_type = "any"
-                    elif "network" in source_data:
-                        source_type = "network"
+
+                    # Check for "exact-match" flag (can coexist with any)
+                    if "exact-match" in source_data:
+                        source_exact_match = True
+
+                    # Check for "network" (can coexist with any, but not exact-match)
+                    if "network" in source_data:
                         net_val = source_data.get("network")
                         source_address = net_val if isinstance(net_val, str) else None
+                        # If we have network but no "any", set source_type to "network"
+                        if not source_type:
+                            source_type = "network"
 
-                # Parse destination
-                dest_type = None
-                dest_address = None
-                dest_data = rule_config.get("destination", {})
+                # NOTE: IPv6 access-lists do NOT have destination fields
+                # They only match on source
 
-                if isinstance(dest_data, dict):
-                    if "any" in dest_data:
-                        dest_type = "any"
-                    elif "network" in dest_data:
-                        dest_type = "network"
-                        net_val = dest_data.get("network")
-                        dest_address = net_val if isinstance(net_val, str) else None
-                
                 rule = AccessListRule(
                     rule_number=int(rule_num),
                     action=rule_config.get("action", "permit"),
                     description=rule_config.get("description"),
                     source_type=source_type,
                     source_address=source_address,
-                    destination_type=dest_type,
-                    destination_address=dest_address,
+                    source_exact_match=source_exact_match,  # Store exact-match flag
+                    destination_type=None,  # IPv6 doesn't have destination
+                    destination_address=None,  # IPv6 doesn't have destination
                 )
                 rules.append(rule)
             
@@ -351,30 +355,40 @@ async def access_list_batch_configure(request: AccessListBatchRequest):
             method = getattr(builder, operation.op)
             sig = inspect.signature(method)
             params = list(sig.parameters.keys())
-            
+
             # Build arguments dynamically
             args = []
-            
+
             # Add identifier (number for IPv4, name for IPv6)
             if "number" in params or "name" in params:
                 args.append(request.identifier)
-            
+
             # Add rule number if present in method signature
             if "rule" in params and request.rule_number is not None:
                 args.append(str(request.rule_number))
-            
+
             # Add operation values
             if operation.value and len(params) > len(args):
                 args.append(operation.value)
-            
+
             if operation.value2 and len(params) > len(args):
                 args.append(operation.value2)
-            
+
+            print(f"DEBUG: Calling {operation.op} with args: {args}")
             method(*args)
-        
+
+        # Debug: Print all operations before executing
+        operations_list = builder.get_operations()
+        print(f"DEBUG: Total operations to execute: {len(operations_list)}")
+        for idx, op in enumerate(operations_list):
+            print(f"DEBUG: Operation {idx}: {op}")
+
         # Execute batch
         response = service.execute_batch(builder)
-        
+
+        print(f"DEBUG: VyOS response status: {response.status}")
+        print(f"DEBUG: VyOS response error: {response.error}")
+
         return VyOSResponse(
             success=response.status == 200,
             data={"message": "Configuration updated"},
@@ -495,14 +509,8 @@ async def reorder_access_list_rules(request: ReorderAccessListRequest):
                     builder.set_rule6_source_network(
                         request.identifier, rule_str, rule.source_address
                     )
-                
-                # Set destination
-                if rule.destination_type == "any":
-                    builder.set_rule6_destination_any(request.identifier, rule_str)
-                elif rule.destination_type == "network" and rule.destination_address:
-                    builder.set_rule6_destination_network(
-                        request.identifier, rule_str, rule.destination_address
-                    )
+
+                # NOTE: IPv6 access-lists do NOT have destination fields
         
         # Execute batch
         response = service.execute_batch(builder)

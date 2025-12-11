@@ -11,6 +11,7 @@ export interface AccessListRule {
   source_type?: string | null;  // any, host, inverse-mask, network
   source_address?: string | null;
   source_mask?: string | null;
+  source_exact_match?: boolean;  // IPv6 exact-match flag (can coexist with any)
   destination_type?: string | null;  // any, host, inverse-mask, network
   destination_address?: string | null;
   destination_mask?: string | null;
@@ -160,63 +161,76 @@ class AccessListService {
     }
 
     // Set source
-    if (rule.source_type === "any") {
-      operations.push({
-        op: listType === "ipv4" ? "set_rule_source_any" : "set_rule6_source_any"
-      });
-    } else if (rule.source_type === "host" && rule.source_address) {
-      operations.push({
-        op: "set_rule_source_host",
-        value: rule.source_address
-      });
-    } else if (rule.source_type === "inverse-mask" && rule.source_address && rule.source_mask) {
-      operations.push({
-        op: "set_rule_source_inverse_mask",
-        value: rule.source_address,
-        value2: rule.source_mask
-      });
-    } else if (rule.source_type === "network" && rule.source_address) {
-      if (listType === "ipv4" && rule.source_mask) {
+    if (listType === "ipv4") {
+      // IPv4 source handling
+      if (rule.source_type === "any") {
+        operations.push({
+          op: "set_rule_source_any"
+        });
+      } else if (rule.source_type === "host" && rule.source_address) {
+        operations.push({
+          op: "set_rule_source_host",
+          value: rule.source_address
+        });
+      } else if (rule.source_type === "inverse-mask" && rule.source_address && rule.source_mask) {
+        operations.push({
+          op: "set_rule_source_inverse_mask",
+          value: rule.source_address,
+          value2: rule.source_mask
+        });
+      } else if (rule.source_type === "network" && rule.source_address && rule.source_mask) {
         operations.push({
           op: "set_rule_source_network",
           value: rule.source_address,
           value2: rule.source_mask
         });
-      } else if (listType === "ipv6") {
+      }
+    } else {
+      // IPv6 source handling - any can coexist with network or exact-match
+      // exact-match and network are mutually exclusive
+      if (rule.source_type === "any") {
+        operations.push({
+          op: "set_rule6_source_any"
+        });
+      }
+
+      if (rule.source_address) {
+        // Network can coexist with "any"
         operations.push({
           op: "set_rule6_source_network",
           value: rule.source_address
         });
       }
+
+      if (rule.source_exact_match) {
+        operations.push({
+          op: "set_rule6_source_exact_match"
+        });
+      }
     }
 
-    // Set destination
-    if (rule.destination_type === "any") {
-      operations.push({
-        op: listType === "ipv4" ? "set_rule_destination_any" : "set_rule6_destination_any"
-      });
-    } else if (rule.destination_type === "host" && rule.destination_address) {
-      operations.push({
-        op: "set_rule_destination_host",
-        value: rule.destination_address
-      });
-    } else if (rule.destination_type === "inverse-mask" && rule.destination_address && rule.destination_mask) {
-      operations.push({
-        op: "set_rule_destination_inverse_mask",
-        value: rule.destination_address,
-        value2: rule.destination_mask
-      });
-    } else if (rule.destination_type === "network" && rule.destination_address) {
-      if (listType === "ipv4" && rule.destination_mask) {
+    // Set destination (IPv4 only - IPv6 access-lists don't have destination)
+    if (listType === "ipv4") {
+      if (rule.destination_type === "any") {
+        operations.push({
+          op: "set_rule_destination_any"
+        });
+      } else if (rule.destination_type === "host" && rule.destination_address) {
+        operations.push({
+          op: "set_rule_destination_host",
+          value: rule.destination_address
+        });
+      } else if (rule.destination_type === "inverse-mask" && rule.destination_address && rule.destination_mask) {
+        operations.push({
+          op: "set_rule_destination_inverse_mask",
+          value: rule.destination_address,
+          value2: rule.destination_mask
+        });
+      } else if (rule.destination_type === "network" && rule.destination_address && rule.destination_mask) {
         operations.push({
           op: "set_rule_destination_network",
           value: rule.destination_address,
           value2: rule.destination_mask
-        });
-      } else if (listType === "ipv6") {
-        operations.push({
-          op: "set_rule6_destination_network",
-          value: rule.destination_address
         });
       }
     }
@@ -301,63 +315,76 @@ class AccessListService {
     }
 
     // Set source
-    if (rule.source_type === "any") {
-      operations.push({
-        op: listType === "ipv4" ? "set_rule_source_any" : "set_rule6_source_any"
-      });
-    } else if (rule.source_type === "host" && rule.source_address) {
-      operations.push({
-        op: "set_rule_source_host",
-        value: rule.source_address
-      });
-    } else if (rule.source_type === "inverse-mask" && rule.source_address && rule.source_mask) {
-      operations.push({
-        op: "set_rule_source_inverse_mask",
-        value: rule.source_address,
-        value2: rule.source_mask
-      });
-    } else if (rule.source_type === "network" && rule.source_address) {
-      if (listType === "ipv4" && rule.source_mask) {
+    if (listType === "ipv4") {
+      // IPv4 source handling
+      if (rule.source_type === "any") {
+        operations.push({
+          op: "set_rule_source_any"
+        });
+      } else if (rule.source_type === "host" && rule.source_address) {
+        operations.push({
+          op: "set_rule_source_host",
+          value: rule.source_address
+        });
+      } else if (rule.source_type === "inverse-mask" && rule.source_address && rule.source_mask) {
+        operations.push({
+          op: "set_rule_source_inverse_mask",
+          value: rule.source_address,
+          value2: rule.source_mask
+        });
+      } else if (rule.source_type === "network" && rule.source_address && rule.source_mask) {
         operations.push({
           op: "set_rule_source_network",
           value: rule.source_address,
           value2: rule.source_mask
         });
-      } else if (listType === "ipv6") {
+      }
+    } else {
+      // IPv6 source handling - any can coexist with network or exact-match
+      // exact-match and network are mutually exclusive
+      if (rule.source_type === "any") {
+        operations.push({
+          op: "set_rule6_source_any"
+        });
+      }
+
+      if (rule.source_address) {
+        // Network can coexist with "any"
         operations.push({
           op: "set_rule6_source_network",
           value: rule.source_address
         });
       }
+
+      if (rule.source_exact_match) {
+        operations.push({
+          op: "set_rule6_source_exact_match"
+        });
+      }
     }
 
-    // Set destination
-    if (rule.destination_type === "any") {
-      operations.push({
-        op: listType === "ipv4" ? "set_rule_destination_any" : "set_rule6_destination_any"
-      });
-    } else if (rule.destination_type === "host" && rule.destination_address) {
-      operations.push({
-        op: "set_rule_destination_host",
-        value: rule.destination_address
-      });
-    } else if (rule.destination_type === "inverse-mask" && rule.destination_address && rule.destination_mask) {
-      operations.push({
-        op: "set_rule_destination_inverse_mask",
-        value: rule.destination_address,
-        value2: rule.destination_mask
-      });
-    } else if (rule.destination_type === "network" && rule.destination_address) {
-      if (listType === "ipv4" && rule.destination_mask) {
+    // Set destination (IPv4 only - IPv6 access-lists don't have destination)
+    if (listType === "ipv4") {
+      if (rule.destination_type === "any") {
+        operations.push({
+          op: "set_rule_destination_any"
+        });
+      } else if (rule.destination_type === "host" && rule.destination_address) {
+        operations.push({
+          op: "set_rule_destination_host",
+          value: rule.destination_address
+        });
+      } else if (rule.destination_type === "inverse-mask" && rule.destination_address && rule.destination_mask) {
+        operations.push({
+          op: "set_rule_destination_inverse_mask",
+          value: rule.destination_address,
+          value2: rule.destination_mask
+        });
+      } else if (rule.destination_type === "network" && rule.destination_address && rule.destination_mask) {
         operations.push({
           op: "set_rule_destination_network",
           value: rule.destination_address,
           value2: rule.destination_mask
-        });
-      } else if (listType === "ipv6") {
-        operations.push({
-          op: "set_rule6_destination_network",
-          value: rule.destination_address
         });
       }
     }
@@ -381,13 +408,17 @@ class AccessListService {
   ): Promise<any> {
     const operations: AccessListBatchOperation[] = [];
 
-    // Delete existing source and destination first
+    // Delete existing source first
     operations.push({
       op: listType === "ipv4" ? "delete_rule_source" : "delete_rule6_source"
     });
-    operations.push({
-      op: listType === "ipv4" ? "delete_rule_destination" : "delete_rule6_destination"
-    });
+
+    // Delete existing destination (IPv4 only - IPv6 doesn't have destination)
+    if (listType === "ipv4") {
+      operations.push({
+        op: "delete_rule_destination"
+      });
+    }
 
     // Update action
     if (rule.action) {
@@ -412,63 +443,76 @@ class AccessListService {
     }
 
     // Set new source
-    if (rule.source_type === "any") {
-      operations.push({
-        op: listType === "ipv4" ? "set_rule_source_any" : "set_rule6_source_any"
-      });
-    } else if (rule.source_type === "host" && rule.source_address) {
-      operations.push({
-        op: "set_rule_source_host",
-        value: rule.source_address
-      });
-    } else if (rule.source_type === "inverse-mask" && rule.source_address && rule.source_mask) {
-      operations.push({
-        op: "set_rule_source_inverse_mask",
-        value: rule.source_address,
-        value2: rule.source_mask
-      });
-    } else if (rule.source_type === "network" && rule.source_address) {
-      if (listType === "ipv4" && rule.source_mask) {
+    if (listType === "ipv4") {
+      // IPv4 source handling
+      if (rule.source_type === "any") {
+        operations.push({
+          op: "set_rule_source_any"
+        });
+      } else if (rule.source_type === "host" && rule.source_address) {
+        operations.push({
+          op: "set_rule_source_host",
+          value: rule.source_address
+        });
+      } else if (rule.source_type === "inverse-mask" && rule.source_address && rule.source_mask) {
+        operations.push({
+          op: "set_rule_source_inverse_mask",
+          value: rule.source_address,
+          value2: rule.source_mask
+        });
+      } else if (rule.source_type === "network" && rule.source_address && rule.source_mask) {
         operations.push({
           op: "set_rule_source_network",
           value: rule.source_address,
           value2: rule.source_mask
         });
-      } else if (listType === "ipv6") {
+      }
+    } else {
+      // IPv6 source handling - any can coexist with network or exact-match
+      // exact-match and network are mutually exclusive
+      if (rule.source_type === "any") {
+        operations.push({
+          op: "set_rule6_source_any"
+        });
+      }
+
+      if (rule.source_address) {
+        // Network can coexist with "any"
         operations.push({
           op: "set_rule6_source_network",
           value: rule.source_address
         });
       }
+
+      if (rule.source_exact_match) {
+        operations.push({
+          op: "set_rule6_source_exact_match"
+        });
+      }
     }
 
-    // Set new destination
-    if (rule.destination_type === "any") {
-      operations.push({
-        op: listType === "ipv4" ? "set_rule_destination_any" : "set_rule6_destination_any"
-      });
-    } else if (rule.destination_type === "host" && rule.destination_address) {
-      operations.push({
-        op: "set_rule_destination_host",
-        value: rule.destination_address
-      });
-    } else if (rule.destination_type === "inverse-mask" && rule.destination_address && rule.destination_mask) {
-      operations.push({
-        op: "set_rule_destination_inverse_mask",
-        value: rule.destination_address,
-        value2: rule.destination_mask
-      });
-    } else if (rule.destination_type === "network" && rule.destination_address) {
-      if (listType === "ipv4" && rule.destination_mask) {
+    // Set new destination (IPv4 only - IPv6 access-lists don't have destination)
+    if (listType === "ipv4") {
+      if (rule.destination_type === "any") {
+        operations.push({
+          op: "set_rule_destination_any"
+        });
+      } else if (rule.destination_type === "host" && rule.destination_address) {
+        operations.push({
+          op: "set_rule_destination_host",
+          value: rule.destination_address
+        });
+      } else if (rule.destination_type === "inverse-mask" && rule.destination_address && rule.destination_mask) {
+        operations.push({
+          op: "set_rule_destination_inverse_mask",
+          value: rule.destination_address,
+          value2: rule.destination_mask
+        });
+      } else if (rule.destination_type === "network" && rule.destination_address && rule.destination_mask) {
         operations.push({
           op: "set_rule_destination_network",
           value: rule.destination_address,
           value2: rule.destination_mask
-        });
-      } else if (listType === "ipv6") {
-        operations.push({
-          op: "set_rule6_destination_network",
-          value: rule.destination_address
         });
       }
     }
