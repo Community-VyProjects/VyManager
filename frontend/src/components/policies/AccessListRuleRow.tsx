@@ -10,11 +10,12 @@ import type { AccessListRule } from "@/lib/api/access-list";
 
 interface AccessListRuleRowProps {
   rule: AccessListRule;
+  listType: string; // "ipv4" or "ipv6"
   onEdit: (rule: AccessListRule) => void;
   onDelete: (rule: AccessListRule) => void;
 }
 
-export function AccessListRuleRow({ rule, onEdit, onDelete }: AccessListRuleRowProps) {
+export function AccessListRuleRow({ rule, listType, onEdit, onDelete }: AccessListRuleRowProps) {
   const {
     attributes,
     listeners,
@@ -43,6 +44,37 @@ export function AccessListRuleRow({ rule, onEdit, onDelete }: AccessListRuleRowP
 
   // Format source display
   const formatSource = () => {
+    // IPv6 can have combinations: any + exact-match, any + network
+    if (listType === "ipv6") {
+      const parts: string[] = [];
+
+      // Check for "any" flag
+      if (rule.source_type === "any") {
+        parts.push("Any");
+      }
+
+      // Check for exact-match flag
+      if (rule.source_exact_match) {
+        parts.push("Exact-Match");
+      }
+
+      // Check for network address
+      if (rule.source_address) {
+        parts.push(`Network:${rule.source_address}`);
+      }
+
+      if (parts.length > 0) {
+        return (
+          <Badge variant="secondary" className="text-xs font-mono">
+            {parts.join(" ")}
+          </Badge>
+        );
+      }
+
+      return <span className="text-muted-foreground text-sm">—</span>;
+    }
+
+    // IPv4 logic
     if (!rule.source_type) return <span className="text-muted-foreground text-sm">—</span>;
 
     if (rule.source_type === "any") {
@@ -135,9 +167,11 @@ export function AccessListRuleRow({ rule, onEdit, onDelete }: AccessListRuleRowP
       <TableCell>
         {formatSource()}
       </TableCell>
-      <TableCell>
-        {formatDestination()}
-      </TableCell>
+      {listType === "ipv4" && (
+        <TableCell>
+          {formatDestination()}
+        </TableCell>
+      )}
       <TableCell className="text-right">
         <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
           <Button

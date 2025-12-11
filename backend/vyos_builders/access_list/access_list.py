@@ -296,6 +296,13 @@ class AccessListBatchBuilder:
         path = self.mappers[self.mapper_key].get_rule6_source_any(name, rule)
         return self.add_set(path)
 
+    def set_rule6_source_exact_match(
+        self, name: str, rule: str
+    ) -> "AccessListBatchBuilder":
+        """Set IPv6 rule source exact-match flag."""
+        path = self.mappers[self.mapper_key].get_rule6_source_exact_match(name, rule)
+        return self.add_set(path)
+
     def set_rule6_source_network(
         self, name: str, rule: str, network: str
     ) -> "AccessListBatchBuilder":
@@ -310,30 +317,8 @@ class AccessListBatchBuilder:
         path = self.mappers[self.mapper_key].get_rule6_source_path(name, rule)
         return self.add_delete(path)
 
-    # ========================================================================
-    # IPv6 Rule Destination Operations
-    # ========================================================================
-
-    def set_rule6_destination_any(
-        self, name: str, rule: str
-    ) -> "AccessListBatchBuilder":
-        """Set IPv6 rule destination to any."""
-        path = self.mappers[self.mapper_key].get_rule6_destination_any(name, rule)
-        return self.add_set(path)
-
-    def set_rule6_destination_network(
-        self, name: str, rule: str, network: str
-    ) -> "AccessListBatchBuilder":
-        """Set IPv6 rule destination network."""
-        path = self.mappers[self.mapper_key].get_rule6_destination_network(name, rule, network)
-        return self.add_set(path)
-
-    def delete_rule6_destination(
-        self, name: str, rule: str
-    ) -> "AccessListBatchBuilder":
-        """Delete IPv6 rule destination."""
-        path = self.mappers[self.mapper_key].get_rule6_destination_path(name, rule)
-        return self.add_delete(path)
+    # NOTE: IPv6 access-lists do NOT have destination fields
+    # They only match on source (any or network)
 
     # ========================================================================
     # Capabilities

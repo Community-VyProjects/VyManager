@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertCircle } from "lucide-react";
 import { accessListService, type AccessList } from "@/lib/api/access-list";
@@ -34,6 +35,10 @@ export function AddAccessListRuleModal({
   const [sourceNetworkFormat, setSourceNetworkFormat] = useState<"network" | "inverse-mask">("network");
   const [sourceAddress, setSourceAddress] = useState("");
   const [sourceMask, setSourceMask] = useState("");
+  // IPv6 specific fields
+  const [sourceAny, setSourceAny] = useState(false);
+  const [sourceExactMatch, setSourceExactMatch] = useState(false);
+  const [sourceNetwork, setSourceNetwork] = useState("");
   const [destinationType, setDestinationType] = useState<"any" | "host" | "network">("any");
   const [destinationNetworkFormat, setDestinationNetworkFormat] = useState<"network" | "inverse-mask">("network");
   const [destinationAddress, setDestinationAddress] = useState("");
@@ -71,6 +76,20 @@ export function AddAccessListRuleModal({
     }
   }, [destinationType]);
 
+  // Mutual exclusivity for IPv6: exact-match and network are mutually exclusive
+  // But "any" can coexist with either
+  useEffect(() => {
+    if (sourceNetwork.trim() && sourceExactMatch) {
+      setSourceExactMatch(false);
+    }
+  }, [sourceNetwork]);
+
+  useEffect(() => {
+    if (sourceExactMatch && sourceNetwork.trim()) {
+      setSourceNetwork("");
+    }
+  }, [sourceExactMatch]);
+
   const resetForm = () => {
     setRuleNumber(100);
     setAction("permit");
@@ -78,6 +97,9 @@ export function AddAccessListRuleModal({
     setSourceType("any");
     setSourceAddress("");
     setSourceMask("");
+    setSourceAny(false);
+    setSourceExactMatch(false);
+    setSourceNetwork("");
     setDestinationType("any");
     setDestinationAddress("");
     setDestinationMask("");
@@ -92,52 +114,101 @@ export function AddAccessListRuleModal({
   const handleSubmit = async () => {
     if (!accessList) return;
 
-    // Validation
-    if (sourceType === "host" && !sourceAddress.trim()) {
-      setError("Please enter a source address for host type");
-      return;
-    }
-    if (sourceType === "network" && !sourceAddress.trim()) {
-      setError("Please enter a source address for network type");
-      return;
-    }
-    if (sourceType === "network" && accessList.list_type === "ipv4" && !sourceMask.trim()) {
-      setError("Please enter a source mask for network type");
-      return;
-    }
+    const listType = accessList.list_type as "ipv4" | "ipv6";
 
-    if (destinationType === "host" && !destinationAddress.trim()) {
-      setError("Please enter a destination address for host type");
-      return;
-    }
-    if (destinationType === "network" && !destinationAddress.trim()) {
-      setError("Please enter a destination address for network type");
-      return;
-    }
-    if (destinationType === "network" && accessList.list_type === "ipv4" && !destinationMask.trim()) {
-      setError("Please enter a destination mask for network type");
-      return;
+    // Validation
+    if (listType === "ipv4") {
+      // IPv4 validation
+      if (sourceType === "host" && !sourceAddress.trim()) {
+        setError("Please enter a source address for host type");
+        return;
+      }
+      if (sourceType === "network" && !sourceAddress.trim()) {
+        setError("Please enter a source address for network type");
+        return;
+      }
+      if (sourceType === "network" && !sourceMask.trim()) {
+        setError("Please enter a source mask for network type");
+        return;
+      }
+
+      // Destination validation (IPv4 only)
+      if (destinationType === "host" && !destinationAddress.trim()) {
+        setError("Please enter a destination address for host type");
+        return;
+      }
+      if (destinationType === "network" && !destinationAddress.trim()) {
+        setError("Please enter a destination address for network type");
+        return;
+      }
+      if (destinationType === "network" && !destinationMask.trim()) {
+        setError("Please enter a destination mask for network type");
+        return;
+      }
+    } else {
+      // IPv6 validation
+      if (sourceNetwork.trim()) {
+        // Validate IPv6 CIDR format
+        if (!sourceNetwork.includes('/')) {
+          setError("IPv6 network must be in CIDR format (e.g., 2001:db8::/32)");
+          return;
+        }
+      }
+
+      // At least one option must be selected
+      if (!sourceAny && !sourceExactMatch && !sourceNetwork.trim()) {
+        setError("Please select at least one source option (Any, Exact Match, or Network)");
+        return;
+      }
+
+      // Exact-match and network are mutually exclusive
+      if (sourceExactMatch && sourceNetwork.trim()) {
+        setError("Exact Match and Network cannot be used together");
+        return;
+      }
     }
 
     setLoading(true);
     setError(null);
 
     try {
-      // Map network type to inverse-mask (always use inverse-mask for network in IPv4)
-      const actualSourceType = sourceType === "network" ? "inverse-mask" : sourceType;
-      const actualDestinationType = destinationType === "network" ? "inverse-mask" : destinationType;
-
-      const newRule: any = {
+      let newRule: any = {
         rule_number: ruleNumber,
         action,
         description: ruleDescription || null,
-        source_type: actualSourceType,
-        source_address: sourceAddress || null,
-        source_mask: sourceMask || null,
-        destination_type: actualDestinationType,
-        destination_address: destinationAddress || null,
-        destination_mask: destinationMask || null,
       };
+
+      if (listType === "ipv4") {
+        // IPv4 rule - map network type to inverse-mask
+        const actualSourceType = sourceType === "network" ? "inverse-mask" : sourceType;
+        const actualDestinationType = destinationType === "network" ? "inverse-mask" : destinationType;
+
+        newRule.source_type = actualSourceType;
+        newRule.source_address = sourceAddress || null;
+        newRule.source_mask = sourceMask || null;
+        newRule.destination_type = actualDestinationType;
+        newRule.destination_address = destinationAddress || null;
+        newRule.destination_mask = destinationMask || null;
+      } else {
+        // IPv6 rule - handle combinations
+        // any can coexist with network or exact-match
+        // exact-match and network are mutually exclusive
+        if (sourceAny) {
+          newRule.source_type = "any";
+        }
+
+        if (sourceNetwork.trim()) {
+          newRule.source_address = sourceNetwork;
+          // If we don't have "any" already set, set source_type to "network"
+          if (!sourceAny) {
+            newRule.source_type = "network";
+          }
+        }
+
+        if (sourceExactMatch) {
+          newRule.source_exact_match = true;
+        }
+      }
 
       await accessListService.addRule(
         accessList.number,
@@ -209,38 +280,40 @@ export function AddAccessListRuleModal({
           {/* Source Configuration */}
           <div className="space-y-3 border rounded-lg p-4">
             <Label>Source</Label>
-            <RadioGroup value={sourceType} onValueChange={(v: any) => setSourceType(v)} disabled={loading}>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="any" id="source-any" />
-                <Label htmlFor="source-any" className="font-normal cursor-pointer">Any</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="host" id="source-host" />
-                <Label htmlFor="source-host" className="font-normal cursor-pointer">Host</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="network" id="source-network" />
-                <Label htmlFor="source-network" className="font-normal cursor-pointer">Network</Label>
-              </div>
-            </RadioGroup>
 
-            {sourceType === "host" && (
-              <div className="space-y-2 mt-3">
-                <Label htmlFor="source-address">Host Address *</Label>
-                <Input
-                  id="source-address"
-                  value={sourceAddress}
-                  onChange={(e) => setSourceAddress(e.target.value)}
-                  placeholder={listType === "ipv4" ? "e.g., 192.168.1.1" : "e.g., 2001:db8::1"}
-                  disabled={loading}
-                />
-              </div>
-            )}
+            {listType === "ipv4" ? (
+              /* IPv4 Source - Radio Buttons */
+              <>
+                <RadioGroup value={sourceType} onValueChange={(v: any) => setSourceType(v)} disabled={loading}>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="any" id="source-any" />
+                    <Label htmlFor="source-any" className="font-normal cursor-pointer">Any</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="host" id="source-host" />
+                    <Label htmlFor="source-host" className="font-normal cursor-pointer">Host</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="network" id="source-network" />
+                    <Label htmlFor="source-network" className="font-normal cursor-pointer">Network</Label>
+                  </div>
+                </RadioGroup>
 
-            {sourceType === "network" && (
-              <div className="space-y-3 mt-3">
-                {listType === "ipv4" ? (
-                  <div className="grid grid-cols-2 gap-4">
+                {sourceType === "host" && (
+                  <div className="space-y-2 mt-3">
+                    <Label htmlFor="source-address">Host Address *</Label>
+                    <Input
+                      id="source-address"
+                      value={sourceAddress}
+                      onChange={(e) => setSourceAddress(e.target.value)}
+                      placeholder="e.g., 192.168.1.1"
+                      disabled={loading}
+                    />
+                  </div>
+                )}
+
+                {sourceType === "network" && (
+                  <div className="grid grid-cols-2 gap-4 mt-3">
                     <div className="space-y-2">
                       <Label htmlFor="source-address-net">Network Address *</Label>
                       <Input
@@ -262,25 +335,56 @@ export function AddAccessListRuleModal({
                       />
                     </div>
                   </div>
-                ) : (
-                  <div className="space-y-2">
-                    <Label htmlFor="source-address-net6">Network (CIDR) *</Label>
-                    <Input
-                      id="source-address-net6"
-                      value={sourceAddress}
-                      onChange={(e) => setSourceAddress(e.target.value)}
-                      placeholder="e.g., 2001:db8::/32"
+                )}
+              </>
+            ) : (
+              /* IPv6 Source - Checkboxes for Any/Exact-Match, separate Network field */
+              <>
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="source-any-v6"
+                      checked={sourceAny}
+                      onCheckedChange={(checked) => setSourceAny(checked as boolean)}
                       disabled={loading}
                     />
+                    <Label htmlFor="source-any-v6" className="font-normal cursor-pointer">Any</Label>
                   </div>
-                )}
-              </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="source-exact-match"
+                      checked={sourceExactMatch}
+                      onCheckedChange={(checked) => setSourceExactMatch(checked as boolean)}
+                      disabled={loading || !!sourceNetwork.trim()}
+                    />
+                    <Label htmlFor="source-exact-match" className="font-normal cursor-pointer">Exact Match</Label>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Any can coexist with Exact Match OR Network. Exact Match and Network are mutually exclusive.
+                  </p>
+                </div>
+
+                <div className="space-y-2 mt-4">
+                  <Label htmlFor="source-network-v6">Network (CIDR)</Label>
+                  <Input
+                    id="source-network-v6"
+                    value={sourceNetwork}
+                    onChange={(e) => setSourceNetwork(e.target.value)}
+                    placeholder="e.g., 2001:db8::/32"
+                    disabled={loading || sourceExactMatch}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Must include prefix length (e.g., /32, /64). Can coexist with Any, but not Exact Match.
+                  </p>
+                </div>
+              </>
             )}
           </div>
 
-          {/* Destination Configuration */}
-          <div className="space-y-3 border rounded-lg p-4">
-            <Label>Destination</Label>
+          {/* Destination Configuration (IPv4 only) */}
+          {listType === "ipv4" && (
+            <div className="space-y-3 border rounded-lg p-4">
+              <Label>Destination</Label>
             <RadioGroup value={destinationType} onValueChange={(v: any) => setDestinationType(v)} disabled={loading}>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="any" id="dest-any" />
@@ -348,7 +452,8 @@ export function AddAccessListRuleModal({
                 )}
               </div>
             )}
-          </div>
+            </div>
+          )}
         </div>
 
         {error && (

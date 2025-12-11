@@ -128,17 +128,16 @@ class AccessListMapper(BaseFeatureMapper):
         """Get command path for IPv6 rule source any."""
         return ["policy", "access-list6", name, "rule", rule, "source", "any"]
 
+    def get_rule6_source_exact_match(self, name: str, rule: str) -> List[str]:
+        """Get command path for IPv6 rule source exact-match."""
+        return ["policy", "access-list6", name, "rule", rule, "source", "exact-match"]
+
     def get_rule6_source_network(self, name: str, rule: str, network: str) -> List[str]:
         """Get command path for IPv6 rule source network."""
         return ["policy", "access-list6", name, "rule", rule, "source", "network", network]
 
-    def get_rule6_destination_any(self, name: str, rule: str) -> List[str]:
-        """Get command path for IPv6 rule destination any."""
-        return ["policy", "access-list6", name, "rule", rule, "destination", "any"]
-
-    def get_rule6_destination_network(self, name: str, rule: str, network: str) -> List[str]:
-        """Get command path for IPv6 rule destination network."""
-        return ["policy", "access-list6", name, "rule", rule, "destination", "network", network]
+    # NOTE: IPv6 access-lists do NOT have destination fields
+    # They only match on source (any or network)
 
     # ========================================================================
     # Delete Paths (IPv6)
@@ -147,7 +146,3 @@ class AccessListMapper(BaseFeatureMapper):
     def get_rule6_source_path(self, name: str, rule: str) -> List[str]:
         """Get command path for deleting IPv6 rule source."""
         return ["policy", "access-list6", name, "rule", rule, "source"]
-
-    def get_rule6_destination_path(self, name: str, rule: str) -> List[str]:
-        """Get command path for deleting IPv6 rule destination."""
-        return ["policy", "access-list6", name, "rule", rule, "destination"]
