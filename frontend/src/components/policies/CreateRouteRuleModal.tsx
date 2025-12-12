@@ -334,7 +334,7 @@ export function CreateRouteRuleModal({
       await routeService.createRule(policyType, policyName, ruleNumber, {
         description: description || undefined,
         disable,
-        log,
+        log: log ? "true" : undefined,
         match: Object.keys(match).length > 0 ? match : undefined,
         set: Object.keys(set).length > 0 ? set : undefined,
       });
@@ -1419,7 +1419,7 @@ export function CreateRouteRuleModal({
                   )}
                 </div>
 
-                {capabilities?.features.vrf?.supported && (
+                {capabilities?.features.vrf_routing?.supported && (
                   <div className="space-y-2">
                     <Label htmlFor="actionVrf">VRF</Label>
                     <Input

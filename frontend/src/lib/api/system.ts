@@ -4,12 +4,14 @@
  */
 
 import { apiClient } from "./client";
+import type { NetworkInterface } from "./interfaces";
 
 export interface SystemInfo {
   device_name: string;
   vyos_version: string;
   connection_host: string;
   connected: boolean;
+  interfaces?: NetworkInterface[];
 }
 
 class SystemService {

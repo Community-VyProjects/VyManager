@@ -569,7 +569,7 @@ export default function AccessListPage() {
         onOpenChange={setCreateModalOpen}
         onSuccess={() => fetchConfig(true)}
         listType={selectedListType}
-        capabilities={capabilities}
+        existingLists={currentLists}
       />
 
       <EditAccessListModal
@@ -600,7 +600,7 @@ export default function AccessListPage() {
             onOpenChange={(open) => !open && setEditingRule(null)}
             onSuccess={() => fetchConfig(true)}
             rule={editingRule}
-            listNumber={selectedList}
+            listNumber={selectedList!}
             listType={selectedListType}
           />
 
@@ -609,7 +609,7 @@ export default function AccessListPage() {
             onOpenChange={(open) => !open && setDeletingRule(null)}
             onSuccess={() => fetchConfig(true)}
             rule={deletingRule}
-            listNumber={selectedList}
+            listNumber={selectedList!}
             listType={selectedListType}
           />
         </>

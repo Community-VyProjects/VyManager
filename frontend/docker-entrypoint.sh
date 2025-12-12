@@ -54,4 +54,10 @@ else
 fi
 
 echo "✨ Starting Next.js..."
-exec npm run dev
+if [ "$VYMANAGER_ENV" = "development" ]; then
+  echo "Running in development mode"
+  exec npm run dev
+else
+  echo "Running in production mode"
+  exec npm start
+fi

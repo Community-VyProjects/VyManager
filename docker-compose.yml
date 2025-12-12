@@ -55,14 +55,8 @@ services:
     container_name: vymanager-frontend
     ports:
       - "3000:3000"
-    environment:
-      - NODE_ENV=${NODE_ENV:-production}
-      - NEXT_PUBLIC_API_URL=http://backend:8000
-      - DATABASE_URL=postgresql://vymanager:vymanager_secure_password@postgres:5432/vymanager_auth
-      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:-your-super-secret-key-change-in-production}
-      - BETTER_AUTH_URL=${BETTER_AUTH_URL:-http://localhost:3000}
-      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
-      - TRUSTED_ORIGINS=${TRUSTED_ORIGINS:-}
+    env_file:
+      - ./frontend/.env
     volumes:
       - ./frontend:/app
       - /app/node_modules

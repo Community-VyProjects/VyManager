@@ -32,7 +32,7 @@ import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-ki
 import {
   routeMapService,
   type RouteMap,
-  type RouteMapConfigResponse,
+  type RouteMapConfig,
   type RouteMapRule,
 } from "@/lib/api/route-map";
 import { cn } from "@/lib/utils";
@@ -47,7 +47,7 @@ import { RouteMapRuleRow } from "@/components/policies/RouteMapRuleRow";
 import { RouteMapReorderBanner } from "@/components/policies/RouteMapReorderBanner";
 
 export default function RouteMapPage() {
-  const [config, setConfig] = useState<RouteMapConfigResponse | null>(null);
+  const [config, setConfig] = useState<RouteMapConfig | null>(null);
   const [selectedRouteMap, setSelectedRouteMap] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

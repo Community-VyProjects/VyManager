@@ -10,11 +10,6 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-  // Suppress cross-origin warning - we handle CORS through Better Auth trustedOrigins
-  experimental: {
-    // @ts-ignore - allowedDevOrigins is not in the type definitions yet
-    allowedDevOrigins: ['*'], // Allow all origins (controlled by Better Auth in production)
-  },
 };
 
 export default nextConfig;

@@ -490,7 +490,7 @@ export function EditRouteRuleModal({
       await routeService.updateRule(policyType, policyName, rule.rule_number, {
         description: description,
         disable,
-        log: log || undefined,
+        log: log ? "true" : undefined,
         match: Object.keys(match).length > 0 ? match : undefined,
         set: Object.keys(set).length > 0 ? set : undefined,
       });
@@ -1509,7 +1509,7 @@ export function EditRouteRuleModal({
                   )}
                 </div>
 
-                {capabilities?.features.vrf?.supported && (
+                {capabilities?.features.vrf_routing?.supported && (
                   <div className="space-y-2">
                     <Label htmlFor="actionVrf">VRF</Label>
                     <Input

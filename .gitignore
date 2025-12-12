@@ -87,7 +87,7 @@ backend/.pytest_cache/
 .env
 .env.local
 .env*.local
-frontend/.env*
+frontend/.env
 backend/.env
 
 # IDE

@@ -227,14 +227,16 @@ export function EditDHCPServerModal({
     }
 
     // DHCP ranges validation
-    const validRanges = ranges.filter((r) => r.start.trim() && r.stop.trim());
+    const validRanges = ranges.filter((r) => (r.start ?? "").trim() && (r.stop ?? "").trim());
     if (validRanges.length === 0) {
       setError("At least one DHCP range with start and stop addresses is required");
       return false;
     }
     for (const range of validRanges) {
-      if (!isValidIPRange(range.start.trim(), range.stop.trim(), subnet.subnet)) {
-        setError(`Invalid DHCP range: ${range.start} - ${range.stop}. Both IPs must be valid, within subnet, and start must be <= stop`);
+      const start = (range.start ?? "").trim();
+      const stop = (range.stop ?? "").trim();
+      if (!isValidIPRange(start, stop, subnet.subnet)) {
+        setError(`Invalid DHCP range: ${start} - ${stop}. Both IPs must be valid, within subnet, and start must be <= stop`);
         return false;
       }
     }

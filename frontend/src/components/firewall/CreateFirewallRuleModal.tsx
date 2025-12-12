@@ -27,7 +27,8 @@ import { AlertCircle, RefreshCw } from "lucide-react";
 import { firewallIPv4Service, type FirewallRule, type FirewallCapabilitiesResponse } from "@/lib/api/firewall-ipv4";
 import { firewallIPv6Service } from "@/lib/api/firewall-ipv6";
 import { firewallGroupsService, type FirewallGroup } from "@/lib/api/firewall-groups";
-import { systemService, type Interface } from "@/lib/api/system";
+import { systemService } from "@/lib/api/system";
+import type { NetworkInterface } from "@/lib/api/interfaces";
 import { CountryMultiSelect } from "./CountryMultiSelect";
 import {
   getIPAddressError,
@@ -144,7 +145,7 @@ export function CreateFirewallRuleModal({
 
   // Data for dropdowns
   const [groups, setGroups] = useState<FirewallGroup[]>([]);
-  const [interfaces, setInterfaces] = useState<Interface[]>([]);
+  const [interfaces, setInterfaces] = useState<NetworkInterface[]>([]);
   const [customChains, setCustomChains] = useState<string[]>([]);
 
   const calculateNextRuleNumber = () => {
