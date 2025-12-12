@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,8 +11,19 @@ import { Shield, Loader2, AlertCircle } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const from = searchParams.get("from") || "/";
+  const [from, setFrom] = useState<string>("/");
+
+  // Read search params on the client only so we don't call
+  // `useSearchParams` during prerendering (avoids Next build error).
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const f = params.get("from");
+      if (f) setFrom(f);
+    } catch (err) {
+      // ignore
+    }
+  }, []);
   const [isSignUp, setIsSignUp] = useState(false);
   const [formData, setFormData] = useState({
     name: "",

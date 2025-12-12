@@ -182,3 +182,6 @@ class FirewallGroupsService {
 }
 
 export const firewallGroupsService = new FirewallGroupsService();
+
+// Re-export types for convenience
+export type { FirewallGroup } from "./types/firewall-groups";

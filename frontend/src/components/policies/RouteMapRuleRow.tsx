@@ -139,9 +139,9 @@ export function RouteMapRuleRow({ rule, onEdit, onDelete }: RouteMapRuleRowProps
                 AS Prepend: {rule.set.as_path_prepend}
               </Badge>
             )}
-            {rule.set.community_value && (
+            {(rule.set.community_add_values && rule.set.community_add_values.length > 0) && (
               <Badge variant="secondary" className="text-xs bg-green-500/10 text-green-500 border-green-500/20">
-                Community: {rule.set.community_value}
+                Community: {rule.set.community_add_values.join(", ")}
               </Badge>
             )}
           </div>

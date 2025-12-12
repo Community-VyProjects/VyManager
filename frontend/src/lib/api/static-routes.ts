@@ -155,7 +155,6 @@ class StaticRoutesService {
   async setRouteMap(route_map_name: string): Promise<any> {
     const result = await apiClient.post(
       "/vyos/static-routes/route-map",
-      null,
       { route_map_name }
     );
     await this.refreshConfig();

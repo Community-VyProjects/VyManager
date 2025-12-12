@@ -268,10 +268,33 @@ export function CreateRouteMapModal({ open, onOpenChange, onSuccess }: CreateRou
       if (setAsPathExclude.trim()) set.as_path_exclude = setAsPathExclude.trim();
       if (setAsPathPrepend.trim()) set.as_path_prepend = setAsPathPrepend.trim();
       if (setAsPathPrependLastAs.trim()) set.as_path_prepend_last_as = parseInt(setAsPathPrependLastAs);
-      if (setCommunityValue.trim()) set.community_value = setCommunityValue.trim();
-      if (setCommunityAction.trim()) set.community_action = setCommunityAction.trim();
-      if (setLargeCommunityValue.trim()) set.large_community_value = setLargeCommunityValue.trim();
-      if (setLargeCommunityAction.trim()) set.large_community_action = setLargeCommunityAction.trim();
+      // Communities: map single-value UI inputs to proper array fields depending on action
+      if (setCommunityValue.trim()) {
+        const v = setCommunityValue.trim();
+        if (setCommunityAction === "add") {
+          set.community_add_values = [v];
+        } else if (setCommunityAction === "delete") {
+          set.community_delete_values = [v];
+        } else if (setCommunityAction === "replace") {
+          set.community_replace_values = [v];
+        } else if (setCommunityAction === "none") {
+          set.community_remove_all = true;
+        }
+      }
+
+      // Large communities
+      if (setLargeCommunityValue.trim()) {
+        const v = setLargeCommunityValue.trim();
+        if (setLargeCommunityAction === "add") {
+          set.large_community_add_values = [v];
+        } else if (setLargeCommunityAction === "delete") {
+          set.large_community_delete_values = [v];
+        } else if (setLargeCommunityAction === "replace") {
+          set.large_community_replace_values = [v];
+        } else if (setLargeCommunityAction === "none") {
+          set.large_community_remove_all = true;
+        }
+      }
       if (setExtcommunityBandwidth.trim()) set.extcommunity_bandwidth = setExtcommunityBandwidth.trim();
       if (setExtcommunityRt.trim()) set.extcommunity_rt = setExtcommunityRt.trim();
       if (setExtcommunitySoo.trim()) set.extcommunity_soo = setExtcommunitySoo.trim();

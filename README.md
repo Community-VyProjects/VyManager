@@ -61,16 +61,19 @@ Setup the HTTPS REST API in your VyOS router(s), using the following CLI command
 
 ### Step 2) Configure environment values:
 
-#### Root Configuration
+#### Frontend Configuration
 
-Copy `env.example` to `.env` and fill in your environment values:
+Copy `frontend/env.example` to `frontend/.env` and fill in your environment values:
 
 ```env
-NODE_ENV=production
+NODE_ENV=production  #Leave Alone
+VYMANAGER_ENV=production  #Leave Alone
 BETTER_AUTH_SECRET=your-super-secret-key-change-in-production-CHANGE-THIS
-BETTER_AUTH_URL=http://your-server-ip:3000
-NEXT_PUBLIC_APP_URL=http://your-server-ip:3000
-TRUSTED_ORIGINS=http://your-server-ip:3000,http://localhost:3000
+BETTER_AUTH_URL=http://localhost:3000  #Leave Alone
+NEXT_PUBLIC_APP_URL=http://localhost:3000  #Leave Alone
+NEXT_PUBLIC_API_URL=http://backend:8000  #Leave Alone
+DATABASE_URL=postgresql://vymanager:vymanager_secure_password@postgres:5432/vymanager_auth  #Change if db changed
+TRUSTED_ORIGINS=http://your-server-ip:3000,http://localhost:3000  #Add your server IP
 ```
 
 #### Backend Configuration

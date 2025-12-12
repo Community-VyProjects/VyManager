@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Minus, Edit, FileJson } from "lucide-react";
 import type { ConfigDiff } from "@/lib/api/config";
+import type { ReactNode } from "react";
 
 interface ConfigDiffModalProps {
   open: boolean;
@@ -27,7 +28,7 @@ export function ConfigDiffModal({ open, onOpenChange, diff }: ConfigDiffModalPro
   const hasRemoved = summary.removed > 0;
   const hasModified = summary.modified > 0;
 
-  const renderValue = (value: any, depth: number = 0): JSX.Element => {
+  const renderValue = (value: any, depth: number = 0): ReactNode => {
     const indent = depth * 16;
 
     if (typeof value === "object" && value !== null && !Array.isArray(value)) {
