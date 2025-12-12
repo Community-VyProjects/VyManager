@@ -13,11 +13,11 @@ COPY prisma ./prisma/
 # Install dependencies
 RUN npm install
 
-# Generate Prisma Client in build stage
-RUN npx prisma generate
-
 # Copy rest of app source
 COPY . .
+
+# Generate Prisma Client in build stage
+RUN npx prisma generate
 
 # Build Next.js for production
 RUN npm run build
