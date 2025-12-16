@@ -1,0 +1,2 @@
+# Convert everything to LF endings (to prevent issues on Windows deployments, which uses CRLF)
+* text=auto eol=lf
