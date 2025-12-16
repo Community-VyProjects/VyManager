@@ -6,3 +6,4 @@ pytest-asyncio>=0.21.0
 httpx>=0.24.0
 urllib3>=2.0.0
 requests>=2.31.0
+asyncpg>=0.29.0

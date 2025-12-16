@@ -30,6 +30,7 @@ export class ApiClient {
     try {
       const response = await fetch(url, {
         ...options,
+        credentials: "include", // Send cookies (including session token) with every request
         headers: {
           "Content-Type": "application/json",
           ...options?.headers,
