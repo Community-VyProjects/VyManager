@@ -1,13 +1,17 @@
 import urllib3
 urllib3.disable_warnings()
 
+import os
+import asyncpg
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Dict, List, Optional, Literal
 
 from vyos_service import VyOSDeviceConfig, VyOSDeviceRegistry
 from config_loader import load_device_from_env
+from middleware.auth import AuthenticationMiddleware
 
 # Import routers
 from routers.interfaces import ethernet, dummy
@@ -29,22 +33,45 @@ from routers.large_community_list import large_community_list
 from routers import system
 from routers.config import config as config_router
 
-# Global variable to store the configured device name
+# Global variables
 CONFIGURED_DEVICE_NAME: Optional[str] = None
+db_pool: Optional[asyncpg.Pool] = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
     FastAPI lifespan event handler.
-    Runs on startup and shutdown to manage device registration and caching.
+    Runs on startup and shutdown to manage device registration, caching, and database connections.
     """
-    global CONFIGURED_DEVICE_NAME
+    global CONFIGURED_DEVICE_NAME, db_pool
 
     # Startup: Load device from .env and cache its config
     print("\n" + "=" * 60)
     print("🚀 Starting VyOS Management API")
     print("=" * 60)
+
+    # Initialize database connection pool
+    print("\n📦 Initializing database connection...")
+    try:
+        database_url = os.getenv("DATABASE_URL")
+        if not database_url:
+            raise ValueError("DATABASE_URL environment variable is required")
+
+        db_pool = await asyncpg.create_pool(
+            database_url,
+            min_size=5,
+            max_size=20,
+            command_timeout=60
+        )
+        # Store in app state for middleware access
+        app.state.db_pool = db_pool
+        print("  ✓ Database connection pool created")
+        print("  ✓ Authentication middleware enabled")
+    except Exception as e:
+        print(f"  ✗ Failed to create database connection pool: {e}")
+        print("  ⚠ API will start but authentication will fail")
+        app.state.db_pool = None
 
     # Load device from .env file
     device_config = load_device_from_env()
@@ -111,6 +138,13 @@ async def lifespan(app: FastAPI):
 
     # Shutdown: Cleanup (if needed)
     print("\n🛑 Shutting down VyOS Management API...")
+
+    # Close database connection pool
+    if hasattr(app.state, "db_pool") and app.state.db_pool:
+        await app.state.db_pool.close()
+        app.state.db_pool = None
+        print("  ✓ Database connection pool closed")
+
     device_registry.clear()
     CONFIGURED_DEVICE_NAME = None
     ethernet.set_configured_device_name(None)
@@ -141,6 +175,25 @@ app = FastAPI(
     description="FastAPI backend for managing VyOS devices with version-aware commands",
     lifespan=lifespan,
 )
+
+# ============================================================================
+# Middleware Configuration
+# ============================================================================
+
+# CORS Middleware - Must be added BEFORE authentication middleware
+frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[frontend_url],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
+    expose_headers=["*"],
+)
+
+# Authentication Middleware - Validates session tokens
+# The middleware will get db_pool from app.state when processing requests
+app.add_middleware(AuthenticationMiddleware)
 
 
 # ============================================================================
