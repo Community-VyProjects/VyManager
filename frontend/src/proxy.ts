@@ -4,7 +4,12 @@ import { auth } from "./lib/auth";
 
 export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const publicRoutes = ["/login", "/api/auth"];
+  const publicRoutes = [
+    "/login",
+    "/onboarding",
+    "/api/auth",
+    "/api/session/onboarding-status",
+  ];
   const isPublicRoute = publicRoutes.some((route) => pathname.startsWith(route));
 
   // Allow static files (images, fonts, etc.)

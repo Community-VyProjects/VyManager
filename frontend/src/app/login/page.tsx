@@ -6,12 +6,50 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { signIn, signUp } from "@/lib/auth-client";
+import { signIn, signUp, signOut } from "@/lib/auth-client";
 import { Shield, Loader2, AlertCircle } from "lucide-react";
+import { apiClient } from "@/lib/api/client";
+import { sessionService, AuthSessionInfo } from "@/lib/api/session";
+import { ActiveSessionWarningModal } from "@/components/auth/ActiveSessionWarningModal";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [from, setFrom] = useState<string>("/");
+  const [from, setFrom] = useState<string>("/sites");
+  const [checkingOnboarding, setCheckingOnboarding] = useState(true);
+
+  // Check if onboarding is needed first
+  useEffect(() => {
+    const checkOnboarding = async () => {
+      try {
+        // Use the frontend proxy instead of direct backend access
+        // This works around Docker networking issues where browser can't access backend directly
+        const response = await fetch(`/api/session/onboarding-status`, {
+          method: "GET",
+        });
+
+        if (!response.ok) {
+          console.error("[LoginPage] Onboarding status check failed:", response.status);
+          setCheckingOnboarding(false);
+          return;
+        }
+
+        const data = await response.json();
+
+        if (data.needs_onboarding) {
+          console.log("[LoginPage] Onboarding needed - redirecting to /onboarding");
+          router.push("/onboarding");
+          return;
+        }
+        console.log("[LoginPage] Onboarding complete - showing login");
+      } catch (err) {
+        console.error("[LoginPage] Failed to check onboarding status:", err);
+      } finally {
+        setCheckingOnboarding(false);
+      }
+    };
+
+    checkOnboarding();
+  }, [router]);
 
   // Read search params on the client only so we don't call
   // `useSearchParams` during prerendering (avoids Next build error).
@@ -19,21 +57,23 @@ export default function LoginPage() {
     try {
       const params = new URLSearchParams(window.location.search);
       const f = params.get("from");
-      if (f) setFrom(f);
+      // Default to /sites if no "from" parameter or if it's the login page
+      if (f && f !== "/login" && f !== "/onboarding") {
+        setFrom(f);
+      }
     } catch (err) {
       // ignore
     }
   }, []);
-  const [isSignUp, setIsSignUp] = useState(false);
   const [formData, setFormData] = useState({
-    name: "",
     email: "",
     password: "",
-    confirmPassword: "",
     rememberMe: false,
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showSessionWarning, setShowSessionWarning] = useState(false);
+  const [otherSessions, setOtherSessions] = useState<AuthSessionInfo[]>([]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,58 +81,84 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      if (isSignUp) {
-        // Validate passwords match
-        if (formData.password !== formData.confirmPassword) {
-          setError("Passwords do not match");
-          setIsLoading(false);
-          return;
-        }
+      // Sign in
+      const result = await signIn.email({
+        email: formData.email,
+        password: formData.password,
+      });
 
-        // Validate password length
-        if (formData.password.length < 8) {
-          setError("Password must be at least 8 characters");
-          setIsLoading(false);
-          return;
-        }
-
-        // Sign up
-        const result = await signUp.email({
-          email: formData.email,
-          password: formData.password,
-          name: formData.name,
-        });
-
-        if (result.error) {
-          setError(result.error.message || "Sign up failed");
-          setIsLoading(false);
-          return;
-        }
-
-        // Auto sign in after successful sign up
-        router.push(from);
-        router.refresh();
-      } else {
-        // Sign in
-        const result = await signIn.email({
-          email: formData.email,
-          password: formData.password,
-        });
-
-        if (result.error) {
-          setError(result.error.message || "Login failed");
-          setIsLoading(false);
-          return;
-        }
-
-        router.push(from);
-        router.refresh();
+      if (result.error) {
+        setError(result.error.message || "Login failed");
+        setIsLoading(false);
+        return;
       }
+
+      // Check for active sessions after successful login
+      // Wait a moment for the session cookie to be fully established
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      try {
+        const sessionsResponse = await sessionService.getActiveSessions();
+
+        if (sessionsResponse.has_other_sessions) {
+          // Show the active session warning modal
+          setOtherSessions(sessionsResponse.other_sessions);
+          setShowSessionWarning(true);
+          setIsLoading(false);
+          return;
+        }
+      } catch (err) {
+        console.error("Failed to check active sessions:", err);
+        // Continue with login even if session check fails
+        // This shouldn't block the login process
+      }
+
+      // No other sessions, proceed to redirect
+      router.push(from);
+      router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
       setIsLoading(false);
     }
   };
+
+  const handleContinueAndRevokeOtherSessions = async () => {
+    try {
+      // Revoke all other sessions
+      for (const session of otherSessions) {
+        await sessionService.revokeSession(session.token);
+      }
+
+      // Proceed to redirect
+      router.push(from);
+      router.refresh();
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to revoke other sessions";
+      throw new Error(errorMessage);
+    }
+  };
+
+  const handleCancelLogin = async () => {
+    // User chose to cancel - log them out
+    try {
+      await signOut();
+      setShowSessionWarning(false);
+      setOtherSessions([]);
+      setError("Login cancelled. Please try again from your other device or choose to continue.");
+    } catch (err) {
+      console.error("Failed to sign out:", err);
+      setError("Login cancelled");
+    }
+  };
+
+  // Show loading while checking if onboarding is needed
+  if (checkingOnboarding) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-background relative overflow-hidden">
@@ -137,31 +203,8 @@ export default function LoginPage() {
             </div>
           )}
 
-          {/* Login/Sign up form */}
+          {/* Login form */}
           <form onSubmit={handleSubmit} className="space-y-4">
-            {isSignUp && (
-              <div className="space-y-2">
-                <Label
-                  htmlFor="name"
-                  className="text-sm font-medium text-foreground"
-                >
-                  Full Name
-                </Label>
-                <Input
-                  id="name"
-                  type="text"
-                  placeholder="John Doe"
-                  value={formData.name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
-                  }
-                  required={isSignUp}
-                  className="h-11 bg-background/50 border-border/50 focus:border-primary transition-colors"
-                  disabled={isLoading}
-                />
-              </div>
-            )}
-
             <div className="space-y-2">
               <Label
                 htmlFor="email"
@@ -193,7 +236,7 @@ export default function LoginPage() {
               <Input
                 id="password"
                 type="password"
-                placeholder={isSignUp ? "At least 8 characters" : "Enter your password"}
+                placeholder="Enter your password"
                 value={formData.password}
                 onChange={(e) =>
                   setFormData({ ...formData, password: e.target.value })
@@ -204,49 +247,24 @@ export default function LoginPage() {
               />
             </div>
 
-            {isSignUp && (
-              <div className="space-y-2">
-                <Label
-                  htmlFor="confirmPassword"
-                  className="text-sm font-medium text-foreground"
-                >
-                  Confirm Password
-                </Label>
-                <Input
-                  id="confirmPassword"
-                  type="password"
-                  placeholder="Confirm your password"
-                  value={formData.confirmPassword}
-                  onChange={(e) =>
-                    setFormData({ ...formData, confirmPassword: e.target.value })
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="remember"
+                  checked={formData.rememberMe}
+                  onCheckedChange={(checked) =>
+                    setFormData({ ...formData, rememberMe: checked as boolean })
                   }
-                  required={isSignUp}
-                  className="h-11 bg-background/50 border-border/50 focus:border-primary transition-colors"
                   disabled={isLoading}
                 />
+                <label
+                  htmlFor="remember"
+                  className="text-sm text-muted-foreground cursor-pointer select-none"
+                >
+                  Remember me
+                </label>
               </div>
-            )}
-
-            {!isSignUp && (
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="remember"
-                    checked={formData.rememberMe}
-                    onCheckedChange={(checked) =>
-                      setFormData({ ...formData, rememberMe: checked as boolean })
-                    }
-                    disabled={isLoading}
-                  />
-                  <label
-                    htmlFor="remember"
-                    className="text-sm text-muted-foreground cursor-pointer select-none"
-                  >
-                    Remember me
-                  </label>
-                </div>
-              </div>
-            )}
+            </div>
 
             <Button
               type="submit"
@@ -256,26 +274,13 @@ export default function LoginPage() {
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {isSignUp ? "Creating account..." : "Signing in..."}
+                  Signing in...
                 </>
               ) : (
-                isSignUp ? "Create account" : "Sign in"
+                "Sign in"
               )}
             </Button>
 
-            <div className="text-center">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsSignUp(!isSignUp);
-                  setError("");
-                }}
-                className="text-sm text-primary hover:underline"
-                disabled={isLoading}
-              >
-                {isSignUp ? "Already have an account? Sign in" : "Don't have an account? Sign up"}
-              </button>
-            </div>
           </form>
 
           {/* Divider */}
@@ -307,6 +312,15 @@ export default function LoginPage() {
           By signing in, you agree to our Terms of Service and Privacy Policy
         </p>
       </div>
+
+      {/* Active Session Warning Modal */}
+      <ActiveSessionWarningModal
+        open={showSessionWarning}
+        onOpenChange={setShowSessionWarning}
+        sessions={otherSessions}
+        onContinue={handleContinueAndRevokeOtherSessions}
+        onCancel={handleCancelLogin}
+      />
     </div>
   );
 }

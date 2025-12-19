@@ -4,60 +4,54 @@ System Information Endpoints
 API endpoints for retrieving system information about the VyOS device.
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 from typing import Optional
 
-from vyos_service import VyOSDeviceRegistry
+from session_vyos_service import get_session_vyos_service
 
 # Router for system endpoints
 router = APIRouter(prefix="/vyos/system", tags=["system"])
 
-# Shared device registry (will be set from app.py)
-device_registry: VyOSDeviceRegistry = None
 
-# Configured device name (will be imported from app.py)
-CONFIGURED_DEVICE_NAME: Optional[str] = None
-
-
-def set_device_registry(registry: VyOSDeviceRegistry):
-    """Set the device registry for this router."""
-    global device_registry
-    device_registry = registry
+# Stub functions for backwards compatibility with app.py
+def set_device_registry(registry):
+    """Legacy function - no longer used."""
+    pass
 
 
-def set_configured_device_name(name: str):
-    """Set the configured device name for this router."""
-    global CONFIGURED_DEVICE_NAME
-    CONFIGURED_DEVICE_NAME = name
+def set_configured_device_name(name):
+    """Legacy function - no longer used."""
+    pass
 
 
 class SystemInfo(BaseModel):
     """System information response model."""
-    device_name: str
+    instance_id: str
+    instance_name: str
+    site_name: str
     vyos_version: str
     connection_host: str
     connected: bool
 
 
 @router.get("/info", response_model=SystemInfo)
-async def get_system_info() -> SystemInfo:
+async def get_system_info(request: Request) -> SystemInfo:
     """
-    Get system information about the VyOS device.
+    Get system information about the active VyOS instance.
 
     Returns:
-    - device_name: The configured name of the device
+    - instance_id: The ID of the connected instance
+    - instance_name: The name of the instance
+    - site_name: The site the instance belongs to
     - vyos_version: VyOS version (e.g., "1.4", "1.5")
     - connection_host: The hostname/IP we're connected to
     - connected: Whether we can connect to the device
     """
-    if CONFIGURED_DEVICE_NAME is None:
-        raise HTTPException(
-            status_code=503, detail="No device configured. Check .env file."
-        )
-
     try:
-        service = device_registry.get(CONFIGURED_DEVICE_NAME)
+        service = get_session_vyos_service(request)
+        instance = request.state.instance
+
         version = service.get_version()
         hostname = service.config.hostname
 
@@ -69,12 +63,12 @@ async def get_system_info() -> SystemInfo:
             connected = False
 
         return SystemInfo(
-            device_name=CONFIGURED_DEVICE_NAME,
+            instance_id=instance['id'],
+            instance_name=instance['name'],
+            site_name=instance.get('site_name', 'Unknown'),
             vyos_version=version,
             connection_host=hostname,
             connected=connected,
         )
-    except KeyError as e:
-        raise HTTPException(status_code=404, detail=f"Device not found: {str(e)}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving system info: {str(e)}")

@@ -7,7 +7,9 @@ import { apiClient } from "./client";
 import type { NetworkInterface } from "./interfaces";
 
 export interface SystemInfo {
-  device_name: string;
+  instance_id: string;
+  instance_name: string;
+  site_name: string;
   vyos_version: string;
   connection_host: string;
   connected: boolean;

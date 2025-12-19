@@ -38,22 +38,67 @@ export class ApiClient {
       });
 
       if (!response.ok) {
-        const error: ApiError = {
-          message: `HTTP error! status: ${response.status}`,
-          status: response.status,
-        };
+        let errorMessage = `HTTP error! status: ${response.status}`;
+        let errorDetails: unknown = undefined;
+
+        // Try to read response body as text first
+        const textBody = await response.text();
 
         try {
-          const errorData = await response.json();
-          error.details = errorData;
+          // Try to parse as JSON
+          const errorData = JSON.parse(textBody);
+          errorDetails = errorData;
+
+          // Extract user-friendly error message from FastAPI response
+          if (errorData.detail) {
+            errorMessage = errorData.detail;
+          } else if (errorData.message) {
+            errorMessage = errorData.message;
+          } else if (errorData.error) {
+            errorMessage = errorData.error;
+          }
         } catch {
-          // Response body might not be JSON
+          // Response body is not JSON (could be HTML error page)
+          if (textBody.includes("<!DOCTYPE")) {
+            errorMessage = `Server returned an error page (${response.status})`;
+          } else if (textBody) {
+            errorMessage = textBody.substring(0, 200);
+          }
         }
+
+        // Special handling for connection failures (503)
+        if (response.status === 503 && errorMessage.includes("Failed to connect")) {
+          errorMessage = "Failed to connect";
+        }
+
+        const error: ApiError = {
+          message: errorMessage,
+          status: response.status,
+          details: errorDetails,
+        };
 
         throw error;
       }
 
-      return await response.json();
+      // Parse JSON response
+      const responseText = await response.text();
+
+      try {
+        return JSON.parse(responseText);
+      } catch (parseError) {
+        // If response is not valid JSON, throw error
+        if (responseText.includes("<!DOCTYPE")) {
+          throw {
+            message: "Server returned an HTML page instead of JSON",
+            status: response.status,
+          } as ApiError;
+        }
+
+        throw {
+          message: "Server returned non-JSON response",
+          status: response.status,
+        } as ApiError;
+      }
     } catch (error) {
       if ((error as ApiError).status) {
         throw error;

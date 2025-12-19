@@ -5,30 +5,25 @@ API endpoints for managing VyOS DHCP server configuration.
 Supports shared networks, subnets, ranges, static mappings, and options.
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
-from vyos_service import VyOSDeviceRegistry
+from session_vyos_service import get_session_vyos_service
 from vyos_builders import DHCPBatchBuilder
 import inspect
 
 router = APIRouter(prefix="/vyos/dhcp", tags=["dhcp"])
 
-# Module-level variables for device registry and configured device name
-device_registry: VyOSDeviceRegistry = None
-CONFIGURED_DEVICE_NAME: Optional[str] = None
+
+# Stub functions for backwards compatibility with app.py
+def set_device_registry(registry):
+    """Legacy function - no longer used."""
+    pass
 
 
-def set_device_registry(registry: VyOSDeviceRegistry):
-    """Set the device registry for this router."""
-    global device_registry
-    device_registry = registry
-
-
-def set_configured_device_name(name: str):
-    """Set the configured device name for this router."""
-    global CONFIGURED_DEVICE_NAME
-    CONFIGURED_DEVICE_NAME = name
+def set_configured_device_name(name):
+    """Legacy function - no longer used."""
+    pass
 
 
 # ============================================================================
@@ -188,26 +183,23 @@ class DHCPLeasesResponse(BaseModel):
 
 
 @router.get("/capabilities")
-async def get_dhcp_capabilities():
+async def get_dhcp_capabilities(request: Request):
     """
     Get DHCP capabilities based on device VyOS version.
 
     Returns feature flags indicating which DHCP features are supported.
     This allows frontends to conditionally enable/disable features based on version.
     """
-    if CONFIGURED_DEVICE_NAME is None:
-        raise HTTPException(
-            status_code=503, detail="No device configured. Check .env file."
-        )
-
     try:
-        service = device_registry.get(CONFIGURED_DEVICE_NAME)
+        service = get_session_vyos_service(request)
         version = service.get_version()
         builder = DHCPBatchBuilder(version=version)
         capabilities = builder.get_capabilities()
 
-        # Add device info
-        capabilities["device_name"] = CONFIGURED_DEVICE_NAME
+        # Add instance info
+        if hasattr(request.state, "instance") and request.state.instance:
+            capabilities["instance_name"] = request.state.instance.get("name")
+            capabilities["instance_id"] = request.state.instance.get("id")
 
         return capabilities
     except KeyError:
@@ -217,7 +209,7 @@ async def get_dhcp_capabilities():
 
 
 @router.get("/config", response_model=DHCPConfigResponse)
-async def get_dhcp_config(refresh: bool = False):
+async def get_dhcp_config(http_request: Request, refresh: bool = False):
     """
     Get all DHCP server configurations from VyOS.
 
@@ -227,14 +219,9 @@ async def get_dhcp_config(refresh: bool = False):
     Returns:
         Configuration details for all DHCP shared networks, subnets, and options
     """
-    if CONFIGURED_DEVICE_NAME is None:
-        raise HTTPException(
-            status_code=503, detail="No device configured. Check .env file."
-        )
-
     try:
         # Get service and retrieve raw config from cache
-        service = device_registry.get(CONFIGURED_DEVICE_NAME)
+        service = get_session_vyos_service(http_request)
         full_config = service.get_full_config(refresh=refresh)
 
         if not full_config or "service" not in full_config:
@@ -535,7 +522,7 @@ async def get_dhcp_config(refresh: bool = False):
 
 
 @router.get("/leases", response_model=DHCPLeasesResponse)
-async def get_dhcp_leases():
+async def get_dhcp_leases(request: Request):
     """
     Get all active DHCP leases from VyOS.
 
@@ -545,13 +532,8 @@ async def get_dhcp_leases():
     Returns:
         List of active DHCP leases with details like IP, MAC, hostname, expiration, etc.
     """
-    if CONFIGURED_DEVICE_NAME is None:
-        raise HTTPException(
-            status_code=503, detail="No device configured. Check .env file."
-        )
-
     try:
-        service = device_registry.get(CONFIGURED_DEVICE_NAME)
+        service = get_session_vyos_service(request)
 
         # Use the show command to get DHCP leases
         # This returns tabular data that we need to parse
@@ -610,7 +592,7 @@ async def get_dhcp_leases():
 
 
 @router.post("/batch")
-async def dhcp_batch_configure(request: DHCPBatchRequest):
+async def dhcp_batch_configure(http_request: Request, request: DHCPBatchRequest):
     """
     Execute a batch of DHCP configuration operations.
 
@@ -623,14 +605,9 @@ async def dhcp_batch_configure(request: DHCPBatchRequest):
     Returns:
         Success status and any relevant data
     """
-    if CONFIGURED_DEVICE_NAME is None:
-        raise HTTPException(
-            status_code=503, detail="No device configured. Check .env file."
-        )
-
     try:
         # Get service and version
-        service = device_registry.get(CONFIGURED_DEVICE_NAME)
+        service = get_session_vyos_service(http_request)
         version = service.get_version()
 
         # Create builder

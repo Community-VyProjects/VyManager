@@ -5,30 +5,24 @@ API endpoints for managing VyOS local route policy configuration.
 Supports both IPv4 (local-route) and IPv6 (local-route6) rules.
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
-from vyos_service import VyOSDeviceRegistry
+from session_vyos_service import get_session_vyos_service
 from vyos_builders import LocalRouteBatchBuilder
 import inspect
 
 router = APIRouter(prefix="/vyos/local-route", tags=["local-route"])
 
-# Module-level variables for device registry
-device_registry: VyOSDeviceRegistry = None
-CONFIGURED_DEVICE_NAME: Optional[str] = None
+# Stub functions for backwards compatibility with app.py
+def set_device_registry(registry):
+    """Legacy function - no longer used."""
+    pass
 
 
-def set_device_registry(registry: VyOSDeviceRegistry):
-    """Set the device registry for this router."""
-    global device_registry
-    device_registry = registry
-
-
-def set_configured_device_name(name: str):
-    """Set the configured device name for this router."""
-    global CONFIGURED_DEVICE_NAME
-    CONFIGURED_DEVICE_NAME = name
+def set_configured_device_name(name):
+    """Legacy function - no longer used."""
+    pass
 
 
 # ============================================================================
@@ -102,24 +96,22 @@ class VyOSResponse(BaseModel):
 
 
 @router.get("/capabilities", response_model=LocalRouteCapabilitiesResponse)
-async def get_local_route_capabilities():
+async def get_local_route_capabilities(request: Request):
     """
     Get feature capabilities based on device VyOS version.
 
     Returns feature flags indicating which operations are supported.
     """
-    if CONFIGURED_DEVICE_NAME is None:
-        raise HTTPException(
-            status_code=503, detail="No device configured. Check .env file."
-        )
-
     try:
-        service = device_registry.get(CONFIGURED_DEVICE_NAME)
+        service = get_session_vyos_service(request)
         version = service.get_version()
         builder = LocalRouteBatchBuilder(version=version)
         capabilities = builder.get_capabilities()
 
-        capabilities["device_name"] = CONFIGURED_DEVICE_NAME
+        # Add instance info
+        if hasattr(request.state, "instance") and request.state.instance:
+            capabilities["instance_name"] = request.state.instance.get("name")
+            capabilities["instance_id"] = request.state.instance.get("id")
         return capabilities
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -150,7 +142,7 @@ def parse_address_field(value):
 
 
 @router.get("/config", response_model=LocalRouteConfigResponse)
-async def get_local_route_config(refresh: bool = False):
+async def get_local_route_config(http_request: Request, refresh: bool = False):
     """
     Get all local route configurations in a generalized format.
 
@@ -160,11 +152,8 @@ async def get_local_route_config(refresh: bool = False):
     Returns:
         Generalized configuration data for IPv4 and IPv6 rules
     """
-    if CONFIGURED_DEVICE_NAME is None:
-        raise HTTPException(status_code=503, detail="No device configured.")
-
     try:
-        service = device_registry.get(CONFIGURED_DEVICE_NAME)
+        service = get_session_vyos_service(http_request)
         full_config = service.get_full_config(refresh=refresh)
 
         ipv4_rules = []
@@ -226,11 +215,8 @@ async def local_route_batch_configure(request: LocalRouteBatchRequest):
 
     Allows multiple changes in a single VyOS commit for efficiency.
     """
-    if CONFIGURED_DEVICE_NAME is None:
-        raise HTTPException(status_code=503, detail="No device configured.")
-
     try:
-        service = device_registry.get(CONFIGURED_DEVICE_NAME)
+        service = get_session_vyos_service(request)
         version = service.get_version()
         builder = LocalRouteBatchBuilder(version=version)
 
@@ -274,11 +260,8 @@ async def local_route_reorder_rules(request: LocalRouteReorderRequest):
     This is done by deleting all rules and recreating them with new numbers
     in a single batch operation.
     """
-    if CONFIGURED_DEVICE_NAME is None:
-        raise HTTPException(status_code=503, detail="No device configured.")
-
     try:
-        service = device_registry.get(CONFIGURED_DEVICE_NAME)
+        service = get_session_vyos_service(request)
         version = service.get_version()
         builder = LocalRouteBatchBuilder(version=version)
 

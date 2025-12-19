@@ -5,10 +5,10 @@ Modern web interface to make configuring, deploying and monitoring VyOS routers 
 
 ## 🎯 Open Beta Community Release
 
-Open beta release. Expect lower stability and bugs. This release provides a lot of structural improvements over the older legacy version. 
+Open beta release. Expect lower stability and bugs. This release provides a lot of structural improvements over the older legacy version.
 We now flexibly support all active VyOS versions, including rolling releases.
 
-### [➡️ Skip to Quick Start](https://github.com/Community-VyProjects/VyManager/tree/beta#prerequisites)
+### [➡️ Skip to Quick Start](#-quick-start)
 
 **[💭 Join our Discord community to receive official updates](https://discord.gg/k9SSkK7wPQ)**
 
@@ -33,102 +33,401 @@ We now flexibly support all active VyOS versions, including rolling releases.
 
 - **Docker & Docker Compose** (recommended for easiest setup)
 - OR **Node.js 24.x** and **Python 3.11+** (for manual setup)
+- **VyOS Router** with REST API enabled (see setup below)
 
 ---
 
-## 🔧 Configuration
+## 🔧 Setup Guide
 
-Before you start, ensure you're connected to the VyOS router via the terminal/shell. You need to do follow both VyOS router setup and Environment values.
+### Step 1: Setup VyOS Router REST API
 
-### Step 1) Setup VyOS routers:
-Setup the HTTPS REST API in your VyOS router(s), using the following CLI commands:
+Before deploying VyManager, you need to enable the REST API on your VyOS router(s).
 
-1. Start configuration mode:
-``` conf ```
+Connect to your VyOS router via SSH and run:
 
-2. Create a HTTPS key:
->💡Security Notice: replace KEY with a really secure key, it's like a password! You will need to enter this password in your backend .env file in the next steps!
-``` set service https api keys id fastapi key KEY ```
+```bash
+# Enter configuration mode
+configure
 
-3. (only required on VyOS 1.5 and above) Enable the REST functionality:
-``` set service https api rest ```
+# Create an API key (replace YOUR_SECURE_API_KEY with a strong random key)
+set service https api keys id vymanager key YOUR_SECURE_API_KEY
 
-4. (optional) Enable GraphQL functionality:
-``` set service https api graphql ```
+# Enable REST functionality (VyOS 1.5+ only)
+set service https api rest
 
-5. Save your changes in CLI (run these **two** commands chronologically):
-``` commit ```, then ``` save ```
+# Optional: Enable GraphQL
+set service https api graphql
 
-### Step 2) Configure environment values:
+# Save and apply
+commit
+save
+exit
+```
+
+> 💡 **Security Note**: Keep your API key secure! You'll need it during the VyManager setup wizard.
+
+### Step 2: Configure Environment Files
 
 #### Frontend Configuration
 
-Copy `frontend/env.example` to `frontend/.env` and fill in your environment values:
+Copy `frontend/.env.example` to `frontend/.env`:
+
+```bash
+cp frontend/.env.example frontend/.env
+```
+
+Edit `frontend/.env`:
 
 ```env
-NODE_ENV=production  #Leave Alone
-VYMANAGER_ENV=production  #Leave Alone
+# Authentication (CHANGE THIS!)
 BETTER_AUTH_SECRET=your-super-secret-key-change-in-production-CHANGE-THIS
-BETTER_AUTH_URL=http://localhost:3000  #Leave Alone
-NEXT_PUBLIC_APP_URL=http://localhost:3000  #Leave Alone
-NEXT_PUBLIC_API_URL=http://backend:8000  #Leave Alone
-DATABASE_URL=postgresql://vymanager:vymanager_secure_password@postgres:5432/vymanager_auth  #Change if db changed
-TRUSTED_ORIGINS=http://your-server-ip:3000,http://localhost:3000  #Add your server IP
+
+# Leave these as default for Docker deployment
+NODE_ENV=production
+VYMANAGER_ENV=production
+BETTER_AUTH_URL=http://localhost:3000
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+NEXT_PUBLIC_API_URL=http://backend:8000
+
+# Database (change password in production!)
+DATABASE_URL=postgresql://vymanager:vymanager_secure_password@postgres:5432/vymanager_auth
+
+# Add your server IP if accessing from other machines
+TRUSTED_ORIGINS=http://localhost:3000,http://192.168.1.100:3000
 ```
 
 #### Backend Configuration
 
-Copy `backend/.env.example` to `backend/.env` and fill in your environment values:
+Copy `backend/.env.example` to `backend/.env`:
 
-```env
-# VyOS Router Credentials
-VYOS_NAME=vyos15
-VYOS_HOSTNAME=100.64.64.4
-VYOS_APIKEY=REST_API_KEY_HERE
-VYOS_VERSION=1.5 # or 1.4
-VYOS_PROTOCOL=https
-VYOS_PORT=443
-VYOS_VERIFY_SSL=false
-VYOS_TIMEOUT=10
+```bash
+cp backend/.env.example backend/.env
 ```
 
-### Step 3) Edit `docker-compose.yml` and change specific configuration values:
-Change `NEXT_PUBLIC_API_URL` and `DATABASE_URL` in `docker-compose.yml`.
-Leave the other configuration values which already have a default reference to .env files (indicated by the `${X}` sign)
+Edit `backend/.env`:
 
----
+```env
+# Database Connection
+DATABASE_URL=postgresql://vymanager:vymanager_secure_password@postgres:5432/vymanager_auth
 
-## Installation
+# Frontend URL
+FRONTEND_URL=http://localhost:3000
+```
 
-### Option 1: Docker Compose (Recommended)
+> 📝 **Note**: VyOS instance configuration is now managed through the web UI, not environment variables!
 
-Run both frontend and backend with a single command:
+### Step 3: Deploy with Docker Compose
 
 ```bash
 # Start all services
+docker compose up -d
+
+# View logs
+docker compose logs -f
+
+# Check status
+docker compose ps
+```
+
+### Step 4: Complete First-Time Setup Wizard
+
+1. **Open your browser** and navigate to `http://localhost:3000`
+
+2. **Onboarding Wizard** will automatically launch (first-time only):
+   - **Step 1**: Create your admin account
+   - **Step 2**: Create your first site (e.g., "Headquarters")
+   - **Step 3**: Add your first VyOS instance
+     - Name: Give it a friendly name
+     - Host: Your VyOS router IP address
+     - Port: 443 (default)
+     - API Key: The key you created in Step 1
+     - Version: Select your VyOS version (1.4 or 1.5)
+
+3. **Start Managing!** You'll be automatically logged in and redirected to the dashboard
+
+---
+
+## 🏗️ Architecture Overview
+
+### Multi-Instance Management
+
+VyManager uses a **multi-instance architecture** allowing you to manage multiple VyOS routers from a single interface:
+
+- **Sites**: Logical groupings of VyOS instances (e.g., "Data Center 01", "Branch Office NYC")
+- **Instances**: Individual VyOS routers within a site
+- **Role-Based Access**: OWNER, ADMIN, and VIEWER roles per site
+- **Active Session**: Connect to one instance at a time for configuration
+
+### Database-Driven Configuration
+
+Unlike traditional single-device management tools, VyManager stores all instance configurations in a PostgreSQL database:
+
+```
+PostgreSQL Database
+├── users           # User accounts
+├── sites           # Site groupings
+├── instances       # VyOS router instances
+├── permissions     # User-site role mappings
+└── active_sessions # Current connections
+```
+
+All VyOS instances are managed through the web UI - no hardcoded configuration!
+
+---
+
+## 📁 Project Structure
+
+```
+vymanager/
+├── frontend/              # Next.js 16 frontend application
+│   ├── src/
+│   │   ├── app/          # Next.js app router pages
+│   │   │   ├── onboarding/    # First-time setup wizard
+│   │   │   ├── sites/         # Site & instance management
+│   │   │   ├── login/         # Authentication
+│   │   │   └── [features]/    # VyOS configuration pages
+│   │   ├── components/   # React components
+│   │   │   ├── sites/         # Site management components
+│   │   │   ├── layout/        # Navigation & layout
+│   │   │   └── ui/            # shadcn/ui components
+│   │   └── lib/          # Utilities and API clients
+│   │       └── api/           # Backend API services
+│   ├── prisma/           # Database schema & migrations
+│   │   └── migrations/        # Multi-instance schema
+│   ├── public/           # Static assets
+│   └── Dockerfile        # Frontend container
+
+├── backend/              # FastAPI backend application
+│   ├── routers/          # API route handlers
+│   │   ├── session/           # Session & instance management
+│   │   ├── firewall/          # Firewall configuration
+│   │   ├── network/           # Network configuration
+│   │   ├── interfaces/        # Interface management
+│   │   └── [features]/        # Other VyOS features
+│   ├── vyos_mappers/     # VyOS version mappers (1.4 vs 1.5)
+│   ├── vyos_builders/    # Configuration builders
+│   ├── vyos_service.py   # VyOS device service layer
+│   ├── app.py            # Main FastAPI application
+│   └── Dockerfile        # Backend container
+
+├── docker-compose.yml    # Multi-service orchestration
+│   ├── postgres          # PostgreSQL database
+│   ├── backend           # FastAPI API server
+│   └── frontend          # Next.js web app
+
+└── README.md             # This file
+```
+
+---
+
+## 🎨 Tech Stack
+
+### Frontend
+- **Framework**: Next.js 16 (App Router)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS v4
+- **UI Components**: shadcn/ui
+- **Icons**: Lucide React
+- **Authentication**: Better-auth
+- **State Management**: Zustand
+- **Database ORM**: Prisma
+
+### Backend
+- **Framework**: FastAPI
+- **Language**: Python 3.11+
+- **VyOS SDK**: pyvyos (custom)
+- **Database**: PostgreSQL
+- **DB Driver**: asyncpg
+
+### Infrastructure
+- **Container**: Docker & Docker Compose
+- **Database**: PostgreSQL 15
+- **Reverse Proxy**: Nginx (optional)
+
+---
+
+## 📜 Available Scripts
+
+### Docker Commands (Recommended)
+
+```bash
+# Start all services
+docker compose up -d
+
+# View logs
+docker compose logs -f
+docker compose logs -f backend    # Backend only
+docker compose logs -f frontend   # Frontend only
+
+# Stop all services
+docker compose down
+
+# Rebuild after code changes
+docker compose build
+docker compose up -d
+
+# Restart a specific service
+docker compose restart backend
+docker compose restart frontend
+
+# Clean everything (including database)
+docker compose down -v
+```
+
+### Root-level npm Commands
+
+```bash
+# Development
+npm run dev              # Start all services with Docker
+npm run dev:down         # Stop Docker services
+
+# Production
+npm start                # Start services in detached mode
+npm stop                 # Stop all services
+
+# Logs
+npm run logs             # View all logs
+npm run logs:frontend    # Frontend logs only
+npm run logs:backend     # Backend logs only
+
+# Build
+npm run build:docker     # Build Docker images
+
+# Maintenance
+npm run clean            # Clean all build artifacts and containers
+```
+
+---
+
+## 🔍 Managing Multiple VyOS Instances
+
+### Adding More Sites
+
+1. Navigate to **Site Manager** (click VyOS logo in sidebar)
+2. Click **"Add Site"** button
+3. Enter site name and description
+4. Click **"Create Site"**
+
+### Adding Instances to a Site
+
+1. In **Site Manager**, select a site from the list
+2. Click **"Add Instance"** button
+3. Fill in instance details:
+   - **Name**: Friendly name for this router
+   - **Description**: Optional notes
+   - **Host**: IP address or hostname
+   - **Port**: HTTPS port (default 443)
+   - **API Key**: The key from VyOS configuration
+   - **Version**: Select 1.4 or 1.5
+   - **Protocol**: HTTPS (recommended) or HTTP
+4. Click **"Complete Setup"**
+
+### Connecting to an Instance
+
+1. Navigate to **Site Manager**
+2. Select a site
+3. Click **"Connect"** on any instance card
+4. VyManager will:
+   - Test the connection
+   - Verify API credentials
+   - Redirect you to the dashboard if successful
+5. You can now manage that VyOS router!
+
+### Switching Between Instances
+
+- Click **"Disconnect Instance"** in the sidebar
+- You'll return to **Site Manager**
+- Connect to a different instance
+
+---
+
+## 🛡️ Role-Based Access Control
+
+VyManager implements granular role-based access:
+
+| Role | Permissions |
+|------|-------------|
+| **OWNER** | Full control: manage site, add/edit/delete instances, grant permissions |
+| **ADMIN** | Manage instances, edit configurations, cannot delete site or manage permissions |
+| **VIEWER** | Read-only access to configurations |
+
+Roles are assigned per-site, allowing flexible multi-tenant scenarios.
+
+---
+
+## 🏗️ Version-Aware Architecture
+
+VyManager supports multiple VyOS versions (1.4, 1.5+) using a version-aware backend architecture.
+
+### How It Works
+
+The backend uses a three-layer architecture:
+
+```
+Routers (API Endpoints)
+    ↓
+Builders (Batch Operations)
+    ↓
+Mappers (Version-Specific Commands)
+    ↓
+VyOS Device (1.4 or 1.5)
+```
+
+**Example**:
+- **VyOS 1.4**: Uses `firewall group address-group`
+- **VyOS 1.5**: Uses `firewall group address-group` (same)
+- **New Features**: Automatically disabled on older versions
+
+### Capabilities Endpoint
+
+Every feature exposes a `/capabilities` endpoint:
+
+```json
+{
+  "version": "1.5",
+  "features": {
+    "domain_groups": {
+      "supported": true,
+      "description": "Domain-based firewall groups"
+    },
+    "ipv6_nat": {
+      "supported": true,
+      "description": "IPv6 NAT rules"
+    }
+  }
+}
+```
+
+The frontend conditionally shows/hides features based on capabilities.
+
+---
+
+## 🧪 Development Setup
+
+### Frontend Development
+
+```bash
+cd frontend
+
+# Install dependencies
+npm install
+
+# Run dev server (with hot reload)
 npm run dev
 
-# Or using docker-compose directly
-docker-compose up
+# Type check
+npm run type-check
+
+# Lint
+npm run lint
+
+# Build for production
+npm run build
 ```
 
-Access the application:
-- **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:8000
-- **API Docs**: http://localhost:8000/docs
+### Backend Development
 
-Stop services:
 ```bash
-npm run stop
-# or
-docker-compose down
-```
-
-### Option 2: Manual Development
-
-**Terminal 1 - Backend:**
-```bash
-# Navigate to backend
 cd backend
 
 # Create virtual environment
@@ -138,468 +437,168 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 # Install dependencies
 pip install -r requirements.txt
 
-# Copy and configure environment
-cp .env.example .env
-# Edit .env with your VyOS router credentials
-
-# Run backend server
-uvicorn app:app --reload --host 0.0.0.0 --port 8000
-```
-
-**Terminal 2 - Frontend:**
-```bash
-# Navigate to frontend
-cd frontend
-
-# Install dependencies
-npm install
-
-# Create environment file
-cp .env.local.example .env.local
-# .env.local should have: NEXT_PUBLIC_API_URL=http://localhost:8000
-
-# Run frontend dev server
-npm run dev
-```
-
-## 📜 Available Scripts
-
-### Root-level Commands
-
-```bash
-# Development
-npm run dev              # Start both services with Docker
-npm run dev:frontend     # Run only frontend (manual)
-npm run dev:backend      # Run only backend (manual)
-npm run dev:down         # Stop Docker services
-
-# Build
-npm run build            # Build frontend
-npm run build:docker     # Build Docker images
-
-# Production (Docker)
-npm start                # Start services in detached mode
-npm stop                 # Stop all services
-
-# Logs
-npm run logs             # View all logs
-npm run logs:frontend    # View frontend logs only
-npm run logs:backend     # View backend logs only
-
-# Installation
-npm run install:frontend # Install frontend dependencies
-npm run install:backend  # Setup backend virtual env
-
-# Maintenance
-npm run clean            # Clean all build artifacts and containers
-npm run lint:frontend    # Lint frontend code
-npm run type-check:frontend # TypeScript type checking
-```
-
----
-
-## 📁 Project Structure
-
-```
-vymanager/
-├── frontend/              # Next.js 16 frontend application
-│   ├── src/              # Source code
-│   │   ├── app/          # Next.js app router pages
-│   │   ├── components/   # React components
-│   │   └── lib/          # Utilities and API clients
-│   ├── public/           # Static assets
-│   ├── package.json      # Frontend dependencies
-│   └── Dockerfile        # Frontend container
-│
-├── backend/              # FastAPI backend application
-│   ├── routers/          # API route handlers
-│   ├── vyos_mappers/     # VyOS version mappers
-│   ├── vyos_builders/    # Configuration builders
-│   ├── pyvyos/           # VyOS Python SDK
-│   ├── app.py            # Main FastAPI application
-│   ├── requirements.txt  # Python dependencies
-│   └── Dockerfile        # Backend container
-│
-├── docker-compose.yml    # Multi-service orchestration
-├── package.json          # Root-level convenience scripts
-└── README.md             # This file
-```
-
----
-
-## 🎨 Frontend Stack
-
-- **Framework**: Next.js 16 (App Router)
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS v4
-- **UI Components**: shadcn/ui
-- **Icons**: Lucide React
-- **Theme**: Dark mode (enforced)
-
-### Frontend Development
-
-```bash
-cd frontend
-
-# Add shadcn/ui components
-npx shadcn@latest add [component-name]
-
-# Run dev server
-npm run dev
-
-# Build for production
-npm run build
-
-# Type check
-npx tsc --noEmit
-```
-
-See `frontend/README.md` for more details.
-
-## ⚙️ Backend Stack
-
-- **Framework**: FastAPI
-- **Language**: Python 3.11+
-- **VyOS SDK**: pyvyos (custom)
-- **API Docs**: Auto-generated (OpenAPI/Swagger)
-
-### Backend Development
-
-```bash
-cd backend
-
-# Activate virtual environment
-source venv/bin/activate
-
 # Run with auto-reload
-uvicorn app:app --reload
+uvicorn app:app --reload --host 0.0.0.0 --port 8000
 
-# Run tests
-pytest
-
-# View API documentation
+# View API docs
 # Navigate to http://localhost:8000/docs
 ```
 
-See `backend/README.md` for more details.
+### Database Migrations
 
-## 🏗️ Developing Version-Specific Features
+```bash
+cd frontend
 
-VyManager supports multiple VyOS versions (1.4, 1.5+) using a version-aware architecture. When adding new features, follow these patterns to ensure compatibility across versions.
+# Generate migration after schema changes
+npx prisma migrate dev --name migration_name
 
-### Backend Architecture Pattern
+# Apply migrations
+npx prisma migrate deploy
 
-The backend uses a three-layer architecture for version management:
-
-```
-backend/
-├── routers/              # API endpoints (version-agnostic)
-│   └── [feature]/
-│       └── [feature].py
-├── vyos_builders/        # Batch operation builders
-│   └── [feature]/
-│       └── [feature].py
-└── vyos_mappers/         # VyOS command mappers (version-specific)
-    └── [feature]/
-        ├── [feature].py              # Base mapper (v1.5 features)
-        └── [feature]_versions/
-            ├── v1_4.py              # v1.4 overrides
-            └── v1_5.py              # v1.5 implementation
+# View database
+npx prisma studio
 ```
 
-### Layer Responsibilities
+---
 
-**1. Routers (`routers/[feature]/`):**
-- Define FastAPI endpoints
-- Handle HTTP request/response
-- Version-agnostic - work with any VyOS version
-- Use builders for batch operations
-- Return capabilities based on detected version
+## 🐳 Docker Production Deployment
 
-**2. Builders (`vyos_builders/[feature]/`):**
-- Provide high-level operation methods
-- Use mappers to generate version-specific commands
-- Handle batch command execution
-- Version-agnostic interface
+### Using docker-compose.prod.yml
 
-**3. Mappers (`vyos_mappers/[feature]/`):**
-- Generate VyOS configuration commands
-- Parse VyOS configuration JSON
-- **Base class** contains v1.5+ features
-- **Version classes** override for version-specific behavior
+```bash
+# Build images
+docker compose -f docker-compose.prod.yml build
 
-### Example: Firewall Groups
+# Start services
+docker compose -f docker-compose.prod.yml up -d
 
-```
-vyos_mappers/firewall/
-├── groups.py                    # Base mapper (v1.5 features)
-└── groups_versions/
-    ├── v1_4.py                 # v1.4 overrides
-    └── v1_5.py                 # v1.5 implementation
+# View logs
+docker compose -f docker-compose.prod.yml logs -f
 ```
 
-**Base Mapper (`groups.py`):**
-```python
-class FirewallGroupsMapper(BaseFeatureMapper):
-    """Base mapper with all v1.5 features"""
+### Environment Variables for Production
 
-    def set_domain_group(self, name: str) -> List[str]:
-        """Create domain group (v1.5+ feature)"""
-        return ["firewall", "group", "domain-group", name]
+**Frontend `.env`**:
+```env
+NODE_ENV=production
+BETTER_AUTH_SECRET=<strong-random-secret-256-bits>
+BETTER_AUTH_URL=https://vymanager.yourdomain.com
+DATABASE_URL=postgresql://user:pass@postgres:5432/vymanager_auth
+TRUSTED_ORIGINS=https://vymanager.yourdomain.com
 ```
 
-**v1.4 Override (`groups_versions/v1_4.py`):**
-```python
-class FirewallGroupsMapper_v1_4(FirewallGroupsMapper):
-    """v1.4 overrides - disable unsupported features"""
-
-    def set_domain_group(self, name: str) -> List[str]:
-        """Domain groups not available in v1.4"""
-        raise ValueError("Domain groups require VyOS 1.5+")
+**Backend `.env`**:
+```env
+DATABASE_URL=postgresql://user:pass@postgres:5432/vymanager_auth
+FRONTEND_URL=https://vymanager.yourdomain.com
 ```
 
-**v1.5 Implementation (`groups_versions/v1_5.py`):**
-```python
-class FirewallGroupsMapper_v1_5(FirewallGroupsMapper):
-    """v1.5 - inherits all features from base"""
-    pass  # No overrides needed, base has all v1.5 features
-```
+### Reverse Proxy (Nginx)
 
-### Example: Ethernet Interfaces
+```nginx
+server {
+    listen 80;
+    server_name vymanager.yourdomain.com;
 
-```
-vyos_mappers/interfaces/
-├── ethernet.py                  # Base mapper
-└── ethernet_versions/
-    ├── v1_4.py                 # v1.4 overrides
-    └── v1_5.py                 # v1.5 implementation
-```
-
-**v1.4 Override for unavailable feature:**
-```python
-def get_ip_enable_directed_broadcast(self, interface: str) -> List[str]:
-    """Directed broadcast is not available in v1.4"""
-    raise ValueError("enable-directed-broadcast requires VyOS 1.5+")
-
-def _parse_ip_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
-    """Parse IP config - normalize v1.5 features to None"""
-    return {
-        "source_validation": ip_config.get("source-validation"),
-        "enable_directed_broadcast": None,  # Not available in v1.4
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
     }
-```
-
-### Creating a New Feature
-
-**1. Create Base Mapper** (`vyos_mappers/[feature]/[feature].py`):
-```python
-from typing import List, Dict, Any
-from ..base import BaseFeatureMapper
-
-class FeatureMapper(BaseFeatureMapper):
-    def __init__(self, version: str):
-        super().__init__(version)
-
-    # Command generation (for writes)
-    def get_something(self, name: str, value: str) -> List[str]:
-        return ["path", "to", "command", name, value]
-
-    # Config parsing (for reads)
-    def parse_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
-        return {
-            "name": config.get("name"),
-            "value": config.get("value"),
-        }
-```
-
-**2. Create Version Overrides** (`vyos_mappers/[feature]/[feature]_versions/`):
-
-`v1_4.py`:
-```python
-from ..[feature] import FeatureMapper
-
-class FeatureMapper_v1_4(FeatureMapper):
-    """Override or block features not in v1.4"""
-
-    def get_new_v15_feature(self, value: str) -> List[str]:
-        raise ValueError("This feature requires VyOS 1.5+")
-```
-
-`v1_5.py`:
-```python
-from ..[feature] import FeatureMapper
-
-class FeatureMapper_v1_5(FeatureMapper):
-    """Inherit all base features"""
-    pass
-```
-
-**3. Create Builder** (`vyos_builders/[feature]/[feature].py`):
-```python
-class FeatureBuilder:
-    def __init__(self, device_name: str, registry):
-        self.device = registry.get_device(device_name)
-        self.mapper = self.device.get_mapper("feature")
-
-    def set_something(self, name: str, value: str):
-        path = self.mapper.get_something(name, value)
-        self.device.vyos_set(path)
-```
-
-**4. Create Router** (`routers/[feature]/[feature].py`):
-```python
-from fastapi import APIRouter
-
-router = APIRouter(prefix="/vyos/feature", tags=["feature"])
-
-@router.get("/capabilities")
-async def get_capabilities():
-    mapper = device.get_mapper("feature")
-    return {
-        "version": device.version,
-        "features": {
-            "basic_feature": True,
-            "v15_feature": hasattr(mapper, "get_new_v15_feature"),
-        }
-    }
-```
-
-**5. Register Mapper** (`vyos_mappers/[feature]/[feature]_versions/__init__.py`):
-```python
-def get_feature_mapper(version: str):
-    if version.startswith("1.4"):
-        from .v1_4 import FeatureMapper_v1_4
-        return FeatureMapper_v1_4
-    else:  # 1.5+
-        from .v1_5 import FeatureMapper_v1_5
-        return FeatureMapper_v1_5
-```
-
-### Frontend Integration
-
-The frontend uses capabilities to determine available features:
-
-```typescript
-// Fetch capabilities
-const capabilities = await service.getCapabilities();
-
-// Show/hide features based on version
-if (capabilities.features.v15_feature) {
-  // Show v1.5+ feature UI
 }
 ```
 
-### Best Practices
+---
 
-1. **Base mapper = v1.5 features** - Implement all latest features in base class
-2. **Version classes override/block** - v1.4 class raises errors for unavailable features
-3. **Normalize data structures** - Return same structure across versions (use `null` for unavailable fields)
-4. **Capabilities endpoint** - Always provide `/capabilities` to expose version-specific features
-5. **Error messages** - Be specific: `"Feature X requires VyOS 1.5+"`
-6. **Test both versions** - Verify features work on target version and fail gracefully on others
-
-## 🐳 Docker Details
-
-### Services
-
-**Backend Service:**
-- Port: 8000
-- Auto-reloads on code changes
-- Volume-mounted for development
-
-**Frontend Service:**
-- Port: 3000
-- Auto-reloads on code changes
-- Volume-mounted for development
-- Depends on backend health check
-
-### Docker Commands
-
-```bash
-# Rebuild images
-docker-compose build
-
-# Start in detached mode
-docker-compose up -d
-
-# View logs
-docker-compose logs -f
-
-# Stop and remove containers
-docker-compose down
-
-# Remove volumes too
-docker-compose down -v
-
-# Restart a specific service
-docker-compose restart frontend
-docker-compose restart backend
-```
-
-## 📚 Documentation
+## 📚 Additional Documentation
 
 - **Frontend**: See `frontend/README.md`
 - **Backend**: See `backend/README.md`
 - **API Docs**: http://localhost:8000/docs (when running)
 - **VyOS Docs**: https://docs.vyos.io/
-
-## 🛠️ Development Workflow
-
-1. **Make changes** in either `frontend/` or `backend/`
-2. **Changes auto-reload** in development mode
-3. **Test locally** at http://localhost:3000
-4. **Commit changes** to git
-5. **Deploy** (see deployment docs)
-
-## 🔍 API Integration
-
-The frontend communicates with the backend API. The API client is located at `frontend/src/lib/api/client.ts`.
-
-Example usage:
-```typescript
-import { firewallService } from "@/lib/api/firewall";
-
-// Get firewall rules
-const rules = await firewallService.getRules();
-```
-
-## 🧪 Testing
-
-**Frontend:**
-```bash
-cd frontend
-npm run lint
-npm run type-check
-```
-
-**Backend:**
-```bash
-cd backend
-pytest
-```
-
-## 📝 Project Guidelines
-
-- Follow TypeScript best practices for frontend
-- Follow PEP 8 for Python backend code
-- Use conventional commits for git messages
-- Implement version-specific features following the patterns below
-
-## 🤝 Contributing
-
-1. Create a feature branch
-2. Make your changes
-3. Test thoroughly
-4. Submit a pull request
-
-## 📄 License
-
-Look at LICENSE.md
-
-## 🆘 Support
-
-For issues, questions, or contributions, please refer to the project documentation or create an issue.
+- **Architecture Guide**: See `CLAUDE.md` for feature development patterns
 
 ---
 
-**Built with ❤️ for VyOS management**
+## 🔒 Security Considerations
+
+1. **Change Default Secrets**: Always change `BETTER_AUTH_SECRET` and database passwords
+2. **Use HTTPS**: Enable SSL/TLS for production deployments
+3. **Secure API Keys**: Store VyOS API keys securely, never commit to git
+4. **Database Backups**: Regularly backup the PostgreSQL database
+5. **Network Isolation**: Run VyManager in a secure network segment
+6. **Update Regularly**: Keep VyManager and VyOS up to date
+
+---
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Make your changes following the architecture patterns in `CLAUDE.md`
+4. Test thoroughly on both VyOS 1.4 and 1.5
+5. Commit your changes (`git commit -m 'feat: add amazing feature'`)
+6. Push to the branch (`git push origin feature/amazing-feature`)
+7. Open a Pull Request
+
+---
+
+## 🐛 Troubleshooting
+
+### Cannot Connect to VyOS Instance
+
+1. **Check API Key**: Verify the API key in VyOS matches your input
+2. **Check Network**: Ensure VyManager can reach the VyOS IP address
+3. **Check Port**: Default is 443, verify it's not blocked by firewall
+4. **Check SSL**: If using self-signed cert, set "Verify SSL" to false
+
+### Database Connection Failed
+
+```bash
+# Check if PostgreSQL is running
+docker compose ps
+
+# Check database logs
+docker compose logs postgres
+
+# Verify DATABASE_URL is correct in .env files
+```
+
+### Frontend Build Errors
+
+```bash
+# Clear node_modules and rebuild
+cd frontend
+rm -rf node_modules .next
+npm install
+npm run build
+```
+
+### Backend Import Errors
+
+```bash
+# Reinstall Python dependencies
+cd backend
+pip install -r requirements.txt --force-reinstall
+```
+
+---
+
+## 📄 License
+
+See LICENSE.md for details.
+
+---
+
+## 🆘 Support
+
+- **Issues**: [GitHub Issues](https://github.com/Community-VyProjects/VyManager/issues)
+- **Discord**: [Join our community](https://discord.gg/k9SSkK7wPQ)
+- **Documentation**: Check `CLAUDE.md` for development patterns
+
+---
+
+**Built with ❤️ for the VyOS community**

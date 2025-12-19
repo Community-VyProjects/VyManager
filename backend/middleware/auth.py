@@ -32,6 +32,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         "/api/auth/sign-up",
         "/api/auth/sign-out",
         "/api/auth/session",
+        "/session/onboarding-status",  # Must be public to check if first-time setup is needed
     }
 
     def __init__(self, app):
@@ -84,6 +85,8 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             token_parts = session_token.split('.')
             token_id = token_parts[0] if len(token_parts) > 0 else session_token
 
+            print(f"[AuthMiddleware] Validating token: {token_id}")
+
             # Validate session in database
             db_pool = self.get_db_pool(request)
             async with db_pool.acquire() as conn:
@@ -97,6 +100,11 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                     token_id
                 )
 
+                if session:
+                    print(f"[AuthMiddleware] ✓ Session found for user: {session['email']}")
+                else:
+                    print(f"[AuthMiddleware] ✗ Session NOT found for token: {token_id}")
+
                 if not session:
                     return JSONResponse(
                         status_code=401,
@@ -104,7 +112,10 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                     )
 
                 # Check if session is expired
-                if session["expiresAt"] < datetime.utcnow():
+                expires_at = session["expiresAt"]
+                now = datetime.utcnow()
+
+                if expires_at < now:
                     return JSONResponse(
                         status_code=401,
                         content={"detail": "Session expired. Please log in again."}
@@ -115,6 +126,11 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                 request.state.session_id = session["id"]
                 request.state.user_email = session["email"]
                 request.state.user_name = session["name"]
+                request.state.user = {
+                    "id": session["userId"],
+                    "email": session["email"],
+                    "name": session["name"]
+                }
 
         except HTTPException as e:
             # Pass through HTTPException (from get_db_pool)

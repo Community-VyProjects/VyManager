@@ -218,8 +218,6 @@ class FirewallIPv4Service {
   ): Promise<any> {
     const operations: FirewallBatchOperation[] = [];
 
-    console.log("Creating rule:", { chain, ruleNumber, isCustomChain, config });
-
     // Create the rule
     if (isCustomChain) {
       operations.push({ op: "set_custom_chain_rule" });
@@ -389,16 +387,12 @@ class FirewallIPv4Service {
       operations.push({ op: "set_rule_log" });
     }
 
-    console.log("Final operations:", operations);
-
     const request = {
       chain,
       rule_number: ruleNumber,
       is_custom_chain: isCustomChain,
       operations,
     };
-
-    console.log("Sending batch request:", request);
 
     return this.batchConfigure(request);
   }

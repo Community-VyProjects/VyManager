@@ -10,11 +10,11 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { ChevronDown, Shield, Network, Server, Settings, LayoutDashboard, Route, Lock, LogOut, User, FileText } from "lucide-react";
+import { ChevronDown, Shield, Network, Server, Settings, LayoutDashboard, Route, Lock, LogOut, User, FileText, Building2, Power, PowerOff } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { systemService, type SystemInfo } from "@/lib/api/system";
 import { useSession, signOut } from "@/lib/auth-client";
+import { useSessionStore } from "@/store/session-store";
 
 interface NavItem {
   title: string;
@@ -106,31 +106,24 @@ export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [openItems, setOpenItems] = useState<string[]>([]);
-  const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null);
   const { data: session } = useSession();
+  const { activeSession, loadSession, disconnectFromInstance } = useSessionStore();
 
-  // Fetch system information
+  // Load active session on mount
   useEffect(() => {
-    const fetchSystemInfo = async () => {
-      try {
-        const info = await systemService.getSystemInfo();
-        setSystemInfo(info);
-      } catch (error) {
-        console.error("Failed to fetch system info:", error);
-        // Set default values on error
-        setSystemInfo({
-          device_name: "VyOS Router",
-          vyos_version: "Unknown",
-          connection_host: "",
-          connected: false,
-        });
-      }
-    };
-
-    fetchSystemInfo();
-  }, []);
+    loadSession();
+  }, [loadSession]);
 
   const handleLogout = async () => {
+    // Disconnect from instance before logging out to clean up active_sessions
+    if (activeSession) {
+      try {
+        await disconnectFromInstance();
+      } catch (err) {
+        // Continue with logout even if disconnect fails
+        console.error("Failed to disconnect from instance:", err);
+      }
+    }
     await signOut();
     router.push("/login");
   };
@@ -263,38 +256,96 @@ export function Sidebar() {
 
       {/* Footer */}
       <div className="border-t border-border p-4 space-y-3 shrink-0">
-        {/* User Info */}
-        <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
-            <User className="h-4 w-4 text-primary" />
+        {/* Active Instance Indicator */}
+        {activeSession ? (
+          <div className="space-y-2">
+            <div className="rounded-lg bg-primary/10 border border-primary/20 p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20">
+                  <Building2 className="h-4 w-4 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-primary truncate">
+                    {activeSession.instance_name}
+                  </p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {activeSession.site_name}
+                  </p>
+                </div>
+                <div
+                  className="h-2 w-2 rounded-full bg-green-500 animate-pulse"
+                  title="Connected"
+                />
+              </div>
+              <Button
+                onClick={async () => {
+                  await disconnectFromInstance();
+                  router.push("/sites");
+                }}
+                variant="outline"
+                size="sm"
+                className="w-full justify-center gap-2 text-xs"
+              >
+                <PowerOff className="h-3 w-3" />
+                Disconnect Instance
+              </Button>
+            </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-foreground truncate">
-              {session?.user?.name || session?.user?.email || "User"}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              VyOS {systemInfo?.vyos_version || "..."}
-            </p>
+        ) : (
+          <div className="space-y-2">
+            <div className="rounded-lg bg-muted/50 border border-border p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
+                  <Building2 className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    No Instance
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Not connected
+                  </p>
+                </div>
+                <div
+                  className="h-2 w-2 rounded-full bg-gray-500"
+                  title="Disconnected"
+                />
+              </div>
+              <Button
+                onClick={() => router.push("/sites")}
+                variant="default"
+                size="sm"
+                className="w-full justify-center gap-2 text-xs"
+              >
+                <Power className="h-3 w-3" />
+                Connect to Instance
+              </Button>
+            </div>
           </div>
-          <div
-            className={cn(
-              "h-2 w-2 rounded-full",
-              systemInfo?.connected ? "bg-green-500" : "bg-gray-500"
-            )}
-            title={systemInfo?.connected ? "Connected" : "Disconnected"}
-          />
-        </div>
+        )}
 
-        {/* Logout Button */}
-        <Button
-          onClick={handleLogout}
-          variant="outline"
-          className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
-          size="sm"
-        >
-          <LogOut className="h-4 w-4" />
-          Logout
-        </Button>
+        {/* User Info & Logout */}
+        <div className="rounded-lg bg-muted/50 p-3">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
+              <User className="h-4 w-4 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-foreground truncate">
+                {session?.user?.name || session?.user?.email || "User"}
+              </p>
+            </div>
+          </div>
+          <Button
+            onClick={handleLogout}
+            variant="outline"
+            className="w-full justify-center gap-2 text-xs"
+            size="sm"
+          >
+            <LogOut className="h-3 w-3" />
+            Logout
+          </Button>
+        </div>
       </div>
     </div>
   );

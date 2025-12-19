@@ -5,30 +5,26 @@ API endpoints for managing VyOS IPv6 firewall configuration.
 Supports both base chains (forward, input, output) and custom named chains.
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
-from vyos_service import VyOSDeviceRegistry
+from session_vyos_service import get_session_vyos_service
 from vyos_builders import FirewallIPv6BatchBuilder
 import inspect
 
 router = APIRouter(prefix="/vyos/firewall/ipv6", tags=["firewall_ipv6"])
 
-# Module-level variables for device registry
-device_registry: VyOSDeviceRegistry = None
-CONFIGURED_DEVICE_NAME: Optional[str] = None
+
+# Stub functions for backwards compatibility with app.py
+def set_device_registry(registry):
+    """Legacy function - no longer used."""
+    pass
 
 
-def set_device_registry(registry: VyOSDeviceRegistry):
-    """Set the device registry for this router."""
-    global device_registry
-    device_registry = registry
+def set_configured_device_name(name):
+    """Legacy function - no longer used."""
+    pass
 
-
-def set_configured_device_name(name: str):
-    """Set the configured device name for this router."""
-    global CONFIGURED_DEVICE_NAME
-    CONFIGURED_DEVICE_NAME = name
 
 
 # ========================================================================
@@ -156,25 +152,23 @@ class VyOSResponse(BaseModel):
 # ========================================================================
 
 @router.get("/capabilities")
-async def get_firewall_ipv6_capabilities():
+async def get_firewall_ipv6_capabilities(request: Request):
     """
     Get firewall IPv6 capabilities based on device VyOS version.
 
     Returns feature flags indicating which operations are supported.
     Allows frontends to conditionally enable/disable features.
     """
-    if CONFIGURED_DEVICE_NAME is None:
-        raise HTTPException(
-            status_code=503, detail="No device configured. Check .env file."
-        )
-
     try:
-        service = device_registry.get(CONFIGURED_DEVICE_NAME)
+        service = get_session_vyos_service(request)
         version = service.get_version()
         builder = FirewallIPv6BatchBuilder(version=version)
         capabilities = builder.get_capabilities()
 
-        capabilities["device_name"] = CONFIGURED_DEVICE_NAME
+        # Add instance info
+        if hasattr(request.state, "instance") and request.state.instance:
+            capabilities["instance_name"] = request.state.instance.get("name")
+            capabilities["instance_id"] = request.state.instance.get("id")
         return capabilities
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -185,7 +179,7 @@ async def get_firewall_ipv6_capabilities():
 # ========================================================================
 
 @router.get("/config", response_model=FirewallConfigResponse)
-async def get_firewall_ipv6_config(refresh: bool = False):
+async def get_firewall_ipv6_config(http_request: Request, refresh: bool = False):
     """
     Get all IPv6 firewall configurations from VyOS in a generalized format.
 
@@ -195,13 +189,8 @@ async def get_firewall_ipv6_config(refresh: bool = False):
     Returns:
         Generalized configuration data optimized for frontend consumption
     """
-    if CONFIGURED_DEVICE_NAME is None:
-        raise HTTPException(
-            status_code=503, detail="No device configured."
-        )
-
     try:
-        service = device_registry.get(CONFIGURED_DEVICE_NAME)
+        service = get_session_vyos_service(http_request)
         full_config = service.get_full_config(refresh=refresh)
 
         forward_rules = []
@@ -432,17 +421,14 @@ async def get_firewall_ipv6_config(refresh: bool = False):
 # ========================================================================
 
 @router.post("/batch")
-async def firewall_ipv6_batch_configure(request: FirewallBatchRequest):
+async def firewall_ipv6_batch_configure(http_request: Request, request: FirewallBatchRequest):
     """
     Execute a batch of firewall configuration operations.
 
     Allows multiple changes in a single VyOS commit for efficiency.
     """
-    if CONFIGURED_DEVICE_NAME is None:
-        raise HTTPException(status_code=503, detail="No device configured.")
-
     try:
-        service = device_registry.get(CONFIGURED_DEVICE_NAME)
+        service = get_session_vyos_service(http_request)
         version = service.get_version()
         builder = FirewallIPv6BatchBuilder(version=version)
 
@@ -500,18 +486,15 @@ async def firewall_ipv6_batch_configure(request: FirewallBatchRequest):
 # ========================================================================
 
 @router.post("/reorder")
-async def firewall_ipv6_reorder_rules(request: ReorderFirewallRequest):
+async def firewall_ipv6_reorder_rules(http_request: Request, request: ReorderFirewallRequest):
     """
     Reorder firewall rules within a chain.
 
     This operation deletes all rules in reverse order, then recreates them
     with new rule numbers in a single commit.
     """
-    if CONFIGURED_DEVICE_NAME is None:
-        raise HTTPException(status_code=503, detail="No device configured.")
-
     try:
-        service = device_registry.get(CONFIGURED_DEVICE_NAME)
+        service = get_session_vyos_service(http_request)
         version = service.get_version()
         builder = FirewallIPv6BatchBuilder(version=version)
 

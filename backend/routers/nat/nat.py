@@ -5,29 +5,24 @@ API endpoints for managing VyOS NAT configuration.
 Supports source NAT, destination NAT, and static NAT rules.
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
-from vyos_service import VyOSDeviceRegistry
+from session_vyos_service import get_session_vyos_service
 from vyos_builders import NATBatchBuilder
 
 router = APIRouter(prefix="/vyos/nat", tags=["nat"])
 
-# Module-level variables for device registry and configured device name
-device_registry: VyOSDeviceRegistry = None
-CONFIGURED_DEVICE_NAME: Optional[str] = None
+
+# Stub functions for backwards compatibility with app.py
+def set_device_registry(registry):
+    """Legacy function - no longer used."""
+    pass
 
 
-def set_device_registry(registry: VyOSDeviceRegistry):
-    """Set the device registry for this router."""
-    global device_registry
-    device_registry = registry
-
-
-def set_configured_device_name(name: str):
-    """Set the configured device name for this router."""
-    global CONFIGURED_DEVICE_NAME
-    CONFIGURED_DEVICE_NAME = name
+def set_configured_device_name(name):
+    """Legacy function - no longer used."""
+    pass
 
 
 # Request/Response Models
@@ -156,26 +151,23 @@ class NATConfigResponse(BaseModel):
 
 
 @router.get("/capabilities")
-async def get_nat_capabilities():
+async def get_nat_capabilities(request: Request):
     """
     Get NAT capabilities based on device VyOS version.
 
     Returns feature flags indicating which NAT types and operations are supported.
     This allows frontends to conditionally enable/disable features based on version.
     """
-    if CONFIGURED_DEVICE_NAME is None:
-        raise HTTPException(
-            status_code=503, detail="No device configured. Check .env file."
-        )
-
     try:
-        service = device_registry.get(CONFIGURED_DEVICE_NAME)
+        service = get_session_vyos_service(request)
         version = service.get_version()
         builder = NATBatchBuilder(version=version)
         capabilities = builder.get_capabilities()
 
-        # Add device info
-        capabilities["device_name"] = CONFIGURED_DEVICE_NAME
+        # Add instance info
+        if hasattr(request.state, "instance") and request.state.instance:
+            capabilities["instance_name"] = request.state.instance.get("name")
+            capabilities["instance_id"] = request.state.instance.get("id")
 
         return capabilities
     except KeyError:
@@ -185,7 +177,7 @@ async def get_nat_capabilities():
 
 
 @router.get("/config", response_model=NATConfigResponse)
-async def get_nat_config(refresh: bool = False):
+async def get_nat_config(http_request: Request, refresh: bool = False):
     """
     Get all NAT configurations from VyOS.
 
@@ -195,14 +187,9 @@ async def get_nat_config(refresh: bool = False):
     Returns:
         Configuration details for all NAT rules organized by type
     """
-    if CONFIGURED_DEVICE_NAME is None:
-        raise HTTPException(
-            status_code=503, detail="No device configured. Check .env file."
-        )
-
     try:
         # Get service and retrieve raw config from cache
-        service = device_registry.get(CONFIGURED_DEVICE_NAME)
+        service = get_session_vyos_service(http_request)
         full_config = service.get_full_config(refresh=refresh)
 
         if not full_config or "nat" not in full_config:
@@ -384,7 +371,7 @@ async def get_nat_config(refresh: bool = False):
 
 
 @router.post("/batch", response_model=VyOSResponse)
-async def batch_configure_nat(request: NATBatchRequest):
+async def batch_configure_nat(http_request: Request, request: NATBatchRequest):
     """
     Execute batch NAT operations.
 
@@ -397,18 +384,13 @@ async def batch_configure_nat(request: NATBatchRequest):
     Returns:
         VyOSResponse with success/failure information
     """
-    if CONFIGURED_DEVICE_NAME is None:
-        raise HTTPException(
-            status_code=503, detail="No device configured. Check .env file."
-        )
-
     try:
         import inspect
         import logging
 
         logger = logging.getLogger(__name__)
 
-        service = device_registry.get(CONFIGURED_DEVICE_NAME)
+        service = get_session_vyos_service(http_request)
         version = service.get_version()
 
         # Create NAT batch builder
@@ -524,7 +506,7 @@ async def batch_configure_nat(request: NATBatchRequest):
 
 
 @router.post("/reorder", response_model=VyOSResponse)
-async def reorder_nat_rules(request: ReorderNATRequest):
+async def reorder_nat_rules(http_request: Request, request: ReorderNATRequest):
     """
     Reorder NAT rules by deleting and recreating them in a single commit.
 
@@ -539,13 +521,8 @@ async def reorder_nat_rules(request: ReorderNATRequest):
     Returns:
         VyOSResponse with success/failure information
     """
-    if CONFIGURED_DEVICE_NAME is None:
-        raise HTTPException(
-            status_code=503, detail="No device configured. Check .env file."
-        )
-
     try:
-        service = device_registry.get(CONFIGURED_DEVICE_NAME)
+        service = get_session_vyos_service(http_request)
         version = service.get_version()
 
         # Create NAT batch builder
