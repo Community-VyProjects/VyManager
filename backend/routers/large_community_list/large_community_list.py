@@ -5,30 +5,24 @@ API endpoints for managing VyOS large-community-list configuration.
 Supports version-aware configuration for VyOS 1.4 and 1.5 (identical feature sets).
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
-from vyos_service import VyOSDeviceRegistry
+from session_vyos_service import get_session_vyos_service
 from vyos_builders import LargeCommunityListBatchBuilder
 import inspect
 
 router = APIRouter(prefix="/vyos/large-community-list", tags=["large-community-list"])
 
-# Module-level variables for device registry
-device_registry: VyOSDeviceRegistry = None
-CONFIGURED_DEVICE_NAME: Optional[str] = None
+# Stub functions for backwards compatibility with app.py
+def set_device_registry(registry):
+    """Legacy function - no longer used."""
+    pass
 
 
-def set_device_registry(registry: VyOSDeviceRegistry):
-    """Set the device registry for this router."""
-    global device_registry
-    device_registry = registry
-
-
-def set_configured_device_name(name: str):
-    """Set the configured device name for this router."""
-    global CONFIGURED_DEVICE_NAME
-    CONFIGURED_DEVICE_NAME = name
+def set_configured_device_name(name):
+    """Legacy function - no longer used."""
+    pass
 
 
 # ============================================================================
@@ -96,25 +90,23 @@ class VyOSResponse(BaseModel):
 
 
 @router.get("/capabilities")
-async def get_large_community_list_capabilities():
+async def get_large_community_list_capabilities(request: Request):
     """
     Get feature capabilities based on device VyOS version.
 
     Returns feature flags indicating which operations are supported.
     Allows frontends to conditionally enable/disable features.
     """
-    if CONFIGURED_DEVICE_NAME is None:
-        raise HTTPException(
-            status_code=503, detail="No device configured. Check .env file."
-        )
-
     try:
-        service = device_registry.get(CONFIGURED_DEVICE_NAME)
+        service = get_session_vyos_service(request)
         version = service.get_version()
         builder = LargeCommunityListBatchBuilder(version=version)
         capabilities = builder.get_capabilities()
 
-        capabilities["device_name"] = CONFIGURED_DEVICE_NAME
+        # Add instance info
+        if hasattr(request.state, "instance") and request.state.instance:
+            capabilities["instance_name"] = request.state.instance.get("name")
+            capabilities["instance_id"] = request.state.instance.get("id")
         return capabilities
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -126,7 +118,7 @@ async def get_large_community_list_capabilities():
 
 
 @router.get("/config", response_model=LargeCommunityListConfig)
-async def get_large_community_list_config(refresh: bool = False):
+async def get_large_community_list_config(http_request: Request, refresh: bool = False):
     """
     Get all large-community-list configuration from VyOS in a generalized format.
 
@@ -136,11 +128,8 @@ async def get_large_community_list_config(refresh: bool = False):
     Returns:
         Generalized configuration data optimized for frontend consumption
     """
-    if CONFIGURED_DEVICE_NAME is None:
-        raise HTTPException(status_code=503, detail="No device configured.")
-
     try:
-        service = device_registry.get(CONFIGURED_DEVICE_NAME)
+        service = get_session_vyos_service(request)
         full_config = service.get_full_config(refresh=refresh)
 
         # Navigate to policy -> large-community-list
@@ -199,17 +188,14 @@ def parse_rule(rule_number: int, rule_data: dict) -> LargeCommunityListRule:
 
 
 @router.post("/batch")
-async def large_community_list_batch_configure(request: LargeCommunityListBatchRequest):
+async def large_community_list_batch_configure(http_request: Request, request: LargeCommunityListBatchRequest):
     """
     Execute a batch of configuration operations.
 
     Allows multiple changes in a single VyOS commit for efficiency.
     """
-    if CONFIGURED_DEVICE_NAME is None:
-        raise HTTPException(status_code=503, detail="No device configured.")
-
     try:
-        service = device_registry.get(CONFIGURED_DEVICE_NAME)
+        service = get_session_vyos_service(request)
         version = service.get_version()
         builder = LargeCommunityListBatchBuilder(version=version)
 
@@ -274,11 +260,8 @@ async def reorder_large_community_list_rules(request: ReorderLargeCommunityListR
     Returns:
         VyOSResponse with success/failure information
     """
-    if CONFIGURED_DEVICE_NAME is None:
-        raise HTTPException(status_code=503, detail="No device configured.")
-
     try:
-        service = device_registry.get(CONFIGURED_DEVICE_NAME)
+        service = get_session_vyos_service(request)
         version = service.get_version()
         builder = LargeCommunityListBatchBuilder(version=version)
 

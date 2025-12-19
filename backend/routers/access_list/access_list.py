@@ -5,30 +5,24 @@ API endpoints for managing VyOS access-list configuration.
 Supports both IPv4 (access-list) and IPv6 (access-list6) with version-aware configuration.
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
-from vyos_service import VyOSDeviceRegistry
+from session_vyos_service import get_session_vyos_service
 from vyos_builders import AccessListBatchBuilder
 import inspect
 
 router = APIRouter(prefix="/vyos/access-list", tags=["access-list"])
 
-# Module-level variables for device registry
-device_registry: VyOSDeviceRegistry = None
-CONFIGURED_DEVICE_NAME: Optional[str] = None
+# Stub functions for backwards compatibility with app.py
+def set_device_registry(registry):
+    """Legacy function - no longer used."""
+    pass
 
 
-def set_device_registry(registry: VyOSDeviceRegistry):
-    """Set the device registry for this router."""
-    global device_registry
-    device_registry = registry
-
-
-def set_configured_device_name(name: str):
-    """Set the configured device name for this router."""
-    global CONFIGURED_DEVICE_NAME
-    CONFIGURED_DEVICE_NAME = name
+def set_configured_device_name(name):
+    """Legacy function - no longer used."""
+    pass
 
 
 # ============================================================================
@@ -108,25 +102,23 @@ class VyOSResponse(BaseModel):
 
 
 @router.get("/capabilities")
-async def get_access_list_capabilities():
+async def get_access_list_capabilities(request: Request):
     """
     Get feature capabilities based on device VyOS version.
     
     Returns feature flags indicating which operations are supported.
     Allows frontends to conditionally enable/disable features.
     """
-    if CONFIGURED_DEVICE_NAME is None:
-        raise HTTPException(
-            status_code=503, detail="No device configured. Check .env file."
-        )
-    
     try:
-        service = device_registry.get(CONFIGURED_DEVICE_NAME)
+        service = get_session_vyos_service(request)
         version = service.get_version()
         builder = AccessListBatchBuilder(version=version)
         capabilities = builder.get_capabilities()
-        
-        capabilities["device_name"] = CONFIGURED_DEVICE_NAME
+
+        # Add instance info
+        if hasattr(request.state, "instance") and request.state.instance:
+            capabilities["instance_name"] = request.state.instance.get("name")
+            capabilities["instance_id"] = request.state.instance.get("id")
         return capabilities
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -138,7 +130,7 @@ async def get_access_list_capabilities():
 
 
 @router.get("/config", response_model=AccessListConfigResponse)
-async def get_access_list_config(refresh: bool = False):
+async def get_access_list_config(http_request: Request, refresh: bool = False):
     """
     Get all access-list configurations from VyOS in a generalized format.
     
@@ -148,13 +140,8 @@ async def get_access_list_config(refresh: bool = False):
     Returns:
         Generalized configuration data optimized for frontend consumption
     """
-    if CONFIGURED_DEVICE_NAME is None:
-        raise HTTPException(
-            status_code=503, detail="No device configured."
-        )
-    
     try:
-        service = device_registry.get(CONFIGURED_DEVICE_NAME)
+        service = get_session_vyos_service(http_request)
         full_config = service.get_full_config(refresh=refresh)
         
         ipv4_lists = []
@@ -342,11 +329,9 @@ async def access_list_batch_configure(request: AccessListBatchRequest):
     
     Allows multiple changes in a single VyOS commit for efficiency.
     """
-    if CONFIGURED_DEVICE_NAME is None:
-        raise HTTPException(status_code=503, detail="No device configured.")
     
     try:
-        service = device_registry.get(CONFIGURED_DEVICE_NAME)
+        service = get_session_vyos_service(request)
         version = service.get_version()
         builder = AccessListBatchBuilder(version=version)
         
@@ -374,20 +359,10 @@ async def access_list_batch_configure(request: AccessListBatchRequest):
             if operation.value2 and len(params) > len(args):
                 args.append(operation.value2)
 
-            print(f"DEBUG: Calling {operation.op} with args: {args}")
             method(*args)
-
-        # Debug: Print all operations before executing
-        operations_list = builder.get_operations()
-        print(f"DEBUG: Total operations to execute: {len(operations_list)}")
-        for idx, op in enumerate(operations_list):
-            print(f"DEBUG: Operation {idx}: {op}")
 
         # Execute batch
         response = service.execute_batch(builder)
-
-        print(f"DEBUG: VyOS response status: {response.status}")
-        print(f"DEBUG: VyOS response error: {response.error}")
 
         return VyOSResponse(
             success=response.status == 200,
@@ -419,11 +394,8 @@ async def reorder_access_list_rules(request: ReorderAccessListRequest):
     This endpoint deletes all existing rules and recreates them with new numbers
     in a single VyOS commit for atomicity.
     """
-    if CONFIGURED_DEVICE_NAME is None:
-        raise HTTPException(status_code=503, detail="No device configured.")
-    
     try:
-        service = device_registry.get(CONFIGURED_DEVICE_NAME)
+        service = get_session_vyos_service(request)
         version = service.get_version()
         builder = AccessListBatchBuilder(version=version)
         

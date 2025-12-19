@@ -4,32 +4,26 @@ Ethernet Interface Configuration Endpoints
 All ethernet-specific endpoints for VyOS configuration.
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 from typing import Dict, List, Optional, Any
 
-from vyos_service import VyOSDeviceRegistry
+from session_vyos_service import get_session_vyos_service
 
 # Router for ethernet interface endpoints
 router = APIRouter(prefix="/vyos/ethernet", tags=["ethernet-interface"])
 
-# Shared device registry (will be set from app.py)
-device_registry: VyOSDeviceRegistry = None
 
-# Configured device name (will be imported from app.py)
-CONFIGURED_DEVICE_NAME: Optional[str] = None
-
-
-def set_device_registry(registry: VyOSDeviceRegistry):
-    """Set the device registry for this router."""
-    global device_registry
-    device_registry = registry
+# Stub functions for backwards compatibility with app.py
+# These are no longer used since we use session-based services
+def set_device_registry(registry):
+    """Legacy function - no longer used."""
+    pass
 
 
-def set_configured_device_name(name: str):
-    """Set the configured device name for this router."""
-    global CONFIGURED_DEVICE_NAME
-    CONFIGURED_DEVICE_NAME = name
+def set_configured_device_name(name):
+    """Legacy function - no longer used."""
+    pass
 
 
 # ============================================================================
@@ -285,7 +279,7 @@ class EthernetInterfacesConfigResponse(BaseModel):
 
 
 @router.get("/capabilities")
-async def get_ethernet_capabilities() -> Dict[str, Any]:
+async def get_ethernet_capabilities(request: Request) -> Dict[str, Any]:
     """
     Get available ethernet features based on device VyOS version.
 
@@ -303,13 +297,8 @@ async def get_ethernet_capabilities() -> Dict[str, Any]:
     }
     ```
     """
-    if CONFIGURED_DEVICE_NAME is None:
-        raise HTTPException(
-            status_code=503, detail="No device configured. Check .env file."
-        )
-
     try:
-        service = device_registry.get(CONFIGURED_DEVICE_NAME)
+        service = get_session_vyos_service(request)
         version = service.get_version()
 
         # Parse version for comparison (e.g., "1.4" -> 1.4, "1.5" -> 1.5)
@@ -323,7 +312,6 @@ async def get_ethernet_capabilities() -> Dict[str, Any]:
         capabilities = {
             "version": version,
             "version_number": version_float,
-            "device_name": CONFIGURED_DEVICE_NAME,
 
             # Feature availability flags
             "features": {
@@ -637,6 +625,11 @@ async def get_ethernet_capabilities() -> Dict[str, Any]:
         total_ops = sum(len(ops) for ops in capabilities["operations"].values())
         capabilities["statistics"]["total_operations"] = total_ops
 
+        # Add instance info
+        if hasattr(request.state, "instance") and request.state.instance:
+            capabilities["instance_name"] = request.state.instance.get("name")
+            capabilities["instance_id"] = request.state.instance.get("id")
+
         return capabilities
 
     except KeyError as e:
@@ -646,7 +639,7 @@ async def get_ethernet_capabilities() -> Dict[str, Any]:
 
 
 @router.get("/config", response_model=EthernetInterfacesConfigResponse)
-async def get_ethernet_config() -> EthernetInterfacesConfigResponse:
+async def get_ethernet_config(http_request: Request) -> EthernetInterfacesConfigResponse:
     """
     Get all ethernet interface configurations from VyOS.
 
@@ -654,14 +647,9 @@ async def get_ethernet_config() -> EthernetInterfacesConfigResponse:
     """
     from vyos_mappers.interfaces import EthernetInterfaceMapper
 
-    if CONFIGURED_DEVICE_NAME is None:
-        raise HTTPException(
-            status_code=503, detail="No device configured. Check .env file."
-        )
-
     try:
         # Get service and retrieve raw config from cache
-        service = device_registry.get(CONFIGURED_DEVICE_NAME)
+        service = get_session_vyos_service(http_request)
         full_config = service.get_full_config()
         raw_config = full_config.get("interfaces", {}).get("ethernet", {})
 
@@ -683,7 +671,7 @@ async def get_ethernet_config() -> EthernetInterfacesConfigResponse:
 
 
 @router.post("/batch")
-async def configure_interface_batch(request: InterfaceBatchRequest) -> VyOSResponse:
+async def configure_interface_batch(http_request: Request, request: InterfaceBatchRequest) -> VyOSResponse:
     """
     Configure ethernet interface using batch operations.
 
@@ -862,13 +850,8 @@ async def configure_interface_batch(request: InterfaceBatchRequest) -> VyOSRespo
     }
     ```
     """
-    if CONFIGURED_DEVICE_NAME is None:
-        raise HTTPException(
-            status_code=503, detail="No device configured. Check .env file."
-        )
-
     try:
-        service = device_registry.get(CONFIGURED_DEVICE_NAME)
+        service = get_session_vyos_service(http_request)
         batch = service.create_ethernet_batch()
 
         # Process each operation

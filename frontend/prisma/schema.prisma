@@ -29,6 +29,8 @@ model User {
   // Relations
   sessions      Session[]
   accounts      Account[]
+  permissions   Permission[]
+  activeSession ActiveSession?
 
   @@map("users")
 }
@@ -130,4 +132,92 @@ model AuditLog {
   @@index([userId])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+// ============================================================================
+// Multi-Instance Management
+// ============================================================================
+
+// Site - Represents a customer/organization
+model Site {
+  id          String      @id @default(cuid())
+  name        String      @unique
+  description String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Relations
+  instances   Instance[]
+  permissions Permission[]
+
+  @@map("sites")
+}
+
+// Instance - Represents a VyOS router within a site
+model Instance {
+  id          String   @id @default(cuid())
+  siteId      String
+  name        String
+  description String?
+  host        String
+  port        Int      @default(443)
+  username    String
+  password    String   // Will be encrypted by backend
+  apiKey      String?  // Optional API key for VyOS
+  vyosVersion String?  // VyOS version (e.g., "1.4", "1.5")
+  protocol    String   @default("https") // http or https
+  verifySsl   Boolean  @default(false)   // Verify SSL certificate
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  site          Site            @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  activeSessions ActiveSession[]
+
+  @@unique([siteId, name])
+  @@index([siteId])
+  @@map("instances")
+}
+
+// Permission - User access to sites
+model Permission {
+  id        String   @id @default(cuid())
+  userId    String
+  siteId    String
+  role      SiteRole @default(VIEWER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, siteId])
+  @@index([userId])
+  @@index([siteId])
+  @@map("permissions")
+}
+
+// Site-level roles (different from global roles)
+enum SiteRole {
+  OWNER  // Full control of site and instances
+  ADMIN  // Can manage instances and configurations
+  VIEWER // Read-only access to site
+}
+
+// ActiveSession - Tracks which instance a user is currently connected to
+model ActiveSession {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  instanceId   String
+  sessionToken String?  // Auth session token that created this VyOS connection
+  connectedAt  DateTime @default(now())
+
+  // Relations
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  instance Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+
+  @@index([instanceId])
+  @@map("active_sessions")
 }

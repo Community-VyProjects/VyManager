@@ -5,29 +5,25 @@ API endpoints for managing VyOS firewall groups.
 Supports version-aware configuration for VyOS 1.4 and 1.5.
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
-from vyos_service import VyOSDeviceRegistry
+from session_vyos_service import get_session_vyos_service
 from vyos_builders import FirewallGroupsBatchBuilder
 
 router = APIRouter(prefix="/vyos/firewall/groups", tags=["firewall-groups"])
 
-# Module-level variables for device registry and configured device name
-device_registry: VyOSDeviceRegistry = None
-CONFIGURED_DEVICE_NAME: Optional[str] = None
+
+# Stub functions for backwards compatibility with app.py
+# These are no longer used since we use session-based services
+def set_device_registry(registry):
+    """Legacy function - no longer used."""
+    pass
 
 
-def set_device_registry(registry: VyOSDeviceRegistry):
-    """Set the device registry for this router."""
-    global device_registry
-    device_registry = registry
-
-
-def set_configured_device_name(name: str):
-    """Set the configured device name for this router."""
-    global CONFIGURED_DEVICE_NAME
-    CONFIGURED_DEVICE_NAME = name
+def set_configured_device_name(name):
+    """Legacy function - no longer used."""
+    pass
 
 
 # Request/Response Models
@@ -87,53 +83,46 @@ class GroupsConfigResponse(BaseModel):
 
 
 @router.get("/capabilities")
-async def get_groups_capabilities():
+async def get_groups_capabilities(request: Request):
     """
     Get firewall groups capabilities based on device VyOS version.
 
     Returns feature flags indicating which group types and operations are supported.
     This allows frontends to conditionally enable/disable features based on version.
     """
-    if CONFIGURED_DEVICE_NAME is None:
-        raise HTTPException(
-            status_code=503, detail="No device configured. Check .env file."
-        )
-
     try:
-        service = device_registry.get(CONFIGURED_DEVICE_NAME)
+        service = get_session_vyos_service(request)
         version = service.get_version()
         builder = FirewallGroupsBatchBuilder(version=version)
         capabilities = builder.get_capabilities()
 
-        # Add device info
-        capabilities["device_name"] = CONFIGURED_DEVICE_NAME
+        # Add instance info
+        if hasattr(request.state, "instance") and request.state.instance:
+            capabilities["instance_name"] = request.state.instance.get("name")
+            capabilities["instance_id"] = request.state.instance.get("id")
 
         return capabilities
-    except KeyError:
-        raise HTTPException(status_code=404, detail="Device not found in registry")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/config", response_model=GroupsConfigResponse)
-async def get_groups_config(refresh: bool = False):
+async def get_groups_config(request: Request, refresh: bool = False):
     """
     Get all firewall group configurations from VyOS.
 
     Args:
+        request: FastAPI request object (contains active session)
         refresh: If True, force refresh from VyOS. If False, use cache if available.
 
     Returns:
         Configuration details for all firewall groups organized by type
     """
-    if CONFIGURED_DEVICE_NAME is None:
-        raise HTTPException(
-            status_code=503, detail="No device configured. Check .env file."
-        )
-
     try:
-        # Get service and retrieve raw config from cache
-        service = device_registry.get(CONFIGURED_DEVICE_NAME)
+        # Get service from active session
+        service = get_session_vyos_service(request)
         full_config = service.get_full_config(refresh=refresh)
 
         if not full_config or "firewall" not in full_config or "group" not in full_config["firewall"]:
@@ -295,7 +284,7 @@ async def get_groups_config(refresh: bool = False):
 
 
 @router.post("/batch", response_model=VyOSResponse)
-async def configure_group_batch(request: GroupBatchRequest):
+async def configure_group_batch(http_request: Request, request: GroupBatchRequest):
     """
     Configure firewall group using batch operations.
 
@@ -414,13 +403,8 @@ async def configure_group_batch(request: GroupBatchRequest):
     }
     ```
     """
-    if CONFIGURED_DEVICE_NAME is None:
-        raise HTTPException(
-            status_code=503, detail="No device configured. Check .env file."
-        )
-
     try:
-        service = device_registry.get(CONFIGURED_DEVICE_NAME)
+        service = get_session_vyos_service(http_request)
         batch = service.create_firewall_groups_batch()
 
         # Process each operation

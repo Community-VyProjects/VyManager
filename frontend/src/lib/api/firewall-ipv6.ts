@@ -218,7 +218,6 @@ class FirewallIPv6Service {
   ): Promise<any> {
     const operations: FirewallBatchOperation[] = [];
 
-    console.log("Creating rule:", { chain, ruleNumber, isCustomChain, config });
 
     // Create the rule
     if (isCustomChain) {
@@ -389,7 +388,6 @@ class FirewallIPv6Service {
       operations.push({ op: "set_rule_log" });
     }
 
-    console.log("Final operations:", operations);
 
     const request = {
       chain,
@@ -398,7 +396,6 @@ class FirewallIPv6Service {
       operations,
     };
 
-    console.log("Sending batch request:", request);
 
     return this.batchConfigure(request);
   }

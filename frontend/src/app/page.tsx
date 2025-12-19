@@ -1,8 +1,74 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Shield, Network, Activity, Server, Github, Globe, MessageCircle, Sparkles } from "lucide-react";
+import { useSession } from "@/lib/auth-client";
+import { useSessionStore } from "@/store/session-store";
 
 export default function Home() {
+  const router = useRouter();
+  const [isChecking, setIsChecking] = useState(true);
+  const { data: session, isPending } = useSession();
+  const { activeSession, loadSession } = useSessionStore();
+
+  useEffect(() => {
+    const checkAndRedirect = async () => {
+      // Wait for session check to complete
+      if (isPending) {
+        return;
+      }
+
+      // Not authenticated - check onboarding
+      if (!session?.user) {
+        try {
+          const response = await fetch(`/api/session/onboarding-status`, {
+            method: "GET",
+          });
+
+          if (!response.ok) {
+            console.error("[RootPage] Onboarding status check failed:", response.status);
+            router.push("/login");
+            return;
+          }
+
+          const data = await response.json();
+
+          if (data.needs_onboarding) {
+            console.log("[RootPage] Onboarding needed - redirecting to /onboarding");
+            router.push("/onboarding");
+          } else {
+            console.log("[RootPage] Onboarding complete - redirecting to /login");
+            router.push("/login");
+          }
+        } catch (err) {
+          console.error("[RootPage] Failed to check onboarding status:", err);
+          router.push("/login");
+        }
+        return;
+      }
+
+      // User is authenticated - check if they have an active VyOS instance connection
+      await loadSession();
+      setIsChecking(false);
+    };
+
+    checkAndRedirect();
+  }, [router, session, isPending, loadSession]);
+
+  // Still checking session
+  if (isPending || isChecking) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // User is authenticated - show dashboard
   return (
     <AppLayout>
       <div className="p-8">

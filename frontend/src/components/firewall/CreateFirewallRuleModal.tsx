@@ -369,38 +369,6 @@ export function CreateFirewallRuleModal({
     setLoading(true);
     setError(null);
 
-    console.log("=== CREATE RULE SUBMIT ===");
-    console.log("Chain:", chain, "Custom:", isCustomChain);
-    console.log("Rule Number:", ruleNumber);
-    console.log("Form Values:", {
-      description,
-      action,
-      ruleProtocol,
-      sourceAddress,
-      sourcePort,
-      sourceMac,
-      sourceGroupType,
-      sourceGroupName,
-      destAddress,
-      destPort,
-      destGroupType,
-      destGroupName,
-      stateEstablished,
-      stateNew,
-      stateRelated,
-      stateInvalid,
-      inboundInterface,
-      outboundInterface,
-      tcpFlags,
-      icmpTypeName,
-      jumpTarget,
-      dscp,
-      mark,
-      ttl,
-      disable,
-      log,
-    });
-
     try {
       // Build config object
       const config: Partial<FirewallRule> = {
@@ -540,10 +508,7 @@ export function CreateFirewallRuleModal({
       config.disable = disable;
       config.log = log;
 
-      console.log("Final config object:", config);
-
       // Create rule
-      console.log("Calling createRule with:", { chain, ruleNumber, isCustomChain, config });
       const service = protocol === "ipv4" ? firewallIPv4Service : firewallIPv6Service;
       await service.createRule(chain, ruleNumber, isCustomChain, config);
 

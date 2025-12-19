@@ -5,33 +5,29 @@ Handles configuration snapshots, diffs, and save operations.
 Tracks changes between running config and last saved state.
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
-from vyos_service import VyOSDeviceRegistry
+from session_vyos_service import get_session_vyos_service
 import json
 
 router = APIRouter(prefix="/vyos/config", tags=["config"])
 
-# Module-level variables for device registry
-device_registry: VyOSDeviceRegistry = None
-CONFIGURED_DEVICE_NAME: Optional[str] = None
+# Stub functions for backwards compatibility with app.py
+def set_device_registry(registry):
+    """Legacy function - no longer used."""
+    pass
 
-# In-memory storage for the last saved configuration snapshot
+
+def set_configured_device_name(name):
+    """Legacy function - no longer used."""
+    pass
+
+
+# In-memory storage for saved configuration snapshots per instance
+# Key: instance_id, Value: config snapshot
 # In production, this could be stored in Redis or a database
-_saved_config_snapshot: Optional[Dict[str, Any]] = None
-
-
-def set_device_registry(registry: VyOSDeviceRegistry):
-    """Set the device registry for this router."""
-    global device_registry
-    device_registry = registry
-
-
-def set_configured_device_name(name: str):
-    """Set the configured device name for this router."""
-    global CONFIGURED_DEVICE_NAME
-    CONFIGURED_DEVICE_NAME = name
+_saved_config_snapshots: Dict[str, Dict[str, Any]] = {}
 
 
 # ========================================================================
@@ -108,68 +104,64 @@ def deep_diff(current: Dict, saved: Dict, path: str = "") -> tuple:
 # ========================================================================
 
 @router.get("/snapshot", response_model=ConfigSnapshotResponse)
-async def get_config_snapshot():
+async def get_config_snapshot(request: Request):
     """
-    Get the last saved configuration snapshot.
+    Get the last saved configuration snapshot for the active instance.
 
     This represents the state of the configuration when it was last saved to disk.
     Used to compare against the current running config to detect unsaved changes.
     """
-    if CONFIGURED_DEVICE_NAME is None:
-        raise HTTPException(
-            status_code=503, detail="No device configured. Check .env file."
-        )
-
     try:
-        global _saved_config_snapshot
+        global _saved_config_snapshots
 
-        # If no snapshot exists, get current config and mark it as saved
-        if _saved_config_snapshot is None:
-            service = device_registry.get(CONFIGURED_DEVICE_NAME)
+        service = get_session_vyos_service(request)
+        instance_id = request.state.instance['id']
+
+        # If no snapshot exists for this instance, get current config and mark it as saved
+        if instance_id not in _saved_config_snapshots:
             current_config = service.get_full_config(refresh=True)
-            _saved_config_snapshot = current_config
+            _saved_config_snapshots[instance_id] = current_config
 
             return ConfigSnapshotResponse(
-                config=_saved_config_snapshot,
+                config=_saved_config_snapshots[instance_id],
                 saved=True
             )
 
         return ConfigSnapshotResponse(
-            config=_saved_config_snapshot,
+            config=_saved_config_snapshots[instance_id],
             saved=True
         )
     except Exception as e:
+        print(f"[ConfigRouter] Error in /config/snapshot: {type(e).__name__}: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/diff", response_model=ConfigDiffResponse)
-async def get_config_diff():
+async def get_config_diff(request: Request):
     """
-    Compare current running config with last saved snapshot.
+    Compare current running config with last saved snapshot for the active instance.
 
     Returns structured diff showing what has been added, removed, or modified
     since the last save operation.
     """
-    if CONFIGURED_DEVICE_NAME is None:
-        raise HTTPException(
-            status_code=503, detail="No device configured. Check .env file."
-        )
-
     try:
-        global _saved_config_snapshot
+        global _saved_config_snapshots
 
-        service = device_registry.get(CONFIGURED_DEVICE_NAME)
+        service = get_session_vyos_service(request)
+        instance_id = request.state.instance['id']
         current_config = service.get_full_config(refresh=True)
 
-        # If no snapshot exists, everything is "added" (first time)
-        if _saved_config_snapshot is None:
+        # If no snapshot exists for this instance, no changes yet
+        if instance_id not in _saved_config_snapshots:
+            # Initialize snapshot with current config
+            _saved_config_snapshots[instance_id] = current_config
             return ConfigDiffResponse(
                 has_changes=False,
                 summary={"added": 0, "removed": 0, "modified": 0}
             )
 
         # Compare configurations
-        added, removed, modified = deep_diff(current_config, _saved_config_snapshot)
+        added, removed, modified = deep_diff(current_config, _saved_config_snapshots[instance_id])
 
         has_changes = bool(added or removed or modified)
 
@@ -185,13 +177,14 @@ async def get_config_diff():
             }
         )
     except Exception as e:
+        print(f"[ConfigRouter] Error in /config/diff: {type(e).__name__}: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/save", response_model=SaveConfigResponse)
-async def save_config(file: Optional[str] = None):
+async def save_config(request: Request, file: Optional[str] = None):
     """
-    Save the current running configuration to disk.
+    Save the current running configuration to disk for the active instance.
 
     This calls VyOS's config-file save operation to write the running config
     to /config/config.boot. After successful save, updates the snapshot to
@@ -200,15 +193,11 @@ async def save_config(file: Optional[str] = None):
     Args:
         file: Optional path to save config to (default is /config/config.boot)
     """
-    if CONFIGURED_DEVICE_NAME is None:
-        raise HTTPException(
-            status_code=503, detail="No device configured. Check .env file."
-        )
-
     try:
-        global _saved_config_snapshot
+        global _saved_config_snapshots
 
-        service = device_registry.get(CONFIGURED_DEVICE_NAME)
+        service = get_session_vyos_service(request)
+        instance_id = request.state.instance['id']
 
         # Call config_file_save
         response = service.config_file_save(file=file)
@@ -222,59 +211,53 @@ async def save_config(file: Optional[str] = None):
 
         # Update snapshot to current config after successful save
         current_config = service.get_full_config(refresh=True)
-        _saved_config_snapshot = current_config
+        _saved_config_snapshots[instance_id] = current_config
 
         return SaveConfigResponse(
             success=True,
             message="Configuration saved successfully to disk"
         )
     except Exception as e:
+        print(f"[ConfigRouter] Error in /config/save: {type(e).__name__}: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/refresh")
-async def refresh_config():
+async def refresh_config(request: Request):
     """
     Force refresh the configuration cache.
 
     This is called after any configuration change to ensure the cache is current.
     """
-    if CONFIGURED_DEVICE_NAME is None:
-        raise HTTPException(
-            status_code=503, detail="No device configured. Check .env file."
-        )
-
     try:
-        service = device_registry.get(CONFIGURED_DEVICE_NAME)
+        service = get_session_vyos_service(request)
         service.get_full_config(refresh=True)
         return {"success": True, "message": "Configuration cache refreshed"}
     except Exception as e:
+        print(f"[ConfigRouter] Error in /config/refresh: {type(e).__name__}: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/initialize-snapshot")
-async def initialize_snapshot():
+async def initialize_snapshot(request: Request):
     """
-    Initialize the snapshot with the current running config.
+    Initialize the snapshot with the current running config for the active instance.
 
     This should be called on application startup or when you want to
     mark the current state as "saved".
     """
-    if CONFIGURED_DEVICE_NAME is None:
-        raise HTTPException(
-            status_code=503, detail="No device configured. Check .env file."
-        )
-
     try:
-        global _saved_config_snapshot
+        global _saved_config_snapshots
 
-        service = device_registry.get(CONFIGURED_DEVICE_NAME)
+        service = get_session_vyos_service(request)
+        instance_id = request.state.instance['id']
         current_config = service.get_full_config(refresh=True)
-        _saved_config_snapshot = current_config
+        _saved_config_snapshots[instance_id] = current_config
 
         return {
             "success": True,
             "message": "Snapshot initialized with current configuration"
         }
     except Exception as e:
+        print(f"[ConfigRouter] Error in /config/initialize-snapshot: {type(e).__name__}: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
