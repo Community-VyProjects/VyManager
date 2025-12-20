@@ -70,6 +70,7 @@ interface CreateDHCPServerModalProps {
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   capabilities: DHCPCapabilitiesResponse | null;
+  existingNetwork?: string;
 }
 
 export function CreateDHCPServerModal({
@@ -77,12 +78,18 @@ export function CreateDHCPServerModal({
   onOpenChange,
   onSuccess,
   capabilities,
+  existingNetwork,
 }: CreateDHCPServerModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Mode selection
+  const [mode, setMode] = useState<"new" | "existing">("new");
+  const [existingNetworks, setExistingNetworks] = useState<string[]>([]);
+
   // Basic fields
   const [networkName, setNetworkName] = useState("");
+  const [selectedNetwork, setSelectedNetwork] = useState("");
   const [subnet, setSubnet] = useState("");
   const [subnetId, setSubnetId] = useState("");
   const [defaultRouter, setDefaultRouter] = useState("");
@@ -114,9 +121,27 @@ export function CreateDHCPServerModal({
 
   useEffect(() => {
     if (open) {
+      // Set mode based on whether existingNetwork is provided
+      if (existingNetwork) {
+        setMode("existing");
+        setSelectedNetwork(existingNetwork);
+      } else {
+        setMode("new");
+        setSelectedNetwork("");
+      }
       calculateNextSubnetId();
+      loadExistingNetworks();
     }
-  }, [open]);
+  }, [open, existingNetwork]);
+
+  const loadExistingNetworks = async () => {
+    try {
+      const config = await dhcpService.getConfig();
+      setExistingNetworks(config.shared_networks.map(n => n.name));
+    } catch (err) {
+      console.error("Failed to load existing networks:", err);
+    }
+  };
 
   const calculateNextSubnetId = async () => {
     if (!capabilities?.has_subnet_id) return;
@@ -148,7 +173,9 @@ export function CreateDHCPServerModal({
   };
 
   const resetForm = () => {
+    setMode("new");
     setNetworkName("");
+    setSelectedNetwork("");
     setSubnet("");
     setSubnetId("");
     setDefaultRouter("");
@@ -178,10 +205,17 @@ export function CreateDHCPServerModal({
   };
 
   const validateForm = (): boolean => {
-    // Network name
-    if (!networkName.trim()) {
-      setError("Network name is required");
-      return false;
+    // Network name validation
+    if (mode === "new") {
+      if (!networkName.trim()) {
+        setError("Network name is required");
+        return false;
+      }
+    } else {
+      if (!selectedNetwork) {
+        setError("Please select an existing network");
+        return false;
+      }
     }
 
     // Subnet validation
@@ -311,6 +345,8 @@ export function CreateDHCPServerModal({
     setError(null);
 
     try {
+      const targetNetworkName = mode === "new" ? networkName.trim() : selectedNetwork;
+
       // Calculate subnet ID if needed for VyOS 1.5
       let calculatedSubnetId: number | undefined = undefined;
       if (capabilities?.has_subnet_id) {
@@ -332,7 +368,7 @@ export function CreateDHCPServerModal({
       }
 
       await dhcpService.createSubnet({
-        network_name: networkName.trim(),
+        network_name: targetNetworkName,
         subnet: subnet.trim(),
         subnet_id: calculatedSubnetId,
         default_router: defaultRouter.trim(),
@@ -442,11 +478,49 @@ export function CreateDHCPServerModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <DialogTitle>Create DHCP Server</DialogTitle>
+          <DialogTitle>
+            {mode === "new" ? "Create DHCP Server" : "Add DHCP Subnet"}
+          </DialogTitle>
           <DialogDescription>
-            Configure a new DHCP server with subnet and options
+            {mode === "new"
+              ? "Configure a new DHCP server with subnet and options"
+              : "Add a new subnet to an existing DHCP shared network"
+            }
           </DialogDescription>
         </DialogHeader>
+
+        {/* Mode Selection - only show when not adding to existing network */}
+        {!existingNetwork && (
+          <div className="space-y-4">
+            <div>
+              <Label className="text-sm font-medium">Mode</Label>
+              <div className="flex gap-4 mt-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="mode"
+                    value="new"
+                    checked={mode === "new"}
+                    onChange={(e) => setMode(e.target.value as "new")}
+                    className="text-primary"
+                  />
+                  <span className="text-sm">Create new shared network</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="mode"
+                    value="existing"
+                    checked={mode === "existing"}
+                    onChange={(e) => setMode(e.target.value as "existing")}
+                    className="text-primary"
+                  />
+                  <span className="text-sm">Add subnet to existing network</span>
+                </label>
+              </div>
+            </div>
+          </div>
+        )}
 
         <Tabs defaultValue="basic" className="flex-1 overflow-hidden flex flex-col min-h-0">
           <TabsList className="grid w-full grid-cols-5 flex-shrink-0">
@@ -462,17 +536,34 @@ export function CreateDHCPServerModal({
             <TabsContent value="basic" className="space-y-4 mt-4">
               <div className="grid gap-4">
                 <div>
-                  <Label htmlFor="networkName" className="required">
+                  <Label className="required">
                     Shared Network Name
                   </Label>
-                  <Input
-                    id="networkName"
-                    value={networkName}
-                    onChange={(e) => setNetworkName(e.target.value)}
-                    placeholder="e.g., LAN"
-                  />
+                  {mode === "new" ? (
+                    <Input
+                      value={networkName}
+                      onChange={(e) => setNetworkName(e.target.value)}
+                      placeholder="e.g., LAN"
+                    />
+                  ) : (
+                    <select
+                      value={selectedNetwork}
+                      onChange={(e) => setSelectedNetwork(e.target.value)}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <option value="">Select existing network...</option>
+                      {existingNetworks.map((network) => (
+                        <option key={network} value={network}>
+                          {network}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                   <p className="text-xs text-muted-foreground mt-1">
-                    Logical group name for this DHCP configuration
+                    {mode === "new"
+                      ? "Logical group name for this DHCP configuration"
+                      : "Select an existing shared network to add this subnet to"
+                    }
                   </p>
                 </div>
 

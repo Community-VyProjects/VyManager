@@ -637,14 +637,19 @@ async def dhcp_batch_configure(http_request: Request, request: DHCPBatchRequest)
             if "network_name" in params:
                 args.append(request.network_name)
 
-            # Include subnet if the method expects it and it's provided
+            # Include subnet if the method expects it
             if "subnet" in params:
-                if request.subnet is None:
+                if request.subnet is not None:
+                    # Use subnet from request (for single-subnet operations)
+                    args.append(request.subnet)
+                elif op_value is not None:
+                    # Use subnet from operation value (for multi-subnet operations)
+                    args.append(op_value)
+                else:
                     raise HTTPException(
                         status_code=400,
                         detail=f"Operation {op_name} requires a subnet",
                     )
-                args.append(request.subnet)
 
             # Include value(s) if the method expects it
             if op_value is not None and len(params) > len(args):

@@ -86,6 +86,7 @@ export default function DHCPPage() {
 
   // Modal states
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [addingSubnetToNetwork, setAddingSubnetToNetwork] = useState<string | null>(null);
   const [editingSubnet, setEditingSubnet] = useState<{
     network: string;
     subnet: DHCPSubnet;
@@ -94,6 +95,7 @@ export default function DHCPPage() {
     network: string;
     subnet: DHCPSubnet;
   } | null>(null);
+  const [deletingNetwork, setDeletingNetwork] = useState<string | null>(null);
 
   const fetchConfig = async (refresh: boolean = false) => {
     try {
@@ -365,26 +367,39 @@ export default function DHCPPage() {
                         <Card key={network.name} className="overflow-hidden border-border/50 shadow-sm">
                           {/* Network Header */}
                           <div
-                            className="p-4 bg-gradient-to-r from-card to-card/50 hover:from-accent/10 hover:to-accent/5 cursor-pointer transition-all border-b border-border"
+                            className="group p-4 bg-gradient-to-r from-card to-card/50 hover:from-accent/10 hover:to-accent/5 cursor-pointer transition-all border-b border-border"
                             onClick={() => toggleNetwork(network.name)}
                           >
                             <div className="flex items-start justify-between">
                               <div className="flex items-start gap-3 flex-1 min-w-0">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-8 w-8 p-0 hover:bg-accent/50 flex-shrink-0"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    toggleNetwork(network.name);
-                                  }}
-                                >
-                                  {isExpanded ? (
-                                    <ChevronDown className="h-4 w-4" />
-                                  ) : (
-                                    <ChevronRight className="h-4 w-4" />
-                                  )}
-                                </Button>
+                                <div className="flex items-center gap-1 flex-shrink-0">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 w-8 p-0 hover:bg-accent/50"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      toggleNetwork(network.name);
+                                    }}
+                                  >
+                                    {isExpanded ? (
+                                      <ChevronDown className="h-4 w-4" />
+                                    ) : (
+                                      <ChevronRight className="h-4 w-4" />
+                                    )}
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 w-8 p-0 hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setDeletingNetwork(network.name);
+                                    }}
+                                  >
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                </div>
 
                                 <div className="flex items-start gap-3 flex-1 min-w-0">
                                   <div className="p-2 rounded-lg bg-blue-500/10 flex-shrink-0">
@@ -429,6 +444,18 @@ export default function DHCPPage() {
                                     <div className="text-sm font-semibold text-foreground">{totalStatic}</div>
                                   </div>
                                 </div>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="w-full mt-2"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setAddingSubnetToNetwork(network.name);
+                                  }}
+                                >
+                                  <Plus className="h-4 w-4 mr-2" />
+                                  Add Subnet
+                                </Button>
                               </div>
                             </div>
                           </div>
@@ -741,10 +768,16 @@ export default function DHCPPage() {
 
         {/* Modals */}
         <CreateDHCPServerModal
-          open={createModalOpen}
-          onOpenChange={setCreateModalOpen}
+          open={createModalOpen || !!addingSubnetToNetwork}
+          onOpenChange={(open) => {
+            if (!open) {
+              setCreateModalOpen(false);
+              setAddingSubnetToNetwork(null);
+            }
+          }}
           onSuccess={() => fetchConfig(true)}
           capabilities={capabilities}
+          existingNetwork={addingSubnetToNetwork || undefined}
         />
 
         {editingSubnet && (
@@ -764,6 +797,16 @@ export default function DHCPPage() {
             onOpenChange={(open) => !open && setDeletingSubnet(null)}
             networkName={deletingSubnet.network}
             subnet={deletingSubnet.subnet.subnet}
+            onSuccess={() => fetchConfig(true)}
+          />
+        )}
+
+        {deletingNetwork && (
+          <DeleteDHCPModal
+            open={!!deletingNetwork}
+            onOpenChange={(open) => !open && setDeletingNetwork(null)}
+            networkName={deletingNetwork}
+            deleteEntireNetwork={true}
             onSuccess={() => fetchConfig(true)}
           />
         )}

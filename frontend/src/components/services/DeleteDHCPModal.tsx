@@ -18,7 +18,7 @@ interface DeleteDHCPModalProps {
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   networkName: string;
-  subnet: string;
+  subnet?: string;
   deleteEntireNetwork?: boolean;
 }
 
@@ -46,6 +46,9 @@ export function DeleteDHCPModal({
       if (deleteEntireNetwork) {
         await dhcpService.deleteSharedNetwork(networkName);
       } else {
+        if (!subnet) {
+          throw new Error("Subnet is required for subnet deletion");
+        }
         await dhcpService.deleteSubnet(networkName, subnet);
       }
 
@@ -81,7 +84,7 @@ export function DeleteDHCPModal({
                 <p>
                   <span className="font-medium">Network:</span> {networkName}
                 </p>
-                {!deleteEntireNetwork && (
+                {!deleteEntireNetwork && subnet && (
                   <p>
                     <span className="font-medium">Subnet:</span> {subnet}
                   </p>

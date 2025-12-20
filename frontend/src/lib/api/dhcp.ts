@@ -619,7 +619,21 @@ class DHCPService {
    * Delete a shared network (and all its subnets)
    */
   async deleteSharedNetwork(network_name: string): Promise<any> {
-    const operations: DHCPBatchOperation[] = [{ op: "delete_shared_network" }];
+    // First, get current config to know what subnets exist
+    const config = await this.getConfig();
+    const network = config.shared_networks.find(n => n.name === network_name);
+
+    const operations: DHCPBatchOperation[] = [];
+
+    // Delete all subnets first
+    if (network) {
+      for (const subnet of network.subnets) {
+        operations.push({ op: "delete_subnet", value: subnet.subnet });
+      }
+    }
+
+    // Then delete the shared network
+    operations.push({ op: "delete_shared_network" });
 
     return this.batchConfigure({
       network_name,

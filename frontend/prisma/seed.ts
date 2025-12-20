@@ -7,7 +7,7 @@
  * 3. Permissions for all existing users
  */
 
-import { PrismaClient, SiteRole } from "@prisma/client";
+import { PrismaClient, Role, SiteRole } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
