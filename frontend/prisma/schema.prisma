@@ -208,16 +208,18 @@ enum SiteRole {
 
 // ActiveSession - Tracks which instance a user is currently connected to
 model ActiveSession {
-  id           String   @id @default(cuid())
-  userId       String   @unique
-  instanceId   String
-  sessionToken String?  // Auth session token that created this VyOS connection
-  connectedAt  DateTime @default(now())
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  instanceId     String
+  sessionToken   String?  // Auth session token that created this VyOS connection
+  connectedAt    DateTime @default(now())
+  lastActivityAt DateTime @default(now()) @updatedAt // Track last activity for timeout
 
   // Relations
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   instance Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
 
   @@index([instanceId])
+  @@index([lastActivityAt]) // Index for cleanup queries
   @@map("active_sessions")
 }
