@@ -26,6 +26,14 @@ class SessionMiddleware(BaseHTTPMiddleware):
     which VyOS device the user is currently managing.
     """
 
+    # Endpoints that should NOT update activity timestamp
+    # These are background polling endpoints - not real user activity
+    POLLING_ENDPOINTS = {
+        "/vyos/config/diff",
+        "/vyos/config/snapshots",
+        "/session/current",
+    }
+
     def __init__(self, app):
         super().__init__(app)
 
@@ -122,11 +130,30 @@ class SessionMiddleware(BaseHTTPMiddleware):
                         )
                         # Set session to None to indicate no active VyOS connection
                         session = None
-                        print(f"[SessionMiddleware]    ✓ VyOS connection cleared")
-                    elif stored_session_token and current_session_token and stored_session_token == current_session_token:
-                        print(f"[SessionMiddleware] ✓ Session tokens match - same device/session")
                     else:
-                        print(f"[SessionMiddleware] ⚠️  Missing token data - stored: {stored_session_token}, current: {current_session_token}")
+                        # Session tokens match - update last activity timestamp
+                        # But only if this is NOT a polling endpoint (real user activity only)
+                        is_polling = path in self.POLLING_ENDPOINTS
+
+                        if not is_polling:
+                            await conn.execute(
+                                """
+                                UPDATE active_sessions
+                                SET "lastActivityAt" = NOW()
+                                WHERE "userId" = $1
+                                """,
+                                user_id,
+                            )
+                            if stored_session_token and current_session_token and stored_session_token == current_session_token:
+                                print(f"[SessionMiddleware] ✓ Session tokens match - activity updated (user action)")
+                            else:
+                                print(f"[SessionMiddleware] ⚠️  Missing token data - stored: {stored_session_token}, current: {current_session_token}")
+                        else:
+                            # Don't update activity for polling endpoints
+                            if stored_session_token and current_session_token and stored_session_token == current_session_token:
+                                print(f"[SessionMiddleware] ✓ Session tokens match - activity NOT updated (polling)")
+                            else:
+                                print(f"[SessionMiddleware] ⚠️  Missing token data - stored: {stored_session_token}, current: {current_session_token}")
 
                 if session:
                     # User has an active session - inject instance details

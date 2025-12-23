@@ -3,6 +3,8 @@ urllib3.disable_warnings()
 
 import os
 import asyncpg
+import asyncio
+from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -34,6 +36,76 @@ from routers.config import config as config_router
 
 # Global variables
 db_pool: Optional[asyncpg.Pool] = None
+cleanup_task: Optional[asyncio.Task] = None
+
+# Configuration
+SESSION_INACTIVITY_TIMEOUT = int(os.getenv("SESSION_INACTIVITY_TIMEOUT", "30"))  # Minutes
+CLEANUP_INTERVAL = int(os.getenv("SESSION_CLEANUP_INTERVAL", "5"))  # Minutes
+
+
+async def cleanup_inactive_sessions():
+    """
+    Background task to clean up inactive sessions.
+
+    Cleans up two types of sessions:
+    1. VyOS instance sessions (active_sessions table)
+    2. Authentication sessions (sessions table)
+
+    Runs periodically and removes sessions that have been inactive
+    for longer than SESSION_INACTIVITY_TIMEOUT minutes.
+    """
+    global db_pool
+
+    print(f"\n🧹 Session cleanup task started (timeout: {SESSION_INACTIVITY_TIMEOUT}min, interval: {CLEANUP_INTERVAL}min)")
+
+    while True:
+        try:
+            await asyncio.sleep(CLEANUP_INTERVAL * 60)  # Convert minutes to seconds
+
+            if not db_pool:
+                continue
+
+            cutoff_time = datetime.utcnow() - timedelta(minutes=SESSION_INACTIVITY_TIMEOUT)
+
+            async with db_pool.acquire() as conn:
+                # 1. Clean up inactive VyOS instance sessions
+                vyos_sessions = await conn.fetch(
+                    """
+                    DELETE FROM active_sessions
+                    WHERE "lastActivityAt" < $1
+                    RETURNING "userId", "instanceId", "lastActivityAt"
+                    """,
+                    cutoff_time
+                )
+
+                if vyos_sessions:
+                    print(f"[SessionCleanup] Removed {len(vyos_sessions)} inactive VyOS instance session(s):")
+                    for row in vyos_sessions:
+                        inactive_duration = datetime.utcnow() - row["lastActivityAt"]
+                        print(f"  - VyOS: User {row['userId']} (inactive for {inactive_duration})")
+
+                # 2. Clean up inactive authentication sessions (logs user out completely)
+                auth_sessions = await conn.fetch(
+                    """
+                    DELETE FROM sessions
+                    WHERE "lastActivityAt" < $1
+                    RETURNING "userId", token, "lastActivityAt"
+                    """,
+                    cutoff_time
+                )
+
+                if auth_sessions:
+                    print(f"[SessionCleanup] Removed {len(auth_sessions)} inactive authentication session(s):")
+                    for row in auth_sessions:
+                        inactive_duration = datetime.utcnow() - row["lastActivityAt"]
+                        print(f"  - Auth: User {row['userId']} (inactive for {inactive_duration}) - LOGGED OUT")
+
+        except asyncio.CancelledError:
+            print("[SessionCleanup] Cleanup task cancelled")
+            break
+        except Exception as e:
+            print(f"[SessionCleanup] Error during cleanup: {e}")
+            # Continue running despite errors
 
 
 @asynccontextmanager
@@ -42,7 +114,7 @@ async def lifespan(app: FastAPI):
     FastAPI lifespan event handler.
     Manages database connections and application startup/shutdown.
     """
-    global db_pool
+    global db_pool, cleanup_task
 
     # Startup
     print("\n" + "=" * 60)
@@ -72,6 +144,13 @@ async def lifespan(app: FastAPI):
         print("  ⚠ API will start but authentication will fail")
         app.state.db_pool = None
 
+    # Start background cleanup task
+    if db_pool:
+        cleanup_task = asyncio.create_task(cleanup_inactive_sessions())
+        print(f"  ✓ Session cleanup task started")
+    else:
+        print("  ⚠ Session cleanup task not started (no database)")
+
     print("\n" + "=" * 60)
     print("✓ API Ready")
     print("=" * 60)
@@ -83,6 +162,15 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     print("\n🛑 Shutting down VyManager API...")
+
+    # Stop cleanup task
+    if cleanup_task and not cleanup_task.done():
+        cleanup_task.cancel()
+        try:
+            await cleanup_task
+        except asyncio.CancelledError:
+            pass
+        print("  ✓ Session cleanup task stopped")
 
     # Close database connection pool
     if hasattr(app.state, "db_pool") and app.state.db_pool:
