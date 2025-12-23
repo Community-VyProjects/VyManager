@@ -45,7 +45,11 @@ CLEANUP_INTERVAL = int(os.getenv("SESSION_CLEANUP_INTERVAL", "5"))  # Minutes
 
 async def cleanup_inactive_sessions():
     """
-    Background task to clean up inactive VyOS instance sessions.
+    Background task to clean up inactive sessions.
+
+    Cleans up two types of sessions:
+    1. VyOS instance sessions (active_sessions table)
+    2. Authentication sessions (sessions table)
 
     Runs periodically and removes sessions that have been inactive
     for longer than SESSION_INACTIVITY_TIMEOUT minutes.
@@ -64,8 +68,8 @@ async def cleanup_inactive_sessions():
             cutoff_time = datetime.utcnow() - timedelta(minutes=SESSION_INACTIVITY_TIMEOUT)
 
             async with db_pool.acquire() as conn:
-                # Find and delete inactive sessions
-                result = await conn.fetch(
+                # 1. Clean up inactive VyOS instance sessions
+                vyos_sessions = await conn.fetch(
                     """
                     DELETE FROM active_sessions
                     WHERE "lastActivityAt" < $1
@@ -74,11 +78,27 @@ async def cleanup_inactive_sessions():
                     cutoff_time
                 )
 
-                if result:
-                    print(f"[SessionCleanup] Removed {len(result)} inactive session(s):")
-                    for row in result:
+                if vyos_sessions:
+                    print(f"[SessionCleanup] Removed {len(vyos_sessions)} inactive VyOS instance session(s):")
+                    for row in vyos_sessions:
                         inactive_duration = datetime.utcnow() - row["lastActivityAt"]
-                        print(f"  - User {row['userId']} (inactive for {inactive_duration})")
+                        print(f"  - VyOS: User {row['userId']} (inactive for {inactive_duration})")
+
+                # 2. Clean up inactive authentication sessions (logs user out completely)
+                auth_sessions = await conn.fetch(
+                    """
+                    DELETE FROM sessions
+                    WHERE "lastActivityAt" < $1
+                    RETURNING "userId", token, "lastActivityAt"
+                    """,
+                    cutoff_time
+                )
+
+                if auth_sessions:
+                    print(f"[SessionCleanup] Removed {len(auth_sessions)} inactive authentication session(s):")
+                    for row in auth_sessions:
+                        inactive_duration = datetime.utcnow() - row["lastActivityAt"]
+                        print(f"  - Auth: User {row['userId']} (inactive for {inactive_duration}) - LOGGED OUT")
 
         except asyncio.CancelledError:
             print("[SessionCleanup] Cleanup task cancelled")

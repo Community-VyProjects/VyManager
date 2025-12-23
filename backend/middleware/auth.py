@@ -35,6 +35,14 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         "/session/onboarding-status",  # Must be public to check if first-time setup is needed
     }
 
+    # Endpoints that should NOT update activity timestamp
+    # These are background polling endpoints - not real user activity
+    POLLING_ENDPOINTS = {
+        "/vyos/config/diff",
+        "/vyos/config/snapshots",
+        "/session/current",
+    }
+
     def __init__(self, app):
         super().__init__(app)
 
@@ -120,6 +128,23 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                         status_code=401,
                         content={"detail": "Session expired. Please log in again."}
                     )
+
+                # Update last activity timestamp for inactivity timeout
+                # But only if this is NOT a polling endpoint (real user activity only)
+                is_polling = request.url.path in self.POLLING_ENDPOINTS
+
+                if not is_polling:
+                    await conn.execute(
+                        """
+                        UPDATE sessions
+                        SET "lastActivityAt" = NOW()
+                        WHERE token = $1
+                        """,
+                        token_id
+                    )
+                    print(f"[AuthMiddleware] ✓ Activity timestamp updated (user action)")
+                else:
+                    print(f"[AuthMiddleware] ✓ Activity timestamp NOT updated (polling)")
 
                 # Attach user information to request state
                 request.state.user_id = session["userId"]
