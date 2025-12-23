@@ -26,11 +26,44 @@ export default function OnboardingPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCheckingAccess, setIsCheckingAccess] = useState(true);
 
-  // Debug: Log that the onboarding page loaded
+  // SECURITY: Check if onboarding is actually needed
+  // Prevent access to onboarding page if users already exist
   useEffect(() => {
-    console.log("[OnboardingPage] Page loaded successfully");
-  }, []);
+    const checkOnboardingAccess = async () => {
+      try {
+        console.log("[OnboardingPage] Checking if onboarding is needed...");
+        const response = await fetch("/api/session/onboarding-status", {
+          method: "GET",
+        });
+
+        if (!response.ok) {
+          console.error("[OnboardingPage] Failed to check onboarding status");
+          router.push("/login");
+          return;
+        }
+
+        const data = await response.json();
+
+        if (!data.needs_onboarding) {
+          // Users already exist - onboarding is not allowed
+          console.log("[OnboardingPage] Onboarding not needed - redirecting to login");
+          router.push("/login");
+          return;
+        }
+
+        // Onboarding is allowed - show the form
+        console.log("[OnboardingPage] Onboarding needed - showing form");
+        setIsCheckingAccess(false);
+      } catch (err) {
+        console.error("[OnboardingPage] Error checking onboarding access:", err);
+        router.push("/login");
+      }
+    };
+
+    checkOnboardingAccess();
+  }, [router]);
 
   // Step 1: Admin Account
   const [adminData, setAdminData] = useState({
@@ -110,6 +143,24 @@ export default function OnboardingPage() {
     setIsSubmitting(true); // Prevent going back once submission starts
 
     try {
+      // SECURITY: Re-check onboarding status before creating account
+      // Prevents race condition if someone else completed onboarding while form was open
+      console.log("[Onboarding] Validating onboarding is still needed...");
+      const statusCheck = await fetch("/api/session/onboarding-status", {
+        method: "GET",
+      });
+
+      if (statusCheck.ok) {
+        const statusData = await statusCheck.json();
+        if (!statusData.needs_onboarding) {
+          setError("Onboarding has already been completed by another user. Please log in.");
+          setLoading(false);
+          setIsSubmitting(false);
+          setTimeout(() => router.push("/login"), 2000);
+          return;
+        }
+      }
+
       // Step 1: Create admin account
       console.log("[Onboarding] Step 1/3: Creating admin account...");
       const signUpResult = await signUp.email({
@@ -183,6 +234,18 @@ export default function OnboardingPage() {
       setLoading(false);
     }
   };
+
+  // Show loading state while checking if onboarding is allowed
+  if (isCheckingAccess) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex items-center justify-center p-4">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">Verifying access...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex items-center justify-center p-4">
