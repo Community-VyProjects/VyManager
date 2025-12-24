@@ -1,10 +1,8 @@
-/**
- * System Information API Service
- * Handles all system information operations
- */
-
 import { apiClient } from "./client";
-import type { NetworkInterface } from "./interfaces";
+
+// ============================================================================
+// TypeScript Interfaces
+// ============================================================================
 
 export interface SystemInfo {
   instance_id: string;
@@ -13,15 +11,35 @@ export interface SystemInfo {
   vyos_version: string;
   connection_host: string;
   connected: boolean;
-  interfaces?: NetworkInterface[];
 }
+
+export interface SystemConfig {
+  hostname: string | null;
+  timezone: string | null;
+  name_servers: string[];
+  domain_name: string | null;
+  raw_config: Record<string, any>;
+}
+
+// ============================================================================
+// API Service
+// ============================================================================
 
 class SystemService {
   /**
-   * Get system information about the VyOS device
+   * Get system information about the active VyOS instance
    */
-  async getSystemInfo(): Promise<SystemInfo> {
+  async getInfo(): Promise<SystemInfo> {
     return apiClient.get<SystemInfo>("/vyos/system/info");
+  }
+
+  /**
+   * Get system configuration (hostname, timezone, name servers, etc.)
+   */
+  async getConfig(refresh: boolean = false): Promise<SystemConfig> {
+    return apiClient.get<SystemConfig>("/vyos/system/config", {
+      refresh: refresh.toString(),
+    });
   }
 }
 

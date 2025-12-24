@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Sidebar } from "./Sidebar";
 import { UnsavedChangesBanner } from "../config/UnsavedChangesBanner";
+import { PowerActionBanner } from "../system/PowerActionBanner";
 import { Toaster } from "../ui/toaster";
 import { useSessionStore } from "@/store/session-store";
 import { Loader2 } from "lucide-react";
@@ -59,6 +60,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     <div className="flex h-screen overflow-hidden bg-background">
       <Sidebar />
       <main className="flex-1 overflow-y-auto relative">
+        <PowerActionBanner />
         <UnsavedChangesBanner />
         {children}
       </main>

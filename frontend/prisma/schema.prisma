@@ -225,3 +225,22 @@ model ActiveSession {
   @@index([lastActivityAt]) // Index for cleanup queries
   @@map("active_sessions")
 }
+
+// ScheduledPowerAction - Tracks scheduled reboots/poweroffs
+model ScheduledPowerAction {
+  id              String   @id @default(cuid())
+  instanceId      String   // Which VyOS instance
+  actionType      String   // "reboot" or "poweroff"
+  scheduledTime   DateTime // When the action will occur
+  scheduledBy     String   // User ID who scheduled it
+  scheduledByName String   // User name for display
+  cancelled       Boolean  @default(false)
+  cancelledBy     String?  // User ID who cancelled
+  cancelledByName String?  // User name who cancelled
+  cancelledAt     DateTime?
+  createdAt       DateTime @default(now())
+
+  @@index([instanceId])
+  @@index([scheduledTime])
+  @@map("scheduled_power_actions")
+}

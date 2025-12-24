@@ -6,7 +6,7 @@ API endpoints for retrieving system information about the VyOS device.
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Dict, Any
 
 from session_vyos_service import get_session_vyos_service
 
@@ -33,6 +33,15 @@ class SystemInfo(BaseModel):
     vyos_version: str
     connection_host: str
     connected: bool
+
+
+class SystemConfig(BaseModel):
+    """System configuration response model."""
+    hostname: Optional[str] = None
+    timezone: Optional[str] = None
+    name_servers: list[str] = []
+    domain_name: Optional[str] = None
+    raw_config: Dict[str, Any] = {}
 
 
 @router.get("/info", response_model=SystemInfo)
@@ -72,3 +81,56 @@ async def get_system_info(request: Request) -> SystemInfo:
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving system info: {str(e)}")
+
+
+@router.get("/config", response_model=SystemConfig)
+async def get_system_config(request: Request, refresh: bool = False) -> SystemConfig:
+    """
+    Get system configuration from VyOS (hostname, timezone, name servers, etc.).
+
+    This endpoint retrieves system-level configuration that may differ between
+    VyOS versions 1.4 and 1.5, and returns it in a generalized format.
+
+    Args:
+        request: FastAPI request object (contains user session)
+        refresh: If True, force refresh from VyOS. If False, use cache.
+
+    Returns:
+        SystemConfig with generalized system settings
+    """
+    try:
+        service = get_session_vyos_service(request)
+
+        # Get full config (will use cache unless refresh=True)
+        full_config = service.get_full_config(refresh=refresh)
+
+        # Extract system configuration
+        system_config = full_config.get("system", {})
+
+        # Parse hostname
+        hostname = system_config.get("host-name")
+
+        # Parse timezone
+        timezone = system_config.get("time-zone")
+
+        # Parse name servers (can be string or list depending on version)
+        name_servers = []
+        ns_value = system_config.get("name-server")
+        if ns_value:
+            if isinstance(ns_value, list):
+                name_servers = ns_value
+            elif isinstance(ns_value, str):
+                name_servers = [ns_value]
+
+        # Parse domain name
+        domain_name = system_config.get("domain-name")
+
+        return SystemConfig(
+            hostname=hostname,
+            timezone=timezone,
+            name_servers=name_servers,
+            domain_name=domain_name,
+            raw_config=system_config,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving system config: {str(e)}")
