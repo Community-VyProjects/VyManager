@@ -32,6 +32,7 @@ from routers.community_list import community_list
 from routers.extcommunity_list import extcommunity_list
 from routers.large_community_list import large_community_list
 from routers import system
+from routers import power as power_router
 from routers.config import config as config_router
 
 # Global variables
@@ -237,6 +238,7 @@ app.include_router(community_list.router)
 app.include_router(extcommunity_list.router)
 app.include_router(large_community_list.router)
 app.include_router(system.router)
+app.include_router(power_router.router)
 app.include_router(config_router.router)
 
 
