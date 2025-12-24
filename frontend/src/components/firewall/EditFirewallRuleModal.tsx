@@ -178,7 +178,7 @@ export function EditFirewallRuleModal({
 
   const loadInterfaces = async () => {
     try {
-      const systemInfo = await systemService.getSystemInfo();
+      const systemInfo = await systemService.getInfo();
       if (systemInfo.interfaces) {
         setInterfaces(systemInfo.interfaces);
       }
