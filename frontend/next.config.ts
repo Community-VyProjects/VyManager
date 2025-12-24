@@ -8,6 +8,10 @@ const nextConfig: NextConfig = {
         source: '/api/vyos/:path*',
         destination: `${apiUrl}/vyos/:path*`,
       },
+      {
+        source: '/api/dashboard/:path*',
+        destination: `${apiUrl}/dashboard/:path*`,
+      },
       // Note: /api/session/* is handled by API routes, not rewrites
     ];
   },

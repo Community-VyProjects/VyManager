@@ -34,6 +34,8 @@ from routers.large_community_list import large_community_list
 from routers import system
 from routers import power as power_router
 from routers.config import config as config_router
+from routers import show as show_router
+from routers import dashboard as dashboard_router
 
 # Global variables
 db_pool: Optional[asyncpg.Pool] = None
@@ -240,6 +242,8 @@ app.include_router(large_community_list.router)
 app.include_router(system.router)
 app.include_router(power_router.router)
 app.include_router(config_router.router)
+app.include_router(show_router.router)
+app.include_router(dashboard_router.router)
 
 
 # ============================================================================

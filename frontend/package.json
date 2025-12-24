@@ -38,13 +38,14 @@
     "next": "^16.0.7",
     "react": "19.2.1",
     "react-dom": "19.2.1",
+    "recharts": "^3.6.0",
     "tailwind-merge": "^3.3.1",
     "zustand": "^5.0.2"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/bcryptjs": "^2.4.6",
-    "@types/node": "^20",
+    "@types/node": "20.19.27",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@typescript-eslint/eslint-plugin": "^8.49.0",

@@ -244,3 +244,18 @@ model ScheduledPowerAction {
   @@index([scheduledTime])
   @@map("scheduled_power_actions")
 }
+
+// DashboardLayout - Stores user's custom dashboard layout per instance
+model DashboardLayout {
+  id         String   @id @default(cuid())
+  userId     String   // User who owns this layout
+  instanceId String   // VyOS instance this layout is for
+  layout     Json     // JSON object storing grid positions and card configurations
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, instanceId])
+  @@index([userId])
+  @@index([instanceId])
+  @@map("dashboard_layouts")
+}
