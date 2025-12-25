@@ -1,4 +1,5 @@
 import { apiClient } from "./client";
+import { NetworkInterface } from "./interfaces";
 
 // ============================================================================
 // TypeScript Interfaces
@@ -11,6 +12,7 @@ export interface SystemInfo {
   vyos_version: string;
   connection_host: string;
   connected: boolean;
+  interfaces: NetworkInterface[];
 }
 
 export interface SystemConfig {
