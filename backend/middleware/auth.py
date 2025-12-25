@@ -93,7 +93,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             token_parts = session_token.split('.')
             token_id = token_parts[0] if len(token_parts) > 0 else session_token
 
-            print(f"[AuthMiddleware] Validating token: {token_id}")
+            print("[AuthMiddleware] Validating session token")
 
             # Validate session in database
             db_pool = self.get_db_pool(request)
@@ -109,9 +109,9 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                 )
 
                 if session:
-                    print(f"[AuthMiddleware] ✓ Session found for user: {session['email']}")
+                    print("[AuthMiddleware] ✓ Session found")
                 else:
-                    print(f"[AuthMiddleware] ✗ Session NOT found for token: {token_id}")
+                    print("[AuthMiddleware] ✗ Session not found")
 
                 if not session:
                     return JSONResponse(
@@ -142,9 +142,9 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                         """,
                         token_id
                     )
-                    print(f"[AuthMiddleware] ✓ Activity timestamp updated (user action)")
+                    print("[AuthMiddleware] ✓ Activity timestamp updated (user action)")
                 else:
-                    print(f"[AuthMiddleware] ✓ Activity timestamp NOT updated (polling)")
+                    print("[AuthMiddleware] ✓ Activity timestamp not updated (polling)")
 
                 # Attach user information to request state
                 request.state.user_id = session["userId"]

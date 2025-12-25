@@ -7,6 +7,7 @@ Handles both IPv4 (route) and IPv6 (route6) policies.
 """
 
 from fastapi import APIRouter, HTTPException, Request
+from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
 from session_vyos_service import get_session_vyos_service
@@ -221,7 +222,7 @@ async def get_route_config(http_request: Request, refresh: bool = False):
     """
     try:
         service = get_session_vyos_service(http_request)
-        full_config = service.get_full_config(refresh=refresh)
+        full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
 
         ipv4_policies = []
         ipv6_policies = []
@@ -1084,7 +1085,7 @@ async def reorder_rules(request: ReorderRequest):
         builder = RouteBatchBuilder(version=version)
 
         # Get current configuration to retrieve full rule data
-        full_config = service.get_full_config(refresh=True)
+        full_config = await run_in_threadpool(service.get_full_config, refresh=True)
 
         # Navigate to the policy
         policy_path = ["policy", request.policy_type, request.policy_name]
@@ -1145,14 +1146,13 @@ async def reorder_rules(request: ReorderRequest):
 
             # Handle action drop (can be at root level)
             if "action" in rule_data and rule_data["action"] == "drop":
-                # TODO: Add set_action_drop method to builder
-                pass
+                builder.set_action_drop(request.policy_type, request.policy_name, str(new_rule_num))
 
         # Execute batch
         response = service.execute_batch(builder)
 
         # Refresh config cache
-        service.get_full_config(refresh=True)
+        await run_in_threadpool(service.get_full_config, refresh=True)
 
         return VyOSResponse(
             success=response.status == 200,

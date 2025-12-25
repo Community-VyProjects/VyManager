@@ -40,11 +40,11 @@ def get_session_vyos_service(request: Request) -> VyOSService:
     if not hasattr(request.state, "instance") or not request.state.instance:
         raise HTTPException(
             status_code=400,
-            content={
+            detail={
                 "error": "No active instance",
                 "message": "You must connect to a VyOS instance first. Go to /sites and select an instance.",
-                "redirect": "/sites"
-            }
+                "redirect": "/sites",
+            },
         )
 
     instance = request.state.instance
@@ -69,17 +69,23 @@ def get_session_vyos_service(request: Request) -> VyOSService:
 
     # Create new VyOS service for this instance
     try:
-        # Determine VyOS version (default to 1.5 if not stored)
-        # In the future, we should store version in the instances table
-        version = "1.5"  # TODO: Get from instance metadata
+        version = instance.get("vyos_version") or "1.5"
+        protocol = instance.get("protocol") or "https"
+        verify_raw = instance.get("verify_ssl")
+        if isinstance(verify_raw, bool):
+            verify = verify_raw
+        elif isinstance(verify_raw, str):
+            verify = verify_raw.lower() in {"1", "true", "t", "yes", "y"}
+        else:
+            verify = False
 
         config = VyOSDeviceConfig(
             hostname=instance["host"],
             apikey=instance["api_key"],  # VyOS API key from database
             version=version,
-            protocol="https",  # TODO: Get from instance metadata
+            protocol=protocol,
             port=instance.get("port", 443),
-            verify=False,  # TODO: Get from instance metadata
+            verify=verify,
             timeout=30,
         )
 

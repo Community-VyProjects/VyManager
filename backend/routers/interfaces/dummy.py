@@ -6,6 +6,7 @@ Dummy interfaces do not support physical properties like speed/duplex.
 """
 
 from fastapi import APIRouter, HTTPException, Request
+from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from typing import Dict, List, Optional
 
@@ -172,7 +173,7 @@ async def get_dummy_config(http_request: Request) -> DummyInterfacesConfigRespon
     try:
         # Get service and retrieve raw config from cache
         service = get_session_vyos_service(http_request)
-        full_config = service.get_full_config()
+        full_config = await run_in_threadpool(service.get_full_config)
         raw_config = full_config.get("interfaces", {}).get("dummy", {})
 
         # Use mapper to parse config

@@ -37,8 +37,10 @@ VYOS_VERIFY_SSL=false
 # Install dependencies
 pip install -r requirements.txt
 
-# Run development server
-uvicorn app:app --reload
+# Run development server (pass proxy headers when behind a reverse proxy)
+uvicorn app:app --reload --proxy-headers
+
+> If you're reverse-proxying HTTPS traffic (Traefik/Nginx), forward `X-Forwarded-Proto`/`X-Forwarded-Port` so redirects keep the HTTPS scheme.
 ```
 
 The device is automatically registered on startup.

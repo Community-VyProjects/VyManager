@@ -438,7 +438,9 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
 # Run with auto-reload
-uvicorn app:app --reload --host 0.0.0.0 --port 8000
+uvicorn app:app --reload --host 0.0.0.0 --port 8000 --proxy-headers
+
+> When serving behind Traefik/Nginx (HTTPS), make sure the proxy forwards `X-Forwarded-Proto`/`X-Forwarded-Port` so FastAPI can emit the correct scheme for redirects.
 
 # View API docs
 # Navigate to http://localhost:8000/docs

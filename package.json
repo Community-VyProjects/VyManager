@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "docker compose up",
     "dev:frontend": "cd frontend && npm run dev",
-    "dev:backend": "cd backend && python3 -m uvicorn app:app --reload --host 0.0.0.0 --port 8000",
+    "dev:backend": "cd backend && python3 -m uvicorn app:app --reload --host 0.0.0.0 --port 8000 --proxy-headers",
     "dev:down": "docker compose down",
     "build": "cd frontend && npm run build",
     "build:docker": "docker compose build",

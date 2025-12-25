@@ -5,6 +5,7 @@ All ethernet-specific endpoints for VyOS configuration.
 """
 
 from fastapi import APIRouter, HTTPException, Request
+from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from typing import Dict, List, Optional, Any
 
@@ -523,6 +524,7 @@ async def get_ethernet_capabilities(request: Request) -> Dict[str, Any]:
                 ],
                 "vlan_vif": [
                     "set_vif",
+                    "delete_vif",
                     "set_vif_address",
                     "delete_vif_address",
                     "set_vif_description",
@@ -650,7 +652,7 @@ async def get_ethernet_config(http_request: Request) -> EthernetInterfacesConfig
     try:
         # Get service and retrieve raw config from cache
         service = get_session_vyos_service(http_request)
-        full_config = service.get_full_config()
+        full_config = await run_in_threadpool(service.get_full_config)
         raw_config = full_config.get("interfaces", {}).get("ethernet", {})
 
         # Use mapper to parse config
@@ -745,6 +747,7 @@ async def configure_interface_batch(http_request: Request, request: InterfaceBat
     | `set_dhcpv6_options_rapid_commit` | No | Enable DHCPv6 rapid commit |
     | `set_dhcpv6_options_pd` | Yes (pd_id,prefix) | Set DHCPv6 prefix delegation |
     | `set_vif` | Yes | Configure 802.1q VLAN |
+    | `delete_vif` | Yes (vlan_id) | Remove 802.1q VLAN |
     | `set_vif_s` | Yes | Configure QinQ service VLAN |
     | `set_vif_c` | Yes (s_vlan,c_vlan) | Configure QinQ customer VLAN |
     | `set_mirror_ingress` | Yes | Configure ingress port mirroring |
@@ -1064,6 +1067,10 @@ async def configure_interface_batch(http_request: Request, request: InterfaceBat
                 if not value:
                     raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
                 batch.set_vif(request.interface, value)
+            elif op_type == "delete_vif":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
+                batch.delete_vif(request.interface, value)
             elif op_type == "set_vif_s":
                 if not value:
                     raise HTTPException(status_code=400, detail=f"{op_type} requires a value")

@@ -6,6 +6,7 @@ Supports version-aware configuration for VyOS 1.4 and 1.5 (identical feature set
 """
 
 from fastapi import APIRouter, HTTPException, Request
+from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
 from session_vyos_service import get_session_vyos_service
@@ -130,7 +131,7 @@ async def get_large_community_list_config(http_request: Request, refresh: bool =
     """
     try:
         service = get_session_vyos_service(request)
-        full_config = service.get_full_config(refresh=refresh)
+        full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
 
         # Navigate to policy -> large-community-list
         large_community_list_config = full_config.get("policy", {}).get("large-community-list", {})

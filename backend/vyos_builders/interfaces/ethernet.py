@@ -481,6 +481,13 @@ class EthernetInterfaceBuilderMixin:
         path = self.mappers[self.interface_mapper_key].get_vif(interface, vlan_id)
         return self.add_set(path)
 
+    def delete_vif(
+        self, interface: str, vlan_id: str
+    ) -> "EthernetInterfaceBuilderMixin":
+        """Delete 802.1q VLAN (vif)"""
+        path = self.mappers[self.interface_mapper_key].get_vif(interface, vlan_id)
+        return self.add_delete(path)
+
     def set_vif_s(
         self, interface: str, vlan_id: str
     ) -> "EthernetInterfaceBuilderMixin":
