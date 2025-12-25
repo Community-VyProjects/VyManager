@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, RefreshCw, AlertCircle, Search, Cable, Pencil, Trash2, Network, Loader2 } from "lucide-react";
+import { Plus, RefreshCw, AlertCircle, Search, Cable, Pencil, Trash2, Network } from "lucide-react";
 import { useState, useEffect } from "react";
 import { ethernetService } from "@/lib/api/ethernet";
 import type { EthernetInterface, EthernetCapabilities, VIFConfig } from "@/lib/api/types/ethernet";
@@ -27,7 +27,6 @@ export default function InterfacesPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<InterfaceType>("all");
 
@@ -39,8 +38,6 @@ export default function InterfacesPage() {
   // VLAN Modal states
   const [isCreateVLANModalOpen, setIsCreateVLANModalOpen] = useState(false);
   const [editingVLAN, setEditingVLAN] = useState<VLANWithParent | null>(null);
-  const [deletingVLAN, setDeletingVLAN] = useState<VLANWithParent | null>(null);
-  const [deletingVLANLoading, setDeletingVLANLoading] = useState(false);
 
   const loadData = async () => {
     try {
@@ -63,32 +60,6 @@ export default function InterfacesPage() {
   useEffect(() => {
     loadData();
   }, []);
-
-  const handleDeleteVLAN = async (vlan: VLANWithParent) => {
-    const confirmed = window.confirm(`Delete VLAN ${vlan.fullName}? This action cannot be undone.`);
-    if (!confirmed) {
-      return;
-    }
-
-    setDeleteError(null);
-    setDeletingVLAN(vlan);
-    setDeletingVLANLoading(true);
-
-    try {
-      await ethernetService.batchConfigure({
-        interface: vlan.parentInterface,
-        operations: [{ op: "delete_vif", value: vlan.vlan_id }],
-      });
-
-      await ethernetService.refreshConfig();
-      await loadData();
-    } catch (err) {
-      setDeleteError(err instanceof Error ? err.message : "Failed to delete VLAN");
-    } finally {
-      setDeletingVLAN(null);
-      setDeletingVLANLoading(false);
-    }
-  };
 
   // Extract all VLANs from interfaces
   const allVlans: VLANWithParent[] = interfaces.flatMap((iface) => {
@@ -231,15 +202,6 @@ export default function InterfacesPage() {
                 <RefreshCw className="h-3.5 w-3.5 mr-2" />
                 Try Again
               </Button>
-            </div>
-          </div>
-        )}
-        {deleteError && (
-          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-destructive mt-0.5" />
-            <div className="flex-1">
-              <h3 className="font-semibold text-destructive">Failed to delete VLAN</h3>
-              <p className="text-sm text-destructive/90 mt-1">{deleteError}</p>
             </div>
           </div>
         )}
@@ -400,104 +362,96 @@ export default function InterfacesPage() {
                   <h2 className="text-lg font-semibold text-foreground">VLANs</h2>
                 )}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {filteredVlans.map((vlan) => {
-                    const isDeletingThisVLAN =
-                      deletingVLAN?.fullName === vlan.fullName && deletingVLANLoading;
-
-                    return (
-                      <Card key={vlan.fullName} className="border-border hover:border-primary/50 transition-colors group">
-                        <CardContent className="p-4">
-                          <div className="flex items-start justify-between mb-3">
-                            <div className="flex items-center gap-2">
-                              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-500/10">
-                                <Network className="h-4 w-4 text-purple-500" />
+                  {filteredVlans.map((vlan) => (
+                    <Card key={vlan.fullName} className="border-border hover:border-primary/50 transition-colors group">
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-500/10">
+                              <Network className="h-4 w-4 text-purple-500" />
+                            </div>
+                            <div>
+                              <code className="font-semibold font-mono text-foreground text-base">
+                                {vlan.fullName}
+                              </code>
+                              <div className="text-xs text-muted-foreground mt-0.5">
+                                Parent: {vlan.parentInterface}
                               </div>
-                              <div>
-                                <code className="font-semibold font-mono text-foreground text-base">
-                                  {vlan.fullName}
+                            </div>
+                          </div>
+                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setEditingVLAN(vlan)}
+                              className="h-7 w-7 p-0"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                // TODO: Implement VLAN delete
+                              }}
+                              className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2 text-sm">
+                          {vlan.description && (
+                            <div className="text-muted-foreground truncate">
+                              {vlan.description}
+                            </div>
+                          )}
+
+                          {vlan.addresses && vlan.addresses.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5">
+                              {vlan.addresses.slice(0, 2).map((addr, idx) => (
+                                <code
+                                  key={idx}
+                                  className="text-xs font-mono px-1.5 py-0.5 rounded bg-accent text-foreground"
+                                >
+                                  {addr}
                                 </code>
-                                <div className="text-xs text-muted-foreground mt-0.5">
-                                  Parent: {vlan.parentInterface}
-                                </div>
-                              </div>
+                              ))}
+                              {vlan.addresses.length > 2 && (
+                                <Badge variant="secondary" className="text-xs px-1.5 py-0">
+                                  +{vlan.addresses.length - 2}
+                                </Badge>
+                              )}
                             </div>
-                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setEditingVLAN(vlan)}
-                                className="h-7 w-7 p-0"
-                              >
-                                <Pencil className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDeleteVLAN(vlan)}
-                                disabled={isDeletingThisVLAN}
-                                className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                              >
-                                {isDeletingThisVLAN ? (
-                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                ) : (
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                )}
-                              </Button>
-                            </div>
-                          </div>
+                          )}
 
-                          <div className="space-y-2 text-sm">
-                            {vlan.description && (
-                              <div className="text-muted-foreground truncate">
-                                {vlan.description}
-                              </div>
-                            )}
-
-                            {vlan.addresses && vlan.addresses.length > 0 && (
-                              <div className="flex flex-wrap gap-1.5">
-                                {vlan.addresses.slice(0, 2).map((addr, idx) => (
-                                  <code
-                                    key={idx}
-                                    className="text-xs font-mono px-1.5 py-0.5 rounded bg-accent text-foreground"
-                                  >
-                                    {addr}
-                                  </code>
-                                ))}
-                                {vlan.addresses.length > 2 && (
-                                  <Badge variant="secondary" className="text-xs px-1.5 py-0">
-                                    +{vlan.addresses.length - 2}
-                                  </Badge>
-                                )}
-                              </div>
-                            )}
-
-                            <div className="flex flex-wrap gap-2 pt-1">
-                              <Badge
-                                variant="outline"
-                                className="bg-purple-500/10 text-purple-500 border-purple-500/20 text-xs"
-                              >
-                                VLAN {vlan.vlan_id}
+                          <div className="flex flex-wrap gap-2 pt-1">
+                            <Badge
+                              variant="outline"
+                              className="bg-purple-500/10 text-purple-500 border-purple-500/20 text-xs"
+                            >
+                              VLAN {vlan.vlan_id}
+                            </Badge>
+                            {vlan.vrf && (
+                              <Badge variant="outline" className="bg-purple-500/10 text-purple-500 border-purple-500/20 text-xs">
+                                VRF: {vlan.vrf}
                               </Badge>
-                              {vlan.vrf && (
-                                <Badge variant="outline" className="bg-purple-500/10 text-purple-500 border-purple-500/20 text-xs">
-                                  VRF: {vlan.vrf}
-                                </Badge>
-                              )}
-                              {vlan.disable ? (
-                                <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">
-                                  Disabled
-                                </Badge>
-                              ) : (
-                                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">
-                                  Enabled
-                                </Badge>
-                              )}
-                            </div>
+                            )}
+                            {vlan.disable ? (
+                              <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">
+                                Disabled
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">
+                                Enabled
+                              </Badge>
+                            )}
                           </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
               </div>
             )}
