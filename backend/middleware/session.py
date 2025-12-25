@@ -79,8 +79,7 @@ class SessionMiddleware(BaseHTTPMiddleware):
             # Extract session ID (everything before the first dot)
             current_session_token = cookie_token.split(".")[0] if cookie_token else None
 
-            # Debug logging
-            print(f"[SessionMiddleware] User: {user_id}, Current auth token: {current_session_token}")
+            print("[SessionMiddleware] Resolving active session")
 
             async with db_pool.acquire() as conn:
                 # Look up active session with instance and site details
@@ -97,6 +96,9 @@ class SessionMiddleware(BaseHTTPMiddleware):
                         i."apiKey" as api_key,
                         i."isActive" as is_active,
                         i."siteId" as site_id,
+                        i."vyosVersion" as vyos_version,
+                        i.protocol,
+                        i."verifySsl" as verify_ssl,
                         s.name as site_name,
                         p.role as user_role
                     FROM active_sessions a
@@ -112,15 +114,11 @@ class SessionMiddleware(BaseHTTPMiddleware):
                 # This means the user logged in from a different device
                 if session:
                     stored_session_token = session.get("session_token")
-                    print(f"[SessionMiddleware] Stored VyOS session token: {stored_session_token}")
 
                     # If the session tokens don't match, clear the VyOS connection
                     # This forces the user to reconnect to a VyOS instance after logging in from a new device
                     if stored_session_token and current_session_token and stored_session_token != current_session_token:
-                        print(f"[SessionMiddleware] ⚠️  User {user_id} logged in from new device/session!")
-                        print(f"[SessionMiddleware]    Stored token: {stored_session_token}")
-                        print(f"[SessionMiddleware]    Current token: {current_session_token}")
-                        print(f"[SessionMiddleware]    Clearing VyOS connection...")
+                        print("[SessionMiddleware] ⚠️  Session token mismatch; clearing VyOS connection")
                         await conn.execute(
                             """
                             DELETE FROM active_sessions
@@ -145,15 +143,15 @@ class SessionMiddleware(BaseHTTPMiddleware):
                                 user_id,
                             )
                             if stored_session_token and current_session_token and stored_session_token == current_session_token:
-                                print(f"[SessionMiddleware] ✓ Session tokens match - activity updated (user action)")
+                                print("[SessionMiddleware] ✓ Activity updated (user action)")
                             else:
-                                print(f"[SessionMiddleware] ⚠️  Missing token data - stored: {stored_session_token}, current: {current_session_token}")
+                                print("[SessionMiddleware] ⚠️  Missing session token data")
                         else:
                             # Don't update activity for polling endpoints
                             if stored_session_token and current_session_token and stored_session_token == current_session_token:
-                                print(f"[SessionMiddleware] ✓ Session tokens match - activity NOT updated (polling)")
+                                print("[SessionMiddleware] ✓ Activity not updated (polling)")
                             else:
-                                print(f"[SessionMiddleware] ⚠️  Missing token data - stored: {stored_session_token}, current: {current_session_token}")
+                                print("[SessionMiddleware] ⚠️  Missing session token data")
 
                 if session:
                     # User has an active session - inject instance details
@@ -166,6 +164,9 @@ class SessionMiddleware(BaseHTTPMiddleware):
                         "password": session["password"],  # API key
                         "api_key": session["api_key"],
                         "is_active": session["is_active"],
+                        "vyos_version": session.get("vyos_version"),
+                        "protocol": session.get("protocol"),
+                        "verify_ssl": session.get("verify_ssl"),
                     }
                     request.state.site = {
                         "id": session["site_id"],

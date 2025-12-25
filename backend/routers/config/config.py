@@ -6,6 +6,7 @@ Tracks changes between running config and last saved state.
 """
 
 from fastapi import APIRouter, HTTPException, Request
+from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 from session_vyos_service import get_session_vyos_service
@@ -119,7 +120,7 @@ async def get_config_snapshot(request: Request):
 
         # If no snapshot exists for this instance, get current config and mark it as saved
         if instance_id not in _saved_config_snapshots:
-            current_config = service.get_full_config(refresh=True)
+            current_config = await run_in_threadpool(service.get_full_config, refresh=True)
             _saved_config_snapshots[instance_id] = current_config
 
             return ConfigSnapshotResponse(
@@ -149,7 +150,7 @@ async def get_config_diff(request: Request):
 
         service = get_session_vyos_service(request)
         instance_id = request.state.instance['id']
-        current_config = service.get_full_config(refresh=True)
+        current_config = await run_in_threadpool(service.get_full_config, refresh=True)
 
         # If no snapshot exists for this instance, no changes yet
         if instance_id not in _saved_config_snapshots:
@@ -210,7 +211,7 @@ async def save_config(request: Request, file: Optional[str] = None):
             )
 
         # Update snapshot to current config after successful save
-        current_config = service.get_full_config(refresh=True)
+        current_config = await run_in_threadpool(service.get_full_config, refresh=True)
         _saved_config_snapshots[instance_id] = current_config
 
         return SaveConfigResponse(
@@ -231,7 +232,7 @@ async def refresh_config(request: Request):
     """
     try:
         service = get_session_vyos_service(request)
-        service.get_full_config(refresh=True)
+        await run_in_threadpool(service.get_full_config, refresh=True)
         return {"success": True, "message": "Configuration cache refreshed"}
     except Exception as e:
         print(f"[ConfigRouter] Error in /config/refresh: {type(e).__name__}: {str(e)}")
@@ -251,7 +252,7 @@ async def initialize_snapshot(request: Request):
 
         service = get_session_vyos_service(request)
         instance_id = request.state.instance['id']
-        current_config = service.get_full_config(refresh=True)
+        current_config = await run_in_threadpool(service.get_full_config, refresh=True)
         _saved_config_snapshots[instance_id] = current_config
 
         return {

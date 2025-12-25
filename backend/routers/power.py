@@ -8,6 +8,7 @@ Uses session-based architecture - VyOS instance comes from user's active session
 """
 
 from fastapi import APIRouter, HTTPException, Request
+from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any, Literal
 from datetime import datetime, timedelta
@@ -161,7 +162,7 @@ def get_vyos_timezone(service) -> Optional[str]:
         Timezone string (e.g., "America/Chicago") or None if not found
     """
     try:
-        full_config = service.get_full_config()
+        full_config = await run_in_threadpool(service.get_full_config)
         system_config = full_config.get("system", {})
         timezone = system_config.get("time-zone")
         return timezone

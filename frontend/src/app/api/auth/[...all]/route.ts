@@ -9,6 +9,8 @@ export const dynamic = "force-dynamic";
 // Get the original handlers
 const handlers = toNextJsHandler(auth);
 
+const allowOnboardingFailOpen = process.env.ALLOW_ONBOARDING_FAIL_OPEN === "true";
+
 // Wrap POST handler to add onboarding validation for signup
 async function POST_WITH_VALIDATION(request: NextRequest) {
   const url = new URL(request.url);
@@ -40,7 +42,16 @@ async function POST_WITH_VALIDATION(request: NextRequest) {
       }
     } catch (err) {
       console.error("[Auth] Error checking onboarding status:", err);
-      // On error, allow signup (fail open for first-time setup)
+      if (!allowOnboardingFailOpen) {
+        return NextResponse.json(
+          {
+            error: {
+              message: "Unable to verify onboarding status. Please try again later.",
+            },
+          },
+          { status: 503 }
+        );
+      }
     }
   }
 

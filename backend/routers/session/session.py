@@ -6,6 +6,7 @@ Handles connect/disconnect operations and instance selection.
 """
 
 from fastapi import APIRouter, HTTPException, Request, UploadFile, File
+from starlette.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
@@ -14,6 +15,7 @@ import asyncpg
 import csv
 import io
 from vyos_service import VyOSService, VyOSDeviceConfig
+from session_vyos_service import clear_session_cache
 
 router = APIRouter(prefix="/session", tags=["session"])
 
@@ -289,7 +291,7 @@ async def connect_to_instance(request: Request, body: ConnectRequest):
                 vyos_service = VyOSService(device_config)
 
                 # Test connection by fetching config (this will raise exception if connection fails)
-                vyos_service.get_full_config()
+                await run_in_threadpool(vyos_service.get_full_config)
 
             except Exception as e:
                 error_msg = str(e)
@@ -816,6 +818,8 @@ async def create_instance(request: Request, body: InstanceCreateRequest):
                 body.is_active,
             )
 
+            clear_session_cache(instance_id)
+
             return InstanceResponse(
                 id=instance["id"],
                 site_id=instance["siteId"],
@@ -1049,6 +1053,8 @@ async def delete_instance(request: Request, instance_id: str):
             if result == "DELETE 0":
                 raise HTTPException(status_code=404, detail="Instance not found")
 
+            clear_session_cache(instance_id)
+
             return ApiResponse(
                 success=True,
                 message="Instance deleted successfully",
@@ -1072,7 +1078,7 @@ async def export_sites_and_instances_csv(request: Request):
 
     Returns a CSV file with all sites and their instances that the user has access to.
     CSV Format: site_name, site_description, instance_name, instance_description,
-                host, port, api_key, vyos_version, protocol, verify_ssl
+                host, port, vyos_version, protocol, verify_ssl
     """
     if not hasattr(request.state, "user") or not request.state.user:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -1096,7 +1102,6 @@ async def export_sites_and_instances_csv(request: Request):
                     i.description as instance_description,
                     i.host,
                     i.port,
-                    i."apiKey" as api_key,
                     i."vyosVersion" as vyos_version,
                     i.protocol,
                     i."verifySsl" as verify_ssl
@@ -1121,7 +1126,6 @@ async def export_sites_and_instances_csv(request: Request):
                 "instance_description",
                 "host",
                 "port",
-                "api_key",
                 "vyos_version",
                 "protocol",
                 "verify_ssl"
@@ -1136,7 +1140,6 @@ async def export_sites_and_instances_csv(request: Request):
                     row["instance_description"] or "",
                     row["host"] or "",
                     str(row["port"]) if row["port"] else "",
-                    row["api_key"] or "",
                     row["vyos_version"] or "",
                     row["protocol"] or "",
                     str(row["verify_ssl"]).lower() if row["verify_ssl"] is not None else "false"

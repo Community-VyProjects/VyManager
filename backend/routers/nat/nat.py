@@ -6,6 +6,7 @@ Supports source NAT, destination NAT, and static NAT rules.
 """
 
 from fastapi import APIRouter, HTTPException, Request
+from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
 from session_vyos_service import get_session_vyos_service
@@ -190,7 +191,7 @@ async def get_nat_config(http_request: Request, refresh: bool = False):
     try:
         # Get service and retrieve raw config from cache
         service = get_session_vyos_service(http_request)
-        full_config = service.get_full_config(refresh=refresh)
+        full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
 
         if not full_config or "nat" not in full_config:
             return NATConfigResponse(total=0)

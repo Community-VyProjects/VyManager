@@ -5,7 +5,8 @@ API endpoints for retrieving system information about the VyOS device.
 """
 
 from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel
+from starlette.concurrency import run_in_threadpool
+from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any
 
 from session_vyos_service import get_session_vyos_service
@@ -39,9 +40,9 @@ class SystemConfig(BaseModel):
     """System configuration response model."""
     hostname: Optional[str] = None
     timezone: Optional[str] = None
-    name_servers: list[str] = []
+    name_servers: list[str] = Field(default_factory=list)
     domain_name: Optional[str] = None
-    raw_config: Dict[str, Any] = {}
+    raw_config: Dict[str, Any] = Field(default_factory=dict)
 
 
 @router.get("/info", response_model=SystemInfo)
@@ -66,15 +67,17 @@ async def get_system_info(request: Request) -> SystemInfo:
 
         # Try to get config to verify connection
         try:
-            service.get_full_config()
+            await run_in_threadpool(service.get_full_config)
             connected = True
         except Exception:
             connected = False
 
+        site = getattr(request.state, "site", None)
+
         return SystemInfo(
             instance_id=instance['id'],
             instance_name=instance['name'],
-            site_name=instance.get('site_name', 'Unknown'),
+            site_name=site["name"] if site and site.get("name") else "Unknown",
             vyos_version=version,
             connection_host=hostname,
             connected=connected,
@@ -102,7 +105,7 @@ async def get_system_config(request: Request, refresh: bool = False) -> SystemCo
         service = get_session_vyos_service(request)
 
         # Get full config (will use cache unless refresh=True)
-        full_config = service.get_full_config(refresh=refresh)
+        full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
 
         # Extract system configuration
         system_config = full_config.get("system", {})

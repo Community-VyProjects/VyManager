@@ -6,6 +6,7 @@ Supports version-aware configuration for VyOS 1.4 and 1.5.
 """
 
 from fastapi import APIRouter, HTTPException, Request
+from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
 from session_vyos_service import get_session_vyos_service
@@ -123,7 +124,7 @@ async def get_groups_config(request: Request, refresh: bool = False):
     try:
         # Get service from active session
         service = get_session_vyos_service(request)
-        full_config = service.get_full_config(refresh=refresh)
+        full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
 
         if not full_config or "firewall" not in full_config or "group" not in full_config["firewall"]:
             return GroupsConfigResponse(total=0)
