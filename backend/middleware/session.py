@@ -32,6 +32,7 @@ class SessionMiddleware(BaseHTTPMiddleware):
         "/vyos/config/diff",
         "/vyos/config/snapshots",
         "/session/current",
+        "/vyos/power/status",
     }
 
     def __init__(self, app):
