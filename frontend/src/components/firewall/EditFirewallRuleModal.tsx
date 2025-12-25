@@ -27,7 +27,7 @@ import { AlertCircle, RefreshCw } from "lucide-react";
 import { firewallIPv4Service, type FirewallRule, type FirewallCapabilitiesResponse } from "@/lib/api/firewall-ipv4";
 import { firewallIPv6Service } from "@/lib/api/firewall-ipv6";
 import { firewallGroupsService, type FirewallGroup } from "@/lib/api/firewall-groups";
-import { systemService } from "@/lib/api/system";
+import { showService } from "@/lib/api/show";
 import type { NetworkInterface } from "@/lib/api/interfaces";
 import { CountryMultiSelect } from "./CountryMultiSelect";
 import {
@@ -178,9 +178,20 @@ export function EditFirewallRuleModal({
 
   const loadInterfaces = async () => {
     try {
-      const systemInfo = await systemService.getInfo();
-      if (systemInfo.interfaces) {
-        setInterfaces(systemInfo.interfaces);
+      const response = await showService.getInterfaceCounters();
+      if (response.interfaces) {
+        // Map interface names to NetworkInterface objects
+        const networkInterfaces: NetworkInterface[] = response.interfaces.map(i => ({
+          name: i.interface,
+          type: "ethernet" as const,
+          addresses: [],
+          description: null,
+          vrf: null,
+          "hw-id": null,
+          "source-interface": null,
+          authentication: null,
+        }));
+        setInterfaces(networkInterfaces);
       }
     } catch (err) {
       console.error("Failed to load interfaces:", err);
