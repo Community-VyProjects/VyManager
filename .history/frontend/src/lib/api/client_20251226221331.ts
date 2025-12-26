@@ -8,7 +8,11 @@ const API_BASE_URL = typeof window !== 'undefined'
   ? '/api'
   : (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000");
 
-import { VyOSResponse, ApiError } from "../types/api";
+export interface ApiError {
+  message: string;
+  status?: number;
+  details?: unknown;
+}
 
 export class ApiClient {
   private baseUrl: string;

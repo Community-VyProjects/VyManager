@@ -225,7 +225,8 @@ class EthernetInterfaceConfigResponse(BaseModel):
     eapol: Optional[EAPoLConfig] = Field(None, description="802.1X EAPoL configuration")
     evpn: Optional[EVPNConfig] = Field(None, description="EVPN configuration")
 
-    model_config = ConfigDict(populate_by_name=True)
+    class Config:
+        populate_by_name = True
 
 
 class EthernetInterfacesConfigResponse(BaseModel):
@@ -247,8 +248,8 @@ class EthernetInterfacesConfigResponse(BaseModel):
         description="Count of interfaces by VRF"
     )
 
-    model_config = ConfigDict(
-        json_schema_extra={
+    class Config:
+        json_schema_extra = {
             "example": {
                 "interfaces": [
                     {
@@ -273,7 +274,6 @@ class EthernetInterfacesConfigResponse(BaseModel):
                 "by_vrf": {}
             }
         }
-    )
 
 
 # ============================================================================

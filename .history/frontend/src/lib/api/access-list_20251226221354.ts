@@ -93,14 +93,14 @@ class AccessListService {
    * Refresh the cached configuration
    */
   async refreshConfig(): Promise<VyOSResponse> {
-    return apiClient.post<VyOSResponse>("/vyos/config/refresh");
+    return apiClient.post("/vyos/config/refresh");
   }
 
   /**
    * Execute batch operations
    */
   async batchConfigure(request: AccessListBatchRequest): Promise<VyOSResponse> {
-    const result = await apiClient.post<VyOSResponse>("/vyos/access-list/batch", request);
+    const result = await apiClient.post("/vyos/access-list/batch", request);
     await this.refreshConfig();
     return result;
   }
@@ -113,7 +113,7 @@ class AccessListService {
     listType: string,
     rules: Array<{ old_number: number; new_number: number; rule_data: AccessListRule }>
   ): Promise<VyOSResponse> {
-    const result = await apiClient.post<VyOSResponse>("/vyos/access-list/reorder", {
+    const result = await apiClient.post("/vyos/access-list/reorder", {
       identifier,
       list_type: listType,
       rules,
@@ -130,7 +130,7 @@ class AccessListService {
     listType: string,
     description: string | null,
     rule: Partial<AccessListRule>
-  ): Promise<VyOSResponse> {
+  ): Promise<any> {
     const operations: AccessListBatchOperation[] = [];
 
     // Create access-list
@@ -251,7 +251,7 @@ class AccessListService {
     identifier: string,
     listType: string,
     description: string | null
-  ): Promise<VyOSResponse> {
+  ): Promise<any> {
     const operations: AccessListBatchOperation[] = [];
 
     if (description) {
@@ -275,7 +275,7 @@ class AccessListService {
   /**
    * Helper: Delete an access-list
    */
-  async deleteAccessList(identifier: string, listType: string): Promise<VyOSResponse> {
+  async deleteAccessList(identifier: string, listType: string): Promise<any> {
     const operations: AccessListBatchOperation[] = [];
     operations.push({
       op: listType === "ipv4" ? "delete_access_list" : "delete_access_list6"
@@ -295,7 +295,7 @@ class AccessListService {
     identifier: string,
     listType: string,
     rule: Partial<AccessListRule>
-  ): Promise<VyOSResponse> {
+  ): Promise<any> {
     const operations: AccessListBatchOperation[] = [];
 
     // Create rule
