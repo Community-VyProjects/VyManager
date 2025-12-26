@@ -113,7 +113,7 @@ class AccessListService {
     listType: string,
     rules: Array<{ old_number: number; new_number: number; rule_data: AccessListRule }>
   ): Promise<VyOSResponse> {
-    const result = await apiClient.post("/vyos/access-list/reorder", {
+    const result = await apiClient.post<VyOSResponse>("/vyos/access-list/reorder", {
       identifier,
       list_type: listType,
       rules,
