@@ -395,7 +395,7 @@ async def poweroff_system(request: Request, body: PowerActionRequest):
         raise HTTPException(status_code=400, detail="Invalid action")
 
     # Get VyOS timezone for proper time conversion
-    vyos_timezone = await get_vyos_timezone(service)
+    vyos_timezone = get_vyos_timezone(service)
     if vyos_timezone:
         print(f"[Power] VyOS timezone: {vyos_timezone}")
 
@@ -548,7 +548,7 @@ async def get_power_status(request: Request):
         # Check if VyOS still has it scheduled (verify with 'show reboot')
         try:
             # Get VyOS timezone for proper time conversion
-            vyos_timezone = await get_vyos_timezone(service)
+            vyos_timezone = get_vyos_timezone(service)
 
             response = service.device.show(path=["reboot"])
 

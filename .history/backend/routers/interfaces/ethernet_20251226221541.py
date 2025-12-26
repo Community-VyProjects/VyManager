@@ -247,8 +247,8 @@ class EthernetInterfacesConfigResponse(BaseModel):
         description="Count of interfaces by VRF"
     )
 
-    model_config = ConfigDict(
-        json_schema_extra={
+    class Config:
+        json_schema_extra = {
             "example": {
                 "interfaces": [
                     {
@@ -273,7 +273,6 @@ class EthernetInterfacesConfigResponse(BaseModel):
                 "by_vrf": {}
             }
         }
-    )
 
 
 # ============================================================================

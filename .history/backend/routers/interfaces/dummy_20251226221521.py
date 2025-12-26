@@ -7,7 +7,7 @@ Dummy interfaces do not support physical properties like speed/duplex.
 
 from fastapi import APIRouter, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field
 from typing import Dict, List, Optional
 
 from session_vyos_service import get_session_vyos_service
@@ -116,7 +116,8 @@ class DummyInterfaceConfigResponse(BaseModel):
     # Administrative state
     disable: Optional[bool] = Field(None, description="Whether interface is administratively disabled")
 
-    model_config = ConfigDict(populate_by_name=True)
+    class Config:
+        populate_by_name = True
 
 
 class DummyInterfacesConfigResponse(BaseModel):
@@ -138,8 +139,8 @@ class DummyInterfacesConfigResponse(BaseModel):
         description="Count of interfaces by VRF"
     )
 
-    model_config = ConfigDict(
-        json_schema_extra={
+    class Config:
+        json_schema_extra = {
             "example": {
                 "interfaces": [
                     {
@@ -154,7 +155,6 @@ class DummyInterfacesConfigResponse(BaseModel):
                 "by_vrf": {}
             }
         }
-    )
 
 
 # ============================================================================

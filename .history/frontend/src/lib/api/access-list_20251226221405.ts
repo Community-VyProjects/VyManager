@@ -295,7 +295,7 @@ class AccessListService {
     identifier: string,
     listType: string,
     rule: Partial<AccessListRule>
-  ): Promise<VyOSResponse> {
+  ): Promise<any> {
     const operations: AccessListBatchOperation[] = [];
 
     // Create rule

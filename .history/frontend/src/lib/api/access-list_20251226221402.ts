@@ -275,7 +275,7 @@ class AccessListService {
   /**
    * Helper: Delete an access-list
    */
-  async deleteAccessList(identifier: string, listType: string): Promise<VyOSResponse> {
+  async deleteAccessList(identifier: string, listType: string): Promise<any> {
     const operations: AccessListBatchOperation[] = [];
     operations.push({
       op: listType === "ipv4" ? "delete_access_list" : "delete_access_list6"
@@ -295,7 +295,7 @@ class AccessListService {
     identifier: string,
     listType: string,
     rule: Partial<AccessListRule>
-  ): Promise<VyOSResponse> {
+  ): Promise<any> {
     const operations: AccessListBatchOperation[] = [];
 
     // Create rule

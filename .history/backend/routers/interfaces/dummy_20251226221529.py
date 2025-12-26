@@ -116,7 +116,8 @@ class DummyInterfaceConfigResponse(BaseModel):
     # Administrative state
     disable: Optional[bool] = Field(None, description="Whether interface is administratively disabled")
 
-    model_config = ConfigDict(populate_by_name=True)
+    class Config:
+        populate_by_name = True
 
 
 class DummyInterfacesConfigResponse(BaseModel):
@@ -138,8 +139,8 @@ class DummyInterfacesConfigResponse(BaseModel):
         description="Count of interfaces by VRF"
     )
 
-    model_config = ConfigDict(
-        json_schema_extra={
+    class Config:
+        json_schema_extra = {
             "example": {
                 "interfaces": [
                     {
@@ -154,7 +155,6 @@ class DummyInterfacesConfigResponse(BaseModel):
                 "by_vrf": {}
             }
         }
-    )
 
 
 # ============================================================================

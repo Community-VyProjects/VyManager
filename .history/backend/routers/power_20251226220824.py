@@ -548,7 +548,7 @@ async def get_power_status(request: Request):
         # Check if VyOS still has it scheduled (verify with 'show reboot')
         try:
             # Get VyOS timezone for proper time conversion
-            vyos_timezone = await get_vyos_timezone(service)
+            vyos_timezone = get_vyos_timezone(service)
 
             response = service.device.show(path=["reboot"])
 
