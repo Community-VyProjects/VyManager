@@ -12,6 +12,10 @@ const nextConfig: NextConfig = {
         source: '/api/dashboard/:path*',
         destination: `${apiUrl}/dashboard/:path*`,
       },
+      {
+        source: '/api/user-management/:path*',
+        destination: `${apiUrl}/user-management/:path*`,
+      },
       // Note: /api/session/* is handled by API routes, not rewrites
     ];
   },

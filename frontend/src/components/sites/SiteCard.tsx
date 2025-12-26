@@ -91,9 +91,9 @@ export function SiteCard({
 
   const getRoleBadgeVariant = (role: string) => {
     switch (role) {
-      case "OWNER":
-        return "default";
       case "ADMIN":
+        return "default";
+      case "OPERATOR":
         return "secondary";
       case "VIEWER":
         return "outline";
@@ -151,7 +151,7 @@ export function SiteCard({
                     e.stopPropagation();
                     setCreateInstanceOpen(true);
                   }}
-                  disabled={site.role !== "OWNER" && site.role !== "ADMIN"}
+                  disabled={site.role !== "ADMIN"}
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Add Instance
@@ -162,7 +162,7 @@ export function SiteCard({
                     e.stopPropagation();
                     onEditSite(site);
                   }}
-                  disabled={site.role !== "OWNER" && site.role !== "ADMIN"}
+                  disabled={site.role !== "ADMIN"}
                 >
                   <Pencil className="h-4 w-4 mr-2" />
                   Edit Site
@@ -172,7 +172,7 @@ export function SiteCard({
                     e.stopPropagation();
                     onDeleteSite(site);
                   }}
-                  disabled={site.role !== "OWNER"}
+                  disabled={site.role !== "ADMIN"}
                   className="text-destructive focus:text-destructive"
                 >
                   <Trash2 className="h-4 w-4 mr-2" />

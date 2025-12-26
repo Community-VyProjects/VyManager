@@ -29,8 +29,8 @@ model User {
   // Relations
   sessions      Session[]
   accounts      Account[]
-  permissions   Permission[]
   activeSession ActiveSession?
+  userInstanceRoles UserInstanceRole[]
 
   @@map("users")
 }
@@ -150,7 +150,6 @@ model Site {
 
   // Relations
   instances   Instance[]
-  permissions Permission[]
 
   @@map("sites")
 }
@@ -176,36 +175,11 @@ model Instance {
   // Relations
   site          Site            @relation(fields: [siteId], references: [id], onDelete: Cascade)
   activeSessions ActiveSession[]
+  userInstanceRoles UserInstanceRole[]
 
   @@unique([siteId, name])
   @@index([siteId])
   @@map("instances")
-}
-
-// Permission - User access to sites
-model Permission {
-  id        String   @id @default(cuid())
-  userId    String
-  siteId    String
-  role      SiteRole @default(VIEWER)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, siteId])
-  @@index([userId])
-  @@index([siteId])
-  @@map("permissions")
-}
-
-// Site-level roles (different from global roles)
-enum SiteRole {
-  OWNER  // Full control of site and instances
-  ADMIN  // Can manage instances and configurations
-  VIEWER // Read-only access to site
 }
 
 // ActiveSession - Tracks which instance a user is currently connected to
@@ -258,4 +232,87 @@ model DashboardLayout {
   @@index([userId])
   @@index([instanceId])
   @@map("dashboard_layouts")
+}
+
+// ============================================================================
+// New RBAC System - Fine-Grained Per-Instance Permissions
+// ============================================================================
+
+// Feature Groups - Logical groupings of VyOS features
+enum FeatureGroup {
+  FIREWALL          // IPv4, IPv6, Groups
+  NAT               // Source, Destination, Static
+  DHCP              // DHCP Server
+  INTERFACES        // Ethernet, VLANs, Dummy
+  STATIC_ROUTES     // Static routing
+  ROUTING_POLICIES  // Route maps, prefix lists, AS-path, community lists
+  SYSTEM            // Reboot, poweroff, hostname
+  CONFIGURATION     // Save, load, diff, snapshots, rollback
+  DASHBOARD         // Dashboard customization
+  SITES_INSTANCES   // Site & instance management (SUPER_ADMIN only)
+  USER_MANAGEMENT   // User, role, permission management (SUPER_ADMIN only)
+}
+
+// Permission Levels - What a user can do with a feature
+enum PermissionLevel {
+  NONE   // No access
+  READ   // View only
+  WRITE  // Full access (create, edit, delete)
+}
+
+// CustomRole - User-defined roles (e.g., NAT_ADMIN, FIREWALL_OPERATOR)
+model CustomRole {
+  id          String   @id @default(cuid())
+  name        String   @unique  // e.g., "NAT_ADMIN", "FIREWALL_VIEWER"
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdBy   String   // User ID who created this role
+
+  // Relations
+  permissions       FeaturePermission[]
+  userInstanceRoles UserInstanceRole[]
+
+  @@map("custom_roles")
+}
+
+// FeaturePermission - Defines what a custom role can do per feature
+model FeaturePermission {
+  id         String          @id @default(cuid())
+  roleId     String
+  feature    FeatureGroup
+  permission PermissionLevel
+  createdAt  DateTime        @default(now())
+
+  // Relations
+  role CustomRole @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, feature])
+  @@index([roleId])
+  @@map("feature_permissions")
+}
+
+// UserInstanceRole - Assigns users to instances with specific roles
+// Supports both built-in roles (SUPER_ADMIN, ADMIN, VIEWER) and custom roles
+model UserInstanceRole {
+  id           String   @id @default(cuid())
+  userId       String
+  instanceId   String
+  roleType     String   // "BUILT_IN" or "CUSTOM"
+  builtInRole  String?  // "SUPER_ADMIN", "ADMIN", "VIEWER" (if roleType = BUILT_IN)
+  customRoleId String?  // FK to CustomRole (if roleType = CUSTOM)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  assignedBy   String   // User ID who assigned this role
+
+  // Relations
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  instance   Instance    @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  customRole CustomRole? @relation(fields: [customRoleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, instanceId, roleType, builtInRole, customRoleId])
+  @@index([userId])
+  @@index([instanceId])
+  @@index([customRoleId])
+  @@map("user_instance_roles")
 }
