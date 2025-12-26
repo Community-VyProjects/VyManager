@@ -17,7 +17,7 @@ export interface Site {
   id: string;
   name: string;
   description?: string | null;
-  role: "OWNER" | "ADMIN" | "VIEWER";
+  role: "ADMIN" | "OPERATOR" | "VIEWER";
   created_at: string;
   updated_at: string;
 }

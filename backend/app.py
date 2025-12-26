@@ -36,6 +36,7 @@ from routers import power as power_router
 from routers.config import config as config_router
 from routers import show as show_router
 from routers import dashboard as dashboard_router
+from routers import user_management as user_management_router
 
 # Global variables
 db_pool: Optional[asyncpg.Pool] = None
@@ -244,6 +245,7 @@ app.include_router(power_router.router)
 app.include_router(config_router.router)
 app.include_router(show_router.router)
 app.include_router(dashboard_router.router)
+app.include_router(user_management_router.router)
 
 
 # ============================================================================

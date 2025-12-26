@@ -250,15 +250,17 @@ async def connect_to_instance(request: Request, body: ConnectRequest):
     try:
         async with db_pool.acquire() as conn:
             # Verify instance exists and user has permission
+            # Uses new RBAC system (user_instance_roles)
             # Get ALL instance details including API credentials for connection test
             instance = await conn.fetchrow(
                 """
                 SELECT i.id, i.name, i.host, i.port, i."siteId", i."isActive",
                        i."apiKey", i.protocol, i."verifySsl", i."vyosVersion",
-                       s.name as site_name, p.role
+                       s.name as site_name,
+                       uir."builtInRole" as role
                 FROM instances i
                 JOIN sites s ON i."siteId" = s.id
-                JOIN permissions p ON s.id = p."siteId" AND p."userId" = $1
+                JOIN user_instance_roles uir ON i.id = uir."instanceId" AND uir."userId" = $1
                 WHERE i.id = $2
                 """,
                 user_id,
@@ -407,7 +409,8 @@ async def list_user_sites(request: Request):
     """
     Get all sites the user has access to.
 
-    Returns sites with the user's role in each site.
+    Returns sites with the user's highest role across all instances in that site.
+    Uses new RBAC system (user_instance_roles).
     """
     # Get user from request state
     if not hasattr(request.state, "user") or not request.state.user:
@@ -423,13 +426,24 @@ async def list_user_sites(request: Request):
 
     try:
         async with db_pool.acquire() as conn:
+            # Get sites where user has instance access
+            # Role shown is the highest role the user has across all instances in that site
             sites = await conn.fetch(
                 """
-                SELECT s.id, s.name, s.description, s."createdAt", s."updatedAt",
-                       p.role
+                SELECT DISTINCT s.id, s.name, s.description, s."createdAt", s."updatedAt",
+                       MAX(
+                           CASE uir."builtInRole"
+                               WHEN 'ADMIN' THEN 3
+                               WHEN 'OPERATOR' THEN 2
+                               WHEN 'VIEWER' THEN 1
+                               ELSE 0
+                           END
+                       ) as role_rank,
+                       MAX(uir."builtInRole") as role
                 FROM sites s
-                JOIN permissions p ON s.id = p."siteId"
-                WHERE p."userId" = $1
+                JOIN instances i ON s.id = i."siteId"
+                JOIN user_instance_roles uir ON i.id = uir."instanceId" AND uir."userId" = $1
+                GROUP BY s.id, s.name, s.description, s."createdAt", s."updatedAt"
                 ORDER BY s.name
                 """,
                 user_id,
@@ -459,9 +473,10 @@ async def list_user_sites(request: Request):
 @router.get("/sites/{site_id}/instances", response_model=List[InstanceResponse])
 async def list_site_instances(request: Request, site_id: str):
     """
-    Get all instances for a specific site.
+    Get all instances for a specific site that the user has access to.
 
-    User must have permission to access the site.
+    Returns only the instances the user has explicit permission to access.
+    Uses new RBAC system (user_instance_roles).
     """
     # Get user from request state
     if not hasattr(request.state, "user") or not request.state.user:
@@ -477,33 +492,22 @@ async def list_site_instances(request: Request, site_id: str):
 
     try:
         async with db_pool.acquire() as conn:
-            # Verify user has access to this site
-            permission = await conn.fetchval(
-                """
-                SELECT id FROM permissions
-                WHERE "userId" = $1 AND "siteId" = $2
-                """,
-                user_id,
-                site_id,
-            )
-
-            if not permission:
-                raise HTTPException(
-                    status_code=404,
-                    detail="Site not found or you don't have permission to access it",
-                )
-
-            # Get instances for this site
+            # Get only the instances the user has explicit access to
             instances = await conn.fetch(
                 """
-                SELECT id, "siteId", name, description, host, port, "isActive",
-                       "createdAt", "updatedAt"
-                FROM instances
-                WHERE "siteId" = $1
-                ORDER BY name
+                SELECT DISTINCT i.id, i."siteId", i.name, i.description, i.host, i.port, i."isActive",
+                       i."vyosVersion", i."createdAt", i."updatedAt"
+                FROM instances i
+                JOIN user_instance_roles uir ON i.id = uir."instanceId"
+                WHERE i."siteId" = $1 AND uir."userId" = $2
+                ORDER BY i.name
                 """,
                 site_id,
+                user_id,
             )
+
+            # If no instances found, return empty list (don't throw 404)
+            # This allows the frontend to show "No instances available"
 
             return [
                 InstanceResponse(
@@ -537,7 +541,8 @@ async def create_site(request: Request, body: SiteCreateRequest):
     """
     Create a new site.
 
-    The user who creates the site becomes the OWNER automatically.
+    If this is the first site in the system (onboarding), the user becomes SUPER_ADMIN.
+    Otherwise, creates site-level OWNER permission.
     """
     if not hasattr(request.state, "user") or not request.state.user:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -559,6 +564,10 @@ async def create_site(request: Request, body: SiteCreateRequest):
             permission_id = ''.join(secrets.choice(alphabet) for _ in range(32))
 
             async with conn.transaction():
+                # Check if this is the first site (onboarding)
+                site_count = await conn.fetchval("SELECT COUNT(*) FROM sites")
+                is_first_site = site_count == 0
+
                 # Create site
                 site = await conn.fetchrow(
                     """
@@ -571,22 +580,25 @@ async def create_site(request: Request, body: SiteCreateRequest):
                     body.description,
                 )
 
-                # Create owner permission
-                await conn.execute(
-                    """
-                    INSERT INTO permissions (id, "userId", "siteId", role, "createdAt", "updatedAt")
-                    VALUES ($1, $2, $3, 'OWNER', NOW(), NOW())
-                    """,
-                    permission_id,
-                    user_id,
-                    site_id,
-                )
+                # If first site (onboarding), grant SUPER_ADMIN global role
+                if is_first_site:
+                    await conn.execute(
+                        """
+                        UPDATE users
+                        SET role = 'SUPER_ADMIN', "updatedAt" = NOW()
+                        WHERE id = $1
+                        """,
+                        user_id
+                    )
+
+                # Note: Sites no longer have user roles in new RBAC system
+                # Permissions are granted at the instance level via user_instance_roles
 
                 return SiteResponse(
                     id=site["id"],
                     name=site["name"],
                     description=site["description"],
-                    role="OWNER",
+                    role="ADMIN",  # Default role for display purposes only
                     created_at=site["createdAt"],
                     updated_at=site["updatedAt"],
                 )

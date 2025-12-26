@@ -48,9 +48,10 @@ import { EditInstanceModal } from "@/components/sites/EditInstanceModal";
 import { MoveInstanceModal } from "@/components/sites/MoveInstanceModal";
 import { DeleteInstanceModal } from "@/components/sites/DeleteInstanceModal";
 import { ImportCSVModal } from "@/components/session/ImportCSVModal";
+import { UserManagement } from "@/components/user-management/UserManagement";
 import { cn } from "@/lib/utils";
 
-type NavSection = "sites" | "administrators";
+type NavSection = "sites" | "user-management";
 
 export default function SitesPage() {
   const router = useRouter();
@@ -299,12 +300,12 @@ export default function SitesPage() {
                 </div>
               </button>
 
-              {/* Administrators */}
+              {/* User Management */}
               <button
-                onClick={() => setSelectedSection("administrators")}
+                onClick={() => setSelectedSection("user-management")}
                 className={cn(
                   "w-full text-left rounded-lg px-3 py-3 transition-all",
-                  selectedSection === "administrators"
+                  selectedSection === "user-management"
                     ? "bg-accent text-accent-foreground shadow-sm"
                     : "hover:bg-accent/50"
                 )}
@@ -312,15 +313,15 @@ export default function SitesPage() {
                 <div className="flex items-center gap-3">
                   <div className={cn(
                     "rounded-md p-1.5",
-                    selectedSection === "administrators" ? "bg-primary/10" : "bg-muted"
+                    selectedSection === "user-management" ? "bg-primary/10" : "bg-muted"
                   )}>
                     <Users className={cn(
                       "h-4 w-4",
-                      selectedSection === "administrators" ? "text-primary" : "text-muted-foreground"
+                      selectedSection === "user-management" ? "text-primary" : "text-muted-foreground"
                     )} />
                   </div>
-                  <span className="font-medium text-sm">Administrators</span>
-                  {selectedSection === "administrators" && (
+                  <span className="font-medium text-sm">User Management</span>
+                  {selectedSection === "user-management" && (
                     <ChevronRight className="h-4 w-4 text-primary ml-auto" />
                   )}
                 </div>
@@ -485,7 +486,7 @@ export default function SitesPage() {
                       </button>
 
                       {/* Site Management Dropdown */}
-                      {(site.role === "OWNER" || site.role === "ADMIN") && (
+                      {site.role === "ADMIN" && (
                         <div className="absolute top-2 right-2">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
@@ -503,7 +504,6 @@ export default function SitesPage() {
                                   e.stopPropagation();
                                   handleEditSite(site);
                                 }}
-                                disabled={site.role !== "OWNER" && site.role !== "ADMIN"}
                               >
                                 <Pencil className="h-4 w-4 mr-2" />
                                 Edit Site
@@ -514,7 +514,6 @@ export default function SitesPage() {
                                   e.stopPropagation();
                                   handleDeleteSite(site);
                                 }}
-                                disabled={site.role !== "OWNER"}
                                 className="text-destructive focus:text-destructive"
                               >
                                 <Trash2 className="h-4 w-4 mr-2" />
@@ -550,7 +549,7 @@ export default function SitesPage() {
                     )}
                   </div>
                   <div className="flex items-center gap-2">
-                    {selectedSite.role === "OWNER" || selectedSite.role === "ADMIN" ? (
+                    {selectedSite.role === "ADMIN" && (
                       <Button
                         className="gap-2"
                         onClick={() => setCreateInstanceOpen(true)}
@@ -558,7 +557,7 @@ export default function SitesPage() {
                         <Plus className="h-4 w-4" />
                         Add Instance
                       </Button>
-                    ) : null}
+                    )}
                   </div>
                 </div>
 
@@ -615,7 +614,7 @@ export default function SitesPage() {
                       <p className="text-sm text-muted-foreground mb-6">
                         No instances configured for this site yet.
                       </p>
-                      {(selectedSite.role === "OWNER" || selectedSite.role === "ADMIN") && (
+                      {selectedSite.role === "ADMIN" && (
                         <Button onClick={() => setCreateInstanceOpen(true)}>
                           <Plus className="h-4 w-4 mr-2" />
                           Add First Instance
@@ -665,17 +664,9 @@ export default function SitesPage() {
                 )}
               </div>
             </>
-          ) : selectedSection === "administrators" ? (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="text-center">
-                <Users className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold text-foreground mb-2">
-                  Administrators
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  Coming soon...
-                </p>
-              </div>
+          ) : selectedSection === "user-management" ? (
+            <div className="flex-1 overflow-auto p-6">
+              <UserManagement />
             </div>
           ) : (
             <div className="flex-1 flex items-center justify-center">

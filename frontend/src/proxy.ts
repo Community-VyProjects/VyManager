@@ -9,6 +9,7 @@ export default async function proxy(request: NextRequest) {
     "/onboarding",
     "/api/auth",
     "/api/session/onboarding-status",
+    "/api/internal",
   ];
   const isPublicRoute = publicRoutes.some((route) => pathname.startsWith(route));
 

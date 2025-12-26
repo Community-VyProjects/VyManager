@@ -141,7 +141,7 @@ export function InstanceTableView({
                       )}
 
                       {/* Actions Dropdown */}
-                      {(userRole === "OWNER" || userRole === "ADMIN") && (
+                      {userRole === "ADMIN" && (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="sm" className="h-8 w-8 p-0">

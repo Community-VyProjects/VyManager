@@ -223,7 +223,7 @@ export function EditInstanceModal({
                     </SelectTrigger>
                     <SelectContent>
                       {sites
-                        .filter((s) => s.role === "OWNER" || s.role === "ADMIN")
+                        .filter((s) => s.role === "ADMIN")
                         .map((site) => (
                           <SelectItem key={site.id} value={site.id}>
                             {site.name}

@@ -55,7 +55,7 @@ export function DeleteInstanceModal({
 
   if (!instance) return null;
 
-  const canDelete = userRole === "OWNER" || userRole === "ADMIN";
+  const canDelete = userRole === "ADMIN";
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -100,7 +100,7 @@ export function DeleteInstanceModal({
           {!canDelete && (
             <div className="rounded-lg border border-warning/30 bg-warning/5 p-3">
               <p className="text-sm text-warning">
-                Only OWNER and ADMIN can delete instances. Your role: {userRole}
+                Only ADMIN can delete instances. Your role: {userRole}
               </p>
             </div>
           )}

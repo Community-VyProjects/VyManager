@@ -11,6 +11,8 @@ from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
 from session_vyos_service import get_session_vyos_service
 from vyos_builders import NATBatchBuilder
+from fastapi_permissions import require_read_permission, require_write_permission
+from rbac_permissions import FeatureGroup
 
 router = APIRouter(prefix="/vyos/nat", tags=["nat"])
 
@@ -158,7 +160,12 @@ async def get_nat_capabilities(request: Request):
 
     Returns feature flags indicating which NAT types and operations are supported.
     This allows frontends to conditionally enable/disable features based on version.
+
+    Requires: READ permission on NAT
     """
+    # Check permission
+    await require_read_permission(request, FeatureGroup.NAT)
+
     try:
         service = get_session_vyos_service(request)
         version = service.get_version()
@@ -187,7 +194,12 @@ async def get_nat_config(http_request: Request, refresh: bool = False):
 
     Returns:
         Configuration details for all NAT rules organized by type
+
+    Requires: READ permission on NAT
     """
+    # Check permission
+    await require_read_permission(http_request, FeatureGroup.NAT)
+
     try:
         # Get service and retrieve raw config from cache
         service = get_session_vyos_service(http_request)
@@ -384,7 +396,12 @@ async def batch_configure_nat(http_request: Request, request: NATBatchRequest):
 
     Returns:
         VyOSResponse with success/failure information
+
+    Requires: WRITE permission on NAT
     """
+    # Check permission
+    await require_write_permission(http_request, FeatureGroup.NAT)
+
     try:
         import inspect
         import logging
@@ -521,7 +538,12 @@ async def reorder_nat_rules(http_request: Request, request: ReorderNATRequest):
 
     Returns:
         VyOSResponse with success/failure information
+
+    Requires: WRITE permission on NAT
     """
+    # Check permission
+    await require_write_permission(http_request, FeatureGroup.NAT)
+
     try:
         service = get_session_vyos_service(http_request)
         version = service.get_version()

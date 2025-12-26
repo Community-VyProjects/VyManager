@@ -103,10 +103,10 @@ export function DeleteSiteModal({
           </div>
 
           {/* Permission Note */}
-          {site.role !== "OWNER" && (
+          {site.role !== "ADMIN" && (
             <div className="rounded-lg border border-warning/30 bg-warning/5 p-3">
               <p className="text-sm text-warning">
-                Only site OWNER can delete sites. Your role: {site.role}
+                Only site ADMIN can delete sites. Your role: {site.role}
               </p>
             </div>
           )}
@@ -124,7 +124,7 @@ export function DeleteSiteModal({
           <Button
             variant="destructive"
             onClick={handleDelete}
-            disabled={loading || site.role !== "OWNER"}
+            disabled={loading || site.role !== "ADMIN"}
           >
             {loading ? (
               <>
