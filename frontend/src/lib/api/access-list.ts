@@ -93,7 +93,7 @@ class AccessListService {
    * Refresh the cached configuration
    */
   async refreshConfig(): Promise<VyOSResponse> {
-    return apiClient.post("/vyos/config/refresh");
+    return apiClient.post<VyOSResponse>("/vyos/config/refresh");
   }
 
   /**
