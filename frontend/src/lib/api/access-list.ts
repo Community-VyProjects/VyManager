@@ -100,7 +100,7 @@ class AccessListService {
    * Execute batch operations
    */
   async batchConfigure(request: AccessListBatchRequest): Promise<VyOSResponse> {
-    const result = await apiClient.post("/vyos/access-list/batch", request);
+    const result = await apiClient.post<VyOSResponse>("/vyos/access-list/batch", request);
     await this.refreshConfig();
     return result;
   }
