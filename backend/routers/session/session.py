@@ -496,7 +496,7 @@ async def list_site_instances(request: Request, site_id: str):
             # Get instances for this site
             instances = await conn.fetch(
                 """
-                SELECT id, "siteId", name, description, host, port, "isActive",
+                SELECT id, "siteId", name, description, host, port, "vyosVersion", "isActive",
                        "createdAt", "updatedAt"
                 FROM instances
                 WHERE "siteId" = $1
