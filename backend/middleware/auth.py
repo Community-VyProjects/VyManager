@@ -77,8 +77,9 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
 
         # Extract session token from cookie
         session_token = request.cookies.get("better-auth.session_token")
+        session_token2 = request.cookies.get("__Secure-better-auth.session_token")
 
-        if not session_token:
+        if not session_token and not session_token2:
             return JSONResponse(
                 status_code=401,
                 content={
@@ -87,12 +88,14 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
+        token_to_use = session_token if session_token else session_token2
+
         try:
             # Better-auth uses session tokens (not JWTs)
             # The cookie contains: token.signature, but database only stores token
             # Extract the token part (before the first dot)
-            token_parts = session_token.split('.')
-            token_id = token_parts[0] if len(token_parts) > 0 else session_token
+            token_parts = token_to_use.split('.')
+            token_id = token_parts[0] if len(token_parts) > 0 else token_to_use
 
             print("[AuthMiddleware] Validating session token")
 

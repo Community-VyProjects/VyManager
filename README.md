@@ -484,6 +484,7 @@ docker compose -f docker-compose.prod.yml logs -f
 ```env
 NODE_ENV=production
 BETTER_AUTH_SECRET=<strong-random-secret-256-bits>
+BETTER_AUTH_SECURE_COOKIES=false
 BETTER_AUTH_URL=https://vymanager.yourdomain.com
 DATABASE_URL=postgresql://user:pass@postgres:5432/vymanager_auth
 TRUSTED_ORIGINS=https://vymanager.yourdomain.com

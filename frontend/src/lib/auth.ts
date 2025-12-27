@@ -17,7 +17,7 @@ if (!authSecret) {
 }
 
 const secureCookies =
-  process.env.BETTER_AUTH_SECURE_COOKIES === "true" || isProd;
+  process.env.BETTER_AUTH_SECURE_COOKIES === "true" && isProd;
 
 const authConfig: any = {
   database: prismaAdapter(prisma, {
