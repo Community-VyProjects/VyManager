@@ -12,10 +12,12 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  ChevronRight,
+  ChevronDown,
 } from "lucide-react";
 import { showService, InterfaceCounter } from "@/lib/api/show";
 import { interfacesService } from "@/lib/api/interfaces";
-import { getInterfaceType } from "@/lib/utils";
+import { getInterfaceType, formatBytes, formatNumber } from "@/lib/utils";
 import {
   Table,
   TableBody,
@@ -46,6 +48,9 @@ import { ethernetService } from "@/lib/api/ethernet";
 interface InterfaceWithType extends InterfaceCounter {
   type: string;
   description?: string;
+  vifs?: InterfaceWithType[]; // Store child VIFs
+  isVif?: boolean;
+  parentInterface?: string;
 }
 
 const INTERFACE_TYPE_COLORS: Record<string, string> = {
@@ -90,51 +95,39 @@ interface InterfaceStatisticsCardProps {
   onConfigChange?: (config: any) => void;
 }
 
-export function InterfaceStatisticsCard({
-  onRemove,
-  span = 1,
-  onSpanChange,
-  config = {},
-  onConfigChange,
-}: InterfaceStatisticsCardProps) {
-  const [interfaces, setInterfaces] = useState<InterfaceWithType[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState("");
-  const [autoRefresh, setAutoRefresh] = useState(true);
-  const [sortColumn, setSortColumn] = useState<string>("interface");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
-
-  const handleSort = (column: string) => {
-    if (sortColumn === column) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
-    } else {
-      setSortColumn(column);
-      setSortDirection("asc");
-    }
+// Helper function to parse interface names
+const parseInterfaceName = (name: string) => {
+  const [parentName, vlanId] = name.split(".");
+  return {
+    parentName,
+    vlanId,
+    isVif: !!vlanId && !isNaN(parseInt(vlanId))
   };
+};
 
-  const getSortIcon = (column: string) => {
-    if (sortColumn !== column) return <ArrowUpDown className="h-4 w-4" />;
-    return sortDirection === "asc" ? (
-      <ArrowUp className="h-4 w-4" />
-    ) : (
-      <ArrowDown className="h-4 w-4" />
-    );
-  };
+interface InterfaceRowProps {
+  iface: InterfaceWithType;
+  isExpanded: boolean;
+  onToggle: () => void;
+  isParent?: boolean;
+  maxRxBytes: number;
+  maxTxBytes: number;
+  maxRxPackets: number;
+  maxTxPackets: number;
+}
 
-  // Calculate max values for bar chart scaling
-  const maxRxBytes = Math.max(...interfaces.map((iface) => iface.rx_bytes), 1);
-  const maxTxBytes = Math.max(...interfaces.map((iface) => iface.tx_bytes), 1);
-  const maxRxPackets = Math.max(
-    ...interfaces.map((iface) => iface.rx_packets),
-    1
-  );
-  const maxTxPackets = Math.max(
-    ...interfaces.map((iface) => iface.tx_packets),
-    1
-  );
-
+const InterfaceRow = ({ 
+  iface, 
+  isExpanded, 
+  onToggle, 
+  isParent = false,
+  maxRxBytes,
+  maxTxBytes,
+  maxRxPackets,
+  maxTxPackets,
+}: InterfaceRowProps) => {
+  const hasVifs = isParent && iface.vifs && iface.vifs.length > 0;
+  
   const renderBar = (
     value: number,
     maxValue: number,
@@ -155,6 +148,176 @@ export function InterfaceStatisticsCard({
       </div>
     );
   };
+
+  return (
+    <>
+      <TableRow className={isParent ? "bg-muted/30 hover:bg-muted/50" : ""}>
+        <TableCell className={`sticky left-0 z-10 ${isParent ? 'bg-muted/30' : 'bg-background'} border-r`}>
+          <div className="flex items-center gap-2">
+            {hasVifs && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-4 w-4 p-0"
+                onClick={onToggle}
+              >
+                {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+              </Button>
+            )}
+            <span className={`font-medium ${!hasVifs && iface.isVif ? 'ml-6' : !hasVifs ? 'ml-6' : ''}`}>
+              {iface.interface}
+            </span>
+            {hasVifs && (
+              <Badge variant="secondary" className="ml-2 text-xs">
+                {iface.vifs!.length} VIF{iface.vifs!.length !== 1 ? 's' : ''}
+              </Badge>
+            )}
+          </div>
+        </TableCell>
+        <TableCell>
+          <Badge
+            variant="outline"
+            className={`text-xs ${
+              INTERFACE_TYPE_COLORS[iface.type] ||
+              "bg-slate-100 text-slate-800 border-slate-200"
+            }`}
+          >
+            {iface.type}
+          </Badge>
+        </TableCell>
+        <TableCell className="text-sm text-muted-foreground max-w-[150px] truncate">
+          {iface.description ? (
+            <span title={iface.description}>
+              {iface.description}
+            </span>
+          ) : (
+            <span className="italic text-muted-foreground">—</span>
+          )}
+        </TableCell>
+        <TableCell className="text-right">
+          <div className="space-y-1">
+            <div className="text-sm">
+              {formatNumber(iface.rx_packets)}
+            </div>
+            {renderBar(iface.rx_packets, maxRxPackets, "bg-green-500")}
+          </div>
+        </TableCell>
+        <TableCell className="text-right">
+          <div className="space-y-1">
+            <div className="text-sm">
+              {formatBytes(iface.rx_bytes)}
+            </div>
+            {renderBar(iface.rx_bytes, maxRxBytes, "bg-blue-500")}
+          </div>
+        </TableCell>
+        <TableCell className="text-right">
+          <div className="space-y-1">
+            <div className="text-sm">
+              {formatNumber(iface.tx_packets)}
+            </div>
+            {renderBar(iface.tx_packets, maxTxPackets, "bg-orange-500")}
+          </div>
+        </TableCell>
+        <TableCell className="text-right">
+          <div className="space-y-1">
+            <div className="text-sm">
+              {formatBytes(iface.tx_bytes)}
+            </div>
+            {renderBar(iface.tx_bytes, maxTxBytes, "bg-purple-500")}
+          </div>
+        </TableCell>
+        <TableCell className="text-right">
+          {formatNumber(iface.rx_dropped)}
+        </TableCell>
+        <TableCell className="text-right">
+          {formatNumber(iface.tx_dropped)}
+        </TableCell>
+        <TableCell className="text-right">
+          {formatNumber(iface.rx_errors)}
+        </TableCell>
+        <TableCell className="text-right">
+          {formatNumber(iface.tx_errors)}
+        </TableCell>
+      </TableRow>
+      
+      {/* Render VIFs if expanded */}
+      {hasVifs && isExpanded && iface.vifs!.map(vif => (
+        <InterfaceRow
+          key={vif.interface}
+          iface={vif}
+          isExpanded={false}
+          onToggle={() => {}}
+          isParent={false}
+          maxRxBytes={maxRxBytes}
+          maxTxBytes={maxTxBytes}
+          maxRxPackets={maxRxPackets}
+          maxTxPackets={maxTxPackets}
+        />
+      ))}
+    </>
+  );
+};
+
+export function InterfaceStatisticsCard({
+  onRemove,
+  span = 1,
+  onSpanChange,
+  config = {},
+  onConfigChange,
+}: InterfaceStatisticsCardProps) {
+  const [interfaces, setInterfaces] = useState<InterfaceWithType[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState("");
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [sortColumn, setSortColumn] = useState<string>("interface");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [expandedInterfaces, setExpandedInterfaces] = useState<Set<string>>(new Set());
+
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortColumn(column);
+      setSortDirection("asc");
+    }
+  };
+
+  const getSortIcon = (column: string) => {
+    if (sortColumn !== column) return <ArrowUpDown className="h-4 w-4" />;
+    return sortDirection === "asc" ? (
+      <ArrowUp className="h-4 w-4" />
+    ) : (
+      <ArrowDown className="h-4 w-4" />
+    );
+  };
+
+  const toggleExpand = (interfaceName: string) => {
+    setExpandedInterfaces(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(interfaceName)) {
+        newSet.delete(interfaceName);
+      } else {
+        newSet.add(interfaceName);
+      }
+      return newSet;
+    });
+  };
+
+  const isExpanded = (interfaceName: string) => expandedInterfaces.has(interfaceName);
+
+  // Calculate max values for bar chart scaling - only include parent interfaces
+  const parentInterfaces = interfaces.filter(iface => !iface.isVif);
+  const maxRxBytes = Math.max(...parentInterfaces.map((iface) => iface.rx_bytes), 1);
+  const maxTxBytes = Math.max(...parentInterfaces.map((iface) => iface.tx_bytes), 1);
+  const maxRxPackets = Math.max(
+    ...parentInterfaces.map((iface) => iface.rx_packets),
+    1
+  );
+  const maxTxPackets = Math.max(
+    ...parentInterfaces.map((iface) => iface.tx_packets),
+    1
+  );
 
   const preparePieChartData = (interfaces: InterfaceWithType[]) => {
     const typeTotals = interfaces.reduce((acc, iface) => {
@@ -181,11 +344,14 @@ export function InterfaceStatisticsCard({
       setError(null);
       const data = await showService.getInterfaceCounters();
 
-      const interfacesWithType = await Promise.all(
+      // First, process all interfaces with their types and descriptions
+      const allInterfaces = await Promise.all(
         data.interfaces.map(async (iface) => {
           const config = await ethernetService.getConfig();
-
           let description: string | undefined;
+
+          // Parse interface name
+          const { parentName, vlanId, isVif } = parseInterfaceName(iface.interface);
 
           // 1. First match
           const directInterface = config?.interfaces?.find(
@@ -194,32 +360,63 @@ export function InterfaceStatisticsCard({
 
           if (directInterface) {
             description = directInterface.description ?? undefined;
-          } else {
+          } else if (isVif && parentName) {
             // 2. Check VIF
-            const [parentName, vlanId] = iface.interface.split(".");
+            const parentInterface = config?.interfaces?.find(
+              (i) => i.name === parentName
+            );
 
-            if (parentName && vlanId) {
-              const parentInterface = config?.interfaces?.find(
-                (i) => i.name === parentName
-              );
+            const vif = parentInterface?.vif?.find(
+              (v) => v.vlan_id === vlanId
+            );
 
-              const vif = parentInterface?.vif?.find(
-                (v) => v.vlan_id === vlanId
-              );
-
-              description = vif?.description ?? undefined;
-            }
+            description = vif?.description ?? undefined;
           }
 
           return {
             ...iface,
             type: getInterfaceType(iface.interface),
             description,
+            isVif,
+            parentInterface: isVif ? parentName : undefined,
           };
         })
       );
 
-      setInterfaces(interfacesWithType);
+      // Group VIFs under parent interfaces
+      const interfaceMap = new Map<string, InterfaceWithType>();
+      const vifs: InterfaceWithType[] = [];
+
+      allInterfaces.forEach((iface) => {
+        if (iface.isVif && iface.parentInterface) {
+          vifs.push(iface);
+        } else {
+          interfaceMap.set(iface.interface, { ...iface, vifs: [] });
+        }
+      });
+
+      // Assign VIFs to their parent interfaces
+      vifs.forEach((vif) => {
+        const parent = interfaceMap.get(vif.parentInterface!);
+        if (parent) {
+          parent.vifs!.push(vif);
+        } else {
+          // If parent not found, treat as standalone
+          interfaceMap.set(vif.interface, { ...vif, vifs: [] });
+        }
+      });
+
+      // Convert map to array and sort VIFs
+      const groupedInterfaces = Array.from(interfaceMap.values())
+        .map(iface => ({
+          ...iface,
+          vifs: iface.vifs?.sort((a, b) => 
+            a.interface.localeCompare(b.interface)
+          )
+        }))
+        .sort((a, b) => a.interface.localeCompare(b.interface));
+
+      setInterfaces(groupedInterfaces);
     } catch (err: any) {
       setError(err.message || "Failed to load interface statistics");
     } finally {
@@ -250,9 +447,19 @@ export function InterfaceStatisticsCard({
 
   // Filter and sort interfaces
   const filteredAndSortedInterfaces = interfaces
-    .filter((iface) =>
-      iface.interface.toLowerCase().includes(filter.toLowerCase())
-    )
+    .filter((iface) => {
+      // Check if interface matches filter
+      const interfaceMatches = iface.interface
+        .toLowerCase()
+        .includes(filter.toLowerCase());
+      
+      // Check if any VIF matches filter
+      const vifMatches = iface.vifs?.some(vif =>
+        vif.interface.toLowerCase().includes(filter.toLowerCase())
+      );
+      
+      return interfaceMatches || vifMatches || !filter;
+    })
     .sort((a, b) => {
       let aValue: any = a[sortColumn as keyof InterfaceWithType];
       let bValue: any = b[sortColumn as keyof InterfaceWithType];
@@ -274,8 +481,18 @@ export function InterfaceStatisticsCard({
       return 0;
     });
 
-  // Prepare pie chart data
-  const pieChartData = preparePieChartData(filteredAndSortedInterfaces);
+  // Prepare pie chart data - include all interfaces (parent and VIFs)
+  const allInterfacesForPie = interfaces.flatMap(iface => 
+    [iface, ...(iface.vifs || [])]
+  );
+  const pieChartData = preparePieChartData(allInterfacesForPie);
+
+  // Count total displayed interfaces (including VIFs if expanded)
+  const totalDisplayedInterfaces = filteredAndSortedInterfaces.reduce((total, iface) => {
+    const vifCount = (iface.vifs || []).length;
+    const isExpanded = expandedInterfaces.has(iface.interface);
+    return total + 1 + (isExpanded ? vifCount : 0);
+  }, 0);
 
   return (
     <Card>
@@ -401,9 +618,31 @@ export function InterfaceStatisticsCard({
                   onChange={(e) => setFilter(e.target.value)}
                   className="max-w-sm"
                 />
-                <div className="text-xs text-muted-foreground">
-                  Showing {filteredAndSortedInterfaces.length} of{" "}
-                  {interfaces.length} interfaces
+                <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+                  <div>
+                    Showing {totalDisplayedInterfaces} interfaces
+                    {filter && ` matching "${filter}"`}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      onClick={() => {
+                        // Expand all
+                        const allNames = new Set(filteredAndSortedInterfaces.map(i => i.interface));
+                        setExpandedInterfaces(allNames);
+                      }}
+                    >
+                      Expand All
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      onClick={() => setExpandedInterfaces(new Set())}
+                    >
+                      Collapse All
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -535,95 +774,24 @@ export function InterfaceStatisticsCard({
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredAndSortedInterfaces.map((iface) => (
-                      <TableRow key={iface.interface}>
-                        <TableCell className="sticky left-0 z-10 bg-background font-medium border-r">
-                          {iface.interface}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant="outline"
-                            className={`text-xs ${
-                              INTERFACE_TYPE_COLORS[iface.type] ||
-                              "bg-slate-100 text-slate-800 border-slate-200"
-                            }`}
-                          >
-                            {iface.type}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground max-w-[150px] truncate">
-                          {iface.description ? (
-                            <span title={iface.description}>
-                              {iface.description}
-                            </span>
-                          ) : (
-                            <span className="italic text-muted-foreground">
-                              —
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="space-y-1">
-                            <div className="text-sm">
-                              {formatNumber(iface.rx_packets)}
-                            </div>
-                            {renderBar(
-                              iface.rx_packets,
-                              maxRxPackets,
-                              "bg-green-500"
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="space-y-1">
-                            <div className="text-sm">
-                              {formatBytes(iface.rx_bytes)}
-                            </div>
-                            {renderBar(
-                              iface.rx_bytes,
-                              maxRxBytes,
-                              "bg-blue-500"
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="space-y-1">
-                            <div className="text-sm">
-                              {formatNumber(iface.tx_packets)}
-                            </div>
-                            {renderBar(
-                              iface.tx_packets,
-                              maxTxPackets,
-                              "bg-orange-500"
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="space-y-1">
-                            <div className="text-sm">
-                              {formatBytes(iface.tx_bytes)}
-                            </div>
-                            {renderBar(
-                              iface.tx_bytes,
-                              maxTxBytes,
-                              "bg-purple-500"
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {formatNumber(iface.rx_dropped)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {formatNumber(iface.tx_dropped)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {formatNumber(iface.rx_errors)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {formatNumber(iface.tx_errors)}
-                        </TableCell>
-                      </TableRow>
-                    ))
+                    filteredAndSortedInterfaces.map((iface) => {
+                      // Only show parent interfaces in the main list
+                      if (iface.isVif) return null;
+                      
+                      return (
+                        <InterfaceRow
+                          key={iface.interface}
+                          iface={iface}
+                          isExpanded={isExpanded(iface.interface)}
+                          onToggle={() => toggleExpand(iface.interface)}
+                          isParent={true}
+                          maxRxBytes={maxRxBytes}
+                          maxTxBytes={maxTxBytes}
+                          maxRxPackets={maxRxPackets}
+                          maxTxPackets={maxTxPackets}
+                        />
+                      );
+                    })
                   )}
                 </TableBody>
               </Table>
