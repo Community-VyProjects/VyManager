@@ -97,7 +97,7 @@ export function EditGroupModal({ open, onOpenChange, group, onSuccess }: EditGro
       setIncludedGroupsToRemove([]);
       setError(null);
     }
-  }, [group, open]);
+  }, [open, group]);
 
   const resetForm = () => {
     setDescription("");
