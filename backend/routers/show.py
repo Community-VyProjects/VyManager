@@ -102,7 +102,7 @@ async def get_interface_counters(request: Request):
         service = get_session_vyos_service(request)
         
         # Execute 'show interface counters' command
-        response = service.device.show(path=["interface", "counters"])
+        response = service.device.show(path=["interfaces", "counters"])
         
         if response.status != 200:
             raise HTTPException(
