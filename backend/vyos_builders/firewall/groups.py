@@ -94,6 +94,20 @@ class FirewallGroupsBatchBuilder:
         path = self.mappers[self.mapper_key].get_address_group_address(group_name, address)
         return self.add_delete(path)
 
+    def set_address_group_include(
+        self, group_name: str, include_group: str
+    ) -> "FirewallGroupsBatchBuilder":
+        """Include another address group."""
+        path = self.mappers[self.mapper_key].get_address_group_include(group_name, include_group)
+        return self.add_set(path)
+
+    def delete_address_group_include(
+        self, group_name: str, include_group: str
+    ) -> "FirewallGroupsBatchBuilder":
+        """Remove included address group."""
+        path = self.mappers[self.mapper_key].get_address_group_include(group_name, include_group)
+        return self.add_delete(path)
+
     # ========================================================================
     # IPv6 Address Group Operations
     # ========================================================================
@@ -142,6 +156,20 @@ class FirewallGroupsBatchBuilder:
         path = self.mappers[self.mapper_key].get_ipv6_address_group_address(
             group_name, address
         )
+        return self.add_delete(path)
+
+    def set_ipv6_address_group_include(
+        self, group_name: str, include_group: str
+    ) -> "FirewallGroupsBatchBuilder":
+        """Include another IPv6 address group."""
+        path = self.mappers[self.mapper_key].get_ipv6_address_group_include(group_name, include_group)
+        return self.add_set(path)
+
+    def delete_ipv6_address_group_include(
+        self, group_name: str, include_group: str
+    ) -> "FirewallGroupsBatchBuilder":
+        """Remove included IPv6 address group."""
+        path = self.mappers[self.mapper_key].get_ipv6_address_group_include(group_name, include_group)
         return self.add_delete(path)
 
     # ========================================================================
@@ -282,6 +310,20 @@ class FirewallGroupsBatchBuilder:
         path = self.mappers[self.mapper_key].get_port_group_port(group_name, port)
         return self.add_delete(path)
 
+    def set_port_group_include(
+        self, group_name: str, include_group: str
+    ) -> "FirewallGroupsBatchBuilder":
+        """Include another port group."""
+        path = self.mappers[self.mapper_key].get_port_group_include(group_name, include_group)
+        return self.add_set(path)
+
+    def delete_port_group_include(
+        self, group_name: str, include_group: str
+    ) -> "FirewallGroupsBatchBuilder":
+        """Remove included port group."""
+        path = self.mappers[self.mapper_key].get_port_group_include(group_name, include_group)
+        return self.add_delete(path)
+
     # ========================================================================
     # Interface Group Operations
     # ========================================================================
@@ -332,6 +374,20 @@ class FirewallGroupsBatchBuilder:
         )
         return self.add_delete(path)
 
+    def set_interface_group_include(
+        self, group_name: str, include_group: str
+    ) -> "FirewallGroupsBatchBuilder":
+        """Include another interface group."""
+        path = self.mappers[self.mapper_key].get_interface_group_include(group_name, include_group)
+        return self.add_set(path)
+
+    def delete_interface_group_include(
+        self, group_name: str, include_group: str
+    ) -> "FirewallGroupsBatchBuilder":
+        """Remove included interface group."""
+        path = self.mappers[self.mapper_key].get_interface_group_include(group_name, include_group)
+        return self.add_delete(path)
+
     # ========================================================================
     # MAC Group Operations
     # ========================================================================
@@ -374,6 +430,20 @@ class FirewallGroupsBatchBuilder:
     ) -> "FirewallGroupsBatchBuilder":
         """Remove MAC address from MAC group."""
         path = self.mappers[self.mapper_key].get_mac_group_mac(group_name, mac)
+        return self.add_delete(path)
+
+    def set_mac_group_include(
+        self, group_name: str, include_group: str
+    ) -> "FirewallGroupsBatchBuilder":
+        """Include another MAC group."""
+        path = self.mappers[self.mapper_key].get_mac_group_include(group_name, include_group)
+        return self.add_set(path)
+
+    def delete_mac_group_include(
+        self, group_name: str, include_group: str
+    ) -> "FirewallGroupsBatchBuilder":
+        """Remove included MAC group."""
+        path = self.mappers[self.mapper_key].get_mac_group_include(group_name, include_group)
         return self.add_delete(path)
 
     # ========================================================================

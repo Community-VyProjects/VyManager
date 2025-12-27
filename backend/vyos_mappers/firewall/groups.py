@@ -36,6 +36,10 @@ class FirewallGroupsMapper(BaseFeatureMapper):
         """Get command path for adding address to group."""
         return ["firewall", "group", "address-group", group_name, "address", address]
 
+    def get_address_group_include(self, group_name: str, include_group: str) -> List[str]:
+        """Get command path for including another address group."""
+        return ["firewall", "group", "address-group", group_name, "include", include_group]
+
     # ========================================================================
     # IPv6 Address Group Operations
     # ========================================================================
@@ -55,6 +59,10 @@ class FirewallGroupsMapper(BaseFeatureMapper):
     def get_ipv6_address_group_address(self, group_name: str, address: str) -> List[str]:
         """Get command path for adding IPv6 address to group."""
         return ["firewall", "group", "ipv6-address-group", group_name, "address", address]
+
+    def get_ipv6_address_group_include(self, group_name: str, include_group: str) -> List[str]:
+        """Get command path for including another IPv6 address group."""
+        return ["firewall", "group", "ipv6-address-group", group_name, "include", include_group]
 
     # ========================================================================
     # Network Group Operations (IPv4)
@@ -116,6 +124,10 @@ class FirewallGroupsMapper(BaseFeatureMapper):
         """Get command path for adding port to group."""
         return ["firewall", "group", "port-group", group_name, "port", port]
 
+    def get_port_group_include(self, group_name: str, include_group: str) -> List[str]:
+        """Get command path for including another port group."""
+        return ["firewall", "group", "port-group", group_name, "include", include_group]
+
     # ========================================================================
     # Interface Group Operations
     # ========================================================================
@@ -136,6 +148,10 @@ class FirewallGroupsMapper(BaseFeatureMapper):
         """Get command path for adding interface to group."""
         return ["firewall", "group", "interface-group", group_name, "interface", interface]
 
+    def get_interface_group_include(self, group_name: str, include_group: str) -> List[str]:
+        """Get command path for including another interface group."""
+        return ["firewall", "group", "interface-group", group_name, "include", include_group]
+
     # ========================================================================
     # MAC Group Operations
     # ========================================================================
@@ -155,3 +171,7 @@ class FirewallGroupsMapper(BaseFeatureMapper):
     def get_mac_group_mac(self, group_name: str, mac: str) -> List[str]:
         """Get command path for adding MAC address to group."""
         return ["firewall", "group", "mac-group", group_name, "mac-address", mac]
+
+    def get_mac_group_include(self, group_name: str, include_group: str) -> List[str]:
+        """Get command path for including another MAC group."""
+        return ["firewall", "group", "mac-group", group_name, "include", include_group]

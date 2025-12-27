@@ -66,6 +66,7 @@ class FirewallGroup(BaseModel):
     type: str
     description: Optional[str] = None
     members: List[str] = []
+    included_groups: List[str] = []
 
 
 class GroupsConfigResponse(BaseModel):
@@ -144,6 +145,22 @@ async def get_groups_config(request: Request, refresh: bool = False):
                 return members_data
             return []
 
+        # Helper function to parse included groups
+        def parse_included_groups(group_data: Dict) -> List[str]:
+            """Extract included groups from group data."""
+            if not group_data or "include" not in group_data:
+                return []
+
+            include_data = group_data["include"]
+            # VyOS returns a string for single include, list for multiple
+            if isinstance(include_data, str):
+                return [include_data]
+            elif isinstance(include_data, list):
+                return include_data
+            elif isinstance(include_data, dict):
+                return list(include_data.keys())
+            return []
+
         # Parse each group type
         address_groups = []
         if "address-group" in firewall_groups:
@@ -152,7 +169,8 @@ async def get_groups_config(request: Request, refresh: bool = False):
                     name=name,
                     type="address-group",
                     description=data.get("description"),
-                    members=parse_group(data, "address")
+                    members=parse_group(data, "address"),
+                    included_groups=parse_included_groups(data)
                 ))
 
         ipv6_address_groups = []
@@ -162,7 +180,8 @@ async def get_groups_config(request: Request, refresh: bool = False):
                     name=name,
                     type="ipv6-address-group",
                     description=data.get("description"),
-                    members=parse_group(data, "address")
+                    members=parse_group(data, "address"),
+                    included_groups=parse_included_groups(data)
                 ))
 
         network_groups = []
@@ -192,7 +211,8 @@ async def get_groups_config(request: Request, refresh: bool = False):
                     name=name,
                     type="port-group",
                     description=data.get("description"),
-                    members=parse_group(data, "port")
+                    members=parse_group(data, "port"),
+                    included_groups=parse_included_groups(data)
                 ))
 
         interface_groups = []
@@ -202,7 +222,8 @@ async def get_groups_config(request: Request, refresh: bool = False):
                     name=name,
                     type="interface-group",
                     description=data.get("description"),
-                    members=parse_group(data, "interface")
+                    members=parse_group(data, "interface"),
+                    included_groups=parse_included_groups(data)
                 ))
 
         mac_groups = []
@@ -212,7 +233,8 @@ async def get_groups_config(request: Request, refresh: bool = False):
                     name=name,
                     type="mac-group",
                     description=data.get("description"),
-                    members=parse_group(data, "mac-address")
+                    members=parse_group(data, "mac-address"),
+                    included_groups=parse_included_groups(data)
                 ))
 
         domain_groups = []
@@ -438,6 +460,14 @@ async def configure_group_batch(http_request: Request, request: GroupBatchReques
                 if not value:
                     raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
                 batch.delete_address_group_address(request.group_name, value)
+            elif op_type == "set_address_group_include":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
+                batch.set_address_group_include(request.group_name, value)
+            elif op_type == "delete_address_group_include":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
+                batch.delete_address_group_include(request.group_name, value)
 
             # IPv6 Address Group
             elif op_type == "set_ipv6_address_group":
@@ -458,6 +488,14 @@ async def configure_group_batch(http_request: Request, request: GroupBatchReques
                 if not value:
                     raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
                 batch.delete_ipv6_address_group_address(request.group_name, value)
+            elif op_type == "set_ipv6_address_group_include":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
+                batch.set_ipv6_address_group_include(request.group_name, value)
+            elif op_type == "delete_ipv6_address_group_include":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
+                batch.delete_ipv6_address_group_include(request.group_name, value)
 
             # Network Group
             elif op_type == "set_network_group":
@@ -518,6 +556,14 @@ async def configure_group_batch(http_request: Request, request: GroupBatchReques
                 if not value:
                     raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
                 batch.delete_port_group_port(request.group_name, value)
+            elif op_type == "set_port_group_include":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
+                batch.set_port_group_include(request.group_name, value)
+            elif op_type == "delete_port_group_include":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
+                batch.delete_port_group_include(request.group_name, value)
 
             # Interface Group
             elif op_type == "set_interface_group":
@@ -538,6 +584,14 @@ async def configure_group_batch(http_request: Request, request: GroupBatchReques
                 if not value:
                     raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
                 batch.delete_interface_group_interface(request.group_name, value)
+            elif op_type == "set_interface_group_include":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
+                batch.set_interface_group_include(request.group_name, value)
+            elif op_type == "delete_interface_group_include":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
+                batch.delete_interface_group_include(request.group_name, value)
 
             # MAC Group
             elif op_type == "set_mac_group":
@@ -558,6 +612,14 @@ async def configure_group_batch(http_request: Request, request: GroupBatchReques
                 if not value:
                     raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
                 batch.delete_mac_group_mac(request.group_name, value)
+            elif op_type == "set_mac_group_include":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
+                batch.set_mac_group_include(request.group_name, value)
+            elif op_type == "delete_mac_group_include":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
+                batch.delete_mac_group_include(request.group_name, value)
 
             # Domain Group (VyOS 1.5+ only)
             elif op_type == "set_domain_group":

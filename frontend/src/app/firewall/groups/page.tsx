@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, RefreshCw, AlertCircle, Search, Shield, Pencil, Trash2 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Plus, RefreshCw, AlertCircle, Search, Shield, Pencil, Trash2, Link2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { firewallGroupsService } from "@/lib/api/firewall-groups";
 import type { FirewallGroup, GroupsConfigResponse, FirewallGroupsCapabilities, GroupType } from "@/lib/api/types/firewall-groups";
@@ -84,7 +85,8 @@ export default function FirewallGroupsPage() {
       searchQuery === "" ||
       group.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       group.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      group.members.some((m) => m.toLowerCase().includes(searchQuery.toLowerCase()));
+      group.members.some((m) => m.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      group.included_groups?.some((g) => g.toLowerCase().includes(searchQuery.toLowerCase()));
 
     return matchesType && matchesSearch;
   });
@@ -131,6 +133,7 @@ export default function FirewallGroupsPage() {
 
   return (
     <AppLayout>
+      <TooltipProvider>
       <div className="space-y-6 p-6">
         {/* Header */}
         <div className="flex items-start justify-between">
@@ -298,8 +301,17 @@ export default function FirewallGroupsPage() {
                                 <code className="font-semibold font-mono text-foreground text-base block truncate">
                                   {group.name}
                                 </code>
-                                <div className="text-xs text-muted-foreground mt-0.5">
-                                  {group.members.length} member(s)
+                                <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2">
+                                  <span>{group.members.length} member{group.members.length !== 1 ? "s" : ""}</span>
+                                  {group.included_groups && group.included_groups.length > 0 && (
+                                    <>
+                                      <span className="text-muted-foreground/50">•</span>
+                                      <span className="flex items-center gap-1">
+                                        <Link2 className="h-2.5 w-2.5 inline" />
+                                        {group.included_groups.length} included
+                                      </span>
+                                    </>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -339,21 +351,100 @@ export default function FirewallGroupsPage() {
                               </Badge>
                             </div>
 
+                            {/* Members Section */}
                             {group.members.length > 0 && (
-                              <div className="flex flex-wrap gap-1.5 pt-1">
-                                {group.members.slice(0, 3).map((member, idx) => (
-                                  <code
-                                    key={idx}
-                                    className="text-xs font-mono px-1.5 py-0.5 rounded bg-accent text-foreground"
-                                  >
-                                    {member}
-                                  </code>
-                                ))}
-                                {group.members.length > 3 && (
-                                  <Badge variant="secondary" className="text-xs px-1.5 py-0">
-                                    +{group.members.length - 3}
-                                  </Badge>
-                                )}
+                              <div className="pt-1">
+                                <div className="text-xs text-muted-foreground mb-1.5 font-medium">
+                                  Members ({group.members.length})
+                                </div>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {group.members.slice(0, 3).map((member, idx) => (
+                                    <code
+                                      key={idx}
+                                      className="text-xs font-mono px-1.5 py-0.5 rounded bg-accent text-foreground"
+                                    >
+                                      {member}
+                                    </code>
+                                  ))}
+                                  {group.members.length > 3 && (
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Badge variant="secondary" className="text-xs px-1.5 py-0 cursor-help">
+                                          +{group.members.length - 3} more
+                                        </Badge>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="bottom" className="max-w-md">
+                                        <div className="space-y-1">
+                                          <p className="font-semibold text-xs mb-2">All Members ({group.members.length}):</p>
+                                          <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto">
+                                            {group.members.map((member, idx) => (
+                                              <code
+                                                key={idx}
+                                                className="text-xs font-mono px-1.5 py-0.5 rounded bg-accent text-foreground whitespace-nowrap"
+                                              >
+                                                {member}
+                                              </code>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Included Groups Section */}
+                            {group.included_groups && group.included_groups.length > 0 && (
+                              <div className="pt-1">
+                                <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5 font-medium">
+                                  <Link2 className="h-3 w-3" />
+                                  <span>Includes ({group.included_groups.length})</span>
+                                </div>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {group.included_groups.slice(0, 3).map((includedGroup, idx) => (
+                                    <Badge
+                                      key={idx}
+                                      variant="outline"
+                                      className="text-xs px-1.5 py-0.5 font-mono border-dashed bg-muted/30 hover:bg-muted/50 transition-colors"
+                                    >
+                                      <Link2 className="h-2.5 w-2.5 mr-1 inline" />
+                                      {includedGroup}
+                                    </Badge>
+                                  ))}
+                                  {group.included_groups.length > 3 && (
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Badge
+                                          variant="outline"
+                                          className="text-xs px-1.5 py-0 border-dashed bg-muted/30 cursor-help"
+                                        >
+                                          +{group.included_groups.length - 3} more
+                                        </Badge>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="bottom" className="max-w-md">
+                                        <div className="space-y-1">
+                                          <p className="font-semibold text-xs mb-2 flex items-center gap-1">
+                                            <Link2 className="h-3 w-3" />
+                                            All Included Groups ({group.included_groups.length}):
+                                          </p>
+                                          <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto">
+                                            {group.included_groups.map((includedGroup, idx) => (
+                                              <Badge
+                                                key={idx}
+                                                variant="outline"
+                                                className="text-xs px-1.5 py-0.5 font-mono border-dashed whitespace-nowrap"
+                                              >
+                                                <Link2 className="h-2.5 w-2.5 mr-1 inline" />
+                                                {includedGroup}
+                                              </Badge>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  )}
+                                </div>
                               </div>
                             )}
                           </div>
@@ -370,6 +461,7 @@ export default function FirewallGroupsPage() {
           </div>
         )}
       </div>
+      </TooltipProvider>
 
       {/* Modals */}
       <CreateGroupModal
