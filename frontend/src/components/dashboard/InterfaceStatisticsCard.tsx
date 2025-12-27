@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { X, Network, RefreshCw, Settings } from "lucide-react";
 import { showService, InterfaceCounter } from "@/lib/api/show";
+import { getInterfaceType } from "@/lib/utils";
 import {
   Table,
   TableBody,
@@ -22,6 +23,35 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
+
+interface InterfaceWithType extends InterfaceCounter {
+  type: string;
+}
+
+const INTERFACE_TYPE_COLORS: Record<string, string> = {
+  'Physical (Ethernet)': 'bg-blue-100 text-blue-800 border-blue-200',
+  'Wireless': 'bg-purple-100 text-purple-800 border-purple-200',
+  'Loopback': 'bg-gray-100 text-gray-800 border-gray-200',
+  'VPN (WireGuard)': 'bg-green-100 text-green-800 border-green-200',
+  'VPN (Virtual Tunnel)': 'bg-emerald-100 text-emerald-800 border-emerald-200',
+  'VPN (Tunnel)': 'bg-teal-100 text-teal-800 border-teal-200',
+  'VLAN': 'bg-orange-100 text-orange-800 border-orange-200',
+  'Bridge': 'bg-cyan-100 text-cyan-800 border-cyan-200',
+  'PPPoE': 'bg-pink-100 text-pink-800 border-pink-200',
+  'Bonding': 'bg-indigo-100 text-indigo-800 border-indigo-200',
+  'Dummy': 'bg-stone-100 text-stone-800 border-stone-200',
+  'GRE Tunnel': 'bg-lime-100 text-lime-800 border-lime-200',
+  'IPIP Tunnel': 'bg-amber-100 text-amber-800 border-amber-200',
+  'SIT Tunnel': 'bg-rose-100 text-rose-800 border-rose-200',
+  'Other': 'bg-slate-100 text-slate-800 border-slate-200',
+};
+
+const PIE_CHART_COLORS = [
+  '#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8',
+  '#82CA9D', '#FFC658', '#FF7C7C', '#8DD1E1', '#D084D0'
+];
 
 interface InterfaceStatisticsCardProps {
   onRemove?: () => void;
@@ -40,17 +70,40 @@ export function InterfaceStatisticsCard({
   config = {},
   onConfigChange,
 }: InterfaceStatisticsCardProps) {
-  const [interfaces, setInterfaces] = useState<InterfaceCounter[]>([]);
+  const [interfaces, setInterfaces] = useState<InterfaceWithType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
   const [autoRefresh, setAutoRefresh] = useState(true);
 
+  const preparePieChartData = (interfaces: InterfaceWithType[]) => {
+    const typeTotals = interfaces.reduce((acc, iface) => {
+      const totalBytes = iface.rx_bytes + iface.tx_bytes;
+      if (!acc[iface.type]) {
+        acc[iface.type] = 0;
+      }
+      acc[iface.type] += totalBytes;
+      return acc;
+    }, {} as Record<string, number>);
+
+    return Object.entries(typeTotals)
+      .map(([type, bytes]) => ({
+        name: type,
+        value: bytes,
+        formattedValue: formatBytes(bytes),
+      }))
+      .sort((a, b) => b.value - a.value);
+  };
+
   const loadData = async () => {
     try {
       setError(null);
       const data = await showService.getInterfaceCounters();
-      setInterfaces(data.interfaces);
+      const interfacesWithType = data.interfaces.map((iface) => ({
+        ...iface,
+        type: getInterfaceType(iface.interface),
+      }));
+      setInterfaces(interfacesWithType);
     } catch (err: any) {
       setError(err.message || "Failed to load interface statistics");
     } finally {
@@ -145,13 +198,48 @@ export function InterfaceStatisticsCard({
           <div className="text-center text-muted-foreground py-4">Loading...</div>
         ) : (
           <>
-            <div className="mb-4">
-              <Input
-                placeholder="Filter interfaces..."
-                value={filter}
-                onChange={(e) => setFilter(e.target.value)}
-                className="max-w-sm"
-              />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+              {/* Traffic Overview Pie Chart */}
+              <div className="space-y-2">
+                <h3 className="text-sm font-medium text-muted-foreground">Traffic Distribution by Type</h3>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={preparePieChartData(filteredInterfaces)}
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={80}
+                        dataKey="value"
+                        label={({ name, formattedValue }) => `${name}: ${formattedValue}`}
+                      >
+                        {preparePieChartData(filteredInterfaces).map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={PIE_CHART_COLORS[index % PIE_CHART_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        formatter={(value: number) => [formatBytes(value), 'Total Traffic']}
+                        labelFormatter={(label) => `Type: ${label}`}
+                      />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Interface Filter */}
+              <div className="space-y-2">
+                <h3 className="text-sm font-medium text-muted-foreground">Filter Interfaces</h3>
+                <Input
+                  placeholder="Filter interfaces..."
+                  value={filter}
+                  onChange={(e) => setFilter(e.target.value)}
+                  className="max-w-sm"
+                />
+                <div className="text-xs text-muted-foreground">
+                  Showing {filteredInterfaces.length} of {interfaces.length} interfaces
+                </div>
+              </div>
             </div>
 
             <div className="border rounded-lg overflow-x-auto">
@@ -159,6 +247,7 @@ export function InterfaceStatisticsCard({
                 <TableHeader>
                   <TableRow>
                     <TableHead className="sticky left-0 z-10 bg-background w-[120px] border-r">Interface</TableHead>
+                    <TableHead className="w-[140px]">Type</TableHead>
                     <TableHead className="text-right">RX Packets</TableHead>
                     <TableHead className="text-right">RX Bytes</TableHead>
                     <TableHead className="text-right">TX Packets</TableHead>
@@ -172,7 +261,7 @@ export function InterfaceStatisticsCard({
                 <TableBody>
                   {filteredInterfaces.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={9} className="text-center text-muted-foreground">
+                      <TableCell colSpan={10} className="text-center text-muted-foreground">
                         No interfaces found
                       </TableCell>
                     </TableRow>
@@ -180,6 +269,14 @@ export function InterfaceStatisticsCard({
                     filteredInterfaces.map((iface) => (
                       <TableRow key={iface.interface}>
                         <TableCell className="sticky left-0 z-10 bg-background font-medium border-r">{iface.interface}</TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant="outline" 
+                            className={`text-xs ${INTERFACE_TYPE_COLORS[iface.type] || 'bg-slate-100 text-slate-800 border-slate-200'}`}
+                          >
+                            {iface.type}
+                          </Badge>
+                        </TableCell>
                         <TableCell className="text-right">{formatNumber(iface.rx_packets)}</TableCell>
                         <TableCell className="text-right">{formatBytes(iface.rx_bytes)}</TableCell>
                         <TableCell className="text-right">{formatNumber(iface.tx_packets)}</TableCell>
@@ -193,10 +290,6 @@ export function InterfaceStatisticsCard({
                   )}
                 </TableBody>
               </Table>
-            </div>
-
-            <div className="mt-2 text-xs text-muted-foreground text-right">
-              Showing {filteredInterfaces.length} of {interfaces.length} interfaces
             </div>
           </>
         )}
