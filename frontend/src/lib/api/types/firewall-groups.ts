@@ -9,6 +9,7 @@ export interface FirewallGroup {
   type: string;
   description?: string | null;
   members: string[];
+  included_groups: string[];
 }
 
 // API Response types

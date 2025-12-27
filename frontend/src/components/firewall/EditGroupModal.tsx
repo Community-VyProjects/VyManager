@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Plus, X, AlertCircle } from "lucide-react";
+import { Plus, X, AlertCircle, Search } from "lucide-react";
 import { firewallGroupsService } from "@/lib/api/firewall-groups";
 import type { FirewallGroup, GroupBatchOperation } from "@/lib/api/types/firewall-groups";
 
@@ -29,6 +29,57 @@ export function EditGroupModal({ open, onOpenChange, group, onSuccess }: EditGro
   const [membersToAdd, setMembersToAdd] = useState<string[]>([]);
   const [membersToRemove, setMembersToRemove] = useState<string[]>([]);
 
+  // Include groups state
+  const [currentIncludedGroups, setCurrentIncludedGroups] = useState<string[]>([]);
+  const [includedGroupsToAdd, setIncludedGroupsToAdd] = useState<string[]>([]);
+  const [includedGroupsToRemove, setIncludedGroupsToRemove] = useState<string[]>([]);
+  const [availableGroups, setAvailableGroups] = useState<FirewallGroup[]>([]);
+  const [groupSearchQuery, setGroupSearchQuery] = useState("");
+
+  // Load available groups when modal opens
+  useEffect(() => {
+    if (open && group) {
+      loadAvailableGroups();
+    }
+  }, [open, group]);
+
+  const loadAvailableGroups = async () => {
+    if (!group) return;
+
+    try {
+      const config = await firewallGroupsService.getConfig();
+      // Get groups of the same type, excluding the current group
+      const groupsForType = getGroupsForType(config, group.type);
+      const filtered = groupsForType.filter(g => g.name !== group.name);
+      setAvailableGroups(filtered);
+    } catch (err) {
+      console.error("Failed to load available groups:", err);
+    }
+  };
+
+  const getGroupsForType = (config: any, type: string): FirewallGroup[] => {
+    switch (type) {
+      case "address-group":
+        return config.address_groups || [];
+      case "ipv6-address-group":
+        return config.ipv6_address_groups || [];
+      case "port-group":
+        return config.port_groups || [];
+      case "interface-group":
+        return config.interface_groups || [];
+      case "mac-group":
+        return config.mac_groups || [];
+      default:
+        return [];
+    }
+  };
+
+  // Check if current group type supports include
+  const supportsInclude = () => {
+    if (!group) return false;
+    return ["address-group", "ipv6-address-group", "port-group", "interface-group", "mac-group"].includes(group.type);
+  };
+
   // Initialize form when group changes
   useEffect(() => {
     if (group) {
@@ -37,6 +88,9 @@ export function EditGroupModal({ open, onOpenChange, group, onSuccess }: EditGro
       setMembersToAdd([]);
       setMembersToRemove([]);
       setNewMember("");
+      setCurrentIncludedGroups([...group.included_groups]);
+      setIncludedGroupsToAdd([]);
+      setIncludedGroupsToRemove([]);
       setError(null);
     }
   }, [group]);
@@ -47,6 +101,9 @@ export function EditGroupModal({ open, onOpenChange, group, onSuccess }: EditGro
     setMembersToAdd([]);
     setMembersToRemove([]);
     setNewMember("");
+    setCurrentIncludedGroups([]);
+    setIncludedGroupsToAdd([]);
+    setIncludedGroupsToRemove([]);
     setError(null);
   };
 
@@ -98,6 +155,62 @@ export function EditGroupModal({ open, onOpenChange, group, onSuccess }: EditGro
     }
   };
 
+  const toggleIncludeGroup = (groupName: string) => {
+    if (currentIncludedGroups.includes(groupName)) {
+      // Remove from current display
+      setCurrentIncludedGroups(currentIncludedGroups.filter((g) => g !== groupName));
+
+      // If it was in the add queue, just remove it from there
+      if (includedGroupsToAdd.includes(groupName)) {
+        setIncludedGroupsToAdd(includedGroupsToAdd.filter((g) => g !== groupName));
+      } else {
+        // Otherwise mark for removal
+        setIncludedGroupsToRemove([...includedGroupsToRemove, groupName]);
+      }
+    } else {
+      // Add to current display
+      setCurrentIncludedGroups([...currentIncludedGroups, groupName]);
+
+      // If it was marked for removal, remove it from that list
+      if (includedGroupsToRemove.includes(groupName)) {
+        setIncludedGroupsToRemove(includedGroupsToRemove.filter((g) => g !== groupName));
+      } else {
+        // Otherwise mark for addition
+        setIncludedGroupsToAdd([...includedGroupsToAdd, groupName]);
+      }
+    }
+  };
+
+  const selectAllGroups = () => {
+    const filtered = getFilteredGroups();
+    const allNames = filtered.map(g => g.name);
+    setCurrentIncludedGroups(allNames);
+    // Mark all as additions (will be cleaned up in handleSubmit)
+    setIncludedGroupsToAdd(allNames.filter(name => !group?.included_groups.includes(name)));
+    setIncludedGroupsToRemove([]);
+  };
+
+  const clearAllGroups = () => {
+    if (!group) return;
+    setCurrentIncludedGroups([]);
+    setIncludedGroupsToAdd([]);
+    setIncludedGroupsToRemove([...group.included_groups]);
+  };
+
+  const getFilteredGroups = () => {
+    if (!groupSearchQuery.trim()) return availableGroups;
+
+    const query = groupSearchQuery.toLowerCase();
+    return availableGroups.filter(grp =>
+      grp.name.toLowerCase().includes(query) ||
+      grp.description?.toLowerCase().includes(query)
+    );
+  };
+
+  const filteredGroups = getFilteredGroups();
+  const selectedGroups = filteredGroups.filter(g => currentIncludedGroups.includes(g.name));
+  const unselectedGroups = filteredGroups.filter(g => !currentIncludedGroups.includes(g.name));
+
   const handleSubmit = async () => {
     if (!group) return;
 
@@ -130,6 +243,12 @@ export function EditGroupModal({ open, onOpenChange, group, onSuccess }: EditGro
         return `${prefix}_${typeKey}_${memberField}`;
       };
 
+      const getIncludeOp = (action: "set" | "delete") => {
+        const prefix = action === "set" ? "set" : "delete";
+        const typeKey = group.type.replace(/-/g, "_");
+        return `${prefix}_${typeKey}_include`;
+      };
+
       // Handle description changes
       const originalDesc = group.description || "";
       const newDesc = description.trim();
@@ -152,6 +271,16 @@ export function EditGroupModal({ open, onOpenChange, group, onSuccess }: EditGro
       // Handle member removals
       for (const member of membersToRemove) {
         operations.push({ op: getMemberOp("delete"), value: member });
+      }
+
+      // Handle included group additions
+      for (const includedGroup of includedGroupsToAdd) {
+        operations.push({ op: getIncludeOp("set"), value: includedGroup });
+      }
+
+      // Handle included group removals
+      for (const includedGroup of includedGroupsToRemove) {
+        operations.push({ op: getIncludeOp("delete"), value: includedGroup });
       }
 
       // Only submit if there are changes
@@ -228,7 +357,9 @@ export function EditGroupModal({ open, onOpenChange, group, onSuccess }: EditGro
   const hasChanges =
     description.trim() !== (group.description || "") ||
     membersToAdd.length > 0 ||
-    membersToRemove.length > 0;
+    membersToRemove.length > 0 ||
+    includedGroupsToAdd.length > 0 ||
+    includedGroupsToRemove.length > 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -339,6 +470,137 @@ export function EditGroupModal({ open, onOpenChange, group, onSuccess }: EditGro
               </p>
             )}
           </div>
+
+          {/* Include Groups (only for supported types) */}
+          {supportsInclude() && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Include Other Groups</Label>
+                <span className="text-xs text-muted-foreground">
+                  {currentIncludedGroups.length} of {availableGroups.length} selected
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Select other groups of the same type to include in this group
+              </p>
+
+              {/* Search and Quick Actions */}
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search groups..."
+                    value={groupSearchQuery}
+                    onChange={(e) => setGroupSearchQuery(e.target.value)}
+                    className="pl-8 h-9 text-sm"
+                  />
+                </div>
+                <div className="flex gap-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={selectAllGroups}
+                    disabled={filteredGroups.length === 0 || filteredGroups.every(g => currentIncludedGroups.includes(g.name))}
+                    className="text-xs h-9"
+                  >
+                    All
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={clearAllGroups}
+                    disabled={currentIncludedGroups.length === 0}
+                    className="text-xs h-9"
+                  >
+                    Clear
+                  </Button>
+                </div>
+              </div>
+
+              {/* Checkbox List */}
+              <div className="border rounded-md bg-muted/30">
+                {availableGroups.length === 0 ? (
+                  <div className="p-8 text-center text-sm text-muted-foreground">
+                    No other groups available to include
+                  </div>
+                ) : filteredGroups.length === 0 ? (
+                  <div className="p-8 text-center text-sm text-muted-foreground">
+                    No groups found matching your search
+                  </div>
+                ) : (
+                  <div className="max-h-64 overflow-y-auto">
+                    {/* Selected Groups First */}
+                    {selectedGroups.length > 0 && (
+                      <>
+                        <div className="sticky top-0 bg-muted/50 px-3 py-1.5 text-xs font-medium text-muted-foreground border-b">
+                          Selected ({selectedGroups.length})
+                        </div>
+                        {selectedGroups.map((availGroup) => {
+                          const isNew = includedGroupsToAdd.includes(availGroup.name);
+                          return (
+                            <div key={availGroup.name} className="flex items-center space-x-2 px-3 py-2 hover:bg-muted/50 border-b">
+                              <input
+                                type="checkbox"
+                                id={`include-${availGroup.name}`}
+                                checked={true}
+                                onChange={() => toggleIncludeGroup(availGroup.name)}
+                                className="cursor-pointer"
+                              />
+                              <label
+                                htmlFor={`include-${availGroup.name}`}
+                                className="text-sm font-mono cursor-pointer flex-1 flex items-center gap-2"
+                              >
+                                {availGroup.name}
+                                {isNew && (
+                                  <Badge variant="default" className="text-xs px-1 py-0">NEW</Badge>
+                                )}
+                                {availGroup.description && (
+                                  <span className="text-xs text-muted-foreground">({availGroup.description})</span>
+                                )}
+                              </label>
+                            </div>
+                          );
+                        })}
+                      </>
+                    )}
+
+                    {/* Unselected Groups */}
+                    {unselectedGroups.length > 0 && (
+                      <>
+                        {selectedGroups.length > 0 && (
+                          <div className="sticky top-0 bg-muted/50 px-3 py-1.5 text-xs font-medium text-muted-foreground border-b">
+                            Available ({unselectedGroups.length})
+                          </div>
+                        )}
+                        {unselectedGroups.map((availGroup) => (
+                          <div key={availGroup.name} className="flex items-center space-x-2 px-3 py-2 hover:bg-muted/50 border-b last:border-b-0">
+                            <input
+                              type="checkbox"
+                              id={`include-${availGroup.name}`}
+                              checked={false}
+                              onChange={() => toggleIncludeGroup(availGroup.name)}
+                              className="cursor-pointer"
+                            />
+                            <label
+                              htmlFor={`include-${availGroup.name}`}
+                              className="text-sm font-mono cursor-pointer flex-1"
+                            >
+                              {availGroup.name}
+                              {availGroup.description && (
+                                <span className="text-xs text-muted-foreground ml-2">({availGroup.description})</span>
+                              )}
+                            </label>
+                          </div>
+                        ))}
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
         </div>
 

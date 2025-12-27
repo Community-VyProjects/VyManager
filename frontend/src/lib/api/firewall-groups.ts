@@ -43,6 +43,7 @@ class FirewallGroupsService {
     config: {
       description?: string;
       members?: string[];
+      included_groups?: string[];
     }
   ): Promise<VyOSResponse> {
     const operations: GroupBatchOperation[] = [];
@@ -67,6 +68,16 @@ class FirewallGroupsService {
       if (memberOp) {
         config.members.forEach((member) => {
           operations.push({ op: memberOp, value: member });
+        });
+      }
+    }
+
+    // Add included groups if provided
+    if (config.included_groups && config.included_groups.length > 0) {
+      const includeOp = this.getIncludeOperation(groupType, "set");
+      if (includeOp) {
+        config.included_groups.forEach((includedGroup) => {
+          operations.push({ op: includeOp, value: includedGroup });
         });
       }
     }
@@ -176,6 +187,19 @@ class FirewallGroupsService {
       "mac-group": `${prefix}_mac_group_mac`,
       "domain-group": `${prefix}_domain_group_address`,
       "remote-group": `${prefix}_remote_group_url`,
+    };
+    return map[groupType] || null;
+  }
+
+  private getIncludeOperation(groupType: string, action: "set" | "delete"): string | null {
+    // Only these group types support include
+    const prefix = action === "set" ? "set" : "delete";
+    const map: Record<string, string> = {
+      "address-group": `${prefix}_address_group_include`,
+      "ipv6-address-group": `${prefix}_ipv6_address_group_include`,
+      "port-group": `${prefix}_port_group_include`,
+      "interface-group": `${prefix}_interface_group_include`,
+      "mac-group": `${prefix}_mac_group_include`,
     };
     return map[groupType] || null;
   }

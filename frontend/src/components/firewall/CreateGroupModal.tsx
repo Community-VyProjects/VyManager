@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,8 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Plus, X, AlertCircle } from "lucide-react";
-import { firewallGroupsService } from "@/lib/api/firewall-groups";
+import { Plus, X, AlertCircle, Search } from "lucide-react";
+import { firewallGroupsService, type FirewallGroup } from "@/lib/api/firewall-groups";
 import type { GroupType, FirewallGroupsCapabilities } from "@/lib/api/types/firewall-groups";
 
 interface CreateGroupModalProps {
@@ -29,6 +29,49 @@ export function CreateGroupModal({ open, onOpenChange, onSuccess, capabilities }
   const [description, setDescription] = useState("");
   const [members, setMembers] = useState<string[]>([]);
   const [newMember, setNewMember] = useState("");
+  const [includedGroups, setIncludedGroups] = useState<string[]>([]);
+  const [availableGroups, setAvailableGroups] = useState<FirewallGroup[]>([]);
+  const [groupSearchQuery, setGroupSearchQuery] = useState("");
+
+  // Load existing groups for the include dropdown
+  useEffect(() => {
+    if (open) {
+      loadAvailableGroups();
+    }
+  }, [open, groupType]);
+
+  const loadAvailableGroups = async () => {
+    try {
+      const config = await firewallGroupsService.getConfig();
+      // Get groups of the same type
+      const groupsForType = getGroupsForType(config, groupType);
+      setAvailableGroups(groupsForType);
+    } catch (err) {
+      console.error("Failed to load available groups:", err);
+    }
+  };
+
+  const getGroupsForType = (config: any, type: GroupType): FirewallGroup[] => {
+    switch (type) {
+      case "address-group":
+        return config.address_groups || [];
+      case "ipv6-address-group":
+        return config.ipv6_address_groups || [];
+      case "port-group":
+        return config.port_groups || [];
+      case "interface-group":
+        return config.interface_groups || [];
+      case "mac-group":
+        return config.mac_groups || [];
+      default:
+        return [];
+    }
+  };
+
+  // Check if current group type supports include
+  const supportsInclude = () => {
+    return ["address-group", "ipv6-address-group", "port-group", "interface-group", "mac-group"].includes(groupType);
+  };
 
   const resetForm = () => {
     setGroupName("");
@@ -36,6 +79,7 @@ export function CreateGroupModal({ open, onOpenChange, onSuccess, capabilities }
     setDescription("");
     setMembers([]);
     setNewMember("");
+    setIncludedGroups([]);
     setError(null);
   };
 
@@ -56,6 +100,38 @@ export function CreateGroupModal({ open, onOpenChange, onSuccess, capabilities }
     setMembers(members.filter((m) => m !== member));
   };
 
+  const toggleIncludeGroup = (groupName: string) => {
+    if (includedGroups.includes(groupName)) {
+      setIncludedGroups(includedGroups.filter((g) => g !== groupName));
+    } else {
+      setIncludedGroups([...includedGroups, groupName]);
+    }
+  };
+
+  const selectAllGroups = () => {
+    const filtered = getFilteredGroups();
+    const allNames = filtered.map(g => g.name);
+    setIncludedGroups(allNames);
+  };
+
+  const clearAllGroups = () => {
+    setIncludedGroups([]);
+  };
+
+  const getFilteredGroups = () => {
+    if (!groupSearchQuery.trim()) return availableGroups;
+
+    const query = groupSearchQuery.toLowerCase();
+    return availableGroups.filter(group =>
+      group.name.toLowerCase().includes(query) ||
+      group.description?.toLowerCase().includes(query)
+    );
+  };
+
+  const filteredGroups = getFilteredGroups();
+  const selectedGroups = filteredGroups.filter(g => includedGroups.includes(g.name));
+  const unselectedGroups = filteredGroups.filter(g => !includedGroups.includes(g.name));
+
   const handleSubmit = async () => {
     // Validation
     if (!groupName.trim()) {
@@ -63,8 +139,8 @@ export function CreateGroupModal({ open, onOpenChange, onSuccess, capabilities }
       return;
     }
 
-    if (members.length === 0) {
-      setError("At least one member is required");
+    if (members.length === 0 && includedGroups.length === 0) {
+      setError("At least one member or included group is required");
       return;
     }
 
@@ -75,6 +151,7 @@ export function CreateGroupModal({ open, onOpenChange, onSuccess, capabilities }
       await firewallGroupsService.createGroup(groupName.trim(), groupType, {
         description: description.trim() || undefined,
         members,
+        included_groups: includedGroups.length > 0 ? includedGroups : undefined,
       });
 
       // Refresh config cache
@@ -271,6 +348,121 @@ export function CreateGroupModal({ open, onOpenChange, onSuccess, capabilities }
               </div>
             )}
           </div>
+
+          {/* Include Groups (only for supported types) */}
+          {supportsInclude() && availableGroups.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Include Other Groups (Optional)</Label>
+                <span className="text-xs text-muted-foreground">
+                  {includedGroups.length} of {availableGroups.length} selected
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Select other groups of the same type to include in this group
+              </p>
+
+              {/* Search and Quick Actions */}
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search groups..."
+                    value={groupSearchQuery}
+                    onChange={(e) => setGroupSearchQuery(e.target.value)}
+                    className="pl-8 h-9 text-sm"
+                  />
+                </div>
+                <div className="flex gap-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={selectAllGroups}
+                    disabled={filteredGroups.length === 0 || filteredGroups.every(g => includedGroups.includes(g.name))}
+                    className="text-xs h-9"
+                  >
+                    All
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={clearAllGroups}
+                    disabled={includedGroups.length === 0}
+                    className="text-xs h-9"
+                  >
+                    Clear
+                  </Button>
+                </div>
+              </div>
+
+              {/* Checkbox List */}
+              <div className="border rounded-md bg-muted/30">
+                {filteredGroups.length === 0 ? (
+                  <div className="p-8 text-center text-sm text-muted-foreground">
+                    {groupSearchQuery ? "No groups found matching your search" : "No groups available"}
+                  </div>
+                ) : (
+                  <div className="max-h-64 overflow-y-auto">
+                    {/* Selected Groups First */}
+                    {selectedGroups.length > 0 && (
+                      <>
+                        <div className="sticky top-0 bg-muted/50 px-3 py-1.5 text-xs font-medium text-muted-foreground border-b">
+                          Selected ({selectedGroups.length})
+                        </div>
+                        {selectedGroups.map((group) => (
+                          <div key={group.name} className="flex items-center space-x-2 px-3 py-2 hover:bg-muted/50 border-b">
+                            <input
+                              type="checkbox"
+                              id={`include-${group.name}`}
+                              checked={true}
+                              onChange={() => toggleIncludeGroup(group.name)}
+                              className="cursor-pointer"
+                            />
+                            <label htmlFor={`include-${group.name}`} className="text-sm font-mono cursor-pointer flex-1">
+                              {group.name}
+                              {group.description && (
+                                <span className="text-xs text-muted-foreground ml-2">({group.description})</span>
+                              )}
+                            </label>
+                          </div>
+                        ))}
+                      </>
+                    )}
+
+                    {/* Unselected Groups */}
+                    {unselectedGroups.length > 0 && (
+                      <>
+                        {selectedGroups.length > 0 && (
+                          <div className="sticky top-0 bg-muted/50 px-3 py-1.5 text-xs font-medium text-muted-foreground border-b">
+                            Available ({unselectedGroups.length})
+                          </div>
+                        )}
+                        {unselectedGroups.map((group) => (
+                          <div key={group.name} className="flex items-center space-x-2 px-3 py-2 hover:bg-muted/50 border-b last:border-b-0">
+                            <input
+                              type="checkbox"
+                              id={`include-${group.name}`}
+                              checked={false}
+                              onChange={() => toggleIncludeGroup(group.name)}
+                              className="cursor-pointer"
+                            />
+                            <label htmlFor={`include-${group.name}`} className="text-sm font-mono cursor-pointer flex-1">
+                              {group.name}
+                              {group.description && (
+                                <span className="text-xs text-muted-foreground ml-2">({group.description})</span>
+                              )}
+                            </label>
+                          </div>
+                        ))}
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         <DialogFooter>
