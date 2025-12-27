@@ -84,9 +84,9 @@ export function EditGroupModal({ open, onOpenChange, group, onSuccess }: EditGro
     return ["address-group", "ipv6-address-group", "network-group", "ipv6-network-group", "port-group", "interface-group", "mac-group"].includes(group.type);
   };
 
-  // Initialize form when group changes
+  // Initialize form when group changes or modal opens
   useEffect(() => {
-    if (group) {
+    if (group && open) {
       setDescription(group.description || "");
       setCurrentMembers([...group.members]);
       setMembersToAdd([]);
@@ -97,7 +97,7 @@ export function EditGroupModal({ open, onOpenChange, group, onSuccess }: EditGro
       setIncludedGroupsToRemove([]);
       setError(null);
     }
-  }, [group]);
+  }, [group, open]);
 
   const resetForm = () => {
     setDescription("");
