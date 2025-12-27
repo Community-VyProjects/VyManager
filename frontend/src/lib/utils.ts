@@ -10,6 +10,10 @@ export function cn(...inputs: ClassValue[]) {
  */
 export function getInterfaceType(interfaceName: string): string {
   if (interfaceName.startsWith('eth')) {
+    // Check for VLAN subinterfaces (eth0.10, eth1.20, etc.)
+    if (/\.(\d+)$/.test(interfaceName)) {
+      return 'VLAN (Subinterface)';
+    }
     return 'Physical (Ethernet)';
   } else if (interfaceName.startsWith('wlan')) {
     return 'Wireless';
@@ -22,7 +26,7 @@ export function getInterfaceType(interfaceName: string): string {
   } else if (interfaceName.startsWith('tun')) {
     return 'VPN (Tunnel)';
   } else if (interfaceName.startsWith('vlan')) {
-    return 'VLAN';
+    return 'VLAN (Virtual)';
   } else if (interfaceName.startsWith('br')) {
     return 'Bridge';
   } else if (interfaceName.startsWith('pppoe')) {
@@ -41,3 +45,4 @@ export function getInterfaceType(interfaceName: string): string {
     return 'Other';
   }
 }
+
