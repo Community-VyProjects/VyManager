@@ -87,7 +87,7 @@ export function InstancesTab() {
             allInstances.push({
               id: instance.id,
               name: instance.name,
-              description: instance.description,
+              description: instance.description ?? null,
               host: instance.host,
               port: instance.port,
               vyosVersion: instance.vyos_version || "Unknown",

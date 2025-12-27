@@ -7,7 +7,7 @@
  * 3. Permissions for all existing users
  */
 
-import { PrismaClient, Role, SiteRole } from "@prisma/client";
+import { PrismaClient, Role } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -63,10 +63,10 @@ async function main() {
   console.log(`✓ Instance created: ${instance.name} at ${instance.host}:${instance.port}`);
 
   // ========================================================================
-  // 3. Grant Permissions to All Existing Users
+  // 3. Grant Instance Access to All Existing Users
   // ========================================================================
 
-  console.log("👥 Granting permissions to existing users...");
+  console.log("👥 Granting instance access to existing users...");
 
   const users = await prisma.user.findMany();
 
@@ -74,22 +74,39 @@ async function main() {
     console.log("⚠️  No users found. Please create a user first via sign up.");
   } else {
     for (const user of users) {
-      const permission = await prisma.permission.upsert({
+      // First user becomes SUPER_ADMIN, rest become ADMIN
+      const isFirstUser = user === users[0];
+      const roleToAssign = isFirstUser ? "SUPER_ADMIN" : "ADMIN";
+
+      // Update user's global role
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { role: roleToAssign as Role },
+      });
+
+      // Grant instance access with built-in role
+      const instanceRole = await prisma.userInstanceRole.upsert({
         where: {
-          userId_siteId: {
+          userId_instanceId_roleType_builtInRole_customRoleId: {
             userId: user.id,
-            siteId: site.id,
+            instanceId: instance.id,
+            roleType: "BUILT_IN",
+            builtInRole: roleToAssign,
+            customRoleId: null as any, // Prisma requires null in composite unique key
           },
         },
         update: {},
         create: {
           userId: user.id,
-          siteId: site.id,
-          role: SiteRole.OWNER, // Grant OWNER role to all existing users
+          instanceId: instance.id,
+          roleType: "BUILT_IN",
+          builtInRole: roleToAssign,
+          assignedBy: user.id, // Self-assigned during migration
+          // customRoleId is omitted (null) for built-in roles
         },
       });
 
-      console.log(`✓ Permission granted: ${user.email} -> ${site.name} (${permission.role})`);
+      console.log(`✓ Access granted: ${user.email} -> ${instance.name} (${roleToAssign})`);
     }
   }
 
@@ -101,10 +118,10 @@ async function main() {
   console.log("\nSummary:");
   console.log(`- Sites: 1 (${site.name})`);
   console.log(`- Instances: 1 (${instance.name} at ${instance.host})`);
-  console.log(`- Permissions: ${users.length} users granted OWNER access`);
+  console.log(`- Instance Access: ${users.length} users granted access`);
   console.log("\nNext steps:");
-  console.log("1. Implement Phase 2: Backend Session Management");
-  console.log("2. Implement Phase 3: Site Manager UI");
+  console.log("1. Users can now connect to the instance from Site Manager");
+  console.log("2. First user has SUPER_ADMIN role, others have ADMIN role");
 }
 
 main()
