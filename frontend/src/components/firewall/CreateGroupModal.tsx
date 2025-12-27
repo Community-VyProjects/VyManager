@@ -57,6 +57,10 @@ export function CreateGroupModal({ open, onOpenChange, onSuccess, capabilities }
         return config.address_groups || [];
       case "ipv6-address-group":
         return config.ipv6_address_groups || [];
+      case "network-group":
+        return config.network_groups || [];
+      case "ipv6-network-group":
+        return config.ipv6_network_groups || [];
       case "port-group":
         return config.port_groups || [];
       case "interface-group":
@@ -70,7 +74,7 @@ export function CreateGroupModal({ open, onOpenChange, onSuccess, capabilities }
 
   // Check if current group type supports include
   const supportsInclude = () => {
-    return ["address-group", "ipv6-address-group", "port-group", "interface-group", "mac-group"].includes(groupType);
+    return ["address-group", "ipv6-address-group", "network-group", "ipv6-network-group", "port-group", "interface-group", "mac-group"].includes(groupType);
   };
 
   const resetForm = () => {
