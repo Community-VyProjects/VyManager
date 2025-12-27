@@ -12,8 +12,9 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, AlertCircle } from "lucide-react";
-import { userManagementService } from "@/lib/api/user-management";
+import { userManagementService, SiteRole } from "@/lib/api/user-management";
 
 interface CreateUserModalProps {
   open: boolean;
@@ -28,12 +29,14 @@ export function CreateUserModal({ open, onOpenChange, onSuccess }: CreateUserMod
   // Form fields
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [siteRole, setSiteRole] = useState<SiteRole>(SiteRole.VIEWER);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
   const resetForm = () => {
     setName("");
     setEmail("");
+    setSiteRole(SiteRole.VIEWER);
     setPassword("");
     setConfirmPassword("");
     setError(null);
@@ -71,6 +74,7 @@ export function CreateUserModal({ open, onOpenChange, onSuccess }: CreateUserMod
         name: name.trim() || null,
         email: email.trim(),
         password,
+        site_role: siteRole,
       });
 
       handleClose();
@@ -129,6 +133,39 @@ export function CreateUserModal({ open, onOpenChange, onSuccess }: CreateUserMod
               disabled={loading}
               required
             />
+          </div>
+
+          {/* Site Role (required) */}
+          <div className="space-y-2">
+            <Label htmlFor="siteRole">
+              Site Role <span className="text-destructive">*</span>
+            </Label>
+            <Select
+              value={siteRole}
+              onValueChange={(value) => setSiteRole(value as SiteRole)}
+              disabled={loading}
+            >
+              <SelectTrigger id="siteRole">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={SiteRole.ADMIN}>
+                  <div className="flex flex-col">
+                    <span className="font-medium">Admin</span>
+                    <span className="text-xs text-muted-foreground">Can manage sites, instances, and users</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value={SiteRole.VIEWER}>
+                  <div className="flex flex-col">
+                    <span className="font-medium">Viewer</span>
+                    <span className="text-xs text-muted-foreground">Read-only access to assigned sites and instances</span>
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Site role determines platform-wide permissions
+            </p>
           </div>
 
           {/* Password (required) */}

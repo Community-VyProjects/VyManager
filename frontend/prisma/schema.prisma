@@ -15,21 +15,21 @@ datasource db {
 // ============================================================================
 
 model User {
-  id            String    @id @default(cuid())
+  id            String   @id @default(cuid())
   name          String?
-  email         String    @unique
-  emailVerified Boolean   @default(false)
+  email         String   @unique
+  emailVerified Boolean  @default(false)
   image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   // RBAC
-  role          Role      @default(VIEWER)
+  role Role @default(VIEWER)
 
   // Relations
-  sessions      Session[]
-  accounts      Account[]
-  activeSession ActiveSession?
+  sessions          Session[]
+  accounts          Account[]
+  activeSession     ActiveSession?
   userInstanceRoles UserInstanceRole[]
 
   @@map("users")
@@ -45,27 +45,27 @@ model Session {
   ipAddress      String?
   userAgent      String?
 
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([lastActivityAt]) // Index for cleanup queries
   @@map("sessions")
 }
 
 model Account {
-  id           String  @id @default(cuid())
-  accountId    String
-  providerId   String
-  userId       String
-  accessToken  String? @db.Text
-  refreshToken String? @db.Text
-  idToken      String? @db.Text
-  accessTokenExpiresAt DateTime?
+  id                    String    @id @default(cuid())
+  accountId             String
+  providerId            String
+  userId                String
+  accessToken           String?   @db.Text
+  refreshToken          String?   @db.Text
+  idToken               String?   @db.Text
+  accessTokenExpiresAt  DateTime?
   refreshTokenExpiresAt DateTime?
-  scope        String?
-  password     String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -89,23 +89,28 @@ model Verification {
 // RBAC - Role Based Access Control
 // ============================================================================
 
+// Site-level roles (platform-wide permissions)
 enum Role {
-  SUPER_ADMIN   // Full access to everything including user management
-  ADMIN         // Can manage all VyOS configs but not users
-  NETWORK_ADMIN // Can manage network settings (interfaces, NAT, firewall)
-  OPERATOR      // Can view and make changes to specific features
-  VIEWER        // Read-only access to all pages
+  ADMIN // Can create/edit/delete sites and instances, access user management
+  VIEWER // Read-only access to assigned sites and instances
+}
+
+// Instance-level roles (per-instance permissions)
+enum InstanceRole {
+  ADMIN // Full access to all features on this instance
+  EDITOR // Can edit specific features (defined in FeaturePermission)
+  VIEWER // Can view specific features (defined in FeaturePermission)
 }
 
 // Role Permissions Matrix
 // Define what each role can access
 
 model RolePermission {
-  id         String   @id @default(cuid())
-  role       Role
-  resource   String   // e.g., "firewall", "dhcp", "nat", "interfaces", "users"
-  action     Action   // e.g., READ, CREATE, UPDATE, DELETE
-  createdAt  DateTime @default(now())
+  id        String   @id @default(cuid())
+  role      Role
+  resource  String // e.g., "firewall", "dhcp", "nat", "interfaces", "users"
+  action    Action // e.g., READ, CREATE, UPDATE, DELETE
+  createdAt DateTime @default(now())
 
   @@unique([role, resource, action])
   @@map("role_permissions")
@@ -116,20 +121,20 @@ enum Action {
   CREATE
   UPDATE
   DELETE
-  MANAGE  // Full control (all actions)
+  MANAGE // Full control (all actions)
 }
 
 // Audit Log for tracking all user actions
 model AuditLog {
-  id          String   @id @default(cuid())
-  userId      String
-  userEmail   String
-  action      String   // e.g., "CREATE_FIREWALL_RULE", "DELETE_NAT_RULE"
-  resource    String   // e.g., "firewall.rule.100"
-  details     Json?    // Additional context
-  ipAddress   String?
-  userAgent   String?
-  createdAt   DateTime @default(now())
+  id        String   @id @default(cuid())
+  userId    String
+  userEmail String
+  action    String // e.g., "CREATE_FIREWALL_RULE", "DELETE_NAT_RULE"
+  resource  String // e.g., "firewall.rule.100"
+  details   Json? // Additional context
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
 
   @@index([userId])
   @@index([createdAt])
@@ -142,14 +147,14 @@ model AuditLog {
 
 // Site - Represents a customer/organization
 model Site {
-  id          String      @id @default(cuid())
-  name        String      @unique
+  id          String   @id @default(cuid())
+  name        String   @unique
   description String?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   // Relations
-  instances   Instance[]
+  instances Instance[]
 
   @@map("sites")
 }
@@ -163,18 +168,18 @@ model Instance {
   host        String
   port        Int      @default(443)
   username    String
-  password    String   // Will be encrypted by backend
-  apiKey      String?  // Optional API key for VyOS
-  vyosVersion String?  // VyOS version (e.g., "1.4", "1.5")
+  password    String // Will be encrypted by backend
+  apiKey      String? // Optional API key for VyOS
+  vyosVersion String? // VyOS version (e.g., "1.4", "1.5")
   protocol    String   @default("https") // http or https
-  verifySsl   Boolean  @default(false)   // Verify SSL certificate
+  verifySsl   Boolean  @default(false) // Verify SSL certificate
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   // Relations
-  site          Site            @relation(fields: [siteId], references: [id], onDelete: Cascade)
-  activeSessions ActiveSession[]
+  site              Site               @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  activeSessions    ActiveSession[]
   userInstanceRoles UserInstanceRole[]
 
   @@unique([siteId, name])
@@ -187,7 +192,7 @@ model ActiveSession {
   id             String   @id @default(cuid())
   userId         String   @unique
   instanceId     String
-  sessionToken   String?  // Auth session token that created this VyOS connection
+  sessionToken   String? // Auth session token that created this VyOS connection
   connectedAt    DateTime @default(now())
   lastActivityAt DateTime @default(now()) @updatedAt // Track last activity for timeout
 
@@ -202,17 +207,17 @@ model ActiveSession {
 
 // ScheduledPowerAction - Tracks scheduled reboots/poweroffs
 model ScheduledPowerAction {
-  id              String   @id @default(cuid())
-  instanceId      String   // Which VyOS instance
-  actionType      String   // "reboot" or "poweroff"
+  id              String    @id @default(cuid())
+  instanceId      String // Which VyOS instance
+  actionType      String // "reboot" or "poweroff"
   scheduledTime   DateTime // When the action will occur
-  scheduledBy     String   // User ID who scheduled it
-  scheduledByName String   // User name for display
-  cancelled       Boolean  @default(false)
-  cancelledBy     String?  // User ID who cancelled
-  cancelledByName String?  // User name who cancelled
+  scheduledBy     String // User ID who scheduled it
+  scheduledByName String // User name for display
+  cancelled       Boolean   @default(false)
+  cancelledBy     String? // User ID who cancelled
+  cancelledByName String? // User name who cancelled
   cancelledAt     DateTime?
-  createdAt       DateTime @default(now())
+  createdAt       DateTime  @default(now())
 
   @@index([instanceId])
   @@index([scheduledTime])
@@ -222,9 +227,9 @@ model ScheduledPowerAction {
 // DashboardLayout - Stores user's custom dashboard layout per instance
 model DashboardLayout {
   id         String   @id @default(cuid())
-  userId     String   // User who owns this layout
-  instanceId String   // VyOS instance this layout is for
-  layout     Json     // JSON object storing grid positions and card configurations
+  userId     String // User who owns this layout
+  instanceId String // VyOS instance this layout is for
+  layout     Json // JSON object storing grid positions and card configurations
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -239,80 +244,54 @@ model DashboardLayout {
 // ============================================================================
 
 // Feature Groups - Logical groupings of VyOS features
+// Stage 1: Core features (expandable later)
 enum FeatureGroup {
-  FIREWALL          // IPv4, IPv6, Groups
-  NAT               // Source, Destination, Static
-  DHCP              // DHCP Server
-  INTERFACES        // Ethernet, VLANs, Dummy
-  STATIC_ROUTES     // Static routing
-  ROUTING_POLICIES  // Route maps, prefix lists, AS-path, community lists
-  SYSTEM            // Reboot, poweroff, hostname
-  CONFIGURATION     // Save, load, diff, snapshots, rollback
-  DASHBOARD         // Dashboard customization
-  SITES_INSTANCES   // Site & instance management (SUPER_ADMIN only)
-  USER_MANAGEMENT   // User, role, permission management (SUPER_ADMIN only)
+  FIREWALL // Firewall rules and groups
+  INTERFACES // Network interfaces
+  DHCP // DHCP server
+  NAT // NAT rules
 }
 
-// Permission Levels - What a user can do with a feature
-enum PermissionLevel {
-  NONE   // No access
-  READ   // View only
-  WRITE  // Full access (create, edit, delete)
-}
-
-// CustomRole - User-defined roles (e.g., NAT_ADMIN, FIREWALL_OPERATOR)
-model CustomRole {
-  id          String   @id @default(cuid())
-  name        String   @unique  // e.g., "NAT_ADMIN", "FIREWALL_VIEWER"
-  description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  createdBy   String   // User ID who created this role
-
-  // Relations
-  permissions       FeaturePermission[]
-  userInstanceRoles UserInstanceRole[]
-
-  @@map("custom_roles")
-}
-
-// FeaturePermission - Defines what a custom role can do per feature
-model FeaturePermission {
-  id         String          @id @default(cuid())
-  roleId     String
-  feature    FeatureGroup
-  permission PermissionLevel
-  createdAt  DateTime        @default(now())
-
-  // Relations
-  role CustomRole @relation(fields: [roleId], references: [id], onDelete: Cascade)
-
-  @@unique([roleId, feature])
-  @@index([roleId])
-  @@map("feature_permissions")
-}
+// Note: CustomRole and FeaturePermission models removed in favor of simplified
+// UserFeaturePermission model that directly ties to UserInstanceRole
 
 // UserInstanceRole - Assigns users to instances with specific roles
-// Supports both built-in roles (SUPER_ADMIN, ADMIN, VIEWER) and custom roles
+// Simplified: ADMIN (all access), EDITOR (feature-specific write), VIEWER (feature-specific read)
 model UserInstanceRole {
-  id           String   @id @default(cuid())
-  userId       String
-  instanceId   String
-  roleType     String   // "BUILT_IN" or "CUSTOM"
-  builtInRole  String?  // "SUPER_ADMIN", "ADMIN", "VIEWER" (if roleType = BUILT_IN)
-  customRoleId String?  // FK to CustomRole (if roleType = CUSTOM)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  assignedBy   String   // User ID who assigned this role
+  id         String       @id @default(cuid())
+  userId     String
+  instanceId String
+  role       InstanceRole // ADMIN, EDITOR, or VIEWER
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  assignedBy String // User ID who assigned this role
 
   // Relations
-  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  instance   Instance    @relation(fields: [instanceId], references: [id], onDelete: Cascade)
-  customRole CustomRole? @relation(fields: [customRoleId], references: [id], onDelete: Cascade)
+  user               User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  instance           Instance                @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  featurePermissions UserFeaturePermission[] // Only used for EDITOR/VIEWER roles
 
-  @@unique([userId, instanceId, roleType, builtInRole, customRoleId])
+  @@unique([userId, instanceId])
   @@index([userId])
   @@index([instanceId])
-  @@index([customRoleId])
   @@map("user_instance_roles")
+}
+
+// UserFeaturePermission - Defines which features an EDITOR/VIEWER can access
+// Only applies when UserInstanceRole.role is EDITOR or VIEWER
+// If role is ADMIN, this table is ignored (full access)
+model UserFeaturePermission {
+  id                 String       @id @default(cuid())
+  userInstanceRoleId String
+  feature            FeatureGroup
+  canEdit            Boolean      @default(false) // For EDITOR role
+  canView            Boolean      @default(false) // For VIEWER role
+  createdAt          DateTime     @default(now())
+
+  // Relations
+  userInstanceRole UserInstanceRole @relation(fields: [userInstanceRoleId], references: [id], onDelete: Cascade)
+
+  @@unique([userInstanceRoleId, feature])
+  @@index([userInstanceRoleId])
+  @@map("user_feature_permissions")
 }

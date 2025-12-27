@@ -12,8 +12,9 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, AlertCircle } from "lucide-react";
-import { userManagementService, UserListItem } from "@/lib/api/user-management";
+import { userManagementService, UserListItem, SiteRole } from "@/lib/api/user-management";
 
 interface EditUserModalProps {
   open: boolean;
@@ -29,6 +30,7 @@ export function EditUserModal({ open, onOpenChange, user, onSuccess }: EditUserM
   // Form fields
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [siteRole, setSiteRole] = useState<SiteRole>(SiteRole.VIEWER);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
@@ -36,6 +38,7 @@ export function EditUserModal({ open, onOpenChange, user, onSuccess }: EditUserM
     if (open) {
       setName(user.name || "");
       setEmail(user.email);
+      setSiteRole(user.site_role);
       setPassword("");
       setConfirmPassword("");
       setError(null);
@@ -45,6 +48,7 @@ export function EditUserModal({ open, onOpenChange, user, onSuccess }: EditUserM
   const resetForm = () => {
     setName("");
     setEmail("");
+    setSiteRole(SiteRole.VIEWER);
     setPassword("");
     setConfirmPassword("");
     setError(null);
@@ -77,6 +81,7 @@ export function EditUserModal({ open, onOpenChange, user, onSuccess }: EditUserM
         name: name.trim() || null,
         email: email.trim() || undefined,
         password: password || undefined,
+        site_role: siteRole,
       });
 
       handleClose();
@@ -132,6 +137,34 @@ export function EditUserModal({ open, onOpenChange, user, onSuccess }: EditUserM
               onChange={(e) => setEmail(e.target.value)}
               disabled={loading}
             />
+          </div>
+
+          {/* Site Role */}
+          <div className="space-y-2">
+            <Label htmlFor="siteRole">Site Role</Label>
+            <Select
+              value={siteRole}
+              onValueChange={(value) => setSiteRole(value as SiteRole)}
+              disabled={loading}
+            >
+              <SelectTrigger id="siteRole">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={SiteRole.ADMIN}>
+                  <div className="flex flex-col">
+                    <span className="font-medium">Admin</span>
+                    <span className="text-xs text-muted-foreground">Can manage sites, instances, and users</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value={SiteRole.VIEWER}>
+                  <div className="flex flex-col">
+                    <span className="font-medium">Viewer</span>
+                    <span className="text-xs text-muted-foreground">Read-only access to assigned sites and instances</span>
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Password (optional for update) */}

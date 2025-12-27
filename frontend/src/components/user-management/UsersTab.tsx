@@ -64,7 +64,7 @@ export function UsersTab() {
           (user) =>
             user.name?.toLowerCase().includes(query) ||
             user.email.toLowerCase().includes(query) ||
-            user.roles.some((role) => role.toLowerCase().includes(query))
+            user.site_role.toLowerCase().includes(query)
         )
       );
     }
@@ -178,7 +178,7 @@ export function UsersTab() {
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead className="text-center">Instance Access</TableHead>
-                  <TableHead>Roles</TableHead>
+                  <TableHead>Site Role</TableHead>
                   <TableHead className="w-[80px]"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -214,19 +214,16 @@ export function UsersTab() {
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1.5">
-                        {user.roles.length === 0 ? (
-                          <span className="text-xs text-muted-foreground">No roles</span>
-                        ) : (
-                          user.roles.map((role, idx) => (
-                            <span
-                              key={idx}
-                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/10 text-primary text-xs font-medium"
-                            >
-                              <Shield className="h-3 w-3" />
-                              {role}
-                            </span>
-                          ))
-                        )}
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium ${
+                            user.site_role === 'ADMIN'
+                              ? 'bg-primary/10 text-primary'
+                              : 'bg-muted text-muted-foreground'
+                          }`}
+                        >
+                          <Shield className="h-3 w-3" />
+                          {user.site_role}
+                        </span>
                       </div>
                     </TableCell>
                     <TableCell>

@@ -10,8 +10,8 @@ export interface UserListItem {
   email: string;
   email_verified: boolean;
   created_at: string;
+  site_role: SiteRole; // ADMIN or VIEWER
   instance_count: number;
-  roles: string[]; // List of role names
 }
 
 export interface UserDetail {
@@ -27,12 +27,14 @@ export interface CreateUserRequest {
   name?: string | null;
   email: string;
   password: string; // min 8 characters
+  site_role: SiteRole; // ADMIN or VIEWER
 }
 
 export interface UpdateUserRequest {
   name?: string | null;
   email?: string;
   password?: string; // min 8 characters if provided
+  site_role?: SiteRole; // ADMIN or VIEWER
 }
 
 export interface CustomRoleListItem {
@@ -65,6 +67,12 @@ export interface UpdateRoleRequest {
   permissions?: Record<string, string>;
 }
 
+export interface FeaturePermission {
+  feature: FeatureGroup;
+  can_edit: boolean;
+  can_view: boolean;
+}
+
 export interface UserInstanceAssignment {
   id: string;
   user_id: string;
@@ -72,10 +80,8 @@ export interface UserInstanceAssignment {
   instance_name: string;
   site_id: string;
   site_name: string;
-  role_type: string; // "BUILT_IN" or "CUSTOM"
-  built_in_role: string | null;
-  custom_role_id: string | null;
-  custom_role_name: string | null;
+  role: InstanceRole; // ADMIN, EDITOR, or VIEWER
+  feature_permissions: FeaturePermission[]; // Only used for EDITOR/VIEWER
   assigned_at: string;
   assigned_by: string;
 }
@@ -83,11 +89,8 @@ export interface UserInstanceAssignment {
 export interface AssignUserRequest {
   user_id: string;
   instance_ids: string[]; // Can assign to multiple instances at once
-  roles: Array<{
-    type: "BUILT_IN" | "CUSTOM";
-    builtInRole?: string;
-    customRoleId?: string;
-  }>;
+  role: InstanceRole; // ADMIN, EDITOR, or VIEWER
+  feature_permissions?: FeaturePermission[]; // Only for EDITOR/VIEWER roles
 }
 
 export interface InstanceUserListItem {
@@ -101,30 +104,25 @@ export interface InstanceUserListItem {
 // Enums (matching backend RBAC system)
 // ============================================================================
 
+// Site-level roles (platform-wide)
+export enum SiteRole {
+  ADMIN = "ADMIN",   // Can manage sites, instances, and users
+  VIEWER = "VIEWER",  // Read-only access
+}
+
+// Instance-level roles
+export enum InstanceRole {
+  ADMIN = "ADMIN",    // Full access to all features
+  EDITOR = "EDITOR",  // Can edit specific features
+  VIEWER = "VIEWER",  // Can view specific features
+}
+
+// Features available for granular permissions (EDITOR/VIEWER)
 export enum FeatureGroup {
   FIREWALL = "FIREWALL",
-  NAT = "NAT",
-  DHCP = "DHCP",
   INTERFACES = "INTERFACES",
-  STATIC_ROUTES = "STATIC_ROUTES",
-  ROUTING_POLICIES = "ROUTING_POLICIES",
-  SYSTEM = "SYSTEM",
-  CONFIGURATION = "CONFIGURATION",
-  DASHBOARD = "DASHBOARD",
-  SITES_INSTANCES = "SITES_INSTANCES",
-  USER_MANAGEMENT = "USER_MANAGEMENT",
-}
-
-export enum PermissionLevel {
-  NONE = "NONE",
-  READ = "READ",
-  WRITE = "WRITE",
-}
-
-export enum BuiltInRole {
-  SUPER_ADMIN = "SUPER_ADMIN",
-  ADMIN = "ADMIN",
-  VIEWER = "VIEWER",
+  DHCP = "DHCP",
+  NAT = "NAT",
 }
 
 // ============================================================================
