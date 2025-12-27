@@ -216,6 +216,20 @@ class FirewallGroupsBatchBuilder:
         path = self.mappers[self.mapper_key].get_network_group_network(group_name, network)
         return self.add_delete(path)
 
+    def set_network_group_include(
+        self, group_name: str, include_group: str
+    ) -> "FirewallGroupsBatchBuilder":
+        """Include another network group."""
+        path = self.mappers[self.mapper_key].get_network_group_include(group_name, include_group)
+        return self.add_set(path)
+
+    def delete_network_group_include(
+        self, group_name: str, include_group: str
+    ) -> "FirewallGroupsBatchBuilder":
+        """Remove included network group."""
+        path = self.mappers[self.mapper_key].get_network_group_include(group_name, include_group)
+        return self.add_delete(path)
+
     # ========================================================================
     # IPv6 Network Group Operations
     # ========================================================================
@@ -264,6 +278,20 @@ class FirewallGroupsBatchBuilder:
         path = self.mappers[self.mapper_key].get_ipv6_network_group_network(
             group_name, network
         )
+        return self.add_delete(path)
+
+    def set_ipv6_network_group_include(
+        self, group_name: str, include_group: str
+    ) -> "FirewallGroupsBatchBuilder":
+        """Include another IPv6 network group."""
+        path = self.mappers[self.mapper_key].get_ipv6_network_group_include(group_name, include_group)
+        return self.add_set(path)
+
+    def delete_ipv6_network_group_include(
+        self, group_name: str, include_group: str
+    ) -> "FirewallGroupsBatchBuilder":
+        """Remove included IPv6 network group."""
+        path = self.mappers[self.mapper_key].get_ipv6_network_group_include(group_name, include_group)
         return self.add_delete(path)
 
     # ========================================================================

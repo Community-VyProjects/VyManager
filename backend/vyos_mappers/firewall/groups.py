@@ -84,6 +84,10 @@ class FirewallGroupsMapper(BaseFeatureMapper):
         """Get command path for adding network to group."""
         return ["firewall", "group", "network-group", group_name, "network", network]
 
+    def get_network_group_include(self, group_name: str, include_group: str) -> List[str]:
+        """Get command path for including another network group."""
+        return ["firewall", "group", "network-group", group_name, "include", include_group]
+
     # ========================================================================
     # IPv6 Network Group Operations
     # ========================================================================
@@ -103,6 +107,10 @@ class FirewallGroupsMapper(BaseFeatureMapper):
     def get_ipv6_network_group_network(self, group_name: str, network: str) -> List[str]:
         """Get command path for adding IPv6 network to group."""
         return ["firewall", "group", "ipv6-network-group", group_name, "network", network]
+
+    def get_ipv6_network_group_include(self, group_name: str, include_group: str) -> List[str]:
+        """Get command path for including another IPv6 network group."""
+        return ["firewall", "group", "ipv6-network-group", group_name, "include", include_group]
 
     # ========================================================================
     # Port Group Operations

@@ -191,7 +191,8 @@ async def get_groups_config(request: Request, refresh: bool = False):
                     name=name,
                     type="network-group",
                     description=data.get("description"),
-                    members=parse_group(data, "network")
+                    members=parse_group(data, "network"),
+                    included_groups=parse_included_groups(data)
                 ))
 
         ipv6_network_groups = []
@@ -201,7 +202,8 @@ async def get_groups_config(request: Request, refresh: bool = False):
                     name=name,
                     type="ipv6-network-group",
                     description=data.get("description"),
-                    members=parse_group(data, "network")
+                    members=parse_group(data, "network"),
+                    included_groups=parse_included_groups(data)
                 ))
 
         port_groups = []
@@ -516,6 +518,14 @@ async def configure_group_batch(http_request: Request, request: GroupBatchReques
                 if not value:
                     raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
                 batch.delete_network_group_network(request.group_name, value)
+            elif op_type == "set_network_group_include":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
+                batch.set_network_group_include(request.group_name, value)
+            elif op_type == "delete_network_group_include":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
+                batch.delete_network_group_include(request.group_name, value)
 
             # IPv6 Network Group
             elif op_type == "set_ipv6_network_group":
@@ -536,6 +546,14 @@ async def configure_group_batch(http_request: Request, request: GroupBatchReques
                 if not value:
                     raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
                 batch.delete_ipv6_network_group_network(request.group_name, value)
+            elif op_type == "set_ipv6_network_group_include":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
+                batch.set_ipv6_network_group_include(request.group_name, value)
+            elif op_type == "delete_ipv6_network_group_include":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
+                batch.delete_ipv6_network_group_include(request.group_name, value)
 
             # Port Group
             elif op_type == "set_port_group":

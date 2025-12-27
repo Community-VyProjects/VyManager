@@ -197,6 +197,8 @@ class FirewallGroupsService {
     const map: Record<string, string> = {
       "address-group": `${prefix}_address_group_include`,
       "ipv6-address-group": `${prefix}_ipv6_address_group_include`,
+      "network-group": `${prefix}_network_group_include`,
+      "ipv6-network-group": `${prefix}_ipv6_network_group_include`,
       "port-group": `${prefix}_port_group_include`,
       "interface-group": `${prefix}_interface_group_include`,
       "mac-group": `${prefix}_mac_group_include`,
