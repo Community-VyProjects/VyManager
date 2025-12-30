@@ -119,6 +119,9 @@ FRONTEND_URL=http://localhost:3000
 ### Step 3: Deploy with Docker Compose
 
 ```bash
+# Enter pre-compiled images directory
+cd /container/vymanager-prod
+
 # Start all services
 docker compose up -d
 

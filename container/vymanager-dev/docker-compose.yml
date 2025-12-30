@@ -23,15 +23,13 @@ services:
 
   backend:
     build:
-      context: ./backend
+      context: ../../backend
       dockerfile: Dockerfile
     container_name: vymanager-backend
     ports:
       - "8000:8000"
-    env_file:
-      - ./backend/.env
     volumes:
-      - ./backend:/app
+      - ../../backend:/app
       - /app/lib
       - /app/bin
       - /app/include
@@ -50,15 +48,13 @@ services:
 
   frontend:
     build:
-      context: ./frontend
+      context: ../../frontend
       dockerfile: Dockerfile
     container_name: vymanager-frontend
     ports:
       - "3000:3000"
-    env_file:
-      - ./frontend/.env
     volumes:
-      - ./frontend:/app
+      - ../../frontend:/app
       - /app/node_modules
       - /app/.next
     depends_on:
