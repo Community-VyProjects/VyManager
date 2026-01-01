@@ -130,7 +130,7 @@ async def get_community_list_config(http_request: Request, refresh: bool = False
         Generalized configuration data optimized for frontend consumption
     """
     try:
-        service = get_session_vyos_service(request)
+        service = get_session_vyos_service(http_request)
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
 
         # Navigate to policy -> community-list
