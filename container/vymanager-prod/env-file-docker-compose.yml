@@ -1,3 +1,4 @@
+# Pre-compiled images
 services:
   # PostgreSQL Database for Authentication
   postgres:
@@ -22,17 +23,12 @@ services:
       start_period: 10s
 
   backend:
-    build:
-      context: ../../backend
-      dockerfile: Dockerfile
+    image: ghcr.io/community-vyprojects/vymanager-backend:beta
     container_name: vymanager-backend
     ports:
       - "8000:8000"
-    volumes:
-      - ../../backend:/app
-      - /app/lib
-      - /app/bin
-      - /app/include
+    env_file:
+      - ../../backend/.env
     restart: unless-stopped
     networks:
       - vymanager-network
@@ -47,21 +43,12 @@ services:
       start_period: 40s
 
   frontend:
-    build:
-      context: ../../frontend
-      dockerfile: Dockerfile
+    image: ghcr.io/community-vyprojects/vymanager-frontend:beta
     container_name: vymanager-frontend
+    env_file:
+      - ../../frontend/.env
     ports:
       - "3000:3000"
-    volumes:
-      - ../../frontend:/app
-      - /app/node_modules
-      - /app/.next
-    depends_on:
-      backend:
-        condition: service_healthy
-      postgres:
-        condition: service_healthy
     restart: unless-stopped
     networks:
       - vymanager-network

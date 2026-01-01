@@ -123,7 +123,7 @@ FRONTEND_URL=http://localhost:3000
 cd /container/vymanager-prod
 
 # Start all services
-docker compose up -d
+docker compose -f env-file-docker-compose.yml up -d
 
 # View logs
 docker compose logs -f
