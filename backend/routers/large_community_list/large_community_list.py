@@ -130,7 +130,7 @@ async def get_large_community_list_config(http_request: Request, refresh: bool =
         Generalized configuration data optimized for frontend consumption
     """
     try:
-        service = get_session_vyos_service(request)
+        service = get_session_vyos_service(http_request)
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
 
         # Navigate to policy -> large-community-list
@@ -196,7 +196,7 @@ async def large_community_list_batch_configure(http_request: Request, request: L
     Allows multiple changes in a single VyOS commit for efficiency.
     """
     try:
-        service = get_session_vyos_service(request)
+        service = get_session_vyos_service(http_request)
         version = service.get_version()
         builder = LargeCommunityListBatchBuilder(version=version)
 

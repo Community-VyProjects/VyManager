@@ -119,7 +119,7 @@ async def get_extcommunity_list_capabilities(request: Request):
 
 
 @router.get("/config", response_model=ExtCommunityListConfig)
-async def get_extcommunity_list_config(http_request: Request, refresh: bool = False):
+async def get_extcommunity_list_config(request: Request, refresh: bool = False):
     """
     Get all extcommunity-list configuration from VyOS in a generalized format.
 
@@ -196,7 +196,7 @@ async def extcommunity_list_batch_configure(http_request: Request, request: ExtC
     Allows multiple changes in a single VyOS commit for efficiency.
     """
     try:
-        service = get_session_vyos_service(request)
+        service = get_session_vyos_service(http_request)
         version = service.get_version()
         builder = ExtCommunityListBatchBuilder(version=version)
 
