@@ -124,7 +124,7 @@ async def get_extcommunity_list_capabilities(request: Request):
 
 
 @router.get("/config", response_model=ExtCommunityListConfig)
-async def get_extcommunity_list_config(http_request: Request, refresh: bool = False):
+async def get_extcommunity_list_config(request: Request, refresh: bool = False):
     """
     Get all extcommunity-list configuration from VyOS in a generalized format.
 
