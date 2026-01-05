@@ -30,22 +30,23 @@ Development deployment that builds images from source with Traefik reverse proxy
 ### 1. Configure Environment
 
 ```bash
-cd container/vymanager-dev
+cd /path/to/vymanager
 
-# Copy environment templates from prod
-cp ../vymanager-prod/frontend.env.example ../../frontend/.env
-cp ../vymanager-prod/backend.env.example ../../backend/.env
+# Copy the unified environment template
+cp .env.example .env
 
 # Generate and set auth secret
 BETTER_AUTH_SECRET=$(openssl rand -base64 32)
-sed -i "s/your-super-secret-key-change-in-production/$BETTER_AUTH_SECRET/" ../../frontend/.env
+sed -i "s/your-super-secret-key-change-in-production/$BETTER_AUTH_SECRET/" .env
 
-# (Optional) Update domain in .env files
+# (Optional) Update domain in .env if not using example.com
+nano .env
 ```
 
 ### 2. Start Services (with build)
 
 ```bash
+cd container/vymanager-dev
 docker compose -f env-file-docker-compose.yml up -d --build
 ```
 

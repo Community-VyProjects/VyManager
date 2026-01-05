@@ -1,25 +1,50 @@
+# ==============================================================================
 # Traefik Dynamic Configuration - Middlewares
+# ==============================================================================
+#
+# This file defines reusable middleware that can be applied to routes.
+# Middlewares are referenced in docker-compose labels like:
+#   traefik.http.routers.myservice.middlewares=secure-headers@file
+#
+# WHAT TO CHANGE:
+# 1. Line 50: Update 'accessControlAllowOriginList' to your domain
+#    - This controls which origins can make API requests (CORS)
+#    - Must match your actual domain for the frontend to work
+#
+# ==============================================================================
 
 http:
   middlewares:
-    # Security headers middleware
+    # --------------------------------------------------------------------------
+    # Security Headers - Applied to all routes for browser security
+    # --------------------------------------------------------------------------
     secure-headers:
       headers:
+        # XSS Protection - Enables browser's built-in XSS filter
         browserXssFilter: true
+        # Prevent MIME type sniffing
         contentTypeNosniff: true
+        # Prevent clickjacking - page cannot be embedded in iframes
         frameDeny: true
+        # HSTS - Force HTTPS for this domain
         stsIncludeSubdomains: true
         stsPreload: true
-        stsSeconds: 31536000
+        stsSeconds: 31536000  # 1 year
+        # Allow same-origin framing only
         customFrameOptionsValue: "SAMEORIGIN"
-        
-    # Rate limiting middleware
+
+    # --------------------------------------------------------------------------
+    # Rate Limiting - Protect against abuse/DDoS
+    # --------------------------------------------------------------------------
     rate-limit:
       rateLimit:
-        average: 100
-        burst: 50
-        
-    # CORS middleware for API
+        average: 100  # Average requests per second
+        burst: 50     # Maximum burst size
+
+    # --------------------------------------------------------------------------
+    # CORS - Cross-Origin Resource Sharing for API
+    # --------------------------------------------------------------------------
+    # IMPORTANT: Update the origin list to match your domain!
     cors-api:
       headers:
         accessControlAllowMethods:
@@ -31,7 +56,8 @@ http:
           - OPTIONS
         accessControlAllowHeaders:
           - "*"
+        # CHANGE THIS: Add your domain(s) here
         accessControlAllowOriginList:
-          - "https://infra.vyprojects.org"
+          - "https://example.com"
         accessControlMaxAge: 100
         addVaryHeader: true

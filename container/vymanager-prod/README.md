@@ -14,7 +14,7 @@ Production deployment using pre-built Docker images with Traefik reverse proxy a
 
 ## Prerequisites
 
-1. **Domain**: DNS A record pointing to your server (e.g., `infra.vyprojects.org`)
+1. **Domain**: DNS A record pointing to your server (e.g., `example.com`)
 2. **Ports**: 80 and 443 open and accessible from the internet
 3. **Docker**: Docker and Docker Compose installed
 
@@ -23,17 +23,17 @@ Production deployment using pre-built Docker images with Traefik reverse proxy a
 ### 1. Configure Environment
 
 ```bash
-cd container/vymanager-prod
+cd /path/to/vymanager
 
-# Copy environment templates
-cp frontend.env.example ../../frontend/.env
-cp backend.env.example ../../backend/.env
+# Copy the unified environment template
+cp .env.example .env
 
 # Generate and set auth secret
 BETTER_AUTH_SECRET=$(openssl rand -base64 32)
-sed -i "s/your-super-secret-key-change-in-production/$BETTER_AUTH_SECRET/" ../../frontend/.env
+sed -i "s/your-super-secret-key-change-in-production/$BETTER_AUTH_SECRET/" .env
 
-# (Optional) Update domain in .env files if not using infra.vyprojects.org
+# (Optional) Update domain in .env if not using example.com
+nano .env
 ```
 
 ### 2. Configure Traefik
@@ -51,8 +51,7 @@ nano traefik/traefik.yml
 ### 3. (Optional) Update Domain
 
 If using a different domain, update these files:
-- `../../frontend/.env` - All URLs
-- `../../backend/.env` - `FRONTEND_URL`
+- `../../.env` - All URLs and domain settings
 - `env-file-docker-compose.yml` - Traefik router rules (Host)
 - `traefik/dynamic/middlewares.yml` - CORS origins
 
@@ -72,16 +71,16 @@ docker compose -f env-file-docker-compose.yml ps
 docker logs vymanager-traefik
 
 # Test HTTPS
-curl -I https://infra.vyprojects.org
+curl -I https://example.com
 ```
 
-Access your VyManager at: `https://infra.vyprojects.org` (or your domain)
+Access your VyManager at: `https://example.com` (or your domain)
 
 ## Architecture
 
 ```
                     ┌─────────────────────────────────────────────────┐
-                    │              infra.vyprojects.org               │
+                    │                 example.com                    │
                     └─────────────────────────────────────────────────┘
                                           │
                                           ▼
@@ -124,17 +123,21 @@ Access your VyManager at: `https://infra.vyprojects.org` (or your domain)
 ## File Structure
 
 ```
-vymanager-prod/
-├── env-file-docker-compose.yml  # Main compose file with Traefik
-├── frontend.env.example          # Frontend environment template
-├── backend.env.example           # Backend environment template
-├── README.md                     # This file
-├── traefik/
-│   ├── traefik.yml              # Traefik static configuration
-│   └── dynamic/
-│       └── middlewares.yml       # Security headers & middleware
-└── letsencrypt/
-    └── acme.json                 # Let's Encrypt certificates (auto-managed)
+vymanager/
+├── .env.example                  # Unified environment template
+├── .env                          # Your environment config (create from .env.example)
+├── container/
+│   └── vymanager-prod/
+│       ├── env-file-docker-compose.yml  # Main compose file with Traefik
+│       ├── README.md                     # This file
+│       ├── traefik/
+│       │   ├── traefik.yml              # Traefik static configuration
+│       │   └── dynamic/
+│       │       └── middlewares.yml       # Security headers & middleware
+│       └── letsencrypt/
+│           └── acme.json                 # Let's Encrypt certificates (auto-managed)
+├── backend/                      # Backend source code
+└── frontend/                     # Frontend source code
 ```
 
 ## Security Features
@@ -154,10 +157,10 @@ vymanager-prod/
 docker logs vymanager-traefik -f
 
 # Verify DNS resolution
-dig infra.vyprojects.org
+dig example.com
 
 # Test Let's Encrypt challenge
-curl http://infra.vyprojects.org/.well-known/acme-challenge/test
+curl http://example.com/.well-known/acme-challenge/test
 ```
 
 ### Service Not Accessible

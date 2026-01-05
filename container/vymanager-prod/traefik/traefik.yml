@@ -1,11 +1,30 @@
+# ==============================================================================
 # Traefik Static Configuration for VyManager
-# Domain: infra.vyprojects.org
+# ==============================================================================
+#
+# This file configures Traefik as a reverse proxy with automatic HTTPS.
+#
+# WHAT TO CHANGE:
+# 1. Line 37: Change 'email' to your email for Let's Encrypt notifications
+#    - You'll receive expiration warnings if certificate renewal fails
+#
+# BEFORE STARTING:
+# 1. Ensure your domain DNS points to this server
+# 2. Ensure ports 80 and 443 are open and accessible from the internet
+# 3. Create the acme.json file:
+#    touch letsencrypt/acme.json && chmod 600 letsencrypt/acme.json
+#
+# ==============================================================================
 
 api:
   dashboard: true
   insecure: false
 
+# ------------------------------------------------------------------------------
+# Entry Points - Where Traefik listens for incoming connections
+# ------------------------------------------------------------------------------
 entryPoints:
+  # HTTP (Port 80) - Automatically redirects to HTTPS
   web:
     address: ":80"
     http:
@@ -14,27 +33,42 @@ entryPoints:
           to: websecure
           scheme: https
           permanent: true
+  # HTTPS (Port 443) - Main entry point for all traffic
   websecure:
     address: ":443"
 
+# ------------------------------------------------------------------------------
+# Providers - Where Traefik discovers services to route to
+# ------------------------------------------------------------------------------
 providers:
+  # Docker provider - Automatically discovers containers with traefik labels
   docker:
     endpoint: "unix:///var/run/docker.sock"
     exposedByDefault: false
     network: vymanager-prod_vymanager-network
+  # File provider - Loads middleware configuration from /dynamic folder
   file:
     directory: /dynamic
     watch: true
 
+# ------------------------------------------------------------------------------
+# SSL/TLS Certificates - Automatic HTTPS via Let's Encrypt
+# ------------------------------------------------------------------------------
 certificatesResolvers:
   letsencrypt:
     acme:
-      email: info@vyprojects.org  # Change to your email
+      # CHANGE THIS: Your email for Let's Encrypt notifications
+      email: admin@example.com
       storage: /letsencrypt/acme.json
+      # HTTP challenge - Traefik proves domain ownership via port 80
       httpChallenge:
         entryPoint: web
 
+# ------------------------------------------------------------------------------
+# Logging
+# ------------------------------------------------------------------------------
 log:
-  level: INFO
+  level: INFO  # Options: DEBUG, INFO, WARN, ERROR
 
+# Access logs - Logs every request (useful for debugging)
 accessLog: {}

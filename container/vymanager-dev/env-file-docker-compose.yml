@@ -57,7 +57,7 @@ services:
       - /app/bin
       - /app/include
     env_file:
-      - ../../backend/.env
+      - ../../.env
     restart: unless-stopped
     networks:
       - vymanager-network
@@ -90,7 +90,7 @@ services:
       - /app/node_modules
       - /app/.next
     env_file:
-      - ../../frontend/.env
+      - ../../.env
     depends_on:
       backend:
         condition: service_healthy
