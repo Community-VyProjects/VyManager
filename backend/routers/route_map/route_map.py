@@ -11,6 +11,8 @@ from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
 from session_vyos_service import get_session_vyos_service
 from vyos_builders import RouteMapBatchBuilder
+from fastapi_permissions import require_read_permission, require_write_permission
+from rbac_permissions import FeatureGroup
 import inspect
 
 router = APIRouter(prefix="/vyos/route-map", tags=["route-map"])
@@ -195,8 +197,11 @@ async def get_route_map_capabilities(request: Request):
     Returns feature flags indicating which operations are supported.
     Allows frontends to conditionally enable/disable features.
     """
+    # Check RBAC permission
+    await require_read_permission(request, FeatureGroup.ROUTE_MAP)
+
     try:
-        service = get_session_vyos_service(request)
+        service = get_session_vyos_service(http_request)
         version = service.get_version()
         builder = RouteMapBatchBuilder(version=version)
         capabilities = builder.get_capabilities()
@@ -458,19 +463,19 @@ def parse_set_actions(set_data: dict) -> SetActions:
 
 
 @router.post("/batch")
-async def route_map_batch_configure(request: RouteMapBatchRequest):
+async def route_map_batch_configure(http_request: Request, body: RouteMapBatchRequest):
     """
     Execute a batch of configuration operations.
 
     Allows multiple changes in a single VyOS commit for efficiency.
     """
     try:
-        service = get_session_vyos_service(request)
+        service = get_session_vyos_service(http_request)
         version = service.get_version()
         builder = RouteMapBatchBuilder(version=version)
 
         # Process operations using inspect for dynamic method calls
-        for operation in request.operations:
+        for operation in body.operations:
             method = getattr(builder, operation.op)
             sig = inspect.signature(method)
             params = list(sig.parameters.keys())
@@ -480,11 +485,11 @@ async def route_map_batch_configure(request: RouteMapBatchRequest):
 
             # Add route-map name
             if "name" in params:
-                args.append(request.name)
+                args.append(body.name)
 
             # Add rule number if specified and method accepts it
-            if request.rule_number and "rule" in params:
-                args.append(str(request.rule_number))
+            if body.rule_number and "rule" in params:
+                args.append(str(body.rule_number))
 
             # Add operation value if provided
             if operation.value and len(params) > len(args):
@@ -523,7 +528,7 @@ async def route_map_batch_configure(request: RouteMapBatchRequest):
 
 
 @router.post("/reorder")
-async def reorder_route_map_rules(request: ReorderRouteMapRequest):
+async def reorder_route_map_rules(http_request: Request, body: ReorderRouteMapRequest):
     """
     Reorder route-map rules by deleting and recreating them in a single commit.
 
@@ -539,200 +544,200 @@ async def reorder_route_map_rules(request: ReorderRouteMapRequest):
         VyOSResponse with success/failure information
     """
     try:
-        service = get_session_vyos_service(request)
+        service = get_session_vyos_service(http_request)
         version = service.get_version()
         builder = RouteMapBatchBuilder(version=version)
 
         # Step 1: Delete all rules in reverse order
-        rules_to_delete = sorted([r.old_number for r in request.rules], reverse=True)
+        rules_to_delete = sorted([r.old_number for r in body.rules], reverse=True)
         for old_number in rules_to_delete:
-            builder.delete_rule(request.route_map_name, str(old_number))
+            builder.delete_rule(body.route_map_name, str(old_number))
 
         # Step 2: Recreate rules with new numbers
-        for rule_item in request.rules:
+        for rule_item in body.rules:
             new_number = rule_item.new_number
             rule_data = rule_item.rule_data
 
             # Create the rule
-            builder.set_rule(request.route_map_name, str(new_number))
+            builder.set_rule(body.route_map_name, str(new_number))
 
             # Set action
             if rule_data.action:
-                builder.set_rule_action(request.route_map_name, str(new_number), rule_data.action)
+                builder.set_rule_action(body.route_map_name, str(new_number), rule_data.action)
 
             # Set description
             if rule_data.description:
-                builder.set_rule_description(request.route_map_name, str(new_number), rule_data.description)
+                builder.set_rule_description(body.route_map_name, str(new_number), rule_data.description)
 
             # Set flow control
             if rule_data.call:
-                builder.set_rule_call(request.route_map_name, str(new_number), rule_data.call)
+                builder.set_rule_call(body.route_map_name, str(new_number), rule_data.call)
             if rule_data.continue_rule:
-                builder.set_rule_continue(request.route_map_name, str(new_number), str(rule_data.continue_rule))
+                builder.set_rule_continue(body.route_map_name, str(new_number), str(rule_data.continue_rule))
             if rule_data.on_match_goto:
-                builder.set_rule_on_match_goto(request.route_map_name, str(new_number), str(rule_data.on_match_goto))
+                builder.set_rule_on_match_goto(body.route_map_name, str(new_number), str(rule_data.on_match_goto))
             if rule_data.on_match_next:
-                builder.set_rule_on_match_next(request.route_map_name, str(new_number))
+                builder.set_rule_on_match_next(body.route_map_name, str(new_number))
 
             # Set match conditions
             match = rule_data.match
             if match.as_path:
-                builder.set_match_as_path(request.route_map_name, str(new_number), match.as_path)
+                builder.set_match_as_path(body.route_map_name, str(new_number), match.as_path)
             if match.community_list:
-                builder.set_match_community_list(request.route_map_name, str(new_number), match.community_list)
+                builder.set_match_community_list(body.route_map_name, str(new_number), match.community_list)
                 if match.community_exact_match:
-                    builder.set_match_community_exact_match(request.route_map_name, str(new_number))
+                    builder.set_match_community_exact_match(body.route_map_name, str(new_number))
             if match.extcommunity:
-                builder.set_match_extcommunity(request.route_map_name, str(new_number), match.extcommunity)
+                builder.set_match_extcommunity(body.route_map_name, str(new_number), match.extcommunity)
             if match.large_community_list:
-                builder.set_match_large_community_list(request.route_map_name, str(new_number), match.large_community_list)
+                builder.set_match_large_community_list(body.route_map_name, str(new_number), match.large_community_list)
                 if match.large_community_exact_match:
-                    builder.set_match_large_community_exact_match(request.route_map_name, str(new_number))
+                    builder.set_match_large_community_exact_match(body.route_map_name, str(new_number))
             if match.local_preference is not None:
-                builder.set_match_local_preference(request.route_map_name, str(new_number), str(match.local_preference))
+                builder.set_match_local_preference(body.route_map_name, str(new_number), str(match.local_preference))
             if match.metric is not None:
-                builder.set_match_metric(request.route_map_name, str(new_number), str(match.metric))
+                builder.set_match_metric(body.route_map_name, str(new_number), str(match.metric))
             if match.origin:
-                builder.set_match_origin(request.route_map_name, str(new_number), match.origin)
+                builder.set_match_origin(body.route_map_name, str(new_number), match.origin)
             if match.peer:
-                builder.set_match_peer(request.route_map_name, str(new_number), match.peer)
+                builder.set_match_peer(body.route_map_name, str(new_number), match.peer)
             if match.rpki:
-                builder.set_match_rpki(request.route_map_name, str(new_number), match.rpki)
+                builder.set_match_rpki(body.route_map_name, str(new_number), match.rpki)
 
             # IP/IPv6 Address matches
             if match.ip_address_access_list:
-                builder.set_match_ip_address_access_list(request.route_map_name, str(new_number), match.ip_address_access_list)
+                builder.set_match_ip_address_access_list(body.route_map_name, str(new_number), match.ip_address_access_list)
             if match.ip_address_prefix_list:
-                builder.set_match_ip_address_prefix_list(request.route_map_name, str(new_number), match.ip_address_prefix_list)
+                builder.set_match_ip_address_prefix_list(body.route_map_name, str(new_number), match.ip_address_prefix_list)
             if match.ip_address_prefix_len is not None:
-                builder.set_match_ip_address_prefix_len(request.route_map_name, str(new_number), str(match.ip_address_prefix_len))
+                builder.set_match_ip_address_prefix_len(body.route_map_name, str(new_number), str(match.ip_address_prefix_len))
             if match.ipv6_address_access_list:
-                builder.set_match_ipv6_address_access_list(request.route_map_name, str(new_number), match.ipv6_address_access_list)
+                builder.set_match_ipv6_address_access_list(body.route_map_name, str(new_number), match.ipv6_address_access_list)
             if match.ipv6_address_prefix_list:
-                builder.set_match_ipv6_address_prefix_list(request.route_map_name, str(new_number), match.ipv6_address_prefix_list)
+                builder.set_match_ipv6_address_prefix_list(body.route_map_name, str(new_number), match.ipv6_address_prefix_list)
             if match.ipv6_address_prefix_len is not None:
-                builder.set_match_ipv6_address_prefix_len(request.route_map_name, str(new_number), str(match.ipv6_address_prefix_len))
+                builder.set_match_ipv6_address_prefix_len(body.route_map_name, str(new_number), str(match.ipv6_address_prefix_len))
 
             # Next-hop matches
             if match.ip_nexthop_access_list:
-                builder.set_match_ip_nexthop_access_list(request.route_map_name, str(new_number), match.ip_nexthop_access_list)
+                builder.set_match_ip_nexthop_access_list(body.route_map_name, str(new_number), match.ip_nexthop_access_list)
             if match.ip_nexthop_address:
-                builder.set_match_ip_nexthop_address(request.route_map_name, str(new_number), match.ip_nexthop_address)
+                builder.set_match_ip_nexthop_address(body.route_map_name, str(new_number), match.ip_nexthop_address)
             if match.ip_nexthop_prefix_len is not None:
-                builder.set_match_ip_nexthop_prefix_len(request.route_map_name, str(new_number), str(match.ip_nexthop_prefix_len))
+                builder.set_match_ip_nexthop_prefix_len(body.route_map_name, str(new_number), str(match.ip_nexthop_prefix_len))
             if match.ip_nexthop_prefix_list:
-                builder.set_match_ip_nexthop_prefix_list(request.route_map_name, str(new_number), match.ip_nexthop_prefix_list)
+                builder.set_match_ip_nexthop_prefix_list(body.route_map_name, str(new_number), match.ip_nexthop_prefix_list)
             if match.ip_nexthop_type:
-                builder.set_match_ip_nexthop_type(request.route_map_name, str(new_number), match.ip_nexthop_type)
+                builder.set_match_ip_nexthop_type(body.route_map_name, str(new_number), match.ip_nexthop_type)
             if match.ipv6_nexthop_address:
-                builder.set_match_ipv6_nexthop_address(request.route_map_name, str(new_number), match.ipv6_nexthop_address)
+                builder.set_match_ipv6_nexthop_address(body.route_map_name, str(new_number), match.ipv6_nexthop_address)
 
             # Route source matches
             if match.ip_route_source_access_list:
-                builder.set_match_ip_route_source_access_list(request.route_map_name, str(new_number), match.ip_route_source_access_list)
+                builder.set_match_ip_route_source_access_list(body.route_map_name, str(new_number), match.ip_route_source_access_list)
             if match.ip_route_source_prefix_list:
-                builder.set_match_ip_route_source_prefix_list(request.route_map_name, str(new_number), match.ip_route_source_prefix_list)
+                builder.set_match_ip_route_source_prefix_list(body.route_map_name, str(new_number), match.ip_route_source_prefix_list)
 
             # Other matches
             if match.interface:
-                builder.set_match_interface(request.route_map_name, str(new_number), match.interface)
+                builder.set_match_interface(body.route_map_name, str(new_number), match.interface)
             if match.protocol:
-                builder.set_match_protocol(request.route_map_name, str(new_number), match.protocol)
+                builder.set_match_protocol(body.route_map_name, str(new_number), match.protocol)
             if match.source_vrf:
-                builder.set_match_source_vrf(request.route_map_name, str(new_number), match.source_vrf)
+                builder.set_match_source_vrf(body.route_map_name, str(new_number), match.source_vrf)
             if match.tag is not None:
-                builder.set_match_tag(request.route_map_name, str(new_number), str(match.tag))
+                builder.set_match_tag(body.route_map_name, str(new_number), str(match.tag))
 
             # Set actions
             set_actions = rule_data.set
             if set_actions.as_path_exclude:
-                builder.set_as_path_exclude(request.route_map_name, str(new_number), set_actions.as_path_exclude)
+                builder.set_as_path_exclude(body.route_map_name, str(new_number), set_actions.as_path_exclude)
             if set_actions.as_path_prepend:
-                builder.set_as_path_prepend(request.route_map_name, str(new_number), set_actions.as_path_prepend)
+                builder.set_as_path_prepend(body.route_map_name, str(new_number), set_actions.as_path_prepend)
             if set_actions.as_path_prepend_last_as is not None:
-                builder.set_as_path_prepend_last_as(request.route_map_name, str(new_number), str(set_actions.as_path_prepend_last_as))
+                builder.set_as_path_prepend_last_as(body.route_map_name, str(new_number), str(set_actions.as_path_prepend_last_as))
 
             # Communities (handles separate add/delete/replace operations)
             if set_actions.community_add_values:
                 for community in set_actions.community_add_values:
-                    builder.set_community_add(request.route_map_name, str(new_number), community)
+                    builder.set_community_add(body.route_map_name, str(new_number), community)
             if set_actions.community_delete_values:
                 for community in set_actions.community_delete_values:
-                    builder.set_community_delete(request.route_map_name, str(new_number), community)
+                    builder.set_community_delete(body.route_map_name, str(new_number), community)
             if set_actions.community_replace_values:
                 for community in set_actions.community_replace_values:
-                    builder.set_community_replace(request.route_map_name, str(new_number), community)
+                    builder.set_community_replace(body.route_map_name, str(new_number), community)
             if set_actions.community_remove_all:
-                builder.set_community_none(request.route_map_name, str(new_number))
+                builder.set_community_none(body.route_map_name, str(new_number))
 
             # Large Communities (handles separate add/delete/replace operations)
             if set_actions.large_community_add_values:
                 for large_community in set_actions.large_community_add_values:
-                    builder.set_large_community_add(request.route_map_name, str(new_number), large_community)
+                    builder.set_large_community_add(body.route_map_name, str(new_number), large_community)
             if set_actions.large_community_delete_values:
                 for large_community in set_actions.large_community_delete_values:
-                    builder.set_large_community_delete(request.route_map_name, str(new_number), large_community)
+                    builder.set_large_community_delete(body.route_map_name, str(new_number), large_community)
             if set_actions.large_community_replace_values:
                 for large_community in set_actions.large_community_replace_values:
-                    builder.set_large_community_replace(request.route_map_name, str(new_number), large_community)
+                    builder.set_large_community_replace(body.route_map_name, str(new_number), large_community)
             if set_actions.large_community_remove_all:
-                builder.set_large_community_none(request.route_map_name, str(new_number))
+                builder.set_large_community_none(body.route_map_name, str(new_number))
 
             if set_actions.extcommunity_bandwidth:
-                builder.set_extcommunity_bandwidth(request.route_map_name, str(new_number), set_actions.extcommunity_bandwidth)
+                builder.set_extcommunity_bandwidth(body.route_map_name, str(new_number), set_actions.extcommunity_bandwidth)
             if set_actions.extcommunity_rt:
-                builder.set_extcommunity_rt(request.route_map_name, str(new_number), set_actions.extcommunity_rt)
+                builder.set_extcommunity_rt(body.route_map_name, str(new_number), set_actions.extcommunity_rt)
             if set_actions.extcommunity_soo:
-                builder.set_extcommunity_soo(request.route_map_name, str(new_number), set_actions.extcommunity_soo)
+                builder.set_extcommunity_soo(body.route_map_name, str(new_number), set_actions.extcommunity_soo)
             if set_actions.extcommunity_none:
-                builder.set_extcommunity_none(request.route_map_name, str(new_number))
+                builder.set_extcommunity_none(body.route_map_name, str(new_number))
 
             # BGP attributes
             if set_actions.atomic_aggregate:
-                builder.set_atomic_aggregate(request.route_map_name, str(new_number))
+                builder.set_atomic_aggregate(body.route_map_name, str(new_number))
             if set_actions.aggregator_as:
-                builder.set_aggregator_as(request.route_map_name, str(new_number), set_actions.aggregator_as)
+                builder.set_aggregator_as(body.route_map_name, str(new_number), set_actions.aggregator_as)
             if set_actions.aggregator_ip:
-                builder.set_aggregator_ip(request.route_map_name, str(new_number), set_actions.aggregator_ip)
+                builder.set_aggregator_ip(body.route_map_name, str(new_number), set_actions.aggregator_ip)
             if set_actions.local_preference is not None:
-                builder.set_local_preference(request.route_map_name, str(new_number), str(set_actions.local_preference))
+                builder.set_local_preference(body.route_map_name, str(new_number), str(set_actions.local_preference))
             if set_actions.origin:
-                builder.set_origin(request.route_map_name, str(new_number), set_actions.origin)
+                builder.set_origin(body.route_map_name, str(new_number), set_actions.origin)
             if set_actions.originator_id:
-                builder.set_originator_id(request.route_map_name, str(new_number), set_actions.originator_id)
+                builder.set_originator_id(body.route_map_name, str(new_number), set_actions.originator_id)
             if set_actions.weight is not None:
-                builder.set_weight(request.route_map_name, str(new_number), str(set_actions.weight))
+                builder.set_weight(body.route_map_name, str(new_number), str(set_actions.weight))
 
             # Next-hop
             if set_actions.ip_nexthop:
-                builder.set_ip_nexthop(request.route_map_name, str(new_number), set_actions.ip_nexthop)
+                builder.set_ip_nexthop(body.route_map_name, str(new_number), set_actions.ip_nexthop)
             if set_actions.ipv6_nexthop_global:
-                builder.set_ipv6_nexthop_global(request.route_map_name, str(new_number), set_actions.ipv6_nexthop_global)
+                builder.set_ipv6_nexthop_global(body.route_map_name, str(new_number), set_actions.ipv6_nexthop_global)
             if set_actions.ipv6_nexthop_local:
-                builder.set_ipv6_nexthop_local(request.route_map_name, str(new_number), set_actions.ipv6_nexthop_local)
+                builder.set_ipv6_nexthop_local(body.route_map_name, str(new_number), set_actions.ipv6_nexthop_local)
             if set_actions.ipv6_nexthop_prefer_global:
-                builder.set_ipv6_nexthop_prefer_global(request.route_map_name, str(new_number))
+                builder.set_ipv6_nexthop_prefer_global(body.route_map_name, str(new_number))
 
             # Route properties
             if set_actions.distance is not None:
-                builder.set_distance(request.route_map_name, str(new_number), str(set_actions.distance))
+                builder.set_distance(body.route_map_name, str(new_number), str(set_actions.distance))
             if set_actions.metric is not None:
-                builder.set_metric(request.route_map_name, str(new_number), str(set_actions.metric))
+                builder.set_metric(body.route_map_name, str(new_number), str(set_actions.metric))
             if set_actions.metric_type:
-                builder.set_metric_type(request.route_map_name, str(new_number), set_actions.metric_type)
+                builder.set_metric_type(body.route_map_name, str(new_number), set_actions.metric_type)
             if set_actions.src:
-                builder.set_src(request.route_map_name, str(new_number), set_actions.src)
+                builder.set_src(body.route_map_name, str(new_number), set_actions.src)
             if set_actions.table is not None:
-                builder.set_table(request.route_map_name, str(new_number), str(set_actions.table))
+                builder.set_table(body.route_map_name, str(new_number), str(set_actions.table))
             if set_actions.tag is not None:
-                builder.set_tag(request.route_map_name, str(new_number), str(set_actions.tag))
+                builder.set_tag(body.route_map_name, str(new_number), str(set_actions.tag))
 
         # Execute batch
         response = service.execute_batch(builder)
 
         return VyOSResponse(
             success=response.status == 200,
-            data={"message": f"Successfully reordered {len(request.rules)} rules in route-map {request.route_map_name}"},
+            data={"message": f"Successfully reordered {len(body.rules)} rules in route-map {body.route_map_name}"},
             error=response.error if response.error else None
         )
     except Exception as e:

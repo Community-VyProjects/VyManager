@@ -142,8 +142,10 @@ export default function Home() {
       } else {
         setCards([]);
       }
-    } catch (err) {
-      console.error("Failed to load dashboard layout:", err);
+    } catch (err: any) {
+      // Extract error message for logging
+      const errorMessage = err?.message || err?.error || err?.detail || "Unknown error";
+      console.error("Failed to load dashboard layout:", errorMessage);
     }
   };
 

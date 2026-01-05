@@ -11,6 +11,8 @@ from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
 from session_vyos_service import get_session_vyos_service
 from vyos_builders import LargeCommunityListBatchBuilder
+from fastapi_permissions import require_read_permission, require_write_permission
+from rbac_permissions import FeatureGroup
 import inspect
 
 router = APIRouter(prefix="/vyos/large-community-list", tags=["large-community-list"])
@@ -98,8 +100,11 @@ async def get_large_community_list_capabilities(request: Request):
     Returns feature flags indicating which operations are supported.
     Allows frontends to conditionally enable/disable features.
     """
+    # Check RBAC permission
+    await require_read_permission(request, FeatureGroup.BGP_LARGE_COMMUNITY)
+
     try:
-        service = get_session_vyos_service(request)
+        service = get_session_vyos_service(http_request)
         version = service.get_version()
         builder = LargeCommunityListBatchBuilder(version=version)
         capabilities = builder.get_capabilities()
@@ -201,7 +206,7 @@ async def large_community_list_batch_configure(http_request: Request, request: L
         builder = LargeCommunityListBatchBuilder(version=version)
 
         # Process operations using inspect for dynamic method calls
-        for operation in request.operations:
+        for operation in body.operations:
             method = getattr(builder, operation.op)
             sig = inspect.signature(method)
             params = list(sig.parameters.keys())
@@ -211,11 +216,11 @@ async def large_community_list_batch_configure(http_request: Request, request: L
 
             # Add large community list name
             if "name" in params:
-                args.append(request.name)
+                args.append(body.name)
 
             # Add rule number if specified and method accepts it
-            if request.rule_number and "rule" in params:
-                args.append(str(request.rule_number))
+            if body.rule_number and "rule" in params:
+                args.append(str(body.rule_number))
 
             # Add operation value if provided
             if operation.value and len(params) > len(args):
@@ -246,7 +251,7 @@ async def large_community_list_batch_configure(http_request: Request, request: L
 
 
 @router.post("/reorder")
-async def reorder_large_community_list_rules(request: ReorderLargeCommunityListRequest):
+async def reorder_large_community_list_rules(http_request: Request, body: ReorderLargeCommunityListRequest):
     """
     Reorder large community list rules by deleting and recreating them in a single commit.
 
@@ -262,41 +267,41 @@ async def reorder_large_community_list_rules(request: ReorderLargeCommunityListR
         VyOSResponse with success/failure information
     """
     try:
-        service = get_session_vyos_service(request)
+        service = get_session_vyos_service(http_request)
         version = service.get_version()
         builder = LargeCommunityListBatchBuilder(version=version)
 
         # Step 1: Delete all rules in reverse order
-        rules_to_delete = sorted([r.old_number for r in request.rules], reverse=True)
+        rules_to_delete = sorted([r.old_number for r in body.rules], reverse=True)
         for old_number in rules_to_delete:
-            builder.delete_rule(request.large_community_list_name, str(old_number))
+            builder.delete_rule(body.large_community_list_name, str(old_number))
 
         # Step 2: Recreate rules with new numbers
-        for rule_item in request.rules:
+        for rule_item in body.rules:
             new_number = rule_item.new_number
             rule_data = rule_item.rule_data
 
             # Create the rule
-            builder.set_rule(request.large_community_list_name, str(new_number))
+            builder.set_rule(body.large_community_list_name, str(new_number))
 
             # Set action
             if rule_data.action:
-                builder.set_rule_action(request.large_community_list_name, str(new_number), rule_data.action)
+                builder.set_rule_action(body.large_community_list_name, str(new_number), rule_data.action)
 
             # Set description
             if rule_data.description:
-                builder.set_rule_description(request.large_community_list_name, str(new_number), rule_data.description)
+                builder.set_rule_description(body.large_community_list_name, str(new_number), rule_data.description)
 
             # Set regex
             if rule_data.regex:
-                builder.set_rule_regex(request.large_community_list_name, str(new_number), rule_data.regex)
+                builder.set_rule_regex(body.large_community_list_name, str(new_number), rule_data.regex)
 
         # Execute batch
         response = service.execute_batch(builder)
 
         return VyOSResponse(
             success=response.status == 200,
-            data={"message": f"Successfully reordered {len(request.rules)} rules in large community list {request.large_community_list_name}"},
+            data={"message": f"Successfully reordered {len(body.rules)} rules in large community list {body.large_community_list_name}"},
             error=response.error if response.error else None
         )
     except Exception as e:

@@ -37,7 +37,7 @@ export function InstanceCard({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const canManage = userRole === "OWNER" || userRole === "ADMIN";
+  const canManage = userRole === "ADMIN";
 
   const handleConnect = async () => {
     setLoading(true);

@@ -10,6 +10,8 @@ from pydantic import BaseModel, Field, ConfigDict
 from typing import Dict, List, Optional, Any
 
 from session_vyos_service import get_session_vyos_service
+from fastapi_permissions import require_read_permission, require_write_permission
+from rbac_permissions import FeatureGroup
 
 # Router for ethernet interface endpoints
 router = APIRouter(prefix="/vyos/ethernet", tags=["ethernet-interface"])
@@ -300,6 +302,9 @@ async def get_ethernet_capabilities(request: Request) -> Dict[str, Any]:
     }
     ```
     """
+    # Check RBAC permission
+    await require_read_permission(request, FeatureGroup.INTERFACES)
+
     try:
         service = get_session_vyos_service(request)
         version = service.get_version()
@@ -649,6 +654,9 @@ async def get_ethernet_config(http_request: Request) -> EthernetInterfacesConfig
 
     Returns configuration details including addresses, description, speed, duplex, hw_id, etc.
     """
+    # Check RBAC permission
+    await require_read_permission(http_request, FeatureGroup.INTERFACES)
+
     from vyos_mappers.interfaces import EthernetInterfaceMapper
 
     try:
@@ -855,6 +863,9 @@ async def configure_interface_batch(http_request: Request, request: InterfaceBat
     }
     ```
     """
+    # Check RBAC permission
+    await require_write_permission(http_request, FeatureGroup.INTERFACES)
+
     try:
         service = get_session_vyos_service(http_request)
         batch = service.create_ethernet_batch()

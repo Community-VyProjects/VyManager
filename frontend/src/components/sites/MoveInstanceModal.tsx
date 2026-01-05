@@ -80,12 +80,12 @@ export function MoveInstanceModal({
     onOpenChange(false);
   };
 
-  // Filter available sites - only show sites where user has OWNER or ADMIN role
+  // Filter available sites - only show sites where user has ADMIN role
   // and exclude the current site
   const availableSites = allSites.filter(
     (site) =>
       site.id !== currentSite?.id &&
-      (site.role === "OWNER" || site.role === "ADMIN")
+      site.role === "ADMIN"
   );
 
   if (!instance || !currentSite) return null;

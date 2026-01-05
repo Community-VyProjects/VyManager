@@ -11,6 +11,8 @@ from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
 from session_vyos_service import get_session_vyos_service
 from vyos_builders import DHCPBatchBuilder
+from fastapi_permissions import require_read_permission, require_write_permission
+from rbac_permissions import FeatureGroup
 import inspect
 
 router = APIRouter(prefix="/vyos/dhcp", tags=["dhcp"])
@@ -191,6 +193,9 @@ async def get_dhcp_capabilities(request: Request):
     Returns feature flags indicating which DHCP features are supported.
     This allows frontends to conditionally enable/disable features based on version.
     """
+    # Check RBAC permission
+    await require_read_permission(request, FeatureGroup.DHCP)
+
     try:
         service = get_session_vyos_service(request)
         version = service.get_version()
@@ -220,6 +225,9 @@ async def get_dhcp_config(http_request: Request, refresh: bool = False):
     Returns:
         Configuration details for all DHCP shared networks, subnets, and options
     """
+    # Check RBAC permission
+    await require_read_permission(http_request, FeatureGroup.DHCP)
+
     try:
         # Get service and retrieve raw config from cache
         service = get_session_vyos_service(http_request)
@@ -533,6 +541,9 @@ async def get_dhcp_leases(request: Request):
     Returns:
         List of active DHCP leases with details like IP, MAC, hostname, expiration, etc.
     """
+    # Check RBAC permission
+    await require_read_permission(request, FeatureGroup.DHCP)
+
     try:
         service = get_session_vyos_service(request)
 
@@ -606,6 +617,9 @@ async def dhcp_batch_configure(http_request: Request, request: DHCPBatchRequest)
     Returns:
         Success status and any relevant data
     """
+    # Check RBAC permission
+    await require_write_permission(http_request, FeatureGroup.DHCP)
+
     try:
         # Get service and version
         service = get_session_vyos_service(http_request)

@@ -24,9 +24,11 @@ export function UnsavedChangesBanner() {
         const diffResult = await configService.getDiff();
         setDiff(diffResult);
         setError(null);
-      } catch (err) {
-        console.error("Failed to check for config changes:", err);
-        setError(err instanceof Error ? err.message : "Failed to check for changes");
+      } catch (err: any) {
+        // Extract error message for logging and display
+        const errorMessage = err?.message || err?.error || err?.detail || "Failed to check for changes";
+        console.error("Failed to check for config changes:", errorMessage);
+        setError(errorMessage);
       } finally {
         setLoading(false);
       }

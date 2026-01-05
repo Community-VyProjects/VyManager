@@ -2,7 +2,7 @@
 System Power Management Router
 
 API endpoints for managing VyOS system power actions (reboot, poweroff).
-Restricted to ADMIN and SUPER_ADMIN roles only.
+Restricted to instance ADMIN role only.
 
 Uses session-based architecture - VyOS instance comes from user's active session.
 """
@@ -25,36 +25,39 @@ router = APIRouter(prefix="/vyos/power", tags=["power"])
 # Permission Check Helper
 # ========================================================================
 
-ALLOWED_ROLES = ["ADMIN", "SUPER_ADMIN"]
-
-
 async def check_power_permission(request: Request) -> None:
     """
     Check if user has permission to execute power actions.
-    Only ADMIN and SUPER_ADMIN roles are allowed.
+    Only instance ADMIN role is allowed.
 
     Raises:
-        HTTPException(403): If user doesn't have required role
+        HTTPException(403): If user doesn't have ADMIN role on the instance
     """
     user = request.state.user
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
-    # Get user's role from database
+    instance = request.state.instance
+    if not instance:
+        raise HTTPException(status_code=404, detail="No active instance")
+
+    instance_id = instance["id"]
     db_pool: asyncpg.Pool = request.app.state.db_pool
 
     async with db_pool.acquire() as conn:
         result = await conn.fetchrow(
             """
-            SELECT role FROM users WHERE id = $1
+            SELECT role FROM user_instance_roles
+            WHERE "userId" = $1 AND "instanceId" = $2
             """,
             user["id"],
+            instance_id,
         )
 
-        if not result or result["role"] not in ALLOWED_ROLES:
+        if not result or result["role"] != "ADMIN":
             raise HTTPException(
                 status_code=403,
-                detail=f"Insufficient permissions. Power actions require ADMIN or SUPER_ADMIN role.",
+                detail="Insufficient permissions. Power actions require instance ADMIN role.",
             )
 
 

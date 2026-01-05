@@ -11,6 +11,8 @@ from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
 from session_vyos_service import get_session_vyos_service
 from vyos_builders import AccessListBatchBuilder
+from fastapi_permissions import require_read_permission, require_write_permission
+from rbac_permissions import FeatureGroup
 import inspect
 
 router = APIRouter(prefix="/vyos/access-list", tags=["access-list"])
@@ -106,10 +108,13 @@ class VyOSResponse(BaseModel):
 async def get_access_list_capabilities(request: Request):
     """
     Get feature capabilities based on device VyOS version.
-    
+
     Returns feature flags indicating which operations are supported.
     Allows frontends to conditionally enable/disable features.
     """
+    # Check RBAC permission
+    await require_read_permission(request, FeatureGroup.ACCESS_LIST)
+
     try:
         service = get_session_vyos_service(request)
         version = service.get_version()
@@ -134,13 +139,16 @@ async def get_access_list_capabilities(request: Request):
 async def get_access_list_config(http_request: Request, refresh: bool = False):
     """
     Get all access-list configurations from VyOS in a generalized format.
-    
+
     Args:
         refresh: If True, force refresh from VyOS. If False, use cache.
-    
+
     Returns:
         Generalized configuration data optimized for frontend consumption
     """
+    # Check RBAC permission
+    await require_read_permission(http_request, FeatureGroup.ACCESS_LIST)
+
     try:
         service = get_session_vyos_service(http_request)
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
@@ -324,20 +332,22 @@ async def get_access_list_config(http_request: Request, refresh: bool = False):
 
 
 @router.post("/batch")
-async def access_list_batch_configure(request: AccessListBatchRequest):
+async def access_list_batch_configure(http_request: Request, body: AccessListBatchRequest):
     """
     Execute a batch of configuration operations.
-    
+
     Allows multiple changes in a single VyOS commit for efficiency.
     """
-    
+    # Check RBAC permission
+    await require_write_permission(http_request, FeatureGroup.ACCESS_LIST)
+
     try:
-        service = get_session_vyos_service(request)
+        service = get_session_vyos_service(http_request)
         version = service.get_version()
         builder = AccessListBatchBuilder(version=version)
         
         # Process operations using inspect for dynamic method calls
-        for operation in request.operations:
+        for operation in body.operations:
             method = getattr(builder, operation.op)
             sig = inspect.signature(method)
             params = list(sig.parameters.keys())
@@ -347,11 +357,11 @@ async def access_list_batch_configure(request: AccessListBatchRequest):
 
             # Add identifier (number for IPv4, name for IPv6)
             if "number" in params or "name" in params:
-                args.append(request.identifier)
+                args.append(body.identifier)
 
             # Add rule number if present in method signature
-            if "rule" in params and request.rule_number is not None:
-                args.append(str(request.rule_number))
+            if "rule" in params and body.rule_number is not None:
+                args.append(str(body.rule_number))
 
             # Add operation values
             if operation.value and len(params) > len(args):
@@ -388,99 +398,102 @@ async def access_list_batch_configure(request: AccessListBatchRequest):
 
 
 @router.post("/reorder")
-async def reorder_access_list_rules(request: ReorderAccessListRequest):
+async def reorder_access_list_rules(http_request: Request, body: ReorderAccessListRequest):
     """
     Reorder rules in an access-list.
-    
+
     This endpoint deletes all existing rules and recreates them with new numbers
     in a single VyOS commit for atomicity.
     """
+    # Check RBAC permission
+    await require_write_permission(http_request, FeatureGroup.ACCESS_LIST)
+
     try:
-        service = get_session_vyos_service(request)
+        service = get_session_vyos_service(http_request)
         version = service.get_version()
         builder = AccessListBatchBuilder(version=version)
         
         # Step 1: Delete all rules in reverse order
         rules_to_delete = sorted(
-            [item.old_number for item in request.rules],
+            [item.old_number for item in body.rules],
             reverse=True
         )
         
         for old_number in rules_to_delete:
-            if request.list_type == "ipv4":
-                builder.delete_rule(request.identifier, str(old_number))
+            if body.list_type == "ipv4":
+                builder.delete_rule(body.identifier, str(old_number))
             else:  # ipv6
-                builder.delete_rule6(request.identifier, str(old_number))
+                builder.delete_rule6(body.identifier, str(old_number))
         
         # Step 2: Recreate rules with new numbers
-        for item in request.rules:
+        for item in body.rules:
             rule = item.rule_data
             rule_str = str(item.new_number)
             
-            if request.list_type == "ipv4":
+            if body.list_type == "ipv4":
                 # Create rule
-                builder.set_rule(request.identifier, rule_str)
+                builder.set_rule(body.identifier, rule_str)
                 
                 # Set action
-                builder.set_rule_action(request.identifier, rule_str, rule.action)
+                builder.set_rule_action(body.identifier, rule_str, rule.action)
                 
                 # Set description
                 if rule.description:
                     builder.set_rule_description(
-                        request.identifier, rule_str, rule.description
+                        body.identifier, rule_str, rule.description
                     )
                 
                 # Set source
                 if rule.source_type == "any":
-                    builder.set_rule_source_any(request.identifier, rule_str)
+                    builder.set_rule_source_any(body.identifier, rule_str)
                 elif rule.source_type == "host" and rule.source_address:
                     builder.set_rule_source_host(
-                        request.identifier, rule_str, rule.source_address
+                        body.identifier, rule_str, rule.source_address
                     )
                 elif rule.source_type == "inverse-mask" and rule.source_address and rule.source_mask:
                     builder.set_rule_source_inverse_mask(
-                        request.identifier, rule_str, rule.source_address, rule.source_mask
+                        body.identifier, rule_str, rule.source_address, rule.source_mask
                     )
                 elif rule.source_type == "network" and rule.source_address and rule.source_mask:
                     builder.set_rule_source_network(
-                        request.identifier, rule_str, rule.source_address, rule.source_mask
+                        body.identifier, rule_str, rule.source_address, rule.source_mask
                     )
                 
                 # Set destination
                 if rule.destination_type == "any":
-                    builder.set_rule_destination_any(request.identifier, rule_str)
+                    builder.set_rule_destination_any(body.identifier, rule_str)
                 elif rule.destination_type == "host" and rule.destination_address:
                     builder.set_rule_destination_host(
-                        request.identifier, rule_str, rule.destination_address
+                        body.identifier, rule_str, rule.destination_address
                     )
                 elif rule.destination_type == "inverse-mask" and rule.destination_address and rule.destination_mask:
                     builder.set_rule_destination_inverse_mask(
-                        request.identifier, rule_str, rule.destination_address, rule.destination_mask
+                        body.identifier, rule_str, rule.destination_address, rule.destination_mask
                     )
                 elif rule.destination_type == "network" and rule.destination_address and rule.destination_mask:
                     builder.set_rule_destination_network(
-                        request.identifier, rule_str, rule.destination_address, rule.destination_mask
+                        body.identifier, rule_str, rule.destination_address, rule.destination_mask
                     )
             
             else:  # ipv6
                 # Create rule
-                builder.set_rule6(request.identifier, rule_str)
+                builder.set_rule6(body.identifier, rule_str)
                 
                 # Set action
-                builder.set_rule6_action(request.identifier, rule_str, rule.action)
+                builder.set_rule6_action(body.identifier, rule_str, rule.action)
                 
                 # Set description
                 if rule.description:
                     builder.set_rule6_description(
-                        request.identifier, rule_str, rule.description
+                        body.identifier, rule_str, rule.description
                     )
                 
                 # Set source
                 if rule.source_type == "any":
-                    builder.set_rule6_source_any(request.identifier, rule_str)
+                    builder.set_rule6_source_any(body.identifier, rule_str)
                 elif rule.source_type == "network" and rule.source_address:
                     builder.set_rule6_source_network(
-                        request.identifier, rule_str, rule.source_address
+                        body.identifier, rule_str, rule.source_address
                     )
 
                 # NOTE: IPv6 access-lists do NOT have destination fields
@@ -490,7 +503,7 @@ async def reorder_access_list_rules(request: ReorderAccessListRequest):
         
         return VyOSResponse(
             success=response.status == 200,
-            data={"message": f"Rules reordered in access-list {request.identifier}"},
+            data={"message": f"Rules reordered in access-list {body.identifier}"},
             error=response.error if response.error else None
         )
     except Exception as e:

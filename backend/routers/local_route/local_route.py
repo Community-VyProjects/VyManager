@@ -11,6 +11,8 @@ from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
 from session_vyos_service import get_session_vyos_service
 from vyos_builders import LocalRouteBatchBuilder
+from fastapi_permissions import require_read_permission, require_write_permission
+from rbac_permissions import FeatureGroup
 import inspect
 
 router = APIRouter(prefix="/vyos/local-route", tags=["local-route"])
@@ -104,7 +106,7 @@ async def get_local_route_capabilities(request: Request):
     Returns feature flags indicating which operations are supported.
     """
     try:
-        service = get_session_vyos_service(request)
+        service = get_session_vyos_service(http_request)
         version = service.get_version()
         builder = LocalRouteBatchBuilder(version=version)
         capabilities = builder.get_capabilities()
@@ -210,19 +212,19 @@ async def get_local_route_config(http_request: Request, refresh: bool = False):
 
 
 @router.post("/batch")
-async def local_route_batch_configure(request: LocalRouteBatchRequest):
+async def local_route_batch_configure(http_request: Request, body: LocalRouteBatchRequest):
     """
     Execute a batch of configuration operations for a local route rule.
 
     Allows multiple changes in a single VyOS commit for efficiency.
     """
     try:
-        service = get_session_vyos_service(request)
+        service = get_session_vyos_service(http_request)
         version = service.get_version()
         builder = LocalRouteBatchBuilder(version=version)
 
         # Process operations using inspect for dynamic method calls
-        for operation in request.operations:
+        for operation in body.operations:
             method = getattr(builder, operation.op)
             sig = inspect.signature(method)
             params = list(sig.parameters.keys())
@@ -230,7 +232,7 @@ async def local_route_batch_configure(request: LocalRouteBatchRequest):
             # Build arguments dynamically
             args = []
             if "rule_number" in params:
-                args.append(request.rule_number)
+                args.append(body.rule_number)
             if operation.value and len(params) > len(args):
                 args.append(operation.value)
 
@@ -254,7 +256,7 @@ async def local_route_batch_configure(request: LocalRouteBatchRequest):
 
 
 @router.post("/reorder")
-async def local_route_reorder_rules(request: LocalRouteReorderRequest):
+async def local_route_reorder_rules(http_request: Request, body: LocalRouteReorderRequest):
     """
     Reorder local route rules by renumbering them.
 
@@ -262,12 +264,12 @@ async def local_route_reorder_rules(request: LocalRouteReorderRequest):
     in a single batch operation.
     """
     try:
-        service = get_session_vyos_service(request)
+        service = get_session_vyos_service(http_request)
         version = service.get_version()
         builder = LocalRouteBatchBuilder(version=version)
 
         # Determine operation prefix based on rule type
-        if request.rule_type == "ipv4":
+        if body.rule_type == "ipv4":
             delete_op = "delete_local_route_rule"
             create_op = "set_local_route_rule"
             source_op = "set_local_route_rule_source"
@@ -285,12 +287,12 @@ async def local_route_reorder_rules(request: LocalRouteReorderRequest):
             vrf_op = "set_local_route6_rule_set_vrf"
 
         # Step 1: Delete all rules in reverse order
-        old_numbers = [rule["old_number"] for rule in request.rules]
+        old_numbers = [rule["old_number"] for rule in body.rules]
         for old_num in sorted(old_numbers, reverse=True):
             getattr(builder, delete_op)(old_num)
 
         # Step 2: Recreate rules with new numbers
-        for rule in request.rules:
+        for rule in body.rules:
             new_num = rule["new_number"]
             rule_data = rule["rule_data"]
 

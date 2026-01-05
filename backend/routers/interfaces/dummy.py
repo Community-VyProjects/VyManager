@@ -11,6 +11,8 @@ from pydantic import BaseModel, Field, ConfigDict
 from typing import Dict, List, Optional
 
 from session_vyos_service import get_session_vyos_service
+from fastapi_permissions import require_read_permission, require_write_permission
+from rbac_permissions import FeatureGroup
 
 # Router for dummy interface endpoints
 router = APIRouter(prefix="/vyos/dummy", tags=["dummy-interface"])
@@ -170,6 +172,9 @@ async def get_dummy_config(http_request: Request) -> DummyInterfacesConfigRespon
     Returns configuration details including addresses, description, VRF, MTU, etc.
     Note: Dummy interfaces do not have physical properties like speed/duplex/hw-id.
     """
+    # Check RBAC permission
+    await require_read_permission(http_request, FeatureGroup.INTERFACES)
+
     from vyos_mappers.interfaces import DummyInterfaceMapper
 
     try:
@@ -248,6 +253,9 @@ async def configure_interface_batch(http_request: Request, request: InterfaceBat
     }
     ```
     """
+    # Check RBAC permission
+    await require_write_permission(http_request, FeatureGroup.INTERFACES)
+
     try:
         service = get_session_vyos_service(http_request)
         batch = service.create_dummy_batch()

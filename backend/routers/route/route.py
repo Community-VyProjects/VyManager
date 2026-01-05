@@ -12,6 +12,8 @@ from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
 from session_vyos_service import get_session_vyos_service
 from vyos_builders import RouteBatchBuilder
+from fastapi_permissions import require_read_permission, require_write_permission
+from rbac_permissions import FeatureGroup
 import inspect
 
 router = APIRouter(prefix="/vyos/route", tags=["route"])
@@ -190,8 +192,11 @@ async def get_route_capabilities(request: Request):
 
     Returns feature flags indicating which operations are supported.
     """
+    # Check RBAC permission
+    await require_read_permission(request, FeatureGroup.ROUTE_POLICY)
+
     try:
-        service = get_session_vyos_service(request)
+        service = get_session_vyos_service(http_request)
         version = service.get_version()
         builder = RouteBatchBuilder(version=version)
         capabilities = builder.get_capabilities()
@@ -621,19 +626,19 @@ def parse_set_actions(set_data: dict, set_actions: SetActions):
 # ============================================================================
 
 @router.post("/batch")
-async def route_batch_configure(request: RouteBatchRequest):
+async def route_batch_configure(http_request: Request, body: RouteBatchRequest):
     """
     Execute a batch of configuration operations.
 
     Allows multiple changes in a single VyOS commit for efficiency.
     """
     try:
-        service = get_session_vyos_service(request)
+        service = get_session_vyos_service(http_request)
         version = service.get_version()
         builder = RouteBatchBuilder(version=version)
 
         # Process operations using inspect for dynamic method calls
-        for operation in request.operations:
+        for operation in body.operations:
             # Special handling for interface policy operations
             if operation.op in ["set_interface_policy", "delete_interface_policy"]:
                 if operation.value:
@@ -642,9 +647,9 @@ async def route_batch_configure(request: RouteBatchRequest):
                     interface_name = operation.value
 
                     if operation.op == "set_interface_policy":
-                        builder.set_interface_policy(request.policy_type, request.name, interface_name)
+                        builder.set_interface_policy(body.policy_type, body.name, interface_name)
                     else:
-                        builder.delete_interface_policy(request.policy_type, request.name, interface_name)
+                        builder.delete_interface_policy(body.policy_type, body.name, interface_name)
                 continue
 
             # Special handling for TTL and hop-limit operations (format: "op value" e.g., "eq 10")
@@ -654,9 +659,9 @@ async def route_batch_configure(request: RouteBatchRequest):
                     op_type = parts[0]  # eq, gt, or lt
                     op_value = parts[1]
                     if operation.op == "set_match_ttl":
-                        builder.set_match_ttl(request.policy_type, request.name, str(request.rule_number), op_type, op_value)
+                        builder.set_match_ttl(body.policy_type, body.name, str(body.rule_number), op_type, op_value)
                     else:
-                        builder.set_match_hop_limit(request.policy_type, request.name, str(request.rule_number), op_type, op_value)
+                        builder.set_match_hop_limit(body.policy_type, body.name, str(body.rule_number), op_type, op_value)
                 continue
 
             # Special handling for state operation (format: comma-separated "established,related")
@@ -666,7 +671,7 @@ async def route_batch_configure(request: RouteBatchRequest):
                     states = [s.strip() for s in operation.value.split(",")]
                     for state in states:
                         if state:  # Only add if not empty
-                            builder.set_match_state(request.policy_type, request.name, str(request.rule_number), state)
+                            builder.set_match_state(body.policy_type, body.name, str(body.rule_number), state)
                 continue
 
             method = getattr(builder, operation.op)
@@ -678,15 +683,15 @@ async def route_batch_configure(request: RouteBatchRequest):
 
             # Add policy_type
             if "policy_type" in params:
-                args.append(request.policy_type)
+                args.append(body.policy_type)
 
             # Add name
             if "name" in params:
-                args.append(request.name)
+                args.append(body.name)
 
             # Add rule number if specified
-            if request.rule_number and "rule" in params:
-                args.append(str(request.rule_number))
+            if body.rule_number and "rule" in params:
+                args.append(str(body.rule_number))
 
             # Add operation value if provided
             if operation.value and len(params) > len(args):
@@ -1073,14 +1078,14 @@ class ReorderRequest(BaseModel):
 
 
 @router.post("/reorder")
-async def reorder_rules(request: ReorderRequest):
+async def reorder_rules(http_request: Request, body: ReorderRequest):
     """
     Reorder rules within a policy.
 
     Deletes all rules and recreates them in the new order using batch operations.
     """
     try:
-        service = get_session_vyos_service(request)
+        service = get_session_vyos_service(http_request)
         version = service.get_version()
         builder = RouteBatchBuilder(version=version)
 
@@ -1088,13 +1093,13 @@ async def reorder_rules(request: ReorderRequest):
         full_config = await run_in_threadpool(service.get_full_config, refresh=True)
 
         # Navigate to the policy
-        policy_path = ["policy", request.policy_type, request.policy_name]
+        policy_path = ["policy", body.policy_type, body.policy_name]
         policy_config = full_config
         for key in policy_path:
             if key in policy_config:
                 policy_config = policy_config[key]
             else:
-                raise HTTPException(status_code=404, detail=f"Policy {request.policy_name} not found")
+                raise HTTPException(status_code=404, detail=f"Policy {body.policy_name} not found")
 
         # Get all rules
         rules_config = policy_config.get("rule", {})
@@ -1106,16 +1111,16 @@ async def reorder_rules(request: ReorderRequest):
             rules_map[rule_num] = rule_data
 
         # Get the sorted list of rule numbers (this is the target numbering)
-        sorted_rule_numbers = sorted(request.rule_numbers)
+        sorted_rule_numbers = sorted(body.rule_numbers)
 
         # Delete all rules in reverse order
-        for rule_num in reversed(request.rule_numbers):
-            builder.delete_rule(request.policy_type, request.policy_name, str(rule_num))
+        for rule_num in reversed(body.rule_numbers):
+            builder.delete_rule(body.policy_type, body.policy_name, str(rule_num))
 
         # Recreate rules with NEW numbers based on desired order
         # The rule at position 0 in the request should get the lowest number
         # The rule at position 1 should get the next number, etc.
-        for index, old_rule_num in enumerate(request.rule_numbers):
+        for index, old_rule_num in enumerate(body.rule_numbers):
             new_rule_num = sorted_rule_numbers[index]
             if old_rule_num not in rules_map:
                 continue
@@ -1123,30 +1128,30 @@ async def reorder_rules(request: ReorderRequest):
             rule_data = rules_map[old_rule_num]
 
             # Create rule with NEW number
-            builder.create_rule(request.policy_type, request.policy_name, str(new_rule_num))
+            builder.create_rule(body.policy_type, body.policy_name, str(new_rule_num))
 
             # Add description if exists
             if "description" in rule_data:
-                builder.set_rule_description(request.policy_type, request.policy_name, str(new_rule_num), rule_data["description"])
+                builder.set_rule_description(body.policy_type, body.policy_name, str(new_rule_num), rule_data["description"])
 
             # Add disable if exists
             if "disable" in rule_data:
-                builder.set_rule_disable(request.policy_type, request.policy_name, str(new_rule_num))
+                builder.set_rule_disable(body.policy_type, body.policy_name, str(new_rule_num))
 
             # Add log if exists
             if "log" in rule_data:
-                builder.set_rule_log(request.policy_type, request.policy_name, str(new_rule_num))
+                builder.set_rule_log(body.policy_type, body.policy_name, str(new_rule_num))
 
             # Recreate match conditions (they are at root level, not under 'match' key)
-            _recreate_match_conditions(builder, request.policy_type, request.policy_name, str(new_rule_num), rule_data)
+            _recreate_match_conditions(builder, body.policy_type, body.policy_name, str(new_rule_num), rule_data)
 
             # Recreate set actions
             if "set" in rule_data:
-                _recreate_set_actions(builder, request.policy_type, request.policy_name, str(new_rule_num), rule_data["set"])
+                _recreate_set_actions(builder, body.policy_type, body.policy_name, str(new_rule_num), rule_data["set"])
 
             # Handle action drop (can be at root level)
             if "action" in rule_data and rule_data["action"] == "drop":
-                builder.set_action_drop(request.policy_type, request.policy_name, str(new_rule_num))
+                builder.set_action_drop(body.policy_type, body.policy_name, str(new_rule_num))
 
         # Execute batch
         response = service.execute_batch(builder)

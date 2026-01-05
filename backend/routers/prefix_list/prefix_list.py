@@ -11,6 +11,8 @@ from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
 from session_vyos_service import get_session_vyos_service
 from vyos_builders import PrefixListBatchBuilder
+from fastapi_permissions import require_read_permission, require_write_permission
+from rbac_permissions import FeatureGroup
 import inspect
 
 router = APIRouter(prefix="/vyos/prefix-list", tags=["prefix-list"])
@@ -105,6 +107,9 @@ async def get_prefix_list_capabilities(request: Request):
     Returns feature flags indicating which operations are supported.
     Allows frontends to conditionally enable/disable features.
     """
+    # Check RBAC permission
+    await require_read_permission(request, FeatureGroup.PREFIX_LIST)
+
     try:
         service = get_session_vyos_service(request)
         version = service.get_version()
@@ -136,6 +141,9 @@ async def get_prefix_list_config(http_request: Request, refresh: bool = False):
     Returns:
         Generalized configuration data optimized for frontend consumption
     """
+    # Check RBAC permission
+    await require_read_permission(http_request, FeatureGroup.PREFIX_LIST)
+
     try:
         service = get_session_vyos_service(http_request)
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
@@ -268,19 +276,22 @@ async def get_prefix_list_config(http_request: Request, refresh: bool = False):
 
 
 @router.post("/batch")
-async def prefix_list_batch_configure(request: PrefixListBatchRequest):
+async def prefix_list_batch_configure(http_request: Request, body: PrefixListBatchRequest):
     """
     Execute a batch of configuration operations.
 
     Allows multiple changes in a single VyOS commit for efficiency.
     """
+    # Check RBAC permission
+    await require_write_permission(http_request, FeatureGroup.PREFIX_LIST)
+
     try:
-        service = get_session_vyos_service(request)
+        service = get_session_vyos_service(http_request)
         version = service.get_version()
         builder = PrefixListBatchBuilder(version=version)
 
         # Process operations using inspect for dynamic method calls
-        for operation in request.operations:
+        for operation in body.operations:
             method = getattr(builder, operation.op)
             sig = inspect.signature(method)
             params = list(sig.parameters.keys())
@@ -290,11 +301,11 @@ async def prefix_list_batch_configure(request: PrefixListBatchRequest):
 
             # Add name
             if "name" in params:
-                args.append(request.name)
+                args.append(body.name)
 
             # Add rule number if present in method signature
-            if "rule" in params and request.rule_number is not None:
-                args.append(str(request.rule_number))
+            if "rule" in params and body.rule_number is not None:
+                args.append(str(body.rule_number))
 
             # Add operation value
             if operation.value and len(params) > len(args):
@@ -320,91 +331,94 @@ async def prefix_list_batch_configure(request: PrefixListBatchRequest):
 
 
 @router.post("/reorder")
-async def reorder_prefix_list_rules(request: ReorderPrefixListRequest):
+async def reorder_prefix_list_rules(http_request: Request, body: ReorderPrefixListRequest):
     """
     Reorder rules in a prefix-list.
 
     This endpoint deletes all existing rules and recreates them with new numbers
     in a single VyOS commit for atomicity.
     """
+    # Check RBAC permission
+    await require_write_permission(http_request, FeatureGroup.PREFIX_LIST)
+
     try:
-        service = get_session_vyos_service(request)
+        service = get_session_vyos_service(http_request)
         version = service.get_version()
         builder = PrefixListBatchBuilder(version=version)
 
         # Step 1: Delete all rules in reverse order
         rules_to_delete = sorted(
-            [item.old_number for item in request.rules],
+            [item.old_number for item in body.rules],
             reverse=True
         )
 
         for old_number in rules_to_delete:
-            if request.list_type == "ipv4":
-                builder.delete_rule(request.name, str(old_number))
+            if body.list_type == "ipv4":
+                builder.delete_rule(body.name, str(old_number))
             else:  # ipv6
-                builder.delete_rule6(request.name, str(old_number))
+                builder.delete_rule6(body.name, str(old_number))
 
         # Step 2: Recreate rules with new numbers
-        for item in request.rules:
+        for item in body.rules:
             rule = item.rule_data
             rule_str = str(item.new_number)
 
-            if request.list_type == "ipv4":
+            if body.list_type == "ipv4":
                 # Create rule
-                builder.set_rule(request.name, rule_str)
+                builder.set_rule(body.name, rule_str)
 
                 # Set action
-                builder.set_rule_action(request.name, rule_str, rule.action)
+                builder.set_rule_action(body.name, rule_str, rule.action)
 
                 # Set description
                 if rule.description:
                     builder.set_rule_description(
-                        request.name, rule_str, rule.description
+                        body.name, rule_str, rule.description
                     )
 
                 # Set prefix
                 if rule.prefix:
-                    builder.set_rule_prefix(request.name, rule_str, rule.prefix)
+                    builder.set_rule_prefix(body.name, rule_str, rule.prefix)
 
                 # Set ge
                 if rule.ge is not None:
-                    builder.set_rule_ge(request.name, rule_str, str(rule.ge))
+                    builder.set_rule_ge(body.name, rule_str, str(rule.ge))
 
                 # Set le
                 if rule.le is not None:
-                    builder.set_rule_le(request.name, rule_str, str(rule.le))
+                    builder.set_rule_le(body.name, rule_str, str(rule.le))
 
             else:  # ipv6
                 # Create rule
-                builder.set_rule6(request.name, rule_str)
+                builder.set_rule6(body.name, rule_str)
 
                 # Set action
-                builder.set_rule6_action(request.name, rule_str, rule.action)
+                builder.set_rule6_action(body.name, rule_str, rule.action)
 
                 # Set description
                 if rule.description:
                     builder.set_rule6_description(
-                        request.name, rule_str, rule.description
+                        body.name, rule_str, rule.description
                     )
 
                 # Set prefix
                 if rule.prefix:
-                    builder.set_rule6_prefix(request.name, rule_str, rule.prefix)
+                    builder.set_rule6_prefix(body.name, rule_str, rule.prefix)
 
                 # Set ge
                 if rule.ge is not None:
-                    builder.set_rule6_ge(request.name, rule_str, str(rule.ge))
+                    builder.set_rule6_ge(body.name, rule_str, str(rule.ge))
 
                 # Set le
                 if rule.le is not None:
-                    builder.set_rule6_le(request.name, rule_str, str(rule.le))
+                    builder.set_rule6_le(body.name, rule_str, str(rule.le))
 
         # Execute batch
         response = service.execute_batch(builder)
 
         return VyOSResponse(
             success=response.status == 200,
-            data={"message": f"Rules reordered in prefix-list {request.name}"},
+            data={"message": f"Rules reordered in prefix-list {body.name}"},
             error=response.error if response.error else None
         )
     except Exception as e:

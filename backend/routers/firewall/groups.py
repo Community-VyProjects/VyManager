@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
 from session_vyos_service import get_session_vyos_service
 from vyos_builders import FirewallGroupsBatchBuilder
+from fastapi_permissions import require_read_permission, require_write_permission, FeatureGroup
 
 router = APIRouter(prefix="/vyos/firewall/groups", tags=["firewall-groups"])
 
@@ -91,7 +92,12 @@ async def get_groups_capabilities(request: Request):
 
     Returns feature flags indicating which group types and operations are supported.
     This allows frontends to conditionally enable/disable features based on version.
+
+    Requires READ permission on FIREWALL_GROUPS feature.
     """
+    # Check user has READ permission for firewall groups
+    await require_read_permission(request, FeatureGroup.FIREWALL_GROUPS)
+
     try:
         service = get_session_vyos_service(request)
         version = service.get_version()
@@ -121,7 +127,12 @@ async def get_groups_config(request: Request, refresh: bool = False):
 
     Returns:
         Configuration details for all firewall groups organized by type
+
+    Requires READ permission on FIREWALL_GROUPS feature.
     """
+    # Check user has READ permission for firewall groups
+    await require_read_permission(request, FeatureGroup.FIREWALL_GROUPS)
+
     try:
         # Get service from active session
         service = get_session_vyos_service(request)
@@ -428,6 +439,9 @@ async def configure_group_batch(http_request: Request, request: GroupBatchReques
     }
     ```
     """
+    # Check user has WRITE permission for firewall groups (modifying configuration)
+    await require_write_permission(http_request, FeatureGroup.FIREWALL_GROUPS)
+
     try:
         service = get_session_vyos_service(http_request)
         batch = service.create_firewall_groups_batch()

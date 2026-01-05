@@ -132,6 +132,8 @@ async def get_config_snapshot(request: Request):
             config=_saved_config_snapshots[instance_id],
             saved=True
         )
+    except HTTPException:
+        raise  # Re-raise HTTP exceptions as-is
     except Exception as e:
         print(f"[ConfigRouter] Error in /config/snapshot: {type(e).__name__}: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -177,6 +179,8 @@ async def get_config_diff(request: Request):
                 "modified": len(modified)
             }
         )
+    except HTTPException:
+        raise  # Re-raise HTTP exceptions as-is
     except Exception as e:
         print(f"[ConfigRouter] Error in /config/diff: {type(e).__name__}: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -218,6 +222,8 @@ async def save_config(request: Request, file: Optional[str] = None):
             success=True,
             message="Configuration saved successfully to disk"
         )
+    except HTTPException:
+        raise  # Re-raise HTTP exceptions as-is
     except Exception as e:
         print(f"[ConfigRouter] Error in /config/save: {type(e).__name__}: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
