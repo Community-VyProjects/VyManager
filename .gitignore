@@ -13,6 +13,7 @@ frontend/.yarn/*
 !frontend/.yarn/plugins
 !frontend/.yarn/releases
 !frontend/.yarn/versions
+container/vymanager-prod/letsencrypt/acme.json
 
 # testing
 frontend/coverage
@@ -120,3 +121,4 @@ docker-compose.override.yml
 CLAUDE.md
 .claude/
 .claude*
+container/vymanager-prod/letsencrypt/acme.json
