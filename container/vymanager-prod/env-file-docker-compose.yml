@@ -1,5 +1,17 @@
-# Pre-compiled images with Traefik reverse proxy
-# Domain: infra.vyprojects.org
+# ==============================================================================
+# VyManager Production - Docker Compose with Traefik
+# ==============================================================================
+#
+# WHAT TO CHANGE:
+# 1. Lines with Host(`example.com`) - Replace with your actual domain
+# 2. PostgreSQL password (POSTGRES_PASSWORD) - Change for production
+#
+# QUICK START:
+# 1. cp ../../.env.example ../../.env && nano ../../.env
+# 2. Update domain in this file (search/replace example.com)
+# 3. docker compose -f env-file-docker-compose.yml up -d
+#
+# ==============================================================================
 services:
   # Traefik Reverse Proxy
   traefik:
@@ -20,8 +32,8 @@ services:
       - vymanager-network
     labels:
       - "traefik.enable=true"
-      # Dashboard (optional - access via https://infra.vyprojects.org/traefik/)
-      - "traefik.http.routers.traefik-dashboard.rule=Host(`infra.vyprojects.org`) && PathPrefix(`/traefik`)"
+      # Dashboard (optional - access via https://example.com/traefik/)
+      - "traefik.http.routers.traefik-dashboard.rule=Host(`example.com`) && PathPrefix(`/traefik`)"
       - "traefik.http.routers.traefik-dashboard.entrypoints=websecure"
       - "traefik.http.routers.traefik-dashboard.tls.certresolver=letsencrypt"
       - "traefik.http.routers.traefik-dashboard.service=api@internal"
@@ -76,7 +88,7 @@ services:
     labels:
       - "traefik.enable=true"
       # API routes - /vyos/*, /dashboard/*, /user-management/*, /session/*
-      - "traefik.http.routers.backend.rule=Host(`infra.vyprojects.org`) && (PathPrefix(`/vyos`) || PathPrefix(`/dashboard`) || PathPrefix(`/user-management`) || PathPrefix(`/docs`) || PathPrefix(`/openapi.json`) || PathPrefix(`/session`))"
+      - "traefik.http.routers.backend.rule=Host(`example.com`) && (PathPrefix(`/vyos`) || PathPrefix(`/dashboard`) || PathPrefix(`/user-management`) || PathPrefix(`/docs`) || PathPrefix(`/openapi.json`) || PathPrefix(`/session`))"
       - "traefik.http.routers.backend.entrypoints=websecure"
       - "traefik.http.routers.backend.tls.certresolver=letsencrypt"
       - "traefik.http.services.backend.loadbalancer.server.port=8000"
@@ -97,7 +109,7 @@ services:
       - backend
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.frontend.rule=Host(`infra.vyprojects.org`)"
+      - "traefik.http.routers.frontend.rule=Host(`example.com`)"
       - "traefik.http.routers.frontend.entrypoints=websecure"
       - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
       - "traefik.http.services.frontend.loadbalancer.server.port=3000"

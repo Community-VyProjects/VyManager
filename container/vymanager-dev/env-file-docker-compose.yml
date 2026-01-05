@@ -1,3 +1,23 @@
+# ==============================================================================
+# VyManager Development - Docker Compose with Traefik
+# ==============================================================================
+#
+# Builds from local source code with hot-reload for development.
+#
+# WHAT TO CHANGE:
+# 1. Lines with Host(`example.com`) - Replace with your actual domain
+# 2. PostgreSQL password (POSTGRES_PASSWORD) - Change for production
+#
+# ALSO UPDATE (in vymanager-prod folder, shared by dev):
+# - traefik/traefik.yml - Line 59: Change email for Let's Encrypt
+# - traefik/dynamic/middlewares.yml - Line 59: Change CORS origin domain
+#
+# QUICK START:
+# 1. cp ../../.env.example ../../.env && nano ../../.env
+# 2. Update domain in this file (search/replace example.com)
+# 3. docker compose -f env-file-docker-compose.yml up -d --build
+#
+# ==============================================================================
 services:
   # Traefik Reverse Proxy
   traefik:
@@ -72,7 +92,7 @@ services:
       start_period: 40s
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.backend.rule=Host(`infra.vyprojects.org`) && (PathPrefix(`/vyos`) || PathPrefix(`/dashboard`) || PathPrefix(`/user-management`) || PathPrefix(`/docs`) || PathPrefix(`/openapi.json`) || PathPrefix(`/session`))"
+      - "traefik.http.routers.backend.rule=Host(`example.com`) && (PathPrefix(`/vyos`) || PathPrefix(`/dashboard`) || PathPrefix(`/user-management`) || PathPrefix(`/docs`) || PathPrefix(`/openapi.json`) || PathPrefix(`/session`))"
       - "traefik.http.routers.backend.entrypoints=websecure"
       - "traefik.http.routers.backend.tls.certresolver=letsencrypt"
       - "traefik.http.services.backend.loadbalancer.server.port=8000"
@@ -101,7 +121,7 @@ services:
       - vymanager-network
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.frontend.rule=Host(`infra.vyprojects.org`)"
+      - "traefik.http.routers.frontend.rule=Host(`example.com`)"
       - "traefik.http.routers.frontend.entrypoints=websecure"
       - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
       - "traefik.http.services.frontend.loadbalancer.server.port=3000"

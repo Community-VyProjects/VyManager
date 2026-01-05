@@ -118,6 +118,13 @@ TRUSTED_ORIGINS=https://example.com
 # Enter pre-compiled images directory
 cd container/vymanager-prod
 
+# Update domain in docker-compose (replace example.com with your domain)
+nano env-file-docker-compose.yml
+
+# Update Traefik config
+nano traefik/traefik.yml                    # Line 59: Your email for Let's Encrypt
+nano traefik/dynamic/middlewares.yml        # Line 59: Your domain for CORS
+
 # Start all services
 docker compose -f env-file-docker-compose.yml up -d
 
@@ -127,6 +134,12 @@ docker compose logs -f
 # Check status
 docker compose ps
 ```
+
+> 📝 **Files to update for your domain:**
+> - `.env` - All URL settings
+> - `container/vymanager-*/env-file-docker-compose.yml` - Traefik `Host()` rules
+> - `container/vymanager-prod/traefik/traefik.yml` - Let's Encrypt email
+> - `container/vymanager-prod/traefik/dynamic/middlewares.yml` - CORS allowed origins
 
 ### Step 4: Complete First-Time Setup Wizard
 
