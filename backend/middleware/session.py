@@ -81,34 +81,70 @@ class SessionMiddleware(BaseHTTPMiddleware):
             current_session_token = cookie_token.split(".")[0] if cookie_token else None
 
             async with db_pool.acquire() as conn:
-                # Look up active session with instance and site details
-                # Uses new RBAC system (user_instance_roles)
-                session = await conn.fetchrow(
+                # First check if user is site-level ADMIN
+                user_site_role = await conn.fetchval(
                     """
-                    SELECT
-                        a."instanceId" as instance_id,
-                        a."sessionToken" as session_token,
-                        i.name as instance_name,
-                        i.host,
-                        i.port,
-                        i.username,
-                        i.password,
-                        i."apiKey" as api_key,
-                        i."isActive" as is_active,
-                        i."siteId" as site_id,
-                        i."vyosVersion" as vyos_version,
-                        i.protocol,
-                        i."verifySsl" as verify_ssl,
-                        s.name as site_name,
-                        uir."builtInRole" as user_role
-                    FROM active_sessions a
-                    JOIN instances i ON a."instanceId" = i.id
-                    JOIN sites s ON i."siteId" = s.id
-                    JOIN user_instance_roles uir ON i.id = uir."instanceId" AND uir."userId" = $1
-                    WHERE a."userId" = $1
+                    SELECT role FROM users WHERE id = $1
                     """,
-                    user_id,
+                    user_id
                 )
+
+                # Look up active session with instance and site details
+                # Site ADMINs don't need user_instance_roles entries - they get ADMIN role automatically
+                if user_site_role == "ADMIN":
+                    session = await conn.fetchrow(
+                        """
+                        SELECT
+                            a."instanceId" as instance_id,
+                            a."sessionToken" as session_token,
+                            i.name as instance_name,
+                            i.host,
+                            i.port,
+                            i.username,
+                            i.password,
+                            i."apiKey" as api_key,
+                            i."isActive" as is_active,
+                            i."siteId" as site_id,
+                            i."vyosVersion" as vyos_version,
+                            i.protocol,
+                            i."verifySsl" as verify_ssl,
+                            s.name as site_name,
+                            'ADMIN' as user_role
+                        FROM active_sessions a
+                        JOIN instances i ON a."instanceId" = i.id
+                        JOIN sites s ON i."siteId" = s.id
+                        WHERE a."userId" = $1
+                        """,
+                        user_id,
+                    )
+                else:
+                    # Regular users need explicit instance-level role assignment
+                    session = await conn.fetchrow(
+                        """
+                        SELECT
+                            a."instanceId" as instance_id,
+                            a."sessionToken" as session_token,
+                            i.name as instance_name,
+                            i.host,
+                            i.port,
+                            i.username,
+                            i.password,
+                            i."apiKey" as api_key,
+                            i."isActive" as is_active,
+                            i."siteId" as site_id,
+                            i."vyosVersion" as vyos_version,
+                            i.protocol,
+                            i."verifySsl" as verify_ssl,
+                            s.name as site_name,
+                            uir.role as user_role
+                        FROM active_sessions a
+                        JOIN instances i ON a."instanceId" = i.id
+                        JOIN sites s ON i."siteId" = s.id
+                        JOIN user_instance_roles uir ON i.id = uir."instanceId" AND uir."userId" = $1
+                        WHERE a."userId" = $1
+                        """,
+                        user_id,
+                    )
 
                 # Check if active session exists but belongs to a different auth session
                 # This means the user logged in from a different device

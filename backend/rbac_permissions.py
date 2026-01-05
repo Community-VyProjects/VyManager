@@ -1,12 +1,12 @@
 """
 RBAC Permission System
 
-Helper functions for checking user permissions based on the new RBAC system.
+Helper functions for checking user permissions based on the simplified RBAC system.
 
 Permission Resolution:
 1. Get all user's roles for the instance (from user_instance_roles table)
 2. For each role, determine permissions:
-   - Built-in roles (SUPER_ADMIN, ADMIN, VIEWER): Use predefined permissions
+   - Built-in roles (ADMIN, OPERATOR, VIEWER): Use predefined permissions
    - Custom roles: Look up permissions in feature_permissions table
 3. Combine permissions (WRITE > READ > NONE)
 4. Apply special rules (e.g., WRITE on CONFIGURATION requires READ on all features)
@@ -23,12 +23,67 @@ import asyncpg
 
 class FeatureGroup(str, Enum):
     """Feature groups that can have permissions"""
+    # Legacy/Parent features (for backward compatibility)
     FIREWALL = "FIREWALL"
     NAT = "NAT"
     DHCP = "DHCP"
     INTERFACES = "INTERFACES"
+
+    # Firewall sub-features (page-level permissions)
+    FIREWALL_GROUPS = "FIREWALL_GROUPS"
+    FIREWALL_POLICIES = "FIREWALL_POLICIES"
+    FIREWALL_ZONES = "FIREWALL_ZONES"
+
+    # Network features
+    NETWORK = "NETWORK"
+    VRF = "VRF"
+    LOAD_BALANCING = "LOAD_BALANCING"
+
+    # VPN features
+    VPN = "VPN"
+    IPSEC = "IPSEC"
+    WIREGUARD = "WIREGUARD"
+
+    # Routing features (parent/child hierarchy)
+    ROUTING = "ROUTING"
+    UNICAST_PROTOCOLS = "UNICAST_PROTOCOLS"
+    BGP = "BGP"
+    OSPF = "OSPF"
+    OSPFV3 = "OSPFV3"
+    ISIS = "ISIS"
+    OPENFABRIC = "OPENFABRIC"
+    RIP = "RIP"
+    RIPNG = "RIPNG"
+    BABEL = "BABEL"
     STATIC_ROUTES = "STATIC_ROUTES"
+    FAILOVER = "FAILOVER"
+
+    # Routing Infrastructure
+    ROUTING_INFRASTRUCTURE = "ROUTING_INFRASTRUCTURE"
+    BFD = "BFD"
+    MPLS = "MPLS"
+    SEGMENT_ROUTING = "SEGMENT_ROUTING"
+    NHRP = "NHRP"
+    RPKI = "RPKI"
+
+    # Routing Policies
     ROUTING_POLICIES = "ROUTING_POLICIES"
+    ACCESS_LIST = "ACCESS_LIST"
+    PREFIX_LIST = "PREFIX_LIST"
+    ROUTE_POLICY = "ROUTE_POLICY"
+    ROUTE_MAP = "ROUTE_MAP"
+    LOCAL_ROUTE = "LOCAL_ROUTE"
+    BGP_AS_PATH = "BGP_AS_PATH"
+    BGP_COMMUNITY = "BGP_COMMUNITY"
+    BGP_EXTENDED_COMMUNITY = "BGP_EXTENDED_COMMUNITY"
+    BGP_LARGE_COMMUNITY = "BGP_LARGE_COMMUNITY"
+
+    # Multicast
+    MULTICAST = "MULTICAST"
+    IGMP_PROXY = "IGMP_PROXY"
+    PIM = "PIM"
+    PIM6 = "PIM6"
+
     SYSTEM = "SYSTEM"
     CONFIGURATION = "CONFIGURATION"
     DASHBOARD = "DASHBOARD"
@@ -45,8 +100,8 @@ class PermissionLevel(str, Enum):
 
 class BuiltInRole(str, Enum):
     """Built-in roles with predefined permissions"""
-    SUPER_ADMIN = "SUPER_ADMIN"
     ADMIN = "ADMIN"
+    OPERATOR = "OPERATOR"
     VIEWER = "VIEWER"
 
 
@@ -55,51 +110,165 @@ class BuiltInRole(str, Enum):
 # ============================================================================
 
 BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
-    BuiltInRole.SUPER_ADMIN: {
-        # All features: WRITE
+    BuiltInRole.ADMIN: {
+        # ADMIN has full WRITE access to everything
         FeatureGroup.FIREWALL: PermissionLevel.WRITE,
+        FeatureGroup.FIREWALL_GROUPS: PermissionLevel.WRITE,
+        FeatureGroup.FIREWALL_POLICIES: PermissionLevel.WRITE,
+        FeatureGroup.FIREWALL_ZONES: PermissionLevel.WRITE,
+        FeatureGroup.NETWORK: PermissionLevel.WRITE,
         FeatureGroup.NAT: PermissionLevel.WRITE,
         FeatureGroup.DHCP: PermissionLevel.WRITE,
         FeatureGroup.INTERFACES: PermissionLevel.WRITE,
+        FeatureGroup.VRF: PermissionLevel.WRITE,
+        FeatureGroup.LOAD_BALANCING: PermissionLevel.WRITE,
+        FeatureGroup.VPN: PermissionLevel.WRITE,
+        FeatureGroup.IPSEC: PermissionLevel.WRITE,
+        FeatureGroup.WIREGUARD: PermissionLevel.WRITE,
+        FeatureGroup.ROUTING: PermissionLevel.WRITE,
+        FeatureGroup.UNICAST_PROTOCOLS: PermissionLevel.WRITE,
+        FeatureGroup.BGP: PermissionLevel.WRITE,
+        FeatureGroup.OSPF: PermissionLevel.WRITE,
+        FeatureGroup.OSPFV3: PermissionLevel.WRITE,
+        FeatureGroup.ISIS: PermissionLevel.WRITE,
+        FeatureGroup.OPENFABRIC: PermissionLevel.WRITE,
+        FeatureGroup.RIP: PermissionLevel.WRITE,
+        FeatureGroup.RIPNG: PermissionLevel.WRITE,
+        FeatureGroup.BABEL: PermissionLevel.WRITE,
         FeatureGroup.STATIC_ROUTES: PermissionLevel.WRITE,
+        FeatureGroup.FAILOVER: PermissionLevel.WRITE,
+        FeatureGroup.ROUTING_INFRASTRUCTURE: PermissionLevel.WRITE,
+        FeatureGroup.BFD: PermissionLevel.WRITE,
+        FeatureGroup.MPLS: PermissionLevel.WRITE,
+        FeatureGroup.SEGMENT_ROUTING: PermissionLevel.WRITE,
+        FeatureGroup.NHRP: PermissionLevel.WRITE,
+        FeatureGroup.RPKI: PermissionLevel.WRITE,
         FeatureGroup.ROUTING_POLICIES: PermissionLevel.WRITE,
+        FeatureGroup.ACCESS_LIST: PermissionLevel.WRITE,
+        FeatureGroup.PREFIX_LIST: PermissionLevel.WRITE,
+        FeatureGroup.ROUTE_POLICY: PermissionLevel.WRITE,
+        FeatureGroup.ROUTE_MAP: PermissionLevel.WRITE,
+        FeatureGroup.LOCAL_ROUTE: PermissionLevel.WRITE,
+        FeatureGroup.BGP_AS_PATH: PermissionLevel.WRITE,
+        FeatureGroup.BGP_COMMUNITY: PermissionLevel.WRITE,
+        FeatureGroup.BGP_EXTENDED_COMMUNITY: PermissionLevel.WRITE,
+        FeatureGroup.BGP_LARGE_COMMUNITY: PermissionLevel.WRITE,
+        FeatureGroup.MULTICAST: PermissionLevel.WRITE,
+        FeatureGroup.IGMP_PROXY: PermissionLevel.WRITE,
+        FeatureGroup.PIM: PermissionLevel.WRITE,
+        FeatureGroup.PIM6: PermissionLevel.WRITE,
         FeatureGroup.SYSTEM: PermissionLevel.WRITE,
         FeatureGroup.CONFIGURATION: PermissionLevel.WRITE,
         FeatureGroup.DASHBOARD: PermissionLevel.WRITE,
         FeatureGroup.SITES_INSTANCES: PermissionLevel.WRITE,
         FeatureGroup.USER_MANAGEMENT: PermissionLevel.WRITE,
     },
-    BuiltInRole.ADMIN: {
-        # All VyOS features: WRITE
+    BuiltInRole.OPERATOR: {
+        # OPERATOR has WRITE access to VyOS features only
         FeatureGroup.FIREWALL: PermissionLevel.WRITE,
+        FeatureGroup.FIREWALL_GROUPS: PermissionLevel.WRITE,
+        FeatureGroup.FIREWALL_POLICIES: PermissionLevel.WRITE,
+        FeatureGroup.FIREWALL_ZONES: PermissionLevel.WRITE,
+        FeatureGroup.NETWORK: PermissionLevel.WRITE,
         FeatureGroup.NAT: PermissionLevel.WRITE,
         FeatureGroup.DHCP: PermissionLevel.WRITE,
         FeatureGroup.INTERFACES: PermissionLevel.WRITE,
+        FeatureGroup.VRF: PermissionLevel.WRITE,
+        FeatureGroup.LOAD_BALANCING: PermissionLevel.WRITE,
+        FeatureGroup.VPN: PermissionLevel.WRITE,
+        FeatureGroup.IPSEC: PermissionLevel.WRITE,
+        FeatureGroup.WIREGUARD: PermissionLevel.WRITE,
+        FeatureGroup.ROUTING: PermissionLevel.WRITE,
+        FeatureGroup.UNICAST_PROTOCOLS: PermissionLevel.WRITE,
+        FeatureGroup.BGP: PermissionLevel.WRITE,
+        FeatureGroup.OSPF: PermissionLevel.WRITE,
+        FeatureGroup.OSPFV3: PermissionLevel.WRITE,
+        FeatureGroup.ISIS: PermissionLevel.WRITE,
+        FeatureGroup.OPENFABRIC: PermissionLevel.WRITE,
+        FeatureGroup.RIP: PermissionLevel.WRITE,
+        FeatureGroup.RIPNG: PermissionLevel.WRITE,
+        FeatureGroup.BABEL: PermissionLevel.WRITE,
         FeatureGroup.STATIC_ROUTES: PermissionLevel.WRITE,
+        FeatureGroup.FAILOVER: PermissionLevel.WRITE,
+        FeatureGroup.ROUTING_INFRASTRUCTURE: PermissionLevel.WRITE,
+        FeatureGroup.BFD: PermissionLevel.WRITE,
+        FeatureGroup.MPLS: PermissionLevel.WRITE,
+        FeatureGroup.SEGMENT_ROUTING: PermissionLevel.WRITE,
+        FeatureGroup.NHRP: PermissionLevel.WRITE,
+        FeatureGroup.RPKI: PermissionLevel.WRITE,
         FeatureGroup.ROUTING_POLICIES: PermissionLevel.WRITE,
+        FeatureGroup.ACCESS_LIST: PermissionLevel.WRITE,
+        FeatureGroup.PREFIX_LIST: PermissionLevel.WRITE,
+        FeatureGroup.ROUTE_POLICY: PermissionLevel.WRITE,
+        FeatureGroup.ROUTE_MAP: PermissionLevel.WRITE,
+        FeatureGroup.LOCAL_ROUTE: PermissionLevel.WRITE,
+        FeatureGroup.BGP_AS_PATH: PermissionLevel.WRITE,
+        FeatureGroup.BGP_COMMUNITY: PermissionLevel.WRITE,
+        FeatureGroup.BGP_EXTENDED_COMMUNITY: PermissionLevel.WRITE,
+        FeatureGroup.BGP_LARGE_COMMUNITY: PermissionLevel.WRITE,
+        FeatureGroup.MULTICAST: PermissionLevel.WRITE,
+        FeatureGroup.IGMP_PROXY: PermissionLevel.WRITE,
+        FeatureGroup.PIM: PermissionLevel.WRITE,
+        FeatureGroup.PIM6: PermissionLevel.WRITE,
         FeatureGroup.SYSTEM: PermissionLevel.WRITE,
         FeatureGroup.CONFIGURATION: PermissionLevel.WRITE,
         FeatureGroup.DASHBOARD: PermissionLevel.WRITE,
-        # Site/Instance management: NONE
+        # No site/instance or user management
         FeatureGroup.SITES_INSTANCES: PermissionLevel.NONE,
-        # User management: NONE
         FeatureGroup.USER_MANAGEMENT: PermissionLevel.NONE,
     },
     BuiltInRole.VIEWER: {
-        # All VyOS features: READ
+        # VIEWER has READ-only access to VyOS features
         FeatureGroup.FIREWALL: PermissionLevel.READ,
+        FeatureGroup.FIREWALL_GROUPS: PermissionLevel.READ,
+        FeatureGroup.FIREWALL_POLICIES: PermissionLevel.READ,
+        FeatureGroup.FIREWALL_ZONES: PermissionLevel.READ,
+        FeatureGroup.NETWORK: PermissionLevel.READ,
         FeatureGroup.NAT: PermissionLevel.READ,
         FeatureGroup.DHCP: PermissionLevel.READ,
         FeatureGroup.INTERFACES: PermissionLevel.READ,
+        FeatureGroup.VRF: PermissionLevel.READ,
+        FeatureGroup.LOAD_BALANCING: PermissionLevel.READ,
+        FeatureGroup.VPN: PermissionLevel.READ,
+        FeatureGroup.IPSEC: PermissionLevel.READ,
+        FeatureGroup.WIREGUARD: PermissionLevel.READ,
+        FeatureGroup.ROUTING: PermissionLevel.READ,
+        FeatureGroup.UNICAST_PROTOCOLS: PermissionLevel.READ,
+        FeatureGroup.BGP: PermissionLevel.READ,
+        FeatureGroup.OSPF: PermissionLevel.READ,
+        FeatureGroup.OSPFV3: PermissionLevel.READ,
+        FeatureGroup.ISIS: PermissionLevel.READ,
+        FeatureGroup.OPENFABRIC: PermissionLevel.READ,
+        FeatureGroup.RIP: PermissionLevel.READ,
+        FeatureGroup.RIPNG: PermissionLevel.READ,
+        FeatureGroup.BABEL: PermissionLevel.READ,
         FeatureGroup.STATIC_ROUTES: PermissionLevel.READ,
+        FeatureGroup.FAILOVER: PermissionLevel.READ,
+        FeatureGroup.ROUTING_INFRASTRUCTURE: PermissionLevel.READ,
+        FeatureGroup.BFD: PermissionLevel.READ,
+        FeatureGroup.MPLS: PermissionLevel.READ,
+        FeatureGroup.SEGMENT_ROUTING: PermissionLevel.READ,
+        FeatureGroup.NHRP: PermissionLevel.READ,
+        FeatureGroup.RPKI: PermissionLevel.READ,
         FeatureGroup.ROUTING_POLICIES: PermissionLevel.READ,
+        FeatureGroup.ACCESS_LIST: PermissionLevel.READ,
+        FeatureGroup.PREFIX_LIST: PermissionLevel.READ,
+        FeatureGroup.ROUTE_POLICY: PermissionLevel.READ,
+        FeatureGroup.ROUTE_MAP: PermissionLevel.READ,
+        FeatureGroup.LOCAL_ROUTE: PermissionLevel.READ,
+        FeatureGroup.BGP_AS_PATH: PermissionLevel.READ,
+        FeatureGroup.BGP_COMMUNITY: PermissionLevel.READ,
+        FeatureGroup.BGP_EXTENDED_COMMUNITY: PermissionLevel.READ,
+        FeatureGroup.BGP_LARGE_COMMUNITY: PermissionLevel.READ,
+        FeatureGroup.MULTICAST: PermissionLevel.READ,
+        FeatureGroup.IGMP_PROXY: PermissionLevel.READ,
+        FeatureGroup.PIM: PermissionLevel.READ,
+        FeatureGroup.PIM6: PermissionLevel.READ,
         FeatureGroup.SYSTEM: PermissionLevel.READ,
         FeatureGroup.CONFIGURATION: PermissionLevel.READ,
-        # Dashboard: WRITE (viewers can customize their own dashboard)
         FeatureGroup.DASHBOARD: PermissionLevel.WRITE,
-        # Site/Instance management: NONE
+        # No site/instance or user management
         FeatureGroup.SITES_INSTANCES: PermissionLevel.NONE,
-        # User management: NONE
         FeatureGroup.USER_MANAGEMENT: PermissionLevel.NONE,
     },
 }
@@ -117,8 +286,10 @@ async def get_user_permissions(
     """
     Get all permissions for a user on a specific instance.
 
-    Combines permissions from all roles (built-in and custom) the user has
-    on this instance. Higher permission level wins (WRITE > READ > NONE).
+    Uses new two-tier RBAC:
+    - Site ADMIN (users.role = 'ADMIN'): Full WRITE access to all features on all instances
+    - Instance ADMIN role: Full WRITE access to all VyOS features on this instance
+    - Instance OPERATOR/VIEWER: Check user_feature_permissions for granular access
 
     Args:
         db_pool: Database connection pool
@@ -134,13 +305,76 @@ async def get_user_permissions(
     }
 
     async with db_pool.acquire() as conn:
-        # Get all roles for this user on this instance
-        user_roles = await conn.fetch(
+        # First check if user is site-level ADMIN
+        site_role = await conn.fetchval(
             """
-            SELECT
-                uir."roleType",
-                uir."builtInRole",
-                uir."customRoleId"
+            SELECT role FROM users WHERE id = $1
+            """,
+            user_id
+        )
+
+        # Site ADMINs have full access to everything
+        if site_role == "ADMIN":
+            all_features = [
+                FeatureGroup.FIREWALL,
+                FeatureGroup.FIREWALL_GROUPS,
+                FeatureGroup.FIREWALL_POLICIES,
+                FeatureGroup.FIREWALL_ZONES,
+                FeatureGroup.NETWORK,
+                FeatureGroup.NAT,
+                FeatureGroup.DHCP,
+                FeatureGroup.INTERFACES,
+                FeatureGroup.VRF,
+                FeatureGroup.LOAD_BALANCING,
+                FeatureGroup.VPN,
+                FeatureGroup.IPSEC,
+                FeatureGroup.WIREGUARD,
+                FeatureGroup.ROUTING,
+                FeatureGroup.UNICAST_PROTOCOLS,
+                FeatureGroup.BGP,
+                FeatureGroup.OSPF,
+                FeatureGroup.OSPFV3,
+                FeatureGroup.ISIS,
+                FeatureGroup.OPENFABRIC,
+                FeatureGroup.RIP,
+                FeatureGroup.RIPNG,
+                FeatureGroup.BABEL,
+                FeatureGroup.STATIC_ROUTES,
+                FeatureGroup.FAILOVER,
+                FeatureGroup.ROUTING_INFRASTRUCTURE,
+                FeatureGroup.BFD,
+                FeatureGroup.MPLS,
+                FeatureGroup.SEGMENT_ROUTING,
+                FeatureGroup.NHRP,
+                FeatureGroup.RPKI,
+                FeatureGroup.ROUTING_POLICIES,
+                FeatureGroup.ACCESS_LIST,
+                FeatureGroup.PREFIX_LIST,
+                FeatureGroup.ROUTE_POLICY,
+                FeatureGroup.ROUTE_MAP,
+                FeatureGroup.LOCAL_ROUTE,
+                FeatureGroup.BGP_AS_PATH,
+                FeatureGroup.BGP_COMMUNITY,
+                FeatureGroup.BGP_EXTENDED_COMMUNITY,
+                FeatureGroup.BGP_LARGE_COMMUNITY,
+                FeatureGroup.MULTICAST,
+                FeatureGroup.IGMP_PROXY,
+                FeatureGroup.PIM,
+                FeatureGroup.PIM6,
+                FeatureGroup.SYSTEM,
+                FeatureGroup.CONFIGURATION,
+                FeatureGroup.DASHBOARD,
+                FeatureGroup.SITES_INSTANCES,
+                FeatureGroup.USER_MANAGEMENT,
+            ]
+            for feature in all_features:
+                permissions[feature] = PermissionLevel.WRITE
+            return permissions
+
+        # Not a site ADMIN - check instance-level role
+        user_role = await conn.fetchrow(
+            """
+            SELECT uir.role, uir.id as assignment_id
             FROM user_instance_roles uir
             WHERE uir."userId" = $1 AND uir."instanceId" = $2
             """,
@@ -148,35 +382,94 @@ async def get_user_permissions(
             instance_id
         )
 
-        # Process each role
-        for role_record in user_roles:
-            role_type = role_record["roleType"]
+        if not user_role:
+            # User has no access to this instance
+            return permissions
 
-            if role_type == "BUILT_IN":
-                # Built-in role: use predefined permissions
-                built_in_role = role_record["builtInRole"]
-                if built_in_role in BUILT_IN_PERMISSIONS:
-                    role_permissions = BUILT_IN_PERMISSIONS[built_in_role]
-                    _merge_permissions(permissions, role_permissions)
+        role = user_role["role"]
 
-            elif role_type == "CUSTOM":
-                # Custom role: fetch from feature_permissions table
-                custom_role_id = role_record["customRoleId"]
-                if custom_role_id:
-                    feature_perms = await conn.fetch(
-                        """
-                        SELECT feature, permission
-                        FROM feature_permissions
-                        WHERE "roleId" = $1
-                        """,
-                        custom_role_id
-                    )
+        if role == "ADMIN":
+            # ADMIN has full WRITE access to all VyOS features
+            vyos_features = [
+                FeatureGroup.FIREWALL,
+                FeatureGroup.FIREWALL_GROUPS,
+                FeatureGroup.FIREWALL_POLICIES,
+                FeatureGroup.FIREWALL_ZONES,
+                FeatureGroup.NETWORK,
+                FeatureGroup.NAT,
+                FeatureGroup.DHCP,
+                FeatureGroup.INTERFACES,
+                FeatureGroup.VRF,
+                FeatureGroup.LOAD_BALANCING,
+                FeatureGroup.VPN,
+                FeatureGroup.IPSEC,
+                FeatureGroup.WIREGUARD,
+                FeatureGroup.ROUTING,  # Added for three-level hierarchy
+                FeatureGroup.UNICAST_PROTOCOLS,  # Added for three-level hierarchy
+                FeatureGroup.BGP,
+                FeatureGroup.OSPF,
+                FeatureGroup.OSPFV3,
+                FeatureGroup.ISIS,
+                FeatureGroup.OPENFABRIC,
+                FeatureGroup.RIP,
+                FeatureGroup.RIPNG,
+                FeatureGroup.BABEL,
+                FeatureGroup.STATIC_ROUTES,
+                FeatureGroup.FAILOVER,
+                FeatureGroup.ROUTING_INFRASTRUCTURE,
+                FeatureGroup.BFD,
+                FeatureGroup.MPLS,
+                FeatureGroup.SEGMENT_ROUTING,
+                FeatureGroup.NHRP,
+                FeatureGroup.RPKI,
+                FeatureGroup.ROUTING_POLICIES,
+                FeatureGroup.ACCESS_LIST,
+                FeatureGroup.PREFIX_LIST,
+                FeatureGroup.ROUTE_POLICY,
+                FeatureGroup.ROUTE_MAP,
+                FeatureGroup.LOCAL_ROUTE,
+                FeatureGroup.BGP_AS_PATH,
+                FeatureGroup.BGP_COMMUNITY,
+                FeatureGroup.BGP_EXTENDED_COMMUNITY,
+                FeatureGroup.BGP_LARGE_COMMUNITY,
+                FeatureGroup.MULTICAST,
+                FeatureGroup.IGMP_PROXY,
+                FeatureGroup.PIM,
+                FeatureGroup.PIM6,
+                FeatureGroup.SYSTEM,
+                FeatureGroup.CONFIGURATION,
+                FeatureGroup.DASHBOARD,
+            ]
+            for feature in vyos_features:
+                permissions[feature] = PermissionLevel.WRITE
 
-                    role_permissions = {
-                        FeatureGroup(fp["feature"]): PermissionLevel(fp["permission"])
-                        for fp in feature_perms
-                    }
-                    _merge_permissions(permissions, role_permissions)
+        else:
+            # OPERATOR or VIEWER: check feature permissions
+            feature_perms = await conn.fetch(
+                """
+                SELECT feature, "canEdit", "canView"
+                FROM user_feature_permissions
+                WHERE "userInstanceRoleId" = $1
+                """,
+                user_role["assignment_id"]
+            )
+
+            for fp in feature_perms:
+                feature_name = fp["feature"]
+                # Convert string to FeatureGroup enum
+                try:
+                    feature = FeatureGroup(feature_name)
+
+                    if fp["canEdit"]:
+                        permissions[feature] = PermissionLevel.WRITE
+                    elif fp["canView"]:
+                        permissions[feature] = PermissionLevel.READ
+                except ValueError:
+                    # Invalid feature name, skip it
+                    continue
+
+    # Apply backward compatibility: Parent permissions grant child permissions
+    _apply_parent_child_permissions(permissions)
 
     # Apply special rules
     _apply_special_rules(permissions)
@@ -216,33 +509,33 @@ async def check_permission(
     return False
 
 
-async def is_super_admin(db_pool: asyncpg.Pool, user_id: str) -> bool:
+async def is_admin(db_pool: asyncpg.Pool, user_id: str) -> bool:
     """
-    Check if a user is a SUPER_ADMIN (has SUPER_ADMIN role on any instance).
+    Check if a user is an ADMIN (has role='ADMIN' in users table).
 
-    SUPER_ADMIN automatically has access to all instances.
+    ADMINs have full access to user management, sites, and all instances.
 
     Args:
         db_pool: Database connection pool
         user_id: User ID
 
     Returns:
-        True if user is SUPER_ADMIN, False otherwise
+        True if user has ADMIN role, False otherwise
     """
     async with db_pool.acquire() as conn:
         result = await conn.fetchval(
             """
-            SELECT EXISTS(
-                SELECT 1
-                FROM user_instance_roles
-                WHERE "userId" = $1
-                  AND "roleType" = 'BUILT_IN'
-                  AND "builtInRole" = 'SUPER_ADMIN'
-            )
+            SELECT role FROM users WHERE id = $1
             """,
             user_id
         )
-        return result or False
+        return result == "ADMIN" if result else False
+
+
+# Deprecated: Kept for backwards compatibility
+async def is_super_admin(db_pool: asyncpg.Pool, user_id: str) -> bool:
+    """Deprecated: Use is_admin() instead."""
+    return await is_admin(db_pool, user_id)
 
 
 async def get_user_accessible_instances(
@@ -260,11 +553,11 @@ async def get_user_accessible_instances(
         List of instance IDs
     """
     async with db_pool.acquire() as conn:
-        # Check if user is SUPER_ADMIN
-        is_admin = await is_super_admin(db_pool, user_id)
+        # Check if user is ADMIN
+        user_is_admin = await is_admin(db_pool, user_id)
 
-        if is_admin:
-            # SUPER_ADMIN has access to all instances
+        if user_is_admin:
+            # ADMIN has access to all instances
             instances = await conn.fetch(
                 """
                 SELECT id FROM instances WHERE "isActive" = true
@@ -308,6 +601,152 @@ def _merge_permissions(
         current_level = target.get(feature, PermissionLevel.NONE)
         if permission_order[level] > permission_order[current_level]:
             target[feature] = level
+
+
+def _apply_parent_child_permissions(permissions: Dict[FeatureGroup, PermissionLevel]) -> None:
+    """
+    Apply parent-child permission inheritance.
+
+    If a user has permission on a parent feature, automatically grant the same
+    permission to all child features.
+
+    Parent-Child relationships:
+    - FIREWALL → FIREWALL_GROUPS, FIREWALL_POLICIES, FIREWALL_ZONES
+    - NETWORK → INTERFACES, DHCP, VRF, LOAD_BALANCING, NAT
+    - VPN → IPSEC, WIREGUARD
+    - ROUTING → UNICAST_PROTOCOLS
+    - UNICAST_PROTOCOLS → BGP, OSPF, OSPFv3, ISIS, OPENFABRIC, RIP, RIPng, BABEL
+    - ROUTING_INFRASTRUCTURE → BFD, MPLS, SEGMENT_ROUTING, NHRP, RPKI
+    - ROUTING_POLICIES → ACCESS_LIST, PREFIX_LIST, ROUTE_POLICY, ROUTE_MAP, LOCAL_ROUTE,
+                         BGP_AS_PATH, BGP_COMMUNITY, BGP_EXTENDED_COMMUNITY, BGP_LARGE_COMMUNITY
+    - MULTICAST → IGMP_PROXY, PIM, PIM6
+
+    Modifies permissions in place.
+    """
+    # FIREWALL parent grants child permissions
+    firewall_perm = permissions.get(FeatureGroup.FIREWALL, PermissionLevel.NONE)
+    if firewall_perm != PermissionLevel.NONE:
+        # Grant parent permission to children if they don't have a higher permission
+        for child in [FeatureGroup.FIREWALL_GROUPS, FeatureGroup.FIREWALL_POLICIES, FeatureGroup.FIREWALL_ZONES]:
+            current = permissions.get(child, PermissionLevel.NONE)
+            # Only upgrade permission, never downgrade
+            if firewall_perm == PermissionLevel.WRITE:
+                permissions[child] = PermissionLevel.WRITE
+            elif firewall_perm == PermissionLevel.READ and current == PermissionLevel.NONE:
+                permissions[child] = PermissionLevel.READ
+
+    # NETWORK grants permissions to all network features
+    network_perm = permissions.get(FeatureGroup.NETWORK, PermissionLevel.NONE)
+    if network_perm != PermissionLevel.NONE:
+        network_children = [
+            FeatureGroup.INTERFACES,
+            FeatureGroup.DHCP,
+            FeatureGroup.VRF,
+            FeatureGroup.LOAD_BALANCING,
+            FeatureGroup.NAT,
+        ]
+        for child in network_children:
+            current = permissions.get(child, PermissionLevel.NONE)
+            if network_perm == PermissionLevel.WRITE:
+                permissions[child] = PermissionLevel.WRITE
+            elif network_perm == PermissionLevel.READ and current == PermissionLevel.NONE:
+                permissions[child] = PermissionLevel.READ
+
+    # ROUTING parent grants UNICAST_PROTOCOLS permission
+    routing_perm = permissions.get(FeatureGroup.ROUTING, PermissionLevel.NONE)
+    if routing_perm != PermissionLevel.NONE:
+        current = permissions.get(FeatureGroup.UNICAST_PROTOCOLS, PermissionLevel.NONE)
+        if routing_perm == PermissionLevel.WRITE:
+            permissions[FeatureGroup.UNICAST_PROTOCOLS] = PermissionLevel.WRITE
+        elif routing_perm == PermissionLevel.READ and current == PermissionLevel.NONE:
+            permissions[FeatureGroup.UNICAST_PROTOCOLS] = PermissionLevel.READ
+
+    # UNICAST_PROTOCOLS grants permissions to all routing protocols
+    unicast_perm = permissions.get(FeatureGroup.UNICAST_PROTOCOLS, PermissionLevel.NONE)
+    if unicast_perm != PermissionLevel.NONE:
+        protocol_children = [
+            FeatureGroup.BGP,
+            FeatureGroup.OSPF,
+            FeatureGroup.OSPFV3,
+            FeatureGroup.ISIS,
+            FeatureGroup.OPENFABRIC,
+            FeatureGroup.RIP,
+            FeatureGroup.RIPNG,
+            FeatureGroup.BABEL,
+        ]
+        for child in protocol_children:
+            current = permissions.get(child, PermissionLevel.NONE)
+            if unicast_perm == PermissionLevel.WRITE:
+                permissions[child] = PermissionLevel.WRITE
+            elif unicast_perm == PermissionLevel.READ and current == PermissionLevel.NONE:
+                permissions[child] = PermissionLevel.READ
+
+    # ROUTING_INFRASTRUCTURE grants permissions to all infrastructure components
+    infrastructure_perm = permissions.get(FeatureGroup.ROUTING_INFRASTRUCTURE, PermissionLevel.NONE)
+    if infrastructure_perm != PermissionLevel.NONE:
+        infrastructure_children = [
+            FeatureGroup.BFD,
+            FeatureGroup.MPLS,
+            FeatureGroup.SEGMENT_ROUTING,
+            FeatureGroup.NHRP,
+            FeatureGroup.RPKI,
+        ]
+        for child in infrastructure_children:
+            current = permissions.get(child, PermissionLevel.NONE)
+            if infrastructure_perm == PermissionLevel.WRITE:
+                permissions[child] = PermissionLevel.WRITE
+            elif infrastructure_perm == PermissionLevel.READ and current == PermissionLevel.NONE:
+                permissions[child] = PermissionLevel.READ
+
+    # ROUTING_POLICIES grants permissions to all policy components
+    policies_perm = permissions.get(FeatureGroup.ROUTING_POLICIES, PermissionLevel.NONE)
+    if policies_perm != PermissionLevel.NONE:
+        policy_children = [
+            FeatureGroup.ACCESS_LIST,
+            FeatureGroup.PREFIX_LIST,
+            FeatureGroup.ROUTE_POLICY,
+            FeatureGroup.ROUTE_MAP,
+            FeatureGroup.LOCAL_ROUTE,
+            FeatureGroup.BGP_AS_PATH,
+            FeatureGroup.BGP_COMMUNITY,
+            FeatureGroup.BGP_EXTENDED_COMMUNITY,
+            FeatureGroup.BGP_LARGE_COMMUNITY,
+        ]
+        for child in policy_children:
+            current = permissions.get(child, PermissionLevel.NONE)
+            if policies_perm == PermissionLevel.WRITE:
+                permissions[child] = PermissionLevel.WRITE
+            elif policies_perm == PermissionLevel.READ and current == PermissionLevel.NONE:
+                permissions[child] = PermissionLevel.READ
+
+    # MULTICAST grants permissions to all multicast protocols
+    multicast_perm = permissions.get(FeatureGroup.MULTICAST, PermissionLevel.NONE)
+    if multicast_perm != PermissionLevel.NONE:
+        multicast_children = [
+            FeatureGroup.IGMP_PROXY,
+            FeatureGroup.PIM,
+            FeatureGroup.PIM6,
+        ]
+        for child in multicast_children:
+            current = permissions.get(child, PermissionLevel.NONE)
+            if multicast_perm == PermissionLevel.WRITE:
+                permissions[child] = PermissionLevel.WRITE
+            elif multicast_perm == PermissionLevel.READ and current == PermissionLevel.NONE:
+                permissions[child] = PermissionLevel.READ
+
+    # VPN grants permissions to all VPN protocols
+    vpn_perm = permissions.get(FeatureGroup.VPN, PermissionLevel.NONE)
+    if vpn_perm != PermissionLevel.NONE:
+        vpn_children = [
+            FeatureGroup.IPSEC,
+            FeatureGroup.WIREGUARD,
+        ]
+        for child in vpn_children:
+            current = permissions.get(child, PermissionLevel.NONE)
+            if vpn_perm == PermissionLevel.WRITE:
+                permissions[child] = PermissionLevel.WRITE
+            elif vpn_perm == PermissionLevel.READ and current == PermissionLevel.NONE:
+                permissions[child] = PermissionLevel.READ
 
 
 def _apply_special_rules(permissions: Dict[FeatureGroup, PermissionLevel]) -> None:

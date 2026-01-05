@@ -17,9 +17,10 @@ interface NATRuleRowProps {
   onEdit: () => void;
   onDelete: () => void;
   isDragging?: boolean;
+  canWrite?: boolean;
 }
 
-export function NATRuleRow({ rule, ruleType, onEdit, onDelete, isDragging }: NATRuleRowProps) {
+export function NATRuleRow({ rule, ruleType, onEdit, onDelete, isDragging, canWrite = true }: NATRuleRowProps) {
   const {
     attributes,
     listeners,
@@ -50,11 +51,18 @@ export function NATRuleRow({ rule, ruleType, onEdit, onDelete, isDragging }: NAT
       {/* Drag Handle */}
       <TableCell className="w-[40px] p-0">
         <div
-          {...attributes}
-          {...listeners}
-          className="h-full flex items-center justify-center cursor-grab active:cursor-grabbing hover:bg-primary/10 transition-colors px-2 group/drag"
+          {...(canWrite ? attributes : {})}
+          {...(canWrite ? listeners : {})}
+          className={cn(
+            "h-full flex items-center justify-center px-2",
+            canWrite && "cursor-grab active:cursor-grabbing hover:bg-primary/10 group/drag",
+            !canWrite && "cursor-not-allowed opacity-50"
+          )}
         >
-          <GripVertical className="h-4 w-4 text-muted-foreground group-hover/drag:text-primary transition-colors" />
+          <GripVertical className={cn(
+            "h-4 w-4 text-muted-foreground transition-colors",
+            canWrite && "group-hover/drag:text-primary"
+          )} />
         </div>
       </TableCell>
 
@@ -70,24 +78,26 @@ export function NATRuleRow({ rule, ruleType, onEdit, onDelete, isDragging }: NAT
 
       {/* Actions */}
       <TableCell>
-        <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={onEdit}
-          >
-            <Pencil className="h-3.5 w-3.5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-            onClick={onDelete}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
-        </div>
+        {canWrite && (
+          <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={onEdit}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+              onClick={onDelete}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        )}
       </TableCell>
     </TableRow>
   );

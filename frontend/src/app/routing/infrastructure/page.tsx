@@ -5,21 +5,38 @@ import { InProgress } from "@/components/layout/InProgress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Settings, ChevronRight, Activity, Box, Waypoints, Globe, Shield } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { cn } from "@/lib/utils";
+import { usePermissions } from "@/hooks/usePermissions";
+import { FeatureGroup } from "@/lib/api/user-management";
 
 type InfraType = "bfd" | "mpls" | "segment-routing" | "nhrp" | "rpki";
 
-const infrastructure = [
-  { id: "bfd" as InfraType, name: "BFD", description: "Bidirectional Forwarding Detection", icon: Activity },
-  { id: "mpls" as InfraType, name: "MPLS", description: "Multiprotocol Label Switching", icon: Box },
-  { id: "segment-routing" as InfraType, name: "Segment Routing", description: "Source routing with segments", icon: Waypoints },
-  { id: "nhrp" as InfraType, name: "NHRP", description: "Next Hop Resolution Protocol", icon: Globe },
-  { id: "rpki" as InfraType, name: "RPKI", description: "Resource Public Key Infrastructure", icon: Shield },
+const allInfrastructure = [
+  { id: "bfd" as InfraType, name: "BFD", description: "Bidirectional Forwarding Detection", icon: Activity, permission: FeatureGroup.BFD },
+  { id: "mpls" as InfraType, name: "MPLS", description: "Multiprotocol Label Switching", icon: Box, permission: FeatureGroup.MPLS },
+  { id: "segment-routing" as InfraType, name: "Segment Routing", description: "Source routing with segments", icon: Waypoints, permission: FeatureGroup.SEGMENT_ROUTING },
+  { id: "nhrp" as InfraType, name: "NHRP", description: "Next Hop Resolution Protocol", icon: Globe, permission: FeatureGroup.NHRP },
+  { id: "rpki" as InfraType, name: "RPKI", description: "Resource Public Key Infrastructure", icon: Shield, permission: FeatureGroup.RPKI },
 ];
 
 export default function InfrastructurePage() {
-  const [selectedInfra, setSelectedInfra] = useState<InfraType>("bfd");
+  const { canRead, isLoading } = usePermissions();
+
+  // Filter infrastructure based on user permissions
+  const infrastructure = useMemo(() => {
+    if (isLoading) return [];
+    return allInfrastructure.filter(infra => canRead(infra.permission));
+  }, [canRead, isLoading]);
+
+  const [selectedInfra, setSelectedInfra] = useState<InfraType | null>(null);
+
+  // Auto-select first available infrastructure component
+  useEffect(() => {
+    if (infrastructure.length > 0 && !selectedInfra) {
+      setSelectedInfra(infrastructure[0].id);
+    }
+  }, [infrastructure, selectedInfra]);
 
   return (
     <AppLayout>
@@ -43,7 +60,16 @@ export default function InfrastructurePage() {
           {/* Infrastructure List */}
           <ScrollArea className="flex-1 px-3">
             <div className="space-y-1 py-3">
-              {infrastructure.map((infra) => {
+              {isLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <p className="text-sm text-muted-foreground">Loading infrastructure...</p>
+                </div>
+              ) : infrastructure.length === 0 ? (
+                <div className="flex items-center justify-center py-8">
+                  <p className="text-sm text-muted-foreground">No accessible infrastructure</p>
+                </div>
+              ) : (
+                infrastructure.map((infra) => {
                 const Icon = infra.icon;
                 return (
                   <button
@@ -85,7 +111,8 @@ export default function InfrastructurePage() {
                     </div>
                   </button>
                 );
-              })}
+              })
+              )}
             </div>
           </ScrollArea>
         </div>

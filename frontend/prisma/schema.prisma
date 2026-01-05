@@ -97,9 +97,10 @@ enum Role {
 
 // Instance-level roles (per-instance permissions)
 enum InstanceRole {
-  ADMIN // Full access to all features on this instance
-  EDITOR // Can edit specific features (defined in FeaturePermission)
-  VIEWER // Can view specific features (defined in FeaturePermission)
+  ADMIN    // Full access to all features on this instance
+  EDITOR   // DEPRECATED - Use OPERATOR instead (kept for database compatibility)
+  OPERATOR // Can edit specific features (defined in FeaturePermission)
+  VIEWER   // Can view specific features (defined in FeaturePermission)
 }
 
 // Role Permissions Matrix

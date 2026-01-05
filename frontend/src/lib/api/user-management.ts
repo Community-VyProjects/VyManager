@@ -37,36 +37,6 @@ export interface UpdateUserRequest {
   site_role?: SiteRole; // ADMIN or VIEWER
 }
 
-export interface CustomRoleListItem {
-  id: string;
-  name: string;
-  description: string | null;
-  created_at: string;
-  user_count: number; // How many users have this role
-}
-
-export interface CustomRoleDetail {
-  id: string;
-  name: string;
-  description: string | null;
-  created_at: string;
-  updated_at: string;
-  created_by: string;
-  permissions: Record<string, string>; // feature -> permission level
-}
-
-export interface CreateRoleRequest {
-  name: string; // 1-50 characters
-  description?: string | null;
-  permissions: Record<string, string>; // feature -> permission level (READ/WRITE/NONE)
-}
-
-export interface UpdateRoleRequest {
-  name?: string; // 1-50 characters if provided
-  description?: string | null;
-  permissions?: Record<string, string>;
-}
-
 export interface FeaturePermission {
   feature: FeatureGroup;
   can_edit: boolean;
@@ -80,8 +50,8 @@ export interface UserInstanceAssignment {
   instance_name: string;
   site_id: string;
   site_name: string;
-  role: InstanceRole; // ADMIN, EDITOR, or VIEWER
-  feature_permissions: FeaturePermission[]; // Only used for EDITOR/VIEWER
+  role: InstanceRole; // ADMIN, OPERATOR, or VIEWER
+  feature_permissions: FeaturePermission[]; // Only used for OPERATOR/VIEWER
   assigned_at: string;
   assigned_by: string;
 }
@@ -89,15 +59,22 @@ export interface UserInstanceAssignment {
 export interface AssignUserRequest {
   user_id: string;
   instance_ids: string[]; // Can assign to multiple instances at once
-  role: InstanceRole; // ADMIN, EDITOR, or VIEWER
-  feature_permissions?: FeaturePermission[]; // Only for EDITOR/VIEWER roles
+  role: InstanceRole; // ADMIN, OPERATOR, or VIEWER
+  feature_permissions?: FeaturePermission[]; // Only for OPERATOR/VIEWER roles
 }
 
 export interface InstanceUserListItem {
   user_id: string;
   user_name: string | null;
   user_email: string;
-  roles: string[]; // List of role names for this instance
+  role: string; // Instance role: ADMIN, OPERATOR, or VIEWER
+  feature_permissions?: FeaturePermission[] | null; // Only for OPERATOR/VIEWER
+}
+
+export interface MyPermissionsResponse {
+  has_active_session: boolean;
+  instance_id?: string;
+  permissions: Record<string, string>; // FeatureGroup -> PermissionLevel
 }
 
 // ============================================================================
@@ -112,17 +89,88 @@ export enum SiteRole {
 
 // Instance-level roles
 export enum InstanceRole {
-  ADMIN = "ADMIN",    // Full access to all features
-  EDITOR = "EDITOR",  // Can edit specific features
-  VIEWER = "VIEWER",  // Can view specific features
+  ADMIN = "ADMIN",      // Full access to all features
+  OPERATOR = "OPERATOR", // Can edit specific features
+  VIEWER = "VIEWER",    // Can view specific features
 }
 
-// Features available for granular permissions (EDITOR/VIEWER)
+// Permission levels (matching backend)
+export enum PermissionLevel {
+  NONE = "NONE",
+  READ = "READ",
+  WRITE = "WRITE",
+}
+
+// Features available for granular permissions (OPERATOR/VIEWER)
 export enum FeatureGroup {
+  // Legacy/Parent features (for backward compatibility)
   FIREWALL = "FIREWALL",
-  INTERFACES = "INTERFACES",
-  DHCP = "DHCP",
   NAT = "NAT",
+  DHCP = "DHCP",
+  INTERFACES = "INTERFACES",
+
+  // Firewall sub-features (page-level permissions)
+  FIREWALL_GROUPS = "FIREWALL_GROUPS",
+  FIREWALL_POLICIES = "FIREWALL_POLICIES",
+  FIREWALL_ZONES = "FIREWALL_ZONES",
+
+  // Network features
+  NETWORK = "NETWORK",
+  VRF = "VRF",
+  LOAD_BALANCING = "LOAD_BALANCING",
+
+  // VPN features
+  VPN = "VPN",
+  IPSEC = "IPSEC",
+  WIREGUARD = "WIREGUARD",
+
+  // Routing features (three-level hierarchy)
+  ROUTING = "ROUTING",
+  UNICAST_PROTOCOLS = "UNICAST_PROTOCOLS",
+  BGP = "BGP",
+  OSPF = "OSPF",
+  OSPFV3 = "OSPFV3",
+  ISIS = "ISIS",
+  OPENFABRIC = "OPENFABRIC",
+  RIP = "RIP",
+  RIPNG = "RIPNG",
+  BABEL = "BABEL",
+
+  // Other features
+  STATIC_ROUTES = "STATIC_ROUTES",
+  FAILOVER = "FAILOVER",
+
+  // Routing Infrastructure
+  ROUTING_INFRASTRUCTURE = "ROUTING_INFRASTRUCTURE",
+  BFD = "BFD",
+  MPLS = "MPLS",
+  SEGMENT_ROUTING = "SEGMENT_ROUTING",
+  NHRP = "NHRP",
+  RPKI = "RPKI",
+
+  // Routing Policies
+  ROUTING_POLICIES = "ROUTING_POLICIES",
+  ACCESS_LIST = "ACCESS_LIST",
+  PREFIX_LIST = "PREFIX_LIST",
+  ROUTE_POLICY = "ROUTE_POLICY",
+  ROUTE_MAP = "ROUTE_MAP",
+  LOCAL_ROUTE = "LOCAL_ROUTE",
+  BGP_AS_PATH = "BGP_AS_PATH",
+  BGP_COMMUNITY = "BGP_COMMUNITY",
+  BGP_EXTENDED_COMMUNITY = "BGP_EXTENDED_COMMUNITY",
+  BGP_LARGE_COMMUNITY = "BGP_LARGE_COMMUNITY",
+
+  // Multicast
+  MULTICAST = "MULTICAST",
+  IGMP_PROXY = "IGMP_PROXY",
+  PIM = "PIM",
+  PIM6 = "PIM6",
+
+  SYSTEM = "SYSTEM",
+  CONFIGURATION = "CONFIGURATION",
+  DASHBOARD = "DASHBOARD",
+  SITES_INSTANCES = "SITES_INSTANCES",
+  USER_MANAGEMENT = "USER_MANAGEMENT",
 }
 
 // ============================================================================
@@ -131,12 +179,29 @@ export enum FeatureGroup {
 
 class UserManagementService {
   // ==========================================================================
+  // Permissions Endpoint (available to all authenticated users)
+  // ==========================================================================
+
+  /**
+   * Get the current user's permissions for their active instance.
+   * Available to any authenticated user (not admin-only).
+   */
+  async getMyPermissions(): Promise<MyPermissionsResponse> {
+    try {
+      return await apiClient.get<MyPermissionsResponse>("/user-management/my-permissions");
+    } catch (error: any) {
+      const errorMessage = error?.details?.detail || error?.message || "Failed to fetch permissions";
+      throw new Error(errorMessage);
+    }
+  }
+
+  // ==========================================================================
   // User Endpoints
   // ==========================================================================
 
   /**
    * Get list of all users with their instance counts and roles
-   * SUPER_ADMIN only
+   * ADMIN only
    */
   async listUsers(): Promise<UserListItem[]> {
     try {
@@ -149,7 +214,7 @@ class UserManagementService {
 
   /**
    * Get detailed information about a specific user
-   * SUPER_ADMIN only
+   * ADMIN only
    */
   async getUser(userId: string): Promise<UserDetail> {
     try {
@@ -162,7 +227,7 @@ class UserManagementService {
 
   /**
    * Get all instance assignments for a user
-   * SUPER_ADMIN only
+   * ADMIN only
    */
   async getUserAssignments(userId: string): Promise<UserInstanceAssignment[]> {
     try {
@@ -177,7 +242,7 @@ class UserManagementService {
 
   /**
    * Create a new user
-   * SUPER_ADMIN only
+   * ADMIN only
    */
   async createUser(data: CreateUserRequest): Promise<UserDetail> {
     try {
@@ -190,7 +255,7 @@ class UserManagementService {
 
   /**
    * Update an existing user
-   * SUPER_ADMIN only
+   * ADMIN only
    */
   async updateUser(userId: string, data: UpdateUserRequest): Promise<UserDetail> {
     try {
@@ -203,7 +268,7 @@ class UserManagementService {
 
   /**
    * Delete a user
-   * SUPER_ADMIN only
+   * ADMIN only
    */
   async deleteUser(userId: string): Promise<{ success: boolean; message: string }> {
     try {
@@ -217,84 +282,13 @@ class UserManagementService {
   }
 
   // ==========================================================================
-  // Custom Role Endpoints
-  // ==========================================================================
-
-  /**
-   * Get list of all custom roles
-   * SUPER_ADMIN only
-   */
-  async listRoles(): Promise<CustomRoleListItem[]> {
-    try {
-      return await apiClient.get<CustomRoleListItem[]>("/user-management/roles");
-    } catch (error: any) {
-      const errorMessage = error?.details?.detail || error?.message || "Failed to fetch roles";
-      throw new Error(errorMessage);
-    }
-  }
-
-  /**
-   * Get detailed information about a specific custom role
-   * SUPER_ADMIN only
-   */
-  async getRole(roleId: string): Promise<CustomRoleDetail> {
-    try {
-      return await apiClient.get<CustomRoleDetail>(`/user-management/roles/${roleId}`);
-    } catch (error: any) {
-      const errorMessage = error?.details?.detail || error?.message || "Failed to fetch role";
-      throw new Error(errorMessage);
-    }
-  }
-
-  /**
-   * Create a new custom role
-   * SUPER_ADMIN only
-   */
-  async createRole(data: CreateRoleRequest): Promise<CustomRoleDetail> {
-    try {
-      return await apiClient.post<CustomRoleDetail>("/user-management/roles", data);
-    } catch (error: any) {
-      const errorMessage = error?.details?.detail || error?.message || "Failed to create role";
-      throw new Error(errorMessage);
-    }
-  }
-
-  /**
-   * Update an existing custom role
-   * SUPER_ADMIN only
-   */
-  async updateRole(roleId: string, data: UpdateRoleRequest): Promise<CustomRoleDetail> {
-    try {
-      return await apiClient.put<CustomRoleDetail>(`/user-management/roles/${roleId}`, data);
-    } catch (error: any) {
-      const errorMessage = error?.details?.detail || error?.message || "Failed to update role";
-      throw new Error(errorMessage);
-    }
-  }
-
-  /**
-   * Delete a custom role
-   * SUPER_ADMIN only
-   */
-  async deleteRole(roleId: string): Promise<{ success: boolean; message: string }> {
-    try {
-      return await apiClient.delete<{ success: boolean; message: string }>(
-        `/user-management/roles/${roleId}`
-      );
-    } catch (error: any) {
-      const errorMessage = error?.details?.detail || error?.message || "Failed to delete role";
-      throw new Error(errorMessage);
-    }
-  }
-
-  // ==========================================================================
   // Assignment Endpoints
   // ==========================================================================
 
   /**
    * Assign a user to instance(s) with role(s)
    * Can assign to multiple instances at once
-   * SUPER_ADMIN only
+   * ADMIN only
    */
   async assignUser(data: AssignUserRequest): Promise<{ success: boolean; assignments_created: number }> {
     try {
@@ -310,7 +304,7 @@ class UserManagementService {
 
   /**
    * Remove a user's assignment (revoke access to instance)
-   * SUPER_ADMIN only
+   * ADMIN only
    */
   async removeAssignment(assignmentId: string): Promise<{ success: boolean; message: string }> {
     try {
@@ -329,7 +323,7 @@ class UserManagementService {
 
   /**
    * Get all users with access to a specific instance
-   * SUPER_ADMIN only
+   * ADMIN only
    */
   async getInstanceUsers(instanceId: string): Promise<InstanceUserListItem[]> {
     try {
@@ -355,27 +349,8 @@ class UserManagementService {
       [FeatureGroup.NAT]: "NAT",
       [FeatureGroup.DHCP]: "DHCP",
       [FeatureGroup.INTERFACES]: "Interfaces",
-      [FeatureGroup.STATIC_ROUTES]: "Static Routes",
-      [FeatureGroup.ROUTING_POLICIES]: "Routing Policies",
-      [FeatureGroup.SYSTEM]: "System",
-      [FeatureGroup.CONFIGURATION]: "Configuration",
-      [FeatureGroup.DASHBOARD]: "Dashboard",
-      [FeatureGroup.SITES_INSTANCES]: "Sites & Instances",
-      [FeatureGroup.USER_MANAGEMENT]: "User Management",
     };
     return displayNames[feature] || feature;
-  }
-
-  /**
-   * Get display name for a permission level
-   */
-  getPermissionLevelDisplayName(level: PermissionLevel | string): string {
-    const displayNames: Record<string, string> = {
-      [PermissionLevel.NONE]: "No Access",
-      [PermissionLevel.READ]: "Read Only",
-      [PermissionLevel.WRITE]: "Full Access",
-    };
-    return displayNames[level] || level;
   }
 
   /**
@@ -383,46 +358,6 @@ class UserManagementService {
    */
   getAllFeatureGroups(): FeatureGroup[] {
     return Object.values(FeatureGroup);
-  }
-
-  /**
-   * Get all permission levels
-   */
-  getAllPermissionLevels(): PermissionLevel[] {
-    return Object.values(PermissionLevel);
-  }
-
-  /**
-   * Get all built-in roles
-   */
-  getAllBuiltInRoles(): BuiltInRole[] {
-    return Object.values(BuiltInRole);
-  }
-
-  /**
-   * Create a role assignment object for built-in role
-   */
-  createBuiltInRoleAssignment(role: BuiltInRole): {
-    type: "BUILT_IN";
-    builtInRole: string;
-  } {
-    return {
-      type: "BUILT_IN",
-      builtInRole: role,
-    };
-  }
-
-  /**
-   * Create a role assignment object for custom role
-   */
-  createCustomRoleAssignment(roleId: string): {
-    type: "CUSTOM";
-    customRoleId: string;
-  } {
-    return {
-      type: "CUSTOM",
-      customRoleId: roleId,
-    };
   }
 }
 

@@ -32,7 +32,7 @@ async def require_permission(
     Check that the authenticated user has required permission for a feature
     on their active instance. Raises 403 if permission denied.
 
-    SUPER_ADMIN users bypass all permission checks.
+    Site ADMIN users bypass all permission checks.
 
     Args:
         request: FastAPI request object (contains user and db_pool)
@@ -53,7 +53,7 @@ async def require_permission(
     # Get database pool
     db_pool: asyncpg.Pool = request.app.state.db_pool
 
-    # SUPER_ADMIN bypasses all permission checks
+    # Site ADMIN bypasses all permission checks
     if await is_super_admin(db_pool, user["id"]):
         return
 
@@ -115,12 +115,12 @@ async def require_write_permission(request: Request, feature: FeatureGroup) -> N
 
 async def require_super_admin(request: Request) -> None:
     """
-    Require user to be a SUPER_ADMIN.
+    Require user to be a Site ADMIN.
     Used for User Management and Site/Instance management endpoints.
 
     Raises:
         HTTPException(401): If user is not authenticated
-        HTTPException(403): If user is not a SUPER_ADMIN
+        HTTPException(403): If user is not a Site ADMIN
     """
     user = getattr(request.state, "user", None)
     if not user:
@@ -131,7 +131,7 @@ async def require_super_admin(request: Request) -> None:
     if not await is_super_admin(db_pool, user["id"]):
         raise HTTPException(
             status_code=403,
-            detail="Insufficient permissions. SUPER_ADMIN role required."
+            detail="Insufficient permissions. Site ADMIN role required."
         )
 
 

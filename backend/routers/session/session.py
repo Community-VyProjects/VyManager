@@ -249,23 +249,46 @@ async def connect_to_instance(request: Request, body: ConnectRequest):
 
     try:
         async with db_pool.acquire() as conn:
-            # Verify instance exists and user has permission
-            # Uses new RBAC system (user_instance_roles)
-            # Get ALL instance details including API credentials for connection test
-            instance = await conn.fetchrow(
+            # Check if user is site-level ADMIN
+            user_site_role = await conn.fetchval(
                 """
-                SELECT i.id, i.name, i.host, i.port, i."siteId", i."isActive",
-                       i."apiKey", i.protocol, i."verifySsl", i."vyosVersion",
-                       s.name as site_name,
-                       uir."builtInRole" as role
-                FROM instances i
-                JOIN sites s ON i."siteId" = s.id
-                JOIN user_instance_roles uir ON i.id = uir."instanceId" AND uir."userId" = $1
-                WHERE i.id = $2
+                SELECT role FROM users WHERE id = $1
                 """,
-                user_id,
-                instance_id,
+                user_id
             )
+
+            # Site ADMIN users can access any instance
+            # Other users need explicit instance-level permissions
+            if user_site_role == "ADMIN":
+                # ADMIN can access any instance - no instance role check needed
+                instance = await conn.fetchrow(
+                    """
+                    SELECT i.id, i.name, i.host, i.port, i."siteId", i."isActive",
+                           i."apiKey", i.protocol, i."verifySsl", i."vyosVersion",
+                           s.name as site_name,
+                           'ADMIN' as role
+                    FROM instances i
+                    JOIN sites s ON i."siteId" = s.id
+                    WHERE i.id = $1
+                    """,
+                    instance_id,
+                )
+            else:
+                # VIEWER users need explicit instance-level role assignment
+                instance = await conn.fetchrow(
+                    """
+                    SELECT i.id, i.name, i.host, i.port, i."siteId", i."isActive",
+                           i."apiKey", i.protocol, i."verifySsl", i."vyosVersion",
+                           s.name as site_name,
+                           uir.role as role
+                    FROM instances i
+                    JOIN sites s ON i."siteId" = s.id
+                    JOIN user_instance_roles uir ON i.id = uir."instanceId" AND uir."userId" = $1
+                    WHERE i.id = $2
+                    """,
+                    user_id,
+                    instance_id,
+                )
 
             if not instance:
                 raise HTTPException(
@@ -409,8 +432,9 @@ async def list_user_sites(request: Request):
     """
     Get all sites the user has access to.
 
-    Returns sites with the user's highest role across all instances in that site.
-    Uses new RBAC system (user_instance_roles).
+    Site ADMIN users (role='ADMIN' in users table) see ALL sites.
+    Other users see only sites where they have instance access.
+    Uses new RBAC system (user_instance_roles and users.role).
     """
     # Get user from request state
     if not hasattr(request.state, "user") or not request.state.user:
@@ -426,40 +450,76 @@ async def list_user_sites(request: Request):
 
     try:
         async with db_pool.acquire() as conn:
-            # Get sites where user has instance access
-            # Role shown is the highest role the user has across all instances in that site
-            sites = await conn.fetch(
+            # First, check if user is a site ADMIN
+            user_role = await conn.fetchval(
                 """
-                SELECT DISTINCT s.id, s.name, s.description, s."createdAt", s."updatedAt",
-                       MAX(
-                           CASE uir."builtInRole"
-                               WHEN 'ADMIN' THEN 3
-                               WHEN 'OPERATOR' THEN 2
-                               WHEN 'VIEWER' THEN 1
-                               ELSE 0
-                           END
-                       ) as role_rank,
-                       MAX(uir."builtInRole") as role
-                FROM sites s
-                JOIN instances i ON s.id = i."siteId"
-                JOIN user_instance_roles uir ON i.id = uir."instanceId" AND uir."userId" = $1
-                GROUP BY s.id, s.name, s.description, s."createdAt", s."updatedAt"
-                ORDER BY s.name
+                SELECT role FROM users WHERE id = $1
                 """,
                 user_id,
             )
 
-            return [
-                SiteResponse(
-                    id=site["id"],
-                    name=site["name"],
-                    description=site["description"],
-                    role=site["role"],
-                    created_at=site["createdAt"],
-                    updated_at=site["updatedAt"],
+            if user_role == "ADMIN":
+                # Site ADMINs see ALL sites with ADMIN role
+                sites = await conn.fetch(
+                    """
+                    SELECT id, name, description, "createdAt", "updatedAt"
+                    FROM sites
+                    ORDER BY name
+                    """,
                 )
-                for site in sites
-            ]
+
+                return [
+                    SiteResponse(
+                        id=site["id"],
+                        name=site["name"],
+                        description=site["description"],
+                        role="ADMIN",  # Site ADMINs have ADMIN role on all sites
+                        created_at=site["createdAt"],
+                        updated_at=site["updatedAt"],
+                    )
+                    for site in sites
+                ]
+            else:
+                # Regular users see only sites where they have instance access
+                # Role shown is the highest role the user has across all instances in that site
+                sites = await conn.fetch(
+                    """
+                    SELECT DISTINCT s.id, s.name, s.description, s."createdAt", s."updatedAt",
+                           MAX(
+                               CASE uir.role
+                                   WHEN 'ADMIN' THEN 3
+                                   WHEN 'OPERATOR' THEN 2
+                                   WHEN 'VIEWER' THEN 1
+                                   ELSE 0
+                               END
+                           ) as role_rank,
+                           (ARRAY_AGG(uir.role ORDER BY
+                               CASE uir.role
+                                   WHEN 'ADMIN' THEN 3
+                                   WHEN 'OPERATOR' THEN 2
+                                   WHEN 'VIEWER' THEN 1
+                                   ELSE 0
+                               END DESC))[1] as role
+                    FROM sites s
+                    JOIN instances i ON s.id = i."siteId"
+                    JOIN user_instance_roles uir ON i.id = uir."instanceId" AND uir."userId" = $1
+                    GROUP BY s.id, s.name, s.description, s."createdAt", s."updatedAt"
+                    ORDER BY s.name
+                    """,
+                    user_id,
+                )
+
+                return [
+                    SiteResponse(
+                        id=site["id"],
+                        name=site["name"],
+                        description=site["description"],
+                        role=site["role"],
+                        created_at=site["createdAt"],
+                        updated_at=site["updatedAt"],
+                    )
+                    for site in sites
+                ]
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
@@ -475,8 +535,9 @@ async def list_site_instances(request: Request, site_id: str):
     """
     Get all instances for a specific site that the user has access to.
 
-    Returns only the instances the user has explicit permission to access.
-    Uses new RBAC system (user_instance_roles).
+    Site ADMIN users (role='ADMIN' in users table) see ALL instances in the site.
+    Other users see only instances they have explicit permission to access.
+    Uses new RBAC system (user_instance_roles and users.role).
     """
     # Get user from request state
     if not hasattr(request.state, "user") or not request.state.user:
@@ -492,19 +553,40 @@ async def list_site_instances(request: Request, site_id: str):
 
     try:
         async with db_pool.acquire() as conn:
-            # Get only the instances the user has explicit access to
-            instances = await conn.fetch(
+            # First, check if user is a site ADMIN
+            user_role = await conn.fetchval(
                 """
-                SELECT DISTINCT i.id, i."siteId", i.name, i.description, i.host, i.port, i."isActive",
-                       i."vyosVersion", i."createdAt", i."updatedAt"
-                FROM instances i
-                JOIN user_instance_roles uir ON i.id = uir."instanceId"
-                WHERE i."siteId" = $1 AND uir."userId" = $2
-                ORDER BY i.name
+                SELECT role FROM users WHERE id = $1
                 """,
-                site_id,
                 user_id,
             )
+
+            if user_role == "ADMIN":
+                # Site ADMINs see ALL instances in the site
+                instances = await conn.fetch(
+                    """
+                    SELECT id, "siteId", name, description, host, port, "isActive",
+                           "vyosVersion", "createdAt", "updatedAt"
+                    FROM instances
+                    WHERE "siteId" = $1
+                    ORDER BY name
+                    """,
+                    site_id,
+                )
+            else:
+                # Regular users see only instances they have explicit access to
+                instances = await conn.fetch(
+                    """
+                    SELECT DISTINCT i.id, i."siteId", i.name, i.description, i.host, i.port, i."isActive",
+                           i."vyosVersion", i."createdAt", i."updatedAt"
+                    FROM instances i
+                    JOIN user_instance_roles uir ON i.id = uir."instanceId"
+                    WHERE i."siteId" = $1 AND uir."userId" = $2
+                    ORDER BY i.name
+                    """,
+                    site_id,
+                    user_id,
+                )
 
             # If no instances found, return empty list (don't throw 404)
             # This allows the frontend to show "No instances available"
@@ -541,8 +623,8 @@ async def create_site(request: Request, body: SiteCreateRequest):
     """
     Create a new site.
 
-    If this is the first site in the system (onboarding), the user becomes SUPER_ADMIN.
-    Otherwise, creates site-level OWNER permission.
+    Only site ADMIN users can create sites.
+    During onboarding (no sites exist), any authenticated user can create the first site.
     """
     if not hasattr(request.state, "user") or not request.state.user:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -556,53 +638,51 @@ async def create_site(request: Request, body: SiteCreateRequest):
 
     try:
         async with db_pool.acquire() as conn:
-            # Generate IDs for site and permission
+            # Check if this is the first site (onboarding)
+            site_count = await conn.fetchval("SELECT COUNT(*) FROM sites")
+            is_first_site = site_count == 0
+
+            # If not first site, verify user is site ADMIN
+            if not is_first_site:
+                user_role = await conn.fetchval(
+                    "SELECT role FROM users WHERE id = $1",
+                    user_id
+                )
+                if user_role != "ADMIN":
+                    raise HTTPException(
+                        status_code=403,
+                        detail="Only site ADMIN users can create sites"
+                    )
+
+            # Generate site ID
             import secrets
             import string
             alphabet = string.ascii_letters + string.digits
             site_id = ''.join(secrets.choice(alphabet) for _ in range(32))
-            permission_id = ''.join(secrets.choice(alphabet) for _ in range(32))
 
-            async with conn.transaction():
-                # Check if this is the first site (onboarding)
-                site_count = await conn.fetchval("SELECT COUNT(*) FROM sites")
-                is_first_site = site_count == 0
+            # Create site
+            site = await conn.fetchrow(
+                """
+                INSERT INTO sites (id, name, description, "createdAt", "updatedAt")
+                VALUES ($1, $2, $3, NOW(), NOW())
+                RETURNING id, name, description, "createdAt", "updatedAt"
+                """,
+                site_id,
+                body.name,
+                body.description,
+            )
 
-                # Create site
-                site = await conn.fetchrow(
-                    """
-                    INSERT INTO sites (id, name, description, "createdAt", "updatedAt")
-                    VALUES ($1, $2, $3, NOW(), NOW())
-                    RETURNING id, name, description, "createdAt", "updatedAt"
-                    """,
-                    site_id,
-                    body.name,
-                    body.description,
-                )
+            return SiteResponse(
+                id=site["id"],
+                name=site["name"],
+                description=site["description"],
+                role="ADMIN",  # Site ADMINs have ADMIN role on all sites
+                created_at=site["createdAt"],
+                updated_at=site["updatedAt"],
+            )
 
-                # If first site (onboarding), grant SUPER_ADMIN global role
-                if is_first_site:
-                    await conn.execute(
-                        """
-                        UPDATE users
-                        SET role = 'SUPER_ADMIN', "updatedAt" = NOW()
-                        WHERE id = $1
-                        """,
-                        user_id
-                    )
-
-                # Note: Sites no longer have user roles in new RBAC system
-                # Permissions are granted at the instance level via user_instance_roles
-
-                return SiteResponse(
-                    id=site["id"],
-                    name=site["name"],
-                    description=site["description"],
-                    role="ADMIN",  # Default role for display purposes only
-                    created_at=site["createdAt"],
-                    updated_at=site["updatedAt"],
-                )
-
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
@@ -612,7 +692,7 @@ async def update_site(request: Request, site_id: str, body: SiteUpdateRequest):
     """
     Update a site.
 
-    Only OWNER and ADMIN roles can update sites.
+    Only site ADMIN users can update sites.
     """
     if not hasattr(request.state, "user") or not request.state.user:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -626,24 +706,26 @@ async def update_site(request: Request, site_id: str, body: SiteUpdateRequest):
 
     try:
         async with db_pool.acquire() as conn:
-            # Check user has OWNER or ADMIN permission
-            permission = await conn.fetchrow(
-                """
-                SELECT role FROM permissions
-                WHERE "userId" = $1 AND "siteId" = $2
-                """,
-                user_id,
-                site_id,
+            # Check user is site ADMIN
+            user_role = await conn.fetchval(
+                "SELECT role FROM users WHERE id = $1",
+                user_id
             )
 
-            if not permission:
-                raise HTTPException(status_code=404, detail="Site not found")
-
-            if permission["role"] not in ["OWNER", "ADMIN"]:
+            if user_role != "ADMIN":
                 raise HTTPException(
                     status_code=403,
-                    detail="Only OWNER and ADMIN can update sites",
+                    detail="Only site ADMIN users can update sites"
                 )
+
+            # Verify site exists
+            site_exists = await conn.fetchval(
+                "SELECT EXISTS(SELECT 1 FROM sites WHERE id = $1)",
+                site_id
+            )
+
+            if not site_exists:
+                raise HTTPException(status_code=404, detail="Site not found")
 
             # Build update query dynamically
             updates = []
@@ -680,7 +762,7 @@ async def update_site(request: Request, site_id: str, body: SiteUpdateRequest):
                 id=site["id"],
                 name=site["name"],
                 description=site["description"],
-                role=permission["role"],
+                role="ADMIN",  # Site ADMINs have ADMIN role on all sites
                 created_at=site["createdAt"],
                 updated_at=site["updatedAt"],
             )
@@ -696,8 +778,8 @@ async def delete_site(request: Request, site_id: str):
     """
     Delete a site.
 
-    Only OWNER role can delete sites.
-    All instances and permissions associated with the site will be deleted.
+    Only site ADMIN users can delete sites.
+    All instances and user instance roles associated with the site will be deleted.
     """
     if not hasattr(request.state, "user") or not request.state.user:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -711,27 +793,29 @@ async def delete_site(request: Request, site_id: str):
 
     try:
         async with db_pool.acquire() as conn:
-            # Check user is OWNER
-            permission = await conn.fetchrow(
-                """
-                SELECT role FROM permissions
-                WHERE "userId" = $1 AND "siteId" = $2
-                """,
-                user_id,
-                site_id,
+            # Check user is site ADMIN
+            user_role = await conn.fetchval(
+                "SELECT role FROM users WHERE id = $1",
+                user_id
             )
 
-            if not permission:
-                raise HTTPException(status_code=404, detail="Site not found")
-
-            if permission["role"] != "OWNER":
+            if user_role != "ADMIN":
                 raise HTTPException(
                     status_code=403,
-                    detail="Only OWNER can delete sites",
+                    detail="Only site ADMIN users can delete sites"
                 )
 
+            # Verify site exists
+            site_exists = await conn.fetchval(
+                "SELECT EXISTS(SELECT 1 FROM sites WHERE id = $1)",
+                site_id
+            )
+
+            if not site_exists:
+                raise HTTPException(status_code=404, detail="Site not found")
+
             async with conn.transaction():
-                # Delete will cascade to instances and permissions
+                # Delete will cascade to instances and user_instance_roles
                 result = await conn.execute(
                     """
                     DELETE FROM sites WHERE id = $1
@@ -763,7 +847,7 @@ async def create_instance(request: Request, body: InstanceCreateRequest):
     """
     Create a new instance.
 
-    User must have OWNER or ADMIN permission on the site.
+    Only site ADMIN users can create instances.
     """
     if not hasattr(request.state, "user") or not request.state.user:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -777,24 +861,26 @@ async def create_instance(request: Request, body: InstanceCreateRequest):
 
     try:
         async with db_pool.acquire() as conn:
-            # Check user has OWNER or ADMIN permission
-            permission = await conn.fetchrow(
-                """
-                SELECT role FROM permissions
-                WHERE "userId" = $1 AND "siteId" = $2
-                """,
-                user_id,
-                body.site_id,
+            # Check user is site ADMIN
+            user_role = await conn.fetchval(
+                "SELECT role FROM users WHERE id = $1",
+                user_id
             )
 
-            if not permission:
-                raise HTTPException(status_code=404, detail="Site not found")
-
-            if permission["role"] not in ["OWNER", "ADMIN"]:
+            if user_role != "ADMIN":
                 raise HTTPException(
                     status_code=403,
-                    detail="Only OWNER and ADMIN can create instances",
+                    detail="Only site ADMIN users can create instances"
                 )
+
+            # Verify site exists
+            site_exists = await conn.fetchval(
+                "SELECT EXISTS(SELECT 1 FROM sites WHERE id = $1)",
+                body.site_id
+            )
+
+            if not site_exists:
+                raise HTTPException(status_code=404, detail="Site not found")
 
             # Generate instance ID
             import secrets
@@ -856,8 +942,8 @@ async def update_instance(request: Request, instance_id: str, body: InstanceUpda
     """
     Update an instance.
 
-    User must have OWNER or ADMIN permission on the site.
-    Can move instance to different site if user has permission on target site.
+    Only site ADMIN users can update instances.
+    Instance roles (ADMIN/OPERATOR/VIEWER) control VyOS feature access, not instance management.
     """
     if not hasattr(request.state, "user") or not request.state.user:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -871,43 +957,35 @@ async def update_instance(request: Request, instance_id: str, body: InstanceUpda
 
     try:
         async with db_pool.acquire() as conn:
-            # Get instance and check permissions
-            instance_check = await conn.fetchrow(
-                """
-                SELECT i."siteId", p.role
-                FROM instances i
-                JOIN permissions p ON i."siteId" = p."siteId" AND p."userId" = $1
-                WHERE i.id = $2
-                """,
-                user_id,
-                instance_id,
+            # Check user is site ADMIN
+            user_role = await conn.fetchval(
+                "SELECT role FROM users WHERE id = $1",
+                user_id
             )
 
-            if not instance_check:
-                raise HTTPException(status_code=404, detail="Instance not found")
-
-            if instance_check["role"] not in ["OWNER", "ADMIN"]:
+            if user_role != "ADMIN":
                 raise HTTPException(
                     status_code=403,
-                    detail="Only OWNER and ADMIN can update instances",
+                    detail="Only site ADMIN users can update instances"
                 )
 
-            # If moving to a different site, check permissions on target site
-            if body.site_id and body.site_id != instance_check["siteId"]:
-                target_permission = await conn.fetchrow(
-                    """
-                    SELECT role FROM permissions
-                    WHERE "userId" = $1 AND "siteId" = $2
-                    """,
-                    user_id,
-                    body.site_id,
-                )
+            # Verify instance exists
+            instance_exists = await conn.fetchval(
+                "SELECT EXISTS(SELECT 1 FROM instances WHERE id = $1)",
+                instance_id
+            )
 
-                if not target_permission or target_permission["role"] not in ["OWNER", "ADMIN"]:
-                    raise HTTPException(
-                        status_code=403,
-                        detail="You don't have permission to move instance to target site",
-                    )
+            if not instance_exists:
+                raise HTTPException(status_code=404, detail="Instance not found")
+
+            # If moving to a different site, verify target site exists
+            if body.site_id:
+                target_site_exists = await conn.fetchval(
+                    "SELECT EXISTS(SELECT 1 FROM sites WHERE id = $1)",
+                    body.site_id
+                )
+                if not target_site_exists:
+                    raise HTTPException(status_code=404, detail="Target site not found")
 
             # Build update query dynamically
             updates = []
@@ -1019,7 +1097,8 @@ async def delete_instance(request: Request, instance_id: str):
     """
     Delete an instance.
 
-    User must have OWNER or ADMIN permission on the site.
+    Only site ADMIN users can delete instances.
+    Instance roles (ADMIN/OPERATOR/VIEWER) control VyOS feature access, not instance management.
     """
     if not hasattr(request.state, "user") or not request.state.user:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -1033,26 +1112,26 @@ async def delete_instance(request: Request, instance_id: str):
 
     try:
         async with db_pool.acquire() as conn:
-            # Get instance and check permissions
-            instance_check = await conn.fetchrow(
-                """
-                SELECT i."siteId", p.role
-                FROM instances i
-                JOIN permissions p ON i."siteId" = p."siteId" AND p."userId" = $1
-                WHERE i.id = $2
-                """,
-                user_id,
-                instance_id,
+            # Check user is site ADMIN
+            user_role = await conn.fetchval(
+                "SELECT role FROM users WHERE id = $1",
+                user_id
             )
 
-            if not instance_check:
-                raise HTTPException(status_code=404, detail="Instance not found")
-
-            if instance_check["role"] not in ["OWNER", "ADMIN"]:
+            if user_role != "ADMIN":
                 raise HTTPException(
                     status_code=403,
-                    detail="Only OWNER and ADMIN can delete instances",
+                    detail="Only site ADMIN users can delete instances"
                 )
+
+            # Verify instance exists
+            instance_exists = await conn.fetchval(
+                "SELECT EXISTS(SELECT 1 FROM instances WHERE id = $1)",
+                instance_id
+            )
+
+            if not instance_exists:
+                raise HTTPException(status_code=404, detail="Instance not found")
 
             # Delete instance
             result = await conn.execute(
@@ -1088,7 +1167,8 @@ async def export_sites_and_instances_csv(request: Request):
     """
     Export all sites and instances to CSV format.
 
-    Returns a CSV file with all sites and their instances that the user has access to.
+    Only site ADMIN users can export.
+    Returns a CSV file with all sites and their instances.
     CSV Format: site_name, site_description, instance_name, instance_description,
                 host, port, vyos_version, protocol, verify_ssl
     """
@@ -1104,7 +1184,19 @@ async def export_sites_and_instances_csv(request: Request):
 
     try:
         async with db_pool.acquire() as conn:
-            # Get all sites and instances for the user
+            # Check user is site ADMIN
+            user_role = await conn.fetchval(
+                "SELECT role FROM users WHERE id = $1",
+                user_id
+            )
+
+            if user_role != "ADMIN":
+                raise HTTPException(
+                    status_code=403,
+                    detail="Only site ADMIN users can export data"
+                )
+
+            # Get all sites and instances (site ADMIN sees everything)
             rows = await conn.fetch(
                 """
                 SELECT
@@ -1118,12 +1210,9 @@ async def export_sites_and_instances_csv(request: Request):
                     i.protocol,
                     i."verifySsl" as verify_ssl
                 FROM sites s
-                JOIN permissions p ON s.id = p."siteId"
                 LEFT JOIN instances i ON s.id = i."siteId"
-                WHERE p."userId" = $1
                 ORDER BY s.name, i.name
-                """,
-                user_id,
+                """
             )
 
             # Create CSV in memory
@@ -1182,6 +1271,7 @@ async def import_sites_and_instances_csv(
     """
     Import sites and instances from CSV file.
 
+    Only site ADMIN users can import.
     CSV Format: site_name, site_description, instance_name, instance_description,
                 host, port, api_key, vyos_version, protocol, verify_ssl
 
@@ -1189,7 +1279,6 @@ async def import_sites_and_instances_csv(
     - Sites will be created if they don't exist
     - If a site already exists with the same name, instances will be added to that site
     - Instances will be created if they don't exist
-    - User will become OWNER of newly created sites
     """
     if not hasattr(request.state, "user") or not request.state.user:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -1206,6 +1295,19 @@ async def import_sites_and_instances_csv(
         raise HTTPException(status_code=400, detail="File must be a CSV file")
 
     try:
+        async with db_pool.acquire() as conn:
+            # Check user is site ADMIN
+            user_role = await conn.fetchval(
+                "SELECT role FROM users WHERE id = $1",
+                user_id
+            )
+
+            if user_role != "ADMIN":
+                raise HTTPException(
+                    status_code=403,
+                    detail="Only site ADMIN users can import data"
+                )
+
         # Read file content
         contents = await file.read()
         csv_content = contents.decode('utf-8')
@@ -1252,15 +1354,13 @@ async def import_sites_and_instances_csv(
                     if site_name in site_cache:
                         site_id = site_cache[site_name]
                     else:
-                        # Check if site already exists
+                        # Check if site already exists (site ADMIN can see all sites)
                         existing_site = await conn.fetchrow(
                             """
-                            SELECT s.id FROM sites s
-                            JOIN permissions p ON s.id = p."siteId"
-                            WHERE s.name = $1 AND p."userId" = $2
+                            SELECT id FROM sites
+                            WHERE name = $1
                             """,
-                            site_name,
-                            user_id,
+                            site_name
                         )
 
                         if existing_site:
@@ -1269,28 +1369,16 @@ async def import_sites_and_instances_csv(
                         else:
                             # Create new site
                             site_id = ''.join(secrets.choice(alphabet) for _ in range(32))
-                            permission_id = ''.join(secrets.choice(alphabet) for _ in range(32))
 
-                            async with conn.transaction():
-                                await conn.execute(
-                                    """
-                                    INSERT INTO sites (id, name, description, "createdAt", "updatedAt")
-                                    VALUES ($1, $2, $3, NOW(), NOW())
-                                    """,
-                                    site_id,
-                                    site_name,
-                                    row.get("site_description", "").strip() or None,
-                                )
-
-                                await conn.execute(
-                                    """
-                                    INSERT INTO permissions (id, "userId", "siteId", role, "createdAt", "updatedAt")
-                                    VALUES ($1, $2, $3, 'OWNER', NOW(), NOW())
-                                    """,
-                                    permission_id,
-                                    user_id,
-                                    site_id,
-                                )
+                            await conn.execute(
+                                """
+                                INSERT INTO sites (id, name, description, "createdAt", "updatedAt")
+                                VALUES ($1, $2, $3, NOW(), NOW())
+                                """,
+                                site_id,
+                                site_name,
+                                row.get("site_description", "").strip() or None,
+                            )
 
                             site_cache[site_name] = site_id
                             sites_created += 1

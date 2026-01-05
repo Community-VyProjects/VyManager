@@ -15,14 +15,18 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { useSession, signOut } from "@/lib/auth-client";
 import { useSessionStore } from "@/store/session-store";
+import { usePermissions } from "@/hooks/usePermissions";
+import { FeatureGroup } from "@/lib/api/user-management";
 
 interface NavItem {
   title: string;
   href?: string;
   icon: React.ComponentType<{ className?: string }>;
+  requiredPermission?: FeatureGroup; // If set, user must have READ access to this feature
   children?: {
     title: string;
     href: string;
+    requiredPermission?: FeatureGroup; // If set, user must have READ access to this feature
   }[];
 }
 
@@ -36,64 +40,151 @@ const navigation: NavItem[] = [
     title: "Firewall",
     icon: Shield,
     children: [
-      { title: "Policies", href: "/firewall/policies" },
-      { title: "Groups", href: "/firewall/groups" },
-      { title: "Zones", href: "/firewall/zones" },
+      {
+        title: "Policies",
+        href: "/firewall/policies",
+        requiredPermission: FeatureGroup.FIREWALL_POLICIES
+      },
+      {
+        title: "Groups",
+        href: "/firewall/groups",
+        requiredPermission: FeatureGroup.FIREWALL_GROUPS
+      },
+      {
+        title: "Zones",
+        href: "/firewall/zones",
+        requiredPermission: FeatureGroup.FIREWALL_ZONES
+      },
     ],
   },
   {
     title: "Network",
     icon: Network,
     children: [
-      { title: "DHCP", href: "/network/dhcp" },
-      { title: "Routes", href: "/network/routes" },
-      { title: "VRF", href: "/network/vrf" },
-      { title: "Interfaces", href: "/network/interfaces" },
-      { title: "Load Balancing", href: "/network/load-balancing" },
-      { title: "NAT", href: "/network/nat" },
+      {
+        title: "DHCP",
+        href: "/network/dhcp",
+        requiredPermission: FeatureGroup.DHCP
+      },
+      {
+        title: "VRF",
+        href: "/network/vrf",
+        requiredPermission: FeatureGroup.VRF
+      },
+      {
+        title: "Interfaces",
+        href: "/network/interfaces",
+        requiredPermission: FeatureGroup.INTERFACES
+      },
+      {
+        title: "Load Balancing",
+        href: "/network/load-balancing",
+        requiredPermission: FeatureGroup.LOAD_BALANCING
+      },
+      {
+        title: "NAT",
+        href: "/network/nat",
+        requiredPermission: FeatureGroup.NAT
+      },
     ],
   },
   {
     title: "Routing",
     icon: Route,
     children: [
-      { title: "Unicast Protocols", href: "/routing/unicast-protocols" },
-      { title: "Static & Failover", href: "/routing/static-failover" },
-      { title: "Routing Infrastructure", href: "/routing/infrastructure" },
-      { title: "Multicast", href: "/routing/multicast" },
+      {
+        title: "Unicast Protocols",
+        href: "/routing/unicast-protocols",
+        requiredPermission: FeatureGroup.UNICAST_PROTOCOLS
+      },
+      {
+        title: "Static & Failover",
+        href: "/routing/static-failover",
+        requiredPermission: FeatureGroup.STATIC_ROUTES
+      },
+      {
+        title: "Routing Infrastructure",
+        href: "/routing/infrastructure",
+        requiredPermission: FeatureGroup.ROUTING_INFRASTRUCTURE
+      },
+      {
+        title: "Multicast",
+        href: "/routing/multicast",
+        requiredPermission: FeatureGroup.MULTICAST
+      },
     ],
   },
   {
     title: "Policies",
     icon: FileText,
     children: [
-      { title: "Access List", href: "/policies/access-list" },
-      { title: "Prefix List", href: "/policies/prefix-list" },
-      { title: "Route", href: "/policies/route" },
-      { title: "Route Map", href: "/policies/route-map" },
-      { title: "Local Route", href: "/policies/local-route" },
-      { title: "BGP AS", href: "/policies/bgp-as" },
-      { title: "BGP Community", href: "/policies/bgp-community" },
-      { title: "BGP Extended Community", href: "/policies/bgp-extended-community" },
-      { title: "BGP Large Community", href: "/policies/bgp-large-community" },
+      {
+        title: "Access List",
+        href: "/policies/access-list",
+        requiredPermission: FeatureGroup.ACCESS_LIST
+      },
+      {
+        title: "Prefix List",
+        href: "/policies/prefix-list",
+        requiredPermission: FeatureGroup.PREFIX_LIST
+      },
+      {
+        title: "Route",
+        href: "/policies/route",
+        requiredPermission: FeatureGroup.ROUTE_POLICY
+      },
+      {
+        title: "Route Map",
+        href: "/policies/route-map",
+        requiredPermission: FeatureGroup.ROUTE_MAP
+      },
+      {
+        title: "Local Route",
+        href: "/policies/local-route",
+        requiredPermission: FeatureGroup.LOCAL_ROUTE
+      },
+      {
+        title: "BGP AS",
+        href: "/policies/bgp-as",
+        requiredPermission: FeatureGroup.BGP_AS_PATH
+      },
+      {
+        title: "BGP Community",
+        href: "/policies/bgp-community",
+        requiredPermission: FeatureGroup.BGP_COMMUNITY
+      },
+      {
+        title: "BGP Extended Community",
+        href: "/policies/bgp-extended-community",
+        requiredPermission: FeatureGroup.BGP_EXTENDED_COMMUNITY
+      },
+      {
+        title: "BGP Large Community",
+        href: "/policies/bgp-large-community",
+        requiredPermission: FeatureGroup.BGP_LARGE_COMMUNITY
+      },
     ],
   },
   {
     title: "VPN",
     icon: Lock,
     children: [
-      { title: "IPsec", href: "/vpn/ipsec" },
-      { title: "WireGuard", href: "/vpn/wireguard" },
+      {
+        title: "IPsec",
+        href: "/vpn/ipsec",
+        requiredPermission: FeatureGroup.IPSEC
+      },
+      {
+        title: "WireGuard",
+        href: "/vpn/wireguard",
+        requiredPermission: FeatureGroup.WIREGUARD
+      },
     ],
   },
   {
     title: "System",
     icon: Server,
-    children: [
-      { title: "Services", href: "/system/services" },
-      { title: "Users", href: "/system/users" },
-      { title: "Logs", href: "/system/logs" },
-    ],
+    children: [],
   },
   {
     title: "Settings",
@@ -108,6 +199,7 @@ export function Sidebar() {
   const [openItems, setOpenItems] = useState<string[]>([]);
   const { data: session } = useSession();
   const { activeSession, loadSession, disconnectFromInstance } = useSessionStore();
+  const { canRead } = usePermissions();
 
   // Load active session on mount
   useEffect(() => {
@@ -150,6 +242,112 @@ export function Sidebar() {
     );
   };
 
+  /**
+   * Filter navigation items based on user permissions.
+   * Only shows items if:
+   * 1. No permission required, OR
+   * 2. User has READ access to the required feature
+   * 3. Special case: Unicast Protocols shows if user has any routing protocol permission
+   */
+  const filterNavigation = (items: NavItem[]): NavItem[] => {
+    return items.map((item) => {
+      // Filter children first
+      if (item.children) {
+        const visibleChildren = item.children.filter((child) => {
+          // If no permission required, always show
+          if (!child.requiredPermission) return true;
+
+          // Special case for Unicast Protocols: show if user has UNICAST_PROTOCOLS
+          // OR any individual routing protocol permission
+          if (child.requiredPermission === FeatureGroup.UNICAST_PROTOCOLS) {
+            return canRead(FeatureGroup.UNICAST_PROTOCOLS) ||
+                   canRead(FeatureGroup.BGP) ||
+                   canRead(FeatureGroup.OSPF) ||
+                   canRead(FeatureGroup.OSPFV3) ||
+                   canRead(FeatureGroup.ISIS) ||
+                   canRead(FeatureGroup.OPENFABRIC) ||
+                   canRead(FeatureGroup.RIP) ||
+                   canRead(FeatureGroup.RIPNG) ||
+                   canRead(FeatureGroup.BABEL);
+          }
+
+          // Special case for Static & Failover: show if user has STATIC_ROUTES OR FAILOVER
+          if (child.requiredPermission === FeatureGroup.STATIC_ROUTES) {
+            return canRead(FeatureGroup.STATIC_ROUTES) || canRead(FeatureGroup.FAILOVER);
+          }
+
+          // Special case for Routing Infrastructure: show if user has ROUTING_INFRASTRUCTURE
+          // OR any individual infrastructure component permission
+          if (child.requiredPermission === FeatureGroup.ROUTING_INFRASTRUCTURE) {
+            return canRead(FeatureGroup.ROUTING_INFRASTRUCTURE) ||
+                   canRead(FeatureGroup.BFD) ||
+                   canRead(FeatureGroup.MPLS) ||
+                   canRead(FeatureGroup.SEGMENT_ROUTING) ||
+                   canRead(FeatureGroup.NHRP) ||
+                   canRead(FeatureGroup.RPKI);
+          }
+
+          // Special case for Multicast: show if user has MULTICAST
+          // OR any individual multicast protocol permission
+          if (child.requiredPermission === FeatureGroup.MULTICAST) {
+            return canRead(FeatureGroup.MULTICAST) ||
+                   canRead(FeatureGroup.IGMP_PROXY) ||
+                   canRead(FeatureGroup.PIM) ||
+                   canRead(FeatureGroup.PIM6);
+          }
+
+          // Special cases for Routing Policies: show if user has ROUTING_POLICIES OR the specific permission
+          if (child.requiredPermission === FeatureGroup.ACCESS_LIST) {
+            return canRead(FeatureGroup.ROUTING_POLICIES) || canRead(FeatureGroup.ACCESS_LIST);
+          }
+          if (child.requiredPermission === FeatureGroup.PREFIX_LIST) {
+            return canRead(FeatureGroup.ROUTING_POLICIES) || canRead(FeatureGroup.PREFIX_LIST);
+          }
+          if (child.requiredPermission === FeatureGroup.ROUTE_POLICY) {
+            return canRead(FeatureGroup.ROUTING_POLICIES) || canRead(FeatureGroup.ROUTE_POLICY);
+          }
+          if (child.requiredPermission === FeatureGroup.ROUTE_MAP) {
+            return canRead(FeatureGroup.ROUTING_POLICIES) || canRead(FeatureGroup.ROUTE_MAP);
+          }
+          if (child.requiredPermission === FeatureGroup.LOCAL_ROUTE) {
+            return canRead(FeatureGroup.ROUTING_POLICIES) || canRead(FeatureGroup.LOCAL_ROUTE);
+          }
+          if (child.requiredPermission === FeatureGroup.BGP_AS_PATH) {
+            return canRead(FeatureGroup.ROUTING_POLICIES) || canRead(FeatureGroup.BGP_AS_PATH);
+          }
+          if (child.requiredPermission === FeatureGroup.BGP_COMMUNITY) {
+            return canRead(FeatureGroup.ROUTING_POLICIES) || canRead(FeatureGroup.BGP_COMMUNITY);
+          }
+          if (child.requiredPermission === FeatureGroup.BGP_EXTENDED_COMMUNITY) {
+            return canRead(FeatureGroup.ROUTING_POLICIES) || canRead(FeatureGroup.BGP_EXTENDED_COMMUNITY);
+          }
+          if (child.requiredPermission === FeatureGroup.BGP_LARGE_COMMUNITY) {
+            return canRead(FeatureGroup.ROUTING_POLICIES) || canRead(FeatureGroup.BGP_LARGE_COMMUNITY);
+          }
+
+          // If permission required, check if user has READ access
+          return canRead(child.requiredPermission);
+        });
+
+        // If all children are filtered out, hide the parent
+        if (visibleChildren.length === 0) {
+          return null;
+        }
+
+        return { ...item, children: visibleChildren };
+      }
+
+      // For items without children, check permission requirement
+      if (item.requiredPermission && !canRead(item.requiredPermission)) {
+        return null;
+      }
+
+      return item;
+    }).filter((item): item is NavItem => item !== null);
+  };
+
+  const visibleNavigation = filterNavigation(navigation);
+
   return (
     <div className="flex h-screen w-64 flex-col border-r border-border bg-card">
       {/* Header */}
@@ -175,7 +373,7 @@ export function Sidebar() {
       {/* Navigation */}
       <ScrollArea className="flex-1 px-3 py-4 min-h-0">
         <nav className="space-y-1">
-          {navigation.map((item) => {
+          {visibleNavigation.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href ||
               item.children?.some(child => pathname === child.href);

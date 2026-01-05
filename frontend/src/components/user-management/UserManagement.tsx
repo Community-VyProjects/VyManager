@@ -1,12 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Users, Shield, Server } from "lucide-react";
+import { Users, Server } from "lucide-react";
 import { UsersTab } from "./UsersTab";
-import { RolesTab } from "./RolesTab";
 import { InstancesTab } from "./InstancesTab";
 
-type UserManagementTab = "users" | "roles" | "instances";
+type UserManagementTab = "users" | "instances";
 
 export function UserManagement() {
   const [selectedTab, setSelectedTab] = useState<UserManagementTab>("users");
@@ -17,7 +16,7 @@ export function UserManagement() {
       <div>
         <h2 className="text-2xl font-bold text-foreground">User Management</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Manage users, roles, and instance access permissions
+          Manage users and instance access permissions
         </p>
       </div>
 
@@ -40,21 +39,6 @@ export function UserManagement() {
           </button>
 
           <button
-            onClick={() => setSelectedTab("roles")}
-            className={`
-              flex items-center gap-2 px-1 py-3 text-sm font-medium border-b-2 transition-colors
-              ${
-                selectedTab === "roles"
-                  ? "border-primary text-primary"
-                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
-              }
-            `}
-          >
-            <Shield className="h-4 w-4" />
-            <span>Roles</span>
-          </button>
-
-          <button
             onClick={() => setSelectedTab("instances")}
             className={`
               flex items-center gap-2 px-1 py-3 text-sm font-medium border-b-2 transition-colors
@@ -74,8 +58,6 @@ export function UserManagement() {
       {/* Tab Content */}
       <div className="py-4">
         {selectedTab === "users" && <UsersTab />}
-
-        {selectedTab === "roles" && <RolesTab />}
 
         {selectedTab === "instances" && <InstancesTab />}
       </div>

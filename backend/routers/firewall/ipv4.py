@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
 from session_vyos_service import get_session_vyos_service
 from vyos_builders import FirewallIPv4BatchBuilder
+from fastapi_permissions import require_read_permission, require_write_permission, FeatureGroup
 import inspect
 
 router = APIRouter(prefix="/vyos/firewall/ipv4", tags=["firewall_ipv4"])
@@ -158,7 +159,12 @@ async def get_firewall_ipv4_capabilities(request: Request):
 
     Returns feature flags indicating which operations are supported.
     Allows frontends to conditionally enable/disable features.
+
+    Requires READ permission on FIREWALL_POLICIES feature.
     """
+    # Check user has READ permission for firewall policies
+    await require_read_permission(request, FeatureGroup.FIREWALL_POLICIES)
+
     try:
         service = get_session_vyos_service(request)
         version = service.get_version()
@@ -189,7 +195,12 @@ async def get_firewall_ipv4_config(http_request: Request, refresh: bool = False)
 
     Returns:
         Generalized configuration data optimized for frontend consumption
+
+    Requires READ permission on FIREWALL_POLICIES feature.
     """
+    # Check user has READ permission for firewall policies
+    await require_read_permission(http_request, FeatureGroup.FIREWALL_POLICIES)
+
     try:
         service = get_session_vyos_service(http_request)
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
@@ -427,7 +438,12 @@ async def firewall_ipv4_batch_configure(http_request: Request, request: Firewall
     Execute a batch of firewall configuration operations.
 
     Allows multiple changes in a single VyOS commit for efficiency.
+
+    Requires WRITE permission on FIREWALL_POLICIES feature.
     """
+    # Check user has WRITE permission for firewall policies
+    await require_write_permission(http_request, FeatureGroup.FIREWALL_POLICIES)
+
     try:
         service = get_session_vyos_service(http_request)
         version = service.get_version()
@@ -493,7 +509,12 @@ async def firewall_ipv4_reorder_rules(http_request: Request, request: ReorderFir
 
     This operation deletes all rules in reverse order, then recreates them
     with new rule numbers in a single commit.
+
+    Requires WRITE permission on FIREWALL_POLICIES feature.
     """
+    # Check user has WRITE permission for firewall policies
+    await require_write_permission(http_request, FeatureGroup.FIREWALL_POLICIES)
+
     try:
         service = get_session_vyos_service(http_request)
         version = service.get_version()

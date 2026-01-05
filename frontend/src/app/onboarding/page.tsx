@@ -196,6 +196,19 @@ export default function OnboardingPage() {
       // Wait a moment for session cookie to be fully set
       await new Promise((resolve) => setTimeout(resolve, 500));
 
+      // Step 1.75: Set first user as ADMIN
+      console.log("[Onboarding] Setting user as ADMIN...");
+      const setAdminResult = await fetch("/api/session/set-first-user-admin", {
+        method: "POST",
+      });
+
+      if (!setAdminResult.ok) {
+        console.error("[Onboarding] Warning: Failed to set user as ADMIN");
+        // Don't fail the entire onboarding, but log it
+      } else {
+        console.log("[Onboarding] ✓ User set as ADMIN");
+      }
+
       // Step 2: Create site
       console.log("[Onboarding] Step 2/3: Creating site...");
       const createdSite = await sessionService.createSite({
@@ -207,7 +220,7 @@ export default function OnboardingPage() {
 
       // Step 3: Create instance
       console.log("[Onboarding] Step 3/3: Creating VyOS instance...");
-      await sessionService.createInstance({
+      const createdInstance = await sessionService.createInstance({
         site_id: createdSite.id,
         name: instanceData.name,
         description: instanceData.description || undefined,
@@ -222,6 +235,9 @@ export default function OnboardingPage() {
 
       console.log("[Onboarding] ✓ Instance created");
       console.log("[Onboarding] Setup complete! Redirecting to sites...");
+
+      // Note: Site ADMIN users (which the first user is) automatically have access
+      // to all instances without needing explicit instance-level role assignments
 
       // Setup complete! Redirect to sites page
       router.push("/sites");
@@ -265,7 +281,7 @@ export default function OnboardingPage() {
           </div>
           <CardTitle className="text-3xl">Welcome to VyManager</CardTitle>
           <CardDescription>
-            Let's set up your VyOS management system in 3 easy steps
+            Let's set up your VyOS management system
           </CardDescription>
         </CardHeader>
 

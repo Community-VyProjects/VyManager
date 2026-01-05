@@ -357,44 +357,44 @@ export function InterfaceStatisticsCard({
       setError(null);
       const data = await showService.getInterfaceCounters();
 
+      // Fetch config once before processing interfaces
+      const config = await ethernetService.getConfig();
+
       // First, process all interfaces with their types and descriptions
-      const allInterfaces = await Promise.all(
-        data.interfaces.map(async (iface) => {
-          const config = await ethernetService.getConfig();
-          let description: string | undefined;
+      const allInterfaces = data.interfaces.map((iface) => {
+        let description: string | undefined;
 
-          // Parse interface name
-          const { parentName, vlanId, isVif } = parseInterfaceName(
-            iface.interface
+        // Parse interface name
+        const { parentName, vlanId, isVif } = parseInterfaceName(
+          iface.interface
+        );
+
+        // 1. First match
+        const directInterface = config?.interfaces?.find(
+          (i) => i.name === iface.interface
+        );
+
+        if (directInterface) {
+          description = directInterface.description ?? undefined;
+        } else if (isVif && parentName) {
+          // 2. Check VIF
+          const parentInterface = config?.interfaces?.find(
+            (i) => i.name === parentName
           );
 
-          // 1. First match
-          const directInterface = config?.interfaces?.find(
-            (i) => i.name === iface.interface
-          );
+          const vif = parentInterface?.vif?.find((v) => v.vlan_id === vlanId);
 
-          if (directInterface) {
-            description = directInterface.description ?? undefined;
-          } else if (isVif && parentName) {
-            // 2. Check VIF
-            const parentInterface = config?.interfaces?.find(
-              (i) => i.name === parentName
-            );
+          description = vif?.description ?? undefined;
+        }
 
-            const vif = parentInterface?.vif?.find((v) => v.vlan_id === vlanId);
-
-            description = vif?.description ?? undefined;
-          }
-
-          return {
-            ...iface,
-            type: getInterfaceType(iface.interface),
-            description,
-            isVif,
-            parentInterface: isVif ? parentName : undefined,
-          };
-        })
-      );
+        return {
+          ...iface,
+          type: getInterfaceType(iface.interface),
+          description,
+          isVif,
+          parentInterface: isVif ? parentName : undefined,
+        };
+      });
 
       // Group VIFs under parent interfaces
       const interfaceMap = new Map<string, InterfaceWithType>();
@@ -431,7 +431,22 @@ export function InterfaceStatisticsCard({
 
       setInterfaces(groupedInterfaces);
     } catch (err: any) {
-      setError(err.message || "Failed to load interface statistics");
+      // Extract error message properly from various error formats
+      let errorMessage = "Failed to load interface statistics";
+
+      if (typeof err === 'string') {
+        errorMessage = err;
+      } else if (err.message && typeof err.message === 'string') {
+        errorMessage = err.message;
+      } else if (err.error && typeof err.error === 'string') {
+        errorMessage = err.error;
+      } else if (err.detail && typeof err.detail === 'string') {
+        errorMessage = err.detail;
+      } else if (err.detail && typeof err.detail === 'object' && err.detail.message) {
+        errorMessage = err.detail.message;
+      }
+
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -571,7 +586,9 @@ export function InterfaceStatisticsCard({
       </CardHeader>
       <CardContent>
         {error ? (
-          <div className="text-destructive text-sm">{error}</div>
+          <div className="text-destructive text-sm">
+            {typeof error === 'string' ? error : 'An error occurred while loading interface statistics'}
+          </div>
         ) : loading ? (
           <div className="text-center text-muted-foreground py-4">
             Loading...

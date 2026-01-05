@@ -65,7 +65,7 @@ export function DeleteUserModal({ open, onOpenChange, user, onSuccess }: DeleteU
               </p>
               <ul className="list-disc list-inside mt-2 space-y-1 text-muted-foreground">
                 <li>All instance access ({user.instance_count} {user.instance_count === 1 ? "instance" : "instances"})</li>
-                <li>All role assignments ({user.roles.length} {user.roles.length === 1 ? "role" : "roles"})</li>
+                <li>Site role: {user.site_role}</li>
                 <li>User authentication and account data</li>
               </ul>
             </div>

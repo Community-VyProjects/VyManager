@@ -33,7 +33,7 @@ import { userManagementService, UserListItem } from "@/lib/api/user-management";
 import { CreateUserModal } from "./CreateUserModal";
 import { EditUserModal } from "./EditUserModal";
 import { DeleteUserModal } from "./DeleteUserModal";
-import { ManageUserAccessModal } from "./ManageUserAccessModal";
+import { ManageUserAccessPanel } from "./ManageUserAccessPanel";
 
 export function UsersTab() {
   const [users, setUsers] = useState<UserListItem[]>([]);
@@ -283,7 +283,7 @@ export function UsersTab() {
             onSuccess={handleSuccess}
           />
 
-          <ManageUserAccessModal
+          <ManageUserAccessPanel
             open={manageAccessOpen}
             onOpenChange={setManageAccessOpen}
             user={selectedUser}

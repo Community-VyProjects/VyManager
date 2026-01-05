@@ -5,24 +5,41 @@ import { InProgress } from "@/components/layout/InProgress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Network, ChevronRight } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { cn } from "@/lib/utils";
+import { usePermissions } from "@/hooks/usePermissions";
+import { FeatureGroup } from "@/lib/api/user-management";
 
 type ProtocolType = "bgp" | "ospf" | "ospfv3" | "isis" | "openfabric" | "rip" | "ripng" | "babel";
 
-const protocols = [
-  { id: "bgp" as ProtocolType, name: "BGP", description: "Border Gateway Protocol" },
-  { id: "ospf" as ProtocolType, name: "OSPF", description: "Open Shortest Path First" },
-  { id: "ospfv3" as ProtocolType, name: "OSPFv3", description: "OSPF for IPv6" },
-  { id: "isis" as ProtocolType, name: "IS-IS", description: "Intermediate System to Intermediate System" },
-  { id: "openfabric" as ProtocolType, name: "OpenFabric", description: "OpenFabric Protocol" },
-  { id: "rip" as ProtocolType, name: "RIP", description: "Routing Information Protocol" },
-  { id: "ripng" as ProtocolType, name: "RIPng", description: "RIP Next Generation" },
-  { id: "babel" as ProtocolType, name: "Babel", description: "Babel Routing Protocol" },
+const allProtocols = [
+  { id: "bgp" as ProtocolType, name: "BGP", description: "Border Gateway Protocol", permission: FeatureGroup.BGP },
+  { id: "ospf" as ProtocolType, name: "OSPF", description: "Open Shortest Path First", permission: FeatureGroup.OSPF },
+  { id: "ospfv3" as ProtocolType, name: "OSPFv3", description: "OSPF for IPv6", permission: FeatureGroup.OSPFV3 },
+  { id: "isis" as ProtocolType, name: "IS-IS", description: "Intermediate System to Intermediate System", permission: FeatureGroup.ISIS },
+  { id: "openfabric" as ProtocolType, name: "OpenFabric", description: "OpenFabric Protocol", permission: FeatureGroup.OPENFABRIC },
+  { id: "rip" as ProtocolType, name: "RIP", description: "Routing Information Protocol", permission: FeatureGroup.RIP },
+  { id: "ripng" as ProtocolType, name: "RIPng", description: "RIP Next Generation", permission: FeatureGroup.RIPNG },
+  { id: "babel" as ProtocolType, name: "Babel", description: "Babel Routing Protocol", permission: FeatureGroup.BABEL },
 ];
 
 export default function UnicastProtocolsPage() {
-  const [selectedProtocol, setSelectedProtocol] = useState<ProtocolType>("bgp");
+  const { canRead, isLoading } = usePermissions();
+
+  // Filter protocols based on user permissions
+  const protocols = useMemo(() => {
+    if (isLoading) return [];
+    return allProtocols.filter(protocol => canRead(protocol.permission));
+  }, [canRead, isLoading]);
+
+  const [selectedProtocol, setSelectedProtocol] = useState<ProtocolType | null>(null);
+
+  // Auto-select first available protocol
+  useEffect(() => {
+    if (protocols.length > 0 && !selectedProtocol) {
+      setSelectedProtocol(protocols[0].id);
+    }
+  }, [protocols, selectedProtocol]);
 
   return (
     <AppLayout>
@@ -46,7 +63,16 @@ export default function UnicastProtocolsPage() {
           {/* Protocol List */}
           <ScrollArea className="flex-1 px-3">
             <div className="space-y-1 py-3">
-              {protocols.map((protocol) => (
+              {isLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <p className="text-sm text-muted-foreground">Loading protocols...</p>
+                </div>
+              ) : protocols.length === 0 ? (
+                <div className="flex items-center justify-center py-8">
+                  <p className="text-sm text-muted-foreground">No accessible protocols</p>
+                </div>
+              ) : (
+                protocols.map((protocol) => (
                 <button
                   key={protocol.id}
                   onClick={() => setSelectedProtocol(protocol.id)}
@@ -85,7 +111,8 @@ export default function UnicastProtocolsPage() {
                     </div>
                   </div>
                 </button>
-              ))}
+              ))
+              )}
             </div>
           </ScrollArea>
         </div>

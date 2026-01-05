@@ -74,39 +74,34 @@ async function main() {
     console.log("⚠️  No users found. Please create a user first via sign up.");
   } else {
     for (const user of users) {
-      // First user becomes SUPER_ADMIN, rest become ADMIN
+      // First user becomes site ADMIN, rest become site VIEWER
       const isFirstUser = user === users[0];
-      const roleToAssign = isFirstUser ? "SUPER_ADMIN" : "ADMIN";
+      const siteRole = isFirstUser ? "ADMIN" : "VIEWER";
 
-      // Update user's global role
+      // Update user's site role
       await prisma.user.update({
         where: { id: user.id },
-        data: { role: roleToAssign as Role },
+        data: { role: siteRole as Role },
       });
 
-      // Grant instance access with built-in role
+      // Grant instance access - all users get ADMIN instance role
       const instanceRole = await prisma.userInstanceRole.upsert({
         where: {
-          userId_instanceId_roleType_builtInRole_customRoleId: {
+          userId_instanceId: {
             userId: user.id,
             instanceId: instance.id,
-            roleType: "BUILT_IN",
-            builtInRole: roleToAssign,
-            customRoleId: null as any, // Prisma requires null in composite unique key
           },
         },
         update: {},
         create: {
           userId: user.id,
           instanceId: instance.id,
-          roleType: "BUILT_IN",
-          builtInRole: roleToAssign,
+          role: "ADMIN", // Instance role: ADMIN, EDITOR, or VIEWER
           assignedBy: user.id, // Self-assigned during migration
-          // customRoleId is omitted (null) for built-in roles
         },
       });
 
-      console.log(`✓ Access granted: ${user.email} -> ${instance.name} (${roleToAssign})`);
+      console.log(`✓ Access granted: ${user.email} -> ${instance.name} (Site: ${siteRole}, Instance: ADMIN)`);
     }
   }
 

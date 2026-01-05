@@ -11,6 +11,8 @@ from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
 from session_vyos_service import get_session_vyos_service
 from vyos_builders import StaticRoutesBatchBuilder
+from fastapi_permissions import require_read_permission, require_write_permission
+from rbac_permissions import FeatureGroup
 import inspect
 
 router = APIRouter(prefix="/vyos/static-routes", tags=["static-routes"])
@@ -114,6 +116,9 @@ async def get_static_routes_capabilities(request: Request):
     Returns feature flags indicating which operations are supported.
     Allows frontends to conditionally enable/disable features.
     """
+    # Check RBAC permission
+    await require_read_permission(request, FeatureGroup.STATIC_ROUTES)
+
     try:
         service = get_session_vyos_service(request)
         version = service.get_version()
@@ -145,6 +150,9 @@ async def get_static_routes_config(http_request: Request, refresh: bool = False)
     Returns:
         Generalized configuration data optimized for frontend consumption
     """
+    # Check RBAC permission
+    await require_read_permission(http_request, FeatureGroup.STATIC_ROUTES)
+
     try:
         service = get_session_vyos_service(http_request)
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
@@ -306,19 +314,22 @@ def parse_routing_table(table_id: str, table_config: dict) -> RoutingTable:
 
 
 @router.post("/batch")
-async def static_routes_batch_configure(request: StaticRoutesBatchRequest):
+async def static_routes_batch_configure(http_request: Request, body: StaticRoutesBatchRequest):
     """
     Execute a batch of configuration operations.
 
     Allows multiple changes in a single VyOS commit for efficiency.
     """
+    # Check RBAC permission
+    await require_write_permission(http_request, FeatureGroup.STATIC_ROUTES)
+
     try:
-        service = get_session_vyos_service(request)
+        service = get_session_vyos_service(http_request)
         version = service.get_version()
         builder = StaticRoutesBatchBuilder(version=version)
 
         # Process operations using inspect for dynamic method calls
-        for operation in request.operations:
+        for operation in body.operations:
             method = getattr(builder, operation.op)
             sig = inspect.signature(method)
             params = list(sig.parameters.keys())
@@ -328,11 +339,11 @@ async def static_routes_batch_configure(request: StaticRoutesBatchRequest):
 
             # Add destination
             if "destination" in params:
-                args.append(request.destination)
+                args.append(body.destination)
 
             # Add table_id if specified and method accepts it
-            if request.table_id and "table_id" in params:
-                args.append(str(request.table_id))
+            if body.table_id and "table_id" in params:
+                args.append(str(body.table_id))
 
             # Add operation value if provided
             if operation.value and len(params) > len(args):

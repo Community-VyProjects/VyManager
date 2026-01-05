@@ -17,9 +17,8 @@ import {
   AlertCircle,
   RefreshCw,
   Server,
-  Users,
-  Eye,
   Building2,
+  Eye,
 } from "lucide-react";
 import { sessionService, Site } from "@/lib/api/session";
 import { ViewInstanceAccessModal } from "./ViewInstanceAccessModal";

@@ -2,7 +2,7 @@
 User Management Router
 
 API endpoints for managing users, roles, and permissions.
-SUPER_ADMIN only.
+ADMIN only.
 """
 
 from fastapi import APIRouter, HTTPException, Request
@@ -16,7 +16,7 @@ from rbac_permissions import (
     FeatureGroup,
     PermissionLevel,
     BuiltInRole,
-    is_super_admin,
+    is_admin,
     get_user_permissions,
 )
 
@@ -35,7 +35,7 @@ class UserListItem(BaseModel):
     email_verified: bool
     created_at: datetime
     instance_count: int
-    roles: List[str]  # List of role names
+    site_role: str  # ADMIN or VIEWER
 
 
 class UserDetail(BaseModel):
@@ -53,6 +53,7 @@ class CreateUserRequest(BaseModel):
     name: Optional[str] = None
     email: EmailStr
     password: str = Field(..., min_length=8)
+    site_role: str = Field(..., description="Site role: ADMIN or VIEWER")
 
 
 class UpdateUserRequest(BaseModel):
@@ -60,40 +61,14 @@ class UpdateUserRequest(BaseModel):
     name: Optional[str] = None
     email: Optional[EmailStr] = None
     password: Optional[str] = Field(None, min_length=8)
+    site_role: Optional[str] = Field(None, description="Site role: ADMIN or VIEWER")
 
 
-class CustomRoleListItem(BaseModel):
-    """Custom role in list view"""
-    id: str
-    name: str
-    description: Optional[str]
-    created_at: datetime
-    user_count: int  # How many users have this role
-
-
-class CustomRoleDetail(BaseModel):
-    """Detailed custom role information"""
-    id: str
-    name: str
-    description: Optional[str]
-    created_at: datetime
-    updated_at: datetime
-    created_by: str
-    permissions: Dict[str, str]  # feature -> permission level
-
-
-class CreateRoleRequest(BaseModel):
-    """Request to create a custom role"""
-    name: str = Field(..., min_length=1, max_length=50)
-    description: Optional[str] = None
-    permissions: Dict[str, str]  # feature -> permission level (READ/WRITE/NONE)
-
-
-class UpdateRoleRequest(BaseModel):
-    """Request to update a custom role"""
-    name: Optional[str] = Field(None, min_length=1, max_length=50)
-    description: Optional[str] = None
-    permissions: Optional[Dict[str, str]] = None
+class FeaturePermissionItem(BaseModel):
+    """Feature permission for a user assignment"""
+    feature: str  # FeatureGroup enum value
+    can_edit: bool
+    can_view: bool
 
 
 class UserInstanceAssignment(BaseModel):
@@ -104,19 +79,18 @@ class UserInstanceAssignment(BaseModel):
     instance_name: str
     site_id: str
     site_name: str
-    role_type: str  # "BUILT_IN" or "CUSTOM"
-    built_in_role: Optional[str]
-    custom_role_id: Optional[str]
-    custom_role_name: Optional[str]
+    role: str  # InstanceRole: ADMIN, OPERATOR, or VIEWER
+    feature_permissions: List[FeaturePermissionItem]  # Only used for OPERATOR/VIEWER
     assigned_at: datetime
     assigned_by: str
 
 
 class AssignUserRequest(BaseModel):
-    """Request to assign user to instance(s) with role(s)"""
+    """Request to assign user to instance(s) with role"""
     user_id: str
     instance_ids: List[str]  # Can assign to multiple instances at once
-    roles: List[Dict[str, Optional[str]]]  # [{"type": "BUILT_IN", "builtInRole": "ADMIN"}, ...]
+    role: str  # InstanceRole: ADMIN, OPERATOR, or VIEWER
+    feature_permissions: Optional[List[FeaturePermissionItem]] = None  # Only for OPERATOR/VIEWER
 
 
 class InstanceUserListItem(BaseModel):
@@ -124,16 +98,17 @@ class InstanceUserListItem(BaseModel):
     user_id: str
     user_name: Optional[str]
     user_email: str
-    roles: List[str]  # List of role names for this instance
+    role: str  # Instance role: ADMIN, OPERATOR, or VIEWER
+    feature_permissions: Optional[List[FeaturePermissionItem]] = None  # Only for OPERATOR/VIEWER
 
 
 # ============================================================================
 # Helper Functions
 # ============================================================================
 
-async def check_super_admin_permission(request: Request) -> None:
+async def check_admin_permission(request: Request) -> None:
     """
-    Check if the current user is a SUPER_ADMIN.
+    Check if the current user is an ADMIN.
     Raises HTTPException if not.
     """
     user = request.state.user
@@ -141,12 +116,12 @@ async def check_super_admin_permission(request: Request) -> None:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
     db_pool: asyncpg.Pool = request.app.state.db_pool
-    is_admin = await is_super_admin(db_pool, user["id"])
+    user_is_admin = await is_admin(db_pool, user["id"])
 
-    if not is_admin:
+    if not user_is_admin:
         raise HTTPException(
             status_code=403,
-            detail="Insufficient permissions. SUPER_ADMIN role required."
+            detail="Insufficient permissions. ADMIN role required."
         )
 
 
@@ -154,10 +129,62 @@ async def check_super_admin_permission(request: Request) -> None:
 # User Endpoints
 # ============================================================================
 
+@router.get("/my-permissions")
+async def get_my_permissions(request: Request):
+    """
+    Get the current user's permissions for their active instance.
+
+    Returns a dictionary mapping feature groups to permission levels.
+    This endpoint does NOT require admin permission - any authenticated user
+    can check their own permissions.
+    """
+    user = request.state.user
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    db_pool: asyncpg.Pool = request.app.state.db_pool
+
+    async with db_pool.acquire() as conn:
+        # Get user's active session to find which instance they're connected to
+        active_session = await conn.fetchrow(
+            """
+            SELECT "instanceId"
+            FROM active_sessions
+            WHERE "userId" = $1
+            LIMIT 1
+            """,
+            user["id"]
+        )
+
+        if not active_session:
+            # User has no active session - return empty permissions
+            return {
+                "has_active_session": False,
+                "permissions": {}
+            }
+
+        instance_id = active_session["instanceId"]
+
+        # Get user's permissions for this instance
+        permissions = await get_user_permissions(db_pool, user["id"], instance_id)
+
+        # Convert enum values to strings for JSON serialization
+        permissions_dict = {
+            feature.value: level.value
+            for feature, level in permissions.items()
+        }
+
+        return {
+            "has_active_session": True,
+            "instance_id": instance_id,
+            "permissions": permissions_dict
+        }
+
+
 @router.get("/users", response_model=List[UserListItem])
 async def list_users(request: Request):
-    """Get list of all users with their instance counts and roles."""
-    await check_super_admin_permission(request)
+    """Get list of all users with their instance counts and site roles."""
+    await check_admin_permission(request)
 
     db_pool: asyncpg.Pool = request.app.state.db_pool
 
@@ -170,53 +197,30 @@ async def list_users(request: Request):
                 u.email,
                 u."emailVerified" as email_verified,
                 u."createdAt" as created_at,
+                u.role as site_role,
                 COUNT(DISTINCT uir."instanceId") as instance_count
             FROM users u
             LEFT JOIN user_instance_roles uir ON u.id = uir."userId"
-            GROUP BY u.id, u.name, u.email, u."emailVerified", u."createdAt"
+            GROUP BY u.id, u.name, u.email, u."emailVerified", u."createdAt", u.role
             ORDER BY u."createdAt" DESC
             """
         )
 
-        result = []
-        for user in users:
-            # Get unique role names for this user
-            roles_data = await conn.fetch(
-                """
-                SELECT DISTINCT
-                    uir."builtInRole",
-                    cr.name as custom_role_name
-                FROM user_instance_roles uir
-                LEFT JOIN custom_roles cr ON uir."customRoleId" = cr.id
-                WHERE uir."userId" = $1
-                """,
-                user["id"]
-            )
-
-            roles = []
-            for role in roles_data:
-                if role["builtInRole"]:
-                    roles.append(role["builtInRole"])
-                elif role["custom_role_name"]:
-                    roles.append(role["custom_role_name"])
-
-            result.append(UserListItem(
-                id=user["id"],
-                name=user["name"],
-                email=user["email"],
-                email_verified=user["email_verified"],
-                created_at=user["created_at"],
-                instance_count=user["instance_count"],
-                roles=list(set(roles))  # Deduplicate
-            ))
-
-        return result
+        return [UserListItem(
+            id=user["id"],
+            name=user["name"],
+            email=user["email"],
+            email_verified=user["email_verified"],
+            created_at=user["created_at"],
+            instance_count=user["instance_count"],
+            site_role=user["site_role"]
+        ) for user in users]
 
 
 @router.get("/users/{user_id}", response_model=UserDetail)
 async def get_user(request: Request, user_id: str):
     """Get detailed information about a specific user."""
-    await check_super_admin_permission(request)
+    await check_admin_permission(request)
 
     db_pool: asyncpg.Pool = request.app.state.db_pool
 
@@ -240,7 +244,7 @@ async def get_user(request: Request, user_id: str):
 @router.get("/users/{user_id}/assignments", response_model=List[UserInstanceAssignment])
 async def get_user_assignments(request: Request, user_id: str):
     """Get all instance assignments for a specific user."""
-    await check_super_admin_permission(request)
+    await check_admin_permission(request)
 
     db_pool: asyncpg.Pool = request.app.state.db_pool
 
@@ -254,23 +258,53 @@ async def get_user_assignments(request: Request, user_id: str):
                 i.name as instance_name,
                 i."siteId" as site_id,
                 s.name as site_name,
-                uir."roleType" as role_type,
-                uir."builtInRole" as built_in_role,
-                uir."customRoleId" as custom_role_id,
-                cr.name as custom_role_name,
+                uir.role,
                 uir."createdAt" as assigned_at,
                 uir."assignedBy" as assigned_by
             FROM user_instance_roles uir
             JOIN instances i ON uir."instanceId" = i.id
             JOIN sites s ON i."siteId" = s.id
-            LEFT JOIN custom_roles cr ON uir."customRoleId" = cr.id
             WHERE uir."userId" = $1
             ORDER BY s.name, i.name
             """,
             user_id
         )
 
-        return [UserInstanceAssignment(**dict(a)) for a in assignments]
+        result = []
+        for assignment in assignments:
+            # Get feature permissions for this assignment
+            feature_perms = await conn.fetch(
+                """
+                SELECT feature, "canEdit" as can_edit, "canView" as can_view
+                FROM user_feature_permissions
+                WHERE "userInstanceRoleId" = $1
+                """,
+                assignment["id"]
+            )
+
+            permissions = [
+                FeaturePermissionItem(
+                    feature=fp["feature"],
+                    can_edit=fp["can_edit"],
+                    can_view=fp["can_view"]
+                )
+                for fp in feature_perms
+            ]
+
+            result.append(UserInstanceAssignment(
+                id=assignment["id"],
+                user_id=assignment["user_id"],
+                instance_id=assignment["instance_id"],
+                instance_name=assignment["instance_name"],
+                site_id=assignment["site_id"],
+                site_name=assignment["site_name"],
+                role=assignment["role"],
+                feature_permissions=permissions,
+                assigned_at=assignment["assigned_at"],
+                assigned_by=assignment["assigned_by"]
+            ))
+
+        return result
 
 
 @router.post("/users", response_model=UserDetail)
@@ -278,10 +312,15 @@ async def create_user(request: Request, body: CreateUserRequest):
     """
     Create a new user by calling Better Auth's internal API.
     This ensures password hashing is handled correctly by Better Auth.
+    Then sets the site role in the database.
     """
-    await check_super_admin_permission(request)
+    await check_admin_permission(request)
 
     db_pool: asyncpg.Pool = request.app.state.db_pool
+
+    # Validate site_role
+    if body.site_role not in ["ADMIN", "VIEWER"]:
+        raise HTTPException(status_code=400, detail="site_role must be ADMIN or VIEWER")
 
     # Call Better Auth's internal user creation endpoint
     frontend_url = "http://frontend:3000"
@@ -320,8 +359,19 @@ async def create_user(request: Request, body: CreateUserRequest):
                 detail=f"Unexpected error: {str(e)}"
             )
 
-    # Fetch the created user from database
+    # Set the site role in the database
     async with db_pool.acquire() as conn:
+        await conn.execute(
+            """
+            UPDATE users
+            SET role = $1, "updatedAt" = NOW()
+            WHERE id = $2
+            """,
+            body.site_role,
+            user_id
+        )
+
+        # Fetch the created user from database
         user = await conn.fetchrow(
             """
             SELECT id, name, email, "emailVerified" as email_verified,
@@ -349,7 +399,7 @@ async def update_user(request: Request, user_id: str, body: UpdateUserRequest):
     Note: Password updates are not currently supported through this endpoint.
     Use the password reset flow for changing user passwords.
     """
-    await check_super_admin_permission(request)
+    await check_admin_permission(request)
 
     db_pool: asyncpg.Pool = request.app.state.db_pool
 
@@ -358,6 +408,10 @@ async def update_user(request: Request, user_id: str, body: UpdateUserRequest):
         existing = await conn.fetchval("SELECT id FROM users WHERE id = $1", user_id)
         if not existing:
             raise HTTPException(status_code=404, detail="User not found")
+
+        # Validate site_role if provided
+        if body.site_role is not None and body.site_role not in ["ADMIN", "VIEWER"]:
+            raise HTTPException(status_code=400, detail="site_role must be ADMIN or VIEWER")
 
         # Update user
         updates = []
@@ -381,6 +435,11 @@ async def update_user(request: Request, user_id: str, body: UpdateUserRequest):
 
             updates.append(f'email = ${param_count}')
             params.append(body.email)
+            param_count += 1
+
+        if body.site_role is not None:
+            updates.append(f'role = ${param_count}')
+            params.append(body.site_role)
             param_count += 1
 
         if body.password is not None:
@@ -413,7 +472,7 @@ async def update_user(request: Request, user_id: str, body: UpdateUserRequest):
 @router.delete("/users/{user_id}")
 async def delete_user(request: Request, user_id: str):
     """Delete a user."""
-    await check_super_admin_permission(request)
+    await check_admin_permission(request)
 
     db_pool: asyncpg.Pool = request.app.state.db_pool
     current_user = request.state.user
@@ -435,265 +494,20 @@ async def delete_user(request: Request, user_id: str):
 
 
 # ============================================================================
-# Custom Role Endpoints
-# ============================================================================
-
-@router.get("/roles", response_model=List[CustomRoleListItem])
-async def list_custom_roles(request: Request):
-    """Get list of all custom roles."""
-    await check_super_admin_permission(request)
-
-    db_pool: asyncpg.Pool = request.app.state.db_pool
-
-    async with db_pool.acquire() as conn:
-        roles = await conn.fetch(
-            """
-            SELECT
-                cr.id,
-                cr.name,
-                cr.description,
-                cr."createdAt" as created_at,
-                COUNT(DISTINCT uir."userId") as user_count
-            FROM custom_roles cr
-            LEFT JOIN user_instance_roles uir ON cr.id = uir."customRoleId"
-            GROUP BY cr.id, cr.name, cr.description, cr."createdAt"
-            ORDER BY cr.name
-            """
-        )
-
-        return [CustomRoleListItem(**dict(r)) for r in roles]
-
-
-@router.get("/roles/{role_id}", response_model=CustomRoleDetail)
-async def get_custom_role(request: Request, role_id: str):
-    """Get detailed information about a custom role."""
-    await check_super_admin_permission(request)
-
-    db_pool: asyncpg.Pool = request.app.state.db_pool
-
-    async with db_pool.acquire() as conn:
-        role = await conn.fetchrow(
-            """
-            SELECT id, name, description, "createdAt" as created_at,
-                   "updatedAt" as updated_at, "createdBy" as created_by
-            FROM custom_roles
-            WHERE id = $1
-            """,
-            role_id
-        )
-
-        if not role:
-            raise HTTPException(status_code=404, detail="Role not found")
-
-        # Get permissions
-        perms = await conn.fetch(
-            """
-            SELECT feature, permission
-            FROM feature_permissions
-            WHERE "roleId" = $1
-            """,
-            role_id
-        )
-
-        permissions = {p["feature"]: p["permission"] for p in perms}
-
-        return CustomRoleDetail(
-            **dict(role),
-            permissions=permissions
-        )
-
-
-@router.post("/roles", response_model=CustomRoleDetail)
-async def create_custom_role(request: Request, body: CreateRoleRequest):
-    """Create a new custom role."""
-    await check_super_admin_permission(request)
-
-    db_pool: asyncpg.Pool = request.app.state.db_pool
-    current_user = request.state.user
-
-    async with db_pool.acquire() as conn:
-        # Check if name already exists
-        existing = await conn.fetchval(
-            "SELECT id FROM custom_roles WHERE name = $1",
-            body.name
-        )
-        if existing:
-            raise HTTPException(status_code=400, detail="Role name already exists")
-
-        # Create role
-        role_id = await conn.fetchval(
-            """
-            INSERT INTO custom_roles (id, name, description, "createdAt", "updatedAt", "createdBy")
-            VALUES (gen_random_uuid()::text, $1, $2, NOW(), NOW(), $3)
-            RETURNING id
-            """,
-            body.name,
-            body.description,
-            current_user["id"]
-        )
-
-        # Create permissions
-        for feature, permission in body.permissions.items():
-            if permission != "NONE":  # Don't store NONE permissions
-                await conn.execute(
-                    """
-                    INSERT INTO feature_permissions (id, "roleId", feature, permission, "createdAt")
-                    VALUES (gen_random_uuid()::text, $1, $2, $3, NOW())
-                    """,
-                    role_id,
-                    feature,
-                    permission
-                )
-
-        # Fetch created role
-        role = await conn.fetchrow(
-            """
-            SELECT id, name, description, "createdAt" as created_at,
-                   "updatedAt" as updated_at, "createdBy" as created_by
-            FROM custom_roles
-            WHERE id = $1
-            """,
-            role_id
-        )
-
-        return CustomRoleDetail(**dict(role), permissions=body.permissions)
-
-
-@router.put("/roles/{role_id}", response_model=CustomRoleDetail)
-async def update_custom_role(request: Request, role_id: str, body: UpdateRoleRequest):
-    """Update a custom role."""
-    await check_super_admin_permission(request)
-
-    db_pool: asyncpg.Pool = request.app.state.db_pool
-
-    async with db_pool.acquire() as conn:
-        # Check if role exists
-        existing = await conn.fetchval("SELECT id FROM custom_roles WHERE id = $1", role_id)
-        if not existing:
-            raise HTTPException(status_code=404, detail="Role not found")
-
-        # Update role
-        updates = []
-        params = []
-        param_count = 1
-
-        if body.name is not None:
-            # Check if new name already exists
-            name_exists = await conn.fetchval(
-                "SELECT id FROM custom_roles WHERE name = $1 AND id != $2",
-                body.name,
-                role_id
-            )
-            if name_exists:
-                raise HTTPException(status_code=400, detail="Role name already exists")
-
-            updates.append(f'name = ${param_count}')
-            params.append(body.name)
-            param_count += 1
-
-        if body.description is not None:
-            updates.append(f'description = ${param_count}')
-            params.append(body.description)
-            param_count += 1
-
-        if updates:
-            updates.append(f'"updatedAt" = NOW()')
-            params.append(role_id)
-            query = f"UPDATE custom_roles SET {', '.join(updates)} WHERE id = ${param_count}"
-            await conn.execute(query, *params)
-
-        # Update permissions if provided
-        if body.permissions is not None:
-            # Delete existing permissions
-            await conn.execute(
-                'DELETE FROM feature_permissions WHERE "roleId" = $1',
-                role_id
-            )
-
-            # Insert new permissions
-            for feature, permission in body.permissions.items():
-                if permission != "NONE":
-                    await conn.execute(
-                        """
-                        INSERT INTO feature_permissions (id, "roleId", feature, permission, "createdAt")
-                        VALUES (gen_random_uuid()::text, $1, $2, $3, NOW())
-                        """,
-                        role_id,
-                        feature,
-                        permission
-                    )
-
-        # Fetch updated role with permissions
-        role = await conn.fetchrow(
-            """
-            SELECT id, name, description, "createdAt" as created_at,
-                   "updatedAt" as updated_at, "createdBy" as created_by
-            FROM custom_roles
-            WHERE id = $1
-            """,
-            role_id
-        )
-
-        perms = await conn.fetch(
-            """
-            SELECT feature, permission
-            FROM feature_permissions
-            WHERE "roleId" = $1
-            """,
-            role_id
-        )
-
-        permissions = {p["feature"]: p["permission"] for p in perms}
-
-        return CustomRoleDetail(**dict(role), permissions=permissions)
-
-
-@router.delete("/roles/{role_id}")
-async def delete_custom_role(request: Request, role_id: str):
-    """Delete a custom role."""
-    await check_super_admin_permission(request)
-
-    db_pool: asyncpg.Pool = request.app.state.db_pool
-
-    async with db_pool.acquire() as conn:
-        # Check if role exists
-        existing = await conn.fetchval("SELECT id FROM custom_roles WHERE id = $1", role_id)
-        if not existing:
-            raise HTTPException(status_code=404, detail="Role not found")
-
-        # Check if role is in use
-        in_use = await conn.fetchval(
-            """
-            SELECT COUNT(*)
-            FROM user_instance_roles
-            WHERE "customRoleId" = $1
-            """,
-            role_id
-        )
-
-        if in_use > 0:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Cannot delete role. It is assigned to {in_use} user(s)."
-            )
-
-        # Delete role (cascades to feature_permissions)
-        await conn.execute("DELETE FROM custom_roles WHERE id = $1", role_id)
-
-        return {"success": True, "message": "Role deleted successfully"}
-
-
-# ============================================================================
 # Assignment Endpoints
 # ============================================================================
 
 @router.post("/assignments")
 async def assign_user_to_instances(request: Request, body: AssignUserRequest):
-    """Assign a user to instance(s) with role(s)."""
-    await check_super_admin_permission(request)
+    """Assign a user to instance(s) with a role and optional feature permissions."""
+    await check_admin_permission(request)
 
     db_pool: asyncpg.Pool = request.app.state.db_pool
     current_user = request.state.user
+
+    # Validate role
+    if body.role not in ["ADMIN", "OPERATOR", "VIEWER"]:
+        raise HTTPException(status_code=400, detail="role must be ADMIN, OPERATOR, or VIEWER")
 
     async with db_pool.acquire() as conn:
         # Verify user exists
@@ -707,51 +521,63 @@ async def assign_user_to_instances(request: Request, body: AssignUserRequest):
             if not instance_exists:
                 raise HTTPException(status_code=404, detail=f"Instance {instance_id} not found")
 
+        assignments_created = 0
+
         # Create assignments
         for instance_id in body.instance_ids:
-            for role in body.roles:
-                role_type = role.get("type")
-                built_in_role = role.get("builtInRole")
-                custom_role_id = role.get("customRoleId")
+            # Check if assignment already exists for this user and instance
+            existing = await conn.fetchval(
+                """
+                SELECT id FROM user_instance_roles
+                WHERE "userId" = $1 AND "instanceId" = $2
+                """,
+                body.user_id,
+                instance_id
+            )
 
-                # Check if assignment already exists
-                existing = await conn.fetchval(
+            if not existing:
+                # Create new assignment
+                assignment_id = await conn.fetchval(
                     """
-                    SELECT id FROM user_instance_roles
-                    WHERE "userId" = $1 AND "instanceId" = $2
-                      AND "roleType" = $3
-                      AND ("builtInRole" = $4 OR $4 IS NULL)
-                      AND ("customRoleId" = $5 OR $5 IS NULL)
+                    INSERT INTO user_instance_roles
+                    (id, "userId", "instanceId", role, "createdAt", "updatedAt", "assignedBy")
+                    VALUES (gen_random_uuid()::text, $1, $2, $3, NOW(), NOW(), $4)
+                    RETURNING id
                     """,
                     body.user_id,
                     instance_id,
-                    role_type,
-                    built_in_role,
-                    custom_role_id
+                    body.role,
+                    current_user["id"]
                 )
 
-                if not existing:
-                    await conn.execute(
-                        """
-                        INSERT INTO user_instance_roles
-                        (id, "userId", "instanceId", "roleType", "builtInRole", "customRoleId", "createdAt", "updatedAt", "assignedBy")
-                        VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, NOW(), NOW(), $6)
-                        """,
-                        body.user_id,
-                        instance_id,
-                        role_type,
-                        built_in_role,
-                        custom_role_id,
-                        current_user["id"]
-                    )
+                # Create feature permissions if provided (for OPERATOR/VIEWER roles)
+                if body.feature_permissions:
+                    for perm in body.feature_permissions:
+                        await conn.execute(
+                            """
+                            INSERT INTO user_feature_permissions
+                            (id, "userInstanceRoleId", feature, "canEdit", "canView", "createdAt")
+                            VALUES (gen_random_uuid()::text, $1, $2, $3, $4, NOW())
+                            """,
+                            assignment_id,
+                            perm.feature,
+                            perm.can_edit,
+                            perm.can_view
+                        )
 
-        return {"success": True, "message": "User assigned successfully"}
+                assignments_created += 1
+
+        return {
+            "success": True,
+            "assignments_created": assignments_created,
+            "message": f"User assigned to {assignments_created} instance(s) successfully"
+        }
 
 
 @router.delete("/assignments/{assignment_id}")
 async def remove_assignment(request: Request, assignment_id: str):
     """Remove a user's access to an instance."""
-    await check_super_admin_permission(request)
+    await check_admin_permission(request)
 
     db_pool: asyncpg.Pool = request.app.state.db_pool
 
@@ -770,7 +596,7 @@ async def remove_assignment(request: Request, assignment_id: str):
 @router.get("/instances/{instance_id}/users", response_model=List[InstanceUserListItem])
 async def get_instance_users(request: Request, instance_id: str):
     """Get all users with access to a specific instance."""
-    await check_super_admin_permission(request)
+    await check_admin_permission(request)
 
     db_pool: asyncpg.Pool = request.app.state.db_pool
 
@@ -780,10 +606,15 @@ async def get_instance_users(request: Request, instance_id: str):
         if not instance_exists:
             raise HTTPException(status_code=404, detail="Instance not found")
 
-        # Get users with access
+        # Get users with access and their instance roles
         users_data = await conn.fetch(
             """
-            SELECT DISTINCT u.id as user_id, u.name as user_name, u.email as user_email
+            SELECT DISTINCT
+                u.id as user_id,
+                u.name as user_name,
+                u.email as user_email,
+                uir.role as instance_role,
+                uir.id as assignment_id
             FROM users u
             JOIN user_instance_roles uir ON u.id = uir."userId"
             WHERE uir."instanceId" = $1
@@ -794,30 +625,37 @@ async def get_instance_users(request: Request, instance_id: str):
 
         result = []
         for user in users_data:
-            # Get roles for this user on this instance
-            roles_data = await conn.fetch(
-                """
-                SELECT uir."builtInRole", cr.name as custom_role_name
-                FROM user_instance_roles uir
-                LEFT JOIN custom_roles cr ON uir."customRoleId" = cr.id
-                WHERE uir."userId" = $1 AND uir."instanceId" = $2
-                """,
-                user["user_id"],
-                instance_id
-            )
+            role = user["instance_role"]
+            feature_permissions = None
 
-            roles = []
-            for role in roles_data:
-                if role["builtInRole"]:
-                    roles.append(role["builtInRole"])
-                elif role["custom_role_name"]:
-                    roles.append(role["custom_role_name"])
+            # For OPERATOR/VIEWER roles, fetch feature permissions
+            if role in ["OPERATOR", "VIEWER"]:
+                perms_data = await conn.fetch(
+                    """
+                    SELECT feature, "canEdit" as can_edit, "canView" as can_view
+                    FROM user_feature_permissions
+                    WHERE "userInstanceRoleId" = $1
+                    ORDER BY feature
+                    """,
+                    user["assignment_id"]
+                )
+
+                if perms_data:
+                    feature_permissions = [
+                        FeaturePermissionItem(
+                            feature=perm["feature"],
+                            can_edit=perm["can_edit"],
+                            can_view=perm["can_view"]
+                        )
+                        for perm in perms_data
+                    ]
 
             result.append(InstanceUserListItem(
                 user_id=user["user_id"],
                 user_name=user["user_name"],
                 user_email=user["user_email"],
-                roles=roles
+                role=role,
+                feature_permissions=feature_permissions
             ))
 
         return result

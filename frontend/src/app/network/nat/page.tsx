@@ -43,10 +43,13 @@ import { EditStaticNATModal } from "@/components/network/EditStaticNATModal";
 import { DeleteNATModal } from "@/components/network/DeleteNATModal";
 import { NATRuleRow } from "@/components/network/NATRuleRow";
 import { NATReorderBanner } from "@/components/network/NATReorderBanner";
+import { usePermissions } from "@/hooks/usePermissions";
+import { FeatureGroup } from "@/lib/api/user-management";
 
 type RuleType = "source" | "destination" | "static";
 
 export default function NATPage() {
+  const { canRead, canWrite, isLoading: permissionsLoading } = usePermissions();
   const [config, setConfig] = useState<NATConfigResponse | null>(null);
   const [selectedType, setSelectedType] = useState<RuleType>("source");
   const [loading, setLoading] = useState(true);
@@ -269,6 +272,33 @@ export default function NATPage() {
     rule.translation?.address === "masquerade"
   ).length;
 
+  // Check permissions
+  if (permissionsLoading) {
+    return (
+      <AppLayout>
+        <div className="flex h-full items-center justify-center">
+          <LoadingSpinner />
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (!canRead(FeatureGroup.NAT)) {
+    return (
+      <AppLayout>
+        <div className="flex h-full items-center justify-center">
+          <div className="text-center max-w-md">
+            <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
+            <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
+            <p className="text-muted-foreground">
+              You do not have permission to view NAT configurations. Please contact your administrator for access.
+            </p>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
   return (
     <AppLayout>
       <div className="flex h-full">
@@ -469,6 +499,7 @@ export default function NATPage() {
                   else if (selectedType === "destination") setCreateDestOpen(true);
                   else setCreateStaticOpen(true);
                 }}
+                disabled={!canWrite(FeatureGroup.NAT)}
               >
                 <Plus className="h-4 w-4" />
                 Add Rule
@@ -662,6 +693,7 @@ export default function NATPage() {
                                   setDeleteRuleType(selectedType);
                                 }}
                                 isDragging={activeId === rule.rule_number}
+                                canWrite={canWrite(FeatureGroup.NAT)}
                               />
                             ))
                           )}
@@ -777,7 +809,7 @@ export default function NATPage() {
       </div>
 
       {/* Reorder Banner */}
-      {hasChanges && (
+      {hasChanges && canWrite(FeatureGroup.NAT) && (
         <NATReorderBanner
           changesCount={reorderedRules.length}
           onSave={handleSaveReorder}
