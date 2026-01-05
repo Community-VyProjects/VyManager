@@ -1,15 +1,9 @@
 # ==============================================================================
-# Traefik Static Configuration for VyManager
+# Traefik Static Configuration for VyManager (Local HTTPS / Self-Signed Certs)
 # ==============================================================================
 #
-# This file configures Traefik as a reverse proxy with automatic HTTPS.
-# The ACME_EMAIL for Let's Encrypt is set via docker-compose command args.
-#
-# BEFORE STARTING:
-# 1. Ensure your domain DNS points to this server
-# 2. Ensure ports 80 and 443 are open and accessible from the internet
-# 3. Create the acme.json file:
-#    touch letsencrypt/acme.json && chmod 600 letsencrypt/acme.json
+# This config is for LOCAL NETWORK deployments with self-signed or custom certs.
+# No Let's Encrypt - uses certificates from the /certs folder.
 #
 # ==============================================================================
 
@@ -43,28 +37,25 @@ providers:
     endpoint: "unix:///var/run/docker.sock"
     exposedByDefault: false
     network: vymanager-prod_vymanager-network
-  # File provider - Loads middleware configuration from /dynamic folder
+  # File provider - Loads middleware and TLS configuration
   file:
     directory: /dynamic
     watch: true
 
 # ------------------------------------------------------------------------------
-# SSL/TLS Certificates - Automatic HTTPS via Let's Encrypt
+# TLS Configuration - Use certificates from /certs folder
 # ------------------------------------------------------------------------------
-# Note: The email is set via docker-compose command argument
-certificatesResolvers:
-  letsencrypt:
-    acme:
-      storage: /letsencrypt/acme.json
-      # HTTP challenge - Traefik proves domain ownership via port 80
-      httpChallenge:
-        entryPoint: web
+tls:
+  stores:
+    default:
+      defaultCertificate:
+        certFile: /certs/server.crt
+        keyFile: /certs/server.key
 
 # ------------------------------------------------------------------------------
 # Logging
 # ------------------------------------------------------------------------------
 log:
-  level: INFO  # Options: DEBUG, INFO, WARN, ERROR
+  level: INFO
 
-# Access logs - Logs every request (useful for debugging)
 accessLog: {}

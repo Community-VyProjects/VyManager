@@ -47,17 +47,17 @@ nano .env
 
 ```bash
 cd container/vymanager-dev
-docker compose -f env-file-docker-compose.yml up -d --build
+docker compose -f docker-compose.letsencrypt.yml up -d --build
 ```
 
 ### 3. Verify
 
 ```bash
 # Check services
-docker compose -f env-file-docker-compose.yml ps
+docker compose -f docker-compose.letsencrypt.yml ps
 
 # View logs
-docker compose -f env-file-docker-compose.yml logs -f
+docker compose -f docker-compose.letsencrypt.yml logs -f
 ```
 
 ## Development Workflow
@@ -66,39 +66,39 @@ docker compose -f env-file-docker-compose.yml logs -f
 
 ```bash
 # Rebuild specific service
-docker compose -f env-file-docker-compose.yml up -d --build frontend
+docker compose -f docker-compose.letsencrypt.yml up -d --build frontend
 
 # Rebuild all
-docker compose -f env-file-docker-compose.yml up -d --build
+docker compose -f docker-compose.letsencrypt.yml up -d --build
 ```
 
 ### View Logs
 
 ```bash
 # All services
-docker compose -f env-file-docker-compose.yml logs -f
+docker compose -f docker-compose.letsencrypt.yml logs -f
 
 # Specific service
-docker compose -f env-file-docker-compose.yml logs -f frontend
+docker compose -f docker-compose.letsencrypt.yml logs -f frontend
 ```
 
 ### Restart Services
 
 ```bash
-docker compose -f env-file-docker-compose.yml restart
+docker compose -f docker-compose.letsencrypt.yml restart
 ```
 
 ### Stop Everything
 
 ```bash
-docker compose -f env-file-docker-compose.yml down
+docker compose -f docker-compose.letsencrypt.yml down
 ```
 
 ### Clean Rebuild (fresh start)
 
 ```bash
-docker compose -f env-file-docker-compose.yml down -v
-docker compose -f env-file-docker-compose.yml up -d --build
+docker compose -f docker-compose.letsencrypt.yml down -v
+docker compose -f docker-compose.letsencrypt.yml up -d --build
 ```
 
 ## Volume Mounts
@@ -134,7 +134,7 @@ This setup shares Traefik configuration with production:
 
 ```bash
 # Check build logs
-docker compose -f env-file-docker-compose.yml build --no-cache frontend
+docker compose -f docker-compose.letsencrypt.yml build --no-cache frontend
 
 # Clear Docker cache
 docker builder prune
@@ -148,13 +148,13 @@ docker logs vymanager-frontend
 docker logs vymanager-backend
 
 # Check health status
-docker compose -f env-file-docker-compose.yml ps
+docker compose -f docker-compose.letsencrypt.yml ps
 ```
 
 ### Database Issues
 
 ```bash
 # Reset database
-docker compose -f env-file-docker-compose.yml down -v
-docker compose -f env-file-docker-compose.yml up -d
+docker compose -f docker-compose.letsencrypt.yml down -v
+docker compose -f docker-compose.letsencrypt.yml up -d
 ```

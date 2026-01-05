@@ -114,32 +114,35 @@ TRUSTED_ORIGINS=https://example.com
 
 ### Step 3: Deploy with Docker Compose
 
+**Option A: Public Domain (Let's Encrypt)**
 ```bash
-# Enter pre-compiled images directory
+cd container/vymanager-prod
+touch letsencrypt/acme.json && chmod 600 letsencrypt/acme.json
+docker compose -f docker-compose.letsencrypt.yml up -d
+```
+
+**Option B: Local Network (Self-Signed Cert)**
+```bash
 cd container/vymanager-prod
 
-# Update domain in docker-compose (replace example.com with your domain)
-nano env-file-docker-compose.yml
+# Generate self-signed certificate (replace IP with yours)
+mkdir -p certs
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+  -keyout certs/server.key -out certs/server.crt \
+  -subj "/CN=192.168.1.100" -addext "subjectAltName=IP:192.168.1.100"
 
-# Update Traefik config
-nano traefik/traefik.yml                    # Line 59: Your email for Let's Encrypt
-nano traefik/dynamic/middlewares.yml        # Line 59: Your domain for CORS
+docker compose -f docker-compose.local-https.yml up -d
+```
 
-# Start all services
-docker compose -f env-file-docker-compose.yml up -d
+> 📝 See `container/vymanager-prod/README.md` for detailed instructions on both options.
 
+```bash
 # View logs
 docker compose logs -f
 
 # Check status
 docker compose ps
 ```
-
-> 📝 **Files to update for your domain:**
-> - `.env` - All URL settings
-> - `container/vymanager-*/env-file-docker-compose.yml` - Traefik `Host()` rules
-> - `container/vymanager-prod/traefik/traefik.yml` - Let's Encrypt email
-> - `container/vymanager-prod/traefik/dynamic/middlewares.yml` - CORS allowed origins
 
 ### Step 4: Complete First-Time Setup Wizard
 
@@ -222,11 +225,12 @@ vymanager/
 │   ├── app.py            # Main FastAPI application
 │   └── Dockerfile        # Backend container
 
-├── docker-compose.yml    # Multi-service orchestration
-│   ├── postgres          # PostgreSQL database
-│   ├── backend           # FastAPI API server
-│   └── frontend          # Next.js web app
+├── container/            # Docker deployment configurations
+│   └── vymanager-prod/
+│       ├── docker-compose.letsencrypt.yml  # Public domain with Let's Encrypt
+│       └── docker-compose.local-https.yml  # Local network with custom certs
 
+├── .env.example          # Unified environment configuration template
 └── README.md             # This file
 ```
 
@@ -477,17 +481,29 @@ npx prisma studio
 
 ## 🐳 Docker Production Deployment
 
-### Using docker-compose.prod.yml
+### Deployment Options
+
+| Option | Use Case | Compose File |
+|--------|----------|-------------|
+| **Let's Encrypt** | Public domains with automatic SSL | `docker-compose.letsencrypt.yml` |
+| **Local HTTPS** | Local IPs with self-signed/custom certs | `docker-compose.local-https.yml` |
 
 ```bash
-# Build images
-docker compose -f docker-compose.prod.yml build
+cd container/vymanager-prod
 
-# Start services
-docker compose -f docker-compose.prod.yml up -d
+# Option A: Let's Encrypt (public domain)
+touch letsencrypt/acme.json && chmod 600 letsencrypt/acme.json
+docker compose -f docker-compose.letsencrypt.yml up -d
+
+# Option B: Local HTTPS (self-signed cert)
+mkdir -p certs
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+  -keyout certs/server.key -out certs/server.crt \
+  -subj "/CN=192.168.1.100" -addext "subjectAltName=IP:192.168.1.100"
+docker compose -f docker-compose.local-https.yml up -d
 
 # View logs
-docker compose -f docker-compose.prod.yml logs -f
+docker compose -f docker-compose.letsencrypt.yml logs -f
 ```
 
 ### Environment Variables for Production
@@ -495,26 +511,32 @@ docker compose -f docker-compose.prod.yml logs -f
 VyManager uses a single `.env` file at the project root. Key production settings:
 
 ```env
+# Domain configuration
+DOMAIN=example.com
+ACME_EMAIL=admin@example.com
+
 NODE_ENV=production
 BETTER_AUTH_SECRET=<generate-with-openssl-rand-base64-32>
 BETTER_AUTH_SECURE_COOKIES=true
-BETTER_AUTH_URL=https://vymanager.yourdomain.com
-NEXT_PUBLIC_APP_URL=https://vymanager.yourdomain.com
-NEXT_PUBLIC_API_URL=https://vymanager.yourdomain.com
+BETTER_AUTH_URL=https://example.com
+NEXT_PUBLIC_APP_URL=https://example.com
+NEXT_PUBLIC_API_URL=https://example.com
 INTERNAL_API_URL=http://vymanager-backend:8000
-FRONTEND_URL=https://vymanager.yourdomain.com
+FRONTEND_URL=https://example.com
 DATABASE_URL=postgresql://user:pass@postgres:5432/vymanager_auth
-TRUSTED_ORIGINS=https://vymanager.yourdomain.com
+TRUSTED_ORIGINS=https://example.com
 ```
 
 > See `.env.example` for complete documentation and deployment scenarios.
 
 ### Reverse Proxy (Nginx)
 
+If using an external Nginx reverse proxy instead of Traefik:
+
 ```nginx
 server {
     listen 80;
-    server_name vymanager.yourdomain.com;
+    server_name example.com;
 
     location / {
         proxy_pass http://localhost:3000;
@@ -522,7 +544,17 @@ server {
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
         proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_cache_bypass $http_upgrade;
+    }
+
+    location /api/ {
+        proxy_pass http://localhost:8000/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     }
 }
 ```
