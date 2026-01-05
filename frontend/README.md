@@ -19,18 +19,13 @@ Modern Next.js 16 frontend for VyOS router management.
 # Install dependencies
 npm install
 
-# Configure environment (from project root)
-cd ..
-cp .env.example .env
-nano .env  # Update settings for your environment
+# Configure API endpoint
+cp .env.local.example .env.local
+# Edit .env.local: NEXT_PUBLIC_API_URL=http://localhost:8000
 
 # Run development server
-cd frontend
 npm run dev
 ```
-
-> 📝 **Note**: VyManager uses a single unified `.env` file at the **project root** (not in `/frontend`).
-> See `../.env.example` for all configuration options and deployment scenarios.
 
 Visit http://localhost:3000
 

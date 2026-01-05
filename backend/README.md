@@ -17,26 +17,19 @@ Frontend sends simple JSON requests → Backend translates to version-specific V
 
 ## Quick Start
 
-### 1. Configure Environment
+### 1. Configure VyOS Device
 
-VyManager uses a single unified `.env` file at the **project root** (not in `/backend`).
+Edit `backend/.env` with your VyOS router details:
 
-```bash
-# From the project root
-cp .env.example .env
-nano .env
-```
-
-Key backend settings in the root `.env`:
 ```env
-# Database connection
-DATABASE_URL=postgresql://vymanager:vymanager_secure_password@postgres:5432/vymanager_auth
-
-# CORS - URL where frontend is hosted
-FRONTEND_URL=https://example.com
+VYOS_NAME=vyos-router
+VYOS_HOSTNAME=192.168.1.1
+VYOS_APIKEY=your-api-key-here
+VYOS_VERSION=1.4
+VYOS_PROTOCOL=https
+VYOS_PORT=443
+VYOS_VERIFY_SSL=false
 ```
-
-> 📝 **Note**: VyOS instance configuration (hostname, API key, etc.) is now managed through the **web UI**, not environment variables!
 
 ### 2. Install and Run
 
@@ -44,9 +37,13 @@ FRONTEND_URL=https://example.com
 # Install dependencies
 pip install -r requirements.txt
 
-# Run development server
+# Run development server (pass proxy headers when behind a reverse proxy)
 uvicorn app:app --reload --proxy-headers
+
+> If you're reverse-proxying HTTPS traffic (Traefik/Nginx), forward `X-Forwarded-Proto`/`X-Forwarded-Port` so redirects keep the HTTPS scheme.
 ```
+
+The device is automatically registered on startup.
 
 ### 3. View Interactive Docs
 

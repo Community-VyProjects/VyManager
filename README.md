@@ -32,7 +32,8 @@ We now flexibly support all active VyOS versions, including rolling releases.
 ### Prerequisites
 
 - **Docker & Docker Compose** (recommended for easiest setup)
-- **VyOS Router** with REST API enabled (see Step 1 below)
+- OR **Node.js 24.x** and **Python 3.11+** (for manual setup)
+- **VyOS Router** with REST API enabled (see setup below)
 
 ---
 
@@ -40,168 +41,112 @@ We now flexibly support all active VyOS versions, including rolling releases.
 
 ### Step 1: Setup VyOS Router REST API
 
-Connect to your VyOS router via SSH and enable the API:
+Before deploying VyManager, you need to enable the REST API on your VyOS router(s).
+
+Connect to your VyOS router via SSH and run:
 
 ```bash
+# Enter configuration mode
 configure
+
+# Create an API key (replace YOUR_SECURE_API_KEY with a strong random key)
 set service https api keys id vymanager key YOUR_SECURE_API_KEY
-set service https api rest    # VyOS 1.5+ only
+
+# Enable REST functionality (VyOS 1.5+ only)
+set service https api rest
+
+# Optional: Enable GraphQL
+set service https api graphql
+
+# Save and apply
 commit
 save
 exit
 ```
 
-> 💡 Save this API key - you'll need it during the setup wizard!
+> 💡 **Security Note**: Keep your API key secure! You'll need it during the VyManager setup wizard.
 
-### Step 2: Choose Your Deployment Type
+### Step 2: Configure Environment Files
 
-| Deployment | Best For | Domain Example | SSL |
-|------------|----------|----------------|-----|
-| **Public Domain** | Internet-accessible server | `vymanager.example.com` | Let's Encrypt (automatic) |
-| **Local Network** | Home lab, internal use | `192.168.1.100` | Self-signed certificate |
+#### Frontend Configuration
 
-### Step 3: Configure & Deploy
-
-#### 📁 Files You'll Edit
-
-You only need to edit **ONE file**: `.env` at the project root.
+Copy `frontend/.env.example` to `frontend/.env`:
 
 ```bash
-# Clone and enter the project
-git clone https://github.com/Community-VyProjects/VyManager.git
-cd VyManager
-
-# Create your config file
-cp .env.example .env
-nano .env
+cp frontend/.env.example frontend/.env
 ```
 
----
-
-#### 🌐 Option A: Public Domain (Let's Encrypt)
-
-**Edit `.env`** - Set these values:
+Edit `frontend/.env`:
 
 ```env
-# Your public domain
-DOMAIN=vymanager.example.com
-ACME_EMAIL=admin@example.com
+# Authentication (CHANGE THIS!)
+BETTER_AUTH_SECRET=your-super-secret-key-change-in-production-CHANGE-THIS
 
-# All URLs use your domain
-FRONTEND_URL=https://vymanager.example.com
-NEXT_PUBLIC_API_URL=https://vymanager.example.com
-BETTER_AUTH_URL=https://vymanager.example.com
-TRUSTED_ORIGINS=https://vymanager.example.com
+# Leave these as default for Docker deployment
+NODE_ENV=production
+VYMANAGER_ENV=production
+BETTER_AUTH_URL=http://localhost:3000
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+NEXT_PUBLIC_API_URL=http://backend:8000
 
-# Keep these as-is for Docker
-INTERNAL_API_URL=http://vymanager-backend:8000
+# Database (change password in production!)
 DATABASE_URL=postgresql://vymanager:vymanager_secure_password@postgres:5432/vymanager_auth
 
-# Security - generate a secret
-BETTER_AUTH_SECRET=run-this-command-openssl-rand-base64-32
-BETTER_AUTH_SECURE_COOKIES=true
+# Add your server IP if accessing from other machines
+TRUSTED_ORIGINS=http://localhost:3000,http://192.168.1.100:3000
 ```
 
-**Deploy:**
+#### Backend Configuration
+
+Copy `backend/.env.example` to `backend/.env`:
 
 ```bash
-cd container/vymanager-prod
-touch letsencrypt/acme.json && chmod 600 letsencrypt/acme.json
-docker compose -f docker-compose.letsencrypt.yml up -d
+cp backend/.env.example backend/.env
 ```
 
-**Access:** `https://vymanager.example.com`
-
----
-
-#### 🏠 Option B: Local Network (Self-Signed Cert)
-
-**Edit `.env`** - Set these values (replace `192.168.1.100` with your server's IP):
+Edit `backend/.env`:
 
 ```env
-# Your local IP address
-DOMAIN=192.168.1.100
-ACME_EMAIL=                    # Leave empty for local
-
-# All URLs use your IP
-FRONTEND_URL=https://192.168.1.100
-NEXT_PUBLIC_API_URL=https://192.168.1.100
-BETTER_AUTH_URL=https://192.168.1.100
-TRUSTED_ORIGINS=https://192.168.1.100
-
-# Keep these as-is for Docker
-INTERNAL_API_URL=http://vymanager-backend:8000
+# Database Connection
 DATABASE_URL=postgresql://vymanager:vymanager_secure_password@postgres:5432/vymanager_auth
 
-# Security - generate a secret
-BETTER_AUTH_SECRET=run-this-command-openssl-rand-base64-32
-BETTER_AUTH_SECURE_COOKIES=false   # Must be false for self-signed certs
+# Frontend URL
+FRONTEND_URL=http://localhost:3000
 ```
 
-**Deploy:**
+> 📝 **Note**: VyOS instance configuration is now managed through the web UI, not environment variables!
+
+### Step 3: Deploy with Docker Compose
 
 ```bash
-cd container/vymanager-prod
+# Enter pre-compiled images directory
+cd /container/vymanager-prod
 
-# Generate certificate for your IP
-mkdir -p certs
-openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-  -keyout certs/server.key -out certs/server.crt \
-  -subj "/CN=192.168.1.100" -addext "subjectAltName=IP:192.168.1.100"
+# Start all services
+docker compose -f env-file-docker-compose.yml up -d
 
-docker compose -f docker-compose.local-https.yml up -d
+# View logs
+docker compose logs -f
+
+# Check status
+docker compose ps
 ```
 
-**Access:** `https://192.168.1.100` (accept the certificate warning)
+### Step 4: Complete First-Time Setup Wizard
 
----
+1. **Open your browser** and navigate to `http://localhost:3000`
 
-#### 🔐 Generate Your Auth Secret
+2. **Onboarding Wizard** will automatically launch (first-time only):
+   - **Step 1**: Create your admin account
+   - **Step 2**: Create your first site (e.g., "Headquarters")
+   - **Step 3**: Add your first VyOS instance
+     - Name: Give it a friendly name
+     - Host: Your VyOS router IP address
+     - Port: 443 (default)
+     - API Key: The key you created in Step 1
+     - Version: Select your VyOS version (1.4 or 1.5)
 
-Run this command and paste the result into `.env`:
-
-```bash
-openssl rand -base64 32
-```
-
----
-
-### Step 4: Complete Setup Wizard
-
-1. **Open your browser** to your URL (`https://your-domain` or `https://your-ip`)
-
-2. **Onboarding Wizard** will guide you through:
-   - ✅ Create your admin account
-   - ✅ Create your first site (e.g., "Home Lab")
-   - ✅ Add your VyOS router (use the API key from Step 1)
-
-3. **Done!** Start managing your VyOS router
-
----
-
-### 📋 Quick Reference
-
-| Setting | Public Domain | Local Network |
-|---------|--------------|---------------|
-| `DOMAIN` | `vymanager.example.com` | `192.168.1.100` |
-| `ACME_EMAIL` | `admin@example.com` | _(leave empty)_ |
-| `BETTER_AUTH_SECURE_COOKIES` | `true` | `false` |
-| Compose file | `docker-compose.letsencrypt.yml` | `docker-compose.local-https.yml` |
-| SSL | Automatic | Self-signed (generate first) |
-
----
-
-### 🔍 Verify It's Working
-
-```bash
-cd container/vymanager-prod
-
-# Check all containers are running
-docker compose -f docker-compose.letsencrypt.yml ps   # or docker-compose.local-https.yml
-
-# View logs if something's wrong
-docker compose -f docker-compose.letsencrypt.yml logs -f
-```
+3. **Start Managing!** You'll be automatically logged in and redirected to the dashboard
 
 ---
 
@@ -268,12 +213,11 @@ vymanager/
 │   ├── app.py            # Main FastAPI application
 │   └── Dockerfile        # Backend container
 
-├── container/            # Docker deployment configurations
-│   └── vymanager-prod/
-│       ├── docker-compose.letsencrypt.yml  # Public domain with Let's Encrypt
-│       └── docker-compose.local-https.yml  # Local network with custom certs
+├── docker-compose.yml    # Multi-service orchestration
+│   ├── postgres          # PostgreSQL database
+│   ├── backend           # FastAPI API server
+│   └── frontend          # Next.js web app
 
-├── .env.example          # Unified environment configuration template
 └── README.md             # This file
 ```
 
@@ -524,62 +468,43 @@ npx prisma studio
 
 ## 🐳 Docker Production Deployment
 
-### Deployment Options
-
-| Option | Use Case | Compose File |
-|--------|----------|-------------|
-| **Let's Encrypt** | Public domains with automatic SSL | `docker-compose.letsencrypt.yml` |
-| **Local HTTPS** | Local IPs with self-signed/custom certs | `docker-compose.local-https.yml` |
+### Using docker-compose.prod.yml
 
 ```bash
-cd container/vymanager-prod
+# Build images
+docker compose -f docker-compose.prod.yml build
 
-# Option A: Let's Encrypt (public domain)
-touch letsencrypt/acme.json && chmod 600 letsencrypt/acme.json
-docker compose -f docker-compose.letsencrypt.yml up -d
-
-# Option B: Local HTTPS (self-signed cert)
-mkdir -p certs
-openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-  -keyout certs/server.key -out certs/server.crt \
-  -subj "/CN=192.168.1.100" -addext "subjectAltName=IP:192.168.1.100"
-docker compose -f docker-compose.local-https.yml up -d
+# Start services
+docker compose -f docker-compose.prod.yml up -d
 
 # View logs
-docker compose -f docker-compose.letsencrypt.yml logs -f
+docker compose -f docker-compose.prod.yml logs -f
 ```
 
 ### Environment Variables for Production
 
-VyManager uses a single `.env` file at the project root. Key production settings:
-
+**Frontend `.env`**:
 ```env
-# Domain configuration
-DOMAIN=example.com
-ACME_EMAIL=admin@example.com
-
 NODE_ENV=production
-BETTER_AUTH_SECRET=<generate-with-openssl-rand-base64-32>
-BETTER_AUTH_SECURE_COOKIES=true
-BETTER_AUTH_URL=https://example.com
-NEXT_PUBLIC_APP_URL=https://example.com
-NEXT_PUBLIC_API_URL=https://example.com
-INTERNAL_API_URL=http://vymanager-backend:8000
-FRONTEND_URL=https://example.com
+BETTER_AUTH_SECRET=<strong-random-secret-256-bits>
+BETTER_AUTH_SECURE_COOKIES=false
+BETTER_AUTH_URL=https://vymanager.yourdomain.com
 DATABASE_URL=postgresql://user:pass@postgres:5432/vymanager_auth
-TRUSTED_ORIGINS=https://example.com
+TRUSTED_ORIGINS=https://vymanager.yourdomain.com
 ```
 
-> See `.env.example` for complete documentation and deployment scenarios.
+**Backend `.env`**:
+```env
+DATABASE_URL=postgresql://user:pass@postgres:5432/vymanager_auth
+FRONTEND_URL=https://vymanager.yourdomain.com
+```
 
 ### Reverse Proxy (Nginx)
-
-If using an external Nginx reverse proxy instead of Traefik:
 
 ```nginx
 server {
     listen 80;
-    server_name example.com;
+    server_name vymanager.yourdomain.com;
 
     location / {
         proxy_pass http://localhost:3000;
@@ -587,17 +512,7 @@ server {
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
         proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_cache_bypass $http_upgrade;
-    }
-
-    location /api/ {
-        proxy_pass http://localhost:8000/;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     }
 }
 ```

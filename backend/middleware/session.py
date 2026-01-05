@@ -76,9 +76,7 @@ class SessionMiddleware(BaseHTTPMiddleware):
 
         try:
             # Get current auth session token from cookie
-            # Check both regular and secure cookie names (secure cookies have __Secure- prefix)
-            cookie_token = request.cookies.get("better-auth.session_token") or \
-                          request.cookies.get("__Secure-better-auth.session_token")
+            cookie_token = request.cookies.get("better-auth.session_token")
             # Extract session ID (everything before the first dot)
             current_session_token = cookie_token.split(".")[0] if cookie_token else None
 
