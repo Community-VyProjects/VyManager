@@ -1,2 +1,0 @@
-# This file will be auto-populated by Traefik with Let's Encrypt certificates
-# Ensure this file has proper permissions: chmod 600 acme.json

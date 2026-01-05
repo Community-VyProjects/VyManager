@@ -327,9 +327,7 @@ async def connect_to_instance(request: Request, body: ConnectRequest):
 
             # Get current auth session token from cookie
             # This allows us to track which auth session created this VyOS connection
-            # Check both regular and secure cookie names (secure cookies have __Secure- prefix)
-            cookie_token = request.cookies.get("better-auth.session_token") or \
-                          request.cookies.get("__Secure-better-auth.session_token")
+            cookie_token = request.cookies.get("better-auth.session_token")
             # Extract session ID (everything before the first dot)
             current_session_token = cookie_token.split(".")[0] if cookie_token else None
 
@@ -1526,9 +1524,7 @@ async def get_active_auth_sessions(request: Request):
     user_id = user["id"]
 
     # Get current session token from cookie
-    # Check both regular and secure cookie names (secure cookies have __Secure- prefix)
-    cookie_token = request.cookies.get("better-auth.session_token") or \
-                  request.cookies.get("__Secure-better-auth.session_token")
+    cookie_token = request.cookies.get("better-auth.session_token")
 
     # Better-auth stores compound tokens in the format: {session_id}.{signature}
     # But the database only stores the session_id part
@@ -1592,9 +1588,7 @@ async def revoke_auth_session(request: Request, body: RevokeSessionRequest):
     user_id = user["id"]
 
     # Get current session token to prevent self-logout
-    # Check both regular and secure cookie names (secure cookies have __Secure- prefix)
-    cookie_token = request.cookies.get("better-auth.session_token") or \
-                  request.cookies.get("__Secure-better-auth.session_token")
+    cookie_token = request.cookies.get("better-auth.session_token")
 
     # Extract session ID from compound token (format: {session_id}.{signature})
     current_token = cookie_token.split(".")[0] if cookie_token else None
