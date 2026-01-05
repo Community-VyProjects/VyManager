@@ -1,4 +1,29 @@
 services:
+  # Traefik Reverse Proxy
+  traefik:
+    image: traefik
+    container_name: vymanager-traefik
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ../vymanager-prod/traefik/traefik.yml:/traefik.yml:ro
+      - ../vymanager-prod/traefik/dynamic:/dynamic:ro
+      - ../vymanager-prod/letsencrypt:/letsencrypt
+    networks:
+      - vymanager-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=vymanager-dev_vymanager-network"
+    command:
+      - "--configFile=/traefik.yml"
+      - "--providers.file.directory=/dynamic"
+      - "--providers.file.watch=true"
+
   # PostgreSQL Database for Authentication
   postgres:
     image: postgres:16-alpine
@@ -7,8 +32,6 @@ services:
       POSTGRES_USER: vymanager
       POSTGRES_PASSWORD: vymanager_secure_password
       POSTGRES_DB: vymanager_auth
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
@@ -26,8 +49,8 @@ services:
       context: ../../backend
       dockerfile: Dockerfile
     container_name: vymanager-backend
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     volumes:
       - ../../backend:/app
       - /app/lib
@@ -47,14 +70,21 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.backend.rule=Host(`infra.vyprojects.org`) && (PathPrefix(`/vyos`) || PathPrefix(`/dashboard`) || PathPrefix(`/user-management`) || PathPrefix(`/docs`) || PathPrefix(`/openapi.json`) || PathPrefix(`/session`))"
+      - "traefik.http.routers.backend.entrypoints=websecure"
+      - "traefik.http.routers.backend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.backend.loadbalancer.server.port=8000"
+      - "traefik.docker.network=vymanager-dev_vymanager-network"
 
   frontend:
     build:
       context: ../../frontend
       dockerfile: Dockerfile
     container_name: vymanager-frontend
-    ports:
-      - "3000:3000"
+    expose:
+      - "3000"
     volumes:
       - ../../frontend:/app
       - /app/node_modules
@@ -69,6 +99,14 @@ services:
     restart: unless-stopped
     networks:
       - vymanager-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=Host(`infra.vyprojects.org`)"
+      - "traefik.http.routers.frontend.entrypoints=websecure"
+      - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.frontend.loadbalancer.server.port=3000"
+      - "traefik.http.routers.frontend.priority=1"
+      - "traefik.docker.network=vymanager-dev_vymanager-network"
 
 networks:
   vymanager-network:

@@ -21,7 +21,8 @@ async function POST_WITH_VALIDATION(request: NextRequest) {
     try {
       // SECURITY: Check if onboarding is complete
       // If users already exist, reject signup attempts
-      const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      // Use internal Docker URL for server-side requests
+      const backendUrl = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
       const onboardingCheck = await fetch(`${backendUrl}/session/onboarding-status`);
 
       if (onboardingCheck.ok) {

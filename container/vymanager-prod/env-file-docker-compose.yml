@@ -1,5 +1,39 @@
-# Pre-compiled images
+# Pre-compiled images with Traefik reverse proxy
+# Domain: infra.vyprojects.org
 services:
+  # Traefik Reverse Proxy
+  traefik:
+    image: traefik
+    container_name: vymanager-traefik
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/traefik.yml:/traefik.yml:ro
+      - ./traefik/dynamic:/dynamic:ro
+      - ./letsencrypt:/letsencrypt
+    networks:
+      - vymanager-network
+    labels:
+      - "traefik.enable=true"
+      # Dashboard (optional - access via https://infra.vyprojects.org/traefik/)
+      - "traefik.http.routers.traefik-dashboard.rule=Host(`infra.vyprojects.org`) && PathPrefix(`/traefik`)"
+      - "traefik.http.routers.traefik-dashboard.entrypoints=websecure"
+      - "traefik.http.routers.traefik-dashboard.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.traefik-dashboard.service=api@internal"
+      - "traefik.http.routers.traefik-dashboard.middlewares=traefik-auth"
+      # Basic auth for dashboard (user: admin, password: changeme) - generate new hash with: htpasswd -nb admin yourpassword
+      - "traefik.http.middlewares.traefik-auth.basicauth.users=admin:$$apr1$$xyz$$changethishash"
+      - "traefik.docker.network=vymanager-prod_vymanager-network"
+    command:
+      - "--configFile=/traefik.yml"
+      - "--providers.file.directory=/dynamic"
+      - "--providers.file.watch=true"
+
   # PostgreSQL Database for Authentication
   postgres:
     image: postgres:16-alpine
@@ -8,8 +42,6 @@ services:
       POSTGRES_USER: vymanager
       POSTGRES_PASSWORD: vymanager_secure_password
       POSTGRES_DB: vymanager_auth
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
@@ -25,8 +57,8 @@ services:
   backend:
     image: ghcr.io/community-vyprojects/vymanager-backend:beta
     container_name: vymanager-backend
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     env_file:
       - ../../backend/.env
     restart: unless-stopped
@@ -41,17 +73,38 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    labels:
+      - "traefik.enable=true"
+      # API routes - /vyos/*, /dashboard/*, /user-management/*, /session/*
+      - "traefik.http.routers.backend.rule=Host(`infra.vyprojects.org`) && (PathPrefix(`/vyos`) || PathPrefix(`/dashboard`) || PathPrefix(`/user-management`) || PathPrefix(`/docs`) || PathPrefix(`/openapi.json`) || PathPrefix(`/session`))"
+      - "traefik.http.routers.backend.entrypoints=websecure"
+      - "traefik.http.routers.backend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.backend.loadbalancer.server.port=8000"
+      - "traefik.http.routers.backend.middlewares=secure-headers@file"
+      - "traefik.docker.network=vymanager-prod_vymanager-network"
 
   frontend:
     image: ghcr.io/community-vyprojects/vymanager-frontend:beta
     container_name: vymanager-frontend
     env_file:
       - ../../frontend/.env
-    ports:
-      - "3000:3000"
+    expose:
+      - "3000"
     restart: unless-stopped
     networks:
       - vymanager-network
+    depends_on:
+      - backend
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=Host(`infra.vyprojects.org`)"
+      - "traefik.http.routers.frontend.entrypoints=websecure"
+      - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.frontend.loadbalancer.server.port=3000"
+      - "traefik.http.routers.frontend.middlewares=secure-headers@file"
+      # Set priority lower so backend routes match first
+      - "traefik.http.routers.frontend.priority=1"
+      - "traefik.docker.network=vymanager-prod_vymanager-network"
 
 networks:
   vymanager-network:

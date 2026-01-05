@@ -7,7 +7,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://backend:8000";
+// Use internal Docker URL for server-side requests, fall back to public URL
+const BACKEND_URL = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || "http://backend:8000";
 
 export async function GET(
   request: NextRequest,
