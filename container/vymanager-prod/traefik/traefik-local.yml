@@ -1,0 +1,61 @@
+# ==============================================================================
+# Traefik Static Configuration for VyManager (Local HTTPS / Self-Signed Certs)
+# ==============================================================================
+#
+# This config is for LOCAL NETWORK deployments with self-signed or custom certs.
+# No Let's Encrypt - uses certificates from the /certs folder.
+#
+# ==============================================================================
+
+api:
+  dashboard: true
+  insecure: false
+
+# ------------------------------------------------------------------------------
+# Entry Points - Where Traefik listens for incoming connections
+# ------------------------------------------------------------------------------
+entryPoints:
+  # HTTP (Port 80) - Automatically redirects to HTTPS
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+          permanent: true
+  # HTTPS (Port 443) - Main entry point for all traffic
+  websecure:
+    address: ":443"
+
+# ------------------------------------------------------------------------------
+# Providers - Where Traefik discovers services to route to
+# ------------------------------------------------------------------------------
+providers:
+  # Docker provider - Automatically discovers containers with traefik labels
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+    network: vymanager-prod_vymanager-network
+  # File provider - Loads middleware and TLS configuration
+  file:
+    directory: /dynamic
+    watch: true
+
+# ------------------------------------------------------------------------------
+# TLS Configuration - Use certificates from /certs folder
+# ------------------------------------------------------------------------------
+tls:
+  stores:
+    default:
+      defaultCertificate:
+        certFile: /certs/server.crt
+        keyFile: /certs/server.key
+
+# ------------------------------------------------------------------------------
+# Logging
+# ------------------------------------------------------------------------------
+log:
+  level: INFO
+
+accessLog: {}

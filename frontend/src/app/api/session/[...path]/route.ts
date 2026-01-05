@@ -7,7 +7,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://backend:8000";
+// Use internal Docker URL for server-side requests, fall back to public URL
+const BACKEND_URL = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || "http://backend:8000";
 
 export async function GET(
   request: NextRequest,
@@ -56,7 +57,17 @@ async function proxyRequest(
     }
 
     // Get the session token from request cookies
-    const sessionToken = request.cookies.get("better-auth.session_token");
+    // Check both regular and secure cookie names (secure cookies have __Secure- prefix when BETTER_AUTH_SECURE_COOKIES=true)
+    const regularToken = request.cookies.get("better-auth.session_token");
+    const secureToken = request.cookies.get("__Secure-better-auth.session_token");
+    const sessionToken = regularToken || secureToken;
+    
+    // Debug: Log all cookies for troubleshooting
+    const allCookies = request.cookies.getAll();
+    console.log(`[SessionProxy] Available cookies: ${allCookies.map(c => c.name).join(', ') || 'none'}`);
+    if (sessionToken) {
+      console.log(`[SessionProxy] Using token from: ${regularToken ? 'regular' : 'secure'} cookie`);
+    }
 
     // Build the backend URL
     const backendPath = `/session/${path.join("/")}`;
@@ -73,8 +84,12 @@ async function proxyRequest(
     const headers: HeadersInit = {};
 
     // Add the session token cookie if it exists
+    // Backend expects the cookie as "better-auth.session_token" regardless of the original name
     if (sessionToken) {
       headers["Cookie"] = `better-auth.session_token=${sessionToken.value}`;
+      console.log(`[SessionProxy] Forwarding session token to backend`);
+    } else {
+      console.log(`[SessionProxy] WARNING: No session token found in cookies`);
     }
 
     // Handle request body

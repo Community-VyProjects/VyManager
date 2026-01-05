@@ -1,14 +1,14 @@
 # ==============================================================================
-# VyManager Development - Docker Compose with Traefik
+# VyManager Production - Docker Compose with Traefik
 # ==============================================================================
 #
-# Builds from local source code with hot-reload for development.
 # All configuration is done via the root .env file!
+# Just set DOMAIN and ACME_EMAIL in ../../.env and you're good to go.
 #
 # QUICK START:
 # 1. cp ../../.env.example ../../.env
 # 2. Edit ../../.env - set DOMAIN, ACME_EMAIL, and generate BETTER_AUTH_SECRET
-# 3. docker compose -f env-file-docker-compose.yml up -d --build
+# 3. docker compose -f docker-compose.letsencrypt.yml up -d
 #
 # ==============================================================================
 services:
@@ -24,9 +24,9 @@ services:
       - "443:443"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ../vymanager-prod/traefik/traefik.yml:/traefik.yml:ro
-      - ../vymanager-prod/traefik/dynamic:/dynamic:ro
-      - ../vymanager-prod/letsencrypt:/letsencrypt
+      - ./traefik/traefik.yml:/traefik.yml:ro
+      - ./traefik/dynamic:/dynamic:ro
+      - ./letsencrypt:/letsencrypt
     environment:
       - DOMAIN=${DOMAIN}
       - ACME_EMAIL=${ACME_EMAIL}
@@ -34,7 +34,15 @@ services:
       - vymanager-network
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=vymanager-dev_vymanager-network"
+      # Dashboard (optional - access via https://${DOMAIN}/traefik/)
+      - "traefik.http.routers.traefik-dashboard.rule=Host(`${DOMAIN}`) && PathPrefix(`/traefik`)"
+      - "traefik.http.routers.traefik-dashboard.entrypoints=websecure"
+      - "traefik.http.routers.traefik-dashboard.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.traefik-dashboard.service=api@internal"
+      - "traefik.http.routers.traefik-dashboard.middlewares=traefik-auth"
+      # Basic auth for dashboard (user: admin, password: changeme) - generate new hash with: htpasswd -nb admin yourpassword
+      - "traefik.http.middlewares.traefik-auth.basicauth.users=admin:$$apr1$$xyz$$changethishash"
+      - "traefik.docker.network=vymanager-prod_vymanager-network"
     command:
       - "--configFile=/traefik.yml"
       - "--providers.file.directory=/dynamic"
@@ -62,17 +70,10 @@ services:
       start_period: 10s
 
   backend:
-    build:
-      context: ../../backend
-      dockerfile: Dockerfile
+    image: ghcr.io/community-vyprojects/vymanager-backend:beta
     container_name: vymanager-backend
     expose:
       - "8000"
-    volumes:
-      - ../../backend:/app
-      - /app/lib
-      - /app/bin
-      - /app/include
     env_file:
       - ../../.env
     restart: unless-stopped
@@ -89,41 +90,36 @@ services:
       start_period: 40s
     labels:
       - "traefik.enable=true"
+      # API routes - /vyos/*, /dashboard/*, /user-management/*, /session/*
       - "traefik.http.routers.backend.rule=Host(`${DOMAIN}`) && (PathPrefix(`/vyos`) || PathPrefix(`/dashboard`) || PathPrefix(`/user-management`) || PathPrefix(`/docs`) || PathPrefix(`/openapi.json`) || PathPrefix(`/session`))"
       - "traefik.http.routers.backend.entrypoints=websecure"
       - "traefik.http.routers.backend.tls.certresolver=letsencrypt"
       - "traefik.http.services.backend.loadbalancer.server.port=8000"
-      - "traefik.docker.network=vymanager-dev_vymanager-network"
+      - "traefik.http.routers.backend.middlewares=secure-headers@file"
+      - "traefik.docker.network=vymanager-prod_vymanager-network"
 
   frontend:
-    build:
-      context: ../../frontend
-      dockerfile: Dockerfile
+    image: ghcr.io/community-vyprojects/vymanager-frontend:beta
     container_name: vymanager-frontend
-    expose:
-      - "3000"
-    volumes:
-      - ../../frontend:/app
-      - /app/node_modules
-      - /app/.next
     env_file:
       - ../../.env
-    depends_on:
-      backend:
-        condition: service_healthy
-      postgres:
-        condition: service_healthy
+    expose:
+      - "3000"
     restart: unless-stopped
     networks:
       - vymanager-network
+    depends_on:
+      - backend
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.frontend.rule=Host(`${DOMAIN}`)"
       - "traefik.http.routers.frontend.entrypoints=websecure"
       - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
       - "traefik.http.services.frontend.loadbalancer.server.port=3000"
+      - "traefik.http.routers.frontend.middlewares=secure-headers@file"
+      # Set priority lower so backend routes match first
       - "traefik.http.routers.frontend.priority=1"
-      - "traefik.docker.network=vymanager-dev_vymanager-network"
+      - "traefik.docker.network=vymanager-prod_vymanager-network"
 
 networks:
   vymanager-network:

@@ -8,7 +8,7 @@
 # QUICK START:
 # 1. cp ../../.env.example ../../.env
 # 2. Edit ../../.env - set DOMAIN, ACME_EMAIL, and generate BETTER_AUTH_SECRET
-# 3. docker compose -f env-file-docker-compose.yml up -d --build
+# 3. docker compose -f docker-compose.letsencrypt.yml up -d --build
 #
 # ==============================================================================
 services:
