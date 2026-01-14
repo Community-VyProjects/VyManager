@@ -8,3 +8,5 @@ urllib3>=2.0.0
 requests>=2.31.0
 asyncpg>=0.29.0
 python-multipart>=0.0.6
+cryptography>=41.0.0
+slowapi>=0.1.9

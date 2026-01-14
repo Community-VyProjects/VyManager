@@ -12,6 +12,11 @@ from starlette.responses import JSONResponse
 import asyncpg
 from typing import Optional
 
+from utils.crypto import decrypt_api_key
+from utils.logging import get_logger, log_security_event
+
+logger = get_logger(__name__)
+
 
 class SessionMiddleware(BaseHTTPMiddleware):
     """
@@ -80,7 +85,7 @@ class SessionMiddleware(BaseHTTPMiddleware):
             # Extract session ID (everything before the first dot)
             current_session_token = cookie_token.split(".")[0] if cookie_token else None
 
-            print("[SessionMiddleware] Resolving active session")
+            logger.debug("Resolving active session")
 
             async with db_pool.acquire() as conn:
                 # Look up active session with instance and site details
@@ -112,14 +117,18 @@ class SessionMiddleware(BaseHTTPMiddleware):
                 )
 
                 # Check if active session exists but belongs to a different auth session
-                # This means the user logged in from a different device
+                # This means the user logged in from a different device - potential session fixation
                 if session:
                     stored_session_token = session.get("session_token")
 
-                    # If the session tokens don't match, clear the VyOS connection
-                    # This forces the user to reconnect to a VyOS instance after logging in from a new device
+                    # If the session tokens don't match, this is a security concern
+                    # Log it and clear the VyOS connection to force re-authentication
                     if stored_session_token and current_session_token and stored_session_token != current_session_token:
-                        print("[SessionMiddleware] ⚠️  Session token mismatch; clearing VyOS connection")
+                        log_security_event(
+                            "session_token_mismatch",
+                            user_id,
+                            {"stored": stored_session_token[:8] + "...", "current": current_session_token[:8] + "..."}
+                        )
                         await conn.execute(
                             """
                             DELETE FROM active_sessions
@@ -143,18 +152,14 @@ class SessionMiddleware(BaseHTTPMiddleware):
                                 """,
                                 user_id,
                             )
-                            if stored_session_token and current_session_token and stored_session_token == current_session_token:
-                                print("[SessionMiddleware] ✓ Activity updated (user action)")
-                            else:
-                                print("[SessionMiddleware] ⚠️  Missing session token data")
+                            logger.debug("Activity updated (user action)")
                         else:
-                            # Don't update activity for polling endpoints
-                            if stored_session_token and current_session_token and stored_session_token == current_session_token:
-                                print("[SessionMiddleware] ✓ Activity not updated (polling)")
-                            else:
-                                print("[SessionMiddleware] ⚠️  Missing session token data")
+                            logger.debug("Activity not updated (polling)")
 
                 if session:
+                    # Decrypt API key before injecting into request state
+                    decrypted_api_key = decrypt_api_key(session["api_key"])
+
                     # User has an active session - inject instance details
                     request.state.instance = {
                         "id": session["instance_id"],
@@ -162,8 +167,8 @@ class SessionMiddleware(BaseHTTPMiddleware):
                         "host": session["host"],
                         "port": session["port"],
                         "username": session["username"],
-                        "password": session["password"],  # API key
-                        "api_key": session["api_key"],
+                        "password": session["password"],  # Legacy field
+                        "api_key": decrypted_api_key,
                         "is_active": session["is_active"],
                         "vyos_version": session.get("vyos_version"),
                         "protocol": session.get("protocol"),
@@ -180,8 +185,8 @@ class SessionMiddleware(BaseHTTPMiddleware):
                     request.state.site = None
 
         except Exception as e:
-            # Log error but don't fail the request
-            print(f"[SessionMiddleware] Error resolving active session: {type(e).__name__}: {str(e)}")
+            # Log error but don't fail the request - don't expose details
+            logger.error(f"Error resolving active session: {type(e).__name__}")
             request.state.instance = None
             request.state.site = None
 

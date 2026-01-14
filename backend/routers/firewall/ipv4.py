@@ -428,6 +428,29 @@ async def firewall_ipv4_batch_configure(http_request: Request, request: Firewall
 
     Allows multiple changes in a single VyOS commit for efficiency.
     """
+    # Whitelist of allowed builder methods for security
+    # This prevents calling internal/private methods via dynamic dispatch
+    ALLOWED_OPERATIONS = {
+        # Chain operations
+        "create_chain", "delete_chain", "set_chain_description",
+        "set_chain_default_action", "set_chain_default_log",
+        # Rule operations
+        "create_rule", "delete_rule", "set_rule_description",
+        "set_rule_action", "set_rule_log", "set_rule_disable",
+        # Source/destination operations
+        "set_source_address", "set_source_port", "set_source_group",
+        "set_destination_address", "set_destination_port", "set_destination_group",
+        # Match operations
+        "set_protocol", "set_state", "set_icmp_type", "set_tcp_flags",
+        "set_connection_mark", "set_dscp", "set_fragment", "set_ipsec",
+        # Interface operations
+        "set_inbound_interface", "set_outbound_interface",
+        # Action operations
+        "set_mark", "set_conntrack", "set_queue", "set_synproxy",
+        # Misc operations
+        "set_log_level", "set_queue_threshold", "set_recently_count",
+    }
+
     try:
         service = get_session_vyos_service(http_request)
         version = service.get_version()
@@ -436,7 +459,15 @@ async def firewall_ipv4_batch_configure(http_request: Request, request: Firewall
         # Process operations using inspect for dynamic method calls
         for operation in request.operations:
             method_name = operation.op
-            if not hasattr(builder, method_name):
+
+            # Security: Validate method name against whitelist
+            if method_name not in ALLOWED_OPERATIONS:
+                # Check if method exists on builder but isn't whitelisted
+                if hasattr(builder, method_name):
+                    raise HTTPException(
+                        status_code=403,
+                        detail=f"Operation not permitted: {method_name}"
+                    )
                 raise HTTPException(
                     status_code=400,
                     detail=f"Unknown operation: {method_name}"

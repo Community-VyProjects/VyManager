@@ -11,9 +11,21 @@ const trustedOrigins = process.env.TRUSTED_ORIGINS
   ? process.env.TRUSTED_ORIGINS.split(",").filter(Boolean)
   : ["http://localhost:3000"];
 
-const authSecret = process.env.BETTER_AUTH_SECRET || (isProd ? "" : "dev-secret");
+// SECURITY: Auth secret is always required - no fallbacks
+const authSecret = process.env.BETTER_AUTH_SECRET;
 if (!authSecret) {
-  throw new Error("BETTER_AUTH_SECRET must be set in production");
+  throw new Error(
+    "BETTER_AUTH_SECRET environment variable is required. " +
+    "Generate a secure secret with: openssl rand -base64 32"
+  );
+}
+
+// Validate secret has sufficient entropy (at least 32 characters)
+if (authSecret.length < 32) {
+  throw new Error(
+    "BETTER_AUTH_SECRET must be at least 32 characters for security. " +
+    "Generate a secure secret with: openssl rand -base64 32"
+  );
 }
 
 const secureCookies =

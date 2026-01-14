@@ -13,6 +13,10 @@ from starlette.responses import JSONResponse
 from datetime import datetime
 import asyncpg
 
+from utils.logging import get_logger, log_security_event
+
+logger = get_logger(__name__)
+
 
 class AuthenticationMiddleware(BaseHTTPMiddleware):
     """
@@ -94,7 +98,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             token_parts = session_token.split('.')
             token_id = token_parts[0] if len(token_parts) > 0 else session_token
 
-            print("[AuthMiddleware] Validating session token")
+            logger.debug("Validating session token")
 
             # Validate session in database
             db_pool = self.get_db_pool(request)
@@ -109,22 +113,21 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                     token_id
                 )
 
-                if session:
-                    print("[AuthMiddleware] ✓ Session found")
-                else:
-                    print("[AuthMiddleware] ✗ Session not found")
-
                 if not session:
+                    logger.debug("Session not found")
                     return JSONResponse(
                         status_code=401,
                         content={"detail": "Session not found or expired"}
                     )
+
+                logger.debug("Session validated")
 
                 # Check if session is expired
                 expires_at = session["expiresAt"]
                 now = datetime.utcnow()
 
                 if expires_at < now:
+                    logger.debug(f"Session expired for user {session['userId']}")
                     return JSONResponse(
                         status_code=401,
                         content={"detail": "Session expired. Please log in again."}
@@ -143,9 +146,9 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                         """,
                         token_id
                     )
-                    print("[AuthMiddleware] ✓ Activity timestamp updated (user action)")
+                    logger.debug("Activity timestamp updated (user action)")
                 else:
-                    print("[AuthMiddleware] ✓ Activity timestamp not updated (polling)")
+                    logger.debug("Activity timestamp not updated (polling)")
 
                 # Attach user information to request state
                 request.state.user_id = session["userId"]
@@ -166,8 +169,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             )
         except Exception as e:
             # Log error but don't expose internal details to client
-            # In production, use proper logging (e.g., structlog, python logging)
-            print(f"Authentication error: {type(e).__name__}: {str(e)}")
+            logger.error(f"Authentication error: {type(e).__name__}")
             return JSONResponse(
                 status_code=500,
                 content={"detail": "Authentication validation failed"}

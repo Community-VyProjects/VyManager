@@ -5,10 +5,12 @@ API endpoints for managing user sessions with VyOS instances.
 Handles connect/disconnect operations and instance selection.
 """
 
+import uuid
+import re
 from fastapi import APIRouter, HTTPException, Request, UploadFile, File
 from starlette.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import List, Dict, Optional, Any
 from datetime import datetime
 import asyncpg
@@ -16,8 +18,19 @@ import csv
 import io
 from vyos_service import VyOSService, VyOSDeviceConfig
 from session_vyos_service import clear_session_cache
+from utils.crypto import encrypt_api_key, decrypt_api_key
+from utils.logging import get_logger, log_security_event
+
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/session", tags=["session"])
+
+# Get limiter from app state (set in app.py)
+def get_limiter(request: Request) -> Limiter:
+    return request.app.state.limiter
 
 
 # ============================================================================
@@ -77,14 +90,43 @@ class InstanceCreateRequest(BaseModel):
 
     site_id: str = Field(..., description="Site ID")
     name: str = Field(..., min_length=1, max_length=255, description="Instance name")
-    description: Optional[str] = Field(None, description="Instance description")
-    host: str = Field(..., description="VyOS device IP or hostname")
+    description: Optional[str] = Field(None, max_length=1000, description="Instance description")
+    host: str = Field(..., min_length=1, max_length=255, description="VyOS device IP or hostname")
     port: int = Field(default=443, ge=1, le=65535, description="VyOS API port")
-    api_key: str = Field(..., description="VyOS API key")
+    api_key: str = Field(..., min_length=1, max_length=500, description="VyOS API key")
     vyos_version: str = Field(..., description="VyOS version (1.4 or 1.5)")
     protocol: str = Field(default="https", description="Protocol (http or https)")
     verify_ssl: bool = Field(default=False, description="Verify SSL certificate")
     is_active: bool = Field(default=True, description="Whether instance is active")
+
+    @field_validator("host")
+    @classmethod
+    def validate_host(cls, v: str) -> str:
+        """Validate host is a valid hostname or IP address."""
+        # Remove whitespace
+        v = v.strip()
+        # Basic validation - alphanumeric, dots, hyphens
+        if not re.match(r'^[a-zA-Z0-9][a-zA-Z0-9.\-]*[a-zA-Z0-9]$|^[a-zA-Z0-9]$', v):
+            raise ValueError("Invalid hostname or IP address format")
+        return v
+
+    @field_validator("protocol")
+    @classmethod
+    def validate_protocol(cls, v: str) -> str:
+        """Validate protocol is http or https."""
+        v = v.lower().strip()
+        if v not in ("http", "https"):
+            raise ValueError("Protocol must be 'http' or 'https'")
+        return v
+
+    @field_validator("vyos_version")
+    @classmethod
+    def validate_vyos_version(cls, v: str) -> str:
+        """Validate VyOS version is supported."""
+        v = v.strip()
+        if v not in ("1.4", "1.5"):
+            raise ValueError("VyOS version must be '1.4' or '1.5'")
+        return v
 
 
 class InstanceUpdateRequest(BaseModel):
@@ -233,7 +275,13 @@ async def connect_to_instance(request: Request, body: ConnectRequest):
 
     This sets the user's active session to the specified instance.
     Only one instance can be active at a time per user.
+
+    Rate limited to 10 requests per minute to prevent brute force attacks.
     """
+    # Rate limiting - 10 attempts per minute per IP
+    limiter = get_limiter(request)
+    await limiter.check(request, "10/minute")
+
     # Get user from request state
     if not hasattr(request.state, "user") or not request.state.user:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -266,6 +314,7 @@ async def connect_to_instance(request: Request, body: ConnectRequest):
             )
 
             if not instance:
+                log_security_event("instance_access_denied", user_id, {"instance_id": instance_id})
                 raise HTTPException(
                     status_code=404,
                     detail="Instance not found or you don't have permission to access it",
@@ -277,11 +326,14 @@ async def connect_to_instance(request: Request, body: ConnectRequest):
                     detail=f"Instance '{instance['name']}' is not active",
                 )
 
+            # Decrypt API key before using
+            decrypted_api_key = decrypt_api_key(instance["apiKey"])
+
             # Test the connection to VyOS before creating session
             try:
                 device_config = VyOSDeviceConfig(
                     hostname=instance["host"],
-                    apikey=instance["apiKey"],
+                    apikey=decrypted_api_key,
                     version=instance["vyosVersion"],
                     protocol=instance["protocol"],
                     port=instance["port"],
@@ -294,10 +346,11 @@ async def connect_to_instance(request: Request, body: ConnectRequest):
                 await run_in_threadpool(vyos_service.get_full_config)
 
             except Exception as e:
-                error_msg = str(e)
+                # Log connection failure but don't expose internal details
+                logger.warning(f"VyOS connection failed for instance {instance_id}: {type(e).__name__}")
                 raise HTTPException(
                     status_code=503,
-                    detail=f"Failed to connect to VyOS instance: {error_msg}. Please verify the host, port, API key, and network connectivity.",
+                    detail="Failed to connect to VyOS instance. Please verify the host, port, API key, and network connectivity.",
                 )
 
             # Get current auth session token from cookie
@@ -306,12 +359,8 @@ async def connect_to_instance(request: Request, body: ConnectRequest):
             # Extract session ID (everything before the first dot)
             current_session_token = cookie_token.split(".")[0] if cookie_token else None
 
-            # Create or update active session (upsert)
-            # Generate a 32-character ID similar to CUIDs used elsewhere in the database
-            import secrets
-            import string
-            alphabet = string.ascii_letters + string.digits
-            session_id = ''.join(secrets.choice(alphabet) for _ in range(32))
+            # Create or update active session (upsert) using uuid4 for ID generation
+            session_id = str(uuid.uuid4())
 
             result = await conn.execute(
                 """
@@ -784,11 +833,11 @@ async def create_instance(request: Request, body: InstanceCreateRequest):
                     detail="Only OWNER and ADMIN can create instances",
                 )
 
-            # Generate instance ID
-            import secrets
-            import string
-            alphabet = string.ascii_letters + string.digits
-            instance_id = ''.join(secrets.choice(alphabet) for _ in range(32))
+            # Generate instance ID using uuid4 for cryptographic randomness
+            instance_id = str(uuid.uuid4())
+
+            # Encrypt API key before storing
+            encrypted_api_key = encrypt_api_key(body.api_key)
 
             # Create instance
             # Note: username/password are legacy fields, VyOS uses apiKey
@@ -811,12 +860,14 @@ async def create_instance(request: Request, body: InstanceCreateRequest):
                 body.port,
                 "api",  # username (legacy field, not used with API key auth)
                 "",  # password (legacy field, not used with API key auth)
-                body.api_key,
+                encrypted_api_key,
                 body.vyos_version,
                 body.protocol,
                 body.verify_ssl,
                 body.is_active,
             )
+
+            logger.info(f"Instance created: {instance_id} by user {user_id}")
 
             clear_session_cache(instance_id)
 
@@ -982,6 +1033,9 @@ async def update_instance(request: Request, instance_id: str, body: InstanceUpda
 
             if not instance:
                 raise HTTPException(status_code=404, detail="Instance not found")
+
+            # Clear session cache to force reconnection with new settings
+            clear_session_cache(instance_id)
 
             return InstanceResponse(
                 id=instance["id"],
@@ -1219,21 +1273,28 @@ async def import_sites_and_instances_csv(
         instances_created = 0
         errors = []
 
-        async with db_pool.acquire() as conn:
-            import secrets
-            import string
-            alphabet = string.ascii_letters + string.digits
+        # Maximum field lengths for security
+        MAX_NAME_LENGTH = 255
+        MAX_DESCRIPTION_LENGTH = 1000
+        MAX_HOST_LENGTH = 255
+        MAX_API_KEY_LENGTH = 500
 
+        async with db_pool.acquire() as conn:
             # Track sites by name to avoid duplicates
             site_cache = {}
 
             for row_num, row in enumerate(reader, start=2):  # Start at 2 (header is row 1)
                 try:
-                    site_name = row.get("site_name", "").strip()
-                    instance_name = row.get("instance_name", "").strip()
+                    site_name = row.get("site_name", "").strip()[:MAX_NAME_LENGTH]
+                    instance_name = row.get("instance_name", "").strip()[:MAX_NAME_LENGTH]
 
                     # Skip rows with no site name
                     if not site_name:
+                        continue
+
+                    # Validate site name format (alphanumeric, spaces, hyphens, underscores)
+                    if not re.match(r'^[\w\s\-]+$', site_name):
+                        errors.append(f"Row {row_num}: Invalid site name format")
                         continue
 
                     # Get or create site
@@ -1255,9 +1316,11 @@ async def import_sites_and_instances_csv(
                             site_id = existing_site["id"]
                             site_cache[site_name] = site_id
                         else:
-                            # Create new site
-                            site_id = ''.join(secrets.choice(alphabet) for _ in range(32))
-                            permission_id = ''.join(secrets.choice(alphabet) for _ in range(32))
+                            # Create new site using uuid4
+                            site_id = str(uuid.uuid4())
+                            permission_id = str(uuid.uuid4())
+
+                            site_description = row.get("site_description", "").strip()[:MAX_DESCRIPTION_LENGTH] or None
 
                             async with conn.transaction():
                                 await conn.execute(
@@ -1267,7 +1330,7 @@ async def import_sites_and_instances_csv(
                                     """,
                                     site_id,
                                     site_name,
-                                    row.get("site_description", "").strip() or None,
+                                    site_description,
                                 )
 
                                 await conn.execute(
@@ -1285,14 +1348,29 @@ async def import_sites_and_instances_csv(
 
                     # Create instance if instance details provided
                     if instance_name and row.get("host", "").strip():
+                        # Validate instance name format
+                        if not re.match(r'^[\w\s\-]+$', instance_name):
+                            errors.append(f"Row {row_num}: Invalid instance name format")
+                            continue
+
                         # Validate required instance fields
-                        host = row.get("host", "").strip()
+                        host = row.get("host", "").strip()[:MAX_HOST_LENGTH]
                         port_str = row.get("port", "").strip()
-                        api_key = row.get("api_key", "").strip()
+                        api_key = row.get("api_key", "").strip()[:MAX_API_KEY_LENGTH]
                         vyos_version = row.get("vyos_version", "").strip()
 
                         if not all([host, port_str, api_key, vyos_version]):
                             errors.append(f"Row {row_num}: Missing required instance fields (host, port, api_key, vyos_version)")
+                            continue
+
+                        # Validate host format (basic hostname/IP validation)
+                        if not re.match(r'^[a-zA-Z0-9][a-zA-Z0-9.\-]*[a-zA-Z0-9]$|^[a-zA-Z0-9]$', host):
+                            errors.append(f"Row {row_num}: Invalid host format")
+                            continue
+
+                        # Validate VyOS version
+                        if vyos_version not in ["1.4", "1.5"]:
+                            errors.append(f"Row {row_num}: Invalid VyOS version (must be '1.4' or '1.5')")
                             continue
 
                         # Parse and validate port
@@ -1301,7 +1379,7 @@ async def import_sites_and_instances_csv(
                             if port < 1 or port > 65535:
                                 raise ValueError("Port must be between 1 and 65535")
                         except ValueError as e:
-                            errors.append(f"Row {row_num}: Invalid port '{port_str}': {str(e)}")
+                            errors.append(f"Row {row_num}: Invalid port")
                             continue
 
                         # Parse protocol and verify_ssl
@@ -1326,8 +1404,11 @@ async def import_sites_and_instances_csv(
                             errors.append(f"Row {row_num}: Instance '{instance_name}' already exists in site '{site_name}'")
                             continue
 
-                        # Create instance
-                        instance_id = ''.join(secrets.choice(alphabet) for _ in range(32))
+                        # Create instance using uuid4 and encrypt API key
+                        instance_id = str(uuid.uuid4())
+                        encrypted_api_key = encrypt_api_key(api_key)
+
+                        instance_description = row.get("instance_description", "").strip()[:MAX_DESCRIPTION_LENGTH] or None
 
                         await conn.execute(
                             """
@@ -1341,12 +1422,12 @@ async def import_sites_and_instances_csv(
                             instance_id,
                             site_id,
                             instance_name,
-                            row.get("instance_description", "").strip() or None,
+                            instance_description,
                             host,
                             port,
                             "api",  # username (legacy)
                             "",     # password (legacy)
-                            api_key,
+                            encrypted_api_key,
                             vyos_version,
                             protocol,
                             verify_ssl,

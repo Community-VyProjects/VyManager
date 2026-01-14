@@ -59,5 +59,16 @@ if [ "$VYMANAGER_ENV" = "development" ]; then
   exec npm run dev
 else
   echo "Running in production mode"
+  # Check if production build exists
+  if [ ! -f ".next/BUILD_ID" ]; then
+    echo "⚠️  Production build not found, building now..."
+    if ! npm run build; then
+      echo "❌ Build failed!"
+      exit 1
+    fi
+    echo "✅ Production build completed"
+  else
+    echo "✅ Production build already exists"
+  fi
   exec npm start
 fi

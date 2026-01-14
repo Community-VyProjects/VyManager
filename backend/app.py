@@ -6,12 +6,24 @@ import asyncpg
 import asyncio
 from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from typing import Optional
+
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 from middleware.auth import AuthenticationMiddleware
 from middleware.session import SessionMiddleware
+from middleware.csrf import CSRFMiddleware
+from utils.logging import get_logger
+
+logger = get_logger(__name__)
+
+# Initialize rate limiter
+limiter = Limiter(key_func=get_remote_address)
 
 # Import routers
 from routers.session import session as session_router
@@ -46,6 +58,36 @@ SESSION_INACTIVITY_TIMEOUT = int(os.getenv("SESSION_INACTIVITY_TIMEOUT", "30")) 
 CLEANUP_INTERVAL = int(os.getenv("SESSION_CLEANUP_INTERVAL", "5"))  # Minutes
 
 
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """
+    Middleware to add security headers to all responses.
+
+    Headers added:
+    - X-Content-Type-Options: Prevents MIME-type sniffing
+    - X-Frame-Options: Prevents clickjacking
+    - X-XSS-Protection: Enables XSS filtering
+    - Strict-Transport-Security: Enforces HTTPS
+    - Referrer-Policy: Controls referrer information
+    - Permissions-Policy: Restricts browser features
+    """
+
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+
+        # Add security headers
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+
+        # HSTS only in production (when HTTPS is used)
+        if os.getenv("ENABLE_HSTS", "false").lower() == "true":
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+
+        return response
+
+
 async def cleanup_inactive_sessions():
     """
     Background task to clean up inactive sessions.
@@ -59,7 +101,7 @@ async def cleanup_inactive_sessions():
     """
     global db_pool
 
-    print(f"\n🧹 Session cleanup task started (timeout: {SESSION_INACTIVITY_TIMEOUT}min, interval: {CLEANUP_INTERVAL}min)")
+    logger.info(f"Session cleanup task started (timeout: {SESSION_INACTIVITY_TIMEOUT}min, interval: {CLEANUP_INTERVAL}min)")
 
     while True:
         try:
@@ -82,10 +124,10 @@ async def cleanup_inactive_sessions():
                 )
 
                 if vyos_sessions:
-                    print(f"[SessionCleanup] Removed {len(vyos_sessions)} inactive VyOS instance session(s):")
+                    logger.info(f"Removed {len(vyos_sessions)} inactive VyOS instance session(s)")
                     for row in vyos_sessions:
                         inactive_duration = datetime.utcnow() - row["lastActivityAt"]
-                        print(f"  - VyOS: User {row['userId']} (inactive for {inactive_duration})")
+                        logger.debug(f"VyOS session cleanup: User {row['userId']} (inactive for {inactive_duration})")
 
                 # 2. Clean up inactive authentication sessions (logs user out completely)
                 auth_sessions = await conn.fetch(
@@ -98,16 +140,16 @@ async def cleanup_inactive_sessions():
                 )
 
                 if auth_sessions:
-                    print(f"[SessionCleanup] Removed {len(auth_sessions)} inactive authentication session(s):")
+                    logger.info(f"Removed {len(auth_sessions)} inactive authentication session(s)")
                     for row in auth_sessions:
                         inactive_duration = datetime.utcnow() - row["lastActivityAt"]
-                        print(f"  - Auth: User {row['userId']} (inactive for {inactive_duration}) - LOGGED OUT")
+                        logger.debug(f"Auth session cleanup: User {row['userId']} (inactive for {inactive_duration})")
 
         except asyncio.CancelledError:
-            print("[SessionCleanup] Cleanup task cancelled")
+            logger.info("Cleanup task cancelled")
             break
         except Exception as e:
-            print(f"[SessionCleanup] Error during cleanup: {e}")
+            logger.error(f"Error during session cleanup: {e}")
             # Continue running despite errors
 
 
@@ -120,12 +162,12 @@ async def lifespan(app: FastAPI):
     global db_pool, cleanup_task
 
     # Startup
-    print("\n" + "=" * 60)
-    print("🚀 Starting VyManager API (Multi-Instance Architecture)")
-    print("=" * 60)
+    logger.info("=" * 60)
+    logger.info("Starting VyManager API (Multi-Instance Architecture)")
+    logger.info("=" * 60)
 
     # Initialize database connection pool
-    print("\n📦 Initializing database connection...")
+    logger.info("Initializing database connection...")
     try:
         database_url = os.getenv("DATABASE_URL")
         if not database_url:
@@ -139,32 +181,34 @@ async def lifespan(app: FastAPI):
         )
         # Store in app state for middleware access
         app.state.db_pool = db_pool
-        print("  ✓ Database connection pool created")
-        print("  ✓ Authentication middleware enabled")
-        print("  ✓ Session middleware enabled")
+        logger.info("Database connection pool created")
+        logger.info("Authentication middleware enabled")
+        logger.info("Session middleware enabled")
+        logger.info("Security headers middleware enabled")
+        logger.info("Rate limiting enabled")
     except Exception as e:
-        print(f"  ✗ Failed to create database connection pool: {e}")
-        print("  ⚠ API will start but authentication will fail")
+        logger.error(f"Failed to create database connection pool: {e}")
+        logger.warning("API will start but authentication will fail")
         app.state.db_pool = None
 
     # Start background cleanup task
     if db_pool:
         cleanup_task = asyncio.create_task(cleanup_inactive_sessions())
-        print(f"  ✓ Session cleanup task started")
+        logger.info("Session cleanup task started")
     else:
-        print("  ⚠ Session cleanup task not started (no database)")
+        logger.warning("Session cleanup task not started (no database)")
 
-    print("\n" + "=" * 60)
-    print("✓ API Ready")
-    print("=" * 60)
-    print("\nVyOS instances are managed through the database.")
-    print("Users connect to instances via the web UI (/sites page).\n")
+    logger.info("=" * 60)
+    logger.info("API Ready")
+    logger.info("=" * 60)
+    logger.info("VyOS instances are managed through the database.")
+    logger.info("Users connect to instances via the web UI (/sites page).")
 
     # Yield control to the application
     yield
 
     # Shutdown
-    print("\n🛑 Shutting down VyManager API...")
+    logger.info("Shutting down VyManager API...")
 
     # Stop cleanup task
     if cleanup_task and not cleanup_task.done():
@@ -173,15 +217,15 @@ async def lifespan(app: FastAPI):
             await cleanup_task
         except asyncio.CancelledError:
             pass
-        print("  ✓ Session cleanup task stopped")
+        logger.info("Session cleanup task stopped")
 
     # Close database connection pool
     if hasattr(app.state, "db_pool") and app.state.db_pool:
         await app.state.db_pool.close()
         app.state.db_pool = None
-        print("  ✓ Database connection pool closed")
+        logger.info("Database connection pool closed")
 
-    print("✓ Shutdown complete\n")
+    logger.info("Shutdown complete")
 
 
 app = FastAPI(
@@ -191,29 +235,48 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Add rate limiter to app state
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 # ============================================================================
 # Middleware Configuration
 # ============================================================================
 
+# Security Headers Middleware - Adds security headers to all responses
+app.add_middleware(SecurityHeadersMiddleware)
+
 # CORS Middleware - Must be added BEFORE authentication middleware
 frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+
+# Parse allowed headers from environment or use secure defaults
+allowed_headers = [
+    "Accept",
+    "Accept-Language",
+    "Content-Type",
+    "Authorization",
+    "X-Requested-With",
+    "X-CSRF-Token",
+]
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[frontend_url],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
-    expose_headers=["*"],
+    allow_headers=allowed_headers,
+    expose_headers=["X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset"],
 )
 
 # Session Middleware - Resolves active VyOS instance for authenticated users
-# Added FIRST but runs SECOND (middleware executes in reverse order)
 app.add_middleware(SessionMiddleware)
 
 # Authentication Middleware - Validates session tokens
-# Added SECOND but runs FIRST (middleware executes in reverse order)
-# The middleware will get db_pool from app.state when processing requests
 app.add_middleware(AuthenticationMiddleware)
+
+# CSRF Middleware - Validates Origin/Referer for state-changing requests
+# Runs after authentication to protect authenticated endpoints
+app.add_middleware(CSRFMiddleware)
 
 
 # ============================================================================

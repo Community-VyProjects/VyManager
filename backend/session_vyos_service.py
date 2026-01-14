@@ -6,13 +6,17 @@ Replaces the single-device pattern with dynamic multi-instance support.
 """
 
 from fastapi import Request, HTTPException
-from typing import Optional
+from typing import Optional, Dict, Any
 from vyos_service import VyOSService, VyOSDeviceConfig, VyOSDeviceRegistry
 
 
 # Global registry for session-based VyOS services
 # Key format: "instance_id"
 _session_device_registry = VyOSDeviceRegistry()
+
+# Cache for instance configs to detect changes
+# Key: instance_id, Value: config hash dict
+_instance_config_cache: Dict[str, Dict[str, Any]] = {}
 
 
 def get_session_vyos_service(request: Request) -> VyOSService:
@@ -60,25 +64,43 @@ def get_session_vyos_service(request: Request) -> VyOSService:
 
     instance_id = instance["id"]
 
+    # Build current config fingerprint to detect changes
+    version = instance.get("vyos_version") or "1.5"
+    protocol = instance.get("protocol") or "https"
+    verify_raw = instance.get("verify_ssl")
+    if isinstance(verify_raw, bool):
+        verify = verify_raw
+    elif isinstance(verify_raw, str):
+        verify = verify_raw.lower() in {"1", "true", "t", "yes", "y"}
+    else:
+        verify = False
+
+    current_config_fingerprint = {
+        "host": instance["host"],
+        "api_key": instance["api_key"],
+        "version": version,
+        "protocol": protocol,
+        "port": instance.get("port", 443),
+        "verify": verify,
+    }
+
     # Check if we already have a service for this instance
     try:
         service = _session_device_registry.get(instance_id)
+
+        # Check if config has changed - if so, recreate the service
+        cached_fingerprint = _instance_config_cache.get(instance_id)
+        if cached_fingerprint != current_config_fingerprint:
+            print(f"[SessionVyOSService] Instance {instance_id} config changed, recreating service")
+            _session_device_registry.unregister(instance_id)
+            raise KeyError("Config changed, recreate service")
+
         return service
     except KeyError:
-        pass  # Service doesn't exist yet, create it
+        pass  # Service doesn't exist yet or needs recreation, create it
 
     # Create new VyOS service for this instance
     try:
-        version = instance.get("vyos_version") or "1.5"
-        protocol = instance.get("protocol") or "https"
-        verify_raw = instance.get("verify_ssl")
-        if isinstance(verify_raw, bool):
-            verify = verify_raw
-        elif isinstance(verify_raw, str):
-            verify = verify_raw.lower() in {"1", "true", "t", "yes", "y"}
-        else:
-            verify = False
-
         config = VyOSDeviceConfig(
             hostname=instance["host"],
             apikey=instance["api_key"],  # VyOS API key from database
@@ -89,8 +111,9 @@ def get_session_vyos_service(request: Request) -> VyOSService:
             timeout=30,
         )
 
-        # Register the service
+        # Register the service and cache the config fingerprint
         _session_device_registry.register(instance_id, config)
+        _instance_config_cache[instance_id] = current_config_fingerprint
         service = _session_device_registry.get(instance_id)
 
         # Pre-cache the full configuration for performance
@@ -116,6 +139,7 @@ def clear_session_cache(instance_id: str) -> None:
     Useful when instance credentials change or to force reconnection.
     """
     _session_device_registry.unregister(instance_id)
+    _instance_config_cache.pop(instance_id, None)
 
 
 def clear_all_session_caches() -> None:
@@ -125,3 +149,4 @@ def clear_all_session_caches() -> None:
     Useful for cleanup or testing.
     """
     _session_device_registry.clear()
+    _instance_config_cache.clear()

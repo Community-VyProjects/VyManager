@@ -116,7 +116,3 @@ docker-compose.override.yml
 .vercel
 .history
 .history/
-# Claude Code files
-CLAUDE.md
-.claude/
-.claude*

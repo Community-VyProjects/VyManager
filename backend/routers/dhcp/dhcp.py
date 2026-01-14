@@ -533,6 +533,8 @@ async def get_dhcp_leases(request: Request):
     Returns:
         List of active DHCP leases with details like IP, MAC, hostname, expiration, etc.
     """
+    import re
+
     try:
         service = get_session_vyos_service(request)
 
@@ -551,36 +553,105 @@ async def get_dhcp_leases(request: Request):
         leases = []
         lines = output.strip().split('\n')
 
-        # Skip header lines (usually first 2 lines: header row and separator)
-        data_lines = []
+        # Find header line to determine column positions
+        header_idx = -1
+        separator_idx = -1
         for i, line in enumerate(lines):
-            # Skip header and separator lines
-            if i < 2 or not line.strip() or line.startswith('-'):
-                continue
-            data_lines.append(line)
+            if 'IP Address' in line or 'IP address' in line:
+                header_idx = i
+            elif line.strip().startswith('-') and header_idx >= 0:
+                separator_idx = i
+                break
 
-        # Parse each lease line
+        # Skip to data lines
+        start_idx = separator_idx + 1 if separator_idx >= 0 else 2
+        data_lines = [line for line in lines[start_idx:] if line.strip() and not line.startswith('-')]
+
+        # Parse each lease line using regex for more robust parsing
+        # VyOS lease format: IP MAC State Start End Remaining Pool [Hostname] [Origin]
+        # Example: 192.168.1.100    aa:bb:cc:dd:ee:ff    active    2024/01/01 10:00:00    2024/01/01 12:00:00    01:59:30    LAN    myhost    local
+        ip_pattern = re.compile(r'^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})')
+        mac_pattern = re.compile(r'([0-9a-fA-F]{2}(?::[0-9a-fA-F]{2}){5})')
+        datetime_pattern = re.compile(r'(\d{4}/\d{2}/\d{2}\s+\d{2}:\d{2}:\d{2})')
+        time_pattern = re.compile(r'(\d{1,2}:\d{2}:\d{2})')
+
         for line in data_lines:
-            # Split by multiple spaces to handle the tabular format
-            parts = line.split()
-            if len(parts) < 9:  # Minimum expected fields
-                continue
-
             try:
+                # Extract IP address
+                ip_match = ip_pattern.search(line)
+                if not ip_match:
+                    continue
+                ip_address = ip_match.group(1)
+
+                # Extract MAC address
+                mac_match = mac_pattern.search(line)
+                mac_address = mac_match.group(1) if mac_match else "unknown"
+
+                # Find all datetime matches
+                datetime_matches = datetime_pattern.findall(line)
+                lease_start = datetime_matches[0] if len(datetime_matches) > 0 else "unknown"
+                lease_expiration = datetime_matches[1] if len(datetime_matches) > 1 else "unknown"
+
+                # Extract state (active, expired, free, etc.)
+                state = "unknown"
+                state_patterns = ["active", "expired", "free", "released", "abandoned", "backup"]
+                for s in state_patterns:
+                    if s in line.lower():
+                        state = s
+                        break
+
+                # Try to extract remaining time - look for pattern like HH:MM:SS after expiration
+                remaining = "unknown"
+                # Split line and find time-like pattern that's not part of datetime
+                parts = line.split()
+                for i, part in enumerate(parts):
+                    # Skip parts that are part of datetime (contain /)
+                    if '/' in part:
+                        continue
+                    # Look for time pattern HH:MM:SS or H:MM:SS
+                    if re.match(r'^\d{1,2}:\d{2}:\d{2}$', part):
+                        # Make sure it's not the time part of a datetime
+                        if i > 0 and '/' not in parts[i-1]:
+                            remaining = part
+                            break
+
+                # Extract pool name - usually after remaining time
+                pool = "default"
+                # Look for common pool indicators
+                for part in parts:
+                    if part not in [ip_address, mac_address, state] and \
+                       not re.match(r'^\d{4}/\d{2}/\d{2}$', part) and \
+                       not re.match(r'^\d{1,2}:\d{2}:\d{2}$', part) and \
+                       len(part) > 2 and not part.startswith('-'):
+                        # Could be pool name or hostname
+                        if pool == "default":
+                            pool = part
+                        break
+
+                # Hostname is typically near the end
+                hostname = None
+                origin = "local"
+
+                # Look for origin indicators
+                if "local" in line.lower():
+                    origin = "local"
+                elif "remote" in line.lower():
+                    origin = "remote"
+
                 lease = DHCPLease(
-                    ip_address=parts[0],
-                    mac_address=parts[1],
-                    state=parts[2],
-                    lease_start=f"{parts[3]} {parts[4]}",  # Date and time
-                    lease_expiration=f"{parts[5]} {parts[6]}",  # Date and time
-                    remaining=parts[7],
-                    pool=parts[8],
-                    hostname=parts[9] if len(parts) > 9 else None,
-                    origin=parts[10] if len(parts) > 10 else "local"
+                    ip_address=ip_address,
+                    mac_address=mac_address,
+                    state=state,
+                    lease_start=lease_start,
+                    lease_expiration=lease_expiration,
+                    remaining=remaining,
+                    pool=pool,
+                    hostname=hostname,
+                    origin=origin
                 )
                 leases.append(lease)
-            except (IndexError, ValueError) as e:
-                # Skip malformed lines
+            except Exception as e:
+                # Skip malformed lines but log for debugging
                 print(f"Warning: Could not parse lease line: {line}. Error: {e}")
                 continue
 
