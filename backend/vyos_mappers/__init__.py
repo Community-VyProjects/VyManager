@@ -29,6 +29,8 @@ from .local_route.local_route_versions import get_local_route_mapper
 from .route import RouteMapper
 from .route.route_versions import get_route_mapper
 from .as_path_list import AsPathListMapper
+from .firewall_global_options import FirewallGlobalOptionsMapper
+from .firewall_global_options.firewall_global_options_versions import get_firewall_global_options_mapper
 
 # Auto-register all mappers
 # Ethernet uses factory for version-specific mappers
@@ -59,6 +61,8 @@ CommandMapperRegistry.register_feature("local_route", get_local_route_mapper)
 CommandMapperRegistry.register_feature("route", get_route_mapper)
 # AS Path List uses direct class (no version differences)
 CommandMapperRegistry.register_feature("as_path_list", AsPathListMapper)
+# Firewall Global Options uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("firewall_global_options", get_firewall_global_options_mapper)
 
 __all__ = [
     "BaseFeatureMapper",
@@ -77,4 +81,5 @@ __all__ = [
     "LocalRouteMapper",
     "RouteMapper",
     "AsPathListMapper",
+    "FirewallGlobalOptionsMapper",
 ]
