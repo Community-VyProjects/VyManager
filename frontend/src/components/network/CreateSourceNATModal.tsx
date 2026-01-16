@@ -236,8 +236,10 @@ export function CreateSourceNATModal({ open, onOpenChange, onSuccess }: CreateSo
       }
 
       // Translation
-      if (translationType !== "masquerade" && translationAddress.trim()) {
-        config.translation_type = translationType;
+      if (translationType === "masquerade") {
+        // Masquerade is set by: "set nat source rule X translation address masquerade"
+        config.translation_address = "masquerade";
+      } else if (translationAddress.trim()) {
         config.translation_address = translationAddress.trim();
       }
 
