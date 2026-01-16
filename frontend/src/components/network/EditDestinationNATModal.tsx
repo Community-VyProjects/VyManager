@@ -91,7 +91,7 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
 
   // Auto-adjust protocol when ports are used
   useEffect(() => {
-    const hasPort = sourcePort.trim() || destinationPort.trim();
+    const hasPort = sourcePort.trim() || destinationPort.trim() || translationPort.trim();
     const portCompatibleProtocols = ["tcp", "udp", "tcp_udp"];
 
     if (hasPort && !portCompatibleProtocols.includes(protocol)) {
@@ -101,7 +101,7 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
       // Switch back to "all" when ports are cleared
       setProtocol("all");
     }
-  }, [sourcePort, destinationPort, protocol]);
+  }, [sourcePort, destinationPort, translationPort, protocol]);
 
   const populateForm = (rule: DestinationNATRule) => {
     // Description
@@ -447,7 +447,7 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
                   <SelectTrigger id="protocol">
                     <SelectValue />
                   </SelectTrigger>
-                  {(sourcePort.trim() || destinationPort.trim()) ? (
+                  {(sourcePort.trim() || destinationPort.trim() || translationPort.trim()) ? (
                     // When ports are specified, only allow TCP/UDP protocols
                     <SelectContent>
                       <SelectItem value="tcp">TCP</SelectItem>
@@ -517,7 +517,7 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
                     </SelectContent>
                   )}
                 </Select>
-                {(sourcePort.trim() || destinationPort.trim()) && (
+                {(sourcePort.trim() || destinationPort.trim() || translationPort.trim()) && (
                   <p className="text-xs text-muted-foreground">
                     Only TCP/UDP protocols are available when using ports
                   </p>
