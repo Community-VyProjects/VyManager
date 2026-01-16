@@ -133,8 +133,18 @@ class ReorderFirewallRequest(BaseModel):
     rules: List[ReorderRuleItem] = Field(..., description="List of rules with their old and new numbers")
 
 
+class BaseChainConfig(BaseModel):
+    """Base chain configuration with default action."""
+    default_action: Optional[str] = None
+    rules: List[FirewallRule] = []
+
+
 class FirewallConfigResponse(BaseModel):
     """Response containing firewall configuration data."""
+    forward: BaseChainConfig = BaseChainConfig()
+    input: BaseChainConfig = BaseChainConfig()
+    output: BaseChainConfig = BaseChainConfig()
+    # Legacy fields for backward compatibility
     forward_rules: List[FirewallRule] = []
     input_rules: List[FirewallRule] = []
     output_rules: List[FirewallRule] = []
@@ -371,11 +381,24 @@ async def get_firewall_ipv6_config(http_request: Request, refresh: bool = False)
             )
 
         # Parse base chains (forward, input, output)
+        forward_default_action = None
+        input_default_action = None
+        output_default_action = None
+
         for chain_name in ["forward", "input", "output"]:
             if chain_name in firewall_config:
                 chain_data = firewall_config[chain_name]
                 filter_data = chain_data.get("filter", {})
                 rules_data = filter_data.get("rule", {})
+
+                # Get default action for this chain
+                default_action = filter_data.get("default-action")
+                if chain_name == "forward":
+                    forward_default_action = default_action
+                elif chain_name == "input":
+                    input_default_action = default_action
+                elif chain_name == "output":
+                    output_default_action = default_action
 
                 if isinstance(rules_data, dict):
                     for rule_num, rule_data in rules_data.items():
@@ -418,6 +441,10 @@ async def get_firewall_ipv6_config(http_request: Request, refresh: bool = False)
             total_rules += len(chain.rules)
 
         return FirewallConfigResponse(
+            forward=BaseChainConfig(default_action=forward_default_action, rules=forward_rules),
+            input=BaseChainConfig(default_action=input_default_action, rules=input_rules),
+            output=BaseChainConfig(default_action=output_default_action, rules=output_rules),
+            # Legacy fields for backward compatibility
             forward_rules=forward_rules,
             input_rules=input_rules,
             output_rules=output_rules,
@@ -476,7 +503,7 @@ async def firewall_ipv6_batch_configure(http_request: Request, request: Firewall
             # Add value parameter BEFORE is_custom if both are expected
             # This matches the typical signature: (chain, rule_number, value, is_custom)
             # Also check for group_name which is used in group operations
-            if operation.value and any(p in params for p in ["value", "description", "address", "port", "protocol", "action", "interface_name", "dscp", "mark", "hop_limit", "icmpv6_type", "target", "flag", "group_name", "mac_address", "country_code"]):
+            if operation.value and any(p in params for p in ["value", "description", "address", "port", "protocol", "action", "interface", "interface_name", "dscp", "mark", "hop_limit", "icmpv6_type", "target", "flag", "group_name", "mac_address", "country_code"]):
                 args.append(operation.value)
 
             # Add is_custom parameter if method expects it

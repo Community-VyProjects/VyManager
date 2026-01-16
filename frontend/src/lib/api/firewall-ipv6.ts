@@ -72,7 +72,17 @@ export interface CustomChain {
   rules: FirewallRule[];
 }
 
+export interface BaseChainConfig {
+  default_action?: string | null;
+  rules: FirewallRule[];
+}
+
 export interface FirewallConfigResponse {
+  // New structured chain configs with default_action
+  forward: BaseChainConfig;
+  input: BaseChainConfig;
+  output: BaseChainConfig;
+  // Legacy fields for backward compatibility
   forward_rules: FirewallRule[];
   input_rules: FirewallRule[];
   output_rules: FirewallRule[];
@@ -137,6 +147,12 @@ export interface FirewallCapabilitiesResponse {
   tcp_flags: string[];
 }
 
+export interface VyOSResponse {
+  success: boolean;
+  data?: Record<string, unknown> | null;
+  error?: string | null;
+}
+
 export interface FirewallBatchOperation {
   op: string;
   value?: string;
@@ -185,15 +201,15 @@ class FirewallIPv6Service {
   /**
    * Refresh the cached configuration
    */
-  async refreshConfig(): Promise<any> {
+  async refreshConfig(): Promise<VyOSResponse> {
     return apiClient.post("/vyos/config/refresh");
   }
 
   /**
    * Execute batch operations
    */
-  async batchConfigure(request: FirewallBatchRequest): Promise<any> {
-    const result = await apiClient.post("/vyos/firewall/ipv6/batch", request);
+  async batchConfigure(request: FirewallBatchRequest): Promise<VyOSResponse> {
+    const result = await apiClient.post<VyOSResponse>("/vyos/firewall/ipv6/batch", request);
     await this.refreshConfig();
     return result;
   }
@@ -201,8 +217,8 @@ class FirewallIPv6Service {
   /**
    * Reorder rules within a chain
    */
-  async reorderRules(request: ReorderFirewallRequest): Promise<any> {
-    const result = await apiClient.post("/vyos/firewall/ipv6/reorder", request);
+  async reorderRules(request: ReorderFirewallRequest): Promise<VyOSResponse> {
+    const result = await apiClient.post<VyOSResponse>("/vyos/firewall/ipv6/reorder", request);
     await this.refreshConfig();
     return result;
   }
@@ -215,7 +231,7 @@ class FirewallIPv6Service {
     ruleNumber: number,
     isCustomChain: boolean,
     config: Partial<FirewallRule>
-  ): Promise<any> {
+  ): Promise<VyOSResponse> {
     const operations: FirewallBatchOperation[] = [];
 
 
@@ -409,7 +425,7 @@ class FirewallIPv6Service {
     isCustomChain: boolean,
     config: Partial<FirewallRule>,
     currentRule: FirewallRule
-  ): Promise<any> {
+  ): Promise<VyOSResponse> {
     const operations: FirewallBatchOperation[] = [];
 
     // Helper to determine if a value has changed
@@ -762,7 +778,7 @@ class FirewallIPv6Service {
   /**
    * Helper: Delete a rule and automatically renumber remaining rules
    */
-  async deleteRule(chain: string, ruleNumber: number, isCustomChain: boolean): Promise<any> {
+  async deleteRule(chain: string, ruleNumber: number, isCustomChain: boolean): Promise<VyOSResponse> {
     // First, get current config to find all rules in this chain
     const config = await this.getConfig();
 
@@ -825,7 +841,7 @@ class FirewallIPv6Service {
     chainName: string,
     description?: string,
     defaultAction?: string
-  ): Promise<any> {
+  ): Promise<VyOSResponse> {
     const operations: FirewallBatchOperation[] = [{ op: "set_custom_chain" }];
 
     if (description) {
@@ -846,8 +862,38 @@ class FirewallIPv6Service {
   /**
    * Helper: Delete a custom chain
    */
-  async deleteCustomChain(chainName: string): Promise<any> {
+  async deleteCustomChain(chainName: string): Promise<VyOSResponse> {
     const operations: FirewallBatchOperation[] = [{ op: "delete_custom_chain" }];
+
+    return this.batchConfigure({
+      chain: chainName,
+      is_custom_chain: true,
+      operations,
+    });
+  }
+
+  /**
+   * Helper: Set default action for a base chain (forward, input, output)
+   */
+  async setBaseChainDefaultAction(chain: string, action: string): Promise<VyOSResponse> {
+    const operations: FirewallBatchOperation[] = [
+      { op: "set_base_chain_default_action", value: action }
+    ];
+
+    return this.batchConfigure({
+      chain,
+      is_custom_chain: false,
+      operations,
+    });
+  }
+
+  /**
+   * Helper: Set default action for a custom chain
+   */
+  async setCustomChainDefaultAction(chainName: string, action: string): Promise<VyOSResponse> {
+    const operations: FirewallBatchOperation[] = [
+      { op: "set_custom_chain_default_action", value: action }
+    ];
 
     return this.batchConfigure({
       chain: chainName,
