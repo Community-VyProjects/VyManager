@@ -27,7 +27,6 @@ export function CreateCommunityListModal({
   // Form fields
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [ruleNumber, setRuleNumber] = useState("100");
   const [ruleDescription, setRuleDescription] = useState("");
   const [action, setAction] = useState<"permit" | "deny">("permit");
   const [regex, setRegex] = useState("");
@@ -35,7 +34,6 @@ export function CreateCommunityListModal({
   const resetForm = () => {
     setName("");
     setDescription("");
-    setRuleNumber("100");
     setRuleDescription("");
     setAction("permit");
     setRegex("");
@@ -45,11 +43,6 @@ export function CreateCommunityListModal({
   const handleSubmit = async () => {
     if (!name.trim()) {
       setError("Community list name is required");
-      return;
-    }
-
-    if (!ruleNumber || isNaN(Number(ruleNumber))) {
-      setError("Valid rule number is required");
       return;
     }
 
@@ -66,7 +59,7 @@ export function CreateCommunityListModal({
         name.trim(),
         description.trim() || null,
         {
-          rule_number: Number(ruleNumber),
+          rule_number: 100,
           description: ruleDescription.trim() || null,
           action,
           regex: regex.trim(),
@@ -130,31 +123,17 @@ export function CreateCommunityListModal({
             <h3 className="font-semibold text-sm mb-4">Initial Rule</h3>
 
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="ruleNumber">Rule Number *</Label>
-                  <Input
-                    id="ruleNumber"
-                    type="number"
-                    placeholder="100"
-                    value={ruleNumber}
-                    onChange={(e) => setRuleNumber(e.target.value)}
-                    disabled={loading}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="action">Action *</Label>
-                  <Select value={action} onValueChange={(v) => setAction(v as "permit" | "deny")} disabled={loading}>
-                    <SelectTrigger id="action">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="permit">Permit</SelectItem>
-                      <SelectItem value="deny">Deny</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="action">Action *</Label>
+                <Select value={action} onValueChange={(v) => setAction(v as "permit" | "deny")} disabled={loading}>
+                  <SelectTrigger id="action">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="permit">Permit</SelectItem>
+                    <SelectItem value="deny">Deny</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">

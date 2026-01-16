@@ -104,7 +104,7 @@ async def get_as_path_list_capabilities(request: Request):
     await require_read_permission(request, FeatureGroup.BGP_AS_PATH)
 
     try:
-        service = get_session_vyos_service(http_request)
+        service = get_session_vyos_service(request)
         version = service.get_version()
         builder = AsPathListBatchBuilder(version=version)
         capabilities = builder.get_capabilities()
@@ -194,7 +194,7 @@ def parse_rule(rule_number: int, rule_data: dict) -> AsPathListRule:
 
 
 @router.post("/batch")
-async def as_path_list_batch_configure(http_request: Request, request: AsPathListBatchRequest):
+async def as_path_list_batch_configure(http_request: Request, body: AsPathListBatchRequest):
     """
     Execute a batch of configuration operations.
 

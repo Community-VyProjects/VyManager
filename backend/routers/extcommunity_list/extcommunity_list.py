@@ -104,7 +104,7 @@ async def get_extcommunity_list_capabilities(request: Request):
     await require_read_permission(request, FeatureGroup.BGP_EXTENDED_COMMUNITY)
 
     try:
-        service = get_session_vyos_service(http_request)
+        service = get_session_vyos_service(request)
         version = service.get_version()
         builder = ExtCommunityListBatchBuilder(version=version)
         capabilities = builder.get_capabilities()
@@ -124,7 +124,7 @@ async def get_extcommunity_list_capabilities(request: Request):
 
 
 @router.get("/config", response_model=ExtCommunityListConfig)
-async def get_extcommunity_list_config(request: Request, refresh: bool = False):
+async def get_extcommunity_list_config(http_request: Request, refresh: bool = False):
     """
     Get all extcommunity-list configuration from VyOS in a generalized format.
 
@@ -194,7 +194,7 @@ def parse_rule(rule_number: int, rule_data: dict) -> ExtCommunityListRule:
 
 
 @router.post("/batch")
-async def extcommunity_list_batch_configure(http_request: Request, request: ExtCommunityListBatchRequest):
+async def extcommunity_list_batch_configure(http_request: Request, body: ExtCommunityListBatchRequest):
     """
     Execute a batch of configuration operations.
 
