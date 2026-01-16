@@ -33,6 +33,46 @@ import { ExtCommunityListReorderBanner } from "@/components/policies/ExtCommunit
 import { cn } from "@/lib/utils";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
+// Helper function to determine regex type, extract value, and styling
+function getRegexTypeInfo(regex: string | null | undefined): { type: string; label: string; value: string; className: string } {
+  if (!regex) {
+    return { type: "none", label: "", value: "—", className: "text-muted-foreground" };
+  }
+
+  const trimmed = regex.trim();
+  const lowerTrimmed = trimmed.toLowerCase();
+
+  if (lowerTrimmed.startsWith("rt ")) {
+    // Extract the value part after "rt "
+    const value = trimmed.substring(3).trim();
+    return {
+      type: "rt",
+      label: "RT",
+      value: value,
+      className: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20",
+    };
+  }
+
+  if (lowerTrimmed.startsWith("soo ")) {
+    // Extract the value part after "soo "
+    const value = trimmed.substring(4).trim();
+    return {
+      type: "soo",
+      label: "SoO",
+      value: value,
+      className: "bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20",
+    };
+  }
+
+  // Advanced regex (anything else)
+  return {
+    type: "regex",
+    label: "Regex",
+    value: trimmed,
+    className: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20",
+  };
+}
+
 // Sortable row component
 function ExtCommunityListRuleRow({ rule, onEdit, onDelete }: any) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -44,6 +84,8 @@ function ExtCommunityListRuleRow({ rule, onEdit, onDelete }: any) {
     transition,
     opacity: isDragging ? 0.5 : 1,
   };
+
+  const regexInfo = getRegexTypeInfo(rule.regex);
 
   return (
     <TableRow ref={setNodeRef} style={style} className={cn(isDragging && "bg-accent")}>
@@ -69,7 +111,13 @@ function ExtCommunityListRuleRow({ rule, onEdit, onDelete }: any) {
         </Badge>
       </TableCell>
       <TableCell>
-        <code className="text-xs bg-muted px-2 py-1 rounded">{rule.regex || "—"}</code>
+        {rule.regex ? (
+          <code className={cn("text-xs font-mono px-2 py-1 rounded", regexInfo.className)}>
+            {regexInfo.label}: {regexInfo.value}
+          </code>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        )}
       </TableCell>
       <TableCell className="text-right">
         <div className="flex items-center justify-end gap-2">
@@ -522,7 +570,7 @@ export default function BGPExtCommunityPage() {
                               <TableHead>Rule #</TableHead>
                               <TableHead>Description</TableHead>
                               <TableHead>Action</TableHead>
-                              <TableHead>Regex</TableHead>
+                              <TableHead>Pattern</TableHead>
                               <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                           </TableHeader>

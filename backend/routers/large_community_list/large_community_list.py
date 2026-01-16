@@ -104,7 +104,7 @@ async def get_large_community_list_capabilities(request: Request):
     await require_read_permission(request, FeatureGroup.BGP_LARGE_COMMUNITY)
 
     try:
-        service = get_session_vyos_service(http_request)
+        service = get_session_vyos_service(request)
         version = service.get_version()
         builder = LargeCommunityListBatchBuilder(version=version)
         capabilities = builder.get_capabilities()
@@ -194,7 +194,7 @@ def parse_rule(rule_number: int, rule_data: dict) -> LargeCommunityListRule:
 
 
 @router.post("/batch")
-async def large_community_list_batch_configure(http_request: Request, request: LargeCommunityListBatchRequest):
+async def large_community_list_batch_configure(http_request: Request, body: LargeCommunityListBatchRequest):
     """
     Execute a batch of configuration operations.
 

@@ -196,7 +196,7 @@ async def get_route_capabilities(request: Request):
     await require_read_permission(request, FeatureGroup.ROUTE_POLICY)
 
     try:
-        service = get_session_vyos_service(http_request)
+        service = get_session_vyos_service(request)
         version = service.get_version()
         builder = RouteBatchBuilder(version=version)
         capabilities = builder.get_capabilities()
