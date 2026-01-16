@@ -33,6 +33,7 @@ class FeatureGroup(str, Enum):
     FIREWALL_GROUPS = "FIREWALL_GROUPS"
     FIREWALL_POLICIES = "FIREWALL_POLICIES"
     FIREWALL_ZONES = "FIREWALL_ZONES"
+    FIREWALL_GLOBAL_OPTIONS = "FIREWALL_GLOBAL_OPTIONS"
 
     # Network features
     NETWORK = "NETWORK"
@@ -116,6 +117,7 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.FIREWALL_GROUPS: PermissionLevel.WRITE,
         FeatureGroup.FIREWALL_POLICIES: PermissionLevel.WRITE,
         FeatureGroup.FIREWALL_ZONES: PermissionLevel.WRITE,
+        FeatureGroup.FIREWALL_GLOBAL_OPTIONS: PermissionLevel.WRITE,
         FeatureGroup.NETWORK: PermissionLevel.WRITE,
         FeatureGroup.NAT: PermissionLevel.WRITE,
         FeatureGroup.DHCP: PermissionLevel.WRITE,
@@ -169,6 +171,7 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.FIREWALL_GROUPS: PermissionLevel.WRITE,
         FeatureGroup.FIREWALL_POLICIES: PermissionLevel.WRITE,
         FeatureGroup.FIREWALL_ZONES: PermissionLevel.WRITE,
+        FeatureGroup.FIREWALL_GLOBAL_OPTIONS: PermissionLevel.WRITE,
         FeatureGroup.NETWORK: PermissionLevel.WRITE,
         FeatureGroup.NAT: PermissionLevel.WRITE,
         FeatureGroup.DHCP: PermissionLevel.WRITE,
@@ -223,6 +226,7 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.FIREWALL_GROUPS: PermissionLevel.READ,
         FeatureGroup.FIREWALL_POLICIES: PermissionLevel.READ,
         FeatureGroup.FIREWALL_ZONES: PermissionLevel.READ,
+        FeatureGroup.FIREWALL_GLOBAL_OPTIONS: PermissionLevel.READ,
         FeatureGroup.NETWORK: PermissionLevel.READ,
         FeatureGroup.NAT: PermissionLevel.READ,
         FeatureGroup.DHCP: PermissionLevel.READ,
@@ -320,6 +324,7 @@ async def get_user_permissions(
                 FeatureGroup.FIREWALL_GROUPS,
                 FeatureGroup.FIREWALL_POLICIES,
                 FeatureGroup.FIREWALL_ZONES,
+                FeatureGroup.FIREWALL_GLOBAL_OPTIONS,
                 FeatureGroup.NETWORK,
                 FeatureGroup.NAT,
                 FeatureGroup.DHCP,
@@ -395,6 +400,7 @@ async def get_user_permissions(
                 FeatureGroup.FIREWALL_GROUPS,
                 FeatureGroup.FIREWALL_POLICIES,
                 FeatureGroup.FIREWALL_ZONES,
+                FeatureGroup.FIREWALL_GLOBAL_OPTIONS,
                 FeatureGroup.NETWORK,
                 FeatureGroup.NAT,
                 FeatureGroup.DHCP,
@@ -627,7 +633,7 @@ def _apply_parent_child_permissions(permissions: Dict[FeatureGroup, PermissionLe
     firewall_perm = permissions.get(FeatureGroup.FIREWALL, PermissionLevel.NONE)
     if firewall_perm != PermissionLevel.NONE:
         # Grant parent permission to children if they don't have a higher permission
-        for child in [FeatureGroup.FIREWALL_GROUPS, FeatureGroup.FIREWALL_POLICIES, FeatureGroup.FIREWALL_ZONES]:
+        for child in [FeatureGroup.FIREWALL_GROUPS, FeatureGroup.FIREWALL_POLICIES, FeatureGroup.FIREWALL_ZONES, FeatureGroup.FIREWALL_GLOBAL_OPTIONS]:
             current = permissions.get(child, PermissionLevel.NONE)
             # Only upgrade permission, never downgrade
             if firewall_perm == PermissionLevel.WRITE:

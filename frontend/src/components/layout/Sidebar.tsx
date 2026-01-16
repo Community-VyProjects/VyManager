@@ -55,6 +55,11 @@ const navigation: NavItem[] = [
         href: "/firewall/zones",
         requiredPermission: FeatureGroup.FIREWALL_ZONES
       },
+      {
+        title: "Global Options",
+        href: "/firewall/global-options",
+        requiredPermission: FeatureGroup.FIREWALL_GLOBAL_OPTIONS
+      },
     ],
   },
   {

@@ -97,6 +97,7 @@ const FEATURE_ICONS: Record<FeatureGroup, any> = {
   [FeatureGroup.FIREWALL_GROUPS]: Shield,
   [FeatureGroup.FIREWALL_POLICIES]: Shield,
   [FeatureGroup.FIREWALL_ZONES]: Shield,
+  [FeatureGroup.FIREWALL_GLOBAL_OPTIONS]: Shield,
   [FeatureGroup.NETWORK]: Network,
   [FeatureGroup.VRF]: Network,
   [FeatureGroup.LOAD_BALANCING]: Network,
@@ -151,6 +152,7 @@ const FEATURE_NAMES: Record<FeatureGroup, string> = {
   [FeatureGroup.FIREWALL_GROUPS]: "Firewall Groups",
   [FeatureGroup.FIREWALL_POLICIES]: "Firewall Policies",
   [FeatureGroup.FIREWALL_ZONES]: "Firewall Zones",
+  [FeatureGroup.FIREWALL_GLOBAL_OPTIONS]: "Firewall Global Options",
   [FeatureGroup.NETWORK]: "Network",
   [FeatureGroup.VRF]: "VRF",
   [FeatureGroup.LOAD_BALANCING]: "Load Balancing",
@@ -235,6 +237,7 @@ const FEATURE_CATEGORIES: FeatureCategory[] = [
           { feature: FeatureGroup.FIREWALL_POLICIES },
           { feature: FeatureGroup.FIREWALL_GROUPS },
           { feature: FeatureGroup.FIREWALL_ZONES },
+          { feature: FeatureGroup.FIREWALL_GLOBAL_OPTIONS },
         ],
       },
       {

@@ -31,6 +31,7 @@ from routers.as_path_list import as_path_list
 from routers.community_list import community_list
 from routers.extcommunity_list import extcommunity_list
 from routers.large_community_list import large_community_list
+from routers.firewall_global_options import firewall_global_options
 from routers import system
 from routers import power as power_router
 from routers.config import config as config_router
@@ -240,6 +241,7 @@ app.include_router(as_path_list.router)
 app.include_router(community_list.router)
 app.include_router(extcommunity_list.router)
 app.include_router(large_community_list.router)
+app.include_router(firewall_global_options.router)
 app.include_router(system.router)
 app.include_router(power_router.router)
 app.include_router(config_router.router)
@@ -267,6 +269,7 @@ async def read_root() -> dict:
             "firewall-groups",
             "firewall-ipv4",
             "firewall-ipv6",
+            "firewall-global-options",
             "nat",
             "dhcp-server",
             "static-routes",
