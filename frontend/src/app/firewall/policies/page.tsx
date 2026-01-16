@@ -17,6 +17,13 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Plus,
   Search,
   RefreshCw,
@@ -77,6 +84,9 @@ export default function FirewallPoliciesPage() {
   const [deletingRule, setDeletingRule] = useState<FirewallRule | null>(null);
   const [createChainModalOpen, setCreateChainModalOpen] = useState(false);
   const [deletingChain, setDeletingChain] = useState<CustomChain | null>(null);
+
+  // Default action change state
+  const [savingDefaultAction, setSavingDefaultAction] = useState(false);
 
   // IPv4 Drag and drop states
   const [reorderedRules, setReorderedRules] = useState<FirewallRule[]>([]);
@@ -172,6 +182,71 @@ export default function FirewallPoliciesPage() {
     } catch (err) {
       console.error("Error fetching firewall groups:", err);
     }
+  };
+
+  // Handler for changing default action on base chains
+  const handleDefaultActionChange = async (
+    chain: string,
+    action: string,
+    isCustom: boolean,
+    protocol: "ipv4" | "ipv6"
+  ) => {
+    setSavingDefaultAction(true);
+    try {
+      if (protocol === "ipv4") {
+        if (isCustom) {
+          await firewallIPv4Service.setCustomChainDefaultAction(chain, action);
+        } else {
+          await firewallIPv4Service.setBaseChainDefaultAction(chain, action);
+        }
+        await fetchConfig(true);
+      } else {
+        if (isCustom) {
+          await firewallIPv6Service.setCustomChainDefaultAction(chain, action);
+        } else {
+          await firewallIPv6Service.setBaseChainDefaultAction(chain, action);
+        }
+        await fetchConfigIPv6(true);
+      }
+    } catch (err) {
+      console.error("Error changing default action:", err);
+      setError(err instanceof Error ? err.message : "Failed to change default action");
+    } finally {
+      setSavingDefaultAction(false);
+    }
+  };
+
+  // Helper to get default action for a chain
+  const getDefaultAction = (chain: string, isCustom: boolean, protocol: "ipv4" | "ipv6"): string | null => {
+    if (protocol === "ipv4") {
+      if (isCustom) {
+        const customChain = customChains.find((c) => c.name === chain);
+        return customChain?.default_action || null;
+      } else {
+        if (chain === "forward") return config?.forward?.default_action || null;
+        if (chain === "input") return config?.input?.default_action || null;
+        if (chain === "output") return config?.output?.default_action || null;
+      }
+    } else {
+      if (isCustom) {
+        const customChain = customChainsIPv6.find((c) => c.name === chain);
+        return customChain?.default_action || null;
+      } else {
+        if (chain === "forward") return configIPv6?.forward?.default_action || null;
+        if (chain === "input") return configIPv6?.input?.default_action || null;
+        if (chain === "output") return configIPv6?.output?.default_action || null;
+      }
+    }
+    return null;
+  };
+
+  // Helper to get colored class for default action badge (matches table row styling)
+  const getDefaultActionBadgeClass = (action: string | null): string => {
+    if (!action) return "";
+    if (action === "accept") return "bg-green-500/10 text-green-500 border-green-500/20";
+    if (action === "drop") return "bg-red-500/10 text-red-500 border-red-500/20";
+    if (action === "reject") return "bg-orange-500/10 text-orange-500 border-orange-500/20";
+    return "";
   };
 
   useEffect(() => {
@@ -490,9 +565,19 @@ export default function FirewallPoliciesPage() {
                       )}
                     >
                       <span className="font-medium">Forward</span>
-                      <Badge variant="secondary" className="ml-2">
-                        {forwardRules.length}
-                      </Badge>
+                      <div className="flex items-center gap-1.5">
+                        {getDefaultAction("forward", false, "ipv4") && (
+                          <Badge
+                            variant="outline"
+                            className={cn("uppercase text-xs", getDefaultActionBadgeClass(getDefaultAction("forward", false, "ipv4")))}
+                          >
+                            {getDefaultAction("forward", false, "ipv4")}
+                          </Badge>
+                        )}
+                        <Badge variant="secondary">
+                          {forwardRules.length}
+                        </Badge>
+                      </div>
                     </button>
 
                     <button
@@ -505,9 +590,19 @@ export default function FirewallPoliciesPage() {
                       )}
                     >
                       <span className="font-medium">Input</span>
-                      <Badge variant="secondary" className="ml-2">
-                        {inputRules.length}
-                      </Badge>
+                      <div className="flex items-center gap-1.5">
+                        {getDefaultAction("input", false, "ipv4") && (
+                          <Badge
+                            variant="outline"
+                            className={cn("uppercase text-xs", getDefaultActionBadgeClass(getDefaultAction("input", false, "ipv4")))}
+                          >
+                            {getDefaultAction("input", false, "ipv4")}
+                          </Badge>
+                        )}
+                        <Badge variant="secondary">
+                          {inputRules.length}
+                        </Badge>
+                      </div>
                     </button>
 
                     <button
@@ -520,9 +615,19 @@ export default function FirewallPoliciesPage() {
                       )}
                     >
                       <span className="font-medium">Output</span>
-                      <Badge variant="secondary" className="ml-2">
-                        {outputRules.length}
-                      </Badge>
+                      <div className="flex items-center gap-1.5">
+                        {getDefaultAction("output", false, "ipv4") && (
+                          <Badge
+                            variant="outline"
+                            className={cn("uppercase text-xs", getDefaultActionBadgeClass(getDefaultAction("output", false, "ipv4")))}
+                          >
+                            {getDefaultAction("output", false, "ipv4")}
+                          </Badge>
+                        )}
+                        <Badge variant="secondary">
+                          {outputRules.length}
+                        </Badge>
+                      </div>
                     </button>
 
                     <Separator className="my-4" />
@@ -561,32 +666,39 @@ export default function FirewallPoliciesPage() {
                                   : "hover:bg-accent/50"
                               )}
                             >
-                              <button
-                                onClick={() => handleChainSelect(chain.name, true)}
-                                className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-left pr-9"
-                              >
-                                <span className="font-medium text-foreground flex-1 truncate">
-                                  {chain.name}
-                                </span>
-                                <Badge
-                                  variant="secondary"
-                                  className="flex-shrink-0 group-hover:opacity-0 transition-opacity"
+                              <div className="w-full flex items-center gap-2 px-3 py-2.5 text-sm">
+                                <button
+                                  onClick={() => handleChainSelect(chain.name, true)}
+                                  className="flex-1 text-left truncate"
                                 >
-                                  {chain.rules.length}
-                                </Badge>
-                              </button>
-                              <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-7 w-7 hover:bg-destructive/10"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setDeletingChain(chain);
-                                  }}
-                                >
-                                  <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                                </Button>
+                                  <span className="font-medium text-foreground">
+                                    {chain.name}
+                                  </span>
+                                </button>
+                                <div className="flex items-center gap-1.5">
+                                  {getDefaultAction(chain.name, true, "ipv4") && (
+                                    <Badge
+                                      variant="outline"
+                                      className={cn("uppercase text-xs", getDefaultActionBadgeClass(getDefaultAction(chain.name, true, "ipv4")))}
+                                    >
+                                      {getDefaultAction(chain.name, true, "ipv4")}
+                                    </Badge>
+                                  )}
+                                  <Badge variant="secondary" className="flex-shrink-0">
+                                    {chain.rules.length}
+                                  </Badge>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6 hover:bg-destructive/10"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setDeletingChain(chain);
+                                    }}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                                  </Button>
+                                </div>
                               </div>
                             </div>
                           ))}
@@ -615,9 +727,19 @@ export default function FirewallPoliciesPage() {
                       )}
                     >
                       <span className="font-medium">Forward</span>
-                      <Badge variant="secondary" className="ml-2">
-                        {forwardRulesIPv6.length}
-                      </Badge>
+                      <div className="flex items-center gap-1.5">
+                        {getDefaultAction("forward", false, "ipv6") && (
+                          <Badge
+                            variant="outline"
+                            className={cn("uppercase text-xs", getDefaultActionBadgeClass(getDefaultAction("forward", false, "ipv6")))}
+                          >
+                            {getDefaultAction("forward", false, "ipv6")}
+                          </Badge>
+                        )}
+                        <Badge variant="secondary">
+                          {forwardRulesIPv6.length}
+                        </Badge>
+                      </div>
                     </button>
 
                     <button
@@ -630,9 +752,19 @@ export default function FirewallPoliciesPage() {
                       )}
                     >
                       <span className="font-medium">Input</span>
-                      <Badge variant="secondary" className="ml-2">
-                        {inputRulesIPv6.length}
-                      </Badge>
+                      <div className="flex items-center gap-1.5">
+                        {getDefaultAction("input", false, "ipv6") && (
+                          <Badge
+                            variant="outline"
+                            className={cn("uppercase text-xs", getDefaultActionBadgeClass(getDefaultAction("input", false, "ipv6")))}
+                          >
+                            {getDefaultAction("input", false, "ipv6")}
+                          </Badge>
+                        )}
+                        <Badge variant="secondary">
+                          {inputRulesIPv6.length}
+                        </Badge>
+                      </div>
                     </button>
 
                     <button
@@ -645,9 +777,19 @@ export default function FirewallPoliciesPage() {
                       )}
                     >
                       <span className="font-medium">Output</span>
-                      <Badge variant="secondary" className="ml-2">
-                        {outputRulesIPv6.length}
-                      </Badge>
+                      <div className="flex items-center gap-1.5">
+                        {getDefaultAction("output", false, "ipv6") && (
+                          <Badge
+                            variant="outline"
+                            className={cn("uppercase text-xs", getDefaultActionBadgeClass(getDefaultAction("output", false, "ipv6")))}
+                          >
+                            {getDefaultAction("output", false, "ipv6")}
+                          </Badge>
+                        )}
+                        <Badge variant="secondary">
+                          {outputRulesIPv6.length}
+                        </Badge>
+                      </div>
                     </button>
 
                     <Separator className="my-4" />
@@ -686,32 +828,39 @@ export default function FirewallPoliciesPage() {
                                   : "hover:bg-accent/50"
                               )}
                             >
-                              <button
-                                onClick={() => handleChainSelect(chain.name, true)}
-                                className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-left pr-9"
-                              >
-                                <span className="font-medium text-foreground flex-1 truncate">
-                                  {chain.name}
-                                </span>
-                                <Badge
-                                  variant="secondary"
-                                  className="flex-shrink-0 group-hover:opacity-0 transition-opacity"
+                              <div className="w-full flex items-center gap-2 px-3 py-2.5 text-sm">
+                                <button
+                                  onClick={() => handleChainSelect(chain.name, true)}
+                                  className="flex-1 text-left truncate"
                                 >
-                                  {chain.rules.length}
-                                </Badge>
-                              </button>
-                              <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-7 w-7 hover:bg-destructive/10"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setDeletingChain(chain);
-                                  }}
-                                >
-                                  <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                                </Button>
+                                  <span className="font-medium text-foreground">
+                                    {chain.name}
+                                  </span>
+                                </button>
+                                <div className="flex items-center gap-1.5">
+                                  {getDefaultAction(chain.name, true, "ipv6") && (
+                                    <Badge
+                                      variant="outline"
+                                      className={cn("uppercase text-xs", getDefaultActionBadgeClass(getDefaultAction(chain.name, true, "ipv6")))}
+                                    >
+                                      {getDefaultAction(chain.name, true, "ipv6")}
+                                    </Badge>
+                                  )}
+                                  <Badge variant="secondary" className="flex-shrink-0">
+                                    {chain.rules.length}
+                                  </Badge>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6 hover:bg-destructive/10"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setDeletingChain(chain);
+                                    }}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                                  </Button>
+                                </div>
                               </div>
                             </div>
                           ))}
@@ -765,7 +914,7 @@ export default function FirewallPoliciesPage() {
               </div>
             </div>
 
-            {/* Search */}
+            {/* Search and Default Action */}
             <div className="flex items-center gap-4 mt-4">
               <div className="relative flex-1 max-w-md">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -778,6 +927,32 @@ export default function FirewallPoliciesPage() {
               </div>
               <div className="text-sm text-muted-foreground">
                 {filteredRules.length} rule{filteredRules.length !== 1 ? "s" : ""}
+              </div>
+              <div className="flex items-center gap-2 ml-auto">
+                <span className="text-sm text-muted-foreground">Default Action:</span>
+                <Select
+                  value={getDefaultAction(
+                    selectedProtocol === "ipv4" ? selectedChain : selectedChainIPv6,
+                    selectedProtocol === "ipv4" ? isCustomChain : isCustomChainIPv6,
+                    selectedProtocol
+                  ) || ""}
+                  onValueChange={(v) => handleDefaultActionChange(
+                    selectedProtocol === "ipv4" ? selectedChain : selectedChainIPv6,
+                    v,
+                    selectedProtocol === "ipv4" ? isCustomChain : isCustomChainIPv6,
+                    selectedProtocol
+                  )}
+                  disabled={savingDefaultAction}
+                >
+                  <SelectTrigger className="w-[100px]">
+                    <SelectValue placeholder="Not Set" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="accept">accept</SelectItem>
+                    <SelectItem value="drop">drop</SelectItem>
+                    <SelectItem value="reject">reject</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>
