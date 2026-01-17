@@ -390,7 +390,6 @@ async def get_dhcp_config(http_request: Request, refresh: bool = False):
                                     DHCPStaticMapping(
                                         name=mapping_name,
                                         ip_address=mapping_data.get("ip-address"),
-                                        # VyOS returns "mac" in JSON, not "mac-address"
                                         mac_address=mapping_data.get("mac"),
                                         disable="disable" in mapping_data,
                                     )
