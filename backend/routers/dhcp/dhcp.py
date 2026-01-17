@@ -390,7 +390,8 @@ async def get_dhcp_config(http_request: Request, refresh: bool = False):
                                     DHCPStaticMapping(
                                         name=mapping_name,
                                         ip_address=mapping_data.get("ip-address"),
-                                        mac_address=mapping_data.get("mac-address"),
+                                        # VyOS returns "mac" in JSON, not "mac-address"
+                                        mac_address=mapping_data.get("mac"),
                                         disable="disable" in mapping_data,
                                     )
                                 )
@@ -554,8 +555,13 @@ async def get_dhcp_leases(request: Request):
         if response.status != 200 or not response.result:
             return DHCPLeasesResponse(leases=[], total=0)
 
-        # Parse the output - it comes as a string table
-        output = response.result
+        # Parse the output - it can be a dict with "data" key or a string directly
+        output = ""
+        if isinstance(response.result, dict) and "data" in response.result:
+            output = response.result["data"]
+        elif isinstance(response.result, str):
+            output = response.result
+
         if not output:
             return DHCPLeasesResponse(leases=[], total=0)
 
@@ -572,7 +578,7 @@ async def get_dhcp_leases(request: Request):
 
         # Parse each lease line
         for line in data_lines:
-            # Split by multiple spaces to handle the tabular format
+            # Split by whitespace to handle the tabular format
             parts = line.split()
             if len(parts) < 9:  # Minimum expected fields
                 continue
