@@ -1577,11 +1577,7 @@ async def revoke_auth_session(request: Request, body: RevokeSessionRequest):
     user_id = user["id"]
 
     # Get current session token to prevent self-logout
-    # Support both secure (__Secure- prefix) and non-secure cookie names
-    cookie_token = (
-        request.cookies.get("__Secure-better-auth.session_token") or
-        request.cookies.get("better-auth.session_token")
-    )
+    cookie_token = request.cookies.get("better-auth.session_token")
 
     # Extract session ID from compound token (format: {session_id}.{signature})
     current_token = cookie_token.split(".")[0] if cookie_token else None
