@@ -294,18 +294,20 @@ class DHCPMapper(BaseFeatureMapper):
         self, network_name: str, subnet: str, mapping_name: str, mac_address: str
     ) -> List[str]:
         """Get command path for static mapping MAC address."""
+        # VyOS uses 'mac' not 'mac-address' for static mappings
         return [
             "service", "dhcp-server", "shared-network-name", network_name,
-            "subnet", subnet, "static-mapping", mapping_name, "mac-address", mac_address
+            "subnet", subnet, "static-mapping", mapping_name, "mac", mac_address
         ]
 
     def get_static_mapping_mac_address_path(
         self, network_name: str, subnet: str, mapping_name: str
     ) -> List[str]:
         """Get command path for static mapping MAC address deletion."""
+        # VyOS uses 'mac' not 'mac-address' for static mappings
         return [
             "service", "dhcp-server", "shared-network-name", network_name,
-            "subnet", subnet, "static-mapping", mapping_name, "mac-address"
+            "subnet", subnet, "static-mapping", mapping_name, "mac"
         ]
 
     def get_static_mapping_disable(

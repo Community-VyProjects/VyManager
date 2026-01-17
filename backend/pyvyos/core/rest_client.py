@@ -368,7 +368,19 @@ class RestClient(ABC):
         except HTTPError as exc:
             response = exc.response
             status = response.status_code if response is not None and isinstance(response, Response) else 500
-            error = f"HTTP Error {status}: {response.text[:200] if response else 'Unknown error'}"
+            # Try to parse JSON error response from VyOS
+            error_msg = "Unknown error"
+            if response is not None:
+                try:
+                    error_json = response.json()
+                    if isinstance(error_json, dict) and "error" in error_json:
+                        error_msg = error_json["error"]
+                    elif response.text:
+                        error_msg = response.text[:200]
+                except:
+                    if response.text:
+                        error_msg = response.text[:200]
+            error = f"HTTP Error {status}: {error_msg}"
 
         except ValueError as exc:
             error = f"Validation Error: {str(exc)}"

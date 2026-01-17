@@ -1,4 +1,5 @@
 import { apiClient } from "./client";
+import { VyOSResponse } from "../types/api";
 
 // ============================================================================
 // TypeScript Interfaces
@@ -238,14 +239,14 @@ class DHCPService {
   /**
    * Refresh the cached configuration from VyOS device
    */
-  async refreshConfig(): Promise<any> {
+  async refreshConfig(): Promise<VyOSResponse> {
     return apiClient.post("/vyos/config/refresh");
   }
 
   /**
    * Execute batch DHCP operations
    */
-  async batchConfigure(request: DHCPBatchRequest): Promise<any> {
+  async batchConfigure(request: DHCPBatchRequest): Promise<VyOSResponse> {
     const result = await apiClient.post("/vyos/dhcp/batch", request);
     // Refresh config cache after successful commit
     await this.refreshConfig();
@@ -255,7 +256,7 @@ class DHCPService {
   /**
    * Create a new DHCP subnet with all required settings
    */
-  async createSubnet(config: CreateSubnetConfig): Promise<any> {
+  async createSubnet(config: CreateSubnetConfig): Promise<VyOSResponse> {
     const operations: DHCPBatchOperation[] = [];
 
     // Create shared network if it doesn't exist (idempotent operation)
@@ -384,7 +385,7 @@ class DHCPService {
   /**
    * Update an existing DHCP subnet
    */
-  async updateSubnet(config: UpdateSubnetConfig): Promise<any> {
+  async updateSubnet(config: UpdateSubnetConfig): Promise<VyOSResponse> {
     const operations: DHCPBatchOperation[] = [];
 
     // First, fetch current config to know what needs to be deleted
@@ -605,7 +606,7 @@ class DHCPService {
   /**
    * Delete a DHCP subnet
    */
-  async deleteSubnet(network_name: string, subnet: string): Promise<any> {
+  async deleteSubnet(network_name: string, subnet: string): Promise<VyOSResponse> {
     const operations: DHCPBatchOperation[] = [{ op: "delete_subnet" }];
 
     return this.batchConfigure({
@@ -618,7 +619,7 @@ class DHCPService {
   /**
    * Delete a shared network (and all its subnets)
    */
-  async deleteSharedNetwork(network_name: string): Promise<any> {
+  async deleteSharedNetwork(network_name: string): Promise<VyOSResponse> {
     // First, get current config to know what subnets exist
     const config = await this.getConfig();
     const network = config.shared_networks.find(n => n.name === network_name);
@@ -642,7 +643,51 @@ class DHCPService {
   }
 
   /**
+   * Create a DHCP range
+   */
+  async createRange(
+    network_name: string,
+    subnet: string,
+    range_id: string,
+    start: string,
+    stop: string
+  ): Promise<VyOSResponse> {
+    const operations: DHCPBatchOperation[] = [
+      { op: "set_subnet_range", value: range_id },
+      { op: "set_subnet_range_start", value: `${range_id}|${start}` },
+      { op: "set_subnet_range_stop", value: `${range_id}|${stop}` },
+    ];
+
+    return this.batchConfigure({
+      network_name,
+      subnet,
+      operations,
+    });
+  }
+
+  /**
+   * Delete a DHCP range
+   */
+  async deleteRange(
+    network_name: string,
+    subnet: string,
+    range_id: string
+  ): Promise<VyOSResponse> {
+    const operations: DHCPBatchOperation[] = [
+      { op: "delete_subnet_range", value: range_id },
+    ];
+
+    return this.batchConfigure({
+      network_name,
+      subnet,
+      operations,
+    });
+  }
+
+  /**
    * Create a static mapping
+   * Note: We only set ip-address and mac-address, as VyOS implicitly creates
+   * the static-mapping node when setting child properties.
    */
   async createStaticMapping(
     network_name: string,
@@ -650,9 +695,8 @@ class DHCPService {
     mapping_name: string,
     ip_address: string,
     mac_address: string
-  ): Promise<any> {
+  ): Promise<VyOSResponse> {
     const operations: DHCPBatchOperation[] = [
-      { op: "set_static_mapping", value: mapping_name },
       {
         op: "set_static_mapping_ip_address",
         value: `${mapping_name}|${ip_address}`,
@@ -671,13 +715,76 @@ class DHCPService {
   }
 
   /**
+   * Update a static mapping
+   */
+  async updateStaticMapping(
+    network_name: string,
+    subnet: string,
+    mapping_name: string,
+    config: {
+      ip_address?: string;
+      mac_address?: string;
+      disable?: boolean;
+      delete_ip_address?: boolean;
+      delete_mac_address?: boolean;
+    }
+  ): Promise<VyOSResponse> {
+    const operations: DHCPBatchOperation[] = [];
+
+    // Handle IP address
+    if (config.delete_ip_address) {
+      operations.push({
+        op: "delete_static_mapping_ip_address",
+        value: mapping_name,
+      });
+    } else if (config.ip_address) {
+      operations.push({
+        op: "set_static_mapping_ip_address",
+        value: `${mapping_name}|${config.ip_address}`,
+      });
+    }
+
+    // Handle MAC address
+    if (config.delete_mac_address) {
+      operations.push({
+        op: "delete_static_mapping_mac_address",
+        value: mapping_name,
+      });
+    } else if (config.mac_address) {
+      operations.push({
+        op: "set_static_mapping_mac_address",
+        value: `${mapping_name}|${config.mac_address}`,
+      });
+    }
+
+    // Handle disable state
+    if (config.disable === true) {
+      operations.push({
+        op: "set_static_mapping_disable",
+        value: mapping_name,
+      });
+    } else if (config.disable === false) {
+      operations.push({
+        op: "delete_static_mapping_disable",
+        value: mapping_name,
+      });
+    }
+
+    return this.batchConfigure({
+      network_name,
+      subnet,
+      operations,
+    });
+  }
+
+  /**
    * Delete a static mapping
    */
   async deleteStaticMapping(
     network_name: string,
     subnet: string,
     mapping_name: string
-  ): Promise<any> {
+  ): Promise<VyOSResponse> {
     const operations: DHCPBatchOperation[] = [
       { op: "delete_static_mapping", value: mapping_name },
     ];
