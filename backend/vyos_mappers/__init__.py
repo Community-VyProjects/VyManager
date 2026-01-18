@@ -31,6 +31,8 @@ from .route.route_versions import get_route_mapper
 from .as_path_list import AsPathListMapper
 from .firewall_global_options import FirewallGlobalOptionsMapper
 from .firewall_global_options.firewall_global_options_versions import get_firewall_global_options_mapper
+from .wireguard import WireGuardMapper
+from .wireguard.wireguard_versions import get_wireguard_mapper
 
 # Auto-register all mappers
 # Ethernet uses factory for version-specific mappers
@@ -63,6 +65,8 @@ CommandMapperRegistry.register_feature("route", get_route_mapper)
 CommandMapperRegistry.register_feature("as_path_list", AsPathListMapper)
 # Firewall Global Options uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("firewall_global_options", get_firewall_global_options_mapper)
+# WireGuard uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("wireguard", get_wireguard_mapper)
 
 __all__ = [
     "BaseFeatureMapper",
@@ -82,4 +86,5 @@ __all__ = [
     "RouteMapper",
     "AsPathListMapper",
     "FirewallGlobalOptionsMapper",
+    "WireGuardMapper",
 ]
