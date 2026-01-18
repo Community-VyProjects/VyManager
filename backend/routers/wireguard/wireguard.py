@@ -14,6 +14,8 @@ from typing import List, Dict, Optional, Any
 from vyos_service import VyOSService, VyOSDeviceConfig
 from vyos_builders import WireGuardBatchBuilder
 from vyos_mappers.wireguard import WireGuardMapper
+from fastapi_permissions import require_read_permission, require_write_permission
+from rbac_permissions import FeatureGroup
 import asyncpg
 import inspect
 import re
@@ -120,6 +122,7 @@ async def get_wireguard_capabilities(request: Request):
 
     Returns feature flags indicating which operations are supported.
     """
+    await require_read_permission(request, FeatureGroup.WIREGUARD)
     try:
         service = await get_user_vyos_service(request)
         version = service.get_version()
@@ -150,6 +153,7 @@ async def get_wireguard_config(request: Request, refresh: bool = False):
     Returns:
         Generalized WireGuard configuration data
     """
+    await require_read_permission(request, FeatureGroup.WIREGUARD)
     try:
         service = await get_user_vyos_service(request)
         version = service.get_version()
@@ -213,6 +217,7 @@ async def wireguard_interface_batch(request: Request, body: WireGuardInterfaceBa
 
     Allows multiple changes in a single VyOS commit for efficiency.
     """
+    await require_write_permission(request, FeatureGroup.WIREGUARD)
     try:
         service = await get_user_vyos_service(request)
         version = service.get_version()
@@ -266,6 +271,7 @@ async def wireguard_peer_batch(request: Request, body: WireGuardPeerBatchRequest
 
     Allows multiple changes in a single VyOS commit for efficiency.
     """
+    await require_write_permission(request, FeatureGroup.WIREGUARD)
     try:
         service = await get_user_vyos_service(request)
         version = service.get_version()
@@ -321,6 +327,7 @@ async def generate_keypair(request: Request):
 
     Returns the private and public keys for manual use.
     """
+    await require_write_permission(request, FeatureGroup.WIREGUARD)
     try:
         service = await get_user_vyos_service(request)
 
@@ -374,6 +381,7 @@ async def generate_psk(request: Request):
 
     Returns the PSK for manual use.
     """
+    await require_write_permission(request, FeatureGroup.WIREGUARD)
     try:
         service = await get_user_vyos_service(request)
 
@@ -415,6 +423,7 @@ async def get_interface_status(request: Request, interface_name: str):
     Uses VyOS show command: show interfaces wireguard <interface> summary
     Returns connection status for each peer based on latest handshake time.
     """
+    await require_read_permission(request, FeatureGroup.WIREGUARD)
     try:
         service = await get_user_vyos_service(request)
 
@@ -538,6 +547,7 @@ async def get_interface_public_key(request: Request, interface_name: str):
     Uses VyOS show command to get interface summary which includes the public key.
     Command: show interfaces wireguard <interface> summary
     """
+    await require_read_permission(request, FeatureGroup.WIREGUARD)
     try:
         service = await get_user_vyos_service(request)
 
