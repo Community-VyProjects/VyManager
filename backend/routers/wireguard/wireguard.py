@@ -174,6 +174,9 @@ async def get_wireguard_config(request: Request, refresh: bool = False):
                     "address": peer_data.get("address"),
                     "port": peer_data.get("port"),
                     "persistent_keepalive": peer_data.get("persistent_keepalive"),
+                    "description": peer_data.get("description"),
+                    "disabled": peer_data.get("disabled", False),
+                    "host_name": peer_data.get("host_name"),
                 })
 
             interfaces.append({
@@ -392,6 +395,201 @@ async def generate_psk(request: Request):
             success=True,
             data={
                 "preshared_key": preshared_key,
+            }
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ========================================================================
+# Endpoint 7: Get Interface Public Key
+# ========================================================================
+
+@router.get("/interface/{interface_name}/status")
+async def get_interface_status(request: Request, interface_name: str):
+    """
+    Get runtime status for a WireGuard interface including peer handshake times and transfer stats.
+
+    Uses VyOS show command: show interfaces wireguard <interface> summary
+    Returns connection status for each peer based on latest handshake time.
+    """
+    try:
+        service = await get_user_vyos_service(request)
+
+        # Use VyOS show command to get WireGuard interface summary
+        # Command: show interfaces wireguard <interface> summary
+        response = service.device.show(
+            path=["interfaces", "wireguard", interface_name, "summary"]
+        )
+
+        if response.status != 200:
+            return VyOSResponse(
+                success=False,
+                error=response.error or f"Failed to get interface {interface_name} status"
+            )
+
+        output = response.result if hasattr(response, 'result') else str(response)
+
+        # Parse the output to extract peer status information
+        peers_status = {}
+        current_peer = None
+
+        if isinstance(output, str):
+            lines = output.strip().split('\n')
+            for line in lines:
+                line_stripped = line.strip()
+
+                # Detect peer section (public key line)
+                if line_stripped.startswith('peer:'):
+                    current_peer = line_stripped.split(':', 1)[1].strip()
+                    peers_status[current_peer] = {
+                        "public_key": current_peer,
+                        "latest_handshake": None,
+                        "latest_handshake_seconds": None,
+                        "transfer_rx": None,
+                        "transfer_tx": None,
+                        "endpoint": None,
+                    }
+
+                elif current_peer:
+                    # Parse peer details
+                    if 'latest handshake:' in line_stripped.lower():
+                        handshake_str = line_stripped.split(':', 1)[1].strip()
+                        peers_status[current_peer]["latest_handshake"] = handshake_str
+                        # Convert to seconds for comparison
+                        seconds = _parse_handshake_time(handshake_str)
+                        peers_status[current_peer]["latest_handshake_seconds"] = seconds
+
+                    elif 'transfer:' in line_stripped.lower():
+                        transfer_str = line_stripped.split(':', 1)[1].strip()
+                        peers_status[current_peer]["transfer"] = transfer_str
+                        # Parse rx/tx
+                        if 'received' in transfer_str and 'sent' in transfer_str:
+                            parts = transfer_str.split(',')
+                            for part in parts:
+                                part = part.strip()
+                                if 'received' in part:
+                                    peers_status[current_peer]["transfer_rx"] = part.replace('received', '').strip()
+                                elif 'sent' in part:
+                                    peers_status[current_peer]["transfer_tx"] = part.replace('sent', '').strip()
+
+                    elif 'endpoint:' in line_stripped.lower():
+                        endpoint_str = line_stripped.split(':', 1)[1].strip()
+                        peers_status[current_peer]["endpoint"] = endpoint_str
+
+        return VyOSResponse(
+            success=True,
+            data={
+                "interface": interface_name,
+                "peers": peers_status,
+                "raw_output": output,
+            }
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+def _parse_handshake_time(handshake_str: str) -> int | None:
+    """
+    Parse WireGuard handshake time string to seconds.
+
+    Examples:
+        "1 minute, 32 seconds ago" -> 92
+        "2 hours, 15 minutes, 30 seconds ago" -> 8130
+        "45 seconds ago" -> 45
+        "(none)" -> None
+    """
+    if not handshake_str or handshake_str.lower() in ['(none)', 'none', '-']:
+        return None
+
+    total_seconds = 0
+    handshake_str = handshake_str.lower().replace(' ago', '').strip()
+
+    # Parse hours
+    if 'hour' in handshake_str:
+        match = re.search(r'(\d+)\s*hour', handshake_str)
+        if match:
+            total_seconds += int(match.group(1)) * 3600
+
+    # Parse minutes
+    if 'minute' in handshake_str:
+        match = re.search(r'(\d+)\s*minute', handshake_str)
+        if match:
+            total_seconds += int(match.group(1)) * 60
+
+    # Parse seconds
+    if 'second' in handshake_str:
+        match = re.search(r'(\d+)\s*second', handshake_str)
+        if match:
+            total_seconds += int(match.group(1))
+
+    return total_seconds if total_seconds > 0 else None
+
+
+@router.get("/interface/{interface_name}/public-key")
+async def get_interface_public_key(request: Request, interface_name: str):
+    """
+    Get the public key for a WireGuard interface.
+
+    Uses VyOS show command to get interface summary which includes the public key.
+    Command: show interfaces wireguard <interface> summary
+    """
+    try:
+        service = await get_user_vyos_service(request)
+
+        # Use VyOS show command to get WireGuard interface summary
+        # This returns the public key along with other interface info
+        response = service.device.show(
+            path=["interfaces", "wireguard", interface_name, "summary"]
+        )
+
+        if response.status != 200:
+            return VyOSResponse(
+                success=False,
+                error=response.error or f"Failed to get interface {interface_name} summary"
+            )
+
+        output = response.result if hasattr(response, 'result') else str(response)
+
+        # Parse the output to extract public key
+        # The output format is like:
+        # interface: wg0
+        #   public key: QjGgy1nhsb1oA5CMHyhPOtGyXp9Sa24Yn2xBcrF+aQY=
+        #   private key: (hidden)
+        #   listening port: 51820
+        public_key = None
+
+        if isinstance(output, str):
+            lines = output.strip().split('\n')
+            for line in lines:
+                line_stripped = line.strip()
+                line_lower = line_stripped.lower()
+                if 'public key' in line_lower and ':' in line_stripped:
+                    # Extract the key after the colon
+                    parts = line_stripped.split(':', 1)
+                    if len(parts) >= 2:
+                        key_candidate = parts[1].strip()
+                        # Validate it looks like a WireGuard key (base64, 44 chars)
+                        if re.match(r'^[A-Za-z0-9+/=]{43,44}$', key_candidate):
+                            public_key = key_candidate
+                            break
+
+        if not public_key:
+            return VyOSResponse(
+                success=False,
+                error="Could not extract public key from interface summary",
+                data={"raw_output": output}
+            )
+
+        return VyOSResponse(
+            success=True,
+            data={
+                "interface": interface_name,
+                "public_key": public_key,
             }
         )
     except HTTPException:

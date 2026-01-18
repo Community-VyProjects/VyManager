@@ -20,7 +20,9 @@ import {
   Eye,
   EyeOff,
   Sparkles,
+  Ban,
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { wireguardService, WireGuardInterface } from "@/lib/api/wireguard";
 
 interface CreatePeerModalProps {
@@ -44,6 +46,9 @@ export function CreatePeerModal({
   const [address, setAddress] = useState("");
   const [port, setPort] = useState("");
   const [persistentKeepalive, setPersistentKeepalive] = useState("");
+  const [description, setDescription] = useState("");
+  const [disabled, setDisabled] = useState(false);
+  const [hostName, setHostName] = useState("");
 
   // UI state
   const [loading, setLoading] = useState(false);
@@ -76,6 +81,9 @@ export function CreatePeerModal({
     setAddress("");
     setPort("");
     setPersistentKeepalive("");
+    setDescription("");
+    setDisabled(false);
+    setHostName("");
     setError(null);
     setShowPresharedKey(false);
   };
@@ -121,7 +129,18 @@ export function CreatePeerModal({
     setError(null);
 
     try {
-      const config: any = {
+      const config: {
+        name: string;
+        public_key: string;
+        allowed_ips: string[];
+        preshared_key?: string;
+        address?: string;
+        port?: string;
+        persistent_keepalive?: string;
+        description?: string;
+        disabled?: boolean;
+        host_name?: string;
+      } = {
         name: name.trim(),
         public_key: publicKey.trim(),
         allowed_ips: allowedIps
@@ -144,6 +163,18 @@ export function CreatePeerModal({
 
       if (persistentKeepalive.trim()) {
         config.persistent_keepalive = persistentKeepalive.trim();
+      }
+
+      if (description.trim()) {
+        config.description = description.trim();
+      }
+
+      if (disabled) {
+        config.disabled = true;
+      }
+
+      if (hostName.trim()) {
+        config.host_name = hostName.trim();
       }
 
       const result = await wireguardService.createPeer(
@@ -197,6 +228,20 @@ export function CreatePeerModal({
               />
               <p className="text-xs text-muted-foreground">
                 A friendly name to identify this peer (no spaces).
+              </p>
+            </div>
+
+            {/* Description */}
+            <div className="space-y-2">
+              <Label htmlFor="peer-description">Description (optional)</Label>
+              <Input
+                id="peer-description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="John's laptop for remote work"
+              />
+              <p className="text-xs text-muted-foreground">
+                A description to help identify this peer.
               </p>
             </div>
 
@@ -287,17 +332,31 @@ export function CreatePeerModal({
               </p>
             </div>
 
-            {/* Endpoint Address */}
+            {/* Endpoint Address (IP) */}
             <div className="space-y-2">
-              <Label htmlFor="peer-address">Endpoint Address</Label>
+              <Label htmlFor="peer-address">Endpoint IP Address</Label>
               <Input
                 id="peer-address"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
-                placeholder="vpn.example.com or 203.0.113.1"
+                placeholder="203.0.113.1"
               />
               <p className="text-xs text-muted-foreground">
-                IP address or hostname of the remote peer.
+                IP address of the remote peer. Use this OR hostname below.
+              </p>
+            </div>
+
+            {/* Endpoint Hostname */}
+            <div className="space-y-2">
+              <Label htmlFor="peer-hostname">Endpoint Hostname</Label>
+              <Input
+                id="peer-hostname"
+                value={hostName}
+                onChange={(e) => setHostName(e.target.value)}
+                placeholder="vpn.example.com"
+              />
+              <p className="text-xs text-muted-foreground">
+                Hostname of the remote peer. Use this OR IP address above.
               </p>
             </div>
 
@@ -330,6 +389,24 @@ export function CreatePeerModal({
                 Send keepalive packets every N seconds. Useful for NAT traversal
                 (typically 25 seconds).
               </p>
+            </div>
+
+            {/* Disable Peer */}
+            <div className="flex items-center space-x-3 pt-2">
+              <Checkbox
+                id="peer-disabled"
+                checked={disabled}
+                onCheckedChange={(checked) => setDisabled(checked === true)}
+              />
+              <div className="space-y-0.5">
+                <Label htmlFor="peer-disabled" className="flex items-center gap-2 cursor-pointer">
+                  <Ban className="h-4 w-4 text-muted-foreground" />
+                  Disable Peer
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Create the peer in a disabled state.
+                </p>
+              </div>
             </div>
           </TabsContent>
         </Tabs>

@@ -86,17 +86,18 @@ const AlertDialogTitle = React.forwardRef<
 AlertDialogTitle.displayName = AlertDialogPrimitive.Title.displayName
 
 const AlertDialogDescription = React.forwardRef<
-  React.ElementRef<typeof AlertDialogPrimitive.Description>,
-  React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Description>
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => (
-  <AlertDialogPrimitive.Description
-    ref={ref}
-    className={cn("text-sm text-muted-foreground", className)}
-    {...props}
-  />
+  <AlertDialogPrimitive.Description asChild>
+    <div
+      ref={ref}
+      className={cn("text-sm text-muted-foreground", className)}
+      {...props}
+    />
+  </AlertDialogPrimitive.Description>
 ))
-AlertDialogDescription.displayName =
-  AlertDialogPrimitive.Description.displayName
+AlertDialogDescription.displayName = "AlertDialogDescription"
 
 const AlertDialogAction = React.forwardRef<
   React.ElementRef<typeof AlertDialogPrimitive.Action>,

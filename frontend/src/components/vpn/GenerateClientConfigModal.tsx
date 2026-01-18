@@ -22,6 +22,7 @@ import {
   Sparkles,
   Eye,
   EyeOff,
+  Key,
 } from "lucide-react";
 import { wireguardService, WireGuardInterface } from "@/lib/api/wireguard";
 
@@ -44,6 +45,10 @@ export function GenerateClientConfigModal({
   const [clientAddress, setClientAddress] = useState("");
   const [clientPrivateKey, setClientPrivateKey] = useState("");
   const [clientPublicKey, setClientPublicKey] = useState("");
+
+  // Server public key (fetched automatically)
+  const [serverPublicKey, setServerPublicKey] = useState<string | null>(null);
+  const [loadingServerKey, setLoadingServerKey] = useState(false);
 
   // Result state
   const [config, setConfig] = useState<string | null>(null);
@@ -75,6 +80,25 @@ export function GenerateClientConfigModal({
     }
   }, [interfaceData, open]);
 
+  // Fetch server public key when modal opens
+  useEffect(() => {
+    const fetchServerPublicKey = async () => {
+      if (!interfaceData || !open) return;
+
+      setLoadingServerKey(true);
+      try {
+        const result = await wireguardService.getInterfacePublicKey(interfaceData.name);
+        setServerPublicKey(result?.public_key || null);
+      } catch {
+        setServerPublicKey(null);
+      } finally {
+        setLoadingServerKey(false);
+      }
+    };
+
+    fetchServerPublicKey();
+  }, [interfaceData, open]);
+
   // Generate client keypair
   const handleGenerateClientKey = async () => {
     setGenerating(true);
@@ -101,6 +125,7 @@ export function GenerateClientConfigModal({
     setClientAddress("");
     setClientPrivateKey("");
     setClientPublicKey("");
+    setServerPublicKey(null);
     setConfig(null);
     setQrDataUrl(null);
     setError(null);
@@ -130,6 +155,9 @@ export function GenerateClientConfigModal({
     }
     if (!clientPublicKey.trim()) {
       return "Client public key is required. Generate a keypair first.";
+    }
+    if (!serverPublicKey) {
+      return "Server public key not available. Ensure the interface has a private key configured.";
     }
     return null;
   };
@@ -176,15 +204,9 @@ PersistentKeepalive = 25`;
         throw new Error(peerResult.error || "Failed to create peer on server");
       }
 
-      // Step 2: Get the server's public key (we need to fetch fresh config)
-      // For now, we'll show a note that user needs to get it
-      // In a real implementation, you'd fetch the interface's public key
-
-      // Build client config
-      // Note: We don't have the server's public key easily accessible
-      // The user will need to fill this in or we need another endpoint
-      const serverPublicKey = "[SERVER_PUBLIC_KEY - Get from interface details]";
-      const clientConfig = buildClientConfig(serverPublicKey);
+      // Build client config with the server's public key
+      // Note: serverPublicKey was already validated in validateForm()
+      const clientConfig = buildClientConfig(serverPublicKey!);
 
       setConfig(clientConfig);
 
@@ -206,9 +228,27 @@ PersistentKeepalive = 25`;
   // Copy config to clipboard
   const handleCopy = async () => {
     if (config) {
-      await navigator.clipboard.writeText(config);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(config);
+        } else {
+          // Fallback for non-HTTPS or older browsers
+          const textArea = document.createElement("textarea");
+          textArea.value = config;
+          textArea.style.position = "fixed";
+          textArea.style.left = "-999999px";
+          textArea.style.top = "-999999px";
+          document.body.appendChild(textArea);
+          textArea.focus();
+          textArea.select();
+          document.execCommand("copy");
+          document.body.removeChild(textArea);
+        }
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch (err) {
+        console.error("Failed to copy:", err);
+      }
     }
   };
 
@@ -336,6 +376,35 @@ PersistentKeepalive = 25`;
                 The IP address to assign to the client on the VPN.
               </p>
             </div>
+
+            {/* Server Public Key Status */}
+            <div className="rounded-lg border p-3 bg-muted/30">
+              <div className="flex items-center gap-2">
+                <Key className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">Server Public Key</span>
+                {loadingServerKey ? (
+                  <span className="text-xs text-muted-foreground flex items-center gap-1 ml-auto">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Loading...
+                  </span>
+                ) : serverPublicKey ? (
+                  <span className="text-xs text-green-600 ml-auto flex items-center gap-1">
+                    <Check className="h-3 w-3" />
+                    Retrieved
+                  </span>
+                ) : (
+                  <span className="text-xs text-amber-600 ml-auto flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    Not available
+                  </span>
+                )}
+              </div>
+              {serverPublicKey && (
+                <p className="text-xs font-mono text-muted-foreground mt-2 truncate">
+                  {serverPublicKey}
+                </p>
+              )}
+            </div>
           </div>
         ) : (
           <div className="space-y-4">
@@ -360,13 +429,12 @@ PersistentKeepalive = 25`;
               Scan this QR code with the WireGuard app.
             </p>
 
-            {/* Important Note */}
-            <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-3">
-              <p className="text-sm text-amber-700 font-medium">Important</p>
-              <p className="text-xs text-amber-600 mt-1">
-                You need to replace [SERVER_PUBLIC_KEY] in the config with your
-                server's actual public key. You can find this in the interface
-                settings or generate it from the private key.
+            {/* Success Message */}
+            <div className="rounded-lg bg-green-500/10 border border-green-500/20 p-3">
+              <p className="text-sm text-green-700 font-medium">Ready to Use</p>
+              <p className="text-xs text-green-600 mt-1">
+                This configuration is complete and ready to import into the WireGuard app.
+                The server public key has been automatically included.
               </p>
             </div>
 
@@ -427,11 +495,19 @@ PersistentKeepalive = 25`;
               <Button variant="outline" onClick={handleClose} disabled={loading}>
                 Cancel
               </Button>
-              <Button onClick={handleGenerate} disabled={loading}>
+              <Button
+                onClick={handleGenerate}
+                disabled={loading || loadingServerKey || !serverPublicKey}
+              >
                 {loading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Creating...
+                  </>
+                ) : loadingServerKey ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Loading...
                   </>
                 ) : (
                   "Add Client"

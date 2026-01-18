@@ -9,9 +9,12 @@ export interface WireGuardPeer {
   public_key?: string | null;
   preshared_key?: string | null; // Will be "***" if set
   allowed_ips: string[];
-  address?: string | null; // Endpoint address
+  address?: string | null; // Endpoint IP address
   port?: string | null; // Endpoint port
   persistent_keepalive?: string | null;
+  description?: string | null;
+  disabled?: boolean;
+  host_name?: string | null; // Endpoint hostname (alternative to address)
 }
 
 export interface WireGuardInterface {
@@ -63,6 +66,37 @@ export interface KeypairResult {
 
 export interface PSKResult {
   preshared_key?: string;
+}
+
+export interface PeerStatus {
+  public_key: string;
+  latest_handshake: string | null;
+  latest_handshake_seconds: number | null;
+  transfer_rx: string | null;
+  transfer_tx: string | null;
+  transfer?: string;
+  endpoint: string | null;
+}
+
+export interface InterfaceStatusResponse {
+  interface: string;
+  peers: Record<string, PeerStatus>;
+  raw_output?: string;
+}
+
+// Connection status based on handshake time
+export type ConnectionStatus = "connected" | "idle" | "never";
+
+// Helper to determine connection status from handshake seconds
+export function getConnectionStatus(handshakeSeconds: number | null): ConnectionStatus {
+  if (handshakeSeconds === null) {
+    return "never";
+  }
+  // Connected if handshake within last 3 minutes (180 seconds)
+  if (handshakeSeconds <= 180) {
+    return "connected";
+  }
+  return "idle";
 }
 
 // ============================================================================
@@ -277,6 +311,9 @@ class WireGuardService {
       address?: string;
       port?: string;
       persistent_keepalive?: string;
+      description?: string;
+      disabled?: boolean;
+      host_name?: string;
     }
   ): Promise<VyOSResponse> {
     const operations: WireGuardBatchOperation[] = [];
@@ -305,6 +342,15 @@ class WireGuardService {
     if (config.persistent_keepalive) {
       operations.push({ op: "set_peer_persistent_keepalive", value: config.persistent_keepalive });
     }
+    if (config.description) {
+      operations.push({ op: "set_peer_description", value: config.description });
+    }
+    if (config.disabled) {
+      operations.push({ op: "set_peer_disable" });
+    }
+    if (config.host_name) {
+      operations.push({ op: "set_peer_host_name", value: config.host_name });
+    }
 
     return this.peerBatch(interfaceName, config.name, operations);
   }
@@ -323,6 +369,9 @@ class WireGuardService {
       address?: string | null;
       port?: string | null;
       persistent_keepalive?: string | null;
+      description?: string | null;
+      disabled?: boolean;
+      host_name?: string | null;
     }
   ): Promise<VyOSResponse> {
     const operations: WireGuardBatchOperation[] = [];
@@ -378,6 +427,33 @@ class WireGuardService {
       }
     }
 
+    // Handle description
+    if (newConfig.description !== undefined) {
+      if (newConfig.description) {
+        operations.push({ op: "set_peer_description", value: newConfig.description });
+      } else if (currentConfig.description) {
+        operations.push({ op: "delete_peer_description" });
+      }
+    }
+
+    // Handle disabled
+    if (newConfig.disabled !== undefined) {
+      if (newConfig.disabled && !currentConfig.disabled) {
+        operations.push({ op: "set_peer_disable" });
+      } else if (!newConfig.disabled && currentConfig.disabled) {
+        operations.push({ op: "delete_peer_disable" });
+      }
+    }
+
+    // Handle host_name
+    if (newConfig.host_name !== undefined) {
+      if (newConfig.host_name) {
+        operations.push({ op: "set_peer_host_name", value: newConfig.host_name });
+      } else if (currentConfig.host_name) {
+        operations.push({ op: "delete_peer_host_name" });
+      }
+    }
+
     if (operations.length === 0) {
       return { success: true, data: { message: "No changes" } };
     }
@@ -411,6 +487,40 @@ class WireGuardService {
   async generatePSK(): Promise<PSKResult> {
     const response = await apiClient.post<VyOSResponse>("/vyos/vpn/wireguard/generate-psk", {});
     return response.data as PSKResult;
+  }
+
+  /**
+   * Get the public key for a WireGuard interface
+   */
+  async getInterfacePublicKey(interfaceName: string): Promise<{ interface: string; public_key: string } | null> {
+    try {
+      const response = await apiClient.get<VyOSResponse>(
+        `/vyos/vpn/wireguard/interface/${encodeURIComponent(interfaceName)}/public-key`
+      );
+      if (response.success && response.data) {
+        return response.data as { interface: string; public_key: string };
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Get runtime status for a WireGuard interface (handshake times, transfer stats)
+   */
+  async getInterfaceStatus(interfaceName: string): Promise<InterfaceStatusResponse | null> {
+    try {
+      const response = await apiClient.get<VyOSResponse>(
+        `/vyos/vpn/wireguard/interface/${encodeURIComponent(interfaceName)}/status`
+      );
+      if (response.success && response.data) {
+        return response.data as InterfaceStatusResponse;
+      }
+      return null;
+    } catch {
+      return null;
+    }
   }
 }
 

@@ -32,7 +32,9 @@ import {
   Check,
   QrCode,
   Wand2,
-  Clock,
+  CheckCircle2,
+  XCircle,
+  ArrowDownUp,
 } from "lucide-react";
 import {
   wireguardService,
@@ -40,6 +42,8 @@ import {
   type WireGuardPeer,
   type WireGuardCapabilities,
   type WireGuardConfigResponse,
+  type InterfaceStatusResponse,
+  getConnectionStatus,
 } from "@/lib/api/wireguard";
 
 // Import modals
@@ -62,6 +66,14 @@ export default function WireGuardPage() {
   // Selection
   const [selectedInterface, setSelectedInterface] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Public key cache
+  const [publicKey, setPublicKey] = useState<string | null>(null);
+  const [loadingPublicKey, setLoadingPublicKey] = useState(false);
+
+  // Interface status (runtime data)
+  const [interfaceStatus, setInterfaceStatus] = useState<InterfaceStatusResponse | null>(null);
+  const [loadingStatus, setLoadingStatus] = useState(false);
 
   // Modal states
   const [showCreateInterface, setShowCreateInterface] = useState(false);
@@ -102,6 +114,56 @@ export default function WireGuardPage() {
     fetchConfig();
   }, []);
 
+  // Fetch public key when selected interface changes
+  useEffect(() => {
+    const fetchPublicKey = async () => {
+      if (!selectedInterface) {
+        setPublicKey(null);
+        return;
+      }
+
+      setLoadingPublicKey(true);
+      try {
+        const result = await wireguardService.getInterfacePublicKey(selectedInterface);
+        setPublicKey(result?.public_key || null);
+      } catch {
+        setPublicKey(null);
+      } finally {
+        setLoadingPublicKey(false);
+      }
+    };
+
+    fetchPublicKey();
+  }, [selectedInterface]);
+
+  // Fetch interface status (handshake times, transfer) when selected interface changes
+  const fetchStatus = async () => {
+    if (!selectedInterface) {
+      setInterfaceStatus(null);
+      return;
+    }
+
+    setLoadingStatus(true);
+    try {
+      const result = await wireguardService.getInterfaceStatus(selectedInterface);
+      setInterfaceStatus(result);
+    } catch {
+      setInterfaceStatus(null);
+    } finally {
+      setLoadingStatus(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStatus();
+  }, [selectedInterface]);
+
+  // Helper to get peer status by public key
+  const getPeerStatus = (peer: WireGuardPeer) => {
+    if (!interfaceStatus || !peer.public_key) return null;
+    return interfaceStatus.peers[peer.public_key] || null;
+  };
+
   // Get currently selected interface
   const currentInterface = config?.interfaces.find(
     (iface) => iface.name === selectedInterface
@@ -119,7 +181,22 @@ export default function WireGuardPage() {
   // Copy to clipboard helper
   const copyToClipboard = async (text: string, key: string) => {
     try {
-      await navigator.clipboard.writeText(text);
+      // Try modern clipboard API first
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        // Fallback for non-HTTPS or older browsers
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-999999px";
+        textArea.style.top = "-999999px";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textArea);
+      }
       setCopiedKey(key);
       setTimeout(() => setCopiedKey(null), 2000);
     } catch (err) {
@@ -413,6 +490,47 @@ export default function WireGuardPage() {
                     </div>
                   </Card>
                 </div>
+
+                {/* Public Key Display */}
+                {currentInterface.private_key && (
+                  <div className="mt-4">
+                    <Card className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-primary/10">
+                          <Key className="h-5 w-5 text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-muted-foreground mb-1">Public Key (share with peers)</p>
+                          {loadingPublicKey ? (
+                            <div className="flex items-center gap-2">
+                              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                              <span className="text-sm text-muted-foreground">Loading...</span>
+                            </div>
+                          ) : publicKey ? (
+                            <div className="flex items-center gap-2">
+                              <code className="text-sm font-mono bg-muted px-2 py-1 rounded max-w-[500px] truncate">
+                                {publicKey}
+                              </code>
+                              <button
+                                onClick={() => copyToClipboard(publicKey, "interface-pk")}
+                                className="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted transition-colors"
+                                title="Copy public key"
+                              >
+                                {copiedKey === "interface-pk" ? (
+                                  <Check className="h-4 w-4 text-green-500" />
+                                ) : (
+                                  <Copy className="h-4 w-4" />
+                                )}
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">Unable to retrieve public key</span>
+                          )}
+                        </div>
+                      </div>
+                    </Card>
+                  </div>
+                )}
               </div>
 
               {/* Peers Section */}
@@ -426,6 +544,15 @@ export default function WireGuardPage() {
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="w-64"
                     />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => fetchStatus()}
+                      disabled={loadingStatus}
+                      title="Refresh peer status"
+                    >
+                      <RefreshCw className={cn("h-4 w-4", loadingStatus && "animate-spin")} />
+                    </Button>
                   </div>
                   <Button size="sm" onClick={() => setShowCreatePeer(true)}>
                     <Plus className="h-4 w-4 mr-2" />
@@ -452,99 +579,163 @@ export default function WireGuardPage() {
                         <TableHeader>
                           <TableRow>
                             <TableHead>Peer Name</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Connection</TableHead>
                             <TableHead>Public Key</TableHead>
                             <TableHead>Allowed IPs</TableHead>
-                            <TableHead>Endpoint</TableHead>
-                            <TableHead>Keepalive</TableHead>
+                            <TableHead>Transfer</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {filteredPeers.map((peer) => (
-                            <TableRow key={peer.name} className="group">
-                              <TableCell>
-                                <div className="flex items-center gap-2">
-                                  <div className="p-1.5 rounded bg-primary/10">
-                                    <Users className="h-3.5 w-3.5 text-primary" />
-                                  </div>
-                                  <span className="font-medium">{peer.name}</span>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex items-center gap-2">
-                                  <code className="text-xs bg-muted px-2 py-1 rounded font-mono max-w-[200px] truncate">
-                                    {peer.public_key || "Not set"}
-                                  </code>
-                                  {peer.public_key && (
-                                    <button
-                                      onClick={() => copyToClipboard(peer.public_key!, `pk-${peer.name}`)}
-                                      className="text-muted-foreground hover:text-foreground"
-                                    >
-                                      {copiedKey === `pk-${peer.name}` ? (
-                                        <Check className="h-4 w-4 text-green-500" />
-                                      ) : (
-                                        <Copy className="h-4 w-4" />
+                          {filteredPeers.map((peer) => {
+                            const peerStatus = getPeerStatus(peer);
+                            const connectionStatus = peerStatus
+                              ? getConnectionStatus(peerStatus.latest_handshake_seconds)
+                              : "never";
+
+                            return (
+                              <TableRow key={peer.name} className="group">
+                                {/* Peer Name */}
+                                <TableCell>
+                                  <div className="flex items-center gap-2">
+                                    <div className="p-1.5 rounded bg-primary/10">
+                                      <Users className="h-3.5 w-3.5 text-primary" />
+                                    </div>
+                                    <div>
+                                      <span className="font-medium">{peer.name}</span>
+                                      {peer.description && (
+                                        <p className="text-xs text-muted-foreground truncate max-w-[150px]">
+                                          {peer.description}
+                                        </p>
                                       )}
-                                    </button>
-                                  )}
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex flex-wrap gap-1">
-                                  {peer.allowed_ips.slice(0, 2).map((ip, idx) => (
-                                    <Badge key={idx} variant="outline" className="font-mono text-xs">
-                                      {ip}
-                                    </Badge>
-                                  ))}
-                                  {peer.allowed_ips.length > 2 && (
-                                    <Badge variant="secondary" className="text-xs">
-                                      +{peer.allowed_ips.length - 2} more
-                                    </Badge>
-                                  )}
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                {peer.address ? (
-                                  <span className="font-mono text-sm">
-                                    {peer.address}
-                                    {peer.port && `:${peer.port}`}
-                                  </span>
-                                ) : (
-                                  <span className="text-muted-foreground">-</span>
-                                )}
-                              </TableCell>
-                              <TableCell>
-                                {peer.persistent_keepalive ? (
-                                  <div className="flex items-center gap-1 text-sm">
-                                    <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                                    {peer.persistent_keepalive}s
+                                    </div>
                                   </div>
-                                ) : (
-                                  <span className="text-muted-foreground">-</span>
-                                )}
-                              </TableCell>
-                              <TableCell className="text-right">
-                                <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8"
-                                    onClick={() => setEditingPeer(peer)}
-                                  >
-                                    <Pencil className="h-4 w-4" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8 hover:bg-destructive/10"
-                                    onClick={() => setDeletingPeer(peer)}
-                                  >
-                                    <Trash2 className="h-4 w-4 text-destructive" />
-                                  </Button>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          ))}
+                                </TableCell>
+
+                                {/* Status (Enabled/Disabled) */}
+                                <TableCell>
+                                  {peer.disabled ? (
+                                    <Badge variant="secondary" className="bg-red-500/10 text-red-600 gap-1">
+                                      <XCircle className="h-3 w-3" />
+                                      Disabled
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="secondary" className="bg-green-500/10 text-green-600 gap-1">
+                                      <CheckCircle2 className="h-3 w-3" />
+                                      Enabled
+                                    </Badge>
+                                  )}
+                                </TableCell>
+
+                                {/* Connection Status */}
+                                <TableCell>
+                                  {loadingStatus ? (
+                                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                                  ) : connectionStatus === "connected" ? (
+                                    <div className="flex items-center gap-1.5">
+                                      <Badge variant="secondary" className="bg-green-500/10 text-green-600">
+                                        Connected
+                                      </Badge>
+                                      {peerStatus?.latest_handshake && (
+                                        <span className="text-xs text-muted-foreground">
+                                          {peerStatus.latest_handshake}
+                                        </span>
+                                      )}
+                                    </div>
+                                  ) : connectionStatus === "idle" ? (
+                                    <div className="flex items-center gap-1.5">
+                                      <Badge variant="secondary" className="bg-yellow-500/10 text-yellow-600">
+                                        Idle
+                                      </Badge>
+                                      {peerStatus?.latest_handshake && (
+                                        <span className="text-xs text-muted-foreground">
+                                          {peerStatus.latest_handshake}
+                                        </span>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <Badge variant="secondary" className="bg-gray-500/10 text-gray-500">
+                                      Disconnected
+                                    </Badge>
+                                  )}
+                                </TableCell>
+
+                                {/* Public Key */}
+                                <TableCell>
+                                  <div className="flex items-center gap-2">
+                                    <code className="text-xs bg-muted px-2 py-1 rounded font-mono max-w-[150px] truncate">
+                                      {peer.public_key || "Not set"}
+                                    </code>
+                                    {peer.public_key && (
+                                      <button
+                                        onClick={() => copyToClipboard(peer.public_key!, `pk-${peer.name}`)}
+                                        className="text-muted-foreground hover:text-foreground"
+                                      >
+                                        {copiedKey === `pk-${peer.name}` ? (
+                                          <Check className="h-4 w-4 text-green-500" />
+                                        ) : (
+                                          <Copy className="h-4 w-4" />
+                                        )}
+                                      </button>
+                                    )}
+                                  </div>
+                                </TableCell>
+
+                                {/* Allowed IPs */}
+                                <TableCell>
+                                  <div className="flex flex-wrap gap-1">
+                                    {peer.allowed_ips.slice(0, 2).map((ip, idx) => (
+                                      <Badge key={idx} variant="outline" className="font-mono text-xs">
+                                        {ip}
+                                      </Badge>
+                                    ))}
+                                    {peer.allowed_ips.length > 2 && (
+                                      <Badge variant="secondary" className="text-xs">
+                                        +{peer.allowed_ips.length - 2} more
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </TableCell>
+
+                                {/* Transfer */}
+                                <TableCell>
+                                  {peerStatus?.transfer_rx || peerStatus?.transfer_tx ? (
+                                    <div className="flex items-center gap-1 text-xs">
+                                      <ArrowDownUp className="h-3.5 w-3.5 text-muted-foreground" />
+                                      <span className="text-green-600">{peerStatus.transfer_rx || "0"}</span>
+                                      <span className="text-muted-foreground">/</span>
+                                      <span className="text-blue-600">{peerStatus.transfer_tx || "0"}</span>
+                                    </div>
+                                  ) : (
+                                    <span className="text-muted-foreground text-xs">-</span>
+                                  )}
+                                </TableCell>
+
+                                {/* Actions */}
+                                <TableCell className="text-right">
+                                  <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8"
+                                      onClick={() => setEditingPeer(peer)}
+                                    >
+                                      <Pencil className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 hover:bg-destructive/10"
+                                      onClick={() => setDeletingPeer(peer)}
+                                    >
+                                      <Trash2 className="h-4 w-4 text-destructive" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
                         </TableBody>
                       </Table>
                     )}

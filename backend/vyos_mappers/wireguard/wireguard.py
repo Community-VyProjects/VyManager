@@ -83,6 +83,18 @@ class WireGuardMapper:
         """Set peer persistent keepalive interval."""
         return ["interfaces", "wireguard", interface, "peer", peer, "persistent-keepalive", interval]
 
+    def get_peer_description(self, interface: str, peer: str, description: str) -> List[str]:
+        """Set peer description."""
+        return ["interfaces", "wireguard", interface, "peer", peer, "description", description]
+
+    def get_peer_disable(self, interface: str, peer: str) -> List[str]:
+        """Disable peer."""
+        return ["interfaces", "wireguard", interface, "peer", peer, "disable"]
+
+    def get_peer_host_name(self, interface: str, peer: str, hostname: str) -> List[str]:
+        """Set peer endpoint hostname."""
+        return ["interfaces", "wireguard", interface, "peer", peer, "host-name", hostname]
+
     # ========================================================================
     # Config Parsing
     # ========================================================================
@@ -129,6 +141,9 @@ class WireGuardMapper:
                             "address": peer_config.get("address"),
                             "port": peer_config.get("port"),
                             "persistent_keepalive": peer_config.get("persistent-keepalive"),
+                            "description": peer_config.get("description"),
+                            "disabled": "disable" in peer_config,
+                            "host_name": peer_config.get("host-name"),
                         }
 
                 result["interfaces"][iface_name] = interface_data

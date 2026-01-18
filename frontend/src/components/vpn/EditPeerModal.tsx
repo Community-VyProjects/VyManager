@@ -20,7 +20,9 @@ import {
   Eye,
   EyeOff,
   Sparkles,
+  Ban,
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { wireguardService, WireGuardPeer } from "@/lib/api/wireguard";
 
 interface EditPeerModalProps {
@@ -45,6 +47,9 @@ export function EditPeerModal({
   const [address, setAddress] = useState("");
   const [port, setPort] = useState("");
   const [persistentKeepalive, setPersistentKeepalive] = useState("");
+  const [description, setDescription] = useState("");
+  const [disabled, setDisabled] = useState(false);
+  const [hostName, setHostName] = useState("");
 
   // UI state
   const [loading, setLoading] = useState(false);
@@ -61,6 +66,9 @@ export function EditPeerModal({
       setAddress(peerData.address || "");
       setPort(peerData.port || "");
       setPersistentKeepalive(peerData.persistent_keepalive || "");
+      setDescription(peerData.description || "");
+      setDisabled(peerData.disabled || false);
+      setHostName(peerData.host_name || "");
     }
   }, [peerData, open]);
 
@@ -88,6 +96,9 @@ export function EditPeerModal({
     setAddress("");
     setPort("");
     setPersistentKeepalive("");
+    setDescription("");
+    setDisabled(false);
+    setHostName("");
     setError(null);
     setShowPresharedKey(false);
   };
@@ -162,6 +173,21 @@ export function EditPeerModal({
         newConfig.persistent_keepalive = persistentKeepalive.trim() || null;
       }
 
+      // Description change
+      if (description.trim() !== (peerData.description || "")) {
+        newConfig.description = description.trim() || null;
+      }
+
+      // Disabled change
+      if (disabled !== (peerData.disabled || false)) {
+        newConfig.disabled = disabled;
+      }
+
+      // Host name change
+      if (hostName.trim() !== (peerData.host_name || "")) {
+        newConfig.host_name = hostName.trim() || null;
+      }
+
       // Check if there are any changes
       if (Object.keys(newConfig).length === 0) {
         handleClose();
@@ -214,6 +240,20 @@ export function EditPeerModal({
             <div className="space-y-2">
               <Label>Peer Name</Label>
               <Input value={peerData.name} disabled className="bg-muted" />
+            </div>
+
+            {/* Description */}
+            <div className="space-y-2">
+              <Label htmlFor="edit-peer-description">Description</Label>
+              <Input
+                id="edit-peer-description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Description for this peer"
+              />
+              <p className="text-xs text-muted-foreground">
+                A description to help identify this peer.
+              </p>
             </div>
 
             {/* Public Key */}
@@ -295,17 +335,31 @@ export function EditPeerModal({
           </TabsContent>
 
           <TabsContent value="endpoint" className="space-y-4 mt-4">
-            {/* Endpoint Address */}
+            {/* Endpoint IP Address */}
             <div className="space-y-2">
-              <Label htmlFor="edit-peer-address">Endpoint Address</Label>
+              <Label htmlFor="edit-peer-address">Endpoint IP Address</Label>
               <Input
                 id="edit-peer-address"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
-                placeholder="vpn.example.com or 203.0.113.1"
+                placeholder="203.0.113.1"
               />
               <p className="text-xs text-muted-foreground">
-                IP address or hostname of the remote peer.
+                IP address of the remote peer. Use this OR hostname below.
+              </p>
+            </div>
+
+            {/* Endpoint Hostname */}
+            <div className="space-y-2">
+              <Label htmlFor="edit-peer-hostname">Endpoint Hostname</Label>
+              <Input
+                id="edit-peer-hostname"
+                value={hostName}
+                onChange={(e) => setHostName(e.target.value)}
+                placeholder="vpn.example.com"
+              />
+              <p className="text-xs text-muted-foreground">
+                Hostname of the remote peer. Use this OR IP address above.
               </p>
             </div>
 
@@ -336,6 +390,24 @@ export function EditPeerModal({
               <p className="text-xs text-muted-foreground">
                 Send keepalive packets every N seconds. Useful for NAT traversal.
               </p>
+            </div>
+
+            {/* Disable Peer */}
+            <div className="flex items-center space-x-3 pt-2">
+              <Checkbox
+                id="edit-peer-disabled"
+                checked={disabled}
+                onCheckedChange={(checked) => setDisabled(checked === true)}
+              />
+              <div className="space-y-0.5">
+                <Label htmlFor="edit-peer-disabled" className="flex items-center gap-2 cursor-pointer">
+                  <Ban className="h-4 w-4 text-muted-foreground" />
+                  Disable Peer
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Disable this peer connection.
+                </p>
+              </div>
             </div>
           </TabsContent>
         </Tabs>

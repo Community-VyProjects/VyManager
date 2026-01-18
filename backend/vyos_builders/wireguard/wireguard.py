@@ -216,6 +216,36 @@ class WireGuardBatchBuilder:
         path = self.mappers[self.mapper_key].get_peer_path(interface, peer) + ["persistent-keepalive"]
         return self.add_delete(path)
 
+    def set_peer_description(self, interface: str, peer: str, description: str) -> "WireGuardBatchBuilder":
+        """Set peer description."""
+        path = self.mappers[self.mapper_key].get_peer_description(interface, peer, description)
+        return self.add_set(path)
+
+    def delete_peer_description(self, interface: str, peer: str) -> "WireGuardBatchBuilder":
+        """Delete peer description."""
+        path = self.mappers[self.mapper_key].get_peer_path(interface, peer) + ["description"]
+        return self.add_delete(path)
+
+    def set_peer_disable(self, interface: str, peer: str) -> "WireGuardBatchBuilder":
+        """Disable peer."""
+        path = self.mappers[self.mapper_key].get_peer_disable(interface, peer)
+        return self.add_set(path)
+
+    def delete_peer_disable(self, interface: str, peer: str) -> "WireGuardBatchBuilder":
+        """Enable peer (remove disable flag)."""
+        path = self.mappers[self.mapper_key].get_peer_disable(interface, peer)
+        return self.add_delete(path)
+
+    def set_peer_host_name(self, interface: str, peer: str, hostname: str) -> "WireGuardBatchBuilder":
+        """Set peer endpoint hostname."""
+        path = self.mappers[self.mapper_key].get_peer_host_name(interface, peer, hostname)
+        return self.add_set(path)
+
+    def delete_peer_host_name(self, interface: str, peer: str) -> "WireGuardBatchBuilder":
+        """Delete peer endpoint hostname."""
+        path = self.mappers[self.mapper_key].get_peer_path(interface, peer) + ["host-name"]
+        return self.add_delete(path)
+
     # ========================================================================
     # Capabilities
     # ========================================================================
