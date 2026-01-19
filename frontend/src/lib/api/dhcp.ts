@@ -247,7 +247,7 @@ class DHCPService {
    * Execute batch DHCP operations
    */
   async batchConfigure(request: DHCPBatchRequest): Promise<VyOSResponse> {
-    const result = await apiClient.post("/vyos/dhcp/batch", request);
+    const result = await apiClient.post<VyOSResponse>("/vyos/dhcp/batch", request);
     // Refresh config cache after successful commit
     await this.refreshConfig();
     return result;
