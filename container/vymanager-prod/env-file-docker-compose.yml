@@ -27,6 +27,7 @@ services:
     restart: unless-stopped
     networks:
       - vymanager-network
+      - dokploy-network
     depends_on:
       postgres:
         condition: service_healthy
@@ -52,12 +53,15 @@ services:
     restart: unless-stopped
     networks:
       - vymanager-network
+      - dokploy-network
     depends_on:
       - backend
 
 networks:
   vymanager-network:
     driver: bridge
+  dokploy-network:
+    external: true
 
 volumes:
   postgres_data:
