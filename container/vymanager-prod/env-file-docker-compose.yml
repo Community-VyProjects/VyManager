@@ -1,15 +1,11 @@
-# Pre-compiled images
 services:
-  # PostgreSQL Database for Authentication
   postgres:
     image: postgres:16-alpine
     container_name: vymanager-postgres
     environment:
       POSTGRES_USER: vymanager
-      POSTGRES_PASSWORD: vymanager_secure_password
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-vymanager_secure_password}
       POSTGRES_DB: vymanager_auth
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
@@ -25,10 +21,9 @@ services:
   backend:
     image: ghcr.io/community-vyprojects/vymanager-backend:beta
     container_name: vymanager-backend
-    ports:
-      - "8000:8000"
-    env_file:
-      - ../../backend/.env
+    environment:
+      DATABASE_URL: postgresql://vymanager:${POSTGRES_PASSWORD:-vymanager_secure_password}@postgres:5432/vymanager_auth
+      FRONTEND_URL: ${FRONTEND_URL}
     restart: unless-stopped
     networks:
       - vymanager-network
@@ -45,13 +40,20 @@ services:
   frontend:
     image: ghcr.io/community-vyprojects/vymanager-frontend:beta
     container_name: vymanager-frontend
-    env_file:
-      - ../../frontend/.env
-    ports:
-      - "3000:3000"
+    environment:
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-ChangeMeToSomethingSecure123}
+      NODE_ENV: production
+      VYMANAGER_ENV: production
+      BETTER_AUTH_URL: ${FRONTEND_URL}
+      NEXT_PUBLIC_APP_URL: ${FRONTEND_URL}
+      NEXT_PUBLIC_API_URL: http://backend:8000
+      DATABASE_URL: postgresql://vymanager:${POSTGRES_PASSWORD:-vymanager_secure_password}@postgres:5432/vymanager_auth
+      TRUSTED_ORIGINS: ${FRONTEND_URL}
     restart: unless-stopped
     networks:
       - vymanager-network
+    depends_on:
+      - backend
 
 networks:
   vymanager-network:
