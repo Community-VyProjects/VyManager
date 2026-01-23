@@ -1,0 +1,6 @@
+node_modules
+npm-debug.log
+Dockerfile
+!docker-entrypoint.sh
+.next
+.git

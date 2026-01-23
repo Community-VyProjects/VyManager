@@ -1,0 +1,484 @@
+// Prisma Schema for VyManager Authentication & RBAC
+// Better Auth compatible schema with role-based access control
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// Better Auth Core Models
+// ============================================================================
+
+model User {
+  id            String   @id @default(cuid())
+  name          String?
+  email         String   @unique
+  emailVerified Boolean  @default(false)
+  image         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // RBAC
+  role Role @default(VIEWER)
+
+  // Relations
+  sessions          Session[]
+  accounts          Account[]
+  activeSession     ActiveSession?
+  userInstanceRoles UserInstanceRole[]
+
+  @@map("users")
+}
+
+model Session {
+  id             String   @id @default(cuid())
+  expiresAt      DateTime
+  token          String   @unique
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  lastActivityAt DateTime @default(now()) @updatedAt // Track last activity for inactivity timeout
+  ipAddress      String?
+  userAgent      String?
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId]) // Index for user session lookups
+  @@index([lastActivityAt]) // Index for cleanup queries
+  @@map("sessions")
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  accountId             String
+  providerId            String
+  userId                String
+  accessToken           String?   @db.Text
+  refreshToken          String?   @db.Text
+  idToken               String?   @db.Text
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@map("accounts")
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([identifier, value])
+  @@map("verifications")
+}
+
+// ============================================================================
+// RBAC - Role Based Access Control
+// ============================================================================
+
+// Site-level roles (platform-wide permissions)
+enum Role {
+  ADMIN // Can create/edit/delete sites and instances, access user management
+  VIEWER // Read-only access to assigned sites and instances
+}
+
+// Instance-level roles (per-instance permissions)
+enum InstanceRole {
+  ADMIN    // Full access to all features on this instance
+  EDITOR   // DEPRECATED - Use OPERATOR instead (kept for database compatibility)
+  OPERATOR // Can edit specific features (defined in FeaturePermission)
+  VIEWER   // Can view specific features (defined in FeaturePermission)
+}
+
+// Role Permissions Matrix
+// Define what each role can access
+
+model RolePermission {
+  id        String   @id @default(cuid())
+  role      Role
+  resource  String // e.g., "firewall", "dhcp", "nat", "interfaces", "users"
+  action    Action // e.g., READ, CREATE, UPDATE, DELETE
+  createdAt DateTime @default(now())
+
+  @@unique([role, resource, action])
+  @@map("role_permissions")
+}
+
+enum Action {
+  READ
+  CREATE
+  UPDATE
+  DELETE
+  MANAGE // Full control (all actions)
+}
+
+// Audit Log for tracking all user actions
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String
+  userEmail String
+  action    String // e.g., "CREATE_FIREWALL_RULE", "DELETE_NAT_RULE"
+  resource  String // e.g., "firewall.rule.100"
+  details   Json? // Additional context
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ============================================================================
+// Multi-Instance Management
+// ============================================================================
+
+// Site - Represents a customer/organization
+model Site {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  instances Instance[]
+
+  @@map("sites")
+}
+
+// Instance - Represents a VyOS router within a site
+model Instance {
+  id          String   @id @default(cuid())
+  siteId      String
+  name        String
+  description String?
+  host        String
+  port        Int      @default(443)
+  username    String
+  password    String // Will be encrypted by backend
+  apiKey      String? // Optional API key for VyOS
+  vyosVersion String? // VyOS version (e.g., "1.4", "1.5")
+  protocol    String   @default("https") // http or https
+  verifySsl   Boolean  @default(false) // Verify SSL certificate
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  site              Site               @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  activeSessions    ActiveSession[]
+  userInstanceRoles UserInstanceRole[]
+  configBackups     ConfigBackup[]
+
+  @@unique([siteId, name])
+  @@index([siteId])
+  @@index([siteId, isActive]) // Composite index for filtering active instances by site
+  @@map("instances")
+}
+
+// ActiveSession - Tracks which instance a user is currently connected to
+model ActiveSession {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  instanceId     String
+  sessionToken   String? // Auth session token that created this VyOS connection
+  connectedAt    DateTime @default(now())
+  lastActivityAt DateTime @default(now()) @updatedAt // Track last activity for timeout
+
+  // Relations
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  instance Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+
+  @@index([instanceId])
+  @@index([lastActivityAt]) // Index for cleanup queries
+  @@map("active_sessions")
+}
+
+// ScheduledPowerAction - Tracks scheduled reboots/poweroffs
+model ScheduledPowerAction {
+  id              String    @id @default(cuid())
+  instanceId      String // Which VyOS instance
+  actionType      String // "reboot" or "poweroff"
+  scheduledTime   DateTime // When the action will occur
+  scheduledBy     String // User ID who scheduled it
+  scheduledByName String // User name for display
+  cancelled       Boolean   @default(false)
+  cancelledBy     String? // User ID who cancelled
+  cancelledByName String? // User name who cancelled
+  cancelledAt     DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@index([instanceId])
+  @@index([scheduledTime])
+  @@index([scheduledTime, cancelled]) // Composite index for finding pending scheduled actions
+  @@map("scheduled_power_actions")
+}
+
+// DashboardLayout - Stores user's custom dashboard layout per instance
+model DashboardLayout {
+  id         String   @id @default(cuid())
+  userId     String // User who owns this layout
+  instanceId String // VyOS instance this layout is for
+  layout     Json // JSON object storing grid positions and card configurations
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, instanceId])
+  @@index([userId])
+  @@index([instanceId])
+  @@map("dashboard_layouts")
+}
+
+// ============================================================================
+// New RBAC System - Fine-Grained Per-Instance Permissions
+// ============================================================================
+
+// Feature Groups - Logical groupings of VyOS features
+// Stage 1: Core features (expandable later)
+enum FeatureGroup {
+  FIREWALL // Firewall rules and groups
+  INTERFACES // Network interfaces
+  DHCP // DHCP server
+  NAT // NAT rules
+}
+
+// Note: CustomRole and FeaturePermission models removed in favor of simplified
+// UserFeaturePermission model that directly ties to UserInstanceRole
+
+// UserInstanceRole - Assigns users to instances with specific roles
+// Simplified: ADMIN (all access), EDITOR (feature-specific write), VIEWER (feature-specific read)
+model UserInstanceRole {
+  id         String       @id @default(cuid())
+  userId     String
+  instanceId String
+  role       InstanceRole // ADMIN, EDITOR, or VIEWER
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  assignedBy String // User ID who assigned this role
+
+  // Relations
+  user               User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  instance           Instance                @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  featurePermissions UserFeaturePermission[] // Only used for EDITOR/VIEWER roles
+
+  @@unique([userId, instanceId])
+  @@index([userId])
+  @@index([instanceId])
+  @@map("user_instance_roles")
+}
+
+// UserFeaturePermission - Defines which features an EDITOR/VIEWER can access
+// Only applies when UserInstanceRole.role is EDITOR or VIEWER
+// If role is ADMIN, this table is ignored (full access)
+model UserFeaturePermission {
+  id                 String       @id @default(cuid())
+  userInstanceRoleId String
+  feature            FeatureGroup
+  canEdit            Boolean      @default(false) // For EDITOR role
+  canView            Boolean      @default(false) // For VIEWER role
+  createdAt          DateTime     @default(now())
+
+  // Relations
+  userInstanceRole UserInstanceRole @relation(fields: [userInstanceRoleId], references: [id], onDelete: Cascade)
+
+  @@unique([userInstanceRoleId, feature])
+  @@index([userInstanceRoleId])
+  @@map("user_feature_permissions")
+}
+
+// ============================================================================
+// Monitoring & Alerting System
+// ============================================================================
+
+// AlertType - Types of alerts supported
+enum AlertType {
+  INTERFACE_DOWN        // Interface goes down
+  HIGH_CPU              // CPU usage exceeds threshold
+  HIGH_MEMORY           // Memory usage exceeds threshold
+  HIGH_DISK             // Disk usage exceeds threshold
+  CONNECTION_THRESHOLD  // Conntrack count exceeds threshold
+  INTERFACE_ERRORS      // Interface errors exceed threshold
+  BGP_NEIGHBOR_DOWN     // BGP neighbor session goes down
+  IPSEC_TUNNEL_DOWN     // IPsec tunnel goes down
+  OPENVPN_TUNNEL_DOWN   // OpenVPN tunnel goes down
+  WIREGUARD_PEER_DOWN   // WireGuard peer goes down
+  VRRP_STATE_CHANGE     // VRRP group state changes (MASTER/BACKUP/FAULT)
+  VRRP_FAILOVER         // VRRP failover event occurred
+}
+
+// AlertSeverity - Alert severity levels
+enum AlertSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+// AlertRule - User-defined alert rules
+model AlertRule {
+  id           String        @id @default(cuid())
+  instanceId   String        // VyOS instance this rule applies to
+  name         String        // User-friendly name (e.g., "WAN Interface Down")
+  description  String?       // Optional description
+  type         AlertType     // Type of alert
+  severity     AlertSeverity @default(WARNING)
+  enabled      Boolean       @default(true)
+
+  // Alert conditions (JSON for flexibility)
+  // Examples:
+  // - interface down: { "interface": "eth0" }
+  // - high CPU: { "threshold": 90, "duration": 60 }
+  // - conntrack: { "threshold": 50000 }
+  conditions   Json
+
+  // Notification settings
+  notifyInApp  Boolean       @default(true)  // Show in-app toast
+  webhookUrl   String?       // Webhook notification URL
+  telegramChatId String?     // Telegram chat/channel ID
+  telegramBotToken String?   // Telegram bot token (encrypted)
+
+  // Cooldown - prevents alert spam (seconds)
+  cooldownSeconds Int        @default(300)
+  lastTriggeredAt DateTime?
+
+  // Audit fields
+  createdBy    String        // User ID who created
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  // Relations
+  alertHistory AlertHistory[]
+
+  @@index([instanceId, enabled])
+  @@index([instanceId, type])
+  @@map("alert_rules")
+}
+
+// AlertHistory - Historical record of triggered alerts
+model AlertHistory {
+  id           String        @id @default(cuid())
+  ruleId       String
+  instanceId   String
+  type         AlertType
+  severity     AlertSeverity
+  message      String        // Human-readable alert message
+  details      Json?         // Additional context (interface name, values, etc.)
+
+  // Status tracking
+  acknowledged Boolean       @default(false)
+  acknowledgedBy String?     // User ID who acknowledged
+  acknowledgedAt DateTime?
+
+  // Resolution
+  resolved     Boolean       @default(false)
+  resolvedAt   DateTime?
+
+  triggeredAt  DateTime      @default(now())
+
+  // Relations
+  rule         AlertRule     @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+
+  @@index([instanceId, triggeredAt])
+  @@index([instanceId, acknowledged])
+  @@index([ruleId])
+  @@map("alert_history")
+}
+
+// ============================================================================
+// Configuration Backup System
+// ============================================================================
+
+// ConfigBackup - Stores configuration snapshots for backup/restore
+model ConfigBackup {
+  id            String   @id @default(cuid())
+  instanceId    String
+  name          String // User-defined name (e.g., "Before firewall changes")
+  description   String? // Optional description
+  config        Json // Full VyOS configuration snapshot
+  configSize    Int // Size in bytes for display purposes
+  createdBy     String // User ID who created the backup
+  createdByName String // User name for display
+  createdAt     DateTime @default(now())
+
+  // Relations
+  instance Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+
+  @@index([instanceId, createdAt])
+  @@index([createdBy])
+  @@map("config_backups")
+}
+
+// ============================================================================
+// Metrics History
+// ============================================================================
+
+enum MetricType {
+  CPU
+  MEMORY
+  DISK
+  INTERFACE_RX
+  INTERFACE_TX
+  CONNTRACK
+}
+
+// MetricsHistory - Stores historical metrics for graphing
+model MetricsHistory {
+  id          String     @id @default(cuid())
+  instanceId  String
+  type        MetricType
+  name        String?    // e.g., interface name for INTERFACE_* types, mount point for DISK
+  value       Float      // The metric value (percent, bytes, count)
+  timestamp   DateTime   @default(now())
+
+  @@index([instanceId, type, timestamp])
+  @@index([instanceId, type, name, timestamp])
+  @@map("metrics_history")
+}
+
+// ============================================================================
+// Configuration Templates
+// ============================================================================
+
+enum TemplateCategory {
+  FIREWALL
+  NAT
+  ROUTING
+  VPN
+  INTERFACE
+  SERVICE
+  OTHER
+}
+
+// ConfigTemplate - Reusable configuration snippets
+model ConfigTemplate {
+  id          String           @id @default(cuid())
+  name        String           // User-friendly name
+  description String?          // Optional description
+  category    TemplateCategory // Category for organization
+  config      Json             // VyOS configuration snippet (set commands or JSON)
+  variables   Json?            // Template variables for customization
+  isPublic    Boolean          @default(false) // Shared with all users in organization
+  createdBy   String           // User ID who created
+  createdByName String         // User name for display
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([category])
+  @@index([createdBy])
+  @@index([isPublic])
+  @@map("config_templates")
+}

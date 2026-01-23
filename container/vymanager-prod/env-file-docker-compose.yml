@@ -1,0 +1,62 @@
+# Pre-compiled images
+services:
+  # PostgreSQL Database for Authentication
+  postgres:
+    image: postgres:16-alpine
+    container_name: vymanager-postgres
+    environment:
+      POSTGRES_USER: vymanager
+      POSTGRES_PASSWORD: vymanager_secure_password
+      POSTGRES_DB: vymanager_auth
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - vymanager-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vymanager -d vymanager_auth"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  backend:
+    image: ghcr.io/community-vyprojects/vymanager-backend:beta
+    container_name: vymanager-backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - ../../backend/.env
+    restart: unless-stopped
+    networks:
+      - vymanager-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/docs"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  frontend:
+    image: ghcr.io/community-vyprojects/vymanager-frontend:beta
+    container_name: vymanager-frontend
+    env_file:
+      - ../../frontend/.env
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    networks:
+      - vymanager-network
+
+networks:
+  vymanager-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
