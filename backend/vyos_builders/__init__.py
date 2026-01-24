@@ -6,7 +6,7 @@ Each builder includes all necessary operations for its feature type.
 """
 
 from .interfaces import EthernetInterfaceBuilderMixin, DummyInterfaceBuilderMixin
-from .firewall import FirewallGroupsBatchBuilder, FirewallIPv4BatchBuilder, FirewallIPv6BatchBuilder
+from .firewall import FirewallGroupsBatchBuilder, FirewallIPv4BatchBuilder, FirewallIPv6BatchBuilder, BridgeFirewallBatchBuilder
 from .nat import NATBatchBuilder
 from .dhcp import DHCPBatchBuilder
 from .static_routes import StaticRoutesBatchBuilder
@@ -46,4 +46,5 @@ __all__ = [
     "LargeCommunityListBatchBuilder",
     "FirewallGlobalOptionsBatchBuilder",
     "WireGuardBatchBuilder",
+    "BridgeFirewallBatchBuilder",
 ]
