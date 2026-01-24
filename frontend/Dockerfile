@@ -9,9 +9,10 @@ RUN apk add --no-cache openssl
 # Copy package files and prisma schema
 COPY package*.json ./
 COPY prisma ./prisma/
+COPY next.config.* ./
 
-# Install dependencies
-RUN npm install
+# Install all dependencies (including dev) for the build
+RUN npm install --include=dev
 
 # Copy rest of app source
 COPY . .
@@ -20,6 +21,7 @@ COPY . .
 RUN npx prisma generate
 
 # Build Next.js for production
+ENV NODE_ENV=production
 RUN npm run build
 
 
@@ -27,6 +29,8 @@ RUN npm run build
 FROM node:24-alpine AS runner
 
 WORKDIR /app
+
+ENV NODE_ENV=production
 
 # Install netcat for entrypoint checks
 RUN apk add --no-cache netcat-openbsd
