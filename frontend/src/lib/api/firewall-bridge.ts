@@ -680,7 +680,7 @@ class BridgeFirewallService {
 
     // Helper function to handle string field updates
     const handleStringField = (
-      field: EditableField,
+      field: keyof Omit<BridgeRule, "rule_number">,
       setOp: string,
       deleteOp: string
     ) => {
@@ -697,7 +697,7 @@ class BridgeFirewallService {
 
     // Helper function to handle boolean field updates
     const handleBooleanField = (
-      field: EditableField,
+      field: keyof Omit<BridgeRule, "rule_number">,
       setOp: string,
       deleteOp: string
     ) => {
