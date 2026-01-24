@@ -46,6 +46,11 @@ const navigation: NavItem[] = [
         requiredPermission: FeatureGroup.FIREWALL_POLICIES
       },
       {
+        title: "Bridge",
+        href: "/firewall/bridge",
+        requiredPermission: FeatureGroup.FIREWALL_BRIDGE
+      },
+      {
         title: "Groups",
         href: "/firewall/groups",
         requiredPermission: FeatureGroup.FIREWALL_GROUPS
@@ -299,6 +304,23 @@ export function Sidebar() {
                    canRead(FeatureGroup.IGMP_PROXY) ||
                    canRead(FeatureGroup.PIM) ||
                    canRead(FeatureGroup.PIM6);
+          }
+
+          // Special cases for Firewall sub-features: show if user has FIREWALL OR the specific permission
+          if (child.requiredPermission === FeatureGroup.FIREWALL_POLICIES) {
+            return canRead(FeatureGroup.FIREWALL) || canRead(FeatureGroup.FIREWALL_POLICIES);
+          }
+          if (child.requiredPermission === FeatureGroup.FIREWALL_BRIDGE) {
+            return canRead(FeatureGroup.FIREWALL) || canRead(FeatureGroup.FIREWALL_BRIDGE);
+          }
+          if (child.requiredPermission === FeatureGroup.FIREWALL_GROUPS) {
+            return canRead(FeatureGroup.FIREWALL) || canRead(FeatureGroup.FIREWALL_GROUPS);
+          }
+          if (child.requiredPermission === FeatureGroup.FIREWALL_ZONES) {
+            return canRead(FeatureGroup.FIREWALL) || canRead(FeatureGroup.FIREWALL_ZONES);
+          }
+          if (child.requiredPermission === FeatureGroup.FIREWALL_GLOBAL_OPTIONS) {
+            return canRead(FeatureGroup.FIREWALL) || canRead(FeatureGroup.FIREWALL_GLOBAL_OPTIONS);
           }
 
           // Special cases for Routing Policies: show if user has ROUTING_POLICIES OR the specific permission
