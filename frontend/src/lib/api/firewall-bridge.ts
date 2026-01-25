@@ -676,6 +676,8 @@ class BridgeFirewallService {
   ): Promise<VyOSResponse> {
     const operations: BridgeBatchOperation[] = [];
 
+    type EditableField = keyof Omit<BridgeRule, "rule_number">;
+
     // Helper function to handle string field updates
     const handleStringField = (
       field: keyof Omit<BridgeRule, "rule_number">,
