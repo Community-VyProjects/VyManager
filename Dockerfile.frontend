@@ -26,6 +26,7 @@ RUN npx prisma generate
 
 # Build Next.js for production
 ENV NODE_ENV=production
+ENV BETTER_AUTH_SECRET=dummy_secret_for_build_only
 RUN npm run build
 
 
