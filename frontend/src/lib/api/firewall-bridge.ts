@@ -59,15 +59,15 @@ export interface BridgeRule {
   icmpv6_code?: string | null;
   icmpv6_type_name?: string | null;
   // TCP (1.5+)
-  tcp_flags?: string[] | null;
-  tcp_flags_not?: string[] | null;
+  tcp_flags?: string | null;
+  tcp_flags_not?: string | null;
   tcp_mss?: string | null;
   // Rate limiting (1.5+)
   limit_rate?: string | null;
   limit_burst?: string | null;
   // Log options (1.5+)
-  log_level?: string | null;
-  log_group?: string | null;
+  log_options_level?: string | null;
+  log_options_group?: string | null;
   // Mark matching (1.5+)
   mark?: string | null;
   connection_mark?: string | null;
@@ -328,15 +328,15 @@ class BridgeFirewallService {
       icmpv6_code?: string;
       icmpv6_type_name?: string;
       // TCP (1.5+)
-      tcp_flags?: string[];
-      tcp_flags_not?: string[];
+      tcp_flags?: string;
+      tcp_flags_not?: string;
       tcp_mss?: string;
       // Rate limiting (1.5+)
       limit_rate?: string;
       limit_burst?: string;
       // Log options (1.5+)
-      log_level?: string;
-      log_group?: string;
+      log_options_level?: string;
+      log_options_group?: string;
       // Mark matching (1.5+)
       mark?: string;
       connection_mark?: string;
@@ -517,15 +517,11 @@ class BridgeFirewallService {
     }
 
     // TCP flags (1.5+)
-    if (config.tcp_flags && config.tcp_flags.length > 0) {
-      for (const flag of config.tcp_flags) {
-        operations.push({ op: "set_rule_tcp_flags", value: flag });
-      }
+    if (config.tcp_flags) {
+      operations.push({ op: "set_rule_tcp_flags", value: config.tcp_flags });
     }
-    if (config.tcp_flags_not && config.tcp_flags_not.length > 0) {
-      for (const flag of config.tcp_flags_not) {
-        operations.push({ op: "set_rule_tcp_flags_not", value: flag });
-      }
+    if (config.tcp_flags_not) {
+      operations.push({ op: "set_rule_tcp_flags_not", value: config.tcp_flags_not });
     }
     if (config.tcp_mss) {
       operations.push({ op: "set_rule_tcp_mss", value: config.tcp_mss });
@@ -540,11 +536,11 @@ class BridgeFirewallService {
     }
 
     // Log options (1.5+)
-    if (config.log_level) {
-      operations.push({ op: "set_rule_log_options_level", value: config.log_level });
+    if (config.log_options_level) {
+      operations.push({ op: "set_rule_log_options_level", value: config.log_options_level });
     }
-    if (config.log_group) {
-      operations.push({ op: "set_rule_log_options_group", value: config.log_group });
+    if (config.log_options_group) {
+      operations.push({ op: "set_rule_log_options_group", value: config.log_options_group });
     }
 
     // Mark matching (1.5+)
@@ -676,16 +672,14 @@ class BridgeFirewallService {
   ): Promise<VyOSResponse> {
     const operations: BridgeBatchOperation[] = [];
 
-    type EditableField = keyof Omit<BridgeRule, "rule_number">;
-
     // Helper function to handle string field updates
     const handleStringField = (
-      field: keyof Omit<BridgeRule, "rule_number">,
+      field: keyof typeof newConfig,
       setOp: string,
       deleteOp: string
     ) => {
       const newValue = newConfig[field] as string | null | undefined;
-      const currentValue = currentRule[field] as string | null | undefined;
+      const currentValue = currentRule[field as keyof BridgeRule] as string | null | undefined;
       if (newValue !== undefined) {
         if (newValue) {
           operations.push({ op: setOp, value: newValue });
@@ -697,12 +691,12 @@ class BridgeFirewallService {
 
     // Helper function to handle boolean field updates
     const handleBooleanField = (
-      field: keyof Omit<BridgeRule, "rule_number">,
+      field: keyof typeof newConfig,
       setOp: string,
       deleteOp: string
     ) => {
       const newValue = newConfig[field] as boolean | undefined;
-      const currentValue = currentRule[field] as boolean | undefined;
+      const currentValue = currentRule[field as keyof BridgeRule] as boolean | undefined;
       if (newValue !== undefined) {
         if (newValue && !currentValue) {
           operations.push({ op: setOp });
@@ -785,8 +779,8 @@ class BridgeFirewallService {
     handleStringField("limit_burst", "set_rule_limit_burst", "delete_rule_limit_burst");
 
     // Log options (1.5+)
-    handleStringField("log_level", "set_rule_log_options_level", "delete_rule_log_options_level");
-    handleStringField("log_group", "set_rule_log_options_group", "delete_rule_log_options_group");
+    handleStringField("log_options_level", "set_rule_log_options_level", "delete_rule_log_options_level");
+    handleStringField("log_options_group", "set_rule_log_options_group", "delete_rule_log_options_group");
 
     // Mark matching (1.5+)
     handleStringField("mark", "set_rule_mark", "delete_rule_mark");

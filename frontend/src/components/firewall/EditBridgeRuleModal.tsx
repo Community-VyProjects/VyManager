@@ -38,6 +38,58 @@ interface EditBridgeRuleModalProps {
   onSuccess: () => void;
 }
 
+// Rate limit units
+const RATE_UNITS = [
+  { value: "second", label: "/second" },
+  { value: "minute", label: "/minute" },
+  { value: "hour", label: "/hour" },
+  { value: "day", label: "/day" },
+];
+
+// Weekday options - VyOS requires full names
+const WEEKDAYS = [
+  { value: "Monday", label: "Mon" },
+  { value: "Tuesday", label: "Tue" },
+  { value: "Wednesday", label: "Wed" },
+  { value: "Thursday", label: "Thu" },
+  { value: "Friday", label: "Fri" },
+  { value: "Saturday", label: "Sat" },
+  { value: "Sunday", label: "Sun" },
+];
+
+// Parse rate limit string (e.g., "5/minute") into value and unit
+const parseRateLimit = (rate: string | null | undefined): { value: string; unit: string } => {
+  if (!rate) return { value: "", unit: "minute" };
+  const match = rate.match(/^(\d+)\/(second|minute|hour|day)$/);
+  if (match) {
+    return { value: match[1], unit: match[2] };
+  }
+  return { value: rate, unit: "minute" };
+};
+
+// Parse address with possible negation
+const parseAddress = (addr: string | null | undefined): { address: string; negate: boolean } => {
+  if (!addr) return { address: "", negate: false };
+  if (addr.startsWith("!")) {
+    return { address: addr.slice(1), negate: true };
+  }
+  return { address: addr, negate: false };
+};
+
+// Parse weekdays string into array
+const parseWeekdays = (days: string | null | undefined): string[] => {
+  if (!days) return [];
+  return days.split(",").map((d) => d.trim()).filter(Boolean);
+};
+
+// Parse time string (HH:MM:SS) to HH:MM for input
+const parseTimeForInput = (time: string | null | undefined): string => {
+  if (!time) return "";
+  // If it's HH:MM:SS format, return HH:MM
+  const match = time.match(/^(\d{2}:\d{2})/);
+  return match ? match[1] : time;
+};
+
 export function EditBridgeRuleModal({
   open,
   onOpenChange,
@@ -70,6 +122,12 @@ export function EditBridgeRuleModal({
     }
   };
 
+  // Parse initial values
+  const parsedSourceAddr = parseAddress(rule.source_address);
+  const parsedDestAddr = parseAddress(rule.destination_address);
+  const parsedRate = parseRateLimit(rule.limit_rate);
+  const parsedWeekdays = parseWeekdays(rule.time_weekdays);
+
   // Form state - Basic
   const [action, setAction] = useState(rule.action || "accept");
   const [description, setDescription] = useState(rule.description || "");
@@ -80,9 +138,11 @@ export function EditBridgeRuleModal({
   const [sourceMac, setSourceMac] = useState(rule.source_mac || "");
   const [destinationMac, setDestinationMac] = useState(rule.destination_mac || "");
 
-  // Source/Destination IP (1.5+)
-  const [sourceAddress, setSourceAddress] = useState(rule.source_address || "");
-  const [destinationAddress, setDestinationAddress] = useState(rule.destination_address || "");
+  // Source/Destination IP (1.5+) - with negation
+  const [sourceAddress, setSourceAddress] = useState(parsedSourceAddr.address);
+  const [sourceAddressNegate, setSourceAddressNegate] = useState(parsedSourceAddr.negate);
+  const [destinationAddress, setDestinationAddress] = useState(parsedDestAddr.address);
+  const [destinationAddressNegate, setDestinationAddressNegate] = useState(parsedDestAddr.negate);
   const [sourcePort, setSourcePort] = useState(rule.source_port || "");
   const [destinationPort, setDestinationPort] = useState(rule.destination_port || "");
 
@@ -117,14 +177,15 @@ export function EditBridgeRuleModal({
   const [tcpFlagsFin, setTcpFlagsFin] = useState(rule.tcp_flags?.includes("fin") || false);
   const [tcpFlagsRst, setTcpFlagsRst] = useState(rule.tcp_flags?.includes("rst") || false);
 
-  // Rate limiting (1.5+)
-  const [limitRate, setLimitRate] = useState(rule.limit_rate || "");
+  // Rate limiting (1.5+) - split into number and unit
+  const [limitRateValue, setLimitRateValue] = useState(parsedRate.value);
+  const [limitRateUnit, setLimitRateUnit] = useState(parsedRate.unit);
   const [limitBurst, setLimitBurst] = useState(rule.limit_burst || "");
 
-  // Time-based (1.5+)
-  const [timeStarttime, setTimeStarttime] = useState(rule.time_starttime || "");
-  const [timeStoptime, setTimeStoptime] = useState(rule.time_stoptime || "");
-  const [timeWeekdays, setTimeWeekdays] = useState(rule.time_weekdays || "");
+  // Time-based (1.5+) - using proper time format
+  const [timeStarttime, setTimeStarttime] = useState(parseTimeForInput(rule.time_starttime));
+  const [timeStoptime, setTimeStoptime] = useState(parseTimeForInput(rule.time_stoptime));
+  const [selectedWeekdays, setSelectedWeekdays] = useState<string[]>(parsedWeekdays);
 
   // Connection status (1.5+)
   const [connStatusNew, setConnStatusNew] = useState(rule.connection_status_new || false);
@@ -140,16 +201,26 @@ export function EditBridgeRuleModal({
 
   const isV15 = capabilities?.version_notes.full_support || false;
 
-  // Reset form when rule changes
+  // Reset form when modal opens or rule changes
   useEffect(() => {
+    // Only run when modal is open
+    if (!open) return;
+
+    const newSourceAddr = parseAddress(rule.source_address);
+    const newDestAddr = parseAddress(rule.destination_address);
+    const newRate = parseRateLimit(rule.limit_rate);
+    const newWeekdays = parseWeekdays(rule.time_weekdays);
+
     setAction(rule.action || "accept");
     setDescription(rule.description || "");
     setLog(rule.log);
     setDisabled(rule.disabled);
     setSourceMac(rule.source_mac || "");
     setDestinationMac(rule.destination_mac || "");
-    setSourceAddress(rule.source_address || "");
-    setDestinationAddress(rule.destination_address || "");
+    setSourceAddress(newSourceAddr.address);
+    setSourceAddressNegate(newSourceAddr.negate);
+    setDestinationAddress(newDestAddr.address);
+    setDestinationAddressNegate(newDestAddr.negate);
     setSourcePort(rule.source_port || "");
     setDestinationPort(rule.destination_port || "");
     setVlanId(rule.vlan_id || "");
@@ -167,11 +238,12 @@ export function EditBridgeRuleModal({
     setTcpFlagsAck(rule.tcp_flags?.includes("ack") || false);
     setTcpFlagsFin(rule.tcp_flags?.includes("fin") || false);
     setTcpFlagsRst(rule.tcp_flags?.includes("rst") || false);
-    setLimitRate(rule.limit_rate || "");
+    setLimitRateValue(newRate.value);
+    setLimitRateUnit(newRate.unit);
     setLimitBurst(rule.limit_burst || "");
-    setTimeStarttime(rule.time_starttime || "");
-    setTimeStoptime(rule.time_stoptime || "");
-    setTimeWeekdays(rule.time_weekdays || "");
+    setTimeStarttime(parseTimeForInput(rule.time_starttime));
+    setTimeStoptime(parseTimeForInput(rule.time_stoptime));
+    setSelectedWeekdays(newWeekdays);
     setConnStatusNew(rule.connection_status_new || false);
     setConnStatusEstablished(rule.connection_status_established || false);
     setConnStatusRelated(rule.connection_status_related || false);
@@ -181,7 +253,42 @@ export function EditBridgeRuleModal({
     setModifyVlanPriority(rule.set_vlan_priority || "");
     setModifyTcpMss(rule.set_tcp_mss || "");
     setError(null);
-  }, [rule]);
+  }, [open, rule.rule_number, rule]);
+
+  // Toggle weekday selection
+  const toggleWeekday = (day: string) => {
+    setSelectedWeekdays((prev) =>
+      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
+    );
+  };
+
+  // Build limit_rate string from value and unit
+  const buildLimitRate = (): string | null => {
+    if (!limitRateValue) return null;
+    return `${limitRateValue}/${limitRateUnit}`;
+  };
+
+  // Build time string from input (add seconds if needed)
+  const buildTimeString = (time: string): string | null => {
+    if (!time) return null;
+    // If format is HH:MM, append :00 for seconds
+    if (time.length === 5) {
+      return `${time}:00`;
+    }
+    return time;
+  };
+
+  // Build weekdays string
+  const buildWeekdays = (): string | null => {
+    if (selectedWeekdays.length === 0) return null;
+    return selectedWeekdays.join(",");
+  };
+
+  // Build address with negation
+  const buildAddress = (addr: string, negate: boolean): string | null => {
+    if (!addr) return null;
+    return negate ? `!${addr}` : addr;
+  };
 
   const handleSubmit = async () => {
     setSaving(true);
@@ -195,8 +302,8 @@ export function EditBridgeRuleModal({
         disabled,
         source_mac: sourceMac || null,
         destination_mac: destinationMac || null,
-        source_address: sourceAddress || null,
-        destination_address: destinationAddress || null,
+        source_address: buildAddress(sourceAddress, sourceAddressNegate),
+        destination_address: buildAddress(destinationAddress, destinationAddressNegate),
         source_port: sourcePort || null,
         destination_port: destinationPort || null,
         vlan_id: vlanId || null,
@@ -210,11 +317,11 @@ export function EditBridgeRuleModal({
         icmp_type: icmpType || null,
         icmp_code: icmpCode || null,
         icmp_type_name: icmpTypeName || null,
-        limit_rate: limitRate || null,
+        limit_rate: buildLimitRate(),
         limit_burst: limitBurst || null,
-        time_starttime: timeStarttime || null,
-        time_stoptime: timeStoptime || null,
-        time_weekdays: timeWeekdays || null,
+        time_starttime: buildTimeString(timeStarttime),
+        time_stoptime: buildTimeString(timeStoptime),
+        time_weekdays: buildWeekdays(),
         connection_status_new: connStatusNew,
         connection_status_established: connStatusEstablished,
         connection_status_related: connStatusRelated,
@@ -491,13 +598,25 @@ export function EditBridgeRuleModal({
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="sourceAddress">IP Address/Network</Label>
-                    <Input
-                      id="sourceAddress"
-                      placeholder="e.g., 192.168.1.0/24 or !10.0.0.1"
-                      value={sourceAddress}
-                      onChange={(e) => setSourceAddress(e.target.value)}
-                    />
-                    <p className="text-xs text-muted-foreground">Prefix with ! to negate</p>
+                    <div className="flex gap-2">
+                      <Input
+                        id="sourceAddress"
+                        placeholder="e.g., 192.168.1.0/24"
+                        value={sourceAddress}
+                        onChange={(e) => setSourceAddress(e.target.value)}
+                        className="flex-1"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Checkbox
+                        id="sourceAddressNegate"
+                        checked={sourceAddressNegate}
+                        onCheckedChange={(c) => setSourceAddressNegate(c === true)}
+                      />
+                      <Label htmlFor="sourceAddressNegate" className="text-xs font-normal text-muted-foreground">
+                        Negate (match everything EXCEPT this address)
+                      </Label>
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="sourcePort">Port(s)</Label>
@@ -516,13 +635,25 @@ export function EditBridgeRuleModal({
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="destinationAddress">IP Address/Network</Label>
-                    <Input
-                      id="destinationAddress"
-                      placeholder="e.g., 192.168.1.0/24 or !10.0.0.1"
-                      value={destinationAddress}
-                      onChange={(e) => setDestinationAddress(e.target.value)}
-                    />
-                    <p className="text-xs text-muted-foreground">Prefix with ! to negate</p>
+                    <div className="flex gap-2">
+                      <Input
+                        id="destinationAddress"
+                        placeholder="e.g., 192.168.1.0/24"
+                        value={destinationAddress}
+                        onChange={(e) => setDestinationAddress(e.target.value)}
+                        className="flex-1"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Checkbox
+                        id="destinationAddressNegate"
+                        checked={destinationAddressNegate}
+                        onCheckedChange={(c) => setDestinationAddressNegate(c === true)}
+                      />
+                      <Label htmlFor="destinationAddressNegate" className="text-xs font-normal text-muted-foreground">
+                        Negate (match everything EXCEPT this address)
+                      </Label>
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="destinationPort">Port(s)</Label>
@@ -663,26 +794,45 @@ export function EditBridgeRuleModal({
               {/* Rate Limiting */}
               <div className="space-y-4">
                 <h4 className="text-sm font-medium">Rate Limiting</h4>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="limitRate">Rate</Label>
-                    <Input
-                      id="limitRate"
-                      placeholder="e.g., 5/minute or 100/hour"
-                      value={limitRate}
-                      onChange={(e) => setLimitRate(e.target.value)}
-                    />
-                    <p className="text-xs text-muted-foreground">Format: number/second|minute|hour|day</p>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2 col-span-2">
+                    <Label htmlFor="limitRate">Rate Limit</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="limitRateValue"
+                        type="number"
+                        placeholder="Number"
+                        min="1"
+                        value={limitRateValue}
+                        onChange={(e) => setLimitRateValue(e.target.value)}
+                        className="flex-1"
+                      />
+                      <Select value={limitRateUnit} onValueChange={setLimitRateUnit}>
+                        <SelectTrigger className="w-[120px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {RATE_UNITS.map((unit) => (
+                            <SelectItem key={unit.value} value={unit.value}>
+                              {unit.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Maximum packets to match per time period</p>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="limitBurst">Burst</Label>
+                    <Label htmlFor="limitBurst">Burst Size</Label>
                     <Input
                       id="limitBurst"
                       type="number"
-                      placeholder="Burst size"
+                      placeholder="5"
+                      min="1"
                       value={limitBurst}
                       onChange={(e) => setLimitBurst(e.target.value)}
                     />
+                    <p className="text-xs text-muted-foreground">Burst allowance</p>
                   </div>
                 </div>
               </div>
@@ -690,12 +840,12 @@ export function EditBridgeRuleModal({
               {/* Time-based Rules */}
               <div className="space-y-4">
                 <h4 className="text-sm font-medium">Time-based Rules</h4>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="timeStarttime">Start Time</Label>
                     <Input
                       id="timeStarttime"
-                      placeholder="HH:MM:SS"
+                      type="time"
                       value={timeStarttime}
                       onChange={(e) => setTimeStarttime(e.target.value)}
                     />
@@ -704,20 +854,35 @@ export function EditBridgeRuleModal({
                     <Label htmlFor="timeStoptime">Stop Time</Label>
                     <Input
                       id="timeStoptime"
-                      placeholder="HH:MM:SS"
+                      type="time"
                       value={timeStoptime}
                       onChange={(e) => setTimeStoptime(e.target.value)}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="timeWeekdays">Weekdays</Label>
-                    <Input
-                      id="timeWeekdays"
-                      placeholder="e.g., Mon,Tue,Wed"
-                      value={timeWeekdays}
-                      onChange={(e) => setTimeWeekdays(e.target.value)}
-                    />
+                </div>
+                <div className="space-y-2">
+                  <Label>Active Days</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {WEEKDAYS.map((day) => (
+                      <Button
+                        key={day.value}
+                        type="button"
+                        variant={selectedWeekdays.includes(day.value) ? "default" : "outline"}
+                        size="sm"
+                        className="w-12"
+                        onClick={() => toggleWeekday(day.value)}
+                      >
+                        {day.label}
+                      </Button>
+                    ))}
                   </div>
+                  <p className="text-xs text-muted-foreground">
+                    {selectedWeekdays.length === 0
+                      ? "No days selected (rule active every day)"
+                      : selectedWeekdays.length === 7
+                        ? "Active every day"
+                        : `Active on: ${selectedWeekdays.join(", ")}`}
+                  </p>
                 </div>
               </div>
 
@@ -732,6 +897,8 @@ export function EditBridgeRuleModal({
                       id="modifyDscp"
                       type="number"
                       placeholder="0-63"
+                      min="0"
+                      max="63"
                       value={modifyDscp}
                       onChange={(e) => setModifyDscp(e.target.value)}
                     />
@@ -747,22 +914,41 @@ export function EditBridgeRuleModal({
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="modifyVlanPriority">Set VLAN Priority</Label>
-                    <Input
-                      id="modifyVlanPriority"
-                      type="number"
-                      placeholder="0-7"
-                      value={modifyVlanPriority}
-                      onChange={(e) => setModifyVlanPriority(e.target.value)}
-                    />
+                    <Select
+                      value={modifyVlanPriority || "_none_"}
+                      onValueChange={(v) => setModifyVlanPriority(v === "_none_" ? "" : v)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="None" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="_none_">None</SelectItem>
+                        {[0, 1, 2, 3, 4, 5, 6, 7].map((p) => (
+                          <SelectItem key={p} value={p.toString()}>
+                            {p} - {p === 0 ? "Best Effort" : p === 1 ? "Background" : p === 2 ? "Spare" : p === 3 ? "Excellent Effort" : p === 4 ? "Controlled Load" : p === 5 ? "Video" : p === 6 ? "Voice" : "Network Control"}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="modifyTcpMss">Set TCP MSS</Label>
-                    <Input
-                      id="modifyTcpMss"
-                      placeholder="MSS value or 'clamp-mss-to-pmtu'"
-                      value={modifyTcpMss}
-                      onChange={(e) => setModifyTcpMss(e.target.value)}
-                    />
+                    <Select
+                      value={modifyTcpMss || "_none_"}
+                      onValueChange={(v) => setModifyTcpMss(v === "_none_" ? "" : v)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="None" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="_none_">None</SelectItem>
+                        <SelectItem value="clamp-mss-to-pmtu">Clamp to PMTU (Recommended)</SelectItem>
+                        <SelectItem value="1460">1460 (Standard Ethernet)</SelectItem>
+                        <SelectItem value="1440">1440 (PPPoE)</SelectItem>
+                        <SelectItem value="1400">1400 (VPN/Tunnels)</SelectItem>
+                        <SelectItem value="1360">1360 (Double Encapsulation)</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               </div>

@@ -77,7 +77,7 @@ export default function BridgeFirewallPage() {
 
   // Modal states
   const [createModalOpen, setCreateModalOpen] = useState(false);
-  const [editingRule, setEditingRule] = useState<{ chain: string; rule: BridgeRule } | null>(null);
+  const [editingRule, setEditingRule] = useState<{ chain: string; rule: BridgeRule; openedAt: number } | null>(null);
   const [deletingRule, setDeletingRule] = useState<{ chain: string; rule: BridgeRule } | null>(null);
   const [createChainModalOpen, setCreateChainModalOpen] = useState(false);
   const [deletingChain, setDeletingChain] = useState<BridgeChain | null>(null);
@@ -610,18 +610,6 @@ export default function BridgeFirewallPage() {
                 >
                   <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
                 </Button>
-                {isCustomChain && currentChain && (
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => setDeletingChain(currentChain)}
-                    className="text-destructive hover:text-destructive"
-                    title="Delete chain"
-                    disabled={hasChanges}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                )}
                 <Button onClick={() => setCreateModalOpen(true)} disabled={hasChanges}>
                   <Plus className="h-4 w-4 mr-2" />
                   Add Rule
@@ -698,17 +686,19 @@ export default function BridgeFirewallPage() {
                   <TableHeader>
                     <TableRow className="hover:bg-transparent">
                       <TableHead className="w-10"></TableHead>
-                      <TableHead className="w-16">#</TableHead>
-                      <TableHead className="w-32">Action</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead>Match Criteria</TableHead>
+                      <TableHead className="w-14">#</TableHead>
+                      <TableHead className="w-24">Action</TableHead>
+                      <TableHead className="min-w-[120px]">Source</TableHead>
+                      <TableHead className="min-w-[120px]">Destination</TableHead>
+                      {isV15 && <TableHead className="w-20">Protocol</TableHead>}
+                      <TableHead className="w-28">Interface</TableHead>
                       <TableHead className="w-28 text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredRules.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="h-32">
+                        <TableCell colSpan={isV15 ? 8 : 7} className="h-32">
                           <div className="flex flex-col items-center justify-center text-center">
                             <AlertCircle className="h-8 w-8 text-muted-foreground mb-2" />
                             <p className="text-sm font-medium text-foreground">
@@ -729,7 +719,8 @@ export default function BridgeFirewallPage() {
                           <BridgeRuleRow
                             key={rule.rule_number}
                             rule={rule}
-                            onEdit={(r) => setEditingRule({ chain: selectedChain, rule: r })}
+                            isV15={isV15}
+                            onEdit={(r) => setEditingRule({ chain: selectedChain, rule: r, openedAt: Date.now() })}
                             onDelete={(r) => setDeletingRule({ chain: selectedChain, rule: r })}
                           />
                         ))}
@@ -755,6 +746,7 @@ export default function BridgeFirewallPage() {
 
       {editingRule && (
         <EditBridgeRuleModal
+          key={`edit-${editingRule.openedAt}`}
           open={!!editingRule}
           onOpenChange={(open) => !open && setEditingRule(null)}
           chain={editingRule.chain}

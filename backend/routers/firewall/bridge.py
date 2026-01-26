@@ -69,19 +69,92 @@ class BridgeRule(BaseModel):
     description: Optional[str] = None
     disabled: bool = False
     log: bool = False
+    # Source fields
     source_mac: Optional[str] = None
+    source_address: Optional[str] = None
+    source_port: Optional[str] = None
+    source_group_address: Optional[str] = None
+    source_group_network: Optional[str] = None
+    source_group_port: Optional[str] = None
+    source_group_mac: Optional[str] = None
+    # Destination fields
     destination_mac: Optional[str] = None
+    destination_address: Optional[str] = None
+    destination_port: Optional[str] = None
+    destination_group_address: Optional[str] = None
+    destination_group_network: Optional[str] = None
+    destination_group_port: Optional[str] = None
+    destination_group_mac: Optional[str] = None
+    # VLAN fields
     vlan_id: Optional[str] = None
     vlan_priority: Optional[str] = None
+    vlan_ethernet_type: Optional[str] = None
+    # Interface fields
     inbound_interface: Optional[str] = None
     inbound_interface_group: Optional[str] = None
     outbound_interface: Optional[str] = None
     outbound_interface_group: Optional[str] = None
+    # Protocol fields
+    protocol: Optional[str] = None
     ethernet_type: Optional[str] = None
+    # ICMP fields
+    icmp_type: Optional[str] = None
+    icmp_code: Optional[str] = None
+    icmp_type_name: Optional[str] = None
+    icmpv6_type: Optional[str] = None
+    icmpv6_code: Optional[str] = None
+    icmpv6_type_name: Optional[str] = None
+    # TCP fields
+    tcp_flags: Optional[str] = None
+    tcp_flags_not: Optional[str] = None
+    tcp_mss: Optional[str] = None
+    # Rate limit fields
+    limit_rate: Optional[str] = None
+    limit_burst: Optional[str] = None
+    # Time fields (VyOS 1.5+)
+    time_startdate: Optional[str] = None
+    time_stopdate: Optional[str] = None
+    time_starttime: Optional[str] = None
+    time_stoptime: Optional[str] = None
+    time_weekdays: Optional[str] = None
+    # Mark/DSCP matching fields
+    mark: Optional[str] = None
+    connection_mark: Optional[str] = None
+    dscp: Optional[str] = None
+    dscp_exclude: Optional[str] = None
+    # TTL/Hop-Limit fields
+    ttl_eq: Optional[str] = None
+    ttl_gt: Optional[str] = None
+    ttl_lt: Optional[str] = None
+    hop_limit_eq: Optional[str] = None
+    hop_limit_gt: Optional[str] = None
+    hop_limit_lt: Optional[str] = None
+    # Packet fields
+    packet_type: Optional[str] = None
+    packet_length: Optional[str] = None
+    # Fragment matching
+    fragment_match_frag: bool = False
+    fragment_match_non_frag: bool = False
+    # IPsec matching
+    ipsec_match_ipsec_in: bool = False
+    ipsec_match_ipsec_out: bool = False
+    ipsec_match_none_in: bool = False
+    ipsec_match_none_out: bool = False
+    # Log options
+    log_options_level: Optional[str] = None
+    log_options_group: Optional[str] = None
+    # Jump target
     jump_target: Optional[str] = None
+    # Queue
+    queue: Optional[str] = None
+    # Set options (action modifications)
     set_dscp: Optional[str] = None
     set_mark: Optional[str] = None
     set_vlan_priority: Optional[str] = None
+    set_connection_mark: Optional[str] = None
+    set_ttl: Optional[str] = None
+    set_hop_limit: Optional[str] = None
+    set_tcp_mss: Optional[str] = None
 
 
 class BridgeChain(BaseModel):
@@ -337,23 +410,90 @@ def parse_rule(rule_number: int, rule_config: dict) -> BridgeRule:
     """Parse a rule configuration from VyOS config."""
     # Handle source
     source = rule_config.get("source", {})
-    source_mac = source.get("mac-address") if isinstance(source, dict) else None
+    if not isinstance(source, dict):
+        source = {}
+    source_group = source.get("group", {})
+    if not isinstance(source_group, dict):
+        source_group = {}
 
     # Handle destination
     destination = rule_config.get("destination", {})
-    dest_mac = destination.get("mac-address") if isinstance(destination, dict) else None
+    if not isinstance(destination, dict):
+        destination = {}
+    dest_group = destination.get("group", {})
+    if not isinstance(dest_group, dict):
+        dest_group = {}
 
     # Handle VLAN
     vlan = rule_config.get("vlan", {})
-    vlan_id = vlan.get("id") if isinstance(vlan, dict) else None
-    vlan_priority = vlan.get("priority") if isinstance(vlan, dict) else None
+    if not isinstance(vlan, dict):
+        vlan = {}
 
     # Handle interfaces
     inbound = rule_config.get("inbound-interface", {})
+    if not isinstance(inbound, dict):
+        inbound = {}
     outbound = rule_config.get("outbound-interface", {})
+    if not isinstance(outbound, dict):
+        outbound = {}
 
     # Handle set options
     set_opts = rule_config.get("set", {})
+    if not isinstance(set_opts, dict):
+        set_opts = {}
+
+    # Handle time options
+    time_opts = rule_config.get("time", {})
+    if not isinstance(time_opts, dict):
+        time_opts = {}
+
+    # Handle limit options
+    limit_opts = rule_config.get("limit", {})
+    if not isinstance(limit_opts, dict):
+        limit_opts = {}
+
+    # Handle ICMP
+    icmp_opts = rule_config.get("icmp", {})
+    if not isinstance(icmp_opts, dict):
+        icmp_opts = {}
+
+    # Handle ICMPv6
+    icmpv6_opts = rule_config.get("icmpv6", {})
+    if not isinstance(icmpv6_opts, dict):
+        icmpv6_opts = {}
+
+    # Handle TCP
+    tcp_opts = rule_config.get("tcp", {})
+    if not isinstance(tcp_opts, dict):
+        tcp_opts = {}
+    tcp_flags = tcp_opts.get("flags", {})
+    if not isinstance(tcp_flags, dict):
+        tcp_flags = {}
+
+    # Handle fragment
+    fragment_opts = rule_config.get("fragment", {})
+    if not isinstance(fragment_opts, dict):
+        fragment_opts = {}
+
+    # Handle ipsec
+    ipsec_opts = rule_config.get("ipsec", {})
+    if not isinstance(ipsec_opts, dict):
+        ipsec_opts = {}
+
+    # Handle TTL
+    ttl_opts = rule_config.get("ttl", {})
+    if not isinstance(ttl_opts, dict):
+        ttl_opts = {}
+
+    # Handle hop-limit
+    hop_limit_opts = rule_config.get("hop-limit", {})
+    if not isinstance(hop_limit_opts, dict):
+        hop_limit_opts = {}
+
+    # Handle log options
+    log_opts = rule_config.get("log-options", {})
+    if not isinstance(log_opts, dict):
+        log_opts = {}
 
     return BridgeRule(
         rule_number=rule_number,
@@ -361,19 +501,92 @@ def parse_rule(rule_number: int, rule_config: dict) -> BridgeRule:
         description=rule_config.get("description"),
         disabled="disable" in rule_config,
         log="log" in rule_config,
-        source_mac=source_mac,
-        destination_mac=dest_mac,
-        vlan_id=vlan_id,
-        vlan_priority=vlan_priority,
-        inbound_interface=inbound.get("name") if isinstance(inbound, dict) else None,
-        inbound_interface_group=inbound.get("group") if isinstance(inbound, dict) else None,
-        outbound_interface=outbound.get("name") if isinstance(outbound, dict) else None,
-        outbound_interface_group=outbound.get("group") if isinstance(outbound, dict) else None,
+        # Source fields
+        source_mac=source.get("mac-address"),
+        source_address=source.get("address"),
+        source_port=source.get("port"),
+        source_group_address=source_group.get("address-group"),
+        source_group_network=source_group.get("network-group"),
+        source_group_port=source_group.get("port-group"),
+        source_group_mac=source_group.get("mac-group"),
+        # Destination fields
+        destination_mac=destination.get("mac-address"),
+        destination_address=destination.get("address"),
+        destination_port=destination.get("port"),
+        destination_group_address=dest_group.get("address-group"),
+        destination_group_network=dest_group.get("network-group"),
+        destination_group_port=dest_group.get("port-group"),
+        destination_group_mac=dest_group.get("mac-group"),
+        # VLAN fields
+        vlan_id=vlan.get("id"),
+        vlan_priority=vlan.get("priority"),
+        vlan_ethernet_type=vlan.get("ethernet-type"),
+        # Interface fields
+        inbound_interface=inbound.get("name"),
+        inbound_interface_group=inbound.get("group"),
+        outbound_interface=outbound.get("name"),
+        outbound_interface_group=outbound.get("group"),
+        # Protocol fields
+        protocol=rule_config.get("protocol"),
         ethernet_type=rule_config.get("ethernet-type"),
+        # ICMP fields
+        icmp_type=icmp_opts.get("type"),
+        icmp_code=icmp_opts.get("code"),
+        icmp_type_name=icmp_opts.get("type-name"),
+        icmpv6_type=icmpv6_opts.get("type"),
+        icmpv6_code=icmpv6_opts.get("code"),
+        icmpv6_type_name=icmpv6_opts.get("type-name"),
+        # TCP fields
+        tcp_flags=tcp_flags.get("set") if isinstance(tcp_flags.get("set"), str) else None,
+        tcp_flags_not=tcp_flags.get("not") if isinstance(tcp_flags.get("not"), str) else None,
+        tcp_mss=tcp_opts.get("mss"),
+        # Rate limit fields
+        limit_rate=limit_opts.get("rate"),
+        limit_burst=limit_opts.get("burst"),
+        # Time fields
+        time_startdate=time_opts.get("startdate"),
+        time_stopdate=time_opts.get("stopdate"),
+        time_starttime=time_opts.get("starttime"),
+        time_stoptime=time_opts.get("stoptime"),
+        time_weekdays=time_opts.get("weekdays"),
+        # Mark/DSCP matching fields
+        mark=rule_config.get("mark"),
+        connection_mark=rule_config.get("connection-mark"),
+        dscp=rule_config.get("dscp"),
+        dscp_exclude=rule_config.get("dscp-exclude"),
+        # TTL/Hop-Limit fields
+        ttl_eq=ttl_opts.get("eq"),
+        ttl_gt=ttl_opts.get("gt"),
+        ttl_lt=ttl_opts.get("lt"),
+        hop_limit_eq=hop_limit_opts.get("eq"),
+        hop_limit_gt=hop_limit_opts.get("gt"),
+        hop_limit_lt=hop_limit_opts.get("lt"),
+        # Packet fields
+        packet_type=rule_config.get("packet-type"),
+        packet_length=rule_config.get("packet-length"),
+        # Fragment matching
+        fragment_match_frag="match-frag" in fragment_opts,
+        fragment_match_non_frag="match-non-frag" in fragment_opts,
+        # IPsec matching
+        ipsec_match_ipsec_in="match-ipsec-in" in ipsec_opts,
+        ipsec_match_ipsec_out="match-ipsec-out" in ipsec_opts,
+        ipsec_match_none_in="match-none-in" in ipsec_opts,
+        ipsec_match_none_out="match-none-out" in ipsec_opts,
+        # Log options
+        log_options_level=log_opts.get("level"),
+        log_options_group=log_opts.get("group"),
+        # Jump target
         jump_target=rule_config.get("jump-target"),
-        set_dscp=set_opts.get("dscp") if isinstance(set_opts, dict) else None,
-        set_mark=set_opts.get("mark") if isinstance(set_opts, dict) else None,
-        set_vlan_priority=set_opts.get("vlan-priority") if isinstance(set_opts, dict) else None,
+        # Queue
+        queue=rule_config.get("queue"),
+        # Set options
+        set_dscp=set_opts.get("dscp"),
+        set_mark=set_opts.get("mark"),
+        set_vlan_priority=set_opts.get("vlan-priority"),
+        set_connection_mark=set_opts.get("connection-mark"),
+        set_ttl=set_opts.get("ttl"),
+        set_hop_limit=set_opts.get("hop-limit"),
+        set_tcp_mss=set_opts.get("tcp-mss"),
     )
 
 
@@ -1383,21 +1596,169 @@ async def reorder_bridge_rules(http_request: Request, request: ReorderRequest):
             if rule.outbound_interface_group:
                 batch.set_rule_outbound_interface_group(chain, new_number, rule.outbound_interface_group)
 
-            # VyOS 1.5+ features
+            # Source/Destination addresses (VyOS 1.5+)
+            if rule.source_address:
+                batch.set_rule_source_address(chain, new_number, rule.source_address)
+            if rule.destination_address:
+                batch.set_rule_destination_address(chain, new_number, rule.destination_address)
+
+            # Source/Destination ports (VyOS 1.5+)
+            if rule.source_port:
+                batch.set_rule_source_port(chain, new_number, rule.source_port)
+            if rule.destination_port:
+                batch.set_rule_destination_port(chain, new_number, rule.destination_port)
+
+            # Source groups (VyOS 1.5+)
+            if rule.source_group_address:
+                batch.set_rule_source_group_address(chain, new_number, rule.source_group_address)
+            if rule.source_group_network:
+                batch.set_rule_source_group_network(chain, new_number, rule.source_group_network)
+            if rule.source_group_port:
+                batch.set_rule_source_group_port(chain, new_number, rule.source_group_port)
+            if rule.source_group_mac:
+                batch.set_rule_source_group_mac(chain, new_number, rule.source_group_mac)
+
+            # Destination groups (VyOS 1.5+)
+            if rule.destination_group_address:
+                batch.set_rule_destination_group_address(chain, new_number, rule.destination_group_address)
+            if rule.destination_group_network:
+                batch.set_rule_destination_group_network(chain, new_number, rule.destination_group_network)
+            if rule.destination_group_port:
+                batch.set_rule_destination_group_port(chain, new_number, rule.destination_group_port)
+            if rule.destination_group_mac:
+                batch.set_rule_destination_group_mac(chain, new_number, rule.destination_group_mac)
+
+            # VLAN ethernet type
+            if rule.vlan_ethernet_type:
+                batch.set_rule_vlan_ethernet_type(chain, new_number, rule.vlan_ethernet_type)
+
+            # Protocol (VyOS 1.5+)
+            if rule.protocol:
+                batch.set_rule_protocol(chain, new_number, rule.protocol)
+
+            # Ethernet type
             if rule.ethernet_type:
                 batch.set_rule_ethernet_type(chain, new_number, rule.ethernet_type)
 
+            # ICMP (VyOS 1.5+)
+            if rule.icmp_type:
+                batch.set_rule_icmp_type(chain, new_number, rule.icmp_type)
+            if rule.icmp_code:
+                batch.set_rule_icmp_code(chain, new_number, rule.icmp_code)
+            if rule.icmp_type_name:
+                batch.set_rule_icmp_type_name(chain, new_number, rule.icmp_type_name)
+
+            # ICMPv6 (VyOS 1.5+)
+            if rule.icmpv6_type:
+                batch.set_rule_icmpv6_type(chain, new_number, rule.icmpv6_type)
+            if rule.icmpv6_code:
+                batch.set_rule_icmpv6_code(chain, new_number, rule.icmpv6_code)
+            if rule.icmpv6_type_name:
+                batch.set_rule_icmpv6_type_name(chain, new_number, rule.icmpv6_type_name)
+
+            # TCP (VyOS 1.5+)
+            if rule.tcp_flags:
+                batch.set_rule_tcp_flags(chain, new_number, rule.tcp_flags)
+            if rule.tcp_flags_not:
+                batch.set_rule_tcp_flags_not(chain, new_number, rule.tcp_flags_not)
+            if rule.tcp_mss:
+                batch.set_rule_tcp_mss(chain, new_number, rule.tcp_mss)
+
+            # Rate limit (VyOS 1.5+)
+            if rule.limit_rate:
+                batch.set_rule_limit_rate(chain, new_number, rule.limit_rate)
+            if rule.limit_burst:
+                batch.set_rule_limit_burst(chain, new_number, rule.limit_burst)
+
+            # Time-based rules (VyOS 1.5+)
+            if rule.time_startdate:
+                batch.set_rule_time_startdate(chain, new_number, rule.time_startdate)
+            if rule.time_stopdate:
+                batch.set_rule_time_stopdate(chain, new_number, rule.time_stopdate)
+            if rule.time_starttime:
+                batch.set_rule_time_starttime(chain, new_number, rule.time_starttime)
+            if rule.time_stoptime:
+                batch.set_rule_time_stoptime(chain, new_number, rule.time_stoptime)
+            if rule.time_weekdays:
+                batch.set_rule_time_weekdays(chain, new_number, rule.time_weekdays)
+
+            # Mark matching (VyOS 1.5+)
+            if rule.mark:
+                batch.set_rule_mark(chain, new_number, rule.mark)
+            if rule.connection_mark:
+                batch.set_rule_connection_mark(chain, new_number, rule.connection_mark)
+
+            # DSCP matching (VyOS 1.5+)
+            if rule.dscp:
+                batch.set_rule_dscp(chain, new_number, rule.dscp)
+            if rule.dscp_exclude:
+                batch.set_rule_dscp_exclude(chain, new_number, rule.dscp_exclude)
+
+            # TTL/Hop-limit (VyOS 1.5+)
+            if rule.ttl_eq:
+                batch.set_rule_ttl_eq(chain, new_number, rule.ttl_eq)
+            if rule.ttl_gt:
+                batch.set_rule_ttl_gt(chain, new_number, rule.ttl_gt)
+            if rule.ttl_lt:
+                batch.set_rule_ttl_lt(chain, new_number, rule.ttl_lt)
+            if rule.hop_limit_eq:
+                batch.set_rule_hop_limit_eq(chain, new_number, rule.hop_limit_eq)
+            if rule.hop_limit_gt:
+                batch.set_rule_hop_limit_gt(chain, new_number, rule.hop_limit_gt)
+            if rule.hop_limit_lt:
+                batch.set_rule_hop_limit_lt(chain, new_number, rule.hop_limit_lt)
+
+            # Packet fields (VyOS 1.5+)
+            if rule.packet_type:
+                batch.set_rule_packet_type(chain, new_number, rule.packet_type)
+            if rule.packet_length:
+                batch.set_rule_packet_length(chain, new_number, rule.packet_length)
+
+            # Fragment matching (VyOS 1.5+)
+            if rule.fragment_match_frag:
+                batch.set_rule_fragment_match_frag(chain, new_number)
+            if rule.fragment_match_non_frag:
+                batch.set_rule_fragment_match_non_frag(chain, new_number)
+
+            # IPsec matching (VyOS 1.5+)
+            if rule.ipsec_match_ipsec_in:
+                batch.set_rule_ipsec_match_ipsec_in(chain, new_number)
+            if rule.ipsec_match_ipsec_out:
+                batch.set_rule_ipsec_match_ipsec_out(chain, new_number)
+            if rule.ipsec_match_none_in:
+                batch.set_rule_ipsec_match_none_in(chain, new_number)
+            if rule.ipsec_match_none_out:
+                batch.set_rule_ipsec_match_none_out(chain, new_number)
+
+            # Log options (VyOS 1.5+)
+            if rule.log_options_level:
+                batch.set_rule_log_options_level(chain, new_number, rule.log_options_level)
+            if rule.log_options_group:
+                batch.set_rule_log_options_group(chain, new_number, rule.log_options_group)
+
+            # Jump target
             if rule.jump_target:
                 batch.set_rule_jump_target(chain, new_number, rule.jump_target)
 
+            # Queue (VyOS 1.5+)
+            if rule.queue:
+                batch.set_rule_queue(chain, new_number, rule.queue)
+
+            # Set options (VyOS 1.5+)
             if rule.set_dscp:
                 batch.set_rule_set_dscp(chain, new_number, rule.set_dscp)
-
             if rule.set_mark:
                 batch.set_rule_set_mark(chain, new_number, rule.set_mark)
-
             if rule.set_vlan_priority:
                 batch.set_rule_set_vlan_priority(chain, new_number, rule.set_vlan_priority)
+            if rule.set_connection_mark:
+                batch.set_rule_set_connection_mark(chain, new_number, rule.set_connection_mark)
+            if rule.set_ttl:
+                batch.set_rule_set_ttl(chain, new_number, rule.set_ttl)
+            if rule.set_hop_limit:
+                batch.set_rule_set_hop_limit(chain, new_number, rule.set_hop_limit)
+            if rule.set_tcp_mss:
+                batch.set_rule_set_tcp_mss(chain, new_number, rule.set_tcp_mss)
 
         # Execute the batch
         response = service.execute_batch(batch)
