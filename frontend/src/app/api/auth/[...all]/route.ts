@@ -21,7 +21,8 @@ async function POST_WITH_VALIDATION(request: NextRequest) {
     try {
       // SECURITY: Check if onboarding is complete
       // If users already exist, reject signup attempts
-      const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      // Runtime environment variable - BACKEND_URL is read at runtime
+      const backendUrl = process.env.BACKEND_URL || "http://backend:8000";
       const onboardingCheck = await fetch(`${backendUrl}/session/onboarding-status`);
 
       if (onboardingCheck.ok) {
@@ -29,7 +30,6 @@ async function POST_WITH_VALIDATION(request: NextRequest) {
 
         if (!data.needs_onboarding) {
           // Onboarding is complete - reject signup
-          console.log("[Auth] Blocked signup attempt - onboarding already complete");
           return NextResponse.json(
             {
               error: {

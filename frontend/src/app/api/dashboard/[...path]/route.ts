@@ -1,8 +1,8 @@
 /**
- * User Management API Proxy Route
+ * Dashboard API Proxy Route
  *
- * Forwards all /api/user-management/* requests to the backend with proper cookie handling.
- * This ensures authentication cookies are correctly passed through to the backend.
+ * Forwards all /api/dashboard/* requests to the backend.
+ * Uses BACKEND_URL environment variable (runtime configurable).
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -27,22 +27,6 @@ export async function POST(
   return proxyRequest(request, path, "POST");
 }
 
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ path: string[] }> }
-) {
-  const { path } = await params;
-  return proxyRequest(request, path, "PUT");
-}
-
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ path: string[] }> }
-) {
-  const { path } = await params;
-  return proxyRequest(request, path, "DELETE");
-}
-
 async function proxyRequest(
   request: NextRequest,
   path: string[],
@@ -55,7 +39,7 @@ async function proxyRequest(
     const sessionToken = request.cookies.get("better-auth.session_token");
 
     // Build the backend URL
-    const backendPath = `/user-management/${path.join("/")}`;
+    const backendPath = `/dashboard/${path.join("/")}`;
     const backendUrl = `${BACKEND_URL}${backendPath}`;
 
     // Copy search params
@@ -75,7 +59,7 @@ async function proxyRequest(
     // Handle request body
     let body: BodyInit | undefined;
 
-    if (["POST", "PUT", "PATCH"].includes(method)) {
+    if (method === "POST") {
       headers["Content-Type"] = "application/json";
       try {
         const json = await request.json();
@@ -98,17 +82,14 @@ async function proxyRequest(
     try {
       const data = JSON.parse(responseText);
       return NextResponse.json(data, { status: response.status });
-    } catch (parseError) {
-      return NextResponse.json(
-        {
-          error: "Backend returned invalid JSON",
-          details: responseText.substring(0, 200),
-        },
-        { status: 500 }
-      );
+    } catch {
+      return new NextResponse(responseText, {
+        status: response.status,
+        headers: { "Content-Type": response.headers.get("Content-Type") || "text/plain" },
+      });
     }
   } catch (error) {
-    console.error("[UserManagementProxy] Error:", error);
+    console.error("[DashboardProxy] Error:", error);
     return NextResponse.json(
       {
         error: "Failed to proxy request to backend",
