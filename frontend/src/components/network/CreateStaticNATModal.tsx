@@ -37,6 +37,8 @@ export function CreateStaticNATModal({ open, onOpenChange, onSuccess }: CreateSt
   // Load interfaces and calculate next rule number on mount
   useEffect(() => {
     if (open) {
+      // Reset form to ensure clean state when opening
+      resetForm();
       loadInterfaces();
       calculateNextRuleNumber();
     }

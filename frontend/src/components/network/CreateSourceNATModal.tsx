@@ -78,6 +78,8 @@ export function CreateSourceNATModal({ open, onOpenChange, onSuccess }: CreateSo
   // Load groups, interfaces, and calculate next rule number on mount
   useEffect(() => {
     if (open) {
+      // Reset form to ensure clean state when opening
+      resetForm();
       loadGroups();
       loadInterfaces();
       calculateNextRuleNumber();

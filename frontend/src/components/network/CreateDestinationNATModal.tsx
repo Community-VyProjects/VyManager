@@ -78,6 +78,8 @@ export function CreateDestinationNATModal({ open, onOpenChange, onSuccess }: Cre
   // Load groups, interfaces, and calculate next rule number on mount
   useEffect(() => {
     if (open) {
+      // Reset form to ensure clean state when opening
+      resetForm();
       loadGroups();
       loadInterfaces();
       calculateNextRuleNumber();
