@@ -39,6 +39,15 @@ export function EditStaticNATModal({ open, onOpenChange, rule, onSuccess }: Edit
   // Translation
   const [translationAddress, setTranslationAddress] = useState("");
 
+  // Reset all form fields to defaults
+  const resetForm = () => {
+    setDescription("");
+    setDestinationAddress("");
+    setInboundInterfaceName("");
+    setTranslationAddress("");
+    setError(null);
+  };
+
   // Load interfaces on mount
   useEffect(() => {
     if (open) {
@@ -49,6 +58,8 @@ export function EditStaticNATModal({ open, onOpenChange, rule, onSuccess }: Edit
   // Populate form when rule changes
   useEffect(() => {
     if (rule && open) {
+      // Reset form first to clear any stale data from previous rule
+      resetForm();
       populateForm(rule);
     }
   }, [rule, open]);

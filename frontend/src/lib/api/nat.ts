@@ -484,6 +484,13 @@ class NATService {
       disable?: boolean;
       exclude?: boolean;
       log?: boolean;
+      // Delete flags for clearing fields
+      delete_source_address?: boolean;
+      delete_source_port?: boolean;
+      delete_source_group?: boolean;
+      delete_destination_address?: boolean;
+      delete_destination_port?: boolean;
+      delete_destination_group?: boolean;
     }
   ): Promise<VyOSResponse> {
     // Build operations just like createSourceRule
@@ -498,28 +505,50 @@ class NATService {
       }
     }
 
-    // Source
-    if (config.source_address) {
+    // Source - handle deletions first, then sets
+    if (config.delete_source_address) {
+      operations.push({ op: "delete_source_rule_source_address" });
+    } else if (config.source_address) {
       operations.push({ op: "set_source_rule_source_address", value: config.source_address });
     }
-    if (config.source_port) {
+
+    if (config.delete_source_port) {
+      operations.push({ op: "delete_source_rule_source_port" });
+    } else if (config.source_port) {
       operations.push({ op: "set_source_rule_source_port", value: config.source_port });
     }
-    if (config.source_group_type && config.source_group_name) {
+
+    if (config.delete_source_group) {
+      // Delete all possible group types (backend expects just the group_type string)
+      operations.push({ op: "delete_source_rule_source_group", value: "address-group" });
+      operations.push({ op: "delete_source_rule_source_group", value: "network-group" });
+      operations.push({ op: "delete_source_rule_source_group", value: "domain-group" });
+    } else if (config.source_group_type && config.source_group_name) {
       operations.push({
         op: "set_source_rule_source_group",
         value: JSON.stringify({ group_type: config.source_group_type, group_name: config.source_group_name })
       });
     }
 
-    // Destination
-    if (config.destination_address) {
+    // Destination - handle deletions first, then sets
+    if (config.delete_destination_address) {
+      operations.push({ op: "delete_source_rule_destination_address" });
+    } else if (config.destination_address) {
       operations.push({ op: "set_source_rule_destination_address", value: config.destination_address });
     }
-    if (config.destination_port) {
+
+    if (config.delete_destination_port) {
+      operations.push({ op: "delete_source_rule_destination_port" });
+    } else if (config.destination_port) {
       operations.push({ op: "set_source_rule_destination_port", value: config.destination_port });
     }
-    if (config.destination_group_type && config.destination_group_name) {
+
+    if (config.delete_destination_group) {
+      // Delete all possible group types (backend expects just the group_type string)
+      operations.push({ op: "delete_source_rule_destination_group", value: "address-group" });
+      operations.push({ op: "delete_source_rule_destination_group", value: "network-group" });
+      operations.push({ op: "delete_source_rule_destination_group", value: "domain-group" });
+    } else if (config.destination_group_type && config.destination_group_name) {
       operations.push({
         op: "set_source_rule_destination_group",
         value: JSON.stringify({ group_type: config.destination_group_type, group_name: config.destination_group_name })
@@ -618,6 +647,13 @@ class NATService {
       disable?: boolean;
       exclude?: boolean;
       log?: boolean;
+      // Delete flags for clearing fields
+      delete_source_address?: boolean;
+      delete_source_port?: boolean;
+      delete_source_group?: boolean;
+      delete_destination_address?: boolean;
+      delete_destination_port?: boolean;
+      delete_destination_group?: boolean;
     }
   ): Promise<VyOSResponse> {
     // Build operations just like createDestinationRule
@@ -632,28 +668,50 @@ class NATService {
       }
     }
 
-    // Source
-    if (config.source_address) {
+    // Source - handle deletions first, then sets
+    if (config.delete_source_address) {
+      operations.push({ op: "delete_destination_rule_source_address" });
+    } else if (config.source_address) {
       operations.push({ op: "set_destination_rule_source_address", value: config.source_address });
     }
-    if (config.source_port) {
+
+    if (config.delete_source_port) {
+      operations.push({ op: "delete_destination_rule_source_port" });
+    } else if (config.source_port) {
       operations.push({ op: "set_destination_rule_source_port", value: config.source_port });
     }
-    if (config.source_group_type && config.source_group_name) {
+
+    if (config.delete_source_group) {
+      // Delete all possible group types (backend expects just the group_type string)
+      operations.push({ op: "delete_destination_rule_source_group", value: "address-group" });
+      operations.push({ op: "delete_destination_rule_source_group", value: "network-group" });
+      operations.push({ op: "delete_destination_rule_source_group", value: "domain-group" });
+    } else if (config.source_group_type && config.source_group_name) {
       operations.push({
         op: "set_destination_rule_source_group",
         value: JSON.stringify({ group_type: config.source_group_type, group_name: config.source_group_name })
       });
     }
 
-    // Destination
-    if (config.destination_address) {
+    // Destination - handle deletions first, then sets
+    if (config.delete_destination_address) {
+      operations.push({ op: "delete_destination_rule_destination_address" });
+    } else if (config.destination_address) {
       operations.push({ op: "set_destination_rule_destination_address", value: config.destination_address });
     }
-    if (config.destination_port) {
+
+    if (config.delete_destination_port) {
+      operations.push({ op: "delete_destination_rule_destination_port" });
+    } else if (config.destination_port) {
       operations.push({ op: "set_destination_rule_destination_port", value: config.destination_port });
     }
-    if (config.destination_group_type && config.destination_group_name) {
+
+    if (config.delete_destination_group) {
+      // Delete all possible group types (backend expects just the group_type string)
+      operations.push({ op: "delete_destination_rule_destination_group", value: "address-group" });
+      operations.push({ op: "delete_destination_rule_destination_group", value: "network-group" });
+      operations.push({ op: "delete_destination_rule_destination_group", value: "domain-group" });
+    } else if (config.destination_group_type && config.destination_group_name) {
       operations.push({
         op: "set_destination_rule_destination_group",
         value: JSON.stringify({ group_type: config.destination_group_type, group_name: config.destination_group_name })
