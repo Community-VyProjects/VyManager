@@ -7,7 +7,9 @@
 
 import { NextRequest, NextResponse } from "next/server";
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://backend:8000";
+// Runtime environment variable - NOT NEXT_PUBLIC_ so it's read at runtime
+// This allows users to configure the backend URL without rebuilding
+const getBackendUrl = () => process.env.BACKEND_URL || "http://backend:8000";
 
 export async function GET(
   request: NextRequest,
@@ -46,22 +48,15 @@ async function proxyRequest(
   path: string[],
   method: string
 ) {
+  const BACKEND_URL = getBackendUrl();
+
   try {
-    console.log(`[SessionProxy] ${method} /api/session/${path.join("/")}`);
-
-    // Special handling for onboarding-status - always allow without auth
-    const isOnboardingStatus = path.join("/") === "onboarding-status";
-    if (isOnboardingStatus) {
-      console.log(`[SessionProxy] Onboarding status check - bypassing auth`);
-    }
-
     // Get the session token from request cookies
     const sessionToken = request.cookies.get("better-auth.session_token");
 
     // Build the backend URL
     const backendPath = `/session/${path.join("/")}`;
     const backendUrl = `${BACKEND_URL}${backendPath}`;
-    console.log(`[SessionProxy] Proxying to: ${backendUrl}`);
 
     // Copy search params
     const url = new URL(backendUrl);
@@ -106,8 +101,6 @@ async function proxyRequest(
       headers,
       body,
     });
-
-    console.log(`[SessionProxy] Backend response: ${response.status} ${response.statusText}`);
 
     // Check if this is a CSV export (file download)
     const responseContentType = response.headers.get("content-type");

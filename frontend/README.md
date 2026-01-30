@@ -19,9 +19,9 @@ Modern Next.js 16 frontend for VyOS router management.
 # Install dependencies
 npm install
 
-# Configure API endpoint
-cp .env.local.example .env.local
-# Edit .env.local: NEXT_PUBLIC_API_URL=http://localhost:8000
+# Configure environment
+cp .env.example .env.local
+# Edit .env.local as needed
 
 # Run development server
 npm run dev
@@ -29,14 +29,19 @@ npm run dev
 
 Visit http://localhost:3000
 
-### Production
+### Production / Docker
+
+The `BACKEND_URL` environment variable is **runtime configurable** - no rebuild required.
 
 ```bash
-# Build for production
-npm run build
+# Docker Compose (default)
+BACKEND_URL=http://backend:8000
 
-# Start production server
-npm start
+# Separate backend server
+BACKEND_URL=http://your-backend-ip:8000
+
+# Local development
+BACKEND_URL=http://localhost:8000
 ```
 
 ## 📁 Project Structure
@@ -68,7 +73,7 @@ frontend/
 │       └── utils.ts             # Utility functions
 ├── public/                       # Static assets
 ├── package.json
-└── next.config.ts               # Next.js config with API proxy
+└── next.config.ts               # Next.js config
 ```
 
 ## 🔌 API Integration
@@ -124,22 +129,11 @@ await firewallGroupsService.refreshConfig();
 
 ### API Proxy
 
-The frontend uses Next.js rewrites to proxy API calls:
+The frontend uses Next.js API route handlers to proxy requests to the backend:
 
-- Browser calls: `/api/endpoint` → proxied to backend
-- Server-side calls: `http://localhost:8000/endpoint` → direct
-
-Configured in `next.config.ts`:
-```typescript
-async rewrites() {
-  return [
-    {
-      source: '/api/:path*',
-      destination: `${process.env.NEXT_PUBLIC_API_URL}/:path*`,
-    },
-  ];
-}
-```
+- Browser calls `/api/*` → API routes proxy to `BACKEND_URL`
+- `BACKEND_URL` is read at **runtime** (not baked into the build)
+- Default: `http://backend:8000` (for Docker Compose)
 
 ## 🎨 Styling Guidelines
 
