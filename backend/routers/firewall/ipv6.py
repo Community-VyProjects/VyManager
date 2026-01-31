@@ -93,6 +93,7 @@ class FirewallRule(BaseModel):
     tcp_flags: Optional[List[str]] = None
     icmp_type_name: Optional[str] = None
     jump_target: Optional[str] = None
+    offload_target: Optional[str] = None
     disable: bool = False
     log: bool = False
 
@@ -376,6 +377,7 @@ async def get_firewall_ipv6_config(http_request: Request, refresh: bool = False)
                 tcp_flags=tcp_flags,
                 icmp_type_name=icmp_type_name,
                 jump_target=rule_data.get("jump-target"),
+                offload_target=rule_data.get("offload-target"),
                 disable="disable" in rule_data or rule_data.get("disable") == "",
                 log="log" in rule_data or rule_data.get("log") == ""
             )
@@ -654,6 +656,10 @@ async def firewall_ipv6_reorder_rules(http_request: Request, request: ReorderFir
             # Jump target
             if rule_data.get("jump_target"):
                 builder.set_rule_jump_target(request.chain, new_number, rule_data["jump_target"], request.is_custom_chain)
+
+            # Offload target
+            if rule_data.get("offload_target"):
+                builder.set_rule_offload_target(request.chain, new_number, rule_data["offload_target"], request.is_custom_chain)
 
             # Flags
             if rule_data.get("disable"):

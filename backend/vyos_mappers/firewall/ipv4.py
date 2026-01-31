@@ -613,3 +613,19 @@ class FirewallIPv4Mapper(BaseFeatureMapper):
         if is_custom:
             return ["firewall", "ipv4", "name", chain, "rule", str(rule_number), "jump-target"]
         return ["firewall", "ipv4", chain, "filter", "rule", str(rule_number), "jump-target"]
+
+    # ========================================================================
+    # Rule Properties - Offload Target (Flowtables)
+    # ========================================================================
+
+    def get_rule_offload_target(self, chain: str, rule_number: int, target: str, is_custom: bool = False) -> List[str]:
+        """Get command path for setting offload target (flowtable)."""
+        if is_custom:
+            return ["firewall", "ipv4", "name", chain, "rule", str(rule_number), "offload-target", target]
+        return ["firewall", "ipv4", chain, "filter", "rule", str(rule_number), "offload-target", target]
+
+    def get_rule_offload_target_path(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
+        """Get command path for offload target (for deletion)."""
+        if is_custom:
+            return ["firewall", "ipv4", "name", chain, "rule", str(rule_number), "offload-target"]
+        return ["firewall", "ipv4", chain, "filter", "rule", str(rule_number), "offload-target"]

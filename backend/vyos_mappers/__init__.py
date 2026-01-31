@@ -8,7 +8,7 @@ This keeps the codebase organized and maintainable as it grows.
 from .base import BaseFeatureMapper, CommandMapperRegistry
 from .interfaces import EthernetInterfaceMapper, DummyInterfaceMapper
 from .interfaces.ethernet_versions import get_ethernet_mapper
-from .firewall import FirewallGroupsMapper, FirewallIPv4Mapper, FirewallIPv6Mapper, BridgeFirewallMapper
+from .firewall import FirewallGroupsMapper, FirewallIPv4Mapper, FirewallIPv6Mapper, BridgeFirewallMapper, FlowtablesMapper
 from .firewall.groups_versions import get_firewall_groups_mapper
 from .firewall.ipv4_versions import get_firewall_ipv4_mapper
 from .firewall.ipv6_versions import get_firewall_ipv6_mapper
@@ -69,6 +69,8 @@ CommandMapperRegistry.register_feature("firewall_global_options", get_firewall_g
 CommandMapperRegistry.register_feature("wireguard", get_wireguard_mapper)
 # Bridge Firewall uses direct class (version checking is internal)
 CommandMapperRegistry.register_feature("firewall_bridge", BridgeFirewallMapper)
+# Flowtables uses direct class (no version differences)
+CommandMapperRegistry.register_feature("firewall_flowtables", FlowtablesMapper)
 
 __all__ = [
     "BaseFeatureMapper",
@@ -90,4 +92,5 @@ __all__ = [
     "FirewallGlobalOptionsMapper",
     "WireGuardMapper",
     "BridgeFirewallMapper",
+    "FlowtablesMapper",
 ]

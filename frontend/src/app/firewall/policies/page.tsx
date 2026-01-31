@@ -401,6 +401,7 @@ export default function FirewallPoliciesPage() {
             tcp_flags: rule.tcp_flags,
             icmp_type_name: rule.icmp_type_name,
             jump_target: rule.jump_target,
+            offload_target: rule.offload_target,
             disable: rule.disable,
             log: rule.log,
           };
@@ -455,6 +456,7 @@ export default function FirewallPoliciesPage() {
             tcp_flags: rule.tcp_flags,
             icmp_type_name: rule.icmp_type_name,
             jump_target: rule.jump_target,
+            offload_target: rule.offload_target,
             disable: rule.disable,
             log: rule.log,
           };

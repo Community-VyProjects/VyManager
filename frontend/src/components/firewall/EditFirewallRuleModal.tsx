@@ -27,6 +27,7 @@ import { AlertCircle, RefreshCw } from "lucide-react";
 import { firewallIPv4Service, type FirewallRule, type FirewallCapabilitiesResponse } from "@/lib/api/firewall-ipv4";
 import { firewallIPv6Service } from "@/lib/api/firewall-ipv6";
 import { firewallGroupsService, type FirewallGroup } from "@/lib/api/firewall-groups";
+import { flowtablesService, type Flowtable } from "@/lib/api/firewall-flowtables";
 import { showService } from "@/lib/api/show";
 import type { NetworkInterface } from "@/lib/api/interfaces";
 import { CountryMultiSelect } from "./CountryMultiSelect";
@@ -121,6 +122,7 @@ export function EditFirewallRuleModal({
   });
   const [icmpTypeName, setIcmpTypeName] = useState("");
   const [jumpTarget, setJumpTarget] = useState("");
+  const [offloadTarget, setOffloadTarget] = useState("");
   const [dscp, setDscp] = useState("");
   const [mark, setMark] = useState("");
   const [ttl, setTtl] = useState("");
@@ -140,6 +142,7 @@ export function EditFirewallRuleModal({
   const [groups, setGroups] = useState<FirewallGroup[]>([]);
   const [interfaces, setInterfaces] = useState<NetworkInterface[]>([]);
   const [customChains, setCustomChains] = useState<string[]>([]);
+  const [flowtables, setFlowtables] = useState<Flowtable[]>([]);
 
   const loadGroups = async () => {
     try {
@@ -208,11 +211,21 @@ export function EditFirewallRuleModal({
     }
   };
 
+  const loadFlowtables = async () => {
+    try {
+      const config = await flowtablesService.getConfig();
+      setFlowtables(config.flowtables);
+    } catch (err) {
+      console.error("Failed to load flowtables:", err);
+    }
+  };
+
   useEffect(() => {
     if (open && rule) {
       loadGroups();
       loadInterfaces();
       loadCustomChains();
+      loadFlowtables();
       loadRuleData();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -437,6 +450,7 @@ export function EditFirewallRuleModal({
     // ICMP Type
     setIcmpTypeName(rule.icmp_type_name || "");
     setJumpTarget(rule.jump_target || "");
+    setOffloadTarget(rule.offload_target || "");
     setDscp(rule.packet_mods?.dscp || "");
     setMark(rule.packet_mods?.mark || "");
     setTtl(rule.packet_mods?.ttl || "");
@@ -695,6 +709,16 @@ export function EditFirewallRuleModal({
         config.jump_target = null;
       }
 
+      // Offload target - only applicable for offload action
+      if (action === "offload") {
+        if (offloadTarget) {
+          config.offload_target = offloadTarget;
+        }
+      } else if (rule.offload_target) {
+        // Action is not offload but rule previously had an offload target - delete it
+        config.offload_target = null;
+      }
+
       config.disable = disable;
       config.log = log;
 
@@ -810,6 +834,7 @@ export function EditFirewallRuleModal({
                     <SelectItem value="continue">Continue</SelectItem>
                     <SelectItem value="return">Return</SelectItem>
                     <SelectItem value="jump">Jump</SelectItem>
+                    <SelectItem value="offload">Offload</SelectItem>
                     <SelectItem value="queue">Queue</SelectItem>
                     <SelectItem value="synproxy">Synproxy</SelectItem>
                   </SelectContent>
@@ -827,6 +852,29 @@ export function EditFirewallRuleModal({
                       {customChains.map((chainName) => (
                         <SelectItem key={chainName} value={chainName}>
                           {chainName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {action === "offload" && (
+                <div className="space-y-2">
+                  <Label htmlFor="offloadTarget">Flowtable *</Label>
+                  <Select value={offloadTarget} onValueChange={setOffloadTarget}>
+                    <SelectTrigger id="offloadTarget">
+                      <SelectValue placeholder="Select flowtable" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {flowtables.map((ft) => (
+                        <SelectItem key={ft.name} value={ft.name}>
+                          {ft.name}
+                          {ft.description && (
+                            <span className="text-muted-foreground ml-2">
+                              - {ft.description}
+                            </span>
+                          )}
                         </SelectItem>
                       ))}
                     </SelectContent>
