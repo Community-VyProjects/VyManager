@@ -65,6 +65,11 @@ const navigation: NavItem[] = [
         href: "/firewall/global-options",
         requiredPermission: FeatureGroup.FIREWALL_GLOBAL_OPTIONS
       },
+      {
+        title: "Flowtables",
+        href: "/firewall/flowtables",
+        requiredPermission: FeatureGroup.FIREWALL_FLOWTABLES
+      },
     ],
   },
   {
@@ -321,6 +326,9 @@ export function Sidebar() {
           }
           if (child.requiredPermission === FeatureGroup.FIREWALL_GLOBAL_OPTIONS) {
             return canRead(FeatureGroup.FIREWALL) || canRead(FeatureGroup.FIREWALL_GLOBAL_OPTIONS);
+          }
+          if (child.requiredPermission === FeatureGroup.FIREWALL_FLOWTABLES) {
+            return canRead(FeatureGroup.FIREWALL) || canRead(FeatureGroup.FIREWALL_FLOWTABLES);
           }
 
           // Special cases for Routing Policies: show if user has ROUTING_POLICIES OR the specific permission

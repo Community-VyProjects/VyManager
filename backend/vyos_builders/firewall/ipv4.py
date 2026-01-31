@@ -568,6 +568,20 @@ class FirewallIPv4BatchBuilder:
         return self.add_delete(path)
 
     # ========================================================================
+    # Rule Properties - Offload Target (Flowtables)
+    # ========================================================================
+
+    def set_rule_offload_target(self, chain: str, rule_number: int, target: str, is_custom: bool = False) -> "FirewallIPv4BatchBuilder":
+        """Set offload target (flowtable) for the rule."""
+        path = self.mappers[self.mapper_key].get_rule_offload_target(chain, rule_number, target, is_custom)
+        return self.add_set(path)
+
+    def delete_rule_offload_target(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallIPv4BatchBuilder":
+        """Delete offload target."""
+        path = self.mappers[self.mapper_key].get_rule_offload_target_path(chain, rule_number, is_custom)
+        return self.add_delete(path)
+
+    # ========================================================================
     # Capabilities
     # ========================================================================
 

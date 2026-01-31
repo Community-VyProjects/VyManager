@@ -35,6 +35,7 @@ class FeatureGroup(str, Enum):
     FIREWALL_ZONES = "FIREWALL_ZONES"
     FIREWALL_GLOBAL_OPTIONS = "FIREWALL_GLOBAL_OPTIONS"
     FIREWALL_BRIDGE = "FIREWALL_BRIDGE"
+    FIREWALL_FLOWTABLES = "FIREWALL_FLOWTABLES"
 
     # Network features
     NETWORK = "NETWORK"
@@ -120,6 +121,7 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.FIREWALL_ZONES: PermissionLevel.WRITE,
         FeatureGroup.FIREWALL_GLOBAL_OPTIONS: PermissionLevel.WRITE,
         FeatureGroup.FIREWALL_BRIDGE: PermissionLevel.WRITE,
+        FeatureGroup.FIREWALL_FLOWTABLES: PermissionLevel.WRITE,
         FeatureGroup.NETWORK: PermissionLevel.WRITE,
         FeatureGroup.NAT: PermissionLevel.WRITE,
         FeatureGroup.DHCP: PermissionLevel.WRITE,
@@ -175,6 +177,7 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.FIREWALL_ZONES: PermissionLevel.WRITE,
         FeatureGroup.FIREWALL_GLOBAL_OPTIONS: PermissionLevel.WRITE,
         FeatureGroup.FIREWALL_BRIDGE: PermissionLevel.WRITE,
+        FeatureGroup.FIREWALL_FLOWTABLES: PermissionLevel.WRITE,
         FeatureGroup.NETWORK: PermissionLevel.WRITE,
         FeatureGroup.NAT: PermissionLevel.WRITE,
         FeatureGroup.DHCP: PermissionLevel.WRITE,
@@ -231,6 +234,7 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.FIREWALL_ZONES: PermissionLevel.READ,
         FeatureGroup.FIREWALL_GLOBAL_OPTIONS: PermissionLevel.READ,
         FeatureGroup.FIREWALL_BRIDGE: PermissionLevel.READ,
+        FeatureGroup.FIREWALL_FLOWTABLES: PermissionLevel.READ,
         FeatureGroup.NETWORK: PermissionLevel.READ,
         FeatureGroup.NAT: PermissionLevel.READ,
         FeatureGroup.DHCP: PermissionLevel.READ,

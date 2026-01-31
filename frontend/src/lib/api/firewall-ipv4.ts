@@ -61,6 +61,7 @@ export interface FirewallRule {
   tcp_flags?: FirewallRuleTcpFlags | string[] | null; // Object for updates, array from backend
   icmp_type_name?: string | null;
   jump_target?: string | null;
+  offload_target?: string | null;
   disable: boolean;
   log: boolean;
 }
@@ -392,6 +393,11 @@ class FirewallIPv4Service {
     // Set jump target
     if (config.jump_target) {
       operations.push({ op: "set_rule_jump_target", value: config.jump_target });
+    }
+
+    // Set offload target
+    if (config.offload_target) {
+      operations.push({ op: "set_rule_offload_target", value: config.offload_target });
     }
 
     // Set flags
@@ -738,6 +744,15 @@ class FirewallIPv4Service {
         operations.push({ op: "set_rule_jump_target", value: config.jump_target });
       } else if (currentRule.jump_target) {
         operations.push({ op: "delete_rule_jump_target" });
+      }
+    }
+
+    // Update offload target
+    if (hasChanged(config.offload_target, currentRule.offload_target)) {
+      if (config.offload_target) {
+        operations.push({ op: "set_rule_offload_target", value: config.offload_target });
+      } else if (currentRule.offload_target) {
+        operations.push({ op: "delete_rule_offload_target" });
       }
     }
 
