@@ -13,10 +13,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircle } from "lucide-react";
 import { natService } from "@/lib/api/nat";
 import { firewallGroupsService } from "@/lib/api/firewall-groups";
-import { ethernetService } from "@/lib/api/ethernet";
+import { configService } from "@/lib/api/config";
 import type { FirewallGroup } from "@/lib/api/types/firewall-groups";
-import type { EthernetInterface } from "@/lib/api/types/ethernet";
 import type { SourceNATRule } from "@/lib/api/nat";
+
+interface SimpleInterface {
+  name: string;
+  type: string;
+}
 
 interface EditSourceNATModalProps {
   open: boolean;
@@ -31,7 +35,7 @@ export function EditSourceNATModal({ open, onOpenChange, rule, onSuccess }: Edit
 
   // Dropdown data
   const [groups, setGroups] = useState<FirewallGroup[]>([]);
-  const [interfaces, setInterfaces] = useState<EthernetInterface[]>([]);
+  const [interfaces, setInterfaces] = useState<SimpleInterface[]>([]);
 
   // Form fields - Description
   const [description, setDescription] = useState("");
@@ -271,8 +275,54 @@ export function EditSourceNATModal({ open, onOpenChange, rule, onSuccess }: Edit
 
   const loadInterfaces = async () => {
     try {
-      const config = await ethernetService.getConfig();
-      setInterfaces(config.interfaces);
+      const snapshot = await configService.getSnapshot();
+      const interfacesConfig = snapshot.config?.interfaces || {};
+      const allInterfaces: SimpleInterface[] = [];
+
+      // Parse all interface types from the config
+      const interfaceTypes = [
+        "ethernet",
+        "wireguard",
+        "vti",
+        "tunnel",
+        "dummy",
+        "loopback",
+        "bridge",
+        "bonding",
+        "pppoe",
+        "wwan",
+        "macsec",
+        "openvpn",
+        "vxlan",
+        "geneve",
+        "l2tpv3",
+        "sstpc",
+        "virtual-ethernet",
+      ];
+
+      for (const ifaceType of interfaceTypes) {
+        const typeInterfaces = interfacesConfig[ifaceType];
+        if (typeInterfaces && typeof typeInterfaces === "object") {
+          for (const ifaceName of Object.keys(typeInterfaces)) {
+            allInterfaces.push({ name: ifaceName, type: ifaceType });
+
+            // Check for VLANs (vif) under ethernet/bonding/bridge interfaces
+            const ifaceConfig = typeInterfaces[ifaceName];
+            if (ifaceConfig?.vif && typeof ifaceConfig.vif === "object") {
+              for (const vlanId of Object.keys(ifaceConfig.vif)) {
+                allInterfaces.push({
+                  name: `${ifaceName}.${vlanId}`,
+                  type: "vlan",
+                });
+              }
+            }
+          }
+        }
+      }
+
+      // Sort interfaces by name
+      allInterfaces.sort((a, b) => a.name.localeCompare(b.name));
+      setInterfaces(allInterfaces);
     } catch (err) {
       console.error("Failed to load interfaces:", err);
     }
