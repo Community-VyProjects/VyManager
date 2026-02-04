@@ -51,6 +51,10 @@ class WireGuardMapper:
         """Enable per-client threading."""
         return ["interfaces", "wireguard", interface, "per-client-thread"]
 
+    def get_interface_disable(self, interface: str) -> List[str]:
+        """Disable interface."""
+        return ["interfaces", "wireguard", interface, "disable"]
+
     # ========================================================================
     # Peer Commands
     # ========================================================================
@@ -126,6 +130,7 @@ class WireGuardMapper:
                     "mtu": iface_config.get("mtu"),
                     "fwmark": iface_config.get("fwmark"),
                     "per_client_thread": "per-client-thread" in iface_config,
+                    "disabled": "disable" in iface_config,
                     "peers": {}
                 }
 

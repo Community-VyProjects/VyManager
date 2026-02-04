@@ -46,6 +46,27 @@ import {
   getConnectionStatus,
 } from "@/lib/api/wireguard";
 
+// Helper function to format handshake time in a human-readable format
+function formatHandshakeTime(seconds: number): string {
+  if (seconds < 60) {
+    return `${seconds} second${seconds !== 1 ? 's' : ''} ago`;
+  } else if (seconds < 3600) {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    if (remainingSeconds === 0) {
+      return `${minutes} minute${minutes !== 1 ? 's' : ''} ago`;
+    }
+    return `${minutes}m ${remainingSeconds}s ago`;
+  } else {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    if (minutes === 0) {
+      return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
+    }
+    return `${hours}h ${minutes}m ago`;
+  }
+}
+
 // Import modals
 import { CreateInterfaceModal } from "@/components/vpn/CreateInterfaceModal";
 import { EditInterfaceModal } from "@/components/vpn/EditInterfaceModal";
@@ -309,15 +330,29 @@ export default function WireGuardPage() {
                           "group w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all cursor-pointer",
                           isSelected
                             ? "bg-accent text-accent-foreground shadow-sm"
-                            : "hover:bg-accent/50 text-foreground"
+                            : "hover:bg-accent/50 text-foreground",
+                          iface.disabled && "opacity-60"
                         )}
                         onClick={() => setSelectedInterface(iface.name)}
                       >
-                        <div className="p-1.5 rounded-md bg-primary/10 flex-shrink-0">
-                          <Shield className="h-4 w-4 text-primary" />
+                        <div className={cn(
+                          "p-1.5 rounded-md flex-shrink-0",
+                          iface.disabled ? "bg-gray-500/10" : "bg-primary/10"
+                        )}>
+                          <Shield className={cn(
+                            "h-4 w-4",
+                            iface.disabled ? "text-gray-500" : "text-primary"
+                          )} />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="font-medium truncate">{iface.name}</div>
+                          <div className="font-medium truncate flex items-center gap-2">
+                            {iface.name}
+                            {iface.disabled && (
+                              <Badge variant="secondary" className="text-[10px] px-1 py-0 bg-gray-500/10 text-gray-500">
+                                Disabled
+                              </Badge>
+                            )}
+                          </div>
                           <div className="text-xs text-muted-foreground mt-0.5">
                             {iface.peer_count} peer{iface.peer_count !== 1 ? "s" : ""}
                             {iface.port && ` | Port ${iface.port}`}
@@ -390,13 +425,27 @@ export default function WireGuardPage() {
               <div className="p-6 border-b bg-background">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-4">
-                    <div className="p-3 rounded-xl bg-primary/10">
-                      <Shield className="h-8 w-8 text-primary" />
+                    <div className={cn(
+                      "p-3 rounded-xl",
+                      currentInterface.disabled ? "bg-gray-500/10" : "bg-primary/10"
+                    )}>
+                      <Shield className={cn(
+                        "h-8 w-8",
+                        currentInterface.disabled ? "text-gray-500" : "text-primary"
+                      )} />
                     </div>
                     <div>
-                      <h1 className="text-2xl font-bold text-foreground">
-                        {currentInterface.name}
-                      </h1>
+                      <div className="flex items-center gap-3">
+                        <h1 className="text-2xl font-bold text-foreground">
+                          {currentInterface.name}
+                        </h1>
+                        {currentInterface.disabled && (
+                          <Badge variant="secondary" className="bg-amber-500/10 text-amber-600 gap-1">
+                            <XCircle className="h-3 w-3" />
+                            Disabled
+                          </Badge>
+                        )}
+                      </div>
                       <p className="text-muted-foreground mt-1">
                         {currentInterface.description || "WireGuard VPN Tunnel"}
                       </p>
@@ -581,6 +630,7 @@ export default function WireGuardPage() {
                             <TableHead>Peer Name</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead>Connection</TableHead>
+                            <TableHead>Latest Handshake</TableHead>
                             <TableHead>Public Key</TableHead>
                             <TableHead>Allowed IPs</TableHead>
                             <TableHead>Transfer</TableHead>
@@ -633,31 +683,30 @@ export default function WireGuardPage() {
                                   {loadingStatus ? (
                                     <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                                   ) : connectionStatus === "connected" ? (
-                                    <div className="flex items-center gap-1.5">
-                                      <Badge variant="secondary" className="bg-green-500/10 text-green-600">
-                                        Connected
-                                      </Badge>
-                                      {peerStatus?.latest_handshake && (
-                                        <span className="text-xs text-muted-foreground">
-                                          {peerStatus.latest_handshake}
-                                        </span>
-                                      )}
-                                    </div>
+                                    <Badge variant="secondary" className="bg-green-500/10 text-green-600">
+                                      Connected
+                                    </Badge>
                                   ) : connectionStatus === "idle" ? (
-                                    <div className="flex items-center gap-1.5">
-                                      <Badge variant="secondary" className="bg-yellow-500/10 text-yellow-600">
-                                        Idle
-                                      </Badge>
-                                      {peerStatus?.latest_handshake && (
-                                        <span className="text-xs text-muted-foreground">
-                                          {peerStatus.latest_handshake}
-                                        </span>
-                                      )}
-                                    </div>
+                                    <Badge variant="secondary" className="bg-yellow-500/10 text-yellow-600">
+                                      Idle
+                                    </Badge>
                                   ) : (
                                     <Badge variant="secondary" className="bg-gray-500/10 text-gray-500">
                                       Disconnected
                                     </Badge>
+                                  )}
+                                </TableCell>
+
+                                {/* Latest Handshake */}
+                                <TableCell>
+                                  {loadingStatus ? (
+                                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                                  ) : peerStatus?.latest_handshake_seconds !== null && peerStatus?.latest_handshake_seconds !== undefined ? (
+                                    <span className="text-sm text-muted-foreground">
+                                      {formatHandshakeTime(peerStatus.latest_handshake_seconds)}
+                                    </span>
+                                  ) : (
+                                    <span className="text-sm text-muted-foreground">Never</span>
                                   )}
                                 </TableCell>
 

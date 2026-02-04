@@ -137,6 +137,16 @@ class WireGuardBatchBuilder:
         path = self.mappers[self.mapper_key].get_interface_per_client_thread(interface)
         return self.add_delete(path)
 
+    def set_interface_disable(self, interface: str) -> "WireGuardBatchBuilder":
+        """Disable interface."""
+        path = self.mappers[self.mapper_key].get_interface_disable(interface)
+        return self.add_set(path)
+
+    def delete_interface_disable(self, interface: str) -> "WireGuardBatchBuilder":
+        """Enable interface (remove disable flag)."""
+        path = self.mappers[self.mapper_key].get_interface_disable(interface)
+        return self.add_delete(path)
+
     # ========================================================================
     # Peer Operations
     # ========================================================================

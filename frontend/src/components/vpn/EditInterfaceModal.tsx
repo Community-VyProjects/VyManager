@@ -52,6 +52,7 @@ export function EditInterfaceModal({
   const [privateKey, setPrivateKey] = useState("");
   const [mtu, setMtu] = useState("");
   const [perClientThread, setPerClientThread] = useState(false);
+  const [disabled, setDisabled] = useState(false);
 
   // UI state
   const [loading, setLoading] = useState(false);
@@ -70,6 +71,7 @@ export function EditInterfaceModal({
       setPrivateKey(interfaceData.private_key || "");
       setMtu(interfaceData.mtu || "");
       setPerClientThread(interfaceData.per_client_thread);
+      setDisabled(interfaceData.disabled || false);
       setGeneratedPublicKey(null);
     }
   }, [interfaceData, open]);
@@ -110,6 +112,7 @@ export function EditInterfaceModal({
     setPrivateKey("");
     setMtu("");
     setPerClientThread(false);
+    setDisabled(false);
     setError(null);
     setShowPrivateKey(false);
     setGeneratedPublicKey(null);
@@ -167,6 +170,11 @@ export function EditInterfaceModal({
         newConfig.per_client_thread = perClientThread;
       }
 
+      // Disabled change
+      if (disabled !== (interfaceData.disabled || false)) {
+        newConfig.disabled = disabled;
+      }
+
       // Check if there are any changes
       if (Object.keys(newConfig).length === 0) {
         handleClose();
@@ -214,6 +222,23 @@ export function EditInterfaceModal({
           </TabsList>
 
           <TabsContent value="basic" className="space-y-4 mt-4">
+            {/* Interface Status */}
+            <div className={`flex items-center space-x-2 rounded-lg border p-3 ${disabled ? 'border-amber-500/50 bg-amber-500/5' : ''}`}>
+              <Checkbox
+                id="edit-disabled"
+                checked={disabled}
+                onCheckedChange={(checked) => setDisabled(checked === true)}
+              />
+              <div className="flex-1">
+                <Label htmlFor="edit-disabled" className="cursor-pointer">
+                  Disable Interface
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  When disabled, the interface will be inactive and all peers will be disconnected.
+                </p>
+              </div>
+            </div>
+
             {/* Interface Name (read-only) */}
             <div className="space-y-2">
               <Label>Interface Name</Label>
