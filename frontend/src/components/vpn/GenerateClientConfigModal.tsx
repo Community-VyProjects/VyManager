@@ -45,6 +45,7 @@ export function GenerateClientConfigModal({
   const [clientAddress, setClientAddress] = useState("");
   const [clientPrivateKey, setClientPrivateKey] = useState("");
   const [clientPublicKey, setClientPublicKey] = useState("");
+  const [dns, setDns] = useState("");
 
   // Server public key (fetched automatically)
   const [serverPublicKey, setServerPublicKey] = useState<string | null>(null);
@@ -125,6 +126,7 @@ export function GenerateClientConfigModal({
     setClientAddress("");
     setClientPrivateKey("");
     setClientPublicKey("");
+    setDns("");
     setServerPublicKey(null);
     setConfig(null);
     setQrDataUrl(null);
@@ -167,9 +169,16 @@ export function GenerateClientConfigModal({
     const serverPort = interfaceData?.port || "51820";
     const allowedIps = "0.0.0.0/0, ::/0"; // Route all traffic through VPN
 
-    return `[Interface]
+    let interfaceSection = `[Interface]
 PrivateKey = ${clientPrivateKey}
-Address = ${clientAddress}
+Address = ${clientAddress}`;
+
+    // Add DNS if provided
+    if (dns.trim()) {
+      interfaceSection += `\nDNS = ${dns.trim()}`;
+    }
+
+    return `${interfaceSection}
 
 [Peer]
 PublicKey = ${serverPublicKey}
@@ -374,6 +383,20 @@ PersistentKeepalive = 25`;
               />
               <p className="text-xs text-muted-foreground">
                 The IP address to assign to the client on the VPN.
+              </p>
+            </div>
+
+            {/* DNS Servers */}
+            <div className="space-y-2">
+              <Label htmlFor="config-dns">DNS Servers (Optional)</Label>
+              <Input
+                id="config-dns"
+                value={dns}
+                onChange={(e) => setDns(e.target.value)}
+                placeholder="1.1.1.1, 8.8.8.8"
+              />
+              <p className="text-xs text-muted-foreground">
+                Comma-separated DNS servers for the client to use when connected.
               </p>
             </div>
 
