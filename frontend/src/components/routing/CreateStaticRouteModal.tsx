@@ -228,7 +228,7 @@ export function CreateStaticRouteModal({ open, onOpenChange, onSuccess, routeTyp
       }
 
       // DHCP interface (1.4 only)
-      if (dhcpInterface.trim() && capabilities?.features.dhcp_interface_1_4.supported) {
+      if (dhcpInterface.trim() && capabilities?.features.dhcp_interface.supported) {
         config.dhcp_interface = dhcpInterface.trim();
       }
 
@@ -572,7 +572,7 @@ export function CreateStaticRouteModal({ open, onOpenChange, onSuccess, routeTyp
 
           {/* Advanced Tab */}
           <TabsContent value="advanced" className="space-y-4">
-            {capabilities?.features.dhcp_interface_1_4.supported && (
+            {capabilities?.features.dhcp_interface.supported && (
               <div className="space-y-2">
                 <Label htmlFor="dhcp-interface">DHCP Interface</Label>
                 <Input
@@ -587,7 +587,7 @@ export function CreateStaticRouteModal({ open, onOpenChange, onSuccess, routeTyp
               </div>
             )}
 
-            {!capabilities?.features.dhcp_interface_1_4.supported && (
+            {!capabilities?.features.dhcp_interface.supported && (
               <div className="bg-muted/50 border rounded-lg p-4">
                 <p className="text-sm text-muted-foreground">
                   No advanced options available for this VyOS version.
