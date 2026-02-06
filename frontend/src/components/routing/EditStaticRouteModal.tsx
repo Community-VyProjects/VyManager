@@ -149,8 +149,8 @@ export function EditStaticRouteModal({ open, onOpenChange, onSuccess, route }: E
     setRejectDistance(route.reject_distance?.toString() || "");
     setRejectTag(route.reject_tag?.toString() || "");
 
-    // Populate DHCP interface
-    setDhcpInterface(route.dhcp_interface || "");
+    // Populate DHCP interface (take first one if multiple)
+    setDhcpInterface(route.dhcp_interfaces?.[0] || "");
   };
 
   const resetForm = () => {
@@ -258,8 +258,9 @@ export function EditStaticRouteModal({ open, onOpenChange, onSuccess, route }: E
       }
 
       // DHCP interface (1.4 only)
-      if (dhcpInterface.trim() !== route.dhcp_interface && capabilities?.features.dhcp_interface_1_4.supported) {
-        config.dhcp_interface = dhcpInterface.trim() || null;
+      const currentDhcp = route.dhcp_interfaces?.[0] || "";
+      if (dhcpInterface.trim() !== currentDhcp && capabilities?.features.dhcp_interface_1_4.supported) {
+        config.dhcp_interfaces = dhcpInterface.trim() ? [dhcpInterface.trim()] : [];
       }
 
       // Update route
