@@ -197,11 +197,12 @@ export function CreateFirewallRuleModal({
 
   const loadInterfaces = async () => {
     try {
-      const response = await showService.getInterfaceCounters();
+      // Use getAllInterfaces to get all interfaces from config (including inactive ones and VLANs)
+      const response = await showService.getAllInterfaces();
       if (response.interfaces) {
         // Map interface names to NetworkInterface objects
         const networkInterfaces: NetworkInterface[] = response.interfaces.map(i => ({
-          name: i.interface,
+          name: i.name,
           type: "ethernet" as const,
           addresses: [],
           description: null,
