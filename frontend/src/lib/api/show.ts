@@ -21,6 +21,16 @@ export interface InterfaceCountersResponse {
   total: number;
 }
 
+export interface InterfaceName {
+  name: string;
+  type: string;
+}
+
+export interface AllInterfacesResponse {
+  interfaces: InterfaceName[];
+  total: number;
+}
+
 // ============================================================================
 // API Service
 // ============================================================================
@@ -31,6 +41,14 @@ class ShowService {
    */
   async getInterfaceCounters(): Promise<InterfaceCountersResponse> {
     return apiClient.get<InterfaceCountersResponse>("/vyos/show/interface-counters");
+  }
+
+  /**
+   * Get all interfaces from VyOS config (regardless of active/up status)
+   * This includes VLANs and sub-interfaces
+   */
+  async getAllInterfaces(): Promise<AllInterfacesResponse> {
+    return apiClient.get<AllInterfacesResponse>("/vyos/show/all-interfaces");
   }
 }
 
