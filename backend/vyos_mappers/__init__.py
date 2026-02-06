@@ -35,6 +35,8 @@ from .wireguard import WireGuardMapper
 from .wireguard.wireguard_versions import get_wireguard_mapper
 from .babel import BabelMapper
 from .babel.babel_versions import get_babel_mapper
+from .bfd import BfdMapper
+from .bfd.bfd_versions import get_bfd_mapper
 
 # Auto-register all mappers
 # Ethernet uses factory for version-specific mappers
@@ -75,6 +77,8 @@ CommandMapperRegistry.register_feature("firewall_bridge", BridgeFirewallMapper)
 CommandMapperRegistry.register_feature("firewall_flowtables", FlowtablesMapper)
 # Babel uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("babel", get_babel_mapper)
+# BFD uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("bfd", get_bfd_mapper)
 
 __all__ = [
     "BaseFeatureMapper",
@@ -98,4 +102,5 @@ __all__ = [
     "BridgeFirewallMapper",
     "FlowtablesMapper",
     "BabelMapper",
+    "BfdMapper",
 ]

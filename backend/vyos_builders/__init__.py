@@ -22,6 +22,7 @@ from .large_community_list import LargeCommunityListBatchBuilder
 from .firewall_global_options import FirewallGlobalOptionsBatchBuilder
 from .wireguard import WireGuardBatchBuilder
 from .babel import BabelBatchBuilder
+from .bfd import BfdBatchBuilder
 
 # Directly use the self-contained builders
 EthernetBatchBuilder = EthernetInterfaceBuilderMixin
@@ -49,4 +50,5 @@ __all__ = [
     "WireGuardBatchBuilder",
     "BridgeFirewallBatchBuilder",
     "BabelBatchBuilder",
+    "BfdBatchBuilder",
 ]
