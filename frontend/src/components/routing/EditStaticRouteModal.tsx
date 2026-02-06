@@ -149,8 +149,8 @@ export function EditStaticRouteModal({ open, onOpenChange, onSuccess, route }: E
     setRejectDistance(route.reject_distance?.toString() || "");
     setRejectTag(route.reject_tag?.toString() || "");
 
-    // Populate DHCP interface
-    setDhcpInterface(route.dhcp_interface || "");
+    // Populate DHCP interface (take first one if multiple)
+    setDhcpInterface(route.dhcp_interfaces?.[0] || "");
   };
 
   const resetForm = () => {
@@ -258,8 +258,9 @@ export function EditStaticRouteModal({ open, onOpenChange, onSuccess, route }: E
       }
 
       // DHCP interface (1.4 only)
-      if (dhcpInterface.trim() !== route.dhcp_interface && capabilities?.features.dhcp_interface_1_4.supported) {
-        config.dhcp_interface = dhcpInterface.trim() || null;
+      const currentDhcp = route.dhcp_interfaces?.[0] || "";
+      if (dhcpInterface.trim() !== currentDhcp && capabilities?.features.dhcp_interface.supported) {
+        config.dhcp_interfaces = dhcpInterface.trim() ? [dhcpInterface.trim()] : [];
       }
 
       // Update route
@@ -614,7 +615,7 @@ export function EditStaticRouteModal({ open, onOpenChange, onSuccess, route }: E
 
           {/* Advanced Tab */}
           <TabsContent value="advanced" className="space-y-4">
-            {capabilities?.features.dhcp_interface_1_4.supported && (
+            {capabilities?.features.dhcp_interface.supported && (
               <div className="space-y-2">
                 <Label htmlFor="dhcp-interface">DHCP Interface</Label>
                 <Input
@@ -629,7 +630,7 @@ export function EditStaticRouteModal({ open, onOpenChange, onSuccess, route }: E
               </div>
             )}
 
-            {!capabilities?.features.dhcp_interface_1_4.supported && (
+            {!capabilities?.features.dhcp_interface.supported && (
               <div className="bg-muted/50 border rounded-lg p-4">
                 <p className="text-sm text-muted-foreground">
                   No advanced options available for this VyOS version.
