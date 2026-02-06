@@ -37,6 +37,8 @@ from .babel import BabelMapper
 from .babel.babel_versions import get_babel_mapper
 from .bfd import BfdMapper
 from .bfd.bfd_versions import get_bfd_mapper
+from .bgp import BgpMapper
+from .bgp.bgp_versions import get_bgp_mapper
 
 # Auto-register all mappers
 # Ethernet uses factory for version-specific mappers
@@ -79,6 +81,8 @@ CommandMapperRegistry.register_feature("firewall_flowtables", FlowtablesMapper)
 CommandMapperRegistry.register_feature("babel", get_babel_mapper)
 # BFD uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("bfd", get_bfd_mapper)
+# BGP uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("bgp", get_bgp_mapper)
 
 __all__ = [
     "BaseFeatureMapper",
@@ -103,4 +107,5 @@ __all__ = [
     "FlowtablesMapper",
     "BabelMapper",
     "BfdMapper",
+    "BgpMapper",
 ]
