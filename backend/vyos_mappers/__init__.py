@@ -33,6 +33,8 @@ from .firewall_global_options import FirewallGlobalOptionsMapper
 from .firewall_global_options.firewall_global_options_versions import get_firewall_global_options_mapper
 from .wireguard import WireGuardMapper
 from .wireguard.wireguard_versions import get_wireguard_mapper
+from .babel import BabelMapper
+from .babel.babel_versions import get_babel_mapper
 
 # Auto-register all mappers
 # Ethernet uses factory for version-specific mappers
@@ -71,6 +73,8 @@ CommandMapperRegistry.register_feature("wireguard", get_wireguard_mapper)
 CommandMapperRegistry.register_feature("firewall_bridge", BridgeFirewallMapper)
 # Flowtables uses direct class (no version differences)
 CommandMapperRegistry.register_feature("firewall_flowtables", FlowtablesMapper)
+# Babel uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("babel", get_babel_mapper)
 
 __all__ = [
     "BaseFeatureMapper",
@@ -93,4 +97,5 @@ __all__ = [
     "WireGuardMapper",
     "BridgeFirewallMapper",
     "FlowtablesMapper",
+    "BabelMapper",
 ]
