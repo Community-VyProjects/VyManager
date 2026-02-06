@@ -88,6 +88,7 @@ class FeatureGroup(str, Enum):
     PIM6 = "PIM6"
 
     SYSTEM = "SYSTEM"
+    POWER = "POWER"  # Reboot, shutdown actions
     CONFIGURATION = "CONFIGURATION"
     DASHBOARD = "DASHBOARD"
     SITES_INSTANCES = "SITES_INSTANCES"
@@ -164,6 +165,7 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.PIM: PermissionLevel.WRITE,
         FeatureGroup.PIM6: PermissionLevel.WRITE,
         FeatureGroup.SYSTEM: PermissionLevel.WRITE,
+        FeatureGroup.POWER: PermissionLevel.WRITE,
         FeatureGroup.CONFIGURATION: PermissionLevel.WRITE,
         FeatureGroup.DASHBOARD: PermissionLevel.WRITE,
         FeatureGroup.SITES_INSTANCES: PermissionLevel.WRITE,
@@ -220,6 +222,7 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.PIM: PermissionLevel.WRITE,
         FeatureGroup.PIM6: PermissionLevel.WRITE,
         FeatureGroup.SYSTEM: PermissionLevel.WRITE,
+        FeatureGroup.POWER: PermissionLevel.WRITE,
         FeatureGroup.CONFIGURATION: PermissionLevel.WRITE,
         FeatureGroup.DASHBOARD: PermissionLevel.WRITE,
         # No site/instance or user management
@@ -277,6 +280,7 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.PIM: PermissionLevel.READ,
         FeatureGroup.PIM6: PermissionLevel.READ,
         FeatureGroup.SYSTEM: PermissionLevel.READ,
+        FeatureGroup.POWER: PermissionLevel.READ,  # Can see status, cannot execute power actions
         FeatureGroup.CONFIGURATION: PermissionLevel.READ,
         FeatureGroup.DASHBOARD: PermissionLevel.WRITE,
         # No site/instance or user management
@@ -375,6 +379,7 @@ async def get_user_permissions(
                 FeatureGroup.PIM,
                 FeatureGroup.PIM6,
                 FeatureGroup.SYSTEM,
+                FeatureGroup.POWER,
                 FeatureGroup.CONFIGURATION,
                 FeatureGroup.DASHBOARD,
                 FeatureGroup.SITES_INSTANCES,
@@ -451,6 +456,7 @@ async def get_user_permissions(
                 FeatureGroup.PIM,
                 FeatureGroup.PIM6,
                 FeatureGroup.SYSTEM,
+                FeatureGroup.POWER,
                 FeatureGroup.CONFIGURATION,
                 FeatureGroup.DASHBOARD,
             ]

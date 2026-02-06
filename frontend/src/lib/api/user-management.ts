@@ -174,6 +174,7 @@ export enum FeatureGroup {
   DASHBOARD = "DASHBOARD",
   SITES_INSTANCES = "SITES_INSTANCES",
   USER_MANAGEMENT = "USER_MANAGEMENT",
+  POWER = "POWER",
 }
 
 // ============================================================================

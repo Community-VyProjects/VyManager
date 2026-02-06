@@ -63,6 +63,7 @@ import {
   MapPin,
   Workflow,
   Radio,
+  Power,
 } from "lucide-react";
 import {
   userManagementService,
@@ -143,6 +144,7 @@ const FEATURE_ICONS: Record<FeatureGroup, any> = {
   [FeatureGroup.DASHBOARD]: Server,
   [FeatureGroup.SITES_INSTANCES]: Building2,
   [FeatureGroup.USER_MANAGEMENT]: UserCircle,
+  [FeatureGroup.POWER]: Power,
 };
 
 // Feature display names
@@ -200,6 +202,7 @@ const FEATURE_NAMES: Record<FeatureGroup, string> = {
   [FeatureGroup.DASHBOARD]: "Dashboard",
   [FeatureGroup.SITES_INSTANCES]: "Sites & Instances",
   [FeatureGroup.USER_MANAGEMENT]: "User Management",
+  [FeatureGroup.POWER]: "Power",
 };
 
 // Role badge styles
@@ -324,6 +327,7 @@ const FEATURE_CATEGORIES: FeatureCategory[] = [
       { feature: FeatureGroup.SYSTEM },
       { feature: FeatureGroup.CONFIGURATION },
       { feature: FeatureGroup.DASHBOARD },
+      { feature: FeatureGroup.POWER },
     ],
   },
 ];
