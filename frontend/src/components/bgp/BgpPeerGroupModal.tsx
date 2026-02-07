@@ -35,6 +35,7 @@ interface BgpPeerGroupModalProps {
   existingPeerGroup?: BgpPeerGroup | null;
   capabilities?: BgpCapabilities | null;
   routeMapNames: string[];
+  bfdProfileNames: string[];
 }
 
 interface AddressFamilyFormState {
@@ -93,6 +94,7 @@ export function BgpPeerGroupModal({
   existingPeerGroup,
   capabilities,
   routeMapNames,
+  bfdProfileNames,
 }: BgpPeerGroupModalProps) {
   const isEditMode = !!existingPeerGroup;
 
@@ -645,13 +647,18 @@ export function BgpPeerGroupModal({
 
                     {/* BFD Profile */}
                     <div className="space-y-2">
-                      <Label htmlFor="bgp-pg-bfd-profile">BFD Profile</Label>
-                      <Input
-                        id="bgp-pg-bfd-profile"
-                        value={bfdProfile}
-                        onChange={(e) => setBfdProfile(e.target.value)}
-                        placeholder="BFD profile name"
-                      />
+                      <Label>BFD Profile</Label>
+                      <Select value={bfdProfile || "__none__"} onValueChange={(v) => setBfdProfile(v === "__none__" ? "" : v)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="None" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">None</SelectItem>
+                          {bfdProfileNames.map((name) => (
+                            <SelectItem key={name} value={name}>{name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <p className="text-xs text-muted-foreground">
                         BFD profile to apply to this peer group.
                       </p>

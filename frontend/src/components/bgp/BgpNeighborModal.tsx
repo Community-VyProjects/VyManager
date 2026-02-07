@@ -39,6 +39,7 @@ interface BgpNeighborModalProps {
   existingNeighbor?: BgpNeighbor | null;
   peerGroups: string[];
   routeMapNames: string[];
+  bfdProfileNames: string[];
   capabilities?: BgpCapabilities | null;
 }
 
@@ -90,6 +91,7 @@ export function BgpNeighborModal({
   existingNeighbor,
   peerGroups,
   routeMapNames,
+  bfdProfileNames,
   capabilities,
 }: BgpNeighborModalProps) {
   const isEditMode = !!existingNeighbor;
@@ -748,15 +750,18 @@ export function BgpNeighborModal({
 
                     {/* BFD Profile */}
                     <div className="space-y-2">
-                      <Label htmlFor="bgp-neighbor-bfd-profile">
-                        BFD Profile
-                      </Label>
-                      <Input
-                        id="bgp-neighbor-bfd-profile"
-                        value={bfdProfile}
-                        onChange={(e) => setBfdProfile(e.target.value)}
-                        placeholder="Profile name (optional)"
-                      />
+                      <Label>BFD Profile</Label>
+                      <Select value={bfdProfile || "__none__"} onValueChange={(v) => setBfdProfile(v === "__none__" ? "" : v)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="None" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">None</SelectItem>
+                          {bfdProfileNames.map((name) => (
+                            <SelectItem key={name} value={name}>{name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </>
                 )}

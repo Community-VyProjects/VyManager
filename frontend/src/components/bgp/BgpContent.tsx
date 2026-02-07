@@ -47,6 +47,7 @@ import {
   BgpParameters,
 } from "@/lib/api/bgp";
 import { routeMapService } from "@/lib/api/route-map";
+import { bfdService } from "@/lib/api/bfd";
 import { BgpNeighborModal } from "./BgpNeighborModal";
 import { BgpPeerGroupModal } from "./BgpPeerGroupModal";
 import { DeleteBgpNeighborModal } from "./DeleteBgpNeighborModal";
@@ -92,8 +93,9 @@ export function BgpContent() {
   const [afSaving, setAfSaving] = useState(false);
   const [afError, setAfError] = useState<string | null>(null);
 
-  // Route-map names for dropdowns
+  // Route-map and BFD profile names for dropdowns
   const [routeMapNames, setRouteMapNames] = useState<string[]>([]);
+  const [bfdProfileNames, setBfdProfileNames] = useState<string[]>([]);
 
   // Parameters state
   const [paramsEditing, setParamsEditing] = useState(false);
@@ -105,14 +107,16 @@ export function BgpContent() {
     try {
       setLoading(true);
       setError(null);
-      const [configData, capData, rmConfig] = await Promise.all([
+      const [configData, capData, rmConfig, bfdConfig] = await Promise.all([
         bgpService.getConfig(refresh),
         bgpService.getCapabilities(),
         routeMapService.getConfig(),
+        bfdService.getConfig(),
       ]);
       setConfig(configData);
       setCapabilities(capData);
       setRouteMapNames(rmConfig.route_maps.map((rm) => rm.name));
+      setBfdProfileNames(bfdConfig.profiles.map((p) => p.name));
       // Initialize overview fields
       setSystemAs(configData.system_as || "");
       setRouterId(configData.parameters.router_id || "");
@@ -1440,6 +1444,7 @@ export function BgpContent() {
         peerGroups={config?.peer_groups.map((pg) => pg.name) ?? []}
         capabilities={capabilities}
         routeMapNames={routeMapNames}
+        bfdProfileNames={bfdProfileNames}
         onSubmit={editingNeighbor ? handleUpdateNeighbor : handleCreateNeighbor}
       />
 
@@ -1459,6 +1464,7 @@ export function BgpContent() {
         existingPeerGroup={editingPeerGroup}
         capabilities={capabilities}
         routeMapNames={routeMapNames}
+        bfdProfileNames={bfdProfileNames}
         onSubmit={editingPeerGroup ? handleUpdatePeerGroup : handleCreatePeerGroup}
       />
 
