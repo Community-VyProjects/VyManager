@@ -3,6 +3,7 @@
 import { AppLayout } from "@/components/layout/AppLayout";
 import { InProgress } from "@/components/layout/InProgress";
 import { BabelContent } from "@/components/babel/BabelContent";
+import { BgpContent } from "@/components/bgp/BgpContent";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Network, ChevronRight } from "lucide-react";
@@ -120,7 +121,9 @@ export default function UnicastProtocolsPage() {
 
         {/* Main Content Area */}
         <div className="flex-1">
-          {selectedProtocol === "babel" ? (
+          {selectedProtocol === "bgp" ? (
+            <BgpContent />
+          ) : selectedProtocol === "babel" ? (
             <BabelContent />
           ) : (
             <InProgress />
