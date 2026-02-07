@@ -34,6 +34,7 @@ interface BgpPeerGroupModalProps {
   onSubmit: (peerGroup: BgpPeerGroup) => Promise<void>;
   existingPeerGroup?: BgpPeerGroup | null;
   capabilities?: BgpCapabilities | null;
+  routeMapNames: string[];
 }
 
 interface AddressFamilyFormState {
@@ -91,6 +92,7 @@ export function BgpPeerGroupModal({
   onSubmit,
   existingPeerGroup,
   capabilities,
+  routeMapNames,
 }: BgpPeerGroupModalProps) {
   const isEditMode = !!existingPeerGroup;
 
@@ -962,18 +964,26 @@ export function BgpPeerGroupModal({
                             >
                               Route Map Import
                             </Label>
-                            <Input
-                              id={`bgp-pg-af-${afi}-rm-import`}
-                              value={af.route_map_import}
-                              onChange={(e) =>
+                            <Select
+                              value={af.route_map_import || "__none__"}
+                              onValueChange={(v) =>
                                 updateAfConfig(
                                   afi,
                                   "route_map_import",
-                                  e.target.value
+                                  v === "__none__" ? "" : v
                                 )
                               }
-                              placeholder="Route map name"
-                            />
+                            >
+                              <SelectTrigger id={`bgp-pg-af-${afi}-rm-import`}>
+                                <SelectValue placeholder="None" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__none__">None</SelectItem>
+                                {routeMapNames.map((name) => (
+                                  <SelectItem key={name} value={name}>{name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </div>
 
                           <div className="space-y-2">
@@ -982,18 +992,26 @@ export function BgpPeerGroupModal({
                             >
                               Route Map Export
                             </Label>
-                            <Input
-                              id={`bgp-pg-af-${afi}-rm-export`}
-                              value={af.route_map_export}
-                              onChange={(e) =>
+                            <Select
+                              value={af.route_map_export || "__none__"}
+                              onValueChange={(v) =>
                                 updateAfConfig(
                                   afi,
                                   "route_map_export",
-                                  e.target.value
+                                  v === "__none__" ? "" : v
                                 )
                               }
-                              placeholder="Route map name"
-                            />
+                            >
+                              <SelectTrigger id={`bgp-pg-af-${afi}-rm-export`}>
+                                <SelectValue placeholder="None" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__none__">None</SelectItem>
+                                {routeMapNames.map((name) => (
+                                  <SelectItem key={name} value={name}>{name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </div>
                         </div>
 
