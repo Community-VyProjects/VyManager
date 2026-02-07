@@ -520,8 +520,18 @@ class BgpService {
     }
     for (const afi of updAFs) {
       if (!origAFs.has(afi)) {
+        // New AF - add it with all settings
         operations.push({ op: "set_neighbor_af", value: `${addr},${afi}` });
         this._addNeighborAfOps(operations, addr, afi, updated.address_families[afi]);
+      } else {
+        // Existing AF - check if fields changed, delete and re-create
+        const origAf = JSON.stringify(original.address_families[afi]);
+        const updAf = JSON.stringify(updated.address_families[afi]);
+        if (origAf !== updAf) {
+          operations.push({ op: "delete_neighbor_af", value: `${addr},${afi}` });
+          operations.push({ op: "set_neighbor_af", value: `${addr},${afi}` });
+          this._addNeighborAfOps(operations, addr, afi, updated.address_families[afi]);
+        }
       }
     }
 
@@ -638,14 +648,26 @@ class BgpService {
     const updAFs = new Set(Object.keys(updated.address_families));
     for (const afi of origAFs) { if (!updAFs.has(afi)) operations.push({ op: "delete_peer_group_af", value: `${name},${afi}` }); }
     for (const afi of updAFs) {
-      if (!origAFs.has(afi)) {
-        operations.push({ op: "set_peer_group_af", value: `${name},${afi}` });
-        const af = updated.address_families[afi];
+      const addPeerGroupAfOps = (af: BgpNeighborAddressFamilyConfig) => {
         if (af.route_map_import) operations.push({ op: "set_peer_group_af_route_map_import", value: `${name},${afi},${af.route_map_import}` });
         if (af.route_map_export) operations.push({ op: "set_peer_group_af_route_map_export", value: `${name},${afi},${af.route_map_export}` });
         if (af.soft_reconfiguration_inbound) operations.push({ op: "set_peer_group_af_soft_reconfiguration_inbound", value: `${name},${afi}` });
         if (af.nexthop_self) operations.push({ op: "set_peer_group_af_nexthop_self", value: `${name},${afi}` });
         if (af.route_reflector_client) operations.push({ op: "set_peer_group_af_route_reflector_client", value: `${name},${afi}` });
+      };
+      if (!origAFs.has(afi)) {
+        // New AF - add it with all settings
+        operations.push({ op: "set_peer_group_af", value: `${name},${afi}` });
+        addPeerGroupAfOps(updated.address_families[afi]);
+      } else {
+        // Existing AF - check if fields changed, delete and re-create
+        const origAf = JSON.stringify(original.address_families[afi]);
+        const updAf = JSON.stringify(updated.address_families[afi]);
+        if (origAf !== updAf) {
+          operations.push({ op: "delete_peer_group_af", value: `${name},${afi}` });
+          operations.push({ op: "set_peer_group_af", value: `${name},${afi}` });
+          addPeerGroupAfOps(updated.address_families[afi]);
+        }
       }
     }
 
