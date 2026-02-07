@@ -797,6 +797,24 @@ class BgpBatchBuilder:
     def delete_peer_group_passive(self, name: str) -> "BgpBatchBuilder":
         return self.add_delete(self.m.get_peer_group_passive(name))
 
+    def set_peer_group_override_capability(self, name: str) -> "BgpBatchBuilder":
+        return self.add_set(self.m.get_peer_group_override_capability(name))
+
+    def delete_peer_group_override_capability(self, name: str) -> "BgpBatchBuilder":
+        return self.add_delete(self.m.get_peer_group_override_capability(name))
+
+    def set_peer_group_disable_capability_negotiation(self, name: str) -> "BgpBatchBuilder":
+        return self.add_set(self.m.get_peer_group_disable_capability_negotiation(name))
+
+    def delete_peer_group_disable_capability_negotiation(self, name: str) -> "BgpBatchBuilder":
+        return self.add_delete(self.m.get_peer_group_disable_capability_negotiation(name))
+
+    def set_peer_group_disable_connected_check(self, name: str) -> "BgpBatchBuilder":
+        return self.add_set(self.m.get_peer_group_disable_connected_check(name))
+
+    def delete_peer_group_disable_connected_check(self, name: str) -> "BgpBatchBuilder":
+        return self.add_delete(self.m.get_peer_group_disable_connected_check(name))
+
     def set_peer_group_ebgp_multihop(self, name: str, value: str) -> "BgpBatchBuilder":
         return self.add_set(self.m.get_peer_group_ebgp_multihop(name, value))
 
@@ -808,6 +826,9 @@ class BgpBatchBuilder:
 
     def set_peer_group_bfd_profile(self, name: str, value: str) -> "BgpBatchBuilder":
         return self.add_set(self.m.get_peer_group_bfd_profile(name, value))
+
+    def set_peer_group_bfd_check_control_plane_failure(self, name: str) -> "BgpBatchBuilder":
+        return self.add_set(self.m.get_peer_group_bfd_check_control_plane_failure(name))
 
     def delete_peer_group_bfd(self, name: str) -> "BgpBatchBuilder":
         return self.add_delete(self.m.get_peer_group_bfd_delete(name))
@@ -823,6 +844,12 @@ class BgpBatchBuilder:
 
     def delete_peer_group_capability_extended_nexthop(self, name: str) -> "BgpBatchBuilder":
         return self.add_delete(self.m.get_peer_group_capability_extended_nexthop(name))
+
+    def set_peer_group_capability_software_version(self, name: str) -> "BgpBatchBuilder":
+        return self.add_set(self.m.get_peer_group_capability_software_version(name))
+
+    def delete_peer_group_capability_software_version(self, name: str) -> "BgpBatchBuilder":
+        return self.add_delete(self.m.get_peer_group_capability_software_version(name))
 
     def set_peer_group_graceful_restart(self, name: str, value: str) -> "BgpBatchBuilder":
         return self.add_set(self.m.get_peer_group_graceful_restart(name, value))

@@ -46,6 +46,8 @@ import {
   BgpAddressFamily,
   BgpParameters,
 } from "@/lib/api/bgp";
+import { routeMapService } from "@/lib/api/route-map";
+import { bfdService } from "@/lib/api/bfd";
 import { BgpNeighborModal } from "./BgpNeighborModal";
 import { BgpPeerGroupModal } from "./BgpPeerGroupModal";
 import { DeleteBgpNeighborModal } from "./DeleteBgpNeighborModal";
@@ -91,6 +93,10 @@ export function BgpContent() {
   const [afSaving, setAfSaving] = useState(false);
   const [afError, setAfError] = useState<string | null>(null);
 
+  // Route-map and BFD profile names for dropdowns
+  const [routeMapNames, setRouteMapNames] = useState<string[]>([]);
+  const [bfdProfileNames, setBfdProfileNames] = useState<string[]>([]);
+
   // Parameters state
   const [paramsEditing, setParamsEditing] = useState(false);
   const [paramsSaving, setParamsSaving] = useState(false);
@@ -101,12 +107,16 @@ export function BgpContent() {
     try {
       setLoading(true);
       setError(null);
-      const [configData, capData] = await Promise.all([
+      const [configData, capData, rmConfig, bfdConfig] = await Promise.all([
         bgpService.getConfig(refresh),
         bgpService.getCapabilities(),
+        routeMapService.getConfig(),
+        bfdService.getConfig(),
       ]);
       setConfig(configData);
       setCapabilities(capData);
+      setRouteMapNames(rmConfig.route_maps.map((rm) => rm.name));
+      setBfdProfileNames(bfdConfig.profiles.map((p) => p.name));
       // Initialize overview fields
       setSystemAs(configData.system_as || "");
       setRouterId(configData.parameters.router_id || "");
@@ -986,12 +996,17 @@ export function BgpContent() {
                           </div>
                           <div className="flex-1 space-y-1">
                             <Label className="text-xs">Route Map (optional)</Label>
-                            <Input
-                              value={afNetworkRouteMap}
-                              onChange={(e) => setAfNetworkRouteMap(e.target.value)}
-                              placeholder="e.g. MY-ROUTE-MAP"
-                              className="h-9"
-                            />
+                            <Select value={afNetworkRouteMap || "__none__"} onValueChange={(v) => setAfNetworkRouteMap(v === "__none__" ? "" : v)}>
+                              <SelectTrigger className="h-9">
+                                <SelectValue placeholder="None" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__none__">None</SelectItem>
+                                {routeMapNames.map((name) => (
+                                  <SelectItem key={name} value={name}>{name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </div>
                           <Button size="sm" onClick={handleAddNetwork} disabled={afSaving || !afNetworkPrefix.trim()}>
                             {afSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4 mr-1" />}
@@ -1058,12 +1073,17 @@ export function BgpContent() {
                           </div>
                           <div className="flex-1 space-y-1">
                             <Label className="text-xs">Route Map (optional)</Label>
-                            <Input
-                              value={afRedistRouteMap}
-                              onChange={(e) => setAfRedistRouteMap(e.target.value)}
-                              placeholder="e.g. REDIST-MAP"
-                              className="h-9"
-                            />
+                            <Select value={afRedistRouteMap || "__none__"} onValueChange={(v) => setAfRedistRouteMap(v === "__none__" ? "" : v)}>
+                              <SelectTrigger className="h-9">
+                                <SelectValue placeholder="None" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__none__">None</SelectItem>
+                                {routeMapNames.map((name) => (
+                                  <SelectItem key={name} value={name}>{name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </div>
                           <div className="w-[100px] space-y-1">
                             <Label className="text-xs">Metric</Label>
@@ -1137,12 +1157,17 @@ export function BgpContent() {
                           </div>
                           <div className="flex-1 space-y-1">
                             <Label className="text-xs">Route Map (optional)</Label>
-                            <Input
-                              value={afAggRouteMap}
-                              onChange={(e) => setAfAggRouteMap(e.target.value)}
-                              placeholder="e.g. AGG-MAP"
-                              className="h-9"
-                            />
+                            <Select value={afAggRouteMap || "__none__"} onValueChange={(v) => setAfAggRouteMap(v === "__none__" ? "" : v)}>
+                              <SelectTrigger className="h-9">
+                                <SelectValue placeholder="None" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__none__">None</SelectItem>
+                                {routeMapNames.map((name) => (
+                                  <SelectItem key={name} value={name}>{name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </div>
                           <div className="flex items-center gap-3 pb-0.5">
                             <div className="flex items-center gap-1.5">
@@ -1418,6 +1443,8 @@ export function BgpContent() {
         existingNeighbor={editingNeighbor}
         peerGroups={config?.peer_groups.map((pg) => pg.name) ?? []}
         capabilities={capabilities}
+        routeMapNames={routeMapNames}
+        bfdProfileNames={bfdProfileNames}
         onSubmit={editingNeighbor ? handleUpdateNeighbor : handleCreateNeighbor}
       />
 
@@ -1436,6 +1463,8 @@ export function BgpContent() {
         }}
         existingPeerGroup={editingPeerGroup}
         capabilities={capabilities}
+        routeMapNames={routeMapNames}
+        bfdProfileNames={bfdProfileNames}
         onSubmit={editingPeerGroup ? handleUpdatePeerGroup : handleCreatePeerGroup}
       />
 

@@ -374,8 +374,10 @@ class BgpService {
     if (neighbor.override_capability) operations.push({ op: "set_neighbor_override_capability", value: addr });
     if (neighbor.disable_capability_negotiation) operations.push({ op: "set_neighbor_disable_capability_negotiation", value: addr });
     if (neighbor.disable_connected_check) operations.push({ op: "set_neighbor_disable_connected_check", value: addr });
+    if (neighbor.strict_capability_match) operations.push({ op: "set_neighbor_strict_capability_match", value: addr });
     if (neighbor.ebgp_multihop != null) operations.push({ op: "set_neighbor_ebgp_multihop", value: `${addr},${neighbor.ebgp_multihop}` });
     if (neighbor.advertisement_interval != null) operations.push({ op: "set_neighbor_advertisement_interval", value: `${addr},${neighbor.advertisement_interval}` });
+    if (neighbor.graceful_restart) operations.push({ op: "set_neighbor_graceful_restart", value: `${addr},${neighbor.graceful_restart}` });
 
     if (neighbor.bfd.enabled) {
       operations.push({ op: "set_neighbor_bfd", value: addr });
@@ -439,6 +441,20 @@ class BgpService {
         operations.push({ op: "delete_neighbor_ebgp_multihop", value: addr });
       }
     }
+    if (updated.port !== original.port) {
+      if (updated.port != null) {
+        operations.push({ op: "set_neighbor_port", value: `${addr},${updated.port}` });
+      } else {
+        operations.push({ op: "delete_neighbor_port", value: addr });
+      }
+    }
+    if (updated.advertisement_interval !== original.advertisement_interval) {
+      if (updated.advertisement_interval != null) {
+        operations.push({ op: "set_neighbor_advertisement_interval", value: `${addr},${updated.advertisement_interval}` });
+      } else {
+        operations.push({ op: "delete_neighbor_advertisement_interval", value: addr });
+      }
+    }
 
     // Boolean flags
     const boolFlags: Array<{ key: keyof BgpNeighbor; setOp: string; deleteOp: string }> = [
@@ -449,6 +465,7 @@ class BgpService {
       { key: "override_capability", setOp: "set_neighbor_override_capability", deleteOp: "delete_neighbor_override_capability" },
       { key: "disable_capability_negotiation", setOp: "set_neighbor_disable_capability_negotiation", deleteOp: "delete_neighbor_disable_capability_negotiation" },
       { key: "disable_connected_check", setOp: "set_neighbor_disable_connected_check", deleteOp: "delete_neighbor_disable_connected_check" },
+      { key: "strict_capability_match", setOp: "set_neighbor_strict_capability_match", deleteOp: "delete_neighbor_strict_capability_match" },
     ];
     for (const flag of boolFlags) {
       if (updated[flag.key] !== original[flag.key]) {
@@ -456,12 +473,23 @@ class BgpService {
       }
     }
 
-    // BFD
-    if (updated.bfd.enabled !== original.bfd.enabled) {
-      operations.push({ op: updated.bfd.enabled ? "set_neighbor_bfd" : "delete_neighbor_bfd", value: addr });
-    }
-    if (updated.bfd.enabled && updated.bfd.profile !== original.bfd.profile && updated.bfd.profile) {
-      operations.push({ op: "set_neighbor_bfd_profile", value: `${addr},${updated.bfd.profile}` });
+    // BFD (delete-and-recreate pattern since there's only delete_neighbor_bfd for the whole subtree)
+    const bfdChanged = updated.bfd.enabled !== original.bfd.enabled ||
+      updated.bfd.profile !== original.bfd.profile ||
+      updated.bfd.check_control_plane_failure !== original.bfd.check_control_plane_failure;
+    if (bfdChanged) {
+      if (original.bfd.enabled) {
+        operations.push({ op: "delete_neighbor_bfd", value: addr });
+      }
+      if (updated.bfd.enabled) {
+        operations.push({ op: "set_neighbor_bfd", value: addr });
+        if (updated.bfd.check_control_plane_failure) {
+          operations.push({ op: "set_neighbor_bfd_check_control_plane_failure", value: addr });
+        }
+        if (updated.bfd.profile) {
+          operations.push({ op: "set_neighbor_bfd_profile", value: `${addr},${updated.bfd.profile}` });
+        }
+      }
     }
 
     // Capability
@@ -470,6 +498,9 @@ class BgpService {
     }
     if (updated.capability.extended_nexthop !== original.capability.extended_nexthop) {
       operations.push({ op: updated.capability.extended_nexthop ? "set_neighbor_capability_extended_nexthop" : "delete_neighbor_capability_extended_nexthop", value: addr });
+    }
+    if (updated.capability.software_version !== original.capability.software_version) {
+      operations.push({ op: updated.capability.software_version ? "set_neighbor_capability_software_version" : "delete_neighbor_capability_software_version", value: addr });
     }
 
     // Timers
@@ -483,6 +514,15 @@ class BgpService {
       if (updated.timers.connect != null) operations.push({ op: "set_neighbor_timers_connect", value: `${addr},${updated.timers.connect}` });
       if (updated.timers.keepalive != null) operations.push({ op: "set_neighbor_timers_keepalive", value: `${addr},${updated.timers.keepalive}` });
       if (updated.timers.holdtime != null) operations.push({ op: "set_neighbor_timers_holdtime", value: `${addr},${updated.timers.holdtime}` });
+    }
+
+    // Graceful restart
+    if (updated.graceful_restart !== original.graceful_restart) {
+      if (updated.graceful_restart) {
+        operations.push({ op: "set_neighbor_graceful_restart", value: `${addr},${updated.graceful_restart}` });
+      } else {
+        operations.push({ op: "delete_neighbor_graceful_restart", value: addr });
+      }
     }
 
     // Local AS
@@ -520,8 +560,18 @@ class BgpService {
     }
     for (const afi of updAFs) {
       if (!origAFs.has(afi)) {
+        // New AF - add it with all settings
         operations.push({ op: "set_neighbor_af", value: `${addr},${afi}` });
         this._addNeighborAfOps(operations, addr, afi, updated.address_families[afi]);
+      } else {
+        // Existing AF - check if fields changed, delete and re-create
+        const origAf = JSON.stringify(original.address_families[afi]);
+        const updAf = JSON.stringify(updated.address_families[afi]);
+        if (origAf !== updAf) {
+          operations.push({ op: "delete_neighbor_af", value: `${addr},${afi}` });
+          operations.push({ op: "set_neighbor_af", value: `${addr},${afi}` });
+          this._addNeighborAfOps(operations, addr, afi, updated.address_families[afi]);
+        }
       }
     }
 
@@ -573,16 +623,26 @@ class BgpService {
     if (pg.password) operations.push({ op: "set_peer_group_password", value: `${name},${pg.password}` });
     if (pg.shutdown) operations.push({ op: "set_peer_group_shutdown", value: name });
     if (pg.passive) operations.push({ op: "set_peer_group_passive", value: name });
+    if (pg.override_capability) operations.push({ op: "set_peer_group_override_capability", value: name });
+    if (pg.disable_capability_negotiation) operations.push({ op: "set_peer_group_disable_capability_negotiation", value: name });
+    if (pg.disable_connected_check) operations.push({ op: "set_peer_group_disable_connected_check", value: name });
     if (pg.ebgp_multihop != null) operations.push({ op: "set_peer_group_ebgp_multihop", value: `${name},${pg.ebgp_multihop}` });
     if (pg.bfd.enabled) {
       operations.push({ op: "set_peer_group_bfd", value: name });
+      if (pg.bfd.check_control_plane_failure) operations.push({ op: "set_peer_group_bfd_check_control_plane_failure", value: name });
       if (pg.bfd.profile) operations.push({ op: "set_peer_group_bfd_profile", value: `${name},${pg.bfd.profile}` });
     }
     if (pg.capability.dynamic) operations.push({ op: "set_peer_group_capability_dynamic", value: name });
     if (pg.capability.extended_nexthop) operations.push({ op: "set_peer_group_capability_extended_nexthop", value: name });
+    if (pg.capability.software_version) operations.push({ op: "set_peer_group_capability_software_version", value: name });
+    if (pg.graceful_restart) operations.push({ op: "set_peer_group_graceful_restart", value: `${name},${pg.graceful_restart}` });
     if (pg.local_as.asn) {
       operations.push({ op: "set_peer_group_local_as", value: `${name},${pg.local_as.asn}` });
       if (pg.local_as.no_prepend_replace_as) operations.push({ op: "set_peer_group_local_as_no_prepend_replace_as", value: `${name},${pg.local_as.asn}` });
+    }
+    if (pg.local_role) {
+      operations.push({ op: "set_peer_group_local_role", value: `${name},${pg.local_role}` });
+      if (pg.local_role_strict) operations.push({ op: "set_peer_group_local_role_strict", value: `${name},${pg.local_role}` });
     }
     if (pg.ttl_security_hops != null) operations.push({ op: "set_peer_group_ttl_security_hops", value: `${name},${pg.ttl_security_hops}` });
 
@@ -619,10 +679,44 @@ class BgpService {
     }
     if (updated.shutdown !== original.shutdown) operations.push({ op: updated.shutdown ? "set_peer_group_shutdown" : "delete_peer_group_shutdown", value: name });
     if (updated.passive !== original.passive) operations.push({ op: updated.passive ? "set_peer_group_passive" : "delete_peer_group_passive", value: name });
-    if (updated.bfd.enabled !== original.bfd.enabled) operations.push({ op: updated.bfd.enabled ? "set_peer_group_bfd" : "delete_peer_group_bfd", value: name });
+    if (updated.override_capability !== original.override_capability) operations.push({ op: updated.override_capability ? "set_peer_group_override_capability" : "delete_peer_group_override_capability", value: name });
+    if (updated.disable_capability_negotiation !== original.disable_capability_negotiation) operations.push({ op: updated.disable_capability_negotiation ? "set_peer_group_disable_capability_negotiation" : "delete_peer_group_disable_capability_negotiation", value: name });
+    if (updated.disable_connected_check !== original.disable_connected_check) operations.push({ op: updated.disable_connected_check ? "set_peer_group_disable_connected_check" : "delete_peer_group_disable_connected_check", value: name });
+
+    // BFD (delete-and-recreate pattern since there's only delete_peer_group_bfd for the whole subtree)
+    const pgBfdChanged = updated.bfd.enabled !== original.bfd.enabled ||
+      updated.bfd.profile !== original.bfd.profile ||
+      updated.bfd.check_control_plane_failure !== original.bfd.check_control_plane_failure;
+    if (pgBfdChanged) {
+      if (original.bfd.enabled) {
+        operations.push({ op: "delete_peer_group_bfd", value: name });
+      }
+      if (updated.bfd.enabled) {
+        operations.push({ op: "set_peer_group_bfd", value: name });
+        if (updated.bfd.check_control_plane_failure) {
+          operations.push({ op: "set_peer_group_bfd_check_control_plane_failure", value: name });
+        }
+        if (updated.bfd.profile) {
+          operations.push({ op: "set_peer_group_bfd_profile", value: `${name},${updated.bfd.profile}` });
+        }
+      }
+    }
+
+    // Capability
     if (updated.capability.dynamic !== original.capability.dynamic) operations.push({ op: updated.capability.dynamic ? "set_peer_group_capability_dynamic" : "delete_peer_group_capability_dynamic", value: name });
     if (updated.capability.extended_nexthop !== original.capability.extended_nexthop) operations.push({ op: updated.capability.extended_nexthop ? "set_peer_group_capability_extended_nexthop" : "delete_peer_group_capability_extended_nexthop", value: name });
+    if (updated.capability.software_version !== original.capability.software_version) operations.push({ op: updated.capability.software_version ? "set_peer_group_capability_software_version" : "delete_peer_group_capability_software_version", value: name });
 
+    // Graceful restart
+    if (updated.graceful_restart !== original.graceful_restart) {
+      if (updated.graceful_restart) {
+        operations.push({ op: "set_peer_group_graceful_restart", value: `${name},${updated.graceful_restart}` });
+      } else {
+        operations.push({ op: "delete_peer_group_graceful_restart", value: name });
+      }
+    }
+
+    // Local AS
     if (updated.local_as.asn !== original.local_as.asn || updated.local_as.no_prepend_replace_as !== original.local_as.no_prepend_replace_as) {
       if (original.local_as.asn) operations.push({ op: "delete_peer_group_local_as", value: name });
       if (updated.local_as.asn) {
@@ -630,6 +724,16 @@ class BgpService {
         if (updated.local_as.no_prepend_replace_as) operations.push({ op: "set_peer_group_local_as_no_prepend_replace_as", value: `${name},${updated.local_as.asn}` });
       }
     }
+
+    // Local role
+    if (updated.local_role !== original.local_role || updated.local_role_strict !== original.local_role_strict) {
+      if (original.local_role) operations.push({ op: "delete_peer_group_local_role", value: name });
+      if (updated.local_role) {
+        operations.push({ op: "set_peer_group_local_role", value: `${name},${updated.local_role}` });
+        if (updated.local_role_strict) operations.push({ op: "set_peer_group_local_role_strict", value: `${name},${updated.local_role}` });
+      }
+    }
+
     if (updated.ttl_security_hops !== original.ttl_security_hops) {
       operations.push(updated.ttl_security_hops != null ? { op: "set_peer_group_ttl_security_hops", value: `${name},${updated.ttl_security_hops}` } : { op: "delete_peer_group_ttl_security", value: name });
     }
@@ -638,14 +742,26 @@ class BgpService {
     const updAFs = new Set(Object.keys(updated.address_families));
     for (const afi of origAFs) { if (!updAFs.has(afi)) operations.push({ op: "delete_peer_group_af", value: `${name},${afi}` }); }
     for (const afi of updAFs) {
-      if (!origAFs.has(afi)) {
-        operations.push({ op: "set_peer_group_af", value: `${name},${afi}` });
-        const af = updated.address_families[afi];
+      const addPeerGroupAfOps = (af: BgpNeighborAddressFamilyConfig) => {
         if (af.route_map_import) operations.push({ op: "set_peer_group_af_route_map_import", value: `${name},${afi},${af.route_map_import}` });
         if (af.route_map_export) operations.push({ op: "set_peer_group_af_route_map_export", value: `${name},${afi},${af.route_map_export}` });
         if (af.soft_reconfiguration_inbound) operations.push({ op: "set_peer_group_af_soft_reconfiguration_inbound", value: `${name},${afi}` });
         if (af.nexthop_self) operations.push({ op: "set_peer_group_af_nexthop_self", value: `${name},${afi}` });
         if (af.route_reflector_client) operations.push({ op: "set_peer_group_af_route_reflector_client", value: `${name},${afi}` });
+      };
+      if (!origAFs.has(afi)) {
+        // New AF - add it with all settings
+        operations.push({ op: "set_peer_group_af", value: `${name},${afi}` });
+        addPeerGroupAfOps(updated.address_families[afi]);
+      } else {
+        // Existing AF - check if fields changed, delete and re-create
+        const origAf = JSON.stringify(original.address_families[afi]);
+        const updAf = JSON.stringify(updated.address_families[afi]);
+        if (origAf !== updAf) {
+          operations.push({ op: "delete_peer_group_af", value: `${name},${afi}` });
+          operations.push({ op: "set_peer_group_af", value: `${name},${afi}` });
+          addPeerGroupAfOps(updated.address_families[afi]);
+        }
       }
     }
 

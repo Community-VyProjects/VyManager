@@ -38,6 +38,8 @@ interface BgpNeighborModalProps {
   onSubmit: (neighbor: BgpNeighbor) => Promise<void>;
   existingNeighbor?: BgpNeighbor | null;
   peerGroups: string[];
+  routeMapNames: string[];
+  bfdProfileNames: string[];
   capabilities?: BgpCapabilities | null;
 }
 
@@ -88,6 +90,8 @@ export function BgpNeighborModal({
   onSubmit,
   existingNeighbor,
   peerGroups,
+  routeMapNames,
+  bfdProfileNames,
   capabilities,
 }: BgpNeighborModalProps) {
   const isEditMode = !!existingNeighbor;
@@ -746,15 +750,18 @@ export function BgpNeighborModal({
 
                     {/* BFD Profile */}
                     <div className="space-y-2">
-                      <Label htmlFor="bgp-neighbor-bfd-profile">
-                        BFD Profile
-                      </Label>
-                      <Input
-                        id="bgp-neighbor-bfd-profile"
-                        value={bfdProfile}
-                        onChange={(e) => setBfdProfile(e.target.value)}
-                        placeholder="Profile name (optional)"
-                      />
+                      <Label>BFD Profile</Label>
+                      <Select value={bfdProfile || "__none__"} onValueChange={(v) => setBfdProfile(v === "__none__" ? "" : v)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="None" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">None</SelectItem>
+                          {bfdProfileNames.map((name) => (
+                            <SelectItem key={name} value={name}>{name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </>
                 )}
@@ -1118,35 +1125,51 @@ export function BgpNeighborModal({
                               <Label htmlFor={`bgp-af-${afi}-rm-import`}>
                                 Route Map Import
                               </Label>
-                              <Input
-                                id={`bgp-af-${afi}-rm-import`}
-                                value={afConfig.route_map_import || ""}
-                                onChange={(e) =>
+                              <Select
+                                value={afConfig.route_map_import || "__none__"}
+                                onValueChange={(v) =>
                                   updateAfField(
                                     afi,
                                     "route_map_import",
-                                    e.target.value || null
+                                    v === "__none__" ? null : v
                                   )
                                 }
-                                placeholder="Route map name"
-                              />
+                              >
+                                <SelectTrigger id={`bgp-af-${afi}-rm-import`}>
+                                  <SelectValue placeholder="None" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="__none__">None</SelectItem>
+                                  {routeMapNames.map((name) => (
+                                    <SelectItem key={name} value={name}>{name}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
                             </div>
                             <div className="space-y-2">
                               <Label htmlFor={`bgp-af-${afi}-rm-export`}>
                                 Route Map Export
                               </Label>
-                              <Input
-                                id={`bgp-af-${afi}-rm-export`}
-                                value={afConfig.route_map_export || ""}
-                                onChange={(e) =>
+                              <Select
+                                value={afConfig.route_map_export || "__none__"}
+                                onValueChange={(v) =>
                                   updateAfField(
                                     afi,
                                     "route_map_export",
-                                    e.target.value || null
+                                    v === "__none__" ? null : v
                                   )
                                 }
-                                placeholder="Route map name"
-                              />
+                              >
+                                <SelectTrigger id={`bgp-af-${afi}-rm-export`}>
+                                  <SelectValue placeholder="None" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="__none__">None</SelectItem>
+                                  {routeMapNames.map((name) => (
+                                    <SelectItem key={name} value={name}>{name}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
                             </div>
                           </div>
 
@@ -1267,20 +1290,26 @@ export function BgpNeighborModal({
                                 >
                                   Default Originate Route Map
                                 </Label>
-                                <Input
-                                  id={`bgp-af-${afi}-default-originate-rm`}
-                                  value={
-                                    afConfig.default_originate_route_map || ""
-                                  }
-                                  onChange={(e) =>
+                                <Select
+                                  value={afConfig.default_originate_route_map || "__none__"}
+                                  onValueChange={(v) =>
                                     updateAfField(
                                       afi,
                                       "default_originate_route_map",
-                                      e.target.value || null
+                                      v === "__none__" ? null : v
                                     )
                                   }
-                                  placeholder="Route map name (optional)"
-                                />
+                                >
+                                  <SelectTrigger id={`bgp-af-${afi}-default-originate-rm`}>
+                                    <SelectValue placeholder="None" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="__none__">None</SelectItem>
+                                    {routeMapNames.map((name) => (
+                                      <SelectItem key={name} value={name}>{name}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
                               </div>
                             )}
 
