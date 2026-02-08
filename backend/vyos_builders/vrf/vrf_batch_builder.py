@@ -3,13 +3,37 @@ VRF Batch Builder
 
 Provides all batch operations for VRF (Virtual Routing and Forwarding) configuration.
 Handles version-specific differences through the mapper layer.
+
+Inherits from protocol/service mixins to support full VRF subtree management:
+- Static routes, RPKI, Failover
+- OSPF, OSPFv3, ISIS, BGP
+- DHCP server, DHCPv6 server
 """
 
 from typing import List, Dict, Any
 from vyos_mappers import CommandMapperRegistry
+from .vrf_static_mixin import VrfStaticMixin
+from .vrf_rpki_mixin import VrfRpkiMixin
+from .vrf_failover_mixin import VrfFailoverMixin
+from .vrf_ospf_mixin import VrfOspfMixin
+from .vrf_ospfv3_mixin import VrfOspfv3Mixin
+from .vrf_isis_mixin import VrfIsisMixin
+from .vrf_bgp_mixin import VrfBgpMixin
+from .vrf_dhcp_mixin import VrfDhcpMixin
+from .vrf_dhcpv6_mixin import VrfDhcpv6Mixin
 
 
-class VrfBatchBuilder:
+class VrfBatchBuilder(
+    VrfStaticMixin,
+    VrfRpkiMixin,
+    VrfFailoverMixin,
+    VrfOspfMixin,
+    VrfOspfv3Mixin,
+    VrfIsisMixin,
+    VrfBgpMixin,
+    VrfDhcpMixin,
+    VrfDhcpv6Mixin,
+):
     """Complete batch builder for VRF operations."""
 
     def __init__(self, version: str):
@@ -195,13 +219,61 @@ class VrfBatchBuilder:
                     "supported": True,
                     "description": "Per-protocol route-map assignment in VRF",
                 },
-                "vrf_protocols": {
-                    "supported": False,
-                    "description": "Full protocol configuration within VRF (BGP, OSPF, etc.) - future feature",
+                "static_routes": {
+                    "supported": True,
+                    "description": "Static route configuration within VRF (IPv4 and IPv6)",
                 },
-                "vrf_services": {
-                    "supported": False,
-                    "description": "Service configuration within VRF (DHCP, DHCPv6) - VyOS 1.5+ only, future feature",
+                "rpki": {
+                    "supported": is_1_5,
+                    "description": "RPKI configuration within VRF (VyOS 1.5+ only)",
+                },
+                "failover": {
+                    "supported": is_1_5,
+                    "description": "Failover route configuration within VRF (VyOS 1.5+ only)",
+                },
+                "ospf": {
+                    "supported": True,
+                    "description": "OSPF configuration within VRF",
+                },
+                "ospfv3": {
+                    "supported": True,
+                    "description": "OSPFv3 configuration within VRF",
+                },
+                "isis": {
+                    "supported": True,
+                    "description": "IS-IS configuration within VRF",
+                },
+                "bgp": {
+                    "supported": True,
+                    "description": "BGP configuration within VRF",
+                },
+                "dhcp_server": {
+                    "supported": is_1_5,
+                    "description": "DHCP server configuration within VRF (VyOS 1.5+ only)",
+                },
+                "dhcpv6_server": {
+                    "supported": is_1_5,
+                    "description": "DHCPv6 server configuration within VRF (VyOS 1.5+ only)",
+                },
+                "static_route_ipv4_segments": {
+                    "supported": is_1_5,
+                    "description": "SRv6 segments on IPv4 static route next-hops (VyOS 1.5+ only)",
+                },
+                "ospf_retransmit_window": {
+                    "supported": is_1_5,
+                    "description": "OSPF retransmit-window on interfaces/virtual-links (VyOS 1.5+ only)",
+                },
+                "ospf_redistribute_nhrp": {
+                    "supported": is_1_5,
+                    "description": "OSPF redistribute NHRP (VyOS 1.5+ only)",
+                },
+                "isis_fast_reroute": {
+                    "supported": is_1_5,
+                    "description": "IS-IS fast-reroute (LFA, TI-LFA) (VyOS 1.5+ only)",
+                },
+                "bgp_redistribute_nhrp": {
+                    "supported": is_1_5,
+                    "description": "BGP redistribute NHRP (VyOS 1.5+ only)",
                 },
             },
             "version_info": {

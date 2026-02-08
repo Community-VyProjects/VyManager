@@ -39,8 +39,10 @@ from .bfd import BfdMapper
 from .bfd.bfd_versions import get_bfd_mapper
 from .bgp import BgpMapper
 from .bgp.bgp_versions import get_bgp_mapper
-from .vrf import VrfMapper
-from .vrf.vrf_versions import get_vrf_mapper
+from .vrf import VrfMapper, VrfStaticMapper, VrfRpkiMapper, VrfFailoverMapper
+from .vrf import VrfOspfMapper, VrfOspfv3Mapper, VrfIsisMapper, VrfBgpMapper
+from .vrf import VrfDhcpMapper, VrfDhcpv6Mapper
+from .vrf.vrf_versions import get_vrf_mapper, get_vrf_static_mapper
 
 # Auto-register all mappers
 # Ethernet uses factory for version-specific mappers
@@ -87,6 +89,17 @@ CommandMapperRegistry.register_feature("bfd", get_bfd_mapper)
 CommandMapperRegistry.register_feature("bgp", get_bgp_mapper)
 # VRF uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("vrf", get_vrf_mapper)
+# VRF Static Routes uses factory for version-specific BFD paths
+CommandMapperRegistry.register_feature("vrf_static", get_vrf_static_mapper)
+# VRF sub-mappers use lambda factories (they don't take version in constructor)
+CommandMapperRegistry.register_feature("vrf_rpki", lambda v: VrfRpkiMapper())
+CommandMapperRegistry.register_feature("vrf_failover", lambda v: VrfFailoverMapper())
+CommandMapperRegistry.register_feature("vrf_ospf", lambda v: VrfOspfMapper())
+CommandMapperRegistry.register_feature("vrf_ospfv3", lambda v: VrfOspfv3Mapper())
+CommandMapperRegistry.register_feature("vrf_isis", lambda v: VrfIsisMapper())
+CommandMapperRegistry.register_feature("vrf_bgp", lambda v: VrfBgpMapper())
+CommandMapperRegistry.register_feature("vrf_dhcp", lambda v: VrfDhcpMapper())
+CommandMapperRegistry.register_feature("vrf_dhcpv6", lambda v: VrfDhcpv6Mapper())
 
 __all__ = [
     "BaseFeatureMapper",
@@ -113,4 +126,13 @@ __all__ = [
     "BfdMapper",
     "BgpMapper",
     "VrfMapper",
+    "VrfStaticMapper",
+    "VrfRpkiMapper",
+    "VrfFailoverMapper",
+    "VrfOspfMapper",
+    "VrfOspfv3Mapper",
+    "VrfIsisMapper",
+    "VrfBgpMapper",
+    "VrfDhcpMapper",
+    "VrfDhcpv6Mapper",
 ]
