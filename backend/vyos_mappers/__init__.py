@@ -39,6 +39,8 @@ from .bfd import BfdMapper
 from .bfd.bfd_versions import get_bfd_mapper
 from .bgp import BgpMapper
 from .bgp.bgp_versions import get_bgp_mapper
+from .vrf import VrfMapper
+from .vrf.vrf_versions import get_vrf_mapper
 
 # Auto-register all mappers
 # Ethernet uses factory for version-specific mappers
@@ -83,6 +85,8 @@ CommandMapperRegistry.register_feature("babel", get_babel_mapper)
 CommandMapperRegistry.register_feature("bfd", get_bfd_mapper)
 # BGP uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("bgp", get_bgp_mapper)
+# VRF uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("vrf", get_vrf_mapper)
 
 __all__ = [
     "BaseFeatureMapper",
@@ -108,4 +112,5 @@ __all__ = [
     "BabelMapper",
     "BfdMapper",
     "BgpMapper",
+    "VrfMapper",
 ]

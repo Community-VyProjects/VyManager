@@ -38,6 +38,7 @@ from routers.wireguard import wireguard
 from routers.babel import babel
 from routers.bfd import bfd
 from routers.bgp import bgp
+from routers.vrf import vrf
 from routers import system
 from routers import power as power_router
 from routers.config import config as config_router
@@ -254,6 +255,7 @@ app.include_router(wireguard.router)
 app.include_router(babel.router)
 app.include_router(bfd.router)
 app.include_router(bgp.router)
+app.include_router(vrf.router)
 app.include_router(system.router)
 app.include_router(power_router.router)
 app.include_router(config_router.router)

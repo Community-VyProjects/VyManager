@@ -24,6 +24,7 @@ from .wireguard import WireGuardBatchBuilder
 from .babel import BabelBatchBuilder
 from .bfd import BfdBatchBuilder
 from .bgp import BgpBatchBuilder
+from .vrf import VrfBatchBuilder
 
 # Directly use the self-contained builders
 EthernetBatchBuilder = EthernetInterfaceBuilderMixin
@@ -53,4 +54,5 @@ __all__ = [
     "BabelBatchBuilder",
     "BfdBatchBuilder",
     "BgpBatchBuilder",
+    "VrfBatchBuilder",
 ]
