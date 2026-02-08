@@ -11,7 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircle, Plus, Trash2 } from "lucide-react";
 import { staticRoutesService } from "@/lib/api/static-routes";
-import { apiClient } from "@/lib/api/client";
+import { showService } from "@/lib/api/show";
 import type { StaticRoute, StaticRoutesCapabilities } from "@/lib/api/static-routes";
 
 interface EditStaticRouteModalProps {
@@ -84,28 +84,8 @@ export function EditStaticRouteModal({ open, onOpenChange, onSuccess, route }: E
 
   const loadInterfaces = async () => {
     try {
-      const interfaceNames: string[] = [];
-
-      // Fetch ethernet interfaces
-      try {
-        const ethernetConfig = await apiClient.get<{ interfaces: Array<{ name: string }> }>("/vyos/ethernet/config");
-        interfaceNames.push(...ethernetConfig.interfaces.map(iface => iface.name));
-      } catch (err) {
-        console.error("Failed to load ethernet interfaces:", err);
-      }
-
-      // Fetch dummy interfaces
-      try {
-        const dummyConfig = await apiClient.get<{ interfaces: Array<{ name: string }> }>("/vyos/dummy/config");
-        interfaceNames.push(...dummyConfig.interfaces.map(iface => iface.name));
-      } catch (err) {
-        console.error("Failed to load dummy interfaces:", err);
-      }
-
-      // Sort interfaces alphabetically
-      interfaceNames.sort();
-
-      setAvailableInterfaces(interfaceNames);
+      const response = await showService.getAllInterfaces();
+      setAvailableInterfaces(response.interfaces.map((i) => i.name));
     } catch (err) {
       console.error("Failed to load interfaces:", err);
     }
@@ -473,7 +453,7 @@ export function EditStaticRouteModal({ open, onOpenChange, onSuccess, route }: E
                             <SelectTrigger>
                               <SelectValue placeholder="Select interface" />
                             </SelectTrigger>
-                            <SelectContent>
+                            <SelectContent className="max-h-60 overflow-y-auto">
                               {availableInterfaces.map((interfaceName) => (
                                 <SelectItem key={interfaceName} value={interfaceName}>
                                   {interfaceName}
