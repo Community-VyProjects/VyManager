@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Loader2, Plus, X } from "lucide-react";
 import type { NetworkInterface, CreateInterfaceRequest } from "@/lib/api/interfaces";
-import { vrfService, type VRF } from "@/lib/api/vrf";
+import { vrfService, type VrfInstance } from "@/lib/api/vrf";
 
 interface InterfaceFormModalProps {
   isOpen: boolean;
@@ -49,7 +49,7 @@ export function InterfaceFormModal({
     "source-interface": "",
   });
   const [addressInput, setAddressInput] = useState("");
-  const [vrfs, setVrfs] = useState<VRF[]>([]);
+  const [vrfs, setVrfs] = useState<VrfInstance[]>([]);
   const [isLoadingVrfs, setIsLoadingVrfs] = useState(false);
 
   // Fetch VRFs when modal opens
@@ -63,9 +63,7 @@ export function InterfaceFormModal({
     try {
       setIsLoadingVrfs(true);
       const data = await vrfService.getConfig();
-      // Convert Record<string, VRF> to array
-      const vrfArray = Object.entries(data.vrfs).map(([_, vrf]) => vrf);
-      setVrfs(vrfArray);
+      setVrfs(data.instances);
     } catch (error) {
       console.error("Failed to fetch VRFs:", error);
       setVrfs([]);
