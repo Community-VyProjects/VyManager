@@ -85,6 +85,7 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
   const [originalDestinationAddress, setOriginalDestinationAddress] = useState("");
   const [originalDestinationPort, setOriginalDestinationPort] = useState("");
   const [originalDestinationGroup, setOriginalDestinationGroup] = useState(false);
+  const [originalInboundInterfaceType, setOriginalInboundInterfaceType] = useState<"name" | "group" | null>(null);
 
   // Reset all form fields to defaults
   const resetForm = () => {
@@ -120,6 +121,7 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
     setOriginalDestinationAddress("");
     setOriginalDestinationPort("");
     setOriginalDestinationGroup(false);
+    setOriginalInboundInterfaceType(null);
     setError(null);
   };
 
@@ -206,6 +208,7 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
       if (interfaceEntries.length > 0) {
         const [type, value] = interfaceEntries[0];
         setInboundInterfaceType(type as "name" | "group");
+        setOriginalInboundInterfaceType(type as "name" | "group");
 
         // Check for inverted interface (starts with !)
         const isInverted = value.startsWith("!");
@@ -400,12 +403,18 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
         config.delete_destination_port = true;
       }
 
-      // Inbound interface
+      // Inbound interface - delete the old type when switching between name and group
       if (inboundInterfaceType === "name" && inboundInterfaceName) {
+        if (originalInboundInterfaceType === "group") {
+          config.delete_inbound_interface_group = true;
+        }
         config.inbound_interface_type = "name";
         config.inbound_interface_value = inboundInterfaceName;
         config.inbound_interface_invert = inboundInterfaceInvert;
       } else if (inboundInterfaceType === "group" && inboundInterfaceGroup) {
+        if (originalInboundInterfaceType === "name") {
+          config.delete_inbound_interface_name = true;
+        }
         config.inbound_interface_type = "group";
         config.inbound_interface_value = inboundInterfaceGroup;
         config.inbound_interface_invert = inboundInterfaceInvert;

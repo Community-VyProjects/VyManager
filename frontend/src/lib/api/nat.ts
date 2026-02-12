@@ -491,6 +491,8 @@ class NATService {
       delete_destination_address?: boolean;
       delete_destination_port?: boolean;
       delete_destination_group?: boolean;
+      delete_outbound_interface_name?: boolean;
+      delete_outbound_interface_group?: boolean;
     }
   ): Promise<VyOSResponse> {
     // Build operations just like createSourceRule
@@ -555,7 +557,14 @@ class NATService {
       });
     }
 
-    // Outbound interface
+    // Outbound interface - handle deletions first when switching types
+    if (config.delete_outbound_interface_name) {
+      operations.push({ op: "delete_source_rule_outbound_interface_name" });
+    }
+    if (config.delete_outbound_interface_group) {
+      operations.push({ op: "delete_source_rule_outbound_interface_group" });
+    }
+
     if (config.outbound_interface_type && config.outbound_interface_value) {
       let interfaceValue = config.outbound_interface_value;
       if (config.outbound_interface_invert) {
@@ -654,6 +663,8 @@ class NATService {
       delete_destination_address?: boolean;
       delete_destination_port?: boolean;
       delete_destination_group?: boolean;
+      delete_inbound_interface_name?: boolean;
+      delete_inbound_interface_group?: boolean;
     }
   ): Promise<VyOSResponse> {
     // Build operations just like createDestinationRule
@@ -718,7 +729,14 @@ class NATService {
       });
     }
 
-    // Inbound interface
+    // Inbound interface - handle deletions first when switching types
+    if (config.delete_inbound_interface_name) {
+      operations.push({ op: "delete_destination_rule_inbound_interface_name" });
+    }
+    if (config.delete_inbound_interface_group) {
+      operations.push({ op: "delete_destination_rule_inbound_interface_group" });
+    }
+
     if (config.inbound_interface_type && config.inbound_interface_value) {
       let interfaceValue = config.inbound_interface_value;
       if (config.inbound_interface_invert) {
