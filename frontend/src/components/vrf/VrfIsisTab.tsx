@@ -32,11 +32,8 @@ export function VrfIsisTab({ vrf, capabilities, canWrite, onRefresh }: VrfIsisTa
     return (
       <div className="flex flex-col items-center justify-center py-16">
         <Globe className="h-12 w-12 text-muted-foreground mb-4" />
-        <h3 className="text-lg font-semibold mb-2">IS-IS Not Configured</h3>
-        <p className="text-sm text-muted-foreground text-center max-w-md">
-          IS-IS is not configured in VRF {vrf.name}. Configure it via the VyOS CLI
-          or use the batch API to add IS-IS settings.
-        </p>
+        <h3 className="text-lg font-semibold mb-2">IS-IS</h3>
+        <p className="text-sm text-muted-foreground">Coming soon</p>
       </div>
     );
   }

@@ -13,11 +13,8 @@ import {
   Trash2,
   Settings,
   Globe,
-  Shield,
-  Radio,
   Layers,
   Server,
-  Activity,
 } from "lucide-react";
 import {
   VrfInstance,
@@ -248,7 +245,6 @@ export function VrfContent({
                     value="rpki"
                     className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4"
                   >
-                    <Shield className="h-3.5 w-3.5 mr-1.5" />
                     RPKI
                     {vrf.rpki && vrf.rpki.caches.length > 0 && (
                       <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0">
@@ -263,7 +259,6 @@ export function VrfContent({
                     value="failover"
                     className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4"
                   >
-                    <Activity className="h-3.5 w-3.5 mr-1.5" />
                     Failover
                     {vrf.failover && vrf.failover.routes.length > 0 && (
                       <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0">
@@ -278,7 +273,6 @@ export function VrfContent({
                     value="dhcp"
                     className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4"
                   >
-                    <Radio className="h-3.5 w-3.5 mr-1.5" />
                     DHCP
                     {vrf.dhcp?.configured && (
                       <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0">

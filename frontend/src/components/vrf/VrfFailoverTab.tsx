@@ -30,12 +30,8 @@ export function VrfFailoverTab({ vrf, capabilities, canWrite, onRefresh }: VrfFa
   if (!failover || failover.routes.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16">
-        <Activity className="h-12 w-12 text-muted-foreground mb-4" />
-        <h3 className="text-lg font-semibold mb-2">Failover Not Configured</h3>
-        <p className="text-sm text-muted-foreground text-center max-w-md">
-          Failover routes are not configured in VRF {vrf.name}.
-          Configure them via the VyOS CLI or use the batch API.
-        </p>
+        <h3 className="text-lg font-semibold mb-2">Failover</h3>
+        <p className="text-sm text-muted-foreground">Coming soon</p>
       </div>
     );
   }

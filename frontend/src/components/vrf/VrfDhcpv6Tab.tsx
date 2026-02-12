@@ -39,12 +39,8 @@ export function VrfDhcpv6Tab({ vrf, capabilities, canWrite, onRefresh }: VrfDhcp
   if (!dhcpv6 || !dhcpv6.configured) {
     return (
       <div className="flex flex-col items-center justify-center py-16">
-        <Server className="h-12 w-12 text-muted-foreground mb-4" />
-        <h3 className="text-lg font-semibold mb-2">DHCPv6 Server Not Configured</h3>
-        <p className="text-sm text-muted-foreground text-center max-w-md">
-          DHCPv6 server is not configured in VRF {vrf.name}.
-          This feature is available on VyOS 1.5+.
-        </p>
+        <h3 className="text-lg font-semibold mb-2">DHCPv6 Server</h3>
+        <p className="text-sm text-muted-foreground">Coming soon</p>
       </div>
     );
   }

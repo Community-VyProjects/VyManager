@@ -40,11 +40,8 @@ export function VrfBgpTab({ vrf, capabilities, canWrite, onRefresh }: VrfBgpTabP
     return (
       <div className="flex flex-col items-center justify-center py-16">
         <Network className="h-12 w-12 text-muted-foreground mb-4" />
-        <h3 className="text-lg font-semibold mb-2">BGP Not Configured</h3>
-        <p className="text-sm text-muted-foreground text-center max-w-md">
-          BGP is not configured in VRF {vrf.name}. Configure it via the VyOS CLI
-          or use the batch API to add BGP settings.
-        </p>
+        <h3 className="text-lg font-semibold mb-2">BGP</h3>
+        <p className="text-sm text-muted-foreground">Coming soon</p>
       </div>
     );
   }
