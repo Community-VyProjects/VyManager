@@ -143,7 +143,7 @@ function SourceNATContent({ rule }: { rule: SourceNATRule }) {
       </TableCell>
       <TableCell>
         <Badge variant="outline" className="font-mono text-xs">
-          {rule.outbound_interface?.name || "any"}
+          {rule.outbound_interface?.name || rule.outbound_interface?.group || "any"}
         </Badge>
       </TableCell>
       <TableCell>
@@ -193,7 +193,7 @@ function DestinationNATContent({ rule }: { rule: DestinationNATRule }) {
       </TableCell>
       <TableCell>
         <Badge variant="outline" className="font-mono text-xs">
-          {rule.inbound_interface?.name || "any"}
+          {rule.inbound_interface?.name || rule.inbound_interface?.group || "any"}
         </Badge>
       </TableCell>
       <TableCell>

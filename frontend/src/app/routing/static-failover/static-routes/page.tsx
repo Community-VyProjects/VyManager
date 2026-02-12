@@ -46,6 +46,7 @@ import { CreateStaticRouteModal } from "@/components/routing/CreateStaticRouteMo
 import { EditStaticRouteModal } from "@/components/routing/EditStaticRouteModal";
 import { DeleteStaticRouteModal } from "@/components/routing/DeleteStaticRouteModal";
 import { CreateArpEntryModal } from "@/components/routing/CreateArpEntryModal";
+import { EditArpEntryModal } from "@/components/routing/EditArpEntryModal";
 import { DeleteArpEntryModal } from "@/components/routing/DeleteArpEntryModal";
 import { CreateMrouteModal } from "@/components/routing/CreateMrouteModal";
 import { DeleteMrouteModal } from "@/components/routing/DeleteMrouteModal";
@@ -70,6 +71,7 @@ export default function StaticRoutesPage() {
 
   // Modal states for ARP
   const [createArpModalOpen, setCreateArpModalOpen] = useState(false);
+  const [editingArpEntry, setEditingArpEntry] = useState<{ entry: ArpEntry; interface: string } | null>(null);
   const [deletingArpEntry, setDeletingArpEntry] = useState<{ entry: ArpEntry; interface: string } | null>(null);
 
   // Modal states for Multicast Routes
@@ -595,6 +597,13 @@ export default function StaticRoutesPage() {
                                   <Button
                                     variant="ghost"
                                     size="sm"
+                                    onClick={() => setEditingArpEntry({ entry, interface: iface.interface })}
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
                                     onClick={() => setDeletingArpEntry({ entry, interface: iface.interface })}
                                   >
                                     <Trash2 className="h-4 w-4 text-destructive" />
@@ -896,6 +905,14 @@ export default function StaticRoutesPage() {
         open={createArpModalOpen}
         onOpenChange={setCreateArpModalOpen}
         onSuccess={() => fetchConfig(true)}
+      />
+
+      <EditArpEntryModal
+        open={editingArpEntry !== null}
+        onOpenChange={(open) => !open && setEditingArpEntry(null)}
+        onSuccess={() => fetchConfig(true)}
+        interfaceName={editingArpEntry?.interface || ""}
+        entry={editingArpEntry?.entry || null}
       />
 
       <DeleteArpEntryModal

@@ -85,6 +85,7 @@ export function EditSourceNATModal({ open, onOpenChange, rule, onSuccess }: Edit
   const [originalDestinationAddress, setOriginalDestinationAddress] = useState("");
   const [originalDestinationPort, setOriginalDestinationPort] = useState("");
   const [originalDestinationGroup, setOriginalDestinationGroup] = useState(false);
+  const [originalOutboundInterfaceType, setOriginalOutboundInterfaceType] = useState<"name" | "group" | null>(null);
 
   // Reset all form fields to defaults
   const resetForm = () => {
@@ -120,6 +121,7 @@ export function EditSourceNATModal({ open, onOpenChange, rule, onSuccess }: Edit
     setOriginalDestinationAddress("");
     setOriginalDestinationPort("");
     setOriginalDestinationGroup(false);
+    setOriginalOutboundInterfaceType(null);
     setError(null);
   };
 
@@ -206,6 +208,7 @@ export function EditSourceNATModal({ open, onOpenChange, rule, onSuccess }: Edit
       if (interfaceEntries.length > 0) {
         const [type, value] = interfaceEntries[0];
         setOutboundInterfaceType(type as "name" | "group");
+        setOriginalOutboundInterfaceType(type as "name" | "group");
 
         // Check for inverted interface (starts with !)
         const isInverted = value.startsWith("!");
@@ -412,12 +415,18 @@ export function EditSourceNATModal({ open, onOpenChange, rule, onSuccess }: Edit
         config.delete_destination_port = true;
       }
 
-      // Outbound interface
+      // Outbound interface - delete the old type when switching between name and group
       if (outboundInterfaceType === "name" && outboundInterfaceName) {
+        if (originalOutboundInterfaceType === "group") {
+          config.delete_outbound_interface_group = true;
+        }
         config.outbound_interface_type = "name";
         config.outbound_interface_value = outboundInterfaceName;
         config.outbound_interface_invert = outboundInterfaceInvert;
       } else if (outboundInterfaceType === "group" && outboundInterfaceGroup) {
+        if (originalOutboundInterfaceType === "name") {
+          config.delete_outbound_interface_name = true;
+        }
         config.outbound_interface_type = "group";
         config.outbound_interface_value = outboundInterfaceGroup;
         config.outbound_interface_invert = outboundInterfaceInvert;

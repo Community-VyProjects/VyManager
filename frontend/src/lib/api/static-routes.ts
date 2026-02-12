@@ -688,6 +688,31 @@ class StaticRoutesService {
   }
 
   /**
+   * Update a static ARP entry (MAC address and/or description)
+   */
+  async updateArpEntry(
+    interfaceName: string,
+    ipAddress: string,
+    macAddress: string,
+    description?: string
+  ): Promise<VyOSResponse> {
+    const operations: StaticRoutesBatchOperation[] = [
+      { op: "set_arp_entry", value: macAddress }
+    ];
+
+    // Always set or clear description
+    if (description) {
+      operations.push({ op: "set_arp_entry_description", value: description });
+    }
+
+    return this.arpBatchConfigure({
+      interface: interfaceName,
+      ip_address: ipAddress,
+      operations
+    });
+  }
+
+  /**
    * Delete a static ARP entry
    */
   async deleteArpEntry(interfaceName: string, ipAddress: string): Promise<VyOSResponse> {
