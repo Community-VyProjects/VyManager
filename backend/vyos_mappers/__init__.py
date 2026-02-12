@@ -39,6 +39,8 @@ from .bfd import BfdMapper
 from .bfd.bfd_versions import get_bfd_mapper
 from .bgp import BgpMapper
 from .bgp.bgp_versions import get_bgp_mapper
+from .failover import FailoverMapper
+from .failover.failover_versions import get_failover_mapper
 from .vrf import VrfMapper, VrfStaticMapper, VrfRpkiMapper, VrfFailoverMapper
 from .vrf import VrfOspfMapper, VrfOspfv3Mapper, VrfIsisMapper, VrfBgpMapper
 from .vrf import VrfDhcpMapper, VrfDhcpv6Mapper
@@ -87,6 +89,8 @@ CommandMapperRegistry.register_feature("babel", get_babel_mapper)
 CommandMapperRegistry.register_feature("bfd", get_bfd_mapper)
 # BGP uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("bgp", get_bgp_mapper)
+# Failover uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("failover", get_failover_mapper)
 # VRF uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("vrf", get_vrf_mapper)
 # VRF Static Routes uses factory for version-specific BFD paths
@@ -125,6 +129,7 @@ __all__ = [
     "BabelMapper",
     "BfdMapper",
     "BgpMapper",
+    "FailoverMapper",
     "VrfMapper",
     "VrfStaticMapper",
     "VrfRpkiMapper",

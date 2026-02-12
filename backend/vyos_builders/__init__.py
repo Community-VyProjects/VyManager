@@ -24,6 +24,7 @@ from .wireguard import WireGuardBatchBuilder
 from .babel import BabelBatchBuilder
 from .bfd import BfdBatchBuilder
 from .bgp import BgpBatchBuilder
+from .failover import FailoverBatchBuilder
 from .vrf import VrfBatchBuilder
 
 # Directly use the self-contained builders
@@ -54,5 +55,6 @@ __all__ = [
     "BabelBatchBuilder",
     "BfdBatchBuilder",
     "BgpBatchBuilder",
+    "FailoverBatchBuilder",
     "VrfBatchBuilder",
 ]
