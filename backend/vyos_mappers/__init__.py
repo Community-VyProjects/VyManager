@@ -41,6 +41,7 @@ from .bgp import BgpMapper
 from .bgp.bgp_versions import get_bgp_mapper
 from .failover import FailoverMapper
 from .failover.failover_versions import get_failover_mapper
+from .igmp_proxy import IgmpProxyMapper
 from .vrf import VrfMapper, VrfStaticMapper, VrfRpkiMapper, VrfFailoverMapper
 from .vrf import VrfOspfMapper, VrfOspfv3Mapper, VrfIsisMapper, VrfBgpMapper
 from .vrf import VrfDhcpMapper, VrfDhcpv6Mapper
@@ -91,6 +92,8 @@ CommandMapperRegistry.register_feature("bfd", get_bfd_mapper)
 CommandMapperRegistry.register_feature("bgp", get_bgp_mapper)
 # Failover uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("failover", get_failover_mapper)
+# IGMP Proxy uses direct class (no version differences)
+CommandMapperRegistry.register_feature("igmp_proxy", IgmpProxyMapper)
 # VRF uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("vrf", get_vrf_mapper)
 # VRF Static Routes uses factory for version-specific BFD paths
@@ -130,6 +133,7 @@ __all__ = [
     "BfdMapper",
     "BgpMapper",
     "FailoverMapper",
+    "IgmpProxyMapper",
     "VrfMapper",
     "VrfStaticMapper",
     "VrfRpkiMapper",

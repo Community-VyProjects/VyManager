@@ -39,6 +39,7 @@ from routers.babel import babel
 from routers.bfd import bfd
 from routers.bgp import bgp
 from routers.failover import failover
+from routers.igmp_proxy import igmp_proxy
 from routers.vrf import vrf
 from routers import system
 from routers import power as power_router
@@ -257,6 +258,7 @@ app.include_router(babel.router)
 app.include_router(bfd.router)
 app.include_router(bgp.router)
 app.include_router(failover.router)
+app.include_router(igmp_proxy.router)
 app.include_router(vrf.router)
 app.include_router(system.router)
 app.include_router(power_router.router)
