@@ -821,12 +821,14 @@ class NATService {
     if (config.description !== undefined) {
       if (config.description) {
         operations.push({ op: "set_static_rule_description", value: config.description });
+      } else {
+        operations.push({ op: "delete_static_rule_description" });
       }
     }
 
     // Destination address
     if (config.destination_address) {
-      operations.push({ op: "set_static_rule_destination", value: config.destination_address });
+      operations.push({ op: "set_static_rule_destination_address", value: config.destination_address });
     }
 
     // Inbound interface
@@ -838,7 +840,7 @@ class NATService {
 
     // Translation address
     if (config.translation_address) {
-      operations.push({ op: "set_static_rule_translation", value: config.translation_address });
+      operations.push({ op: "set_static_rule_translation_address", value: config.translation_address });
     }
 
     const result = await this.batchConfigure({
