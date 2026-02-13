@@ -55,10 +55,15 @@ class IgmpProxyBatchOperation(BaseModel):
     value: Optional[str] = Field(None, description="Operation value")
 
 
-class IgmpProxyBatchRequest(BaseModel):
-    """Model for batch configuration."""
+class IgmpProxyBatchGroup(BaseModel):
+    """A group of operations scoped to a single interface (or global)."""
     interface: Optional[str] = Field(None, description="Interface name")
     operations: List[IgmpProxyBatchOperation]
+
+
+class IgmpProxyBatchRequest(BaseModel):
+    """Model for batch configuration. Supports multiple interface groups in a single atomic commit."""
+    groups: List[IgmpProxyBatchGroup]
 
 
 class VyOSResponse(BaseModel):
@@ -164,7 +169,12 @@ def parse_interfaces(interfaces_raw: dict) -> List[IgmpProxyInterface]:
 
 @router.post("/batch", response_model=VyOSResponse)
 async def igmp_proxy_batch_configure(http_request: Request, body: IgmpProxyBatchRequest):
-    """Execute a batch of IGMP proxy configuration operations."""
+    """Execute a batch of IGMP proxy configuration operations.
+
+    Accepts multiple groups, each scoped to a single interface (or global).
+    All groups are processed into a single builder and committed atomically.
+    This allows setting up upstream + downstream interfaces in one commit.
+    """
     await require_write_permission(http_request, FeatureGroup.IGMP_PROXY)
 
     try:
@@ -172,22 +182,23 @@ async def igmp_proxy_batch_configure(http_request: Request, body: IgmpProxyBatch
         version = service.get_version()
         builder = IgmpProxyBatchBuilder(version=version)
 
-        for operation in body.operations:
-            method = getattr(builder, operation.op)
-            sig = inspect.signature(method)
-            params = [p for p in sig.parameters.keys() if p != "self"]
+        for group in body.groups:
+            for operation in group.operations:
+                method = getattr(builder, operation.op)
+                sig = inspect.signature(method)
+                params = [p for p in sig.parameters.keys() if p != "self"]
 
-            # Build arguments dynamically based on parameter names
-            args = []
+                # Build arguments dynamically based on parameter names
+                args = []
 
-            if "interface" in params and body.interface:
-                args.append(body.interface)
+                if "interface" in params and group.interface:
+                    args.append(group.interface)
 
-            # Add operation value if provided
-            if operation.value and len(params) > len(args):
-                args.append(operation.value)
+                # Add operation value if provided
+                if operation.value and len(params) > len(args):
+                    args.append(operation.value)
 
-            method(*args)
+                method(*args)
 
         if builder.is_empty():
             return VyOSResponse(success=True, data={"message": "No operations to execute"})

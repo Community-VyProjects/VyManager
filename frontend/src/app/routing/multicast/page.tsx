@@ -2,6 +2,7 @@
 
 import { AppLayout } from "@/components/layout/AppLayout";
 import { InProgress } from "@/components/layout/InProgress";
+import { IgmpProxyContent } from "@/components/igmp-proxy/IgmpProxyContent";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Radio, ChevronRight, Wifi } from "lucide-react";
@@ -117,7 +118,11 @@ export default function MulticastPage() {
 
         {/* Main Content Area */}
         <div className="flex-1">
-          <InProgress />
+          {selectedMulticast === "igmp-proxy" ? (
+            <IgmpProxyContent />
+          ) : (
+            <InProgress />
+          )}
         </div>
       </div>
     </AppLayout>
