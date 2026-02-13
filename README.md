@@ -8,7 +8,7 @@ Modern web interface to make configuring, deploying and monitoring VyOS routers 
 Open beta release. Expect lower stability and bugs. This release provides a lot of structural improvements over the older legacy version.
 We now flexibly support all active VyOS versions, including rolling releases.
 
-### [Skip to Quick Start](#-quick-start)
+### [Skip to Quick Start](#quick-start)
 
 **[Join our Discord community to receive official updates](https://discord.gg/k9SSkK7wPQ)**
 
