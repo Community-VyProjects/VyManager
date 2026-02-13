@@ -155,11 +155,10 @@ export function EditStaticNATModal({ open, onOpenChange, rule, onSuccess }: Edit
     setError(null);
 
     try {
-      const config: any = {};
+      const config: Record<string, string> = {};
 
-      if (description.trim()) {
-        config.description = description.trim();
-      }
+      // Always pass description so service can set or delete it
+      config.description = description.trim();
 
       // Destination
       if (destinationAddress.trim()) {

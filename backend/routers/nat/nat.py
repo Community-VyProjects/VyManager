@@ -635,11 +635,11 @@ async def reorder_nat_rules(http_request: Request, request: ReorderNATRequest):
                 if rule_data.get("description"):
                     batch.set_static_rule_description(new_num, rule_data["description"])
                 if rule_data.get("destination_address"):
-                    batch.set_static_rule_destination(new_num, rule_data["destination_address"])
+                    batch.set_static_rule_destination_address(new_num, rule_data["destination_address"])
                 if rule_data.get("inbound_interface"):
                     batch.set_static_rule_inbound_interface(new_num, rule_data["inbound_interface"])
                 if rule_data.get("translation_address"):
-                    batch.set_static_rule_translation(new_num, rule_data["translation_address"])
+                    batch.set_static_rule_translation_address(new_num, rule_data["translation_address"])
 
         if batch.is_empty():
             return VyOSResponse(
