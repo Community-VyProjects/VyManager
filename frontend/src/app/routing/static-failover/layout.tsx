@@ -1,17 +1,20 @@
 "use client";
 
+import { useEffect, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { MapPin, ChevronRight, Route, Activity } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { usePermissions } from "@/hooks/usePermissions";
+import { FeatureGroup } from "@/lib/api/user-management";
 
 type RouteType = "static" | "failover";
 
-const routes = [
-  { id: "static" as RouteType, name: "Static Routes", description: "Manually configured routes", icon: Route, href: "/routing/static-failover/static-routes" },
-  { id: "failover" as RouteType, name: "Failover / Tracking", description: "Route failover and health tracking", icon: Activity, href: "/routing/static-failover/failover" },
+const allRoutes = [
+  { id: "static" as RouteType, name: "Static Routes", description: "Manually configured routes", icon: Route, href: "/routing/static-failover/static-routes", permission: FeatureGroup.STATIC_ROUTES },
+  { id: "failover" as RouteType, name: "Failover / Tracking", description: "Route failover and health tracking", icon: Activity, href: "/routing/static-failover/failover", permission: FeatureGroup.FAILOVER },
 ];
 
 export default function StaticFailoverLayout({
@@ -21,6 +24,21 @@ export default function StaticFailoverLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const { canRead, isLoading } = usePermissions();
+
+  const routes = useMemo(() => {
+    if (isLoading) return [];
+    return allRoutes.filter((route) => canRead(route.permission));
+  }, [canRead, isLoading]);
+
+  // Redirect to first visible tab if on the base path or on a tab the user can't access
+  useEffect(() => {
+    if (isLoading || routes.length === 0) return;
+    const onVisibleTab = routes.some((r) => pathname === r.href);
+    if (!onVisibleTab) {
+      router.replace(routes[0].href);
+    }
+  }, [pathname, routes, isLoading, router]);
 
   const isActive = (href: string) => pathname === href;
 
