@@ -203,6 +203,7 @@ ROUTER_FEATURE_MAP = {
     "/vyos/large-community-list": FeatureGroup.ROUTING_POLICIES,
     "/vyos/prefix-list": FeatureGroup.ROUTING_POLICIES,
     "/vyos/local-route": FeatureGroup.ROUTING_POLICIES,
+    "/vyos/ospf": FeatureGroup.OSPF,
     "/vyos/system": FeatureGroup.SYSTEM,
     "/vyos/config": FeatureGroup.CONFIGURATION,
     "/vyos/power": FeatureGroup.SYSTEM,
