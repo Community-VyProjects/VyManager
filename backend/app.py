@@ -41,6 +41,7 @@ from routers.bgp import bgp
 from routers.failover import failover
 from routers.igmp_proxy import igmp_proxy
 from routers.ospf import ospf
+from routers.ospfv3 import ospfv3
 from routers.vrf import vrf
 from routers import system
 from routers import power as power_router
@@ -261,6 +262,7 @@ app.include_router(bgp.router)
 app.include_router(failover.router)
 app.include_router(igmp_proxy.router)
 app.include_router(ospf.router)
+app.include_router(ospfv3.router)
 app.include_router(vrf.router)
 app.include_router(system.router)
 app.include_router(power_router.router)

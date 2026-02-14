@@ -26,6 +26,7 @@ from .bfd import BfdBatchBuilder
 from .bgp import BgpBatchBuilder
 from .failover import FailoverBatchBuilder
 from .ospf import OspfBatchBuilder
+from .ospfv3 import Ospfv3BatchBuilder
 from .vrf import VrfBatchBuilder
 
 # Directly use the self-contained builders
@@ -58,5 +59,6 @@ __all__ = [
     "BgpBatchBuilder",
     "FailoverBatchBuilder",
     "OspfBatchBuilder",
+    "Ospfv3BatchBuilder",
     "VrfBatchBuilder",
 ]
