@@ -39,28 +39,28 @@ import {
 } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import {
-  ospfService,
-  OspfConfig,
-  OspfCapabilities,
-  OspfArea,
-  OspfInterface,
-  OspfRedistribute,
-} from "@/lib/api/ospf";
+  ospfv3Service,
+  Ospfv3Config,
+  Ospfv3Capabilities,
+  Ospfv3Area,
+  Ospfv3Interface,
+  Ospfv3Redistribute,
+} from "@/lib/api/ospfv3";
 import { routeMapService } from "@/lib/api/route-map";
 import { accessListService } from "@/lib/api/access-list";
-import { OspfAreaModal } from "./OspfAreaModal";
-import { OspfInterfaceModal } from "./OspfInterfaceModal";
-import { OspfRedistributeModal } from "./OspfRedistributeModal";
-import { DeleteOspfModal } from "./DeleteOspfModal";
+import { Ospfv3AreaModal } from "./Ospfv3AreaModal";
+import { Ospfv3InterfaceModal } from "./Ospfv3InterfaceModal";
+import { Ospfv3RedistributeModal } from "./Ospfv3RedistributeModal";
+import { DeleteOspfv3Modal } from "./DeleteOspfv3Modal";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 
-export function OspfContent() {
+export function Ospfv3Content() {
   const { canWrite } = usePermissions();
-  const hasWritePermission = canWrite(FeatureGroup.OSPF);
+  const hasWritePermission = canWrite(FeatureGroup.OSPFV3);
 
-  const [config, setConfig] = useState<OspfConfig | null>(null);
-  const [capabilities, setCapabilities] = useState<OspfCapabilities | null>(null);
+  const [config, setConfig] = useState<Ospfv3Config | null>(null);
+  const [capabilities, setCapabilities] = useState<Ospfv3Capabilities | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("overview");
@@ -75,70 +75,59 @@ export function OspfContent() {
 
   // Area modal state
   const [areaModalOpen, setAreaModalOpen] = useState(false);
-  const [editingArea, setEditingArea] = useState<OspfArea | null>(null);
+  const [editingArea, setEditingArea] = useState<Ospfv3Area | null>(null);
   const [deletingArea, setDeletingArea] = useState<string | null>(null);
 
   // Interface modal state
   const [ifaceModalOpen, setIfaceModalOpen] = useState(false);
-  const [editingIface, setEditingIface] = useState<OspfInterface | null>(null);
+  const [editingIface, setEditingIface] = useState<Ospfv3Interface | null>(null);
   const [deletingIface, setDeletingIface] = useState<string | null>(null);
 
   // Redistribute modal state
   const [redistModalOpen, setRedistModalOpen] = useState(false);
-  const [deletingRedist, setDeletingRedist] = useState<OspfRedistribute | null>(null);
+  const [deletingRedist, setDeletingRedist] = useState<Ospfv3Redistribute | null>(null);
 
   // Overview edit state
   const [overviewEditing, setOverviewEditing] = useState(false);
   const [overviewSaving, setOverviewSaving] = useState(false);
   const [overviewError, setOverviewError] = useState<string | null>(null);
   const [routerId, setRouterId] = useState("");
-  const [abrType, setAbrType] = useState("");
-  const [passiveDefault, setPassiveDefault] = useState(false);
   const [logAdjChanges, setLogAdjChanges] = useState(false);
   const [logAdjDetail, setLogAdjDetail] = useState(false);
-  const [maxPaths, setMaxPaths] = useState("");
   const [refBandwidth, setRefBandwidth] = useState("");
-  const [opaqueLsa, setOpaqueLsa] = useState(false);
-  const [rfc1583, setRfc1583] = useState(false);
-
-  // Advanced edit state
-  const [advancedEditing, setAdvancedEditing] = useState(false);
-  const [advancedSaving, setAdvancedSaving] = useState(false);
-  const [advancedError, setAdvancedError] = useState<string | null>(null);
-  const [spfDelay, setSpfDelay] = useState("");
-  const [spfInitial, setSpfInitial] = useState("");
-  const [spfMax, setSpfMax] = useState("");
-  const [distGlobal, setDistGlobal] = useState("");
-  const [distExternal, setDistExternal] = useState("");
-  const [distInterArea, setDistInterArea] = useState("");
-  const [distIntraArea, setDistIntraArea] = useState("");
-  const [maxMetricAdmin, setMaxMetricAdmin] = useState(false);
-  const [maxMetricShutdown, setMaxMetricShutdown] = useState("");
-  const [maxMetricStartup, setMaxMetricStartup] = useState("");
-  const [grEnabled, setGrEnabled] = useState(false);
-  const [grPeriod, setGrPeriod] = useState("");
-  const [grHelperEnable, setGrHelperEnable] = useState(false);
-  const [ldpSyncHolddown, setLdpSyncHolddown] = useState("");
-  const [refreshTimers, setRefreshTimers] = useState("");
-  const [aggregationTimer, setAggregationTimer] = useState("");
-  const [capabilityOpaque, setCapabilityOpaque] = useState(false);
 
   // Default information edit state
   const [diEditing, setDiEditing] = useState(false);
   const [diSaving, setDiSaving] = useState(false);
+  const [diError, setDiError] = useState<string | null>(null);
   const [diEnabled, setDiEnabled] = useState(false);
   const [diAlways, setDiAlways] = useState(false);
   const [diMetric, setDiMetric] = useState("");
   const [diMetricType, setDiMetricType] = useState("");
   const [diRouteMap, setDiRouteMap] = useState("");
 
+  // Advanced edit state
+  const [advancedEditing, setAdvancedEditing] = useState(false);
+  const [advancedSaving, setAdvancedSaving] = useState(false);
+  const [advancedError, setAdvancedError] = useState<string | null>(null);
+  const [distGlobal, setDistGlobal] = useState("");
+  const [distExternal, setDistExternal] = useState("");
+  const [distInterArea, setDistInterArea] = useState("");
+  const [distIntraArea, setDistIntraArea] = useState("");
+  const [grEnabled, setGrEnabled] = useState(false);
+  const [grPeriod, setGrPeriod] = useState("");
+  const [grHelperEnable, setGrHelperEnable] = useState(false);
+  const [grHelperLsaCheck, setGrHelperLsaCheck] = useState(false);
+  const [grHelperPlannedOnly, setGrHelperPlannedOnly] = useState(false);
+  const [grHelperGraceTime, setGrHelperGraceTime] = useState("");
+
   const loadData = useCallback(async (refresh = false) => {
     try {
       setLoading(true);
       setError(null);
       const [configData, capData] = await Promise.all([
-        ospfService.getConfig(refresh),
-        ospfService.getCapabilities(),
+        ospfv3Service.getConfig(refresh),
+        ospfv3Service.getCapabilities(),
       ]);
       setConfig(configData);
       setCapabilities(capData);
@@ -152,7 +141,7 @@ export function OspfContent() {
       setRouteMapNames(rmNames);
       setAccessListNames(aclNames);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load OSPF configuration");
+      setError(err instanceof Error ? err.message : "Failed to load OSPFv3 configuration");
     } finally {
       setLoading(false);
     }
@@ -169,7 +158,7 @@ export function OspfContent() {
 
   // Filtered lists
   const filteredAreas = config?.areas.filter((a) =>
-    !areaSearch || a.area_id.includes(areaSearch) || a.networks.some((n) => n.includes(areaSearch))
+    !areaSearch || a.area_id.includes(areaSearch)
   ) ?? [];
 
   const filteredIfaces = config?.interfaces.filter((i) =>
@@ -180,21 +169,21 @@ export function OspfContent() {
   // Area handlers
   // ==========================================================================
 
-  const handleCreateArea = async (area: OspfArea) => {
-    await ospfService.createArea(area);
+  const handleCreateArea = async (area: Ospfv3Area) => {
+    await ospfv3Service.createArea(area);
     await loadData(true);
   };
 
-  const handleUpdateArea = async (area: OspfArea) => {
+  const handleUpdateArea = async (area: Ospfv3Area) => {
     if (!editingArea) return;
-    await ospfService.updateArea(editingArea, area);
+    await ospfv3Service.updateArea(editingArea, area);
     setEditingArea(null);
     await loadData(true);
   };
 
   const handleDeleteArea = async () => {
     if (!deletingArea) return;
-    await ospfService.deleteArea(deletingArea);
+    await ospfv3Service.deleteArea(deletingArea);
     setDeletingArea(null);
     await loadData(true);
   };
@@ -203,21 +192,21 @@ export function OspfContent() {
   // Interface handlers
   // ==========================================================================
 
-  const handleCreateInterface = async (iface: OspfInterface) => {
-    await ospfService.createInterface(iface);
+  const handleCreateInterface = async (iface: Ospfv3Interface) => {
+    await ospfv3Service.createInterface(iface);
     await loadData(true);
   };
 
-  const handleUpdateInterface = async (iface: OspfInterface) => {
+  const handleUpdateInterface = async (iface: Ospfv3Interface) => {
     if (!editingIface) return;
-    await ospfService.updateInterface(editingIface, iface);
+    await ospfv3Service.updateInterface(editingIface, iface);
     setEditingIface(null);
     await loadData(true);
   };
 
   const handleDeleteInterface = async () => {
     if (!deletingIface) return;
-    await ospfService.deleteInterface(deletingIface);
+    await ospfv3Service.deleteInterface(deletingIface);
     setDeletingIface(null);
     await loadData(true);
   };
@@ -226,14 +215,14 @@ export function OspfContent() {
   // Redistribute handlers
   // ==========================================================================
 
-  const handleAddRedistribute = async (entry: OspfRedistribute) => {
-    await ospfService.addRedistribute(entry);
+  const handleAddRedistribute = async (entry: Ospfv3Redistribute) => {
+    await ospfv3Service.addRedistribute(entry);
     await loadData(true);
   };
 
   const handleDeleteRedistribute = async () => {
     if (!deletingRedist) return;
-    await ospfService.removeRedistribute(deletingRedist);
+    await ospfv3Service.removeRedistribute(deletingRedist.protocol);
     setDeletingRedist(null);
     await loadData(true);
   };
@@ -245,14 +234,9 @@ export function OspfContent() {
   const startEditOverview = () => {
     if (!config) return;
     setRouterId(config.parameters.router_id || "");
-    setAbrType(config.parameters.abr_type || "");
-    setPassiveDefault(config.passive_interface_default);
     setLogAdjChanges(config.log_adjacency_changes === true);
     setLogAdjDetail(config.log_adjacency_changes_detail);
-    setMaxPaths(config.maximum_paths != null ? String(config.maximum_paths) : "");
     setRefBandwidth(config.auto_cost_reference_bandwidth != null ? String(config.auto_cost_reference_bandwidth) : "");
-    setOpaqueLsa(config.parameters.opaque_lsa);
-    setRfc1583(config.parameters.rfc1583_compatibility);
     setOverviewEditing(true);
     setOverviewError(null);
   };
@@ -262,15 +246,10 @@ export function OspfContent() {
     try {
       setOverviewSaving(true);
       setOverviewError(null);
-      await ospfService.updateParameters(config, {
+      await ospfv3Service.updateParameters(config, {
         router_id: routerId.trim() || null,
-        abr_type: abrType || null,
-        opaque_lsa: opaqueLsa,
-        rfc1583_compatibility: rfc1583,
-        passive_interface_default: passiveDefault,
         log_adjacency_changes: logAdjChanges,
         log_adjacency_changes_detail: logAdjDetail,
-        maximum_paths: maxPaths.trim() ? parseInt(maxPaths.trim(), 10) : null,
         auto_cost_reference_bandwidth: refBandwidth.trim() ? parseInt(refBandwidth.trim(), 10) : null,
       });
       await loadData(true);
@@ -294,13 +273,15 @@ export function OspfContent() {
     setDiMetricType(config.default_information.metric_type != null ? String(config.default_information.metric_type) : "");
     setDiRouteMap(config.default_information.route_map || "");
     setDiEditing(true);
+    setDiError(null);
   };
 
   const saveDI = async () => {
     if (!config) return;
     try {
       setDiSaving(true);
-      await ospfService.updateDefaultInformation(config.default_information, {
+      setDiError(null);
+      await ospfv3Service.updateDefaultInformation(config.default_information, {
         enabled: diEnabled,
         always: diAlways,
         metric: diMetric.trim() ? parseInt(diMetric.trim(), 10) : null,
@@ -310,7 +291,7 @@ export function OspfContent() {
       await loadData(true);
       setDiEditing(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save default information");
+      setDiError(err instanceof Error ? err.message : "Failed to save default information");
     } finally {
       setDiSaving(false);
     }
@@ -322,23 +303,16 @@ export function OspfContent() {
 
   const startEditAdvanced = () => {
     if (!config) return;
-    setSpfDelay(config.timers_throttle_spf.delay != null ? String(config.timers_throttle_spf.delay) : "");
-    setSpfInitial(config.timers_throttle_spf.initial_holdtime != null ? String(config.timers_throttle_spf.initial_holdtime) : "");
-    setSpfMax(config.timers_throttle_spf.max_holdtime != null ? String(config.timers_throttle_spf.max_holdtime) : "");
     setDistGlobal(config.distance.global_value != null ? String(config.distance.global_value) : "");
-    setDistExternal(config.distance.ospf.external != null ? String(config.distance.ospf.external) : "");
-    setDistInterArea(config.distance.ospf.inter_area != null ? String(config.distance.ospf.inter_area) : "");
-    setDistIntraArea(config.distance.ospf.intra_area != null ? String(config.distance.ospf.intra_area) : "");
-    setMaxMetricAdmin(config.max_metric_router_lsa.administrative);
-    setMaxMetricShutdown(config.max_metric_router_lsa.on_shutdown != null ? String(config.max_metric_router_lsa.on_shutdown) : "");
-    setMaxMetricStartup(config.max_metric_router_lsa.on_startup != null ? String(config.max_metric_router_lsa.on_startup) : "");
+    setDistExternal(config.distance.ospfv3.external != null ? String(config.distance.ospfv3.external) : "");
+    setDistInterArea(config.distance.ospfv3.inter_area != null ? String(config.distance.ospfv3.inter_area) : "");
+    setDistIntraArea(config.distance.ospfv3.intra_area != null ? String(config.distance.ospfv3.intra_area) : "");
     setGrEnabled(config.graceful_restart.enabled);
     setGrPeriod(config.graceful_restart.grace_period != null ? String(config.graceful_restart.grace_period) : "");
     setGrHelperEnable(config.graceful_restart.helper.enable);
-    setLdpSyncHolddown(config.ldp_sync_holddown != null ? String(config.ldp_sync_holddown) : "");
-    setRefreshTimers(config.refresh_timers != null ? String(config.refresh_timers) : "");
-    setAggregationTimer(config.aggregation_timer != null ? String(config.aggregation_timer) : "");
-    setCapabilityOpaque(config.capability_opaque);
+    setGrHelperLsaCheck(config.graceful_restart.helper.lsa_check_disable);
+    setGrHelperPlannedOnly(config.graceful_restart.helper.planned_only);
+    setGrHelperGraceTime(config.graceful_restart.helper.supported_grace_time != null ? String(config.graceful_restart.helper.supported_grace_time) : "");
     setAdvancedEditing(true);
     setAdvancedError(null);
   };
@@ -349,48 +323,27 @@ export function OspfContent() {
       setAdvancedSaving(true);
       setAdvancedError(null);
 
-      // Save timers
-      await ospfService.updateTimers(config.timers_throttle_spf, {
-        delay: spfDelay.trim() ? parseInt(spfDelay.trim(), 10) : null,
-        initial_holdtime: spfInitial.trim() ? parseInt(spfInitial.trim(), 10) : null,
-        max_holdtime: spfMax.trim() ? parseInt(spfMax.trim(), 10) : null,
-      });
-
       // Save distance
-      await ospfService.updateDistance(config.distance, {
+      await ospfv3Service.updateDistance(config.distance, {
         global_value: distGlobal.trim() ? parseInt(distGlobal.trim(), 10) : null,
-        ospf: {
+        ospfv3: {
           external: distExternal.trim() ? parseInt(distExternal.trim(), 10) : null,
           inter_area: distInterArea.trim() ? parseInt(distInterArea.trim(), 10) : null,
           intra_area: distIntraArea.trim() ? parseInt(distIntraArea.trim(), 10) : null,
         },
       });
 
-      // Save max metric
-      await ospfService.updateMaxMetric(config.max_metric_router_lsa, {
-        administrative: maxMetricAdmin,
-        on_shutdown: maxMetricShutdown.trim() ? parseInt(maxMetricShutdown.trim(), 10) : null,
-        on_startup: maxMetricStartup.trim() ? parseInt(maxMetricStartup.trim(), 10) : null,
-      });
-
       // Save graceful restart
-      await ospfService.updateGracefulRestart(config.graceful_restart, {
+      await ospfv3Service.updateGracefulRestart(config.graceful_restart, {
         enabled: grEnabled,
         grace_period: grPeriod.trim() ? parseInt(grPeriod.trim(), 10) : null,
         helper: {
           enable: grHelperEnable,
-          no_strict_lsa_checking: config.graceful_restart.helper.no_strict_lsa_checking,
-          planned_only: config.graceful_restart.helper.planned_only,
-          supported_grace_time: config.graceful_restart.helper.supported_grace_time,
+          router_ids: config.graceful_restart.helper.router_ids,
+          lsa_check_disable: grHelperLsaCheck,
+          planned_only: grHelperPlannedOnly,
+          supported_grace_time: grHelperGraceTime.trim() ? parseInt(grHelperGraceTime.trim(), 10) : null,
         },
-      });
-
-      // Save misc advanced
-      await ospfService.updateMiscAdvanced(config, {
-        ldp_sync_holddown: ldpSyncHolddown.trim() ? parseInt(ldpSyncHolddown.trim(), 10) : null,
-        refresh_timers: refreshTimers.trim() ? parseInt(refreshTimers.trim(), 10) : null,
-        aggregation_timer: aggregationTimer.trim() ? parseInt(aggregationTimer.trim(), 10) : null,
-        capability_opaque: capabilityOpaque,
       });
 
       await loadData(true);
@@ -432,9 +385,9 @@ export function OspfContent() {
         <div className="p-6 pb-4 border-b border-border">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-2xl font-bold text-foreground">OSPF Configuration</h1>
+              <h1 className="text-2xl font-bold text-foreground">OSPFv3 Configuration</h1>
               <p className="text-sm text-muted-foreground mt-1">
-                Open Shortest Path First routing protocol
+                Open Shortest Path First v3 for IPv6 routing
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -545,7 +498,7 @@ export function OspfContent() {
             <TabsContent value="overview">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-sm text-muted-foreground">
-                  OSPF global parameters and settings
+                  OSPFv3 global parameters and settings
                 </p>
                 {hasWritePermission && (
                   !overviewEditing ? (
@@ -568,7 +521,7 @@ export function OspfContent() {
               </div>
 
               {overviewError && (
-                <div className="mb-4 p-3 rounded-md bg-destructive/10 text-destructive text-sm">
+                <div className="mb-4 p-3 rounded-md bg-destructive/10 text-destructive text-sm whitespace-pre-wrap">
                   {overviewError}
                 </div>
               )}
@@ -586,35 +539,6 @@ export function OspfContent() {
                           disabled={!overviewEditing}
                           onChange={(e) => setRouterId(e.target.value)}
                           placeholder="Auto-detected"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-sm">ABR Type</Label>
-                        <Select
-                          value={overviewEditing ? abrType : (config?.parameters.abr_type ?? "")}
-                          onValueChange={setAbrType}
-                          disabled={!overviewEditing}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Default (cisco)" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="cisco">Cisco</SelectItem>
-                            <SelectItem value="ibm">IBM</SelectItem>
-                            <SelectItem value="shortcut">Shortcut</SelectItem>
-                            <SelectItem value="standard">Standard</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label className="text-sm">Maximum Paths</Label>
-                        <Input
-                          type="number"
-                          value={overviewEditing ? maxPaths : (config?.maximum_paths != null ? String(config.maximum_paths) : "")}
-                          disabled={!overviewEditing}
-                          onChange={(e) => setMaxPaths(e.target.value)}
-                          placeholder="Default"
-                          min={1}
                         />
                       </div>
                       <div>
@@ -638,48 +562,21 @@ export function OspfContent() {
                     <div className="space-y-4">
                       <div className="flex items-center gap-3">
                         <Checkbox
-                          id="passive-default"
-                          checked={overviewEditing ? passiveDefault : config?.passive_interface_default}
-                          disabled={!overviewEditing}
-                          onCheckedChange={(checked) => setPassiveDefault(!!checked)}
-                        />
-                        <Label htmlFor="passive-default">Passive Interface Default</Label>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <Checkbox
-                          id="log-adj"
+                          id="ospfv3-log-adj"
                           checked={overviewEditing ? logAdjChanges : config?.log_adjacency_changes === true}
                           disabled={!overviewEditing}
                           onCheckedChange={(checked) => setLogAdjChanges(!!checked)}
                         />
-                        <Label htmlFor="log-adj">Log Adjacency Changes</Label>
+                        <Label htmlFor="ospfv3-log-adj">Log Adjacency Changes</Label>
                       </div>
                       <div className="flex items-center gap-3">
                         <Checkbox
-                          id="log-adj-detail"
+                          id="ospfv3-log-adj-detail"
                           checked={overviewEditing ? logAdjDetail : config?.log_adjacency_changes_detail}
                           disabled={!overviewEditing}
                           onCheckedChange={(checked) => setLogAdjDetail(!!checked)}
                         />
-                        <Label htmlFor="log-adj-detail">Log Adjacency Changes (Detail)</Label>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <Checkbox
-                          id="opaque-lsa"
-                          checked={overviewEditing ? opaqueLsa : config?.parameters.opaque_lsa}
-                          disabled={!overviewEditing}
-                          onCheckedChange={(checked) => setOpaqueLsa(!!checked)}
-                        />
-                        <Label htmlFor="opaque-lsa">Opaque LSA</Label>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <Checkbox
-                          id="rfc1583"
-                          checked={overviewEditing ? rfc1583 : config?.parameters.rfc1583_compatibility}
-                          disabled={!overviewEditing}
-                          onCheckedChange={(checked) => setRfc1583(!!checked)}
-                        />
-                        <Label htmlFor="rfc1583">RFC 1583 Compatibility</Label>
+                        <Label htmlFor="ospfv3-log-adj-detail">Log Adjacency Changes (Detail)</Label>
                       </div>
                     </div>
                   </CardContent>
@@ -709,24 +606,31 @@ export function OspfContent() {
                         )
                       )}
                     </div>
+
+                    {diError && (
+                      <div className="mb-4 p-3 rounded-md bg-destructive/10 text-destructive text-sm whitespace-pre-wrap">
+                        {diError}
+                      </div>
+                    )}
+
                     <div className="grid grid-cols-5 gap-4 items-end">
                       <div className="flex items-center gap-3">
                         <Checkbox
-                          id="di-enabled"
+                          id="ospfv3-di-enabled"
                           checked={diEditing ? diEnabled : config?.default_information.enabled}
                           disabled={!diEditing}
                           onCheckedChange={(checked) => setDiEnabled(!!checked)}
                         />
-                        <Label htmlFor="di-enabled">Enabled</Label>
+                        <Label htmlFor="ospfv3-di-enabled">Enabled</Label>
                       </div>
                       <div className="flex items-center gap-3">
                         <Checkbox
-                          id="di-always"
+                          id="ospfv3-di-always"
                           checked={diEditing ? diAlways : config?.default_information.always}
                           disabled={!diEditing}
                           onCheckedChange={(checked) => setDiAlways(!!checked)}
                         />
-                        <Label htmlFor="di-always">Always</Label>
+                        <Label htmlFor="ospfv3-di-always">Always</Label>
                       </div>
                       <div>
                         <Label className="text-sm">Metric</Label>
@@ -785,7 +689,7 @@ export function OspfContent() {
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <p className="text-sm text-muted-foreground">
-                    OSPF area configuration
+                    OSPFv3 area configuration
                   </p>
                   {areaCount > 3 && (
                     <div className="relative">
@@ -811,9 +715,9 @@ export function OspfContent() {
                 <Card>
                   <CardContent className="flex flex-col items-center justify-center py-12">
                     <Globe className="h-12 w-12 text-muted-foreground/30 mb-4" />
-                    <p className="text-sm text-muted-foreground mb-2">No OSPF areas configured</p>
+                    <p className="text-sm text-muted-foreground mb-2">No OSPFv3 areas configured</p>
                     <p className="text-xs text-muted-foreground mb-4">
-                      Add an area to start configuring OSPF routing
+                      Add an area to start configuring OSPFv3 IPv6 routing
                     </p>
                     {hasWritePermission && (
                       <Button size="sm" onClick={() => { setEditingArea(null); setAreaModalOpen(true); }}>
@@ -831,9 +735,9 @@ export function OspfContent() {
                         <TableRow>
                           <TableHead>Area ID</TableHead>
                           <TableHead>Type</TableHead>
-                          <TableHead>Networks</TableHead>
                           <TableHead>Ranges</TableHead>
-                          <TableHead>Authentication</TableHead>
+                          <TableHead>Export List</TableHead>
+                          <TableHead>Import List</TableHead>
                           {hasWritePermission && <TableHead className="text-right">Actions</TableHead>}
                         </TableRow>
                       </TableHeader>
@@ -852,28 +756,30 @@ export function OspfContent() {
                               )}
                             </TableCell>
                             <TableCell>
-                              <div className="flex flex-wrap gap-1">
-                                {area.networks.length > 0 ? (
-                                  area.networks.map((n) => (
-                                    <Badge key={n} variant="secondary" className="font-mono text-xs">{n}</Badge>
-                                  ))
-                                ) : (
-                                  <span className="text-muted-foreground">-</span>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell>
                               {area.ranges.length > 0 ? (
-                                <Badge variant="secondary">{area.ranges.length}</Badge>
+                                <div className="flex flex-wrap gap-1">
+                                  {area.ranges.map((r) => (
+                                    <Badge key={r.prefix} variant="secondary" className="font-mono text-xs">
+                                      {r.prefix}
+                                    </Badge>
+                                  ))}
+                                </div>
                               ) : (
                                 <span className="text-muted-foreground">-</span>
                               )}
                             </TableCell>
                             <TableCell>
-                              {area.authentication ? (
-                                <Badge variant="outline">{area.authentication}</Badge>
+                              {area.export_list ? (
+                                <Badge variant="secondary">{area.export_list}</Badge>
                               ) : (
-                                <span className="text-muted-foreground">none</span>
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {area.import_list ? (
+                                <Badge variant="secondary">{area.import_list}</Badge>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
                               )}
                             </TableCell>
                             {hasWritePermission && (
@@ -917,7 +823,7 @@ export function OspfContent() {
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <p className="text-sm text-muted-foreground">
-                    OSPF interface settings
+                    OSPFv3 interface settings
                   </p>
                   {ifaceCount > 3 && (
                     <div className="relative">
@@ -943,9 +849,9 @@ export function OspfContent() {
                 <Card>
                   <CardContent className="flex flex-col items-center justify-center py-12">
                     <Network className="h-12 w-12 text-muted-foreground/30 mb-4" />
-                    <p className="text-sm text-muted-foreground mb-2">No OSPF interfaces configured</p>
+                    <p className="text-sm text-muted-foreground mb-2">No OSPFv3 interfaces configured</p>
                     <p className="text-xs text-muted-foreground mb-4">
-                      Add an interface to enable OSPF on it
+                      Add an interface to enable OSPFv3 IPv6 routing on it
                     </p>
                     {hasWritePermission && (
                       <Button size="sm" onClick={() => { setEditingIface(null); setIfaceModalOpen(true); }}>
@@ -968,7 +874,7 @@ export function OspfContent() {
                           <TableHead>Network Type</TableHead>
                           <TableHead>Passive</TableHead>
                           <TableHead>BFD</TableHead>
-                          <TableHead>Auth</TableHead>
+                          <TableHead>Instance ID</TableHead>
                           {hasWritePermission && <TableHead className="text-right">Actions</TableHead>}
                         </TableRow>
                       </TableHeader>
@@ -1005,19 +911,15 @@ export function OspfContent() {
                             </TableCell>
                             <TableCell>
                               {iface.bfd ? (
-                                <Badge variant="secondary">Yes</Badge>
+                                <Badge variant="secondary">
+                                  {iface.bfd_profile ? iface.bfd_profile : "Yes"}
+                                </Badge>
                               ) : (
                                 <span className="text-muted-foreground">No</span>
                               )}
                             </TableCell>
                             <TableCell>
-                              {Object.keys(iface.authentication.md5_key_ids).length > 0 ? (
-                                <Badge variant="outline">MD5</Badge>
-                              ) : iface.authentication.plaintext_password ? (
-                                <Badge variant="outline">Plain</Badge>
-                              ) : (
-                                <span className="text-muted-foreground">none</span>
-                              )}
+                              {iface.instance_id != null ? iface.instance_id : <span className="text-muted-foreground">-</span>}
                             </TableCell>
                             {hasWritePermission && (
                               <TableCell className="text-right">
@@ -1059,7 +961,7 @@ export function OspfContent() {
             <TabsContent value="redistribute">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-sm text-muted-foreground">
-                  Route redistribution into OSPF
+                  Route redistribution into OSPFv3
                 </p>
                 {hasWritePermission && (
                   <Button size="sm" onClick={() => setRedistModalOpen(true)}>
@@ -1075,7 +977,7 @@ export function OspfContent() {
                     <ArrowLeftRight className="h-12 w-12 text-muted-foreground/30 mb-4" />
                     <p className="text-sm text-muted-foreground mb-2">No route redistribution configured</p>
                     <p className="text-xs text-muted-foreground mb-4">
-                      Add redistribution to import routes from other protocols
+                      Add redistribution to import routes from other protocols into OSPFv3
                     </p>
                     {hasWritePermission && (
                       <Button size="sm" onClick={() => setRedistModalOpen(true)}>
@@ -1095,13 +997,12 @@ export function OspfContent() {
                           <TableHead>Metric</TableHead>
                           <TableHead>Metric Type</TableHead>
                           <TableHead>Route Map</TableHead>
-                          <TableHead>Table</TableHead>
                           {hasWritePermission && <TableHead className="text-right">Actions</TableHead>}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {config?.redistribute.map((entry, idx) => (
-                          <TableRow key={`${entry.protocol}-${entry.table || idx}`}>
+                        {config?.redistribute.map((entry) => (
+                          <TableRow key={entry.protocol}>
                             <TableCell className="font-medium">{entry.protocol}</TableCell>
                             <TableCell>
                               {entry.metric ?? <span className="text-muted-foreground">default</span>}
@@ -1119,9 +1020,6 @@ export function OspfContent() {
                               ) : (
                                 <span className="text-muted-foreground">-</span>
                               )}
-                            </TableCell>
-                            <TableCell>
-                              {entry.table ?? <span className="text-muted-foreground">-</span>}
                             </TableCell>
                             {hasWritePermission && (
                               <TableCell className="text-right">
@@ -1150,7 +1048,7 @@ export function OspfContent() {
             <TabsContent value="advanced">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-sm text-muted-foreground">
-                  Advanced OSPF protocol settings
+                  Advanced OSPFv3 protocol settings
                 </p>
                 {hasWritePermission && (
                   !advancedEditing ? (
@@ -1173,51 +1071,12 @@ export function OspfContent() {
               </div>
 
               {advancedError && (
-                <div className="mb-4 p-3 rounded-md bg-destructive/10 text-destructive text-sm">
+                <div className="mb-4 p-3 rounded-md bg-destructive/10 text-destructive text-sm whitespace-pre-wrap">
                   {advancedError}
                 </div>
               )}
 
               <div className="grid grid-cols-2 gap-6">
-                {/* SPF Timers */}
-                <Card>
-                  <CardContent className="p-6">
-                    <h3 className="font-semibold mb-4">SPF Throttle Timers</h3>
-                    <div className="space-y-4">
-                      <div>
-                        <Label className="text-sm">Delay (ms)</Label>
-                        <Input
-                          type="number"
-                          value={advancedEditing ? spfDelay : (config?.timers_throttle_spf.delay != null ? String(config.timers_throttle_spf.delay) : "")}
-                          disabled={!advancedEditing}
-                          onChange={(e) => setSpfDelay(e.target.value)}
-                          placeholder="Default"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-sm">Initial Holdtime (ms)</Label>
-                        <Input
-                          type="number"
-                          value={advancedEditing ? spfInitial : (config?.timers_throttle_spf.initial_holdtime != null ? String(config.timers_throttle_spf.initial_holdtime) : "")}
-                          disabled={!advancedEditing}
-                          onChange={(e) => setSpfInitial(e.target.value)}
-                          placeholder="Default"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-sm">Max Holdtime (ms)</Label>
-                        <Input
-                          type="number"
-                          value={advancedEditing ? spfMax : (config?.timers_throttle_spf.max_holdtime != null ? String(config.timers_throttle_spf.max_holdtime) : "")}
-                          disabled={!advancedEditing}
-                          onChange={(e) => setSpfMax(e.target.value)}
-                          placeholder="Default"
-                        />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
                 {/* Distance */}
                 <Card>
                   <CardContent className="p-6">
@@ -1239,7 +1098,7 @@ export function OspfContent() {
                         <Label className="text-sm">External</Label>
                         <Input
                           type="number"
-                          value={advancedEditing ? distExternal : (config?.distance.ospf.external != null ? String(config.distance.ospf.external) : "")}
+                          value={advancedEditing ? distExternal : (config?.distance.ospfv3.external != null ? String(config.distance.ospfv3.external) : "")}
                           disabled={!advancedEditing}
                           onChange={(e) => setDistExternal(e.target.value)}
                           placeholder="Default"
@@ -1251,7 +1110,7 @@ export function OspfContent() {
                         <Label className="text-sm">Inter-Area</Label>
                         <Input
                           type="number"
-                          value={advancedEditing ? distInterArea : (config?.distance.ospf.inter_area != null ? String(config.distance.ospf.inter_area) : "")}
+                          value={advancedEditing ? distInterArea : (config?.distance.ospfv3.inter_area != null ? String(config.distance.ospfv3.inter_area) : "")}
                           disabled={!advancedEditing}
                           onChange={(e) => setDistInterArea(e.target.value)}
                           placeholder="Default"
@@ -1263,50 +1122,12 @@ export function OspfContent() {
                         <Label className="text-sm">Intra-Area</Label>
                         <Input
                           type="number"
-                          value={advancedEditing ? distIntraArea : (config?.distance.ospf.intra_area != null ? String(config.distance.ospf.intra_area) : "")}
+                          value={advancedEditing ? distIntraArea : (config?.distance.ospfv3.intra_area != null ? String(config.distance.ospfv3.intra_area) : "")}
                           disabled={!advancedEditing}
                           onChange={(e) => setDistIntraArea(e.target.value)}
                           placeholder="Default"
                           min={1}
                           max={255}
-                        />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Max Metric */}
-                <Card>
-                  <CardContent className="p-6">
-                    <h3 className="font-semibold mb-4">Max-Metric Router-LSA</h3>
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-3">
-                        <Checkbox
-                          id="max-metric-admin"
-                          checked={advancedEditing ? maxMetricAdmin : config?.max_metric_router_lsa.administrative}
-                          disabled={!advancedEditing}
-                          onCheckedChange={(checked) => setMaxMetricAdmin(!!checked)}
-                        />
-                        <Label htmlFor="max-metric-admin">Administrative</Label>
-                      </div>
-                      <div>
-                        <Label className="text-sm">On Shutdown (seconds)</Label>
-                        <Input
-                          type="number"
-                          value={advancedEditing ? maxMetricShutdown : (config?.max_metric_router_lsa.on_shutdown != null ? String(config.max_metric_router_lsa.on_shutdown) : "")}
-                          disabled={!advancedEditing}
-                          onChange={(e) => setMaxMetricShutdown(e.target.value)}
-                          placeholder="Disabled"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-sm">On Startup (seconds)</Label>
-                        <Input
-                          type="number"
-                          value={advancedEditing ? maxMetricStartup : (config?.max_metric_router_lsa.on_startup != null ? String(config.max_metric_router_lsa.on_startup) : "")}
-                          disabled={!advancedEditing}
-                          onChange={(e) => setMaxMetricStartup(e.target.value)}
-                          placeholder="Disabled"
                         />
                       </div>
                     </div>
@@ -1320,12 +1141,12 @@ export function OspfContent() {
                     <div className="space-y-4">
                       <div className="flex items-center gap-3">
                         <Checkbox
-                          id="gr-enabled"
+                          id="ospfv3-gr-enabled"
                           checked={advancedEditing ? grEnabled : config?.graceful_restart.enabled}
                           disabled={!advancedEditing}
                           onCheckedChange={(checked) => setGrEnabled(!!checked)}
                         />
-                        <Label htmlFor="gr-enabled">Enable Graceful Restart</Label>
+                        <Label htmlFor="ospfv3-gr-enabled">Enable Graceful Restart</Label>
                       </div>
                       <div>
                         <Label className="text-sm">Grace Period (seconds)</Label>
@@ -1339,62 +1160,40 @@ export function OspfContent() {
                       </div>
                       <div className="flex items-center gap-3">
                         <Checkbox
-                          id="gr-helper"
+                          id="ospfv3-gr-helper"
                           checked={advancedEditing ? grHelperEnable : config?.graceful_restart.helper.enable}
                           disabled={!advancedEditing}
                           onCheckedChange={(checked) => setGrHelperEnable(!!checked)}
                         />
-                        <Label htmlFor="gr-helper">Enable Helper</Label>
+                        <Label htmlFor="ospfv3-gr-helper">Enable Helper</Label>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Misc Advanced */}
-                <Card className="col-span-2">
-                  <CardContent className="p-6">
-                    <h3 className="font-semibold mb-4">Miscellaneous</h3>
-                    <div className="grid grid-cols-4 gap-4">
-                      <div>
-                        <Label className="text-sm">LDP Sync Holddown</Label>
-                        <Input
-                          type="number"
-                          value={advancedEditing ? ldpSyncHolddown : (config?.ldp_sync_holddown != null ? String(config.ldp_sync_holddown) : "")}
+                      <div className="flex items-center gap-3">
+                        <Checkbox
+                          id="ospfv3-gr-lsa-check"
+                          checked={advancedEditing ? grHelperLsaCheck : config?.graceful_restart.helper.lsa_check_disable}
                           disabled={!advancedEditing}
-                          onChange={(e) => setLdpSyncHolddown(e.target.value)}
-                          placeholder="Disabled"
+                          onCheckedChange={(checked) => setGrHelperLsaCheck(!!checked)}
                         />
+                        <Label htmlFor="ospfv3-gr-lsa-check">Disable LSA Check</Label>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Checkbox
+                          id="ospfv3-gr-planned"
+                          checked={advancedEditing ? grHelperPlannedOnly : config?.graceful_restart.helper.planned_only}
+                          disabled={!advancedEditing}
+                          onCheckedChange={(checked) => setGrHelperPlannedOnly(!!checked)}
+                        />
+                        <Label htmlFor="ospfv3-gr-planned">Planned Only</Label>
                       </div>
                       <div>
-                        <Label className="text-sm">Refresh Timers</Label>
+                        <Label className="text-sm">Supported Grace Time (seconds)</Label>
                         <Input
                           type="number"
-                          value={advancedEditing ? refreshTimers : (config?.refresh_timers != null ? String(config.refresh_timers) : "")}
+                          value={advancedEditing ? grHelperGraceTime : (config?.graceful_restart.helper.supported_grace_time != null ? String(config.graceful_restart.helper.supported_grace_time) : "")}
                           disabled={!advancedEditing}
-                          onChange={(e) => setRefreshTimers(e.target.value)}
+                          onChange={(e) => setGrHelperGraceTime(e.target.value)}
                           placeholder="Default"
                         />
-                      </div>
-                      <div>
-                        <Label className="text-sm">Aggregation Timer</Label>
-                        <Input
-                          type="number"
-                          value={advancedEditing ? aggregationTimer : (config?.aggregation_timer != null ? String(config.aggregation_timer) : "")}
-                          disabled={!advancedEditing}
-                          onChange={(e) => setAggregationTimer(e.target.value)}
-                          placeholder="Default"
-                        />
-                      </div>
-                      <div className="flex items-end pb-1">
-                        <div className="flex items-center gap-3">
-                          <Checkbox
-                            id="cap-opaque"
-                            checked={advancedEditing ? capabilityOpaque : config?.capability_opaque}
-                            disabled={!advancedEditing}
-                            onCheckedChange={(checked) => setCapabilityOpaque(!!checked)}
-                          />
-                          <Label htmlFor="cap-opaque">Capability Opaque</Label>
-                        </div>
                       </div>
                     </div>
                   </CardContent>
@@ -1406,7 +1205,7 @@ export function OspfContent() {
       </div>
 
       {/* Modals */}
-      <OspfAreaModal
+      <Ospfv3AreaModal
         open={areaModalOpen}
         onOpenChange={setAreaModalOpen}
         onSubmit={editingArea ? handleUpdateArea : handleCreateArea}
@@ -1414,7 +1213,7 @@ export function OspfContent() {
         accessListNames={accessListNames}
       />
 
-      <OspfInterfaceModal
+      <Ospfv3InterfaceModal
         open={ifaceModalOpen}
         onOpenChange={setIfaceModalOpen}
         onSubmit={editingIface ? handleUpdateInterface : handleCreateInterface}
@@ -1422,7 +1221,7 @@ export function OspfContent() {
         capabilities={capabilities}
       />
 
-      <OspfRedistributeModal
+      <Ospfv3RedistributeModal
         open={redistModalOpen}
         onOpenChange={setRedistModalOpen}
         onSubmit={handleAddRedistribute}
@@ -1432,7 +1231,7 @@ export function OspfContent() {
       />
 
       {deletingArea && (
-        <DeleteOspfModal
+        <DeleteOspfv3Modal
           open={!!deletingArea}
           onOpenChange={(open) => !open && setDeletingArea(null)}
           itemType="Area"
@@ -1442,7 +1241,7 @@ export function OspfContent() {
       )}
 
       {deletingIface && (
-        <DeleteOspfModal
+        <DeleteOspfv3Modal
           open={!!deletingIface}
           onOpenChange={(open) => !open && setDeletingIface(null)}
           itemType="Interface"
@@ -1452,11 +1251,11 @@ export function OspfContent() {
       )}
 
       {deletingRedist && (
-        <DeleteOspfModal
+        <DeleteOspfv3Modal
           open={!!deletingRedist}
           onOpenChange={(open) => !open && setDeletingRedist(null)}
           itemType="Redistribute"
-          itemName={deletingRedist.protocol + (deletingRedist.table ? ` (table ${deletingRedist.table})` : "")}
+          itemName={deletingRedist.protocol}
           onConfirm={handleDeleteRedistribute}
         />
       )}

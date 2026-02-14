@@ -44,6 +44,8 @@ from .failover.failover_versions import get_failover_mapper
 from .igmp_proxy import IgmpProxyMapper
 from .ospf import OspfMapper
 from .ospf.ospf_versions import get_ospf_mapper
+from .ospfv3 import Ospfv3Mapper
+from .ospfv3.ospfv3_versions import get_ospfv3_mapper
 from .vrf import VrfMapper, VrfStaticMapper, VrfRpkiMapper, VrfFailoverMapper
 from .vrf import VrfOspfMapper, VrfOspfv3Mapper, VrfIsisMapper, VrfBgpMapper
 from .vrf import VrfDhcpMapper, VrfDhcpv6Mapper
@@ -98,6 +100,8 @@ CommandMapperRegistry.register_feature("failover", get_failover_mapper)
 CommandMapperRegistry.register_feature("igmp_proxy", IgmpProxyMapper)
 # OSPF uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("ospf", get_ospf_mapper)
+# OSPFv3 uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("ospfv3", get_ospfv3_mapper)
 # VRF uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("vrf", get_vrf_mapper)
 # VRF Static Routes uses factory for version-specific BFD paths
@@ -139,6 +143,7 @@ __all__ = [
     "FailoverMapper",
     "IgmpProxyMapper",
     "OspfMapper",
+    "Ospfv3Mapper",
     "VrfMapper",
     "VrfStaticMapper",
     "VrfRpkiMapper",
