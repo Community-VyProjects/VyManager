@@ -5,6 +5,7 @@ import { InProgress } from "@/components/layout/InProgress";
 import { BabelContent } from "@/components/babel/BabelContent";
 import { BgpContent } from "@/components/bgp/BgpContent";
 import { OspfContent } from "@/components/ospf/OspfContent";
+import { Ospfv3Content } from "@/components/ospfv3/Ospfv3Content";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Network, ChevronRight } from "lucide-react";
@@ -126,6 +127,8 @@ export default function UnicastProtocolsPage() {
             <BgpContent />
           ) : selectedProtocol === "ospf" ? (
             <OspfContent />
+          ) : selectedProtocol === "ospfv3" ? (
+            <Ospfv3Content />
           ) : selectedProtocol === "babel" ? (
             <BabelContent />
           ) : (
