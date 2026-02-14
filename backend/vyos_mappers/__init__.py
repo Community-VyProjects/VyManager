@@ -50,6 +50,7 @@ from .vrf import VrfMapper, VrfStaticMapper, VrfRpkiMapper, VrfFailoverMapper
 from .vrf import VrfOspfMapper, VrfOspfv3Mapper, VrfIsisMapper, VrfBgpMapper
 from .vrf import VrfDhcpMapper, VrfDhcpv6Mapper
 from .vrf.vrf_versions import get_vrf_mapper, get_vrf_static_mapper
+from .system.performance_versions import get_system_performance_mapper
 
 # Auto-register all mappers
 # Ethernet uses factory for version-specific mappers
@@ -115,6 +116,7 @@ CommandMapperRegistry.register_feature("vrf_isis", lambda v: VrfIsisMapper())
 CommandMapperRegistry.register_feature("vrf_bgp", lambda v: VrfBgpMapper())
 CommandMapperRegistry.register_feature("vrf_dhcp", lambda v: VrfDhcpMapper())
 CommandMapperRegistry.register_feature("vrf_dhcpv6", lambda v: VrfDhcpv6Mapper())
+CommandMapperRegistry.register_feature("system_performance", get_system_performance_mapper)
 
 __all__ = [
     "BaseFeatureMapper",
