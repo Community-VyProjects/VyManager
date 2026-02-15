@@ -31,6 +31,9 @@ export interface Instance {
   port: number;
   vyos_version?: string | null;
   is_active: boolean;
+  ssh_port: number;
+  ssh_username?: string | null;
+  ssh_key_configured: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -83,6 +86,8 @@ export interface InstanceCreateRequest {
   protocol?: string;
   verify_ssl?: boolean;
   is_active?: boolean;
+  ssh_port?: number;
+  ssh_username?: string;
 }
 
 export interface InstanceUpdateRequest {
@@ -96,6 +101,8 @@ export interface InstanceUpdateRequest {
   verify_ssl?: boolean;
   is_active?: boolean;
   site_id?: string; // For moving instance to different site
+  ssh_port?: number;
+  ssh_username?: string;
 }
 
 export interface AuthSessionInfo {

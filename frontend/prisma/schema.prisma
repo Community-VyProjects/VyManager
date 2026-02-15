@@ -175,6 +175,15 @@ model Instance {
   protocol    String   @default("https") // http or https
   verifySsl   Boolean  @default(false) // Verify SSL certificate
   isActive    Boolean  @default(true)
+
+  // SSH / Monitoring fields
+  sshPort           Int      @default(22)
+  sshUsername        String?
+  sshPublicKey       String?  @db.Text
+  sshEncryptedPrivKey String? @db.Text
+  sshKeyNonce        String?
+  sshKeyConfigured   Boolean  @default(false)
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -251,6 +260,7 @@ enum FeatureGroup {
   INTERFACES // Network interfaces
   DHCP // DHCP server
   NAT // NAT rules
+  MONITORING // SSH monitoring / live traffic
 }
 
 // Note: CustomRole and FeaturePermission models removed in favor of simplified

@@ -90,6 +90,7 @@ class FeatureGroup(str, Enum):
     SYSTEM = "SYSTEM"
     POWER = "POWER"  # Reboot, shutdown actions
     CONFIGURATION = "CONFIGURATION"
+    MONITORING = "MONITORING"  # SSH monitoring / live traffic
     DASHBOARD = "DASHBOARD"
     SITES_INSTANCES = "SITES_INSTANCES"
     USER_MANAGEMENT = "USER_MANAGEMENT"
@@ -167,6 +168,7 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.SYSTEM: PermissionLevel.WRITE,
         FeatureGroup.POWER: PermissionLevel.WRITE,
         FeatureGroup.CONFIGURATION: PermissionLevel.WRITE,
+        FeatureGroup.MONITORING: PermissionLevel.WRITE,
         FeatureGroup.DASHBOARD: PermissionLevel.WRITE,
         FeatureGroup.SITES_INSTANCES: PermissionLevel.WRITE,
         FeatureGroup.USER_MANAGEMENT: PermissionLevel.WRITE,
@@ -224,6 +226,7 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.SYSTEM: PermissionLevel.WRITE,
         FeatureGroup.POWER: PermissionLevel.WRITE,
         FeatureGroup.CONFIGURATION: PermissionLevel.WRITE,
+        FeatureGroup.MONITORING: PermissionLevel.WRITE,
         FeatureGroup.DASHBOARD: PermissionLevel.WRITE,
         # No site/instance or user management
         FeatureGroup.SITES_INSTANCES: PermissionLevel.NONE,
@@ -282,6 +285,7 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.SYSTEM: PermissionLevel.READ,
         FeatureGroup.POWER: PermissionLevel.READ,  # Can see status, cannot execute power actions
         FeatureGroup.CONFIGURATION: PermissionLevel.READ,
+        FeatureGroup.MONITORING: PermissionLevel.NONE,
         FeatureGroup.DASHBOARD: PermissionLevel.WRITE,
         # No site/instance or user management
         FeatureGroup.SITES_INSTANCES: PermissionLevel.NONE,
@@ -381,6 +385,7 @@ async def get_user_permissions(
                 FeatureGroup.SYSTEM,
                 FeatureGroup.POWER,
                 FeatureGroup.CONFIGURATION,
+                FeatureGroup.MONITORING,
                 FeatureGroup.DASHBOARD,
                 FeatureGroup.SITES_INSTANCES,
                 FeatureGroup.USER_MANAGEMENT,
@@ -458,6 +463,7 @@ async def get_user_permissions(
                 FeatureGroup.SYSTEM,
                 FeatureGroup.POWER,
                 FeatureGroup.CONFIGURATION,
+                FeatureGroup.MONITORING,
                 FeatureGroup.DASHBOARD,
             ]
             for feature in vyos_features:

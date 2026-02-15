@@ -11,3 +11,5 @@ python-multipart>=0.0.6
 bcrypt>=4.1.0
 passlib>=1.7.4
 email-validator>=2.0.0
+asyncssh>=2.14.0
+cryptography>=41.0.0

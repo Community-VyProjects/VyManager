@@ -68,6 +68,9 @@ class InstanceResponse(BaseModel):
     port: int
     is_active: bool
     vyos_version: Optional[str] = None
+    ssh_port: int = 22
+    ssh_username: Optional[str] = None
+    ssh_key_configured: bool = False
     created_at: datetime
     updated_at: datetime
 
@@ -85,6 +88,8 @@ class InstanceCreateRequest(BaseModel):
     protocol: str = Field(default="https", description="Protocol (http or https)")
     verify_ssl: bool = Field(default=False, description="Verify SSL certificate")
     is_active: bool = Field(default=True, description="Whether instance is active")
+    ssh_port: int = Field(default=22, ge=1, le=65535, description="SSH port for monitoring")
+    ssh_username: Optional[str] = Field(None, description="SSH username for monitoring")
 
 
 class InstanceUpdateRequest(BaseModel):
@@ -100,6 +105,8 @@ class InstanceUpdateRequest(BaseModel):
     verify_ssl: Optional[bool] = Field(None, description="Verify SSL certificate")
     is_active: Optional[bool] = Field(None, description="Whether instance is active")
     site_id: Optional[str] = Field(None, description="Move to different site")
+    ssh_port: Optional[int] = Field(None, ge=1, le=65535, description="SSH port for monitoring")
+    ssh_username: Optional[str] = Field(None, description="SSH username for monitoring")
 
 
 class ActiveSessionResponse(BaseModel):
@@ -566,7 +573,8 @@ async def list_site_instances(request: Request, site_id: str):
                 instances = await conn.fetch(
                     """
                     SELECT id, "siteId", name, description, host, port, "isActive",
-                           "vyosVersion", "createdAt", "updatedAt"
+                           "vyosVersion", "sshPort", "sshUsername", "sshKeyConfigured",
+                           "createdAt", "updatedAt"
                     FROM instances
                     WHERE "siteId" = $1
                     ORDER BY name
@@ -578,7 +586,8 @@ async def list_site_instances(request: Request, site_id: str):
                 instances = await conn.fetch(
                     """
                     SELECT DISTINCT i.id, i."siteId", i.name, i.description, i.host, i.port, i."isActive",
-                           i."vyosVersion", i."createdAt", i."updatedAt"
+                           i."vyosVersion", i."sshPort", i."sshUsername", i."sshKeyConfigured",
+                           i."createdAt", i."updatedAt"
                     FROM instances i
                     JOIN user_instance_roles uir ON i.id = uir."instanceId"
                     WHERE i."siteId" = $1 AND uir."userId" = $2
@@ -601,6 +610,9 @@ async def list_site_instances(request: Request, site_id: str):
                     port=inst["port"],
                     vyos_version=inst.get("vyosVersion"),
                     is_active=inst["isActive"],
+                    ssh_port=inst["sshPort"],
+                    ssh_username=inst["sshUsername"],
+                    ssh_key_configured=inst["sshKeyConfigured"],
                     created_at=inst["createdAt"],
                     updated_at=inst["updatedAt"],
                 )
@@ -895,11 +907,13 @@ async def create_instance(request: Request, body: InstanceCreateRequest):
                 INSERT INTO instances (
                     id, "siteId", name, description, host, port, username, password,
                     "apiKey", "vyosVersion", protocol, "verifySsl", "isActive",
+                    "sshPort", "sshUsername",
                     "createdAt", "updatedAt"
                 )
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NOW())
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW(), NOW())
                 RETURNING id, "siteId", name, description, host, port, "vyosVersion",
-                          "isActive", "createdAt", "updatedAt"
+                          "isActive", "sshPort", "sshUsername", "sshKeyConfigured",
+                          "createdAt", "updatedAt"
                 """,
                 instance_id,
                 body.site_id,
@@ -914,6 +928,8 @@ async def create_instance(request: Request, body: InstanceCreateRequest):
                 body.protocol,
                 body.verify_ssl,
                 body.is_active,
+                body.ssh_port,
+                body.ssh_username,
             )
 
             clear_session_cache(instance_id)
@@ -927,6 +943,9 @@ async def create_instance(request: Request, body: InstanceCreateRequest):
                 port=instance["port"],
                 vyos_version=instance["vyosVersion"],
                 is_active=instance["isActive"],
+                ssh_port=instance["sshPort"],
+                ssh_username=instance["sshUsername"],
+                ssh_key_configured=instance["sshKeyConfigured"],
                 created_at=instance["createdAt"],
                 updated_at=instance["updatedAt"],
             )
@@ -1049,12 +1068,23 @@ async def update_instance(request: Request, instance_id: str, body: InstanceUpda
                 params.append(body.is_active)
                 param_num += 1
 
+            if body.ssh_port is not None:
+                updates.append(f'"sshPort" = ${param_num}')
+                params.append(body.ssh_port)
+                param_num += 1
+
+            if body.ssh_username is not None:
+                updates.append(f'"sshUsername" = ${param_num}')
+                params.append(body.ssh_username)
+                param_num += 1
+
             if not updates:
                 # No fields to update, return current instance
                 instance = await conn.fetchrow(
                     """
                     SELECT id, "siteId", name, description, host, port, "vyosVersion",
-                           "isActive", "createdAt", "updatedAt"
+                           "isActive", "sshPort", "sshUsername", "sshKeyConfigured",
+                           "createdAt", "updatedAt"
                     FROM instances WHERE id = $1
                     """,
                     instance_id
@@ -1066,7 +1096,8 @@ async def update_instance(request: Request, instance_id: str, body: InstanceUpda
                     SET {', '.join(updates)}
                     WHERE id = $1
                     RETURNING id, "siteId", name, description, host, port, "vyosVersion",
-                              "isActive", "createdAt", "updatedAt"
+                              "isActive", "sshPort", "sshUsername", "sshKeyConfigured",
+                              "createdAt", "updatedAt"
                 """
                 instance = await conn.fetchrow(query, *params)
 
@@ -1082,6 +1113,9 @@ async def update_instance(request: Request, instance_id: str, body: InstanceUpda
                 port=instance["port"],
                 vyos_version=instance["vyosVersion"],
                 is_active=instance["isActive"],
+                ssh_port=instance["sshPort"],
+                ssh_username=instance["sshUsername"],
+                ssh_key_configured=instance["sshKeyConfigured"],
                 created_at=instance["createdAt"],
                 updated_at=instance["updatedAt"],
             )
