@@ -2,15 +2,14 @@
 Monitoring Router
 
 Provides SSH-based real-time monitoring for VyOS devices.
-- REST endpoints for SSH key management
-- WebSocket endpoint for streaming command output
+- REST endpoints for SSH key management (instance-id based, admin-accessible)
+- WebSocket endpoint for streaming command output (session-based)
 
 Architecture:
   Browser <--WebSocket--> FastAPI <--SSH (asyncssh)--> VyOS Device
 """
 
 import asyncio
-import io
 from datetime import datetime
 from typing import Optional
 
@@ -19,7 +18,6 @@ import asyncssh
 from fastapi import APIRouter, HTTPException, Request, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field
 
-from fastapi_permissions import require_read_permission, require_write_permission
 from monitoring_commands import build_command, get_available_commands
 from rbac_permissions import FeatureGroup, check_permission, PermissionLevel
 from ssh_key_manager import decrypt_private_key, generate_keypair
@@ -61,21 +59,19 @@ class GenericResponse(BaseModel):
 
 
 # ============================================================================
-# SSH Key Management Endpoints
+# SSH Key Management Endpoints (instance-id based, site ADMIN required)
 # ============================================================================
 
-@router.post("/ssh-key/generate", response_model=SSHKeyGenerateResponse)
-async def generate_ssh_key(request: Request):
-    """Generate a new SSH keypair for the active instance."""
-    await require_write_permission(request, FeatureGroup.MONITORING)
-
-    instance_id = _get_instance_id(request)
+@router.post("/instances/{instance_id}/ssh-key/generate", response_model=SSHKeyGenerateResponse)
+async def generate_ssh_key(instance_id: str, request: Request):
+    """Generate a new SSH keypair for an instance. Requires site ADMIN."""
+    await _require_instance_admin(request, instance_id)
     db_pool = _get_db_pool(request)
 
     keypair = generate_keypair()
 
     async with db_pool.acquire() as conn:
-        await conn.execute(
+        updated = await conn.fetchval(
             """
             UPDATE instances
             SET "sshPublicKey" = $1,
@@ -84,12 +80,15 @@ async def generate_ssh_key(request: Request):
                 "sshKeyConfigured" = false,
                 "updatedAt" = NOW()
             WHERE id = $4
+            RETURNING id
             """,
             keypair["public_key"],
             keypair["encrypted_private_key"],
             keypair["nonce"],
             instance_id,
         )
+        if not updated:
+            raise HTTPException(status_code=404, detail="Instance not found")
 
     return SSHKeyGenerateResponse(
         success=True,
@@ -97,12 +96,10 @@ async def generate_ssh_key(request: Request):
     )
 
 
-@router.get("/ssh-key/status", response_model=SSHKeyResponse)
-async def get_ssh_key_status(request: Request):
-    """Get SSH key status for the active instance."""
-    await require_read_permission(request, FeatureGroup.MONITORING)
-
-    instance_id = _get_instance_id(request)
+@router.get("/instances/{instance_id}/ssh-key/status", response_model=SSHKeyResponse)
+async def get_ssh_key_status(instance_id: str, request: Request):
+    """Get SSH key status for an instance. Requires site ADMIN."""
+    await _require_instance_admin(request, instance_id)
     db_pool = _get_db_pool(request)
 
     async with db_pool.acquire() as conn:
@@ -126,20 +123,19 @@ async def get_ssh_key_status(request: Request):
     )
 
 
-@router.post("/ssh-key/mark-configured", response_model=GenericResponse)
-async def mark_ssh_key_configured(request: Request, body: MarkConfiguredRequest):
-    """Mark SSH key as configured on the VyOS device."""
-    await require_write_permission(request, FeatureGroup.MONITORING)
-
-    instance_id = _get_instance_id(request)
+@router.post("/instances/{instance_id}/ssh-key/mark-configured", response_model=GenericResponse)
+async def mark_ssh_key_configured(instance_id: str, request: Request, body: MarkConfiguredRequest):
+    """Mark SSH key as configured on the VyOS device. Requires site ADMIN."""
+    await _require_instance_admin(request, instance_id)
     db_pool = _get_db_pool(request)
 
     async with db_pool.acquire() as conn:
-        # Verify key exists
         has_key = await conn.fetchval(
             'SELECT "sshPublicKey" IS NOT NULL FROM instances WHERE id = $1',
             instance_id,
         )
+        if has_key is None:
+            raise HTTPException(status_code=404, detail="Instance not found")
         if not has_key:
             raise HTTPException(
                 status_code=400,
@@ -156,19 +152,17 @@ async def mark_ssh_key_configured(request: Request, body: MarkConfiguredRequest)
             instance_id,
         )
 
-    return GenericResponse(success=True, message="SSH key marked as configured")
+    return GenericResponse(success=True, message="SSH key status updated")
 
 
-@router.delete("/ssh-key", response_model=GenericResponse)
-async def delete_ssh_key(request: Request):
-    """Remove SSH key from the instance."""
-    await require_write_permission(request, FeatureGroup.MONITORING)
-
-    instance_id = _get_instance_id(request)
+@router.delete("/instances/{instance_id}/ssh-key", response_model=GenericResponse)
+async def delete_ssh_key(instance_id: str, request: Request):
+    """Remove SSH key from an instance. Requires site ADMIN."""
+    await _require_instance_admin(request, instance_id)
     db_pool = _get_db_pool(request)
 
     async with db_pool.acquire() as conn:
-        await conn.execute(
+        updated = await conn.fetchval(
             """
             UPDATE instances
             SET "sshPublicKey" = NULL,
@@ -177,9 +171,12 @@ async def delete_ssh_key(request: Request):
                 "sshKeyConfigured" = false,
                 "updatedAt" = NOW()
             WHERE id = $1
+            RETURNING id
             """,
             instance_id,
         )
+        if not updated:
+            raise HTTPException(status_code=404, detail="Instance not found")
 
     return GenericResponse(success=True, message="SSH key removed")
 
@@ -187,12 +184,14 @@ async def delete_ssh_key(request: Request):
 @router.get("/commands")
 async def list_commands(request: Request):
     """List available monitoring commands."""
-    await require_read_permission(request, FeatureGroup.MONITORING)
+    user_id = _get_user_id(request)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
     return {"commands": get_available_commands()}
 
 
 # ============================================================================
-# WebSocket Monitoring Endpoint
+# WebSocket Monitoring Endpoint (session-based)
 # ============================================================================
 
 @router.websocket("/ws/monitor")
@@ -243,7 +242,7 @@ async def websocket_monitor(websocket: WebSocket):
     ssh_process = None
 
     try:
-        # Wait for command from client
+        # Signal ready to receive command
         await websocket.send_json({"type": "ready"})
 
         raw = await asyncio.wait_for(websocket.receive_json(), timeout=30)
@@ -283,7 +282,7 @@ async def websocket_monitor(websocket: WebSocket):
         if not instance["sshKeyConfigured"]:
             await websocket.send_json({
                 "type": "error",
-                "data": "SSH key not configured. Set up SSH key in monitoring settings first.",
+                "data": "SSH key not configured. Set it up via Sites > Edit Instance > SSH / Monitoring.",
             })
             await websocket.close()
             return
@@ -291,7 +290,7 @@ async def websocket_monitor(websocket: WebSocket):
         if not instance["sshEncryptedPrivKey"] or not instance["sshKeyNonce"]:
             await websocket.send_json({
                 "type": "error",
-                "data": "SSH private key not found. Regenerate the SSH key.",
+                "data": "SSH private key not found. Regenerate the SSH key in instance settings.",
             })
             await websocket.close()
             return
@@ -353,7 +352,9 @@ async def websocket_monitor(websocket: WebSocket):
 
         start_time = asyncio.get_event_loop().time()
 
-        # Create tasks for reading output and listening for stop
+        # Register active session
+        _active_sessions[user_id] = asyncio.current_task()
+
         async def stream_output():
             """Read SSH stdout and send to WebSocket."""
             try:
@@ -395,22 +396,15 @@ async def websocket_monitor(websocket: WebSocket):
                     })
                     return
 
-        # Run output streaming, stop listener, and duration check concurrently
         output_task = asyncio.create_task(stream_output())
         stop_task = asyncio.create_task(listen_for_stop())
         duration_task = asyncio.create_task(check_max_duration())
 
-        # Register active session
-        combined_task = asyncio.current_task()
-        _active_sessions[user_id] = combined_task
-
-        # Wait for any task to complete (first one wins)
         done, pending = await asyncio.wait(
             [output_task, stop_task, duration_task],
             return_when=asyncio.FIRST_COMPLETED,
         )
 
-        # Cancel remaining tasks
         for task in pending:
             task.cancel()
             try:
@@ -426,7 +420,6 @@ async def websocket_monitor(websocket: WebSocket):
         except Exception:
             pass
     finally:
-        # Cleanup
         _active_sessions.pop(user_id, None)
 
         if ssh_process:
@@ -456,15 +449,9 @@ async def websocket_monitor(websocket: WebSocket):
 # Helper Functions
 # ============================================================================
 
-def _get_instance_id(request: Request) -> str:
-    """Get active instance ID from request state (set by SessionMiddleware)."""
-    instance = getattr(request.state, "instance", None)
-    if not instance or not instance.get("id"):
-        raise HTTPException(
-            status_code=400,
-            detail="No active VyOS instance. Connect to an instance first.",
-        )
-    return instance["id"]
+def _get_user_id(request: Request) -> Optional[str]:
+    """Get authenticated user ID from request state."""
+    return getattr(request.state, "user_id", None)
 
 
 def _get_db_pool(request: Request) -> asyncpg.Pool:
@@ -473,6 +460,33 @@ def _get_db_pool(request: Request) -> asyncpg.Pool:
     if not db_pool:
         raise HTTPException(status_code=503, detail="Database not available")
     return db_pool
+
+
+async def _require_instance_admin(request: Request, instance_id: str) -> str:
+    """
+    Require the user to be a site-level ADMIN.
+    Returns the user_id.
+    Raises HTTPException if not authenticated or not admin.
+    """
+    user_id = _get_user_id(request)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    db_pool = _get_db_pool(request)
+
+    async with db_pool.acquire() as conn:
+        site_role = await conn.fetchval(
+            "SELECT role FROM users WHERE id = $1",
+            user_id,
+        )
+
+    if site_role != "ADMIN":
+        raise HTTPException(
+            status_code=403,
+            detail="Only site ADMIN users can manage SSH keys",
+        )
+
+    return user_id
 
 
 async def _authenticate_websocket(websocket: WebSocket) -> Optional[dict]:
@@ -486,7 +500,6 @@ async def _authenticate_websocket(websocket: WebSocket) -> Optional[dict]:
         await websocket.close()
         return None
 
-    # Extract session token from cookie
     cookies = websocket.cookies
     session_token = cookies.get("better-auth.session_token") or cookies.get(
         "__Secure-better-auth.session_token"
@@ -497,12 +510,10 @@ async def _authenticate_websocket(websocket: WebSocket) -> Optional[dict]:
         await websocket.close()
         return None
 
-    # Extract token part (before dot)
     token_parts = session_token.split(".")
     token_id = token_parts[0] if len(token_parts) > 0 else session_token
 
     async with db_pool.acquire() as conn:
-        # Validate session
         session = await conn.fetchrow(
             """
             SELECT s.id, s."userId", s."expiresAt", u.email, u.name
@@ -523,7 +534,6 @@ async def _authenticate_websocket(websocket: WebSocket) -> Optional[dict]:
             await websocket.close()
             return None
 
-        # Get active instance
         active = await conn.fetchrow(
             """
             SELECT "instanceId" FROM active_sessions WHERE "userId" = $1

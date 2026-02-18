@@ -60,38 +60,43 @@ export interface MonitoringStartMessage {
 
 class MonitoringService {
   /**
-   * Generate a new SSH keypair for the active instance
+   * Generate a new SSH keypair for an instance. Requires site ADMIN.
    */
-  async generateSSHKey(): Promise<SSHKeyGenerateResponse> {
+  async generateSSHKey(instanceId: string): Promise<SSHKeyGenerateResponse> {
     return apiClient.post<SSHKeyGenerateResponse>(
-      "/vyos/monitoring/ssh-key/generate"
+      `/vyos/monitoring/instances/${instanceId}/ssh-key/generate`
     );
   }
 
   /**
-   * Get SSH key status for the active instance
+   * Get SSH key status for an instance. Requires site ADMIN.
    */
-  async getSSHKeyStatus(): Promise<SSHKeyStatus> {
-    return apiClient.get<SSHKeyStatus>("/vyos/monitoring/ssh-key/status");
+  async getSSHKeyStatus(instanceId: string): Promise<SSHKeyStatus> {
+    return apiClient.get<SSHKeyStatus>(
+      `/vyos/monitoring/instances/${instanceId}/ssh-key/status`
+    );
   }
 
   /**
-   * Mark SSH key as configured on the VyOS device
+   * Mark SSH key as configured on the VyOS device. Requires site ADMIN.
    */
   async markKeyConfigured(
+    instanceId: string,
     configured: boolean = true
   ): Promise<GenericResponse> {
     return apiClient.post<GenericResponse>(
-      "/vyos/monitoring/ssh-key/mark-configured",
+      `/vyos/monitoring/instances/${instanceId}/ssh-key/mark-configured`,
       { configured }
     );
   }
 
   /**
-   * Remove SSH key from the instance
+   * Remove SSH key from an instance. Requires site ADMIN.
    */
-  async deleteSSHKey(): Promise<GenericResponse> {
-    return apiClient.delete<GenericResponse>("/vyos/monitoring/ssh-key");
+  async deleteSSHKey(instanceId: string): Promise<GenericResponse> {
+    return apiClient.delete<GenericResponse>(
+      `/vyos/monitoring/instances/${instanceId}/ssh-key`
+    );
   }
 
   /**

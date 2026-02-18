@@ -157,6 +157,6 @@ def build_command(name: str, params: Dict[str, str]) -> str:
     if name == "monitor_traffic":
         filter_val = params.get("filter")
         if filter_val and FILTER_PATTERN.match(filter_val):
-            command_str += f" filter {filter_val}"
+            command_str += f' filter "{filter_val}"'
 
     return command_str

@@ -23,6 +23,8 @@ export function useMonitoringWebSocket(): UseMonitoringWebSocketReturn {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
+  // Buffer for partial lines that arrive mid-chunk
+  const lineBufferRef = useRef<string>("");
 
   const cleanup = useCallback(() => {
     if (wsRef.current) {
@@ -38,6 +40,7 @@ export function useMonitoringWebSocket(): UseMonitoringWebSocketReturn {
   const start = useCallback(
     (command: string, params: Record<string, string>) => {
       cleanup();
+      lineBufferRef.current = "";
       setError(null);
       setStatusMessage(null);
       setStatus("connecting");
@@ -63,16 +66,21 @@ export function useMonitoringWebSocket(): UseMonitoringWebSocketReturn {
 
             case "output":
               if (msg.data) {
-                // Split by newlines and append
-                const lines = msg.data.split("\n");
-                setOutput((prev) => {
-                  const updated = [...prev, ...lines];
-                  // Cap at MAX_LINES
-                  if (updated.length > MAX_LINES) {
-                    return updated.slice(updated.length - MAX_LINES);
-                  }
-                  return updated;
-                });
+                // Prepend any partial line left over from previous chunk,
+                // then split. The last element may be a partial line (no
+                // trailing \n yet) — keep it in the buffer for next time.
+                const combined = lineBufferRef.current + msg.data;
+                const parts = combined.split("\n");
+                lineBufferRef.current = parts.pop() ?? "";
+                if (parts.length > 0) {
+                  setOutput((prev) => {
+                    const updated = [...prev, ...parts];
+                    if (updated.length > MAX_LINES) {
+                      return updated.slice(updated.length - MAX_LINES);
+                    }
+                    return updated;
+                  });
+                }
               }
               break;
 
@@ -126,6 +134,7 @@ export function useMonitoringWebSocket(): UseMonitoringWebSocketReturn {
   }, []);
 
   const clear = useCallback(() => {
+    lineBufferRef.current = "";
     setOutput([]);
     setError(null);
     setStatusMessage(null);
