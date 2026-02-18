@@ -51,6 +51,8 @@ from .vrf import VrfOspfMapper, VrfOspfv3Mapper, VrfIsisMapper, VrfBgpMapper
 from .vrf import VrfDhcpMapper, VrfDhcpv6Mapper
 from .vrf.vrf_versions import get_vrf_mapper, get_vrf_static_mapper
 from .system.performance_versions import get_system_performance_mapper
+from .high_availability import HighAvailabilityMapper
+from .high_availability.high_availability_versions import get_high_availability_mapper
 
 # Auto-register all mappers
 # Ethernet uses factory for version-specific mappers
@@ -117,6 +119,8 @@ CommandMapperRegistry.register_feature("vrf_bgp", lambda v: VrfBgpMapper())
 CommandMapperRegistry.register_feature("vrf_dhcp", lambda v: VrfDhcpMapper())
 CommandMapperRegistry.register_feature("vrf_dhcpv6", lambda v: VrfDhcpv6Mapper())
 CommandMapperRegistry.register_feature("system_performance", get_system_performance_mapper)
+# High Availability uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("high_availability", get_high_availability_mapper)
 
 __all__ = [
     "BaseFeatureMapper",
@@ -156,4 +160,5 @@ __all__ = [
     "VrfBgpMapper",
     "VrfDhcpMapper",
     "VrfDhcpv6Mapper",
+    "HighAvailabilityMapper",
 ]
