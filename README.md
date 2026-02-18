@@ -173,6 +173,9 @@ BACKEND_URL=http://backend:8000
 # CHANGE THIS — add every origin you will access VyManager from
 # Example: http://192.168.1.50:3000  or  http://vymanager.lan:3000
 TRUSTED_ORIGINS=http://<YOUR_SERVER_IP>:3000,http://localhost:3000
+
+# CHANGE THIS — use a long random string (e.g. openssl rand -hex 32)
+SSH_ENCRYPTION_KEY=<Insert 32bit hex>
 ```
 
 > **Tip**: Generate a strong secret with: `openssl rand -hex 32`
