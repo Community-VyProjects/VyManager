@@ -29,6 +29,7 @@ export interface Instance {
   description?: string | null;
   host: string;
   port: number;
+  protocol: string;
   vyos_version?: string | null;
   is_active: boolean;
   ssh_port: number;

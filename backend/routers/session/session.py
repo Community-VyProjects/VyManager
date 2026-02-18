@@ -66,6 +66,7 @@ class InstanceResponse(BaseModel):
     description: Optional[str] = None
     host: str
     port: int
+    protocol: str = "https"
     is_active: bool
     vyos_version: Optional[str] = None
     ssh_port: int = 22
@@ -572,7 +573,7 @@ async def list_site_instances(request: Request, site_id: str):
                 # Site ADMINs see ALL instances in the site
                 instances = await conn.fetch(
                     """
-                    SELECT id, "siteId", name, description, host, port, "isActive",
+                    SELECT id, "siteId", name, description, host, port, protocol, "isActive",
                            "vyosVersion", "sshPort", "sshUsername", "sshKeyConfigured",
                            "createdAt", "updatedAt"
                     FROM instances
@@ -585,7 +586,7 @@ async def list_site_instances(request: Request, site_id: str):
                 # Regular users see only instances they have explicit access to
                 instances = await conn.fetch(
                     """
-                    SELECT DISTINCT i.id, i."siteId", i.name, i.description, i.host, i.port, i."isActive",
+                    SELECT DISTINCT i.id, i."siteId", i.name, i.description, i.host, i.port, i.protocol, i."isActive",
                            i."vyosVersion", i."sshPort", i."sshUsername", i."sshKeyConfigured",
                            i."createdAt", i."updatedAt"
                     FROM instances i
@@ -608,6 +609,7 @@ async def list_site_instances(request: Request, site_id: str):
                     description=inst["description"],
                     host=inst["host"],
                     port=inst["port"],
+                    protocol=inst.get("protocol") or "https",
                     vyos_version=inst.get("vyosVersion"),
                     is_active=inst["isActive"],
                     ssh_port=inst["sshPort"],

@@ -69,7 +69,7 @@ export function EditInstanceModal({
       setSshUsername(instance.ssh_username || "");
       // Don't populate API key for security
       setApiKey("");
-      setProtocol("https");
+      setProtocol(instance.protocol || "https");
       setVerifySsl(false);
     }
   }, [instance, open]);
@@ -126,6 +126,7 @@ export function EditInstanceModal({
         description: description.trim() || null,
         host: host.trim(),
         port: portNum,
+        protocol: protocol,
         vyos_version: vyosVersion,
         is_active: isActive,
         ssh_port: sshPortNum,
@@ -134,7 +135,6 @@ export function EditInstanceModal({
 
       if (apiKey.trim()) {
         updateData.api_key = apiKey.trim();
-        updateData.protocol = protocol;
         updateData.verify_ssl = verifySsl;
       }
 
