@@ -146,6 +146,7 @@ const FEATURE_ICONS: Record<FeatureGroup, any> = {
   [FeatureGroup.SITES_INSTANCES]: Building2,
   [FeatureGroup.USER_MANAGEMENT]: UserCircle,
   [FeatureGroup.POWER]: Power,
+  [FeatureGroup.HIGH_AVAILABILITY]: Shield,
 };
 
 // Feature display names
@@ -205,6 +206,7 @@ const FEATURE_NAMES: Record<FeatureGroup, string> = {
   [FeatureGroup.SITES_INSTANCES]: "Sites & Instances",
   [FeatureGroup.USER_MANAGEMENT]: "User Management",
   [FeatureGroup.POWER]: "Power",
+  [FeatureGroup.HIGH_AVAILABILITY]: "High Availability",
 };
 
 // Role badge styles
@@ -259,6 +261,7 @@ const FEATURE_CATEGORIES: FeatureCategory[] = [
           { feature: FeatureGroup.VRF },
           { feature: FeatureGroup.LOAD_BALANCING },
           { feature: FeatureGroup.NAT },
+          { feature: FeatureGroup.HIGH_AVAILABILITY },
         ],
       },
       {
