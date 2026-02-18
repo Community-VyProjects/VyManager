@@ -47,6 +47,8 @@ export function CreateInstanceModal({
   const [protocol, setProtocol] = useState("https");
   const [verifySsl, setVerifySsl] = useState(false);
   const [isActive, setIsActive] = useState(true);
+  const [sshPort, setSshPort] = useState("22");
+  const [sshUsername, setSshUsername] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -60,6 +62,8 @@ export function CreateInstanceModal({
     setProtocol("https");
     setVerifySsl(false);
     setIsActive(true);
+    setSshPort("22");
+    setSshUsername("");
     setError(null);
     onOpenChange(false);
   };
@@ -93,6 +97,8 @@ export function CreateInstanceModal({
     setError(null);
 
     try {
+      const sshPortNum = parseInt(sshPort);
+
       await sessionService.createInstance({
         site_id: site.id,
         name: name.trim(),
@@ -104,6 +110,8 @@ export function CreateInstanceModal({
         protocol,
         verify_ssl: verifySsl,
         is_active: isActive,
+        ssh_port: isNaN(sshPortNum) ? 22 : sshPortNum,
+        ssh_username: sshUsername.trim() || undefined,
       });
 
       handleClose();
@@ -136,9 +144,10 @@ export function CreateInstanceModal({
 
         <form onSubmit={handleSubmit}>
           <Tabs defaultValue="basic" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="basic">Basic Info</TabsTrigger>
               <TabsTrigger value="connection">Connection</TabsTrigger>
+              <TabsTrigger value="ssh">SSH / Monitoring</TabsTrigger>
             </TabsList>
 
             <TabsContent value="basic" className="space-y-4 mt-4">
@@ -305,6 +314,43 @@ export function CreateInstanceModal({
                   Verify SSL certificate
                 </Label>
               </div>
+            </TabsContent>
+
+            <TabsContent value="ssh" className="space-y-4 mt-4">
+              {/* SSH Username */}
+              <div className="space-y-2">
+                <Label htmlFor="sshUsername">SSH Username</Label>
+                <Input
+                  id="sshUsername"
+                  value={sshUsername}
+                  onChange={(e) => setSshUsername(e.target.value)}
+                  placeholder="vyos"
+                  disabled={loading}
+                />
+                <p className="text-xs text-muted-foreground">
+                  SSH username for monitoring connections (defaults to &quot;vyos&quot;)
+                </p>
+              </div>
+
+              {/* SSH Port */}
+              <div className="space-y-2">
+                <Label htmlFor="sshPort">SSH Port</Label>
+                <Input
+                  id="sshPort"
+                  type="number"
+                  value={sshPort}
+                  onChange={(e) => setSshPort(e.target.value)}
+                  placeholder="22"
+                  min="1"
+                  max="65535"
+                  disabled={loading}
+                />
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                SSH settings are used for real-time monitoring features. You can
+                configure SSH keys after creating the instance.
+              </p>
             </TabsContent>
           </Tabs>
 

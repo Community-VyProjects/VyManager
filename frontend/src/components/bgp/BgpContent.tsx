@@ -107,16 +107,22 @@ export function BgpContent() {
     try {
       setLoading(true);
       setError(null);
-      const [configData, capData, rmConfig, bfdConfig] = await Promise.all([
+      const [configData, capData] = await Promise.all([
         bgpService.getConfig(refresh),
         bgpService.getCapabilities(),
-        routeMapService.getConfig(),
-        bfdService.getConfig(),
       ]);
       setConfig(configData);
       setCapabilities(capData);
-      setRouteMapNames(rmConfig.route_maps.map((rm) => rm.name));
-      setBfdProfileNames(bfdConfig.profiles.map((p) => p.name));
+
+      // Load auxiliary data for dropdowns - these require separate permissions
+      // so we catch errors silently and default to empty arrays
+      const [rmNames, bfdNames] = await Promise.all([
+        routeMapService.getConfig().then((c) => c.route_maps.map((rm) => rm.name)).catch(() => []),
+        bfdService.getConfig().then((c) => c.profiles.map((p) => p.name)).catch(() => []),
+      ]);
+      setRouteMapNames(rmNames);
+      setBfdProfileNames(bfdNames);
+
       // Initialize overview fields
       setSystemAs(configData.system_as || "");
       setRouterId(configData.parameters.router_id || "");
