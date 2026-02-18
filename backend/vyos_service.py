@@ -10,7 +10,15 @@ from contextlib import contextmanager
 
 from pyvyos import VyDevice
 from pyvyos.core.rest_client import ApiResponse
-from vyos_builders import EthernetBatchBuilder, DummyBatchBuilder, FirewallGroupsBatchBuilder, NATBatchBuilder, DHCPBatchBuilder, WireGuardBatchBuilder
+from vyos_builders import (
+    EthernetBatchBuilder,
+    DummyBatchBuilder,
+    FirewallGroupsBatchBuilder,
+    NATBatchBuilder,
+    DHCPBatchBuilder,
+    WireGuardBatchBuilder,
+    SystemPerformanceBatchBuilder,
+)
 
 
 class VyOSDeviceConfig:
@@ -90,7 +98,25 @@ class VyOSService:
         """
         return NATBatchBuilder(self.config.version)
 
-    def execute_batch(self, batch: Union[EthernetBatchBuilder, DummyBatchBuilder, FirewallGroupsBatchBuilder, NATBatchBuilder, DHCPBatchBuilder, WireGuardBatchBuilder]) -> ApiResponse:
+    def create_system_performance_batch(self) -> SystemPerformanceBatchBuilder:
+        """
+        Create a batch builder for system option performance.
+        Version-aware (1.4: throughput/latency; 1.5: five profiles).
+        """
+        return SystemPerformanceBatchBuilder(self.config.version)
+
+    def execute_batch(
+        self,
+        batch: Union[
+            EthernetBatchBuilder,
+            DummyBatchBuilder,
+            FirewallGroupsBatchBuilder,
+            NATBatchBuilder,
+            DHCPBatchBuilder,
+            WireGuardBatchBuilder,
+            SystemPerformanceBatchBuilder,
+        ],
+    ) -> ApiResponse:
         """Execute a batch of operations using configure_multiple_op."""
         if batch.is_empty():
             raise ValueError("Cannot execute empty batch")
