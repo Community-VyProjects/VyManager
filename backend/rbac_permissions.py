@@ -87,6 +87,8 @@ class FeatureGroup(str, Enum):
     PIM = "PIM"
     PIM6 = "PIM6"
 
+    HIGH_AVAILABILITY = "HIGH_AVAILABILITY"
+
     SYSTEM = "SYSTEM"
     POWER = "POWER"  # Reboot, shutdown actions
     CONFIGURATION = "CONFIGURATION"
@@ -165,6 +167,7 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.IGMP_PROXY: PermissionLevel.WRITE,
         FeatureGroup.PIM: PermissionLevel.WRITE,
         FeatureGroup.PIM6: PermissionLevel.WRITE,
+        FeatureGroup.HIGH_AVAILABILITY: PermissionLevel.WRITE,
         FeatureGroup.SYSTEM: PermissionLevel.WRITE,
         FeatureGroup.POWER: PermissionLevel.WRITE,
         FeatureGroup.CONFIGURATION: PermissionLevel.WRITE,
@@ -223,6 +226,7 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.IGMP_PROXY: PermissionLevel.WRITE,
         FeatureGroup.PIM: PermissionLevel.WRITE,
         FeatureGroup.PIM6: PermissionLevel.WRITE,
+        FeatureGroup.HIGH_AVAILABILITY: PermissionLevel.WRITE,
         FeatureGroup.SYSTEM: PermissionLevel.WRITE,
         FeatureGroup.POWER: PermissionLevel.WRITE,
         FeatureGroup.CONFIGURATION: PermissionLevel.WRITE,
@@ -282,6 +286,7 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.IGMP_PROXY: PermissionLevel.READ,
         FeatureGroup.PIM: PermissionLevel.READ,
         FeatureGroup.PIM6: PermissionLevel.READ,
+        FeatureGroup.HIGH_AVAILABILITY: PermissionLevel.READ,
         FeatureGroup.SYSTEM: PermissionLevel.READ,
         FeatureGroup.POWER: PermissionLevel.READ,  # Can see status, cannot execute power actions
         FeatureGroup.CONFIGURATION: PermissionLevel.READ,
@@ -382,6 +387,7 @@ async def get_user_permissions(
                 FeatureGroup.IGMP_PROXY,
                 FeatureGroup.PIM,
                 FeatureGroup.PIM6,
+                FeatureGroup.HIGH_AVAILABILITY,
                 FeatureGroup.SYSTEM,
                 FeatureGroup.POWER,
                 FeatureGroup.CONFIGURATION,
@@ -460,6 +466,7 @@ async def get_user_permissions(
                 FeatureGroup.IGMP_PROXY,
                 FeatureGroup.PIM,
                 FeatureGroup.PIM6,
+                FeatureGroup.HIGH_AVAILABILITY,
                 FeatureGroup.SYSTEM,
                 FeatureGroup.POWER,
                 FeatureGroup.CONFIGURATION,
