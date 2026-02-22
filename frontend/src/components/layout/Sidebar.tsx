@@ -10,7 +10,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { Activity, ChevronDown, HeartPulse, Shield, Network, Server, Settings, LayoutDashboard, Route, Lock, LogOut, User, FileText, Building2, Power, PowerOff } from "lucide-react";
+import { Activity, ChevronDown, HeartPulse, Shield, Network, Server, Settings, LayoutDashboard, Route, Lock, LogOut, User, FileText, Building2, Power, PowerOff, Scale } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { useSession, signOut } from "@/lib/auth-client";
@@ -90,11 +90,6 @@ const navigation: NavItem[] = [
         title: "Interfaces",
         href: "/network/interfaces",
         requiredPermission: FeatureGroup.INTERFACES
-      },
-      {
-        title: "Load Balancing",
-        href: "/network/load-balancing",
-        requiredPermission: FeatureGroup.LOAD_BALANCING
       },
       {
         title: "NAT",
@@ -193,6 +188,23 @@ const navigation: NavItem[] = [
         title: "WireGuard",
         href: "/vpn/wireguard",
         requiredPermission: FeatureGroup.WIREGUARD
+      },
+    ],
+  },
+  {
+    title: "Load Balancing",
+    icon: Scale,
+    requiredPermission: FeatureGroup.LOAD_BALANCING,
+    children: [
+      {
+        title: "HAProxy",
+        href: "/load-balancing/haproxy",
+        requiredPermission: FeatureGroup.LOAD_BALANCING,
+      },
+      {
+        title: "WAN",
+        href: "/load-balancing/wan",
+        requiredPermission: FeatureGroup.LOAD_BALANCING,
       },
     ],
   },
