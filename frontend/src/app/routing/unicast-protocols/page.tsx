@@ -4,6 +4,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { InProgress } from "@/components/layout/InProgress";
 import { BabelContent } from "@/components/babel/BabelContent";
 import { BgpContent } from "@/components/bgp/BgpContent";
+import { IsisContent } from "@/components/isis/IsisContent";
 import { OspfContent } from "@/components/ospf/OspfContent";
 import { Ospfv3Content } from "@/components/ospfv3/Ospfv3Content";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -131,6 +132,8 @@ export default function UnicastProtocolsPage() {
             <Ospfv3Content />
           ) : selectedProtocol === "babel" ? (
             <BabelContent />
+          ) : selectedProtocol === "isis" ? (
+            <IsisContent />
           ) : (
             <InProgress />
           )}
