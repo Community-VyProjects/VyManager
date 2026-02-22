@@ -29,6 +29,9 @@ from .ospf import OspfBatchBuilder
 from .ospfv3 import Ospfv3BatchBuilder
 from .vrf import VrfBatchBuilder
 from .system import SystemPerformanceBatchBuilder
+from .high_availability import HighAvailabilityBatchBuilder
+from .load_balancing import LoadBalancingBatchBuilder
+from .isis import IsisBatchBuilder
 
 # Directly use the self-contained builders
 EthernetBatchBuilder = EthernetInterfaceBuilderMixin
@@ -63,4 +66,7 @@ __all__ = [
     "Ospfv3BatchBuilder",
     "VrfBatchBuilder",
     "SystemPerformanceBatchBuilder",
+    "HighAvailabilityBatchBuilder",
+    "LoadBalancingBatchBuilder",
+    "IsisBatchBuilder",
 ]
