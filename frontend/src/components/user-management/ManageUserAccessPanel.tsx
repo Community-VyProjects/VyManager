@@ -64,6 +64,7 @@ import {
   Workflow,
   Radio,
   Power,
+  Scale,
 } from "lucide-react";
 import {
   userManagementService,
@@ -103,7 +104,7 @@ const FEATURE_ICONS: Record<FeatureGroup, any> = {
   [FeatureGroup.FIREWALL_FLOWTABLES]: Shield,
   [FeatureGroup.NETWORK]: Network,
   [FeatureGroup.VRF]: Network,
-  [FeatureGroup.LOAD_BALANCING]: Network,
+  [FeatureGroup.LOAD_BALANCING]: Scale,
   [FeatureGroup.VPN]: Lock,
   [FeatureGroup.IPSEC]: Lock,
   [FeatureGroup.WIREGUARD]: Lock,

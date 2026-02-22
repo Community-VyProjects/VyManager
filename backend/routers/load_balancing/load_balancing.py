@@ -21,6 +21,14 @@ class BatchOperation(BaseModel):
             "'rule_id|domain' for rule operations."
         ),
     )
+    item_name: Optional[str] = Field(
+        None,
+        description=(
+            "Per-operation entity name override. When set, this takes precedence over the "
+            "request-level item_name for this specific operation. Allows a single batch "
+            "request to operate on multiple entities (e.g., create backend + service together)."
+        ),
+    )
 
 
 class BatchRequest(BaseModel):
@@ -76,14 +84,17 @@ async def batch_configure(http_request: Request, request: BatchRequest):
         sig = inspect.signature(method)
         params = [p for p in sig.parameters.keys() if p != "self"]
 
+        # Per-operation item_name overrides the request-level item_name
+        effective_name = op.item_name if op.item_name is not None else request.item_name
+
         if len(params) == 0:
             method()
         elif len(params) == 1:
-            method(request.item_name)
+            method(effective_name)
         elif len(params) == 2 and op.value is not None:
-            method(request.item_name, op.value)
+            method(effective_name, op.value)
         elif len(params) == 2:
-            method(request.item_name)
+            method(effective_name)
 
     if batch.is_empty():
         return VyOSResponse(success=True)
