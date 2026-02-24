@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { auth } from "./lib/auth";
+import { getAuth } from "./lib/auth";
 
 export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -10,6 +10,7 @@ export default async function proxy(request: NextRequest) {
     "/api/auth",
     "/api/session/onboarding-status",
     "/api/internal",
+    "/api/oauth-config/public",
   ];
   const isPublicRoute = publicRoutes.some((route) => pathname.startsWith(route));
 
@@ -20,6 +21,7 @@ export default async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
+  const auth = await getAuth();
   const session = await auth.api.getSession({ headers: request.headers });
 
   if (!session) {

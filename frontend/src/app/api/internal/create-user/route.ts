@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getAuth } from "@/lib/auth";
 
 /**
  * Internal API endpoint for creating users from the backend.
@@ -36,6 +36,7 @@ export async function POST(request: NextRequest) {
 
     // Use Better Auth's internal API to create the user
     // This ensures password hashing is done correctly
+    const auth = await getAuth();
     const result = await auth.api.signUpEmail({
       body: {
         email,
