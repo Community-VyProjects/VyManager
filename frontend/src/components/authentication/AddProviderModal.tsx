@@ -87,15 +87,9 @@ export function AddProviderModal({
   const handleSelectProvider = (provider: WellKnownProvider) => {
     setSelected(provider);
     setDiscoveryUrl(provider.discoveryUrl ?? "");
-    setAuthorizationUrl(
-      (provider as WellKnownProvider & { authorizationUrl?: string }).authorizationUrl ?? ""
-    );
-    setTokenUrl(
-      (provider as WellKnownProvider & { tokenUrl?: string }).tokenUrl ?? ""
-    );
-    setUserInfoUrl(
-      (provider as WellKnownProvider & { userInfoUrl?: string }).userInfoUrl ?? ""
-    );
+    setAuthorizationUrl(provider.authorizationUrl ?? "");
+    setTokenUrl(provider.tokenUrl ?? "");
+    setUserInfoUrl(provider.userInfoUrl ?? "");
     setScopes(provider.defaultScopes);
     setStep("configure");
   };

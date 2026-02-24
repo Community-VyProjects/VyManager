@@ -78,14 +78,10 @@ export function ConfigureProviderModal({
     // Pre-fill defaults from the well-known provider catalogue
     setDiscoveryUrl(provider.discoveryUrl ?? "");
     setAuthorizationUrl(
-      (provider as WellKnownProvider & { authorizationUrl?: string }).authorizationUrl ?? ""
+      provider.authorizationUrl ?? ""
     );
-    setTokenUrl(
-      (provider as WellKnownProvider & { tokenUrl?: string }).tokenUrl ?? ""
-    );
-    setUserInfoUrl(
-      (provider as WellKnownProvider & { userInfoUrl?: string }).userInfoUrl ?? ""
-    );
+    setTokenUrl(provider.tokenUrl ?? "");
+    setUserInfoUrl(provider.userInfoUrl ?? "");
     setScopes(provider.defaultScopes);
     setClientId("");
     setClientSecret("");

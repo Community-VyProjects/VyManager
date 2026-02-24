@@ -124,6 +124,10 @@ export interface WellKnownProvider {
   description: string;
   /** Pre-filled discovery URL (OIDC) */
   discoveryUrl?: string;
+  /** Pre-filled manual endpoints (non-OIDC providers like GitHub, Discord) */
+  authorizationUrl?: string;
+  tokenUrl?: string;
+  userInfoUrl?: string;
   /** Pre-filled scopes */
   defaultScopes: string;
   /** Whether manual endpoint fields are shown (non-OIDC providers) */
