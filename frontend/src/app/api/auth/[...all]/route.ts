@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+import { getAuth } from "@/lib/auth";
 import { toNextJsHandler } from "better-auth/next-js";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -6,13 +6,15 @@ import { NextRequest, NextResponse } from "next/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// Get the original handlers
-const handlers = toNextJsHandler(auth);
-
 const allowOnboardingFailOpen = process.env.ALLOW_ONBOARDING_FAIL_OPEN === "true";
 
-// Wrap POST handler to add onboarding validation for signup
-async function POST_WITH_VALIDATION(request: NextRequest) {
+export async function GET(request: NextRequest) {
+  const auth = await getAuth();
+  const handlers = toNextJsHandler(auth);
+  return handlers.GET(request);
+}
+
+export async function POST(request: NextRequest) {
   const url = new URL(request.url);
   const path = url.pathname;
 
@@ -21,7 +23,6 @@ async function POST_WITH_VALIDATION(request: NextRequest) {
     try {
       // SECURITY: Check if onboarding is complete
       // If users already exist, reject signup attempts
-      // Runtime environment variable - BACKEND_URL is read at runtime
       const backendUrl = process.env.BACKEND_URL || "http://backend:8000";
       const onboardingCheck = await fetch(`${backendUrl}/session/onboarding-status`);
 
@@ -55,9 +56,7 @@ async function POST_WITH_VALIDATION(request: NextRequest) {
     }
   }
 
-  // Call the original handler
+  const auth = await getAuth();
+  const handlers = toNextJsHandler(auth);
   return handlers.POST(request);
 }
-
-export const GET = handlers.GET;
-export const POST = POST_WITH_VALIDATION;

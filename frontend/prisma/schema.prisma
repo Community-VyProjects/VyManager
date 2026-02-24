@@ -234,6 +234,39 @@ model ScheduledPowerAction {
   @@map("scheduled_power_actions")
 }
 
+// ============================================================================
+// OAuth Provider Configuration
+// ============================================================================
+
+// OAuthProvider - Stores admin-configured OAuth/OIDC provider settings
+model OAuthProvider {
+  id           String   @id @default(cuid())
+  providerId   String   @unique // e.g. "google", "github", "keycloak-corp"
+  displayName  String           // e.g. "Google", "GitHub"
+  enabled      Boolean  @default(false)
+
+  // OAuth credentials
+  clientId     String   @db.Text
+  clientSecret String   @db.Text
+
+  // OIDC discovery (preferred) — covers most modern providers
+  discoveryUrl String?  @db.Text
+
+  // Manual endpoints (fallback for non-OIDC providers)
+  authorizationUrl String? @db.Text
+  tokenUrl         String? @db.Text
+  userInfoUrl      String? @db.Text
+
+  // Optional configuration
+  scopes   String? // space-separated scopes
+  pkce     Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("oauth_providers")
+}
+
 // DashboardLayout - Stores user's custom dashboard layout per instance
 model DashboardLayout {
   id         String   @id @default(cuid())

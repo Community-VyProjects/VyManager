@@ -6,11 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { signIn, signUp, signOut } from "@/lib/auth-client";
+import { signIn, signOut, authClient } from "@/lib/auth-client";
 import { Shield, Loader2, AlertCircle } from "lucide-react";
-import { apiClient } from "@/lib/api/client";
 import { sessionService, AuthSessionInfo } from "@/lib/api/session";
 import { ActiveSessionWarningModal } from "@/components/auth/ActiveSessionWarningModal";
+import { OAuthProviderConfig } from "@/lib/api/oauth";
+import { ProviderIcon } from "@/components/authentication/ProviderIcon";
+import { WELL_KNOWN_PROVIDERS } from "@/lib/api/oauth";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -75,6 +77,17 @@ export default function LoginPage() {
   const [showSessionWarning, setShowSessionWarning] = useState(false);
   const [otherSessions, setOtherSessions] = useState<AuthSessionInfo[]>([]);
 
+  // OAuth providers
+  const [oauthProviders, setOauthProviders] = useState<OAuthProviderConfig[]>([]);
+  const [oauthLoading, setOauthLoading] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/oauth-config/public")
+      .then((r) => (r.ok ? r.json() : { providers: [] }))
+      .then((data) => setOauthProviders(data.providers ?? []))
+      .catch(() => setOauthProviders([]));
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -135,6 +148,20 @@ export default function LoginPage() {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to revoke other sessions";
       throw new Error(errorMessage);
+    }
+  };
+
+  const handleOAuthSignIn = async (providerId: string) => {
+    setError("");
+    setOauthLoading(providerId);
+    try {
+      await authClient.signIn.oauth2({
+        providerId,
+        callbackURL: from,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "OAuth sign-in failed");
+      setOauthLoading(null);
     }
   };
 
@@ -282,6 +309,46 @@ export default function LoginPage() {
             </Button>
 
           </form>
+
+          {/* OAuth provider buttons */}
+          {oauthProviders.length > 0 && (
+            <>
+              <div className="relative my-4">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-border/50" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-card/80 px-2 text-muted-foreground backdrop-blur-sm">
+                    or continue with
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid gap-2" style={{ gridTemplateColumns: oauthProviders.length === 1 ? "1fr" : "repeat(2, 1fr)" }}>
+                {oauthProviders.map((provider) => {
+                  const meta = WELL_KNOWN_PROVIDERS.find((p) => p.providerId === provider.providerId);
+                  const iconKey = meta?.iconKey ?? "custom";
+                  return (
+                    <Button
+                      key={provider.providerId}
+                      type="button"
+                      variant="outline"
+                      className="h-11 gap-2 bg-background/50 border-border/50"
+                      disabled={!!oauthLoading || isLoading}
+                      onClick={() => handleOAuthSignIn(provider.providerId)}
+                    >
+                      {oauthLoading === provider.providerId ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <ProviderIcon iconKey={iconKey} className="h-4 w-4" />
+                      )}
+                      <span className="text-sm">{provider.displayName}</span>
+                    </Button>
+                  );
+                })}
+              </div>
+            </>
+          )}
 
           {/* Divider */}
           <div className="relative my-6">

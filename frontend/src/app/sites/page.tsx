@@ -34,6 +34,7 @@ import {
   Upload,
   LayoutGrid,
   Table,
+  KeyRound,
 } from "lucide-react";
 import { signOut, useSession } from "@/lib/auth-client";
 import { Site, sessionService } from "@/lib/api/session";
@@ -49,9 +50,10 @@ import { MoveInstanceModal } from "@/components/sites/MoveInstanceModal";
 import { DeleteInstanceModal } from "@/components/sites/DeleteInstanceModal";
 import { ImportCSVModal } from "@/components/session/ImportCSVModal";
 import { UserManagement } from "@/components/user-management/UserManagement";
+import { AuthenticationSettings } from "@/components/authentication/AuthenticationSettings";
 import { cn } from "@/lib/utils";
 
-type NavSection = "sites" | "user-management";
+type NavSection = "sites" | "user-management" | "authentication";
 
 export default function SitesPage() {
   const router = useRouter();
@@ -322,6 +324,33 @@ export default function SitesPage() {
                   </div>
                   <span className="font-medium text-sm">User Management</span>
                   {selectedSection === "user-management" && (
+                    <ChevronRight className="h-4 w-4 text-primary ml-auto" />
+                  )}
+                </div>
+              </button>
+
+              {/* Authentication */}
+              <button
+                onClick={() => setSelectedSection("authentication")}
+                className={cn(
+                  "w-full text-left rounded-lg px-3 py-3 transition-all",
+                  selectedSection === "authentication"
+                    ? "bg-accent text-accent-foreground shadow-sm"
+                    : "hover:bg-accent/50"
+                )}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={cn(
+                    "rounded-md p-1.5",
+                    selectedSection === "authentication" ? "bg-primary/10" : "bg-muted"
+                  )}>
+                    <KeyRound className={cn(
+                      "h-4 w-4",
+                      selectedSection === "authentication" ? "text-primary" : "text-muted-foreground"
+                    )} />
+                  </div>
+                  <span className="font-medium text-sm">Authentication</span>
+                  {selectedSection === "authentication" && (
                     <ChevronRight className="h-4 w-4 text-primary ml-auto" />
                   )}
                 </div>
@@ -667,6 +696,10 @@ export default function SitesPage() {
           ) : selectedSection === "user-management" ? (
             <div className="flex-1 overflow-auto p-6">
               <UserManagement />
+            </div>
+          ) : selectedSection === "authentication" ? (
+            <div className="flex-1 overflow-auto p-6">
+              <AuthenticationSettings />
             </div>
           ) : (
             <div className="flex-1 flex items-center justify-center">
