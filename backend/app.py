@@ -53,6 +53,7 @@ from routers.monitoring import monitoring as monitoring_router
 from routers.high_availability import high_availability as high_availability_router
 from routers.load_balancing import load_balancing as load_balancing_router
 from routers.isis import isis as isis_router
+from routers.mpls import mpls as mpls_router
 
 # Global variables
 db_pool: Optional[asyncpg.Pool] = None
@@ -278,6 +279,7 @@ app.include_router(monitoring_router.router)
 app.include_router(high_availability_router.router)
 app.include_router(load_balancing_router.router)
 app.include_router(isis_router.router)
+app.include_router(mpls_router.router)
 
 
 # ============================================================================
