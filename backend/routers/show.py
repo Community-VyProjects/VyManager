@@ -10,6 +10,8 @@ from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 
 from session_vyos_service import get_session_vyos_service
+import logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/show", tags=["show"])
 
@@ -127,7 +129,8 @@ async def get_interface_counters(request: Request):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ========================================================================
@@ -211,4 +214,5 @@ async def get_all_interfaces(request: Request):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")

@@ -13,6 +13,8 @@ from session_vyos_service import get_session_vyos_service
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 import json
+import logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/config", tags=["config"])
 
@@ -139,7 +141,8 @@ async def get_config_snapshot(request: Request):
         raise  # Re-raise HTTP exceptions as-is
     except Exception as e:
         print(f"[ConfigRouter] Error in /config/snapshot: {type(e).__name__}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/diff", response_model=ConfigDiffResponse)
@@ -187,7 +190,8 @@ async def get_config_diff(request: Request):
         raise  # Re-raise HTTP exceptions as-is
     except Exception as e:
         print(f"[ConfigRouter] Error in /config/diff: {type(e).__name__}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/save", response_model=SaveConfigResponse)
@@ -231,7 +235,8 @@ async def save_config(request: Request, file: Optional[str] = None):
         raise  # Re-raise HTTP exceptions as-is
     except Exception as e:
         print(f"[ConfigRouter] Error in /config/save: {type(e).__name__}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/refresh")
@@ -247,6 +252,7 @@ async def refresh_config(request: Request):
         return {"success": True, "message": "Configuration cache refreshed"}
     except Exception as e:
         print(f"[ConfigRouter] Error in /config/refresh: {type(e).__name__}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 

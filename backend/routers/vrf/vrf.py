@@ -21,6 +21,8 @@ from vyos_builders import VrfBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 import inspect
+import logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/vrf", tags=["vrf"])
 
@@ -354,7 +356,8 @@ async def get_vrf_capabilities(request: Request):
             capabilities["instance_id"] = request.state.instance.get("id")
         return capabilities
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -381,7 +384,8 @@ async def get_vrf_config(http_request: Request, refresh: bool = False):
 
         return VrfConfig(bind_to_all=bind_to_all, instances=instances)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -976,4 +980,5 @@ async def vrf_batch_configure(http_request: Request, body: VrfBatchRequest):
     except AttributeError as e:
         raise HTTPException(status_code=400, detail=f"Unknown operation: {str(e)}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")

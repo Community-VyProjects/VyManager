@@ -15,6 +15,8 @@ from vyos_builders import RouteBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 import inspect
+import logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/route", tags=["route"])
 
@@ -212,7 +214,8 @@ async def get_route_capabilities(request: Request):
             capabilities["instance_id"] = request.state.instance.get("id")
         return capabilities
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -256,7 +259,8 @@ async def get_route_config(http_request: Request, refresh: bool = False):
             total_ipv6=len(ipv6_policies)
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 def parse_policy(policy_type: str, policy_name: str, policy_data: dict, full_config: dict = None) -> PolicyRoute:
@@ -721,7 +725,8 @@ async def route_batch_configure(http_request: Request, body: RouteBatchRequest):
             error=response.error if response.error else None
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ========================================================================
@@ -1174,4 +1179,5 @@ async def reorder_rules(http_request: Request, body: ReorderRequest):
             error=response.error if response.error else None
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")

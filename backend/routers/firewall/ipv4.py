@@ -13,6 +13,8 @@ from session_vyos_service import get_session_vyos_service
 from vyos_builders import FirewallIPv4BatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission, FeatureGroup
 import inspect
+import logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/firewall/ipv4", tags=["firewall_ipv4"])
 
@@ -189,7 +191,8 @@ async def get_firewall_ipv4_capabilities(request: Request):
 
         return capabilities
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ========================================================================
@@ -454,7 +457,8 @@ async def get_firewall_ipv4_config(http_request: Request, refresh: bool = False)
             total_rules=total_rules
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ========================================================================
@@ -524,7 +528,8 @@ async def firewall_ipv4_batch_configure(http_request: Request, request: Firewall
             error=response.error if response.error else None
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ========================================================================
@@ -677,4 +682,5 @@ async def firewall_ipv4_reorder_rules(http_request: Request, request: ReorderFir
             error=response.error if response.error else None
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")

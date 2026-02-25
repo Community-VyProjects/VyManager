@@ -12,6 +12,8 @@ from typing import Dict, List, Optional, Any
 from session_vyos_service import get_session_vyos_service
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
+import logging
+logger = logging.getLogger(__name__)
 
 # Router for ethernet interface endpoints
 router = APIRouter(prefix="/vyos/ethernet", tags=["ethernet-interface"])
@@ -644,7 +646,8 @@ async def get_ethernet_capabilities(request: Request) -> Dict[str, Any]:
     except KeyError as e:
         raise HTTPException(status_code=404, detail=f"Device not found: {str(e)}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error retrieving capabilities: {str(e)}")
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/config", response_model=EthernetInterfacesConfigResponse)
@@ -674,7 +677,8 @@ async def get_ethernet_config(http_request: Request) -> EthernetInterfacesConfig
     except KeyError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -1455,4 +1459,5 @@ async def configure_interface_batch(http_request: Request, request: InterfaceBat
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")

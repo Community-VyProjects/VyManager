@@ -107,7 +107,8 @@ async def get_flowtables_capabilities(request: Request):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/config", response_model=FlowtablesConfigResponse)
@@ -179,7 +180,8 @@ async def get_flowtables_config(request: Request, refresh: bool = False):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/batch", response_model=VyOSResponse)
@@ -280,7 +282,8 @@ async def batch_configure_flowtable(request: Request, batch_request: FlowtableBa
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.delete("/{flowtable_name}", response_model=VyOSResponse)
@@ -319,4 +322,5 @@ async def delete_flowtable(request: Request, flowtable_name: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")

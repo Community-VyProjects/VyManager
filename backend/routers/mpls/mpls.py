@@ -20,6 +20,8 @@ from vyos_builders.mpls import MplsBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 import inspect
+import logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/mpls", tags=["mpls"])
 
@@ -181,7 +183,8 @@ async def get_mpls_capabilities(request: Request):
             caps["instance_id"] = request.state.instance.get("id")
         return caps
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -208,7 +211,8 @@ async def get_mpls_config(http_request: Request, refresh: bool = False):
             ldp=_parse_ldp(mpls_raw.get("ldp", {})) if mpls_raw.get("ldp") else None,
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -252,7 +256,8 @@ async def mpls_batch_configure(http_request: Request, body: MplsBatchRequest):
     except AttributeError as e:
         raise HTTPException(status_code=400, detail=f"Unknown operation: {e}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================

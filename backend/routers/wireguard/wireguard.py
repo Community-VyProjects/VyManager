@@ -19,6 +19,8 @@ from rbac_permissions import FeatureGroup
 import asyncpg
 import inspect
 import re
+import logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/vpn/wireguard", tags=["wireguard"])
 
@@ -134,7 +136,8 @@ async def get_wireguard_capabilities(request: Request):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ========================================================================
@@ -204,7 +207,8 @@ async def get_wireguard_config(request: Request, refresh: bool = False):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ========================================================================
@@ -258,7 +262,8 @@ async def wireguard_interface_batch(request: Request, body: WireGuardInterfaceBa
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ========================================================================
@@ -314,7 +319,8 @@ async def wireguard_peer_batch(request: Request, body: WireGuardPeerBatchRequest
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ========================================================================
@@ -368,7 +374,8 @@ async def generate_keypair(request: Request):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ========================================================================
@@ -409,7 +416,8 @@ async def generate_psk(request: Request):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ========================================================================
@@ -531,7 +539,8 @@ async def get_interface_status(request: Request, interface_name: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 def _parse_handshake_time(handshake_str: str) -> int | None:
@@ -661,4 +670,5 @@ async def get_interface_public_key(request: Request, interface_name: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")

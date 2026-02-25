@@ -14,6 +14,8 @@ from vyos_builders import AsPathListBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 import inspect
+import logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/as-path-list", tags=["as-path-list"])
 
@@ -115,7 +117,8 @@ async def get_as_path_list_capabilities(request: Request):
             capabilities["instance_id"] = request.state.instance.get("id")
         return capabilities
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -153,7 +156,8 @@ async def get_as_path_list_config(http_request: Request, refresh: bool = False):
         return AsPathListConfig(as_path_lists=as_path_lists, total=len(as_path_lists))
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 def parse_as_path_list(name: str, apl_data: dict) -> AsPathList:
@@ -242,7 +246,8 @@ async def as_path_list_batch_configure(http_request: Request, body: AsPathListBa
             error=response.error if response.error else None
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -305,4 +310,5 @@ async def reorder_as_path_list_rules(http_request: Request, body: ReorderAsPathL
             error=response.error if response.error else None
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")

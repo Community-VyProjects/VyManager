@@ -14,6 +14,8 @@ from vyos_builders import BfdBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 import inspect
+import logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/bfd", tags=["bfd"])
 
@@ -111,7 +113,8 @@ async def get_bfd_capabilities(request: Request):
             capabilities["instance_id"] = request.state.instance.get("id")
         return capabilities
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -138,7 +141,8 @@ async def get_bfd_config(http_request: Request, refresh: bool = False):
 
         return BfdConfig(peers=peers, profiles=profiles)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -263,4 +267,5 @@ async def bfd_batch_configure(http_request: Request, body: BfdBatchRequest):
     except AttributeError as e:
         raise HTTPException(status_code=400, detail=f"Unknown operation: {str(e)}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")

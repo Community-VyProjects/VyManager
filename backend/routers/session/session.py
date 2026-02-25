@@ -16,6 +16,8 @@ import csv
 import io
 from vyos_service import VyOSService, VyOSDeviceConfig
 from session_vyos_service import clear_session_cache
+import logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/session", tags=["session"])
 
@@ -164,7 +166,8 @@ async def get_onboarding_status(request: Request):
                 user_count=user_count
             )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -227,7 +230,8 @@ async def get_current_session(request: Request):
             )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -376,7 +380,8 @@ async def connect_to_instance(request: Request, body: ConnectRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -428,7 +433,8 @@ async def disconnect_from_instance(request: Request):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -531,7 +537,8 @@ async def list_user_sites(request: Request):
                 ]
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -626,7 +633,8 @@ async def list_site_instances(request: Request, site_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -700,7 +708,8 @@ async def create_site(request: Request, body: SiteCreateRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.put("/sites/{site_id}", response_model=SiteResponse)
@@ -786,7 +795,8 @@ async def update_site(request: Request, site_id: str, body: SiteUpdateRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.delete("/sites/{site_id}", response_model=ApiResponse)
@@ -850,7 +860,8 @@ async def delete_site(request: Request, site_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -959,7 +970,8 @@ async def create_instance(request: Request, body: InstanceCreateRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.put("/instances/{instance_id}", response_model=InstanceResponse)
@@ -1134,7 +1146,8 @@ async def update_instance(request: Request, instance_id: str, body: InstanceUpda
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.delete("/instances/{instance_id}", response_model=ApiResponse)
@@ -1199,7 +1212,8 @@ async def delete_instance(request: Request, instance_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -1305,7 +1319,8 @@ async def export_sites_and_instances_csv(request: Request):
             )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Export error: {str(e)}")
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/import-csv", response_model=ApiResponse)
@@ -1522,7 +1537,8 @@ async def import_sites_and_instances_csv(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Import error: {str(e)}")
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -1616,7 +1632,8 @@ async def get_active_auth_sessions(request: Request):
             )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/revoke-session", response_model=ApiResponse)
@@ -1688,4 +1705,5 @@ async def revoke_auth_session(request: Request, body: RevokeSessionRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")

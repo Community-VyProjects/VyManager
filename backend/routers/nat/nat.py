@@ -186,7 +186,8 @@ async def get_nat_capabilities(request: Request):
     except KeyError:
         raise HTTPException(status_code=404, detail="Device not found in registry")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/config", response_model=NATConfigResponse)
@@ -385,7 +386,8 @@ async def get_nat_config(http_request: Request, refresh: bool = False):
     except KeyError:
         raise HTTPException(status_code=404, detail="Device not found in registry")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/batch", response_model=VyOSResponse)
@@ -523,7 +525,8 @@ async def batch_configure_nat(http_request: Request, request: NATBatchRequest):
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=f"Validation error: {str(ve)}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/reorder", response_model=VyOSResponse)
@@ -675,4 +678,5 @@ async def reorder_nat_rules(http_request: Request, request: ReorderNATRequest):
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=f"Validation error: {str(ve)}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")

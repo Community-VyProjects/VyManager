@@ -14,6 +14,8 @@ from vyos_builders import StaticRoutesBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 import inspect
+import logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/static-routes", tags=["static-routes"])
 
@@ -246,7 +248,8 @@ async def get_static_routes_capabilities(request: Request):
             capabilities["instance_id"] = request.state.instance.get("id")
         return capabilities
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -348,7 +351,8 @@ async def get_static_routes_config(http_request: Request, refresh: bool = False)
         )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 def parse_route_config(destination: str, route_config: dict, route_type: str) -> StaticRoute:
@@ -743,7 +747,8 @@ async def static_routes_batch_configure(http_request: Request, body: StaticRoute
             error=response.error if response.error else None
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -796,7 +801,8 @@ async def arp_batch_configure(http_request: Request, body: ArpBatchRequest):
             error=response.error if response.error else None
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -845,7 +851,8 @@ async def mroute_batch_configure(http_request: Request, body: MrouteBatchRequest
             error=response.error if response.error else None
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -896,7 +903,8 @@ async def neighbor_proxy_batch_configure(http_request: Request, body: NeighborPr
             error=response.error if response.error else None
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -945,7 +953,8 @@ async def table_batch_configure(http_request: Request, body: RoutingTableBatchRe
             error=response.error if response.error else None
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -999,4 +1008,5 @@ async def table_route_batch_configure(http_request: Request, body: TableRouteBat
             error=response.error if response.error else None
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
