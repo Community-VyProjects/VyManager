@@ -58,15 +58,8 @@ class ConfigService {
   /**
    * Force refresh the configuration cache
    */
-  async refreshConfig(): Promise<any> {
+  async refreshConfig(): Promise<{ success: boolean; message: string }> {
     return apiClient.post("/vyos/config/refresh");
-  }
-
-  /**
-   * Initialize the snapshot with current config
-   */
-  async initializeSnapshot(): Promise<any> {
-    return apiClient.post("/vyos/config/initialize-snapshot");
   }
 }
 
