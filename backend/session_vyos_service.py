@@ -84,7 +84,7 @@ def get_session_vyos_service(request: Request) -> VyOSService:
 
         config = VyOSDeviceConfig(
             hostname=instance["host"],
-            apikey=instance["api_key"],  # VyOS API key from database
+            apikey=instance["api_key"].value,  # unwrap _SecureStr to get the actual key
             version=version,
             protocol=protocol,
             port=instance.get("port", 443),

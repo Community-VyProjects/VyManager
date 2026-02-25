@@ -13,6 +13,29 @@ import asyncpg
 from typing import Optional
 
 
+class _SecureStr:
+    """Wraps a sensitive string to prevent accidental logging or serialization.
+
+    repr() and str() return '[REDACTED]' so the value never appears in logs.
+    JSON serialization raises TypeError to prevent accidental data exposure.
+    Use .value to access the underlying string only where it is explicitly needed.
+    """
+    __slots__ = ("_value",)
+
+    def __init__(self, value: str):
+        self._value = value
+
+    @property
+    def value(self) -> str:
+        return self._value
+
+    def __repr__(self) -> str:
+        return "'[REDACTED]'"
+
+    def __str__(self) -> str:
+        return "[REDACTED]"
+
+
 class SessionMiddleware(BaseHTTPMiddleware):
     """
     Middleware to resolve active VyOS instance for authenticated users.
@@ -179,15 +202,15 @@ class SessionMiddleware(BaseHTTPMiddleware):
                             )
 
                 if session:
-                    # User has an active session - inject instance details
+                    # User has an active session - inject instance details.
+                    # api_key is wrapped in _SecureStr so it never appears in logs.
+                    # Legacy username/password fields are omitted (always empty, never used).
                     request.state.instance = {
                         "id": session["instance_id"],
                         "name": session["instance_name"],
                         "host": session["host"],
                         "port": session["port"],
-                        "username": session["username"],
-                        "password": session["password"],  # API key
-                        "api_key": session["api_key"],
+                        "api_key": _SecureStr(session["api_key"] or ""),
                         "is_active": session["is_active"],
                         "vyos_version": session.get("vyos_version"),
                         "protocol": session.get("protocol"),
