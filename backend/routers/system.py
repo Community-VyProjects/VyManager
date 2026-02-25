@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any
 
 from session_vyos_service import get_session_vyos_service
-from fastapi_permissions import require_write_permission
+from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 from vyos_mappers import CommandMapperRegistry
 
@@ -80,6 +80,7 @@ async def get_system_info(request: Request) -> SystemInfo:
     - connection_host: The hostname/IP we're connected to
     - connected: Whether we can connect to the device
     """
+    await require_read_permission(request, FeatureGroup.SYSTEM)
     try:
         service = get_session_vyos_service(request)
         instance = request.state.instance
@@ -123,6 +124,7 @@ async def get_system_config(request: Request, refresh: bool = False) -> SystemCo
     Returns:
         SystemConfig with generalized system settings
     """
+    await require_read_permission(request, FeatureGroup.SYSTEM)
     try:
         service = get_session_vyos_service(request)
 
@@ -174,6 +176,7 @@ async def get_system_capabilities(request: Request) -> Dict[str, Any]:
     Get system-related capabilities for the active instance (e.g. performance options per VyOS version).
     Frontend uses this to adapt UI (e.g. show only throughput/latency on 1.4, all five on 1.5).
     """
+    await require_read_permission(request, FeatureGroup.SYSTEM)
     try:
         service = get_session_vyos_service(request)
         version = service.get_version()

@@ -6,12 +6,13 @@ import asyncpg
 import asyncio
 from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
 
 from middleware.auth import AuthenticationMiddleware
 from middleware.session import SessionMiddleware
+from fastapi_permissions import get_user_feature_permissions
 
 # Import routers
 from routers.session import session as session_router
@@ -232,6 +233,19 @@ app.add_middleware(SessionMiddleware)
 # Added SECOND but runs FIRST (middleware executes in reverse order)
 # The middleware will get db_pool from app.state when processing requests
 app.add_middleware(AuthenticationMiddleware)
+
+
+# ============================================================================
+# Permissions Endpoint
+# ============================================================================
+
+@app.get("/vyos/permissions", tags=["permissions"])
+async def get_permissions(request: Request) -> dict:
+    """
+    Get all feature permissions for the authenticated user on their active instance.
+    Used by the frontend to conditionally show/hide UI elements based on permissions.
+    """
+    return await get_user_feature_permissions(request)
 
 
 # ============================================================================
