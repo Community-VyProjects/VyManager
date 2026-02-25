@@ -90,6 +90,9 @@ def get_session_vyos_service(request: Request) -> VyOSService:
             port=instance.get("port", 443),
             verify=verify,
             timeout=30,
+            commit_confirm_enabled=instance.get("commit_confirm_enabled") or False,
+            commit_confirm_minutes=instance.get("commit_confirm_minutes") or 5,
+            instance_id=instance_id,
         )
 
         # Register the service
