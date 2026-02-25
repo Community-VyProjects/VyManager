@@ -124,7 +124,7 @@ class WireGuardService {
   /**
    * Refresh the cached configuration
    */
-  async refreshConfig(): Promise<any> {
+  async refreshConfig(): Promise<VyOSResponse> {
     return apiClient.post("/vyos/config/refresh");
   }
 

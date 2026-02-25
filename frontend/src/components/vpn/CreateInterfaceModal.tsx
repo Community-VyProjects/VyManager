@@ -26,6 +26,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { wireguardService, WireGuardCapabilities } from "@/lib/api/wireguard";
+import { ApiError } from "@/lib/types/api";
 
 interface CreateInterfaceModalProps {
   open: boolean;
@@ -81,8 +82,8 @@ export function CreateInterfaceModal({
         // Try to parse from raw output
         setError("Key generated but couldn't parse. Raw output: " + result.raw_output);
       }
-    } catch (err: any) {
-      setError(err.message || "Failed to generate keypair");
+    } catch (err) {
+      setError((err as ApiError).message || "Failed to generate keypair");
     } finally {
       setGenerating(false);
     }
@@ -182,8 +183,8 @@ export function CreateInterfaceModal({
       } else {
         setError(result.error || "Failed to create interface");
       }
-    } catch (err: any) {
-      setError(err.message || "Failed to create interface");
+    } catch (err) {
+      setError((err as ApiError).message || "Failed to create interface");
     } finally {
       setLoading(false);
     }

@@ -27,6 +27,7 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { ApiError } from "@/lib/types/api";
 
 // Sortable card wrapper component
 function SortableCard({ card, children }: { card: DashboardCard; children: React.ReactNode }) {
@@ -113,6 +114,7 @@ export default function Home() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [saving, setSaving] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [canEditDashboard, setCanEditDashboard] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -142,9 +144,9 @@ export default function Home() {
       } else {
         setCards([]);
       }
-    } catch (err: any) {
+    } catch (err) {
       // Extract error message for logging
-      const errorMessage = err?.message || err?.error || err?.detail || "Unknown error";
+      const errorMessage = (err as ApiError).message || (err as ApiError).message || (err as ApiError).message || "Unknown error";
       console.error("Failed to load dashboard layout:", errorMessage);
     }
   };
@@ -186,6 +188,18 @@ export default function Home() {
       const sessionLoaded = await loadSession();
       // Always try to load dashboard - the API will return empty if no layout exists
       await loadDashboard();
+
+      // Check if user has permission to edit the dashboard layout
+      try {
+        const perms = await fetch("/api/vyos/permissions", { credentials: "include" });
+        if (perms.ok) {
+          const data = await perms.json();
+          setCanEditDashboard(data["DASHBOARD"] === "WRITE");
+        }
+      } catch {
+        // If permissions check fails, default to no edit access
+      }
+
       setIsChecking(false);
     };
 
@@ -473,40 +487,44 @@ export default function Home() {
               </p>
             </div>
             <div className="flex items-center gap-2">
-              {hasUnsavedChanges && (
+              {canEditDashboard && (
                 <>
-                  <Button variant="outline" onClick={handleCancel} disabled={saving}>
-                    <X className="h-4 w-4 mr-2" />
-                    Cancel
-                  </Button>
-                  <Button onClick={handleSave} disabled={saving}>
-                    <Save className="h-4 w-4 mr-2" />
-                    {saving ? "Saving..." : "Save Layout"}
+                  {hasUnsavedChanges && (
+                    <>
+                      <Button variant="outline" onClick={handleCancel} disabled={saving}>
+                        <X className="h-4 w-4 mr-2" />
+                        Cancel
+                      </Button>
+                      <Button onClick={handleSave} disabled={saving}>
+                        <Save className="h-4 w-4 mr-2" />
+                        {saving ? "Saving..." : "Save Layout"}
+                      </Button>
+                    </>
+                  )}
+                  {editMode && (
+                    <Button onClick={() => setAddCardModalOpen(true)}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Card
+                    </Button>
+                  )}
+                  <Button
+                    variant={editMode ? "default" : "outline"}
+                    onClick={() => setEditMode(!editMode)}
+                  >
+                    {editMode ? (
+                      <>
+                        <X className="h-4 w-4 mr-2" />
+                        Exit Edit
+                      </>
+                    ) : (
+                      <>
+                        <Edit3 className="h-4 w-4 mr-2" />
+                        Edit Dashboard
+                      </>
+                    )}
                   </Button>
                 </>
               )}
-              {editMode && (
-                <Button onClick={() => setAddCardModalOpen(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Card
-                </Button>
-              )}
-              <Button
-                variant={editMode ? "default" : "outline"}
-                onClick={() => setEditMode(!editMode)}
-              >
-                {editMode ? (
-                  <>
-                    <X className="h-4 w-4 mr-2" />
-                    Exit Edit
-                  </>
-                ) : (
-                  <>
-                    <Edit3 className="h-4 w-4 mr-2" />
-                    Edit Dashboard
-                  </>
-                )}
-              </Button>
             </div>
           </div>
 
@@ -566,7 +584,9 @@ export default function Home() {
         {cards.length === 0 && !editMode ? (
           <div className="text-center py-12">
             <p className="text-muted-foreground mb-4">
-              Your dashboard is empty. Click &quot;Edit Dashboard&quot; to add cards.
+              {canEditDashboard
+                ? "Your dashboard is empty. Click \"Edit Dashboard\" to add cards."
+                : "Your dashboard is empty."}
             </p>
           </div>
         ) : (

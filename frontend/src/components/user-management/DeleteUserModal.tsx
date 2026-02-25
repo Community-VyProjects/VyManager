@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Loader2, AlertCircle, AlertTriangle } from "lucide-react";
 import { userManagementService, UserListItem } from "@/lib/api/user-management";
+import { ApiError } from "@/lib/types/api";
 
 interface DeleteUserModalProps {
   open: boolean;
@@ -37,8 +38,8 @@ export function DeleteUserModal({ open, onOpenChange, user, onSuccess }: DeleteU
       await userManagementService.deleteUser(user.id);
       handleClose();
       onSuccess();
-    } catch (err: any) {
-      setError(err.message || "Failed to delete user");
+    } catch (err) {
+      setError((err as ApiError).message || "Failed to delete user");
     } finally {
       setLoading(false);
     }

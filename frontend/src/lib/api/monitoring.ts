@@ -44,6 +44,10 @@ export interface MonitoringCommandsResponse {
   commands: MonitoringCommand[];
 }
 
+export interface MonitoringStatus {
+  configured: boolean;
+}
+
 export interface MonitoringMessage {
   type: "ready" | "output" | "status" | "error" | "stopped";
   data?: string;
@@ -97,6 +101,14 @@ class MonitoringService {
     return apiClient.delete<GenericResponse>(
       `/vyos/monitoring/instances/${instanceId}/ssh-key`
     );
+  }
+
+  /**
+   * Get SSH monitoring availability for the current user's active instance.
+   * Accessible to any user with MONITORING read permission (not admin-only).
+   */
+  async getMonitoringStatus(): Promise<MonitoringStatus> {
+    return apiClient.get<MonitoringStatus>("/vyos/monitoring/status");
   }
 
   /**

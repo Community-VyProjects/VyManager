@@ -12,6 +12,8 @@ from typing import List, Dict, Optional, Any
 from session_vyos_service import get_session_vyos_service
 from vyos_builders import BridgeFirewallBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission, FeatureGroup
+import logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/firewall/bridge", tags=["firewall-bridge"])
 
@@ -214,7 +216,8 @@ async def get_bridge_capabilities(request: Request):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/interfaces", response_model=InterfaceListResponse)
@@ -313,7 +316,8 @@ async def get_available_interfaces(request: Request):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/config", response_model=BridgeConfigResponse)
@@ -381,7 +385,8 @@ async def get_bridge_config(request: Request, refresh: bool = False):
     except KeyError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 def parse_chain(chain_name: str, chain_data: dict) -> BridgeChain:
@@ -1499,7 +1504,8 @@ async def configure_bridge_batch(http_request: Request, request: BridgeBatchRequ
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # Reorder request models
@@ -1771,4 +1777,5 @@ async def reorder_bridge_rules(http_request: Request, request: ReorderRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")

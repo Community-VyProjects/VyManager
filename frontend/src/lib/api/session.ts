@@ -8,6 +8,7 @@
  */
 
 import { apiClient } from "./client";
+import { ApiError } from "@/lib/types/api";
 
 // ============================================================================
 // TypeScript Interfaces
@@ -30,6 +31,7 @@ export interface Instance {
   host: string;
   port: number;
   protocol: string;
+  verify_ssl: boolean;
   vyos_version?: string | null;
   is_active: boolean;
   ssh_port: number;
@@ -137,9 +139,9 @@ class SessionService {
   async getCurrentSession(): Promise<ActiveSession | null> {
     try {
       return await apiClient.get<ActiveSession>("/session/current");
-    } catch (error: any) {
+    } catch (error) {
       // Return null if no session (expected when user hasn't connected)
-      if (error.status === 404 || error.status === 400) {
+      if ((error as ApiError).status === 404 || (error as ApiError).status === 400) {
         return null;
       }
       throw error;

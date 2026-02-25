@@ -52,6 +52,7 @@ import { ImportCSVModal } from "@/components/session/ImportCSVModal";
 import { UserManagement } from "@/components/user-management/UserManagement";
 import { AuthenticationSettings } from "@/components/authentication/AuthenticationSettings";
 import { cn } from "@/lib/utils";
+import { ApiError } from "@/lib/types/api";
 
 type NavSection = "sites" | "user-management" | "authentication";
 
@@ -128,8 +129,8 @@ export default function SitesPage() {
         loadSession(),
       ]);
       setSites(sitesData);
-    } catch (err: any) {
-      setError(err.message || "Failed to load data");
+    } catch (err) {
+      setError((err as ApiError).message || "Failed to load data");
     } finally {
       setLoading(false);
     }
@@ -140,7 +141,7 @@ export default function SitesPage() {
     try {
       const data = await sessionService.listInstances(siteId);
       setInstances(data);
-    } catch (err: any) {
+    } catch (err) {
       console.error("Error loading instances:", err);
       setInstances([]);
     } finally {
@@ -220,9 +221,9 @@ export default function SitesPage() {
   const handleExportCSV = async () => {
     try {
       await sessionService.exportCSV();
-    } catch (err: any) {
+    } catch (err) {
       console.error("Export failed:", err);
-      setError(err.message || "Failed to export CSV");
+      setError((err as ApiError).message || "Failed to export CSV");
     }
   };
 

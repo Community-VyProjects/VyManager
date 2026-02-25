@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { wireguardService, WireGuardPeer } from "@/lib/api/wireguard";
+import { ApiError } from "@/lib/types/api";
 
 interface DeletePeerModalProps {
   open: boolean;
@@ -46,8 +47,8 @@ export function DeletePeerModal({
       } else {
         setError(result.error || "Failed to delete peer");
       }
-    } catch (err: any) {
-      setError(err.message || "Failed to delete peer");
+    } catch (err) {
+      setError((err as ApiError).message || "Failed to delete peer");
     } finally {
       setLoading(false);
     }

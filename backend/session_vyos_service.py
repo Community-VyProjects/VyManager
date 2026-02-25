@@ -8,6 +8,9 @@ Replaces the single-device pattern with dynamic multi-instance support.
 from fastapi import Request, HTTPException
 from typing import Optional
 from vyos_service import VyOSService, VyOSDeviceConfig, VyOSDeviceRegistry
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 # Global registry for session-based VyOS services
@@ -81,7 +84,7 @@ def get_session_vyos_service(request: Request) -> VyOSService:
 
         config = VyOSDeviceConfig(
             hostname=instance["host"],
-            apikey=instance["api_key"],  # VyOS API key from database
+            apikey=instance["api_key"].value,  # unwrap _SecureStr to get the actual key
             version=version,
             protocol=protocol,
             port=instance.get("port", 443),
@@ -98,14 +101,15 @@ def get_session_vyos_service(request: Request) -> VyOSService:
             service.get_full_config()
         except Exception as e:
             # Log warning but don't fail - config will be fetched on first use
-            print(f"[SessionVyOSService] Warning: Could not pre-cache config for instance {instance_id}: {type(e).__name__}: {str(e)}")
+            logger.warning("Could not pre-cache config for instance %s: %s", instance_id, type(e).__name__)
 
         return service
 
     except Exception as e:
+        logger.exception("Failed to create VyOS service for instance %s", instance.get("id", "unknown"))
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to create VyOS service: {str(e)}"
+            detail="Internal server error"
         )
 
 

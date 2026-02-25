@@ -14,6 +14,8 @@ from vyos_builders import FirewallGlobalOptionsBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 import inspect
+import logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/firewall/global-options", tags=["firewall-global-options"])
 
@@ -146,7 +148,8 @@ async def get_firewall_global_options_capabilities(request: Request):
             capabilities["instance_id"] = request.state.instance.get("id")
         return capabilities
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -190,7 +193,8 @@ async def get_firewall_global_options_config(http_request: Request, refresh: boo
         )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 def parse_global_options(data: dict) -> FirewallGlobalOptionsConfig:
@@ -354,7 +358,8 @@ async def firewall_global_options_batch_configure(http_request: Request, body: G
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -406,7 +411,8 @@ async def update_firewall_global_options(http_request: Request, config: Firewall
             error=response.error if response.error else None
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 def _build_basic_options(builder: FirewallGlobalOptionsBatchBuilder, config: FirewallGlobalOptionsConfig, current: dict):

@@ -1,4 +1,5 @@
 import { apiClient } from "./client";
+import { VyOSResponse } from "@/lib/types/api";
 
 // ============================================================================
 // TypeScript Interfaces
@@ -37,7 +38,7 @@ class DashboardService {
   /**
    * Save the user's dashboard layout
    */
-  async saveLayout(layout: DashboardLayout): Promise<any> {
+  async saveLayout(layout: DashboardLayout): Promise<VyOSResponse> {
     return apiClient.post("/dashboard/layout", { layout });
   }
 }

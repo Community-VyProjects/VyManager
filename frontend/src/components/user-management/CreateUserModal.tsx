@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, AlertCircle } from "lucide-react";
 import { userManagementService, SiteRole } from "@/lib/api/user-management";
+import { ApiError } from "@/lib/types/api";
 
 interface CreateUserModalProps {
   open: boolean;
@@ -79,8 +80,8 @@ export function CreateUserModal({ open, onOpenChange, onSuccess }: CreateUserMod
 
       handleClose();
       onSuccess();
-    } catch (err: any) {
-      setError(err.message || "Failed to create user");
+    } catch (err) {
+      setError((err as ApiError).message || "Failed to create user");
     } finally {
       setLoading(false);
     }

@@ -2,11 +2,13 @@ import json
 import logging
 import os
 import time
+import warnings
 from abc import ABC
 from dataclasses import dataclass
 from typing import Tuple, List, Union, Dict, Any, Optional
 
 import requests
+import urllib3
 from requests import Response
 from requests.exceptions import (
     HTTPError,
@@ -294,6 +296,17 @@ class RestClient(ABC):
     ) -> requests.Response:
         """Sends HTTP request with error handling."""
         try:
+            if not verify:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", urllib3.exceptions.InsecureRequestWarning)
+                    return requests.request(
+                        method=method.upper(),
+                        url=url,
+                        verify=verify,
+                        data=payload,
+                        timeout=timeout,
+                        headers=headers,
+                    )
             return requests.request(
                 method=method.upper(),
                 url=url,

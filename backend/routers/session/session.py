@@ -16,6 +16,9 @@ import csv
 import io
 from vyos_service import VyOSService, VyOSDeviceConfig
 from session_vyos_service import clear_session_cache
+from session_cookie import verify_session_cookie
+import logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/session", tags=["session"])
 
@@ -67,6 +70,7 @@ class InstanceResponse(BaseModel):
     host: str
     port: int
     protocol: str = "https"
+    verify_ssl: bool = False
     is_active: bool
     vyos_version: Optional[str] = None
     ssh_port: int = 22
@@ -163,7 +167,8 @@ async def get_onboarding_status(request: Request):
                 user_count=user_count
             )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -226,7 +231,8 @@ async def get_current_session(request: Request):
             )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -333,11 +339,10 @@ async def connect_to_instance(request: Request, body: ConnectRequest):
                     detail=f"Failed to connect to VyOS instance: {error_msg}. Please verify the host, port, API key, and network connectivity.",
                 )
 
-            # Get current auth session token from cookie
+            # Get current auth session token from cookie and verify its signature
             # This allows us to track which auth session created this VyOS connection
             cookie_token = request.cookies.get("better-auth.session_token")
-            # Extract session ID (everything before the first dot)
-            current_session_token = cookie_token.split(".")[0] if cookie_token else None
+            current_session_token = verify_session_cookie(cookie_token) if cookie_token else None
 
             # Create or update active session (upsert)
             # Generate a 32-character ID similar to CUIDs used elsewhere in the database
@@ -375,7 +380,8 @@ async def connect_to_instance(request: Request, body: ConnectRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -427,7 +433,8 @@ async def disconnect_from_instance(request: Request):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -530,7 +537,8 @@ async def list_user_sites(request: Request):
                 ]
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -573,7 +581,7 @@ async def list_site_instances(request: Request, site_id: str):
                 # Site ADMINs see ALL instances in the site
                 instances = await conn.fetch(
                     """
-                    SELECT id, "siteId", name, description, host, port, protocol, "isActive",
+                    SELECT id, "siteId", name, description, host, port, protocol, "verifySsl", "isActive",
                            "vyosVersion", "sshPort", "sshUsername", "sshKeyConfigured",
                            "createdAt", "updatedAt"
                     FROM instances
@@ -586,7 +594,7 @@ async def list_site_instances(request: Request, site_id: str):
                 # Regular users see only instances they have explicit access to
                 instances = await conn.fetch(
                     """
-                    SELECT DISTINCT i.id, i."siteId", i.name, i.description, i.host, i.port, i.protocol, i."isActive",
+                    SELECT DISTINCT i.id, i."siteId", i.name, i.description, i.host, i.port, i.protocol, i."verifySsl", i."isActive",
                            i."vyosVersion", i."sshPort", i."sshUsername", i."sshKeyConfigured",
                            i."createdAt", i."updatedAt"
                     FROM instances i
@@ -610,6 +618,7 @@ async def list_site_instances(request: Request, site_id: str):
                     host=inst["host"],
                     port=inst["port"],
                     protocol=inst.get("protocol") or "https",
+                    verify_ssl=inst.get("verifySsl") or False,
                     vyos_version=inst.get("vyosVersion"),
                     is_active=inst["isActive"],
                     ssh_port=inst["sshPort"],
@@ -624,7 +633,8 @@ async def list_site_instances(request: Request, site_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -698,7 +708,8 @@ async def create_site(request: Request, body: SiteCreateRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.put("/sites/{site_id}", response_model=SiteResponse)
@@ -784,7 +795,8 @@ async def update_site(request: Request, site_id: str, body: SiteUpdateRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.delete("/sites/{site_id}", response_model=ApiResponse)
@@ -848,7 +860,8 @@ async def delete_site(request: Request, site_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -913,7 +926,7 @@ async def create_instance(request: Request, body: InstanceCreateRequest):
                     "createdAt", "updatedAt"
                 )
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW(), NOW())
-                RETURNING id, "siteId", name, description, host, port, "vyosVersion",
+                RETURNING id, "siteId", name, description, host, port, protocol, "verifySsl", "vyosVersion",
                           "isActive", "sshPort", "sshUsername", "sshKeyConfigured",
                           "createdAt", "updatedAt"
                 """,
@@ -943,6 +956,8 @@ async def create_instance(request: Request, body: InstanceCreateRequest):
                 description=instance["description"],
                 host=instance["host"],
                 port=instance["port"],
+                protocol=instance["protocol"] or "https",
+                verify_ssl=instance["verifySsl"] or False,
                 vyos_version=instance["vyosVersion"],
                 is_active=instance["isActive"],
                 ssh_port=instance["sshPort"],
@@ -955,7 +970,8 @@ async def create_instance(request: Request, body: InstanceCreateRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.put("/instances/{instance_id}", response_model=InstanceResponse)
@@ -1084,7 +1100,7 @@ async def update_instance(request: Request, instance_id: str, body: InstanceUpda
                 # No fields to update, return current instance
                 instance = await conn.fetchrow(
                     """
-                    SELECT id, "siteId", name, description, host, port, "vyosVersion",
+                    SELECT id, "siteId", name, description, host, port, protocol, "verifySsl", "vyosVersion",
                            "isActive", "sshPort", "sshUsername", "sshKeyConfigured",
                            "createdAt", "updatedAt"
                     FROM instances WHERE id = $1
@@ -1097,7 +1113,7 @@ async def update_instance(request: Request, instance_id: str, body: InstanceUpda
                     UPDATE instances
                     SET {', '.join(updates)}
                     WHERE id = $1
-                    RETURNING id, "siteId", name, description, host, port, "vyosVersion",
+                    RETURNING id, "siteId", name, description, host, port, protocol, "verifySsl", "vyosVersion",
                               "isActive", "sshPort", "sshUsername", "sshKeyConfigured",
                               "createdAt", "updatedAt"
                 """
@@ -1106,6 +1122,9 @@ async def update_instance(request: Request, instance_id: str, body: InstanceUpda
             if not instance:
                 raise HTTPException(status_code=404, detail="Instance not found")
 
+            # Invalidate cached VyOS service so changes take effect immediately
+            clear_session_cache(instance_id)
+
             return InstanceResponse(
                 id=instance["id"],
                 site_id=instance["siteId"],
@@ -1113,6 +1132,8 @@ async def update_instance(request: Request, instance_id: str, body: InstanceUpda
                 description=instance["description"],
                 host=instance["host"],
                 port=instance["port"],
+                protocol=instance["protocol"] or "https",
+                verify_ssl=instance["verifySsl"] or False,
                 vyos_version=instance["vyosVersion"],
                 is_active=instance["isActive"],
                 ssh_port=instance["sshPort"],
@@ -1125,7 +1146,8 @@ async def update_instance(request: Request, instance_id: str, body: InstanceUpda
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.delete("/instances/{instance_id}", response_model=ApiResponse)
@@ -1190,7 +1212,8 @@ async def delete_instance(request: Request, instance_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -1296,7 +1319,8 @@ async def export_sites_and_instances_csv(request: Request):
             )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Export error: {str(e)}")
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/import-csv", response_model=ApiResponse)
@@ -1513,7 +1537,8 @@ async def import_sites_and_instances_csv(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Import error: {str(e)}")
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -1562,10 +1587,9 @@ async def get_active_auth_sessions(request: Request):
     # Get current session token from cookie
     cookie_token = request.cookies.get("better-auth.session_token")
 
-    # Better-auth stores compound tokens in the format: {session_id}.{signature}
-    # But the database only stores the session_id part
-    # Extract just the session ID (everything before the first dot)
-    current_token = cookie_token.split(".")[0] if cookie_token else None
+    # Better-auth stores compound tokens in the format: {session_id}.{base64(HMAC-SHA256)}
+    # Verify the signature and extract the session ID
+    current_token = verify_session_cookie(cookie_token) if cookie_token else None
 
     db_pool: asyncpg.Pool = request.app.state.db_pool
     if not db_pool:
@@ -1607,7 +1631,8 @@ async def get_active_auth_sessions(request: Request):
             )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/revoke-session", response_model=ApiResponse)
@@ -1623,11 +1648,9 @@ async def revoke_auth_session(request: Request, body: RevokeSessionRequest):
     user = request.state.user
     user_id = user["id"]
 
-    # Get current session token to prevent self-logout
+    # Get current session token to prevent self-logout; verify its signature
     cookie_token = request.cookies.get("better-auth.session_token")
-
-    # Extract session ID from compound token (format: {session_id}.{signature})
-    current_token = cookie_token.split(".")[0] if cookie_token else None
+    current_token = verify_session_cookie(cookie_token) if cookie_token else None
 
     if body.session_token == current_token:
         raise HTTPException(
@@ -1679,4 +1702,5 @@ async def revoke_auth_session(request: Request, body: RevokeSessionRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")

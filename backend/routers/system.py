@@ -10,9 +10,11 @@ from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any
 
 from session_vyos_service import get_session_vyos_service
-from fastapi_permissions import require_write_permission
+from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 from vyos_mappers import CommandMapperRegistry
+import logging
+logger = logging.getLogger(__name__)
 
 # Router for system endpoints
 router = APIRouter(prefix="/vyos/system", tags=["system"])
@@ -80,6 +82,7 @@ async def get_system_info(request: Request) -> SystemInfo:
     - connection_host: The hostname/IP we're connected to
     - connected: Whether we can connect to the device
     """
+    await require_read_permission(request, FeatureGroup.SYSTEM)
     try:
         service = get_session_vyos_service(request)
         instance = request.state.instance
@@ -105,7 +108,8 @@ async def get_system_info(request: Request) -> SystemInfo:
             connected=connected,
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error retrieving system info: {str(e)}")
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/config", response_model=SystemConfig)
@@ -123,6 +127,7 @@ async def get_system_config(request: Request, refresh: bool = False) -> SystemCo
     Returns:
         SystemConfig with generalized system settings
     """
+    await require_read_permission(request, FeatureGroup.SYSTEM)
     try:
         service = get_session_vyos_service(request)
 
@@ -165,7 +170,8 @@ async def get_system_config(request: Request, refresh: bool = False) -> SystemCo
             raw_config=system_config,
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error retrieving system config: {str(e)}")
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/capabilities")
@@ -174,6 +180,7 @@ async def get_system_capabilities(request: Request) -> Dict[str, Any]:
     Get system-related capabilities for the active instance (e.g. performance options per VyOS version).
     Frontend uses this to adapt UI (e.g. show only throughput/latency on 1.4, all five on 1.5).
     """
+    await require_read_permission(request, FeatureGroup.SYSTEM)
     try:
         service = get_session_vyos_service(request)
         version = service.get_version()
@@ -188,7 +195,8 @@ async def get_system_capabilities(request: Request) -> Dict[str, Any]:
             "performance_options": performance_options,
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.patch("/config/performance", response_model=PerformanceUpdateResponse)
@@ -238,4 +246,5 @@ async def update_system_performance(request: Request, body: PerformanceUpdateReq
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")

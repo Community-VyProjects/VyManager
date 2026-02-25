@@ -14,6 +14,8 @@ from vyos_builders import OspfBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 import inspect
+import logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/ospf", tags=["ospf"])
 
@@ -244,7 +246,8 @@ async def get_ospf_capabilities(request: Request):
             capabilities["instance_id"] = request.state.instance.get("id")
         return capabilities
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -291,7 +294,8 @@ async def get_ospf_config(http_request: Request, refresh: bool = False):
             capability_opaque="opaque" in (ospf_config.get("capability", {}) or {}) if isinstance(ospf_config.get("capability"), dict) else False,
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -684,4 +688,5 @@ async def ospf_batch_configure(http_request: Request, body: OspfBatchRequest):
     except AttributeError as e:
         raise HTTPException(status_code=400, detail=f"Unknown operation: {str(e)}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")

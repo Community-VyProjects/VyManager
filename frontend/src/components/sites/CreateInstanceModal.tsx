@@ -24,6 +24,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { AlertCircle, Loader2, Server } from "lucide-react";
 import { sessionService, Site } from "@/lib/api/session";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ApiError } from "@/lib/types/api";
 
 interface CreateInstanceModalProps {
   open: boolean;
@@ -116,8 +117,8 @@ export function CreateInstanceModal({
 
       handleClose();
       onSuccess();
-    } catch (err: any) {
-      setError(err.message || "Failed to create instance");
+    } catch (err) {
+      setError((err as ApiError).message || "Failed to create instance");
     } finally {
       setLoading(false);
     }

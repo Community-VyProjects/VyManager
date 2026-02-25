@@ -10,6 +10,11 @@ from rbac_permissions import FeatureGroup
 
 router = APIRouter(prefix="/vyos/high-availability", tags=["high-availability"])
 
+# Builder infrastructure methods that must never be invokable via the batch API
+_INTERNAL_BUILDER_METHODS = frozenset({
+    "add_set", "add_delete", "get_operations", "is_empty", "clear", "operation_count",
+})
+
 
 class BatchOperation(BaseModel):
     op: str = Field(..., description="Builder method name to call")
@@ -52,9 +57,11 @@ async def batch_configure(http_request: Request, request: BatchRequest):
     batch = HighAvailabilityBatchBuilder(version=service.get_version())
 
     for op in request.operations:
+        if op.op.startswith("_") or op.op in _INTERNAL_BUILDER_METHODS:
+            raise HTTPException(status_code=400, detail=f"Invalid operation: {op.op}")
         method = getattr(batch, op.op, None)
-        if method is None:
-            return VyOSResponse(success=False, error=f"Unknown operation: {op.op}")
+        if not callable(method):
+            raise HTTPException(status_code=400, detail=f"Unknown operation: {op.op}")
 
         sig = inspect.signature(method)
         params = [p for p in sig.parameters.keys() if p != "self"]

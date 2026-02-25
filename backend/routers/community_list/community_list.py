@@ -14,6 +14,8 @@ from vyos_builders import CommunityListBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 import inspect
+import logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/community-list", tags=["community-list"])
 
@@ -115,7 +117,8 @@ async def get_community_list_capabilities(request: Request):
             capabilities["instance_id"] = request.state.instance.get("id")
         return capabilities
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -153,7 +156,8 @@ async def get_community_list_config(http_request: Request, refresh: bool = False
         return CommunityListConfig(community_lists=community_lists, total=len(community_lists))
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 def parse_community_list(name: str, cl_data: dict) -> CommunityList:
@@ -242,7 +246,8 @@ async def community_list_batch_configure(http_request: Request, body: CommunityL
             error=response.error if response.error else None
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -305,4 +310,5 @@ async def reorder_community_list_rules(http_request: Request, body: ReorderCommu
             error=response.error if response.error else None
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")

@@ -24,7 +24,7 @@ import {
   Square,
   X,
 } from "lucide-react";
-import { monitoringService, MonitoringCommand, SSHKeyStatus } from "@/lib/api/monitoring";
+import { monitoringService, MonitoringCommand, MonitoringStatus } from "@/lib/api/monitoring";
 import { sessionService, ActiveSession } from "@/lib/api/session";
 import { showService, InterfaceName } from "@/lib/api/show";
 import { useMonitoringWebSocket } from "@/hooks/useMonitoringWebSocket";
@@ -51,7 +51,7 @@ function getTableView(command: string): TableView | null {
 
 export default function MonitoringPage() {
   const [session, setSession] = useState<ActiveSession | null>(null);
-  const [sshStatus, setSSHStatus] = useState<SSHKeyStatus | null>(null);
+  const [sshStatus, setSSHStatus] = useState<MonitoringStatus | null>(null);
   const [commands, setCommands] = useState<MonitoringCommand[]>([]);
   const [interfaces, setInterfaces] = useState<InterfaceName[]>([]);
   const [selectedCommand, setSelectedCommand] = useState<string>("");
@@ -90,7 +90,7 @@ export default function MonitoringPage() {
         if (!currentSession) return;
 
         const [statusData, commandsData, ifacesData] = await Promise.all([
-          monitoringService.getSSHKeyStatus(currentSession.instance_id),
+          monitoringService.getMonitoringStatus(),
           monitoringService.getCommands(),
           showService.getAllInterfaces().catch(() => ({ interfaces: [], total: 0 })),
         ]);

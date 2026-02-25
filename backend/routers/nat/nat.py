@@ -16,6 +16,11 @@ from rbac_permissions import FeatureGroup
 
 router = APIRouter(prefix="/vyos/nat", tags=["nat"])
 
+# Builder infrastructure methods that must never be invokable via the batch API
+_INTERNAL_BUILDER_METHODS = frozenset({
+    "add_set", "add_delete", "get_operations", "is_empty", "clear", "operation_count",
+})
+
 
 # Stub functions for backwards compatibility with app.py
 def set_device_registry(registry):
@@ -181,7 +186,8 @@ async def get_nat_capabilities(request: Request):
     except KeyError:
         raise HTTPException(status_code=404, detail="Device not found in registry")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/config", response_model=NATConfigResponse)
@@ -380,7 +386,8 @@ async def get_nat_config(http_request: Request, refresh: bool = False):
     except KeyError:
         raise HTTPException(status_code=404, detail="Device not found in registry")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/batch", response_model=VyOSResponse)
@@ -422,13 +429,11 @@ async def batch_configure_nat(http_request: Request, request: NATBatchRequest):
             logger.info(f"Processing operation: {op_name} with value: {op_value}")
 
             # Get the method from batch builder
-            if not hasattr(batch, op_name):
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Unknown operation: {op_name}"
-                )
-
-            method = getattr(batch, op_name)
+            if op_name.startswith("_") or op_name in _INTERNAL_BUILDER_METHODS:
+                raise HTTPException(status_code=400, detail=f"Invalid operation: {op_name}")
+            method = getattr(batch, op_name, None)
+            if not callable(method):
+                raise HTTPException(status_code=400, detail=f"Unknown operation: {op_name}")
 
             # Inspect method signature to determine parameters
             sig = inspect.signature(method)
@@ -520,7 +525,8 @@ async def batch_configure_nat(http_request: Request, request: NATBatchRequest):
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=f"Validation error: {str(ve)}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/reorder", response_model=VyOSResponse)
@@ -672,4 +678,5 @@ async def reorder_nat_rules(http_request: Request, request: ReorderNATRequest):
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=f"Validation error: {str(ve)}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")

@@ -14,6 +14,8 @@ from vyos_builders import BgpBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 import inspect
+import logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/bgp", tags=["bgp"])
 
@@ -315,7 +317,8 @@ async def get_bgp_capabilities(request: Request):
             capabilities["instance_id"] = request.state.instance.get("id")
         return capabilities
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -349,7 +352,8 @@ async def get_bgp_config(http_request: Request, refresh: bool = False):
             sid_vpn_per_vrf_export=_deep_get(bgp_config, "sid", "vpn", "per-vrf", "export"),
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -848,4 +852,5 @@ async def bgp_batch_configure(http_request: Request, body: BgpBatchRequest):
     except AttributeError as e:
         raise HTTPException(status_code=400, detail=f"Unknown operation: {str(e)}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")

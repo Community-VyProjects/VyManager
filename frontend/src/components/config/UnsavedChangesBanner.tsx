@@ -7,6 +7,7 @@ import { configService, type ConfigDiff } from "@/lib/api/config";
 import { ConfigDiffModal } from "./ConfigDiffModal";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/useToast";
+import { ApiError } from "@/lib/types/api";
 
 export function UnsavedChangesBanner() {
   const [diff, setDiff] = useState<ConfigDiff | null>(null);
@@ -24,9 +25,9 @@ export function UnsavedChangesBanner() {
         const diffResult = await configService.getDiff();
         setDiff(diffResult);
         setError(null);
-      } catch (err: any) {
+      } catch (err) {
         // Extract error message for logging and display
-        const errorMessage = err?.message || err?.error || err?.detail || "Failed to check for changes";
+        const errorMessage = (err as ApiError).message || (err as ApiError).message || (err as ApiError).message || "Failed to check for changes";
         console.error("Failed to check for config changes:", errorMessage);
         setError(errorMessage);
       } finally {
@@ -68,7 +69,7 @@ export function UnsavedChangesBanner() {
       setError(null);
     } catch (err) {
       console.error("Failed to save configuration:", err);
-      const errorMsg = err instanceof Error ? err.message : "Failed to save configuration";
+      const errorMsg = err instanceof Error ? (err as ApiError).message : "Failed to save configuration";
       setError(errorMsg);
       toast.error("Save Failed", errorMsg);
     } finally {

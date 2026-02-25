@@ -13,6 +13,7 @@ import { AlertCircle, Plus, X } from "lucide-react";
 import { routeService, RouteCapabilitiesResponse, MatchConditions, SetActions } from "@/lib/api/route";
 import { firewallGroupsService, FirewallGroup } from "@/lib/api/firewall-groups";
 import { apiClient } from "@/lib/api/client";
+import { ApiError } from "@/lib/types/api";
 
 interface EditRouteRuleModalProps {
   open: boolean;
@@ -497,8 +498,8 @@ export function EditRouteRuleModal({
 
       handleClose();
       onSuccess();
-    } catch (err: any) {
-      setError(err.message || "Failed to update rule");
+    } catch (err) {
+      setError((err as ApiError).message || "Failed to update rule");
     } finally {
       setLoading(false);
     }

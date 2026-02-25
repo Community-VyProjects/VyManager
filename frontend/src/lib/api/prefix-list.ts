@@ -1,4 +1,5 @@
 import { apiClient } from "./client";
+import { VyOSResponse } from "@/lib/types/api";
 
 // ============================================================================
 // TypeScript Interfaces
@@ -86,15 +87,15 @@ class PrefixListService {
   /**
    * Refresh the cached configuration
    */
-  async refreshConfig(): Promise<any> {
+  async refreshConfig(): Promise<VyOSResponse> {
     return apiClient.post("/vyos/config/refresh");
   }
 
   /**
    * Execute batch operations
    */
-  async batchConfigure(request: PrefixListBatchRequest): Promise<any> {
-    const result = await apiClient.post("/vyos/prefix-list/batch", request);
+  async batchConfigure(request: PrefixListBatchRequest): Promise<VyOSResponse> {
+    const result = await apiClient.post<VyOSResponse>("/vyos/prefix-list/batch", request);
     await this.refreshConfig();
     return result;
   }
@@ -106,8 +107,8 @@ class PrefixListService {
     name: string,
     listType: string,
     rules: Array<{ old_number: number; new_number: number; rule_data: PrefixListRule }>
-  ): Promise<any> {
-    const result = await apiClient.post("/vyos/prefix-list/reorder", {
+  ): Promise<VyOSResponse> {
+    const result = await apiClient.post<VyOSResponse>("/vyos/prefix-list/reorder", {
       name,
       list_type: listType,
       rules,
@@ -124,7 +125,7 @@ class PrefixListService {
     listType: string,
     description: string | null,
     rule: Partial<PrefixListRule>
-  ): Promise<any> {
+  ): Promise<VyOSResponse> {
     const operations: PrefixListBatchOperation[] = [];
 
     // Create prefix-list
@@ -194,7 +195,7 @@ class PrefixListService {
     name: string,
     listType: string,
     description: string | null
-  ): Promise<any> {
+  ): Promise<VyOSResponse> {
     const operations: PrefixListBatchOperation[] = [];
 
     if (description) {
@@ -218,7 +219,7 @@ class PrefixListService {
   /**
    * Helper: Delete a prefix-list
    */
-  async deletePrefixList(name: string, listType: string): Promise<any> {
+  async deletePrefixList(name: string, listType: string): Promise<VyOSResponse> {
     const operations: PrefixListBatchOperation[] = [];
     operations.push({
       op: listType === "ipv4" ? "delete_prefix_list" : "delete_prefix_list6"
@@ -238,7 +239,7 @@ class PrefixListService {
     name: string,
     listType: string,
     rule: Partial<PrefixListRule>
-  ): Promise<any> {
+  ): Promise<VyOSResponse> {
     const operations: PrefixListBatchOperation[] = [];
 
     // Create rule
@@ -298,7 +299,7 @@ class PrefixListService {
     listType: string,
     ruleNumber: number,
     rule: Partial<PrefixListRule>
-  ): Promise<any> {
+  ): Promise<VyOSResponse> {
     const operations: PrefixListBatchOperation[] = [];
 
     // IMPORTANT: Process deletes FIRST, then sets
@@ -374,7 +375,7 @@ class PrefixListService {
     name: string,
     listType: string,
     ruleNumber: number
-  ): Promise<any> {
+  ): Promise<VyOSResponse> {
     const operations: PrefixListBatchOperation[] = [];
     operations.push({
       op: listType === "ipv4" ? "delete_rule" : "delete_rule6"

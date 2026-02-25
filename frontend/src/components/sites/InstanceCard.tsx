@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Server, Power, PowerOff, Loader2, MoreVertical, Pencil, Trash2, MoveRight } from "lucide-react";
 import { Instance } from "@/lib/api/session";
+import { ApiError } from "@/lib/types/api";
 
 interface InstanceCardProps {
   instance: Instance;
@@ -44,8 +45,8 @@ export function InstanceCard({
     setError(null);
     try {
       await onConnect(instance.id);
-    } catch (err: any) {
-      setError(err.message || "Failed to connect");
+    } catch (err) {
+      setError((err as ApiError).message || "Failed to connect");
     } finally {
       setLoading(false);
     }
@@ -56,8 +57,8 @@ export function InstanceCard({
     setError(null);
     try {
       await onDisconnect();
-    } catch (err: any) {
-      setError(err.message || "Failed to disconnect");
+    } catch (err) {
+      setError((err as ApiError).message || "Failed to disconnect");
     } finally {
       setLoading(false);
     }

@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { AlertCircle, Power } from "lucide-react";
 import { powerService } from "@/lib/api/power";
+import { ApiError } from "@/lib/types/api";
 
 interface RebootModalProps {
   open: boolean;
@@ -50,8 +51,8 @@ export function RebootModal({ open, onOpenChange, onSuccess }: RebootModalProps)
 
       handleClose();
       onSuccess();
-    } catch (err: any) {
-      setError(err.message || "Failed to execute reboot");
+    } catch (err) {
+      setError((err as ApiError).message || "Failed to execute reboot");
     } finally {
       setLoading(false);
     }

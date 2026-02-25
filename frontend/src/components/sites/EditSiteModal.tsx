@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertCircle, Loader2, Building2 } from "lucide-react";
 import { sessionService, Site } from "@/lib/api/session";
+import { ApiError } from "@/lib/types/api";
 
 interface EditSiteModalProps {
   open: boolean;
@@ -69,8 +70,8 @@ export function EditSiteModal({
 
       handleClose();
       onSuccess();
-    } catch (err: any) {
-      setError(err.message || "Failed to update site");
+    } catch (err) {
+      setError((err as ApiError).message || "Failed to update site");
     } finally {
       setLoading(false);
     }

@@ -10,7 +10,11 @@ from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 from session_vyos_service import get_session_vyos_service
+from fastapi_permissions import require_read_permission, require_write_permission
+from rbac_permissions import FeatureGroup
 import json
+import logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/config", tags=["config"])
 
@@ -112,6 +116,7 @@ async def get_config_snapshot(request: Request):
     This represents the state of the configuration when it was last saved to disk.
     Used to compare against the current running config to detect unsaved changes.
     """
+    await require_read_permission(request, FeatureGroup.CONFIGURATION)
     try:
         global _saved_config_snapshots
 
@@ -136,7 +141,8 @@ async def get_config_snapshot(request: Request):
         raise  # Re-raise HTTP exceptions as-is
     except Exception as e:
         print(f"[ConfigRouter] Error in /config/snapshot: {type(e).__name__}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/diff", response_model=ConfigDiffResponse)
@@ -147,6 +153,7 @@ async def get_config_diff(request: Request):
     Returns structured diff showing what has been added, removed, or modified
     since the last save operation.
     """
+    await require_read_permission(request, FeatureGroup.CONFIGURATION)
     try:
         global _saved_config_snapshots
 
@@ -183,7 +190,8 @@ async def get_config_diff(request: Request):
         raise  # Re-raise HTTP exceptions as-is
     except Exception as e:
         print(f"[ConfigRouter] Error in /config/diff: {type(e).__name__}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/save", response_model=SaveConfigResponse)
@@ -198,6 +206,7 @@ async def save_config(request: Request, file: Optional[str] = None):
     Args:
         file: Optional path to save config to (default is /config/config.boot)
     """
+    await require_write_permission(request, FeatureGroup.CONFIGURATION)
     try:
         global _saved_config_snapshots
 
@@ -226,10 +235,11 @@ async def save_config(request: Request, file: Optional[str] = None):
         raise  # Re-raise HTTP exceptions as-is
     except Exception as e:
         print(f"[ConfigRouter] Error in /config/save: {type(e).__name__}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.post("/refresh")
+@router.post("/refresh", response_model=SaveConfigResponse)
 async def refresh_config(request: Request):
     """
     Force refresh the configuration cache.
@@ -239,32 +249,10 @@ async def refresh_config(request: Request):
     try:
         service = get_session_vyos_service(request)
         await run_in_threadpool(service.get_full_config, refresh=True)
-        return {"success": True, "message": "Configuration cache refreshed"}
+        return SaveConfigResponse(success=True, message="Configuration cache refreshed")
     except Exception as e:
         print(f"[ConfigRouter] Error in /config/refresh: {type(e).__name__}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.post("/initialize-snapshot")
-async def initialize_snapshot(request: Request):
-    """
-    Initialize the snapshot with the current running config for the active instance.
-
-    This should be called on application startup or when you want to
-    mark the current state as "saved".
-    """
-    try:
-        global _saved_config_snapshots
-
-        service = get_session_vyos_service(request)
-        instance_id = request.state.instance['id']
-        current_config = await run_in_threadpool(service.get_full_config, refresh=True)
-        _saved_config_snapshots[instance_id] = current_config
-
-        return {
-            "success": True,
-            "message": "Snapshot initialized with current configuration"
-        }
-    except Exception as e:
-        print(f"[ConfigRouter] Error in /config/initialize-snapshot: {type(e).__name__}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))

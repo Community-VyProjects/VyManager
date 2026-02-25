@@ -1,4 +1,5 @@
 import { apiClient } from "./client";
+import { ApiError } from "@/lib/types/api";
 
 // ==================== Type Definitions ====================
 
@@ -136,9 +137,9 @@ class NATService {
     try {
       const response = await apiClient.post<VyOSResponse>("/vyos/nat/batch", request);
       return response;
-    } catch (error: any) {
+    } catch (error) {
       // Extract detailed error message from API response
-      const errorMessage = error?.details?.detail || error?.message || "Unknown error";
+      const errorMessage = ((error as ApiError).details as { detail?: string })?.detail || (error as ApiError).message || "Unknown error";
       throw new Error(errorMessage);
     }
   }
@@ -934,8 +935,8 @@ class NATService {
         rules: rules
       });
       return response;
-    } catch (error: any) {
-      const errorMessage = error?.details?.detail || error?.message || "Unknown error";
+    } catch (error) {
+      const errorMessage = ((error as ApiError).details as { detail?: string })?.detail || (error as ApiError).message || "Unknown error";
       throw new Error(errorMessage);
     }
   }

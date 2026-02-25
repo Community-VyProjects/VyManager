@@ -5,6 +5,7 @@ Validates session tokens from better-auth and protects API endpoints.
 Integrates with PostgreSQL-based session storage.
 """
 
+import logging
 import os
 from typing import Optional
 from fastapi import Request, HTTPException
@@ -12,6 +13,9 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 from datetime import datetime
 import asyncpg
+from session_cookie import verify_session_cookie
+
+logger = logging.getLogger(__name__)
 
 
 class AuthenticationMiddleware(BaseHTTPMiddleware):
@@ -92,13 +96,17 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         token_to_use = session_token if session_token else session_token2
 
         try:
-            # Better-auth uses session tokens (not JWTs)
-            # The cookie contains: token.signature, but database only stores token
-            # Extract the token part (before the first dot)
-            token_parts = token_to_use.split('.')
-            token_id = token_parts[0] if len(token_parts) > 0 else token_to_use
+            # Better-auth uses signed session cookies: {session_id}.{base64(HMAC-SHA256)}
+            # Verify the signature and extract the session ID
+            token_id = verify_session_cookie(token_to_use)
+            if not token_id:
+                return JSONResponse(
+                    status_code=401,
+                    content={"detail": "Invalid session token"},
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
 
-            print("[AuthMiddleware] Validating session token")
+            logger.debug("Validating session token")
 
             # Validate session in database
             db_pool = self.get_db_pool(request)
@@ -114,9 +122,9 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                 )
 
                 if session:
-                    print("[AuthMiddleware] ✓ Session found")
+                    logger.debug("Session found")
                 else:
-                    print("[AuthMiddleware] ✗ Session not found")
+                    logger.debug("Session not found")
 
                 if not session:
                     return JSONResponse(
@@ -147,9 +155,9 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                         """,
                         token_id
                     )
-                    print("[AuthMiddleware] ✓ Activity timestamp updated (user action)")
+                    logger.debug("Activity timestamp updated (user action)")
                 else:
-                    print("[AuthMiddleware] ✓ Activity timestamp not updated (polling)")
+                    logger.debug("Activity timestamp not updated (polling)")
 
                 # Attach user information to request state
                 request.state.user_id = session["userId"]
@@ -171,7 +179,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         except Exception as e:
             # Log error but don't expose internal details to client
             # In production, use proper logging (e.g., structlog, python logging)
-            print(f"Authentication error: {type(e).__name__}: {str(e)}")
+            logger.warning("Authentication error: %s", type(e).__name__)
             return JSONResponse(
                 status_code=500,
                 content={"detail": "Authentication validation failed"}

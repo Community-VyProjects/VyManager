@@ -20,6 +20,8 @@ import uuid
 from session_vyos_service import get_session_vyos_service
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
+import logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/power", tags=["power"])
 
@@ -240,7 +242,8 @@ async def reboot_system(request: Request, body: PowerActionRequest):
         raise
     except Exception as e:
         print(f"[Power] Error in reboot: {type(e).__name__}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
     # Store scheduled action in database (except for 'now' and 'cancel')
     if body.action in ["at", "in"] and scheduled_time:
@@ -414,7 +417,8 @@ async def poweroff_system(request: Request, body: PowerActionRequest):
         raise
     except Exception as e:
         print(f"[Power] Error in poweroff: {type(e).__name__}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
     # Store scheduled action in database (except for 'now' and 'cancel')
     if body.action in ["at", "in"] and scheduled_time:

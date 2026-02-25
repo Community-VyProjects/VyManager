@@ -19,6 +19,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Loader2, AlertCircle, CheckCircle2, Building2, Server, User } from "lucide-react";
 import { signUp, signIn } from "@/lib/auth-client";
 import { sessionService } from "@/lib/api/session";
+import { ApiError } from "@/lib/types/api";
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -242,9 +243,9 @@ export default function OnboardingPage() {
       // Setup complete! Redirect to sites page
       router.push("/sites");
       router.refresh();
-    } catch (err: any) {
+    } catch (err) {
       console.error("[Onboarding] Error:", err);
-      setError(err.message || "Failed to complete setup. Please try again.");
+      setError((err as ApiError).message || "Failed to complete setup. Please try again.");
       setIsSubmitting(false); // Allow user to go back and fix issues
     } finally {
       setLoading(false);

@@ -13,6 +13,7 @@ import { AlertCircle, Plus, X } from "lucide-react";
 import { routeService, RouteCapabilitiesResponse, MatchConditions, SetActions } from "@/lib/api/route";
 import { firewallGroupsService, FirewallGroup } from "@/lib/api/firewall-groups";
 import { apiClient } from "@/lib/api/client";
+import { ApiError } from "@/lib/types/api";
 
 interface CreateRouteRuleModalProps {
   open: boolean;
@@ -341,8 +342,8 @@ export function CreateRouteRuleModal({
 
       handleClose();
       onSuccess();
-    } catch (err: any) {
-      setError(err.message || "Failed to create rule");
+    } catch (err) {
+      setError((err as ApiError).message || "Failed to create rule");
     } finally {
       setLoading(false);
     }

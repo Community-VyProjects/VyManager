@@ -45,6 +45,7 @@ import {
   Power,
 } from "lucide-react";
 import { userManagementService, FeatureGroup, InstanceUserListItem } from "@/lib/api/user-management";
+import { ApiError } from "@/lib/types/api";
 
 interface ViewInstanceAccessModalProps {
   open: boolean;
@@ -228,8 +229,8 @@ export function ViewInstanceAccessModal({
       const data = await userManagementService.getInstanceUsers(instance.id);
       setUsers(data);
       setFilteredUsers(data);
-    } catch (err: any) {
-      setError(err.message || "Failed to load instance users");
+    } catch (err) {
+      setError((err as ApiError).message || "Failed to load instance users");
     } finally {
       setLoading(false);
     }

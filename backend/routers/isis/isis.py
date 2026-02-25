@@ -20,6 +20,8 @@ from vyos_builders.isis import IsisBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 import inspect
+import logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/isis", tags=["isis"])
 
@@ -224,7 +226,8 @@ async def get_isis_capabilities(request: Request):
             caps["instance_id"] = request.state.instance.get("id")
         return caps
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -255,7 +258,8 @@ async def get_isis_config(http_request: Request, refresh: bool = False):
             fast_reroute=_parse_frr_global(isis_raw.get("fast-reroute", {})),
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -299,7 +303,8 @@ async def isis_batch_configure(http_request: Request, body: IsisBatchRequest):
     except AttributeError as e:
         raise HTTPException(status_code=400, detail=f"Unknown operation: {e}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================

@@ -34,6 +34,7 @@ import { CreateUserModal } from "./CreateUserModal";
 import { EditUserModal } from "./EditUserModal";
 import { DeleteUserModal } from "./DeleteUserModal";
 import { ManageUserAccessPanel } from "./ManageUserAccessPanel";
+import { ApiError } from "@/lib/types/api";
 
 export function UsersTab() {
   const [users, setUsers] = useState<UserListItem[]>([]);
@@ -77,8 +78,8 @@ export function UsersTab() {
       const data = await userManagementService.listUsers();
       setUsers(data);
       setFilteredUsers(data);
-    } catch (err: any) {
-      setError(err.message || "Failed to load users");
+    } catch (err) {
+      setError((err as ApiError).message || "Failed to load users");
     } finally {
       setLoading(false);
     }

@@ -14,6 +14,8 @@ from vyos_builders import Ospfv3BatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 import inspect
+import logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/ospfv3", tags=["ospfv3"])
 
@@ -165,7 +167,8 @@ async def get_ospfv3_capabilities(request: Request):
             capabilities["instance_id"] = request.state.instance.get("id")
         return capabilities
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -200,7 +203,8 @@ async def get_ospfv3_config(http_request: Request, refresh: bool = False):
             log_adjacency_changes_detail="detail" in (ospfv3_config.get("log-adjacency-changes", {}) or {}) if isinstance(ospfv3_config.get("log-adjacency-changes"), dict) else False,
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -478,4 +482,5 @@ async def ospfv3_batch_configure(http_request: Request, body: Ospfv3BatchRequest
     except AttributeError as e:
         raise HTTPException(status_code=400, detail=f"Unknown operation: {str(e)}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")

@@ -8,6 +8,31 @@ export const dynamic = "force-dynamic";
 
 const allowOnboardingFailOpen = process.env.ALLOW_ONBOARDING_FAIL_OPEN === "true";
 
+// Simple in-memory rate limiter for login attempts
+const LOGIN_RATE_LIMIT = 10;        // max attempts
+const LOGIN_RATE_WINDOW_MS = 60_000; // per 1 minute
+const loginAttempts = new Map<string, { count: number; resetAt: number }>();
+
+function getClientIp(request: NextRequest): string {
+  return (
+    request.headers.get("x-forwarded-for")?.split(",")[0].trim() ??
+    request.headers.get("x-real-ip") ??
+    "unknown"
+  );
+}
+
+function checkLoginRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const record = loginAttempts.get(ip);
+  if (!record || now > record.resetAt) {
+    loginAttempts.set(ip, { count: 1, resetAt: now + LOGIN_RATE_WINDOW_MS });
+    return true;
+  }
+  if (record.count >= LOGIN_RATE_LIMIT) return false;
+  record.count++;
+  return true;
+}
+
 export async function GET(request: NextRequest) {
   const auth = await getAuth();
   const handlers = toNextJsHandler(auth);
@@ -17,6 +42,16 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const url = new URL(request.url);
   const path = url.pathname;
+
+  // Rate limit login attempts
+  if (path.includes("/sign-in")) {
+    if (!checkLoginRateLimit(getClientIp(request))) {
+      return NextResponse.json(
+        { error: { message: "Too many login attempts. Please try again later." } },
+        { status: 429 }
+      );
+    }
+  }
 
   // Check if this is a signup request
   if (path.includes("/sign-up")) {
