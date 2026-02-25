@@ -3,11 +3,20 @@
  * Base configuration for communicating with the VyOS backend API
  */
 
-// Use /api proxy in browser to avoid CORS, direct URL in server-side
-// BACKEND_URL is read at runtime (not baked into build)
-const API_BASE_URL = typeof window !== 'undefined'
-  ? '/api'
-  : (process.env.BACKEND_URL || "http://backend:8000");
+// Use /api proxy in browser to avoid CORS, direct URL in server-side.
+// NEXT_PUBLIC_API_URL is read at runtime from the environment. Set it in .env.
+function resolveBackendUrl(): string {
+  if (typeof window !== 'undefined') {
+    return '/api';
+  }
+  const url = process.env.NEXT_PUBLIC_API_URL;
+  if (!url) {
+    throw new Error('NEXT_PUBLIC_API_URL environment variable is not set');
+  }
+  return url;
+}
+
+const API_BASE_URL = resolveBackendUrl();
 
 import { VyOSResponse, ApiError } from "../types/api";
 

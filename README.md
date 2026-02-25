@@ -149,12 +149,15 @@ volumes:
 
 ### Step 4: Create the .env file
 
-Create a file named `.env` in the same directory. You **must** edit these values before starting:
+Create a file named `.env` in the same directory. Both the backend and frontend containers read from this single file.
 
-1. **`POSTGRES_PASSWORD`** — Change this in **both** the `docker-compose.yml` and `DATABASE_URL` below. Use the same value in both places. Generate one with: `openssl rand -hex 32`
-2. **`BETTER_AUTH_SECRET`** — Change this to a long random string (used to sign session tokens). Generate one with: `openssl rand -hex 32`
-3. **`SSH_ENCRYPTION_KEY`** — Change this to a long random hex string. Generate one with: `openssl rand -hex 32`
-4. **`TRUSTED_ORIGINS`** — Replace `<YOUR_SERVER_IP>` with the IP address or hostname you will use to access VyManager in your browser.
+You **must** change these values before starting:
+
+1. **`POSTGRES_PASSWORD`** — Change this in **both** `docker-compose.yml` and `DATABASE_URL` below; they must match. Generate one with: `openssl rand -hex 32`
+2. **`BETTER_AUTH_SECRET`** — Used to sign and verify session tokens; appears **twice** in the file (once for each service) and must be the **same value** in both places. Generate with: `openssl rand -base64 32`
+3. **`SSH_ENCRYPTION_KEY`** — Used to encrypt stored SSH private keys at rest. Generate with: `openssl rand -hex 32`
+4. **`BETTER_AUTH_URL` / `NEXT_PUBLIC_APP_URL`** — Replace `<YOUR_SERVER_IP>` with the IP or hostname users will open in their browser.
+5. **`TRUSTED_ORIGINS`** — Comma-separated list of every URL users will access VyManager from.
 
 ```env
 # ── Backend ──────────────────────────────────────────────
@@ -162,23 +165,30 @@ Create a file named `.env` in the same directory. You **must** edit these values
 DATABASE_URL=postgresql://vymanager:CHANGE_ME_POSTGRES_PASSWORD@postgres:5432/vymanager
 FRONTEND_URL=http://frontend:3000
 
+# CHANGE THIS — use a long random string (e.g. openssl rand -base64 32)
+# Must match the BETTER_AUTH_SECRET value below — both services use this file
+BETTER_AUTH_SECRET=Change-This-To-Something-Secret
+
+# CHANGE THIS — use a long random hex string (e.g. openssl rand -hex 32)
+SSH_ENCRYPTION_KEY=Change-This-To-A-Hex-String
+
 # ── Frontend ─────────────────────────────────────────────
 NODE_ENV=production
 VYMANAGER_ENV=production
 
-# CHANGE THIS — use a long random string (e.g. openssl rand -hex 32)
+# Must be the same value as BETTER_AUTH_SECRET above
 BETTER_AUTH_SECRET=Change-This-To-Something-Secret
 
-BETTER_AUTH_URL=http://frontend:3000
-NEXT_PUBLIC_APP_URL=http://frontend:3000
-BACKEND_URL=http://backend:8000
+# CHANGE THIS — set to the URL where users access VyManager in their browser
+BETTER_AUTH_URL=http://<YOUR_SERVER_IP>:3000
+NEXT_PUBLIC_APP_URL=http://<YOUR_SERVER_IP>:3000
 
-# CHANGE THIS — add every origin you will access VyManager from
-# Example: http://192.168.1.50:3000  or  http://vymanager.lan:3000
+# Internal Docker network URL — do not change unless you rename the backend service
+NEXT_PUBLIC_API_URL=http://backend:8000
+
+# CHANGE THIS — comma-separated list of every URL users will access VyManager from
+# Example: http://192.168.1.50:3000,http://vymanager.lan:3000
 TRUSTED_ORIGINS=http://<YOUR_SERVER_IP>:3000,http://localhost:3000
-
-# CHANGE THIS — use a long random string (e.g. openssl rand -hex 32)
-SSH_ENCRYPTION_KEY=<Insert 32bit hex>
 ```
 
 > **Tip**: Generate a strong secret with: `openssl rand -hex 32`
@@ -497,7 +507,7 @@ docker compose ps postgres
 
 ### Frontend Cannot Reach Backend
 
-- Verify `BACKEND_URL=http://backend:8000` in your `.env` file (uses Docker service name)
+- Verify `NEXT_PUBLIC_API_URL=http://backend:8000` in your `.env` file (uses Docker service name)
 - Verify `TRUSTED_ORIGINS` includes the URL you are accessing VyManager from in your browser
 - Check that the backend container is healthy: `docker compose ps backend`
 
