@@ -184,7 +184,7 @@ BETTER_AUTH_URL=http://<YOUR_SERVER_IP>:3000
 NEXT_PUBLIC_APP_URL=http://<YOUR_SERVER_IP>:3000
 
 # Internal Docker network URL — do not change unless you rename the backend service
-NEXT_PUBLIC_API_URL=http://backend:8000
+BACKEND_URL=http://backend:8000
 
 # CHANGE THIS — comma-separated list of every URL users will access VyManager from
 # Example: http://192.168.1.50:3000,http://vymanager.lan:3000
@@ -507,7 +507,7 @@ docker compose ps postgres
 
 ### Frontend Cannot Reach Backend
 
-- Verify `NEXT_PUBLIC_API_URL=http://backend:8000` in your `.env` file (uses Docker service name)
+- Verify `BACKEND_URL=http://backend:8000` in your `.env` file (uses Docker service name)
 - Verify `TRUSTED_ORIGINS` includes the URL you are accessing VyManager from in your browser
 - Check that the backend container is healthy: `docker compose ps backend`
 

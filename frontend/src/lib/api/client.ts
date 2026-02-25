@@ -4,27 +4,30 @@
  */
 
 // Use /api proxy in browser to avoid CORS, direct URL in server-side.
-// NEXT_PUBLIC_API_URL is read at runtime from the environment. Set it in .env.
+// BACKEND_URL is a plain (non-NEXT_PUBLIC_) env var so it is read at runtime,
+// not baked in at build time. Set it in .env.
 function resolveBackendUrl(): string {
   if (typeof window !== 'undefined') {
     return '/api';
   }
-  const url = process.env.NEXT_PUBLIC_API_URL;
+  const url = process.env.BACKEND_URL;
   if (!url) {
-    throw new Error('NEXT_PUBLIC_API_URL environment variable is not set');
+    throw new Error('BACKEND_URL environment variable is not set');
   }
   return url;
 }
 
-const API_BASE_URL = resolveBackendUrl();
-
 import { VyOSResponse, ApiError } from "../types/api";
 
 export class ApiClient {
-  private baseUrl: string;
+  private readonly _baseUrl?: string;
 
-  constructor(baseUrl: string = API_BASE_URL) {
-    this.baseUrl = baseUrl;
+  constructor(baseUrl?: string) {
+    this._baseUrl = baseUrl;
+  }
+
+  private get baseUrl(): string {
+    return this._baseUrl ?? resolveBackendUrl();
   }
 
   private async request<T>(
