@@ -102,6 +102,26 @@ class InstanceUserListItem(BaseModel):
     feature_permissions: Optional[List[FeaturePermissionItem]] = None  # Only for OPERATOR/VIEWER
 
 
+class MyPermissionsResponse(BaseModel):
+    """Response for the current user's permissions on their active instance."""
+    has_active_session: bool
+    instance_id: Optional[str] = None
+    permissions: Dict[str, str]
+
+
+class SuccessResponse(BaseModel):
+    """Generic success/failure response."""
+    success: bool
+    message: str
+
+
+class AssignmentResponse(BaseModel):
+    """Response for user instance assignment operations."""
+    success: bool
+    assignments_created: int
+    message: str
+
+
 # ============================================================================
 # Helper Functions
 # ============================================================================
@@ -110,7 +130,7 @@ class InstanceUserListItem(BaseModel):
 # User Endpoints
 # ============================================================================
 
-@router.get("/my-permissions")
+@router.get("/my-permissions", response_model=MyPermissionsResponse)
 async def get_my_permissions(request: Request):
     """
     Get the current user's permissions for their active instance.
@@ -139,10 +159,7 @@ async def get_my_permissions(request: Request):
 
         if not active_session:
             # User has no active session - return empty permissions
-            return {
-                "has_active_session": False,
-                "permissions": {}
-            }
+            return MyPermissionsResponse(has_active_session=False, permissions={})
 
         instance_id = active_session["instanceId"]
 
@@ -155,11 +172,11 @@ async def get_my_permissions(request: Request):
             for feature, level in permissions.items()
         }
 
-        return {
-            "has_active_session": True,
-            "instance_id": instance_id,
-            "permissions": permissions_dict
-        }
+        return MyPermissionsResponse(
+            has_active_session=True,
+            instance_id=instance_id,
+            permissions=permissions_dict,
+        )
 
 
 @router.get("/users", response_model=List[UserListItem])
@@ -450,7 +467,7 @@ async def update_user(request: Request, user_id: str, body: UpdateUserRequest):
         return UserDetail(**dict(user))
 
 
-@router.delete("/users/{user_id}")
+@router.delete("/users/{user_id}", response_model=SuccessResponse)
 async def delete_user(request: Request, user_id: str):
     """Delete a user."""
     await require_super_admin(request)
@@ -471,14 +488,14 @@ async def delete_user(request: Request, user_id: str):
         # Delete user (cascades to sessions, accounts, user_instance_roles, etc.)
         await conn.execute("DELETE FROM users WHERE id = $1", user_id)
 
-        return {"success": True, "message": "User deleted successfully"}
+        return SuccessResponse(success=True, message="User deleted successfully")
 
 
 # ============================================================================
 # Assignment Endpoints
 # ============================================================================
 
-@router.post("/assignments")
+@router.post("/assignments", response_model=AssignmentResponse)
 async def assign_user_to_instances(request: Request, body: AssignUserRequest):
     """Assign a user to instance(s) with a role and optional feature permissions."""
     await require_super_admin(request)
@@ -548,14 +565,14 @@ async def assign_user_to_instances(request: Request, body: AssignUserRequest):
 
                 assignments_created += 1
 
-        return {
-            "success": True,
-            "assignments_created": assignments_created,
-            "message": f"User assigned to {assignments_created} instance(s) successfully"
-        }
+        return AssignmentResponse(
+            success=True,
+            assignments_created=assignments_created,
+            message=f"User assigned to {assignments_created} instance(s) successfully",
+        )
 
 
-@router.delete("/assignments/{assignment_id}")
+@router.delete("/assignments/{assignment_id}", response_model=SuccessResponse)
 async def remove_assignment(request: Request, assignment_id: str):
     """Remove a user's access to an instance."""
     await require_super_admin(request)
@@ -571,7 +588,7 @@ async def remove_assignment(request: Request, assignment_id: str):
         # Delete assignment
         await conn.execute("DELETE FROM user_instance_roles WHERE id = $1", assignment_id)
 
-        return {"success": True, "message": "Assignment removed successfully"}
+        return SuccessResponse(success=True, message="Assignment removed successfully")
 
 
 @router.get("/instances/{instance_id}/users", response_model=List[InstanceUserListItem])

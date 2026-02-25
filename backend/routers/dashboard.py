@@ -37,6 +37,12 @@ class DashboardLayoutResponse(BaseModel):
     exists: bool
 
 
+class SaveLayoutResponse(BaseModel):
+    """Response model for saving dashboard layout."""
+    success: bool
+    message: str
+
+
 # ========================================================================
 # Endpoint: Get Layout
 # ========================================================================
@@ -102,7 +108,7 @@ async def get_dashboard_layout(request: Request):
 # ========================================================================
 
 
-@router.post("/layout")
+@router.post("/layout", response_model=SaveLayoutResponse)
 async def save_dashboard_layout(request: Request, body: DashboardLayoutRequest):
     """
     Save the user's dashboard layout for the current instance.
@@ -144,7 +150,7 @@ async def save_dashboard_layout(request: Request, body: DashboardLayoutRequest):
                 layout_json
             )
 
-        return {"success": True, "message": "Dashboard layout saved"}
+        return SaveLayoutResponse(success=True, message="Dashboard layout saved")
 
     except HTTPException:
         raise

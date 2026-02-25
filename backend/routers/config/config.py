@@ -239,7 +239,7 @@ async def save_config(request: Request, file: Optional[str] = None):
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.post("/refresh")
+@router.post("/refresh", response_model=SaveConfigResponse)
 async def refresh_config(request: Request):
     """
     Force refresh the configuration cache.
@@ -249,7 +249,7 @@ async def refresh_config(request: Request):
     try:
         service = get_session_vyos_service(request)
         await run_in_threadpool(service.get_full_config, refresh=True)
-        return {"success": True, "message": "Configuration cache refreshed"}
+        return SaveConfigResponse(success=True, message="Configuration cache refreshed")
     except Exception as e:
         print(f"[ConfigRouter] Error in /config/refresh: {type(e).__name__}: {str(e)}")
         logger.exception("Unhandled error")

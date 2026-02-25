@@ -64,6 +64,10 @@ class MonitoringStatusResponse(BaseModel):
     configured: bool
 
 
+class CommandsListResponse(BaseModel):
+    commands: List[Dict[str, Any]]
+
+
 # ============================================================================
 # SSH Key Management Endpoints (instance-id based, site ADMIN required)
 # ============================================================================
@@ -213,11 +217,11 @@ async def get_monitoring_status(request: Request):
     return MonitoringStatusResponse(configured=bool(instance["sshKeyConfigured"]))
 
 
-@router.get("/commands")
+@router.get("/commands", response_model=CommandsListResponse)
 async def list_commands(request: Request):
     """List available monitoring commands."""
     await require_read_permission(request, FeatureGroup.MONITORING)
-    return {"commands": get_available_commands()}
+    return CommandsListResponse(commands=get_available_commands())
 
 
 # ============================================================================
