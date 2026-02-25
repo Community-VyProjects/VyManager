@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertCircle } from "lucide-react";
 import { prefixListService, type PrefixListRule } from "@/lib/api/prefix-list";
+import { ApiError } from "@/lib/types/api";
 
 interface EditPrefixListRuleModalProps {
   open: boolean;
@@ -162,17 +163,19 @@ export function EditPrefixListRuleModal({
       );
       handleClose();
       onSuccess();
-    } catch (err: any) {
+    } catch (err) {
       console.error("Update rule error:", err);
       let errorMsg = "Failed to update rule";
-      if (err.details?.detail) {
-        if (Array.isArray(err.details.detail)) {
-          errorMsg = err.details.detail.map((e: any) => `${e.loc?.join('.')}: ${e.msg}`).join(", ");
+      const apiErr = err as ApiError;
+      const details = apiErr.details as { detail?: string | Array<{ loc?: string[]; msg: string }> } | undefined;
+      if (details?.detail) {
+        if (Array.isArray(details.detail)) {
+          errorMsg = details.detail.map((e) => `${e.loc?.join('.')}: ${e.msg}`).join(", ");
         } else {
-          errorMsg = err.details.detail;
+          errorMsg = details.detail;
         }
-      } else if (err.message) {
-        errorMsg = err.message;
+      } else if (apiErr.message) {
+        errorMsg = apiErr.message;
       }
       setError(errorMsg);
     } finally {

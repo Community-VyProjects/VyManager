@@ -29,6 +29,7 @@ import {
   WireGuardInterface,
   WireGuardCapabilities,
 } from "@/lib/api/wireguard";
+import { ApiError } from "@/lib/types/api";
 
 interface EditInterfaceModalProps {
   open: boolean;
@@ -88,8 +89,8 @@ export function EditInterfaceModal({
       } else if (result.raw_output) {
         setError("Key generated but couldn't parse. Raw output: " + result.raw_output);
       }
-    } catch (err: any) {
-      setError(err.message || "Failed to generate keypair");
+    } catch (err) {
+      setError((err as ApiError).message || "Failed to generate keypair");
     } finally {
       setGenerating(false);
     }
@@ -193,8 +194,8 @@ export function EditInterfaceModal({
       } else {
         setError(result.error || "Failed to update interface");
       }
-    } catch (err: any) {
-      setError(err.message || "Failed to update interface");
+    } catch (err) {
+      setError((err as ApiError).message || "Failed to update interface");
     } finally {
       setLoading(false);
     }

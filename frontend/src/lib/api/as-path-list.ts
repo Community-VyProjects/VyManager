@@ -1,4 +1,5 @@
 import { apiClient } from "./client";
+import { VyOSResponse } from "@/lib/types/api";
 
 // ============================================================================
 // TypeScript Interfaces
@@ -70,15 +71,15 @@ class AsPathListService {
   /**
    * Refresh the cached configuration
    */
-  async refreshConfig(): Promise<any> {
+  async refreshConfig(): Promise<VyOSResponse> {
     return apiClient.post("/vyos/config/refresh");
   }
 
   /**
    * Execute batch operations
    */
-  async batchConfigure(request: AsPathListBatchRequest): Promise<any> {
-    const result = await apiClient.post("/vyos/as-path-list/batch", request);
+  async batchConfigure(request: AsPathListBatchRequest): Promise<VyOSResponse> {
+    const result = await apiClient.post<VyOSResponse>("/vyos/as-path-list/batch", request);
     await this.refreshConfig();
     return result;
   }
@@ -86,7 +87,7 @@ class AsPathListService {
   /**
    * Delete an entire AS path list
    */
-  async deleteAsPathList(name: string): Promise<any> {
+  async deleteAsPathList(name: string): Promise<VyOSResponse> {
     const operations: AsPathListBatchOperation[] = [];
     operations.push({ op: "delete_as_path_list" });
 
@@ -100,7 +101,7 @@ class AsPathListService {
   /**
    * Delete a specific rule from an AS path list and renumber remaining rules to close gaps
    */
-  async deleteRule(name: string, ruleNumber: number): Promise<any> {
+  async deleteRule(name: string, ruleNumber: number): Promise<VyOSResponse> {
     // Get current configuration
     const config = await this.getConfig(true);
     const asPathList = config.as_path_lists.find(apl => apl.name === name);
@@ -160,7 +161,7 @@ class AsPathListService {
   /**
    * Helper: Create a new AS path list with a rule
    */
-  async createAsPathList(name: string, description: string | null, rule: Partial<AsPathListRule>): Promise<any> {
+  async createAsPathList(name: string, description: string | null, rule: Partial<AsPathListRule>): Promise<VyOSResponse> {
     const operations: AsPathListBatchOperation[] = [];
 
     // Create AS path list
@@ -205,7 +206,7 @@ class AsPathListService {
     description: string | null,
     rule?: Partial<AsPathListRule>,
     ruleNumber?: number
-  ): Promise<any> {
+  ): Promise<VyOSResponse> {
     const operations: AsPathListBatchOperation[] = [];
 
     // Update description
@@ -255,7 +256,7 @@ class AsPathListService {
   /**
    * Helper: Add a new rule to existing AS path list
    */
-  async addRule(name: string, rule: Partial<AsPathListRule>): Promise<any> {
+  async addRule(name: string, rule: Partial<AsPathListRule>): Promise<VyOSResponse> {
     const operations: AsPathListBatchOperation[] = [];
 
     // Create rule
@@ -286,7 +287,7 @@ class AsPathListService {
   /**
    * Update an existing rule
    */
-  async updateRule(name: string, ruleNumber: number, rule: Partial<AsPathListRule>): Promise<any> {
+  async updateRule(name: string, ruleNumber: number, rule: Partial<AsPathListRule>): Promise<VyOSResponse> {
     const operations: AsPathListBatchOperation[] = [];
 
     // Rule description
@@ -322,8 +323,8 @@ class AsPathListService {
   /**
    * Reorder AS path list rules
    */
-  async reorderRules(asPathListName: string, rules: Array<{ old_number: number; new_number: number; rule_data: AsPathListRule }>): Promise<any> {
-    const result = await apiClient.post("/vyos/as-path-list/reorder", {
+  async reorderRules(asPathListName: string, rules: Array<{ old_number: number; new_number: number; rule_data: AsPathListRule }>): Promise<VyOSResponse> {
+    const result = await apiClient.post<VyOSResponse>("/vyos/as-path-list/reorder", {
       as_path_list_name: asPathListName,
       rules: rules,
     });

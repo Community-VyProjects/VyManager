@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { wireguardService, WireGuardPeer } from "@/lib/api/wireguard";
+import { ApiError } from "@/lib/types/api";
 
 interface EditPeerModalProps {
   open: boolean;
@@ -81,8 +82,8 @@ export function EditPeerModal({
       if (result.preshared_key) {
         setPresharedKey(result.preshared_key);
       }
-    } catch (err: any) {
-      setError(err.message || "Failed to generate preshared key");
+    } catch (err) {
+      setError((err as ApiError).message || "Failed to generate preshared key");
     } finally {
       setGenerating(false);
     }
@@ -207,8 +208,8 @@ export function EditPeerModal({
       } else {
         setError(result.error || "Failed to update peer");
       }
-    } catch (err: any) {
-      setError(err.message || "Failed to update peer");
+    } catch (err) {
+      setError((err as ApiError).message || "Failed to update peer");
     } finally {
       setLoading(false);
     }

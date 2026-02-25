@@ -75,6 +75,7 @@ import {
   FeaturePermission,
 } from "@/lib/api/user-management";
 import { sessionService, Site } from "@/lib/api/session";
+import { ApiError } from "@/lib/types/api";
 
 interface ManageUserAccessPanelProps {
   open: boolean;
@@ -415,8 +416,8 @@ export function ManageUserAccessPanel({
         }
       }
       setInstances(allInstances);
-    } catch (err: any) {
-      setError(err.message || "Failed to load data");
+    } catch (err) {
+      setError((err as ApiError).message || "Failed to load data");
     } finally {
       setDataLoading(false);
     }
@@ -623,8 +624,8 @@ export function ManageUserAccessPanel({
       setDeletingAssignment(null);
       await loadData();
       onSuccess();
-    } catch (err: any) {
-      setError(err.message || "Failed to remove assignment");
+    } catch (err) {
+      setError((err as ApiError).message || "Failed to remove assignment");
     } finally {
       setLoading(false);
     }
@@ -671,8 +672,8 @@ export function ManageUserAccessPanel({
       resetEditForm();
       await loadData();
       onSuccess();
-    } catch (err: any) {
-      setError(err.message || "Failed to update assignment");
+    } catch (err) {
+      setError((err as ApiError).message || "Failed to update assignment");
     } finally {
       setLoading(false);
     }
@@ -720,8 +721,8 @@ export function ManageUserAccessPanel({
       resetGrantForm();
       await loadData();
       onSuccess();
-    } catch (err: any) {
-      setError(err.message || "Failed to assign user");
+    } catch (err) {
+      setError((err as ApiError).message || "Failed to assign user");
     } finally {
       setLoading(false);
     }

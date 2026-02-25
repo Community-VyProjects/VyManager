@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { AlertCircle, AlertTriangle } from "lucide-react";
 import { dhcpService } from "@/lib/api/dhcp";
+import { ApiError } from "@/lib/types/api";
 
 interface DeleteDHCPModalProps {
   open: boolean;
@@ -54,8 +55,8 @@ export function DeleteDHCPModal({
 
       handleClose();
       onSuccess();
-    } catch (err: any) {
-      setError(err.message || "Failed to delete DHCP configuration");
+    } catch (err) {
+      setError((err as ApiError).message || "Failed to delete DHCP configuration");
     } finally {
       setLoading(false);
     }

@@ -25,6 +25,7 @@ import {
   Key,
 } from "lucide-react";
 import { wireguardService, WireGuardInterface } from "@/lib/api/wireguard";
+import { ApiError } from "@/lib/types/api";
 
 interface GenerateClientConfigModalProps {
   open: boolean;
@@ -112,8 +113,8 @@ export function GenerateClientConfigModal({
       } else {
         setError("Failed to generate keypair");
       }
-    } catch (err: any) {
-      setError(err.message || "Failed to generate keypair");
+    } catch (err) {
+      setError((err as ApiError).message || "Failed to generate keypair");
     } finally {
       setGenerating(false);
     }
@@ -227,8 +228,8 @@ PersistentKeepalive = 25`;
 
       setStep("result");
       onSuccess(); // Refresh the interface list
-    } catch (err: any) {
-      setError(err.message || "Failed to create client configuration");
+    } catch (err) {
+      setError((err as ApiError).message || "Failed to create client configuration");
     } finally {
       setLoading(false);
     }

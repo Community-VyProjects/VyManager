@@ -1,4 +1,5 @@
 import { apiClient } from "./client";
+import { VyOSResponse } from "@/lib/types/api";
 
 // ============================================================================
 // TypeScript Interfaces
@@ -70,15 +71,15 @@ class CommunityListService {
   /**
    * Refresh the cached configuration
    */
-  async refreshConfig(): Promise<any> {
+  async refreshConfig(): Promise<VyOSResponse> {
     return apiClient.post("/vyos/config/refresh");
   }
 
   /**
    * Execute batch operations
    */
-  async batchConfigure(request: CommunityListBatchRequest): Promise<any> {
-    const result = await apiClient.post("/vyos/community-list/batch", request);
+  async batchConfigure(request: CommunityListBatchRequest): Promise<VyOSResponse> {
+    const result = await apiClient.post<VyOSResponse>("/vyos/community-list/batch", request);
     await this.refreshConfig();
     return result;
   }
@@ -86,7 +87,7 @@ class CommunityListService {
   /**
    * Delete an entire community list
    */
-  async deleteCommunityList(name: string): Promise<any> {
+  async deleteCommunityList(name: string): Promise<VyOSResponse> {
     const operations: CommunityListBatchOperation[] = [];
     operations.push({ op: "delete_community_list" });
 
@@ -100,7 +101,7 @@ class CommunityListService {
   /**
    * Delete a specific rule from a community list and renumber remaining rules to close gaps
    */
-  async deleteRule(name: string, ruleNumber: number): Promise<any> {
+  async deleteRule(name: string, ruleNumber: number): Promise<VyOSResponse> {
     // Get current configuration
     const config = await this.getConfig(true);
     const communityList = config.community_lists.find(cl => cl.name === name);
@@ -160,7 +161,7 @@ class CommunityListService {
   /**
    * Helper: Create a new community list with a rule
    */
-  async createCommunityList(name: string, description: string | null, rule: Partial<CommunityListRule>): Promise<any> {
+  async createCommunityList(name: string, description: string | null, rule: Partial<CommunityListRule>): Promise<VyOSResponse> {
     const operations: CommunityListBatchOperation[] = [];
 
     // Create community list
@@ -205,7 +206,7 @@ class CommunityListService {
     description: string | null,
     rule?: Partial<CommunityListRule>,
     ruleNumber?: number
-  ): Promise<any> {
+  ): Promise<VyOSResponse> {
     const operations: CommunityListBatchOperation[] = [];
 
     // Update description
@@ -255,7 +256,7 @@ class CommunityListService {
   /**
    * Helper: Add a new rule to existing community list
    */
-  async addRule(name: string, rule: Partial<CommunityListRule>): Promise<any> {
+  async addRule(name: string, rule: Partial<CommunityListRule>): Promise<VyOSResponse> {
     const operations: CommunityListBatchOperation[] = [];
 
     // Create rule
@@ -286,7 +287,7 @@ class CommunityListService {
   /**
    * Update an existing rule
    */
-  async updateRule(name: string, ruleNumber: number, rule: Partial<CommunityListRule>): Promise<any> {
+  async updateRule(name: string, ruleNumber: number, rule: Partial<CommunityListRule>): Promise<VyOSResponse> {
     const operations: CommunityListBatchOperation[] = [];
 
     // Rule description
@@ -322,8 +323,8 @@ class CommunityListService {
   /**
    * Reorder community list rules
    */
-  async reorderRules(communityListName: string, rules: Array<{ old_number: number; new_number: number; rule_data: CommunityListRule }>): Promise<any> {
-    const result = await apiClient.post("/vyos/community-list/reorder", {
+  async reorderRules(communityListName: string, rules: Array<{ old_number: number; new_number: number; rule_data: CommunityListRule }>): Promise<VyOSResponse> {
+    const result = await apiClient.post<VyOSResponse>("/vyos/community-list/reorder", {
       community_list_name: communityListName,
       rules: rules,
     });

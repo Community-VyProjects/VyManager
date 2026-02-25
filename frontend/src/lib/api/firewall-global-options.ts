@@ -1,4 +1,5 @@
 import { apiClient } from "./client";
+import { ApiError } from "@/lib/types/api";
 
 // ==================== Type Definitions ====================
 
@@ -146,8 +147,8 @@ class FirewallGlobalOptionsService {
     try {
       const response = await apiClient.post<VyOSResponse>("/vyos/firewall/global-options/batch", request);
       return response;
-    } catch (error: any) {
-      const errorMessage = error?.details?.detail || error?.message || "Unknown error";
+    } catch (error) {
+      const errorMessage = ((error as ApiError).details as { detail?: string })?.detail || (error as ApiError).message || "Unknown error";
       throw new Error(errorMessage);
     }
   }
@@ -159,8 +160,8 @@ class FirewallGlobalOptionsService {
     try {
       const response = await apiClient.post<VyOSResponse>("/vyos/firewall/global-options/update", config);
       return response;
-    } catch (error: any) {
-      const errorMessage = error?.details?.detail || error?.message || "Unknown error";
+    } catch (error) {
+      const errorMessage = ((error as ApiError).details as { detail?: string })?.detail || (error as ApiError).message || "Unknown error";
       throw new Error(errorMessage);
     }
   }

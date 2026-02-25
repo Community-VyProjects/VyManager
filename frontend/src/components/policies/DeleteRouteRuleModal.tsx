@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from "@/components/ui/button";
 import { AlertCircle, AlertTriangle } from "lucide-react";
 import { routeService } from "@/lib/api/route";
+import { ApiError } from "@/lib/types/api";
 
 interface DeleteRouteRuleModalProps {
   open: boolean;
@@ -34,8 +35,8 @@ export function DeleteRouteRuleModal({
       await routeService.deleteRule(policyType, policyName, rule.rule_number);
       handleClose();
       onSuccess();
-    } catch (err: any) {
-      setError(err.message || "Failed to delete rule");
+    } catch (err) {
+      setError((err as ApiError).message || "Failed to delete rule");
     } finally {
       setLoading(false);
     }

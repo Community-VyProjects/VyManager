@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, AlertCircle } from "lucide-react";
 import { userManagementService, UserListItem, SiteRole } from "@/lib/api/user-management";
+import { ApiError } from "@/lib/types/api";
 
 interface EditUserModalProps {
   open: boolean;
@@ -86,8 +87,8 @@ export function EditUserModal({ open, onOpenChange, user, onSuccess }: EditUserM
 
       handleClose();
       onSuccess();
-    } catch (err: any) {
-      setError(err.message || "Failed to update user");
+    } catch (err) {
+      setError((err as ApiError).message || "Failed to update user");
     } finally {
       setLoading(false);
     }

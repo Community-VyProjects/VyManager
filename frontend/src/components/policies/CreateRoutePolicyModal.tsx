@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertCircle } from "lucide-react";
 import { routeService } from "@/lib/api/route";
+import { ApiError } from "@/lib/types/api";
 
 interface CreateRoutePolicyModalProps {
   open: boolean;
@@ -46,8 +47,8 @@ export function CreateRoutePolicyModal({
       );
       handleClose();
       onSuccess();
-    } catch (err: any) {
-      setError(err.message || "Failed to create policy");
+    } catch (err) {
+      setError((err as ApiError).message || "Failed to create policy");
     } finally {
       setLoading(false);
     }

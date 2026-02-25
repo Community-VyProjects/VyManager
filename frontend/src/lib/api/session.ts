@@ -8,6 +8,7 @@
  */
 
 import { apiClient } from "./client";
+import { ApiError } from "@/lib/types/api";
 
 // ============================================================================
 // TypeScript Interfaces
@@ -138,9 +139,9 @@ class SessionService {
   async getCurrentSession(): Promise<ActiveSession | null> {
     try {
       return await apiClient.get<ActiveSession>("/session/current");
-    } catch (error: any) {
+    } catch (error) {
       // Return null if no session (expected when user hasn't connected)
-      if (error.status === 404 || error.status === 400) {
+      if ((error as ApiError).status === 404 || (error as ApiError).status === 400) {
         return null;
       }
       throw error;

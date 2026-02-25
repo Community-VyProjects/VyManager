@@ -27,6 +27,7 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { ApiError } from "@/lib/types/api";
 
 // Sortable card wrapper component
 function SortableCard({ card, children }: { card: DashboardCard; children: React.ReactNode }) {
@@ -143,9 +144,9 @@ export default function Home() {
       } else {
         setCards([]);
       }
-    } catch (err: any) {
+    } catch (err) {
       // Extract error message for logging
-      const errorMessage = err?.message || err?.error || err?.detail || "Unknown error";
+      const errorMessage = (err as ApiError).message || (err as ApiError).message || (err as ApiError).message || "Unknown error";
       console.error("Failed to load dashboard layout:", errorMessage);
     }
   };

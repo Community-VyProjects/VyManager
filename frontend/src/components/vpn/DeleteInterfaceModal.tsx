@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { wireguardService, WireGuardInterface } from "@/lib/api/wireguard";
+import { ApiError } from "@/lib/types/api";
 
 interface DeleteInterfaceModalProps {
   open: boolean;
@@ -44,8 +45,8 @@ export function DeleteInterfaceModal({
       } else {
         setError(result.error || "Failed to delete interface");
       }
-    } catch (err: any) {
-      setError(err.message || "Failed to delete interface");
+    } catch (err) {
+      setError((err as ApiError).message || "Failed to delete interface");
     } finally {
       setLoading(false);
     }

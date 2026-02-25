@@ -8,6 +8,7 @@ import {
   PermissionLevel,
   MyPermissionsResponse,
 } from "@/lib/api/user-management";
+import { ApiError } from "@/lib/types/api";
 
 interface PermissionsState {
   permissions: Record<string, string>;
@@ -57,11 +58,11 @@ export function usePermissions() {
           isLoading: false,
           error: null,
         });
-      } catch (error: any) {
+      } catch (error) {
         setState((prev) => ({
           ...prev,
           isLoading: false,
-          error: error.message || "Failed to fetch permissions",
+          error: (error as ApiError).message || "Failed to fetch permissions",
         }));
       }
     };

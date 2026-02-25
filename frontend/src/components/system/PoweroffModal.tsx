@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { AlertCircle, PowerOff } from "lucide-react";
 import { powerService } from "@/lib/api/power";
+import { ApiError } from "@/lib/types/api";
 
 interface PoweroffModalProps {
   open: boolean;
@@ -50,8 +51,8 @@ export function PoweroffModal({ open, onOpenChange, onSuccess }: PoweroffModalPr
 
       handleClose();
       onSuccess();
-    } catch (err: any) {
-      setError(err.message || "Failed to execute poweroff");
+    } catch (err) {
+      setError((err as ApiError).message || "Failed to execute poweroff");
     } finally {
       setLoading(false);
     }

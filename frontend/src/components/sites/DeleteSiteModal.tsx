@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { AlertCircle, Loader2, AlertTriangle } from "lucide-react";
 import { sessionService, Site } from "@/lib/api/session";
+import { ApiError } from "@/lib/types/api";
 
 interface DeleteSiteModalProps {
   open: boolean;
@@ -46,8 +47,8 @@ export function DeleteSiteModal({
       await sessionService.deleteSite(site.id);
       handleClose();
       onSuccess();
-    } catch (err: any) {
-      setError(err.message || "Failed to delete site");
+    } catch (err) {
+      setError((err as ApiError).message || "Failed to delete site");
     } finally {
       setLoading(false);
     }

@@ -44,6 +44,7 @@ import {
   Legend,
 } from "recharts";
 import { ethernetService } from "@/lib/api/ethernet";
+import { ApiError } from "@/lib/types/api";
 
 interface InterfaceWithType extends InterfaceCounter {
   type: string;
@@ -430,20 +431,24 @@ export function InterfaceStatisticsCard({
         .sort((a, b) => a.interface.localeCompare(b.interface));
 
       setInterfaces(groupedInterfaces);
-    } catch (err: any) {
+    } catch (err) {
       // Extract error message properly from various error formats
       let errorMessage = "Failed to load interface statistics";
 
       if (typeof err === 'string') {
         errorMessage = err;
-      } else if (err.message && typeof err.message === 'string') {
-        errorMessage = err.message;
-      } else if (err.error && typeof err.error === 'string') {
-        errorMessage = err.error;
-      } else if (err.detail && typeof err.detail === 'string') {
-        errorMessage = err.detail;
-      } else if (err.detail && typeof err.detail === 'object' && err.detail.message) {
-        errorMessage = err.detail.message;
+      } else if ((err as ApiError).message && typeof (err as ApiError).message === 'string') {
+        errorMessage = (err as ApiError).message;
+      } else {
+        const errRecord = err as Record<string, unknown>;
+        if (errRecord.error && typeof errRecord.error === 'string') {
+          errorMessage = errRecord.error;
+        } else if (errRecord.detail && typeof errRecord.detail === 'string') {
+          errorMessage = errRecord.detail;
+        } else if (errRecord.detail && typeof errRecord.detail === 'object') {
+          const detail = errRecord.detail as Record<string, unknown>;
+          if (typeof detail.message === 'string') errorMessage = detail.message;
+        }
       }
 
       setError(errorMessage);
