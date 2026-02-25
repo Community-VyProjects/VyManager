@@ -86,7 +86,7 @@ services:
     container_name: vymanager-postgres
     environment:
       POSTGRES_USER: vymanager
-      POSTGRES_PASSWORD: vymanager_secure_password
+      POSTGRES_PASSWORD: CHANGE_ME_POSTGRES_PASSWORD
       POSTGRES_DB: vymanager
     ports:
       - "5432:5432"
@@ -149,14 +149,17 @@ volumes:
 
 ### Step 4: Create the .env file
 
-Create a file named `.env` in the same directory. You **must** edit two values before starting:
+Create a file named `.env` in the same directory. You **must** edit these values before starting:
 
-1. **`BETTER_AUTH_SECRET`** — Change this to a long random string (used to sign session tokens).
-2. **`TRUSTED_ORIGINS`** — Replace `<YOUR_SERVER_IP>` with the IP address or hostname you will use to access VyManager in your browser.
+1. **`POSTGRES_PASSWORD`** — Change this in **both** the `docker-compose.yml` and `DATABASE_URL` below. Use the same value in both places. Generate one with: `openssl rand -hex 32`
+2. **`BETTER_AUTH_SECRET`** — Change this to a long random string (used to sign session tokens). Generate one with: `openssl rand -hex 32`
+3. **`SSH_ENCRYPTION_KEY`** — Change this to a long random hex string. Generate one with: `openssl rand -hex 32`
+4. **`TRUSTED_ORIGINS`** — Replace `<YOUR_SERVER_IP>` with the IP address or hostname you will use to access VyManager in your browser.
 
 ```env
 # ── Backend ──────────────────────────────────────────────
-DATABASE_URL=postgresql://vymanager:vymanager_secure_password@postgres:5432/vymanager
+# CHANGE_ME_POSTGRES_PASSWORD must match POSTGRES_PASSWORD in docker-compose.yml
+DATABASE_URL=postgresql://vymanager:CHANGE_ME_POSTGRES_PASSWORD@postgres:5432/vymanager
 FRONTEND_URL=http://frontend:3000
 
 # ── Frontend ─────────────────────────────────────────────
