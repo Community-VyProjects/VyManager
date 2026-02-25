@@ -76,6 +76,8 @@ class InstanceResponse(BaseModel):
     ssh_port: int = 22
     ssh_username: Optional[str] = None
     ssh_key_configured: bool = False
+    commit_confirm_enabled: bool = False
+    commit_confirm_minutes: int = 5
     created_at: datetime
     updated_at: datetime
 
@@ -95,6 +97,8 @@ class InstanceCreateRequest(BaseModel):
     is_active: bool = Field(default=True, description="Whether instance is active")
     ssh_port: int = Field(default=22, ge=1, le=65535, description="SSH port for monitoring")
     ssh_username: Optional[str] = Field(None, description="SSH username for monitoring")
+    commit_confirm_enabled: bool = Field(default=False, description="Use commit-confirm for all changes (VyOS 1.5+ only)")
+    commit_confirm_minutes: int = Field(default=5, ge=1, le=60, description="Minutes before auto-revert if not confirmed")
 
 
 class InstanceUpdateRequest(BaseModel):
@@ -112,6 +116,8 @@ class InstanceUpdateRequest(BaseModel):
     site_id: Optional[str] = Field(None, description="Move to different site")
     ssh_port: Optional[int] = Field(None, ge=1, le=65535, description="SSH port for monitoring")
     ssh_username: Optional[str] = Field(None, description="SSH username for monitoring")
+    commit_confirm_enabled: Optional[bool] = Field(None, description="Use commit-confirm for all changes (VyOS 1.5+ only)")
+    commit_confirm_minutes: Optional[int] = Field(None, ge=1, le=60, description="Minutes before auto-revert if not confirmed")
 
 
 class ActiveSessionResponse(BaseModel):
@@ -583,6 +589,7 @@ async def list_site_instances(request: Request, site_id: str):
                     """
                     SELECT id, "siteId", name, description, host, port, protocol, "verifySsl", "isActive",
                            "vyosVersion", "sshPort", "sshUsername", "sshKeyConfigured",
+                           "commitConfirmEnabled", "commitConfirmMinutes",
                            "createdAt", "updatedAt"
                     FROM instances
                     WHERE "siteId" = $1
@@ -596,6 +603,7 @@ async def list_site_instances(request: Request, site_id: str):
                     """
                     SELECT DISTINCT i.id, i."siteId", i.name, i.description, i.host, i.port, i.protocol, i."verifySsl", i."isActive",
                            i."vyosVersion", i."sshPort", i."sshUsername", i."sshKeyConfigured",
+                           i."commitConfirmEnabled", i."commitConfirmMinutes",
                            i."createdAt", i."updatedAt"
                     FROM instances i
                     JOIN user_instance_roles uir ON i.id = uir."instanceId"
@@ -624,6 +632,8 @@ async def list_site_instances(request: Request, site_id: str):
                     ssh_port=inst["sshPort"],
                     ssh_username=inst["sshUsername"],
                     ssh_key_configured=inst["sshKeyConfigured"],
+                    commit_confirm_enabled=inst.get("commitConfirmEnabled") or False,
+                    commit_confirm_minutes=inst.get("commitConfirmMinutes") or 5,
                     created_at=inst["createdAt"],
                     updated_at=inst["updatedAt"],
                 )
@@ -923,11 +933,13 @@ async def create_instance(request: Request, body: InstanceCreateRequest):
                     id, "siteId", name, description, host, port, username, password,
                     "apiKey", "vyosVersion", protocol, "verifySsl", "isActive",
                     "sshPort", "sshUsername",
+                    "commitConfirmEnabled", "commitConfirmMinutes",
                     "createdAt", "updatedAt"
                 )
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW(), NOW())
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, NOW(), NOW())
                 RETURNING id, "siteId", name, description, host, port, protocol, "verifySsl", "vyosVersion",
                           "isActive", "sshPort", "sshUsername", "sshKeyConfigured",
+                          "commitConfirmEnabled", "commitConfirmMinutes",
                           "createdAt", "updatedAt"
                 """,
                 instance_id,
@@ -945,6 +957,8 @@ async def create_instance(request: Request, body: InstanceCreateRequest):
                 body.is_active,
                 body.ssh_port,
                 body.ssh_username,
+                body.commit_confirm_enabled,
+                body.commit_confirm_minutes,
             )
 
             clear_session_cache(instance_id)
@@ -963,6 +977,8 @@ async def create_instance(request: Request, body: InstanceCreateRequest):
                 ssh_port=instance["sshPort"],
                 ssh_username=instance["sshUsername"],
                 ssh_key_configured=instance["sshKeyConfigured"],
+                commit_confirm_enabled=instance.get("commitConfirmEnabled") or False,
+                commit_confirm_minutes=instance.get("commitConfirmMinutes") or 5,
                 created_at=instance["createdAt"],
                 updated_at=instance["updatedAt"],
             )
@@ -1096,12 +1112,23 @@ async def update_instance(request: Request, instance_id: str, body: InstanceUpda
                 params.append(body.ssh_username)
                 param_num += 1
 
+            if body.commit_confirm_enabled is not None:
+                updates.append(f'"commitConfirmEnabled" = ${param_num}')
+                params.append(body.commit_confirm_enabled)
+                param_num += 1
+
+            if body.commit_confirm_minutes is not None:
+                updates.append(f'"commitConfirmMinutes" = ${param_num}')
+                params.append(body.commit_confirm_minutes)
+                param_num += 1
+
             if not updates:
                 # No fields to update, return current instance
                 instance = await conn.fetchrow(
                     """
                     SELECT id, "siteId", name, description, host, port, protocol, "verifySsl", "vyosVersion",
                            "isActive", "sshPort", "sshUsername", "sshKeyConfigured",
+                           "commitConfirmEnabled", "commitConfirmMinutes",
                            "createdAt", "updatedAt"
                     FROM instances WHERE id = $1
                     """,
@@ -1115,6 +1142,7 @@ async def update_instance(request: Request, instance_id: str, body: InstanceUpda
                     WHERE id = $1
                     RETURNING id, "siteId", name, description, host, port, protocol, "verifySsl", "vyosVersion",
                               "isActive", "sshPort", "sshUsername", "sshKeyConfigured",
+                              "commitConfirmEnabled", "commitConfirmMinutes",
                               "createdAt", "updatedAt"
                 """
                 instance = await conn.fetchrow(query, *params)
@@ -1139,6 +1167,8 @@ async def update_instance(request: Request, instance_id: str, body: InstanceUpda
                 ssh_port=instance["sshPort"],
                 ssh_username=instance["sshUsername"],
                 ssh_key_configured=instance["sshKeyConfigured"],
+                commit_confirm_enabled=instance.get("commitConfirmEnabled") or False,
+                commit_confirm_minutes=instance.get("commitConfirmMinutes") or 5,
                 created_at=instance["createdAt"],
                 updated_at=instance["updatedAt"],
             )

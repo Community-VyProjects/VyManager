@@ -176,6 +176,10 @@ model Instance {
   verifySsl   Boolean  @default(false) // Verify SSL certificate
   isActive    Boolean  @default(true)
 
+  // Commit-confirm settings
+  commitConfirmEnabled Boolean @default(false) // Use commit-confirm for all changes
+  commitConfirmMinutes Int     @default(5)      // Minutes before auto-revert if not confirmed
+
   // SSH / Monitoring fields
   sshPort           Int      @default(22)
   sshUsername        String?

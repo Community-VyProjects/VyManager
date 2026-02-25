@@ -704,7 +704,6 @@ async def configure_group_batch(http_request: Request, request: GroupBatchReques
                     detail=f"Unsupported operation: {op_type}"
                 )
 
-        # Execute the batch
         response = service.execute_batch(batch)
 
         # Handle empty string result (convert to None for Pydantic validation)

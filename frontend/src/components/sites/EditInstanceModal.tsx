@@ -53,6 +53,8 @@ export function EditInstanceModal({
   const [siteId, setSiteId] = useState("");
   const [sshPort, setSshPort] = useState("22");
   const [sshUsername, setSshUsername] = useState("");
+  const [commitConfirmEnabled, setCommitConfirmEnabled] = useState(false);
+  const [commitConfirmMinutes, setCommitConfirmMinutes] = useState("5");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -67,6 +69,8 @@ export function EditInstanceModal({
       setSiteId(instance.site_id);
       setSshPort((instance.ssh_port ?? 22).toString());
       setSshUsername(instance.ssh_username || "");
+      setCommitConfirmEnabled(instance.commit_confirm_enabled ?? false);
+      setCommitConfirmMinutes((instance.commit_confirm_minutes ?? 5).toString());
       // Don't populate API key for security
       setApiKey("");
       setProtocol(instance.protocol || "https");
@@ -87,6 +91,8 @@ export function EditInstanceModal({
     setSiteId("");
     setSshPort("22");
     setSshUsername("");
+    setCommitConfirmEnabled(false);
+    setCommitConfirmMinutes("5");
     setError(null);
     onOpenChange(false);
   };
@@ -132,6 +138,8 @@ export function EditInstanceModal({
         ssh_port: sshPortNum,
         ssh_username: sshUsername.trim() || null,
         verify_ssl: verifySsl,
+        commit_confirm_enabled: commitConfirmEnabled,
+        commit_confirm_minutes: parseInt(commitConfirmMinutes) || 5,
       };
 
       if (apiKey.trim()) {
@@ -275,6 +283,46 @@ export function EditInstanceModal({
                 <Label htmlFor="isActive" className="cursor-pointer">
                   Instance is active
                 </Label>
+              </div>
+
+              {/* Commit-Confirm */}
+              <div className="space-y-3 rounded-lg border p-3">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="editCommitConfirmEnabled"
+                    checked={commitConfirmEnabled}
+                    onCheckedChange={(checked) => setCommitConfirmEnabled(checked as boolean)}
+                    disabled={loading || vyosVersion === "1.4"}
+                  />
+                  <div>
+                    <Label htmlFor="editCommitConfirmEnabled" className="cursor-pointer">
+                      Enable Commit-Confirm
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      {vyosVersion === "1.4"
+                        ? "Not supported on VyOS 1.4"
+                        : "All changes will require confirmation or VyOS will auto-revert"}
+                    </p>
+                  </div>
+                </div>
+                {commitConfirmEnabled && (
+                  <div className="flex items-center gap-3 pl-6">
+                    <Label htmlFor="editCommitConfirmMinutes" className="whitespace-nowrap text-sm">
+                      Confirm window
+                    </Label>
+                    <Input
+                      id="editCommitConfirmMinutes"
+                      type="number"
+                      min={1}
+                      max={60}
+                      value={commitConfirmMinutes}
+                      onChange={(e) => setCommitConfirmMinutes(e.target.value)}
+                      disabled={loading}
+                      className="w-20"
+                    />
+                    <span className="text-sm text-muted-foreground">minutes</span>
+                  </div>
+                )}
               </div>
 
               <DialogFooter className="pt-2">

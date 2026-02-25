@@ -12,6 +12,7 @@ from typing import Optional, Dict, Any
 from session_vyos_service import get_session_vyos_service
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
+import commit_confirm_state
 import json
 import logging
 logger = logging.getLogger(__name__)
@@ -253,6 +254,83 @@ async def refresh_config(request: Request):
     except Exception as e:
         print(f"[ConfigRouter] Error in /config/refresh: {type(e).__name__}: {str(e)}")
         logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+# ========================================================================
+# Commit-Confirm Endpoints
+# ========================================================================
+
+class CommitConfirmStatusResponse(BaseModel):
+    active: bool
+    instance_id: Optional[str] = None
+    confirm_time_minutes: Optional[int] = None
+    action: Optional[str] = None
+    seconds_remaining: Optional[int] = None
+    expires_at: Optional[str] = None
+
+
+class CommitConfirmRequest(BaseModel):
+    confirm_time_minutes: int = 5
+    action: str = "reload"
+
+
+@router.get("/commit-confirm/status", response_model=CommitConfirmStatusResponse)
+async def get_commit_confirm_status(request: Request):
+    """
+    Get the current commit-confirm status for the active instance.
+
+    Returns active=True with countdown info if a commit-confirm is in progress,
+    or active=False if no commit-confirm is active (or it has expired).
+    """
+    await require_read_permission(request, FeatureGroup.CONFIGURATION)
+    try:
+        instance_id = request.state.instance["id"]
+        session = commit_confirm_state.get_active(instance_id)
+        if session is None:
+            return CommitConfirmStatusResponse(active=False)
+        return CommitConfirmStatusResponse(**session.to_dict())
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Unhandled error in /config/commit-confirm/status")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post("/commit-confirm/confirm", response_model=SaveConfigResponse)
+async def confirm_commit(request: Request):
+    """
+    Confirm the active commit-confirm, stopping the rollback timer.
+
+    This makes the previously applied changes permanent and saves the
+    configuration to disk.
+    """
+    await require_write_permission(request, FeatureGroup.CONFIGURATION)
+    try:
+        service = get_session_vyos_service(request)
+        instance_id = request.state.instance["id"]
+
+        response = await run_in_threadpool(service.confirm_commit, instance_id)
+
+        if response.status != 200:
+            return SaveConfigResponse(
+                success=False,
+                message="Failed to confirm commit",
+                error=response.error or "Unknown error",
+            )
+
+        # Refresh the config cache so the unsaved-changes banner reflects
+        # the new running config, prompting the user to save when ready.
+        await run_in_threadpool(service.get_full_config, refresh=True)
+
+        return SaveConfigResponse(
+            success=True,
+            message="Commit confirmed — changes are live. Save configuration when ready.",
+        )
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Unhandled error in /config/commit-confirm/confirm")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
