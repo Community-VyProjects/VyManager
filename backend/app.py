@@ -1,6 +1,3 @@
-import urllib3
-urllib3.disable_warnings()
-
 import os
 import asyncpg
 import asyncio

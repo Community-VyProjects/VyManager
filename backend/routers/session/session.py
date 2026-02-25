@@ -67,6 +67,7 @@ class InstanceResponse(BaseModel):
     host: str
     port: int
     protocol: str = "https"
+    verify_ssl: bool = False
     is_active: bool
     vyos_version: Optional[str] = None
     ssh_port: int = 22
@@ -573,7 +574,7 @@ async def list_site_instances(request: Request, site_id: str):
                 # Site ADMINs see ALL instances in the site
                 instances = await conn.fetch(
                     """
-                    SELECT id, "siteId", name, description, host, port, protocol, "isActive",
+                    SELECT id, "siteId", name, description, host, port, protocol, "verifySsl", "isActive",
                            "vyosVersion", "sshPort", "sshUsername", "sshKeyConfigured",
                            "createdAt", "updatedAt"
                     FROM instances
@@ -586,7 +587,7 @@ async def list_site_instances(request: Request, site_id: str):
                 # Regular users see only instances they have explicit access to
                 instances = await conn.fetch(
                     """
-                    SELECT DISTINCT i.id, i."siteId", i.name, i.description, i.host, i.port, i.protocol, i."isActive",
+                    SELECT DISTINCT i.id, i."siteId", i.name, i.description, i.host, i.port, i.protocol, i."verifySsl", i."isActive",
                            i."vyosVersion", i."sshPort", i."sshUsername", i."sshKeyConfigured",
                            i."createdAt", i."updatedAt"
                     FROM instances i
@@ -610,6 +611,7 @@ async def list_site_instances(request: Request, site_id: str):
                     host=inst["host"],
                     port=inst["port"],
                     protocol=inst.get("protocol") or "https",
+                    verify_ssl=inst.get("verifySsl") or False,
                     vyos_version=inst.get("vyosVersion"),
                     is_active=inst["isActive"],
                     ssh_port=inst["sshPort"],
@@ -913,7 +915,7 @@ async def create_instance(request: Request, body: InstanceCreateRequest):
                     "createdAt", "updatedAt"
                 )
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW(), NOW())
-                RETURNING id, "siteId", name, description, host, port, "vyosVersion",
+                RETURNING id, "siteId", name, description, host, port, protocol, "verifySsl", "vyosVersion",
                           "isActive", "sshPort", "sshUsername", "sshKeyConfigured",
                           "createdAt", "updatedAt"
                 """,
@@ -943,6 +945,8 @@ async def create_instance(request: Request, body: InstanceCreateRequest):
                 description=instance["description"],
                 host=instance["host"],
                 port=instance["port"],
+                protocol=instance["protocol"] or "https",
+                verify_ssl=instance["verifySsl"] or False,
                 vyos_version=instance["vyosVersion"],
                 is_active=instance["isActive"],
                 ssh_port=instance["sshPort"],
@@ -1084,7 +1088,7 @@ async def update_instance(request: Request, instance_id: str, body: InstanceUpda
                 # No fields to update, return current instance
                 instance = await conn.fetchrow(
                     """
-                    SELECT id, "siteId", name, description, host, port, "vyosVersion",
+                    SELECT id, "siteId", name, description, host, port, protocol, "verifySsl", "vyosVersion",
                            "isActive", "sshPort", "sshUsername", "sshKeyConfigured",
                            "createdAt", "updatedAt"
                     FROM instances WHERE id = $1
@@ -1097,7 +1101,7 @@ async def update_instance(request: Request, instance_id: str, body: InstanceUpda
                     UPDATE instances
                     SET {', '.join(updates)}
                     WHERE id = $1
-                    RETURNING id, "siteId", name, description, host, port, "vyosVersion",
+                    RETURNING id, "siteId", name, description, host, port, protocol, "verifySsl", "vyosVersion",
                               "isActive", "sshPort", "sshUsername", "sshKeyConfigured",
                               "createdAt", "updatedAt"
                 """
@@ -1106,6 +1110,9 @@ async def update_instance(request: Request, instance_id: str, body: InstanceUpda
             if not instance:
                 raise HTTPException(status_code=404, detail="Instance not found")
 
+            # Invalidate cached VyOS service so changes take effect immediately
+            clear_session_cache(instance_id)
+
             return InstanceResponse(
                 id=instance["id"],
                 site_id=instance["siteId"],
@@ -1113,6 +1120,8 @@ async def update_instance(request: Request, instance_id: str, body: InstanceUpda
                 description=instance["description"],
                 host=instance["host"],
                 port=instance["port"],
+                protocol=instance["protocol"] or "https",
+                verify_ssl=instance["verifySsl"] or False,
                 vyos_version=instance["vyosVersion"],
                 is_active=instance["isActive"],
                 ssh_port=instance["sshPort"],

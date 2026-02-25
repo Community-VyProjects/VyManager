@@ -30,6 +30,7 @@ export interface Instance {
   host: string;
   port: number;
   protocol: string;
+  verify_ssl: boolean;
   vyos_version?: string | null;
   is_active: boolean;
   ssh_port: number;

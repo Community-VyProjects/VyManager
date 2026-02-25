@@ -70,7 +70,7 @@ export function EditInstanceModal({
       // Don't populate API key for security
       setApiKey("");
       setProtocol(instance.protocol || "https");
-      setVerifySsl(false);
+      setVerifySsl(instance.verify_ssl ?? false);
     }
   }, [instance, open]);
 
@@ -131,11 +131,11 @@ export function EditInstanceModal({
         is_active: isActive,
         ssh_port: sshPortNum,
         ssh_username: sshUsername.trim() || null,
+        verify_ssl: verifySsl,
       };
 
       if (apiKey.trim()) {
         updateData.api_key = apiKey.trim();
-        updateData.verify_ssl = verifySsl;
       }
 
       if (siteId !== instance.site_id) {
