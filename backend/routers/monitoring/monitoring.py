@@ -20,6 +20,7 @@ from pydantic import BaseModel, Field
 
 from monitoring_commands import build_command, get_available_commands
 from rbac_permissions import FeatureGroup, check_permission, PermissionLevel
+from fastapi_permissions import require_read_permission
 from ssh_key_manager import decrypt_private_key, generate_keypair
 
 router = APIRouter(prefix="/vyos/monitoring", tags=["monitoring"])
@@ -184,9 +185,7 @@ async def delete_ssh_key(instance_id: str, request: Request):
 @router.get("/commands")
 async def list_commands(request: Request):
     """List available monitoring commands."""
-    user_id = _get_user_id(request)
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+    await require_read_permission(request, FeatureGroup.MONITORING)
     return {"commands": get_available_commands()}
 
 
