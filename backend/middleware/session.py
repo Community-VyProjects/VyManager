@@ -11,6 +11,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 import asyncpg
 from typing import Optional
+from session_cookie import verify_session_cookie
 
 
 class _SecureStr:
@@ -98,10 +99,9 @@ class SessionMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         try:
-            # Get current auth session token from cookie
+            # Get current auth session token from cookie and verify its signature
             cookie_token = request.cookies.get("better-auth.session_token")
-            # Extract session ID (everything before the first dot)
-            current_session_token = cookie_token.split(".")[0] if cookie_token else None
+            current_session_token = verify_session_cookie(cookie_token) if cookie_token else None
 
             async with db_pool.acquire() as conn:
                 # First check if user is site-level ADMIN

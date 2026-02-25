@@ -16,6 +16,7 @@ import csv
 import io
 from vyos_service import VyOSService, VyOSDeviceConfig
 from session_vyos_service import clear_session_cache
+from session_cookie import verify_session_cookie
 import logging
 logger = logging.getLogger(__name__)
 
@@ -338,11 +339,10 @@ async def connect_to_instance(request: Request, body: ConnectRequest):
                     detail=f"Failed to connect to VyOS instance: {error_msg}. Please verify the host, port, API key, and network connectivity.",
                 )
 
-            # Get current auth session token from cookie
+            # Get current auth session token from cookie and verify its signature
             # This allows us to track which auth session created this VyOS connection
             cookie_token = request.cookies.get("better-auth.session_token")
-            # Extract session ID (everything before the first dot)
-            current_session_token = cookie_token.split(".")[0] if cookie_token else None
+            current_session_token = verify_session_cookie(cookie_token) if cookie_token else None
 
             # Create or update active session (upsert)
             # Generate a 32-character ID similar to CUIDs used elsewhere in the database
@@ -1587,10 +1587,9 @@ async def get_active_auth_sessions(request: Request):
     # Get current session token from cookie
     cookie_token = request.cookies.get("better-auth.session_token")
 
-    # Better-auth stores compound tokens in the format: {session_id}.{signature}
-    # But the database only stores the session_id part
-    # Extract just the session ID (everything before the first dot)
-    current_token = cookie_token.split(".")[0] if cookie_token else None
+    # Better-auth stores compound tokens in the format: {session_id}.{base64(HMAC-SHA256)}
+    # Verify the signature and extract the session ID
+    current_token = verify_session_cookie(cookie_token) if cookie_token else None
 
     db_pool: asyncpg.Pool = request.app.state.db_pool
     if not db_pool:
@@ -1649,11 +1648,9 @@ async def revoke_auth_session(request: Request, body: RevokeSessionRequest):
     user = request.state.user
     user_id = user["id"]
 
-    # Get current session token to prevent self-logout
+    # Get current session token to prevent self-logout; verify its signature
     cookie_token = request.cookies.get("better-auth.session_token")
-
-    # Extract session ID from compound token (format: {session_id}.{signature})
-    current_token = cookie_token.split(".")[0] if cookie_token else None
+    current_token = verify_session_cookie(cookie_token) if cookie_token else None
 
     if body.session_token == current_token:
         raise HTTPException(

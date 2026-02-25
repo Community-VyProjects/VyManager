@@ -13,6 +13,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 from datetime import datetime
 import asyncpg
+from session_cookie import verify_session_cookie
 
 logger = logging.getLogger(__name__)
 
@@ -95,11 +96,15 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         token_to_use = session_token if session_token else session_token2
 
         try:
-            # Better-auth uses session tokens (not JWTs)
-            # The cookie contains: token.signature, but database only stores token
-            # Extract the token part (before the first dot)
-            token_parts = token_to_use.split('.')
-            token_id = token_parts[0] if len(token_parts) > 0 else token_to_use
+            # Better-auth uses signed session cookies: {session_id}.{base64(HMAC-SHA256)}
+            # Verify the signature and extract the session ID
+            token_id = verify_session_cookie(token_to_use)
+            if not token_id:
+                return JSONResponse(
+                    status_code=401,
+                    content={"detail": "Invalid session token"},
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
 
             logger.debug("Validating session token")
 

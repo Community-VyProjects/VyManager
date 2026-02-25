@@ -21,6 +21,7 @@ from pydantic import BaseModel, Field
 from monitoring_commands import build_command, get_available_commands
 from rbac_permissions import FeatureGroup, check_permission, PermissionLevel
 from fastapi_permissions import require_read_permission, require_super_admin
+from session_cookie import verify_session_cookie
 from ssh_key_manager import decrypt_private_key, generate_keypair
 
 router = APIRouter(prefix="/vyos/monitoring", tags=["monitoring"])
@@ -507,8 +508,11 @@ async def _authenticate_websocket(websocket: WebSocket) -> Optional[dict]:
         await websocket.close()
         return None
 
-    token_parts = session_token.split(".")
-    token_id = token_parts[0] if len(token_parts) > 0 else session_token
+    token_id = verify_session_cookie(session_token)
+    if not token_id:
+        await websocket.send_json({"type": "error", "data": "Invalid session token"})
+        await websocket.close()
+        return None
 
     async with db_pool.acquire() as conn:
         session = await conn.fetchrow(
