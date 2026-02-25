@@ -16,9 +16,9 @@ from rbac_permissions import (
     FeatureGroup,
     PermissionLevel,
     BuiltInRole,
-    is_admin,
     get_user_permissions,
 )
+from fastapi_permissions import require_super_admin
 
 router = APIRouter(prefix="/user-management", tags=["user-management"])
 
@@ -106,25 +106,6 @@ class InstanceUserListItem(BaseModel):
 # Helper Functions
 # ============================================================================
 
-async def check_admin_permission(request: Request) -> None:
-    """
-    Check if the current user is an ADMIN.
-    Raises HTTPException if not.
-    """
-    user = request.state.user
-    if not user:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
-    db_pool: asyncpg.Pool = request.app.state.db_pool
-    user_is_admin = await is_admin(db_pool, user["id"])
-
-    if not user_is_admin:
-        raise HTTPException(
-            status_code=403,
-            detail="Insufficient permissions. ADMIN role required."
-        )
-
-
 # ============================================================================
 # User Endpoints
 # ============================================================================
@@ -184,7 +165,7 @@ async def get_my_permissions(request: Request):
 @router.get("/users", response_model=List[UserListItem])
 async def list_users(request: Request):
     """Get list of all users with their instance counts and site roles."""
-    await check_admin_permission(request)
+    await require_super_admin(request)
 
     db_pool: asyncpg.Pool = request.app.state.db_pool
 
@@ -220,7 +201,7 @@ async def list_users(request: Request):
 @router.get("/users/{user_id}", response_model=UserDetail)
 async def get_user(request: Request, user_id: str):
     """Get detailed information about a specific user."""
-    await check_admin_permission(request)
+    await require_super_admin(request)
 
     db_pool: asyncpg.Pool = request.app.state.db_pool
 
@@ -244,7 +225,7 @@ async def get_user(request: Request, user_id: str):
 @router.get("/users/{user_id}/assignments", response_model=List[UserInstanceAssignment])
 async def get_user_assignments(request: Request, user_id: str):
     """Get all instance assignments for a specific user."""
-    await check_admin_permission(request)
+    await require_super_admin(request)
 
     db_pool: asyncpg.Pool = request.app.state.db_pool
 
@@ -314,7 +295,7 @@ async def create_user(request: Request, body: CreateUserRequest):
     This ensures password hashing is handled correctly by Better Auth.
     Then sets the site role in the database.
     """
-    await check_admin_permission(request)
+    await require_super_admin(request)
 
     db_pool: asyncpg.Pool = request.app.state.db_pool
 
@@ -399,7 +380,7 @@ async def update_user(request: Request, user_id: str, body: UpdateUserRequest):
     Note: Password updates are not currently supported through this endpoint.
     Use the password reset flow for changing user passwords.
     """
-    await check_admin_permission(request)
+    await require_super_admin(request)
 
     db_pool: asyncpg.Pool = request.app.state.db_pool
 
@@ -472,7 +453,7 @@ async def update_user(request: Request, user_id: str, body: UpdateUserRequest):
 @router.delete("/users/{user_id}")
 async def delete_user(request: Request, user_id: str):
     """Delete a user."""
-    await check_admin_permission(request)
+    await require_super_admin(request)
 
     db_pool: asyncpg.Pool = request.app.state.db_pool
     current_user = request.state.user
@@ -500,7 +481,7 @@ async def delete_user(request: Request, user_id: str):
 @router.post("/assignments")
 async def assign_user_to_instances(request: Request, body: AssignUserRequest):
     """Assign a user to instance(s) with a role and optional feature permissions."""
-    await check_admin_permission(request)
+    await require_super_admin(request)
 
     db_pool: asyncpg.Pool = request.app.state.db_pool
     current_user = request.state.user
@@ -577,7 +558,7 @@ async def assign_user_to_instances(request: Request, body: AssignUserRequest):
 @router.delete("/assignments/{assignment_id}")
 async def remove_assignment(request: Request, assignment_id: str):
     """Remove a user's access to an instance."""
-    await check_admin_permission(request)
+    await require_super_admin(request)
 
     db_pool: asyncpg.Pool = request.app.state.db_pool
 
@@ -596,7 +577,7 @@ async def remove_assignment(request: Request, assignment_id: str):
 @router.get("/instances/{instance_id}/users", response_model=List[InstanceUserListItem])
 async def get_instance_users(request: Request, instance_id: str):
     """Get all users with access to a specific instance."""
-    await check_admin_permission(request)
+    await require_super_admin(request)
 
     db_pool: asyncpg.Pool = request.app.state.db_pool
 

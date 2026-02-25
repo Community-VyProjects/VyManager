@@ -20,7 +20,7 @@ from pydantic import BaseModel, Field
 
 from monitoring_commands import build_command, get_available_commands
 from rbac_permissions import FeatureGroup, check_permission, PermissionLevel
-from fastapi_permissions import require_read_permission
+from fastapi_permissions import require_read_permission, require_super_admin
 from ssh_key_manager import decrypt_private_key, generate_keypair
 
 router = APIRouter(prefix="/vyos/monitoring", tags=["monitoring"])
@@ -59,6 +59,10 @@ class GenericResponse(BaseModel):
     message: Optional[str] = None
 
 
+class MonitoringStatusResponse(BaseModel):
+    configured: bool
+
+
 # ============================================================================
 # SSH Key Management Endpoints (instance-id based, site ADMIN required)
 # ============================================================================
@@ -66,7 +70,7 @@ class GenericResponse(BaseModel):
 @router.post("/instances/{instance_id}/ssh-key/generate", response_model=SSHKeyGenerateResponse)
 async def generate_ssh_key(instance_id: str, request: Request):
     """Generate a new SSH keypair for an instance. Requires site ADMIN."""
-    await _require_instance_admin(request, instance_id)
+    await require_super_admin(request)
     db_pool = _get_db_pool(request)
 
     keypair = generate_keypair()
@@ -100,7 +104,7 @@ async def generate_ssh_key(instance_id: str, request: Request):
 @router.get("/instances/{instance_id}/ssh-key/status", response_model=SSHKeyResponse)
 async def get_ssh_key_status(instance_id: str, request: Request):
     """Get SSH key status for an instance. Requires site ADMIN."""
-    await _require_instance_admin(request, instance_id)
+    await require_super_admin(request)
     db_pool = _get_db_pool(request)
 
     async with db_pool.acquire() as conn:
@@ -127,7 +131,7 @@ async def get_ssh_key_status(instance_id: str, request: Request):
 @router.post("/instances/{instance_id}/ssh-key/mark-configured", response_model=GenericResponse)
 async def mark_ssh_key_configured(instance_id: str, request: Request, body: MarkConfiguredRequest):
     """Mark SSH key as configured on the VyOS device. Requires site ADMIN."""
-    await _require_instance_admin(request, instance_id)
+    await require_super_admin(request)
     db_pool = _get_db_pool(request)
 
     async with db_pool.acquire() as conn:
@@ -159,7 +163,7 @@ async def mark_ssh_key_configured(instance_id: str, request: Request, body: Mark
 @router.delete("/instances/{instance_id}/ssh-key", response_model=GenericResponse)
 async def delete_ssh_key(instance_id: str, request: Request):
     """Remove SSH key from an instance. Requires site ADMIN."""
-    await _require_instance_admin(request, instance_id)
+    await require_super_admin(request)
     db_pool = _get_db_pool(request)
 
     async with db_pool.acquire() as conn:
@@ -180,6 +184,32 @@ async def delete_ssh_key(instance_id: str, request: Request):
             raise HTTPException(status_code=404, detail="Instance not found")
 
     return GenericResponse(success=True, message="SSH key removed")
+
+
+@router.get("/status", response_model=MonitoringStatusResponse)
+async def get_monitoring_status(request: Request):
+    """Get SSH monitoring availability for the current user's active instance. Requires MONITORING read permission."""
+    await require_read_permission(request, FeatureGroup.MONITORING)
+    db_pool = _get_db_pool(request)
+    user_id = request.state.user_id
+
+    async with db_pool.acquire() as conn:
+        active = await conn.fetchrow(
+            'SELECT "instanceId" FROM active_sessions WHERE "userId" = $1',
+            user_id,
+        )
+        if not active:
+            raise HTTPException(status_code=404, detail="No active instance")
+
+        instance = await conn.fetchrow(
+            'SELECT "sshKeyConfigured" FROM instances WHERE id = $1',
+            active["instanceId"],
+        )
+
+    if not instance:
+        raise HTTPException(status_code=404, detail="Instance not found")
+
+    return MonitoringStatusResponse(configured=bool(instance["sshKeyConfigured"]))
 
 
 @router.get("/commands")
@@ -448,44 +478,12 @@ async def websocket_monitor(websocket: WebSocket):
 # Helper Functions
 # ============================================================================
 
-def _get_user_id(request: Request) -> Optional[str]:
-    """Get authenticated user ID from request state."""
-    return getattr(request.state, "user_id", None)
-
-
 def _get_db_pool(request: Request) -> asyncpg.Pool:
     """Get database pool from app state."""
     db_pool = getattr(request.app.state, "db_pool", None)
     if not db_pool:
         raise HTTPException(status_code=503, detail="Database not available")
     return db_pool
-
-
-async def _require_instance_admin(request: Request, instance_id: str) -> str:
-    """
-    Require the user to be a site-level ADMIN.
-    Returns the user_id.
-    Raises HTTPException if not authenticated or not admin.
-    """
-    user_id = _get_user_id(request)
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
-    db_pool = _get_db_pool(request)
-
-    async with db_pool.acquire() as conn:
-        site_role = await conn.fetchval(
-            "SELECT role FROM users WHERE id = $1",
-            user_id,
-        )
-
-    if site_role != "ADMIN":
-        raise HTTPException(
-            status_code=403,
-            detail="Only site ADMIN users can manage SSH keys",
-        )
-
-    return user_id
 
 
 async def _authenticate_websocket(websocket: WebSocket) -> Optional[dict]:

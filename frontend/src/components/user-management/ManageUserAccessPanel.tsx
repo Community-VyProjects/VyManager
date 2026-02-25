@@ -231,6 +231,7 @@ const getDefaultFeaturePermissions = (): Record<FeatureGroup, { canEdit: boolean
 interface FeatureHierarchy {
   feature: FeatureGroup;
   children?: FeatureHierarchy[];
+  binary?: boolean; // true = single "Allow access" toggle instead of Edit/View
 }
 
 interface FeatureCategory {
@@ -335,6 +336,7 @@ const FEATURE_CATEGORIES: FeatureCategory[] = [
       { feature: FeatureGroup.CONFIGURATION },
       { feature: FeatureGroup.DASHBOARD },
       { feature: FeatureGroup.POWER },
+      { feature: FeatureGroup.MONITORING, binary: true },
     ],
   },
 ];
@@ -1104,32 +1106,52 @@ export function ManageUserAccessPanel({
                                           )}
                                         </div>
                                         <div className="flex items-center gap-4">
-                                          {isEditable && (
+                                          {item.binary ? (
                                             <div className="flex items-center gap-1.5">
                                               <Checkbox
-                                                id={`grant-${item.feature}-edit`}
+                                                id={`grant-${item.feature}-access`}
                                                 checked={featurePermissions[item.feature].canEdit}
                                                 onCheckedChange={(checked) => {
-                                                  handleParentFeatureChange(item.feature, item.children, checked === true, true);
+                                                  setFeaturePermissions((prev) => ({
+                                                    ...prev,
+                                                    [item.feature]: { canEdit: checked === true, canView: checked === true },
+                                                  }));
                                                 }}
                                               />
-                                              <label htmlFor={`grant-${item.feature}-edit`} className="text-xs cursor-pointer">
-                                                Edit
+                                              <label htmlFor={`grant-${item.feature}-access`} className="text-xs cursor-pointer">
+                                                Allow access
                                               </label>
                                             </div>
+                                          ) : (
+                                            <>
+                                              {isEditable && (
+                                                <div className="flex items-center gap-1.5">
+                                                  <Checkbox
+                                                    id={`grant-${item.feature}-edit`}
+                                                    checked={featurePermissions[item.feature].canEdit}
+                                                    onCheckedChange={(checked) => {
+                                                      handleParentFeatureChange(item.feature, item.children, checked === true, true);
+                                                    }}
+                                                  />
+                                                  <label htmlFor={`grant-${item.feature}-edit`} className="text-xs cursor-pointer">
+                                                    Edit
+                                                  </label>
+                                                </div>
+                                              )}
+                                              <div className="flex items-center gap-1.5">
+                                                <Checkbox
+                                                  id={`grant-${item.feature}-view`}
+                                                  checked={featurePermissions[item.feature].canView}
+                                                  onCheckedChange={(checked) => {
+                                                    handleParentFeatureChange(item.feature, item.children, checked === true, false);
+                                                  }}
+                                                />
+                                                <label htmlFor={`grant-${item.feature}-view`} className="text-xs cursor-pointer">
+                                                  View
+                                                </label>
+                                              </div>
+                                            </>
                                           )}
-                                          <div className="flex items-center gap-1.5">
-                                            <Checkbox
-                                              id={`grant-${item.feature}-view`}
-                                              checked={featurePermissions[item.feature].canView}
-                                              onCheckedChange={(checked) => {
-                                                handleParentFeatureChange(item.feature, item.children, checked === true, false);
-                                              }}
-                                            />
-                                            <label htmlFor={`grant-${item.feature}-view`} className="text-xs cursor-pointer">
-                                              View
-                                            </label>
-                                          </div>
                                         </div>
                                       </div>
 
@@ -1380,32 +1402,52 @@ export function ManageUserAccessPanel({
                                           )}
                                         </div>
                                         <div className="flex items-center gap-4">
-                                          {isEditable && (
+                                          {item.binary ? (
                                             <div className="flex items-center gap-1.5">
                                               <Checkbox
-                                                id={`edit-${item.feature}-edit`}
+                                                id={`edit-${item.feature}-access`}
                                                 checked={featurePermissions[item.feature].canEdit}
                                                 onCheckedChange={(checked) => {
-                                                  handleParentFeatureChange(item.feature, item.children, checked === true, true);
+                                                  setFeaturePermissions((prev) => ({
+                                                    ...prev,
+                                                    [item.feature]: { canEdit: checked === true, canView: checked === true },
+                                                  }));
                                                 }}
                                               />
-                                              <label htmlFor={`edit-${item.feature}-edit`} className="text-xs cursor-pointer">
-                                                Edit
+                                              <label htmlFor={`edit-${item.feature}-access`} className="text-xs cursor-pointer">
+                                                Allow access
                                               </label>
                                             </div>
+                                          ) : (
+                                            <>
+                                              {isEditable && (
+                                                <div className="flex items-center gap-1.5">
+                                                  <Checkbox
+                                                    id={`edit-${item.feature}-edit`}
+                                                    checked={featurePermissions[item.feature].canEdit}
+                                                    onCheckedChange={(checked) => {
+                                                      handleParentFeatureChange(item.feature, item.children, checked === true, true);
+                                                    }}
+                                                  />
+                                                  <label htmlFor={`edit-${item.feature}-edit`} className="text-xs cursor-pointer">
+                                                    Edit
+                                                  </label>
+                                                </div>
+                                              )}
+                                              <div className="flex items-center gap-1.5">
+                                                <Checkbox
+                                                  id={`edit-${item.feature}-view`}
+                                                  checked={featurePermissions[item.feature].canView}
+                                                  onCheckedChange={(checked) => {
+                                                    handleParentFeatureChange(item.feature, item.children, checked === true, false);
+                                                  }}
+                                                />
+                                                <label htmlFor={`edit-${item.feature}-view`} className="text-xs cursor-pointer">
+                                                  View
+                                                </label>
+                                              </div>
+                                            </>
                                           )}
-                                          <div className="flex items-center gap-1.5">
-                                            <Checkbox
-                                              id={`edit-${item.feature}-view`}
-                                              checked={featurePermissions[item.feature].canView}
-                                              onCheckedChange={(checked) => {
-                                                handleParentFeatureChange(item.feature, item.children, checked === true, false);
-                                              }}
-                                            />
-                                            <label htmlFor={`edit-${item.feature}-view`} className="text-xs cursor-pointer">
-                                              View
-                                            </label>
-                                          </div>
                                         </div>
                                       </div>
 
