@@ -204,13 +204,34 @@ async def _fetch_gql_wg_status(service, iface_names: List[str]) -> dict:
 
 
 def parse_gql_memory(ram: dict) -> dict:
-    """Convert GraphQL RAM dict (bytes) to human-readable strings."""
+    """Convert GraphQL RAM dict (bytes) to human-readable strings.
+
+    The GraphQL ``used`` field equals ``total - free`` (Linux kernel definition),
+    which includes reclaimable buffers and page cache.  We subtract those so the
+    displayed value matches what ``free -h`` / ``show system memory`` reports as
+    the application-level used memory.
+
+    ``free`` is reported as the truly *available* amount (raw free + reclaimable
+    buffers + cache) so that ``used + free ≈ total`` from the user's perspective.
+    """
     if not ram:
         return {"total": None, "free": None, "used": None}
+
+    total   = ram.get("total")   or 0
+    free    = ram.get("free")    or 0
+    raw_used = ram.get("used")   or (total - free)
+    buffers = ram.get("buffers") or 0
+    cached  = ram.get("cached")  or 0
+
+    # Application memory: strip reclaimable buffers + page cache
+    app_used  = max(0, raw_used - buffers - cached)
+    # Available: raw free + everything the kernel can reclaim on demand
+    available = free + buffers + cached
+
     return {
-        "total": _format_bytes(ram["total"]) if ram.get("total") else None,
-        "free": _format_bytes(ram["free"]) if ram.get("free") else None,
-        "used": _format_bytes(ram["used"]) if ram.get("used") else None,
+        "total": _format_bytes(total)     if total     else None,
+        "used":  _format_bytes(app_used)  if total     else None,
+        "free":  _format_bytes(available) if available else None,
     }
 
 
@@ -828,10 +849,11 @@ async def dashboard_stream(request: Request):
                         logger.exception("SSE wireguard-peers error")
                         yield f'event: error\ndata: {{"channel":"wireguard-peers","message":"Failed to fetch"}}\n\n'
 
-                # No fixed sleep — query again immediately.
-                # asyncio.sleep(0) yields control to the event loop so other
-                # coroutines (e.g. the WireGuard background task) can make progress.
-                await asyncio.sleep(0)
+                # 1-second cadence — fast enough for a smooth graph while avoiding
+                # the jarring effect of data arriving faster than the eye can follow.
+                # Also gives the event loop a chance to advance the WireGuard
+                # background task between main-query iterations.
+                await asyncio.sleep(1)
 
         finally:
             # Clean up the WireGuard background task on disconnect or error.
