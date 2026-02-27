@@ -10,13 +10,17 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Network, Plus } from "lucide-react";
+import { Network, Plus, Server, Shield, Lock } from "lucide-react";
+import { usePermissions } from "@/hooks/usePermissions";
+import { FeatureGroup } from "@/lib/api/user-management";
 
 interface AvailableCard {
   type: string;
   name: string;
   description: string;
   icon: React.ComponentType<{ className?: string }>;
+  /** FeatureGroup key required to add this card. Undefined = no restriction. */
+  requiredPermission?: FeatureGroup;
 }
 
 const AVAILABLE_CARDS: AvailableCard[] = [
@@ -26,7 +30,19 @@ const AVAILABLE_CARDS: AvailableCard[] = [
     description: "View real-time network interface counters and statistics",
     icon: Network,
   },
-  // Future cards will be added here
+  {
+    type: "system-info",
+    name: "System Information",
+    description: "Monitor memory usage, disk partitions, and VyOS version details",
+    icon: Server,
+  },
+  {
+    type: "wireguard-peers",
+    name: "WireGuard Peers",
+    description: "Live peer status with handshake times, transfer stats, and connection health",
+    icon: Shield,
+    requiredPermission: FeatureGroup.WIREGUARD,
+  },
 ];
 
 interface AddCardModalProps {
@@ -37,6 +53,7 @@ interface AddCardModalProps {
 
 export function AddCardModal({ open, onOpenChange, onAddCard }: AddCardModalProps) {
   const [selectedType, setSelectedType] = useState<string | null>(null);
+  const { canRead, isLoading: permissionsLoading } = usePermissions();
 
   const handleAdd = () => {
     if (selectedType) {
@@ -59,22 +76,39 @@ export function AddCardModal({ open, onOpenChange, onAddCard }: AddCardModalProp
         <div className="grid gap-4 py-4 md:grid-cols-2">
           {AVAILABLE_CARDS.map((card) => {
             const Icon = card.icon;
+            const locked =
+              !permissionsLoading &&
+              !!card.requiredPermission &&
+              !canRead(card.requiredPermission);
             const isSelected = selectedType === card.type;
 
             return (
               <Card
                 key={card.type}
-                className={`cursor-pointer transition-all ${
-                  isSelected
-                    ? "border-primary ring-2 ring-primary ring-offset-2"
-                    : "hover:border-primary/50"
+                className={`transition-all relative ${
+                  locked
+                    ? "opacity-50 cursor-not-allowed"
+                    : isSelected
+                    ? "border-primary ring-2 ring-primary ring-offset-2 cursor-pointer"
+                    : "hover:border-primary/50 cursor-pointer"
                 }`}
-                onClick={() => setSelectedType(card.type)}
+                onClick={() => !locked && setSelectedType(card.type)}
               >
                 <CardHeader className="pb-3">
-                  <div className="flex items-center gap-2">
-                    <Icon className="h-5 w-5 text-primary" />
-                    <CardTitle className="text-base">{card.name}</CardTitle>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Icon className="h-5 w-5 text-primary" />
+                      <CardTitle className="text-base">{card.name}</CardTitle>
+                    </div>
+                    {locked && (
+                      <div
+                        className="flex items-center gap-1 text-xs text-muted-foreground"
+                        title={`Requires ${card.requiredPermission} read permission`}
+                      >
+                        <Lock className="h-3 w-3" />
+                        <span>No access</span>
+                      </div>
+                    )}
                   </div>
                 </CardHeader>
                 <CardContent>

@@ -10,6 +10,8 @@ import { useSession } from "@/lib/auth-client";
 import { useSessionStore } from "@/store/session-store";
 import { dashboardService, DashboardCard, DashboardLayout } from "@/lib/api/dashboard";
 import { InterfaceStatisticsCard } from "@/components/dashboard/InterfaceStatisticsCard";
+import { SystemInfoCard } from "@/components/dashboard/SystemInfoCard";
+import { WireGuardPeersCard } from "@/components/dashboard/WireGuardPeersCard";
 import { AddCardModal } from "@/components/dashboard/AddCardModal";
 import {
   DndContext,
@@ -28,6 +30,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { ApiError } from "@/lib/types/api";
+import { DashboardDataProvider } from "@/contexts/DashboardDataContext";
 
 // Sortable card wrapper component
 function SortableCard({ card, children }: { card: DashboardCard; children: React.ReactNode }) {
@@ -343,6 +346,7 @@ export default function Home() {
     if (cardType === "interface-statistics") {
       defaultSpan = 2;
     }
+    // system-info defaults to 1 column (already set above)
 
     // New cards always start at column 0
     const targetColumn = 0;
@@ -447,6 +451,10 @@ export default function Home() {
     switch (card.type) {
       case "interface-statistics":
         return <InterfaceStatisticsCard {...baseProps} />;
+      case "system-info":
+        return <SystemInfoCard {...baseProps} />;
+      case "wireguard-peers":
+        return <WireGuardPeersCard {...baseProps} />;
       default:
         return null;
     }
@@ -581,6 +589,7 @@ export default function Home() {
         </div>
 
         {/* Dashboard Grid */}
+        <DashboardDataProvider>
         {cards.length === 0 && !editMode ? (
           <div className="text-center py-12">
             <p className="text-muted-foreground mb-4">
@@ -670,6 +679,7 @@ export default function Home() {
           onOpenChange={setAddCardModalOpen}
           onAddCard={handleAddCard}
         />
+        </DashboardDataProvider>
       </div>
     </AppLayout>
   );
