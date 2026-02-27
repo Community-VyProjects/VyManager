@@ -3,13 +3,23 @@ Show Operations Router
 
 API endpoints for VyOS show commands (interface counters, system info, etc.).
 Uses session-based architecture - VyOS instance comes from user's active session.
+
+The SSE dashboard stream uses the VyOS GraphQL API to fetch all data in a single
+HTTP request, replacing multiple individual SSH show commands.
 """
 
 from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
+import asyncio
+import json
+import re
+import httpx
 
 from session_vyos_service import get_session_vyos_service
+from fastapi_permissions import has_permission
+from rbac_permissions import FeatureGroup, PermissionLevel
 import logging
 logger = logging.getLogger(__name__)
 
@@ -19,6 +29,23 @@ router = APIRouter(prefix="/vyos/show", tags=["show"])
 # ========================================================================
 # Pydantic Models
 # ========================================================================
+
+
+class SystemMemory(BaseModel):
+    """Parsed memory statistics from 'show system memory'."""
+    total: Optional[str] = None
+    free: Optional[str] = None
+    used: Optional[str] = None
+
+
+class DiskPartition(BaseModel):
+    """Single filesystem entry from 'show disk-usage'."""
+    filesystem: str
+    size: str
+    used: str
+    available: str
+    use_percent: str
+    mounted_on: str
 
 
 class InterfaceCounter(BaseModel):
@@ -38,6 +65,226 @@ class InterfaceCountersResponse(BaseModel):
     """Response containing interface counter data."""
     interfaces: List[InterfaceCounter]
     total: int
+
+
+# ========================================================================
+# Helper: Extract show-command output from pyvyos response
+# (kept for the non-SSE REST endpoints that still use pyvyos)
+# ========================================================================
+
+
+def _extract_show_output(response) -> str:
+    """Return the text body of a pyvyos show-command response, or ''."""
+    if response.status == 200:
+        if isinstance(response.result, dict) and "data" in response.result:
+            return response.result["data"] or ""
+        if isinstance(response.result, str):
+            return response.result
+    return ""
+
+
+# ========================================================================
+# GraphQL helpers for SSE dashboard stream
+# ========================================================================
+
+
+def _format_bytes(b: int) -> str:
+    """Convert a byte count to a human-readable string, e.g. '15.54 GB'."""
+    if b >= 1 << 30:
+        return f"{b / (1 << 30):.2f} GB"
+    if b >= 1 << 20:
+        return f"{b / (1 << 20):.2f} MB"
+    if b >= 1 << 10:
+        return f"{b / (1 << 10):.2f} KB"
+    return f"{b} B"
+
+
+def _wg_alias(iface_name: str) -> str:
+    """Return a valid GraphQL alias for a WireGuard interface name, e.g. 'WGStatus_wg0'."""
+    safe = re.sub(r"[^_a-zA-Z0-9]", "_", iface_name)
+    return f"WGStatus_{safe}"
+
+
+def _build_gql_payload(api_key: str, include_wireguard: bool) -> dict:
+    """
+    Build the JSON body for the fast dashboard GraphQL query.
+
+    Includes CPU, storage, system status, interface counters, and (when
+    ``include_wireguard``) the static WireGuard config for interface discovery.
+    Per-interface WireGuard *live status* is intentionally excluded — it is
+    fetched concurrently by ``_fetch_gql_wg_status`` so it cannot slow down
+    the fast data path.
+    """
+    k = json.dumps(api_key)  # safely quoted/escaped string literal
+    fields = [
+        f"CPU: ShowSummaryCpu(data: {{key: {k}}}) {{ data {{ result }} }}",
+        f"Storage: ShowStorage(data: {{key: {k}}}) {{ data {{ result }} }}",
+        f"SystemStatus(data: {{key: {k}}}) {{ data {{ result }} }}",
+        f"InterfaceCounters: ShowCountersInterfaces(data: {{key: {k}}}) {{ data {{ result }} }}",
+    ]
+    if include_wireguard:
+        fields.append(
+            f'WireGuardConfig: ShowConfig(data: {{key: {k}, path: ["interfaces", "wireguard"]}}) {{ data {{ result }} }}'
+        )
+    return {"query": "{ " + " ".join(fields) + " }"}
+
+
+def _build_gql_wg_status_payload(api_key: str, iface_names: List[str]) -> dict:
+    """Build a GraphQL query that fetches live summary for each WireGuard interface."""
+    k = json.dumps(api_key)
+    fields = []
+    for name in iface_names:
+        alias = _wg_alias(name)
+        path = json.dumps(["interfaces", "wireguard", name, "summary"])
+        fields.append(f"{alias}: Show(data: {{key: {k}, path: {path}}}) {{ data {{ result }} }}")
+    return {"query": "{ " + " ".join(fields) + " }"}
+
+
+async def _fetch_graphql_dashboard(service, include_wireguard: bool) -> Optional[dict]:
+    """
+    Fire a single GraphQL POST for the fast dashboard data.
+
+    Returns the parsed ``data`` object from the GraphQL response, or None on any error.
+    """
+    api_key = str(service.config.apikey)
+    url = f"{service.config.protocol}://{service.config.hostname}:{service.config.port}/graphql"
+    verify = service.config.verify
+    payload = _build_gql_payload(api_key, include_wireguard)
+
+    try:
+        async with httpx.AsyncClient(verify=verify, timeout=15.0) as client:
+            resp = await client.post(url, json=payload, auth=("vyos", api_key))
+        if resp.status_code != 200:
+            logger.error("GraphQL HTTP error %d for %s", resp.status_code, url)
+            return None
+        body = resp.json()
+        if "errors" in body:
+            # Log but don't abort — GraphQL returns partial data alongside field errors.
+            # This lets an unknown optional operation (e.g. WireGuardStatus) fail without
+            # breaking the rest of the dashboard data.
+            logger.warning("GraphQL response has field errors: %s", body["errors"])
+        return body.get("data")
+    except Exception:
+        logger.exception("GraphQL dashboard fetch failed")
+        return None
+
+
+def _gql_result(gql: dict, key: str):
+    """Safely extract ``data.result`` from a named GraphQL alias."""
+    return (gql.get(key) or {}).get("data", {}).get("result")
+
+
+async def _fetch_gql_wg_status(service, iface_names: List[str]) -> dict:
+    """
+    Fetch live WireGuard peer status for each named interface in one GraphQL POST.
+
+    Returns a dict of ``{alias: result_data}`` suitable for merging into the main
+    ``gql`` dict so ``_collect_wg_from_gql`` can read the ``WGStatus_*`` aliases.
+    Returns an empty dict on any error so callers can degrade gracefully.
+    """
+    if not iface_names:
+        return {}
+    api_key = str(service.config.apikey)
+    url = f"{service.config.protocol}://{service.config.hostname}:{service.config.port}/graphql"
+    verify = service.config.verify
+    payload = _build_gql_wg_status_payload(api_key, iface_names)
+    try:
+        async with httpx.AsyncClient(verify=verify, timeout=20.0) as client:
+            resp = await client.post(url, json=payload, auth=("vyos", api_key))
+        if resp.status_code != 200:
+            logger.error("GraphQL WG status HTTP error %d", resp.status_code)
+            return {}
+        body = resp.json()
+        if "errors" in body:
+            logger.warning("GraphQL WG status field errors: %s", body["errors"])
+        return body.get("data") or {}
+    except Exception:
+        logger.exception("GraphQL WireGuard status fetch failed")
+        return {}
+
+
+def parse_gql_memory(ram: dict) -> dict:
+    """Convert GraphQL RAM dict (bytes) to human-readable strings."""
+    if not ram:
+        return {"total": None, "free": None, "used": None}
+    return {
+        "total": _format_bytes(ram["total"]) if ram.get("total") else None,
+        "free": _format_bytes(ram["free"]) if ram.get("free") else None,
+        "used": _format_bytes(ram["used"]) if ram.get("used") else None,
+    }
+
+
+def parse_gql_load(uptime_data: dict, cpu_count: int) -> dict:
+    """Convert GraphQL uptime/load_average dict to frontend load format (percentages)."""
+    if not uptime_data:
+        return {"uptime": None, "load_1min": None, "load_5min": None, "load_15min": None}
+    cpu_count = max(cpu_count or 1, 1)
+    load_avg = uptime_data.get("load_average") or {}
+
+    def _to_pct(val: Optional[float]) -> Optional[float]:
+        if val is None:
+            return None
+        return round((val / cpu_count) * 100, 1)
+
+    return {
+        "uptime": uptime_data.get("uptime"),
+        "load_1min": _to_pct(load_avg.get("1")),
+        "load_5min": _to_pct(load_avg.get("5")),
+        "load_15min": _to_pct(load_avg.get("15")),
+    }
+
+
+def parse_gql_storage(storage) -> list:
+    """Convert GraphQL storage dict (bytes) to the DiskPartition list format."""
+    if not storage or not isinstance(storage, dict) or not storage.get("filesystem"):
+        return []
+    use_pct = storage.get("use_percentage", "0")
+    return [{
+        "filesystem": storage["filesystem"],
+        "size": _format_bytes(storage.get("size") or 0),
+        "used": _format_bytes(storage.get("used") or 0),
+        "available": _format_bytes(storage.get("avail") or 0),
+        "use_percent": f"{use_pct}%",
+        "mounted_on": "",
+    }]
+
+
+def parse_gql_version(version: dict) -> dict:
+    """Extract the version fields that the frontend SystemInfoCard expects."""
+    if not version:
+        return {}
+    return {
+        "version": version.get("version"),
+        "hardware_vendor": version.get("hardware_vendor"),
+        "hardware_model": version.get("hardware_model"),
+        "release_train": version.get("release_train"),
+        "built_on": version.get("built_on"),
+    }
+
+
+def parse_gql_interface_counters(ifaces: list) -> List["InterfaceCounter"]:
+    """Convert GraphQL interface counter list to InterfaceCounter models.
+
+    GraphQL uses ``ifname``, ``rx_over_errors``, ``tx_carrier_errors``
+    instead of ``interface``, ``rx_errors``, ``tx_errors``.
+    """
+    result = []
+    for iface in (ifaces or []):
+        try:
+            result.append(InterfaceCounter(
+                interface=iface["ifname"],
+                rx_packets=iface.get("rx_packets", 0),
+                rx_bytes=iface.get("rx_bytes", 0),
+                tx_packets=iface.get("tx_packets", 0),
+                tx_bytes=iface.get("tx_bytes", 0),
+                rx_dropped=iface.get("rx_dropped", 0),
+                tx_dropped=iface.get("tx_dropped", 0),
+                rx_errors=iface.get("rx_over_errors", 0),
+                tx_errors=iface.get("tx_carrier_errors", 0),
+            ))
+        except (KeyError, ValueError):
+            continue
+    return result
 
 
 # ========================================================================
@@ -216,3 +463,386 @@ async def get_all_interfaces(request: Request):
     except Exception as e:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+# ========================================================================
+# GraphQL-based WireGuard helpers (no pyvyos show calls)
+# ========================================================================
+
+
+def _parse_vyos_text_config(text: str) -> dict:
+    """
+    Parse VyOS ``show configuration`` text format into a nested dict.
+
+    Handles the following line patterns:
+      ``key value {``   → {key: {value: <nested block>}}  (named block)
+      ``key {``         → {key: <nested block>}            (unnamed block)
+      ``key value``     → {key: "value"}
+      ``key``           → {key: True}   (boolean flag, e.g. ``disable``)
+
+    Repeated simple keys become a list so multiple ``allowed-ips`` lines
+    are collected as ``["10.0.0.0/8", "192.168.1.0/24"]``.
+    Repeated named blocks (e.g. two ``wireguard wgN {`` entries) are merged
+    into the same parent dict under key ``wireguard``.
+    """
+    lines = [l.strip() for l in text.splitlines() if l.strip() and not l.strip().startswith("#")]
+
+    def _set(d: dict, key: str, value: Any) -> None:
+        """Append value to list if key already exists, otherwise set it."""
+        if key in d:
+            existing = d[key]
+            if isinstance(existing, list):
+                existing.append(value)
+            else:
+                d[key] = [existing, value]
+        else:
+            d[key] = value
+
+    def _parse_block(pos: int) -> tuple:
+        block: dict = {}
+        while pos < len(lines):
+            line = lines[pos]
+            if line == "}":
+                return block, pos + 1
+            if line.endswith("{"):
+                header = line[:-1].strip()
+                parts = header.split(None, 1)
+                if len(parts) == 0:
+                    pos += 1
+                    continue
+                if len(parts) == 1:
+                    # ``key {``
+                    key = parts[0]
+                    nested, pos = _parse_block(pos + 1)
+                    _set(block, key, nested)
+                else:
+                    # ``key value {``
+                    key, subkey = parts[0], parts[1].strip("\"'")
+                    nested, pos = _parse_block(pos + 1)
+                    if key not in block or not isinstance(block[key], dict):
+                        block[key] = {}
+                    block[key][subkey] = nested
+            else:
+                parts = line.split(None, 1)
+                if len(parts) == 1:
+                    block[parts[0]] = True
+                else:
+                    _set(block, parts[0], parts[1].strip("\"'"))
+                pos += 1
+        return block, pos
+
+    result, _ = _parse_block(0)
+    return result
+
+
+def _collect_wg_from_gql(gql: dict, parsed_config: Optional[dict] = None) -> dict:
+    """
+    Build the wireguard-peers SSE payload entirely from GraphQL data.
+
+    Uses:
+      * ``WireGuardConfig`` alias — static peer definitions (from ShowConfig)
+      * ``WGStatus_<name>`` aliases — per-interface live handshake / transfer data
+        (from ``Show(data: {path: ["interfaces","wireguard","<name>","summary"]})``)
+
+    ``parsed_config`` may be supplied by the caller to avoid re-parsing the config
+    text when it has already been parsed in the same cycle.
+
+    No pyvyos ``show`` calls are made.
+    """
+    if parsed_config is None:
+        config_text = _gql_result(gql, "WireGuardConfig") or ""
+        parsed_config = _parse_vyos_text_config(config_text)
+
+    wg_ifaces: dict = parsed_config.get("wireguard") or {}
+    if not isinstance(wg_ifaces, dict):
+        wg_ifaces = {}
+
+    # Collect live peer status from per-interface aliases.
+    # Each alias is keyed by public key; merging across all interfaces is safe
+    # because WireGuard public keys are globally unique.
+    all_peer_status: dict = {}
+    for iface_name in wg_ifaces:
+        status_text = _gql_result(gql, _wg_alias(iface_name)) or ""
+        if status_text:
+            all_peer_status.update(_parse_wg_summary(status_text))
+
+    interfaces = []
+    for iface_name, iface_cfg in wg_ifaces.items():
+        if not isinstance(iface_cfg, dict):
+            continue
+
+        config_peers: dict = {}
+        for peer_name, peer_cfg in (iface_cfg.get("peer") or {}).items():
+            if not isinstance(peer_cfg, dict):
+                continue
+            pub_key = peer_cfg.get("public-key", "") or ""
+            allowed = peer_cfg.get("allowed-ips", [])
+            if isinstance(allowed, str):
+                allowed = [allowed]
+            elif not isinstance(allowed, list):
+                allowed = []
+            config_peers[pub_key] = {
+                "name": peer_name,
+                "public_key": pub_key or None,
+                "allowed_ips": allowed,
+                "endpoint": None,
+                "latest_handshake": None,
+                "latest_handshake_seconds": None,
+                "transfer_rx": None,
+                "transfer_tx": None,
+                "status": "never",
+            }
+
+        # Overlay live handshake / transfer data from the GraphQL show result
+        for pub_key, live in all_peer_status.items():
+            if pub_key in config_peers:
+                secs = live.get("latest_handshake_seconds")
+                config_peers[pub_key].update({
+                    "endpoint": live.get("endpoint"),
+                    "latest_handshake": live.get("latest_handshake"),
+                    "latest_handshake_seconds": secs,
+                    "transfer_rx": live.get("transfer_rx"),
+                    "transfer_tx": live.get("transfer_tx"),
+                    "status": (
+                        "connected" if secs is not None and secs <= 180
+                        else "idle" if secs is not None
+                        else "never"
+                    ),
+                })
+
+        addresses = iface_cfg.get("address", [])
+        if isinstance(addresses, str):
+            addresses = [addresses]
+
+        interfaces.append({
+            "name": iface_name,
+            "description": iface_cfg.get("description"),
+            "addresses": addresses,
+            "port": iface_cfg.get("port"),
+            "disabled": iface_cfg.get("disable") is True,
+            "peers": list(config_peers.values()),
+        })
+
+    return {"interfaces": interfaces, "total": len(interfaces)}
+
+
+# ========================================================================
+# Helper: Parse WireGuard Interface Summary
+# ========================================================================
+
+
+def _parse_wg_handshake(s: str) -> int | None:
+    """Convert a WireGuard handshake time string to seconds.
+
+    Handles two formats:
+      Stream release:  "1 minute, 30 seconds ago"  → 90
+      Rolling release: "0:01:30"                   → 90
+      No handshake:    "(none)"                    → None
+    """
+    if not s or s.strip().lower() in ("(none)", "none", "-", ""):
+        return None
+    s = s.strip()
+
+    # H:MM:SS or M:SS
+    m = re.match(r"^(\d+):(\d{2}):(\d{2})$", s)
+    if m:
+        return int(m.group(1)) * 3600 + int(m.group(2)) * 60 + int(m.group(3))
+    m = re.match(r"^(\d+):(\d{2})$", s)
+    if m:
+        return int(m.group(1)) * 60 + int(m.group(2))
+
+    # "X minutes, Y seconds ago"
+    total = 0
+    text = s.lower().replace(" ago", "")
+    for pattern, factor in [(r"(\d+)\s*hour", 3600), (r"(\d+)\s*minute", 60), (r"(\d+)\s*second", 1)]:
+        hit = re.search(pattern, text)
+        if hit:
+            total += int(hit.group(1)) * factor
+    return total if total > 0 else None
+
+
+def _parse_wg_summary(output: str) -> dict:
+    """Parse 'show interfaces wireguard <iface> summary' output.
+
+    Returns a dict keyed by public key with handshake/transfer/endpoint data.
+    """
+    peers: dict = {}
+    current: dict | None = None
+
+    def _is_pubkey(v: str) -> bool:
+        return bool(re.match(r"^[A-Za-z0-9+/=]{43,44}$", v))
+
+    def _save() -> None:
+        if current and current.get("public_key"):
+            peers[current["public_key"]] = current
+
+    for raw_line in (output or "").splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+
+        if line.startswith("peer:"):
+            _save()
+            val = line.split(":", 1)[1].strip()
+            current = {
+                "public_key": val if _is_pubkey(val) else None,
+                "latest_handshake": None,
+                "latest_handshake_seconds": None,
+                "transfer_rx": None,
+                "transfer_tx": None,
+                "endpoint": None,
+            }
+        elif current is not None:
+            lower = line.lower()
+            if lower.startswith("public key:"):
+                current["public_key"] = line.split(":", 1)[1].strip()
+            elif "latest handshake:" in lower:
+                hs = line.split(":", 1)[1].strip()
+                current["latest_handshake"] = hs
+                current["latest_handshake_seconds"] = _parse_wg_handshake(hs)
+            elif lower.startswith("transfer:"):
+                parts = line.split(":", 1)[1].strip().split(" received, ")
+                if len(parts) == 2:
+                    current["transfer_rx"] = parts[0].strip()
+                    current["transfer_tx"] = parts[1].replace(" sent", "").strip()
+            elif lower.startswith("endpoint:"):
+                current["endpoint"] = line.split(":", 1)[1].strip()
+
+    _save()
+    return peers
+
+
+
+# ========================================================================
+# Endpoint: SSE Dashboard Stream
+# ========================================================================
+
+
+@router.get("/stream")
+async def dashboard_stream(request: Request):
+    """
+    Server-Sent Events stream for dashboard data.
+
+    Pushes interface-counters and system-info events as fast as the VyOS device
+    responds — the GraphQL round-trip time is the natural rate limiter.
+    WireGuard peer status runs as a persistent background task (takes ~5 s per
+    query); the main loop never blocks on it and uses the last known result.
+    Includes wireguard-peers channel when the user has WIREGUARD read permission.
+    A single connection per session replaces per-card polling.
+    """
+    service = get_session_vyos_service(request)
+
+    # Check optional channel permissions once — before the loop starts.
+    include_wireguard = await has_permission(request, FeatureGroup.WIREGUARD, PermissionLevel.READ)
+
+    async def event_generator():
+        # Persistent state across loop iterations.
+        _cached_wg_ifaces: List[str] = []
+        # Background WireGuard status task — runs concurrently, never blocks the loop.
+        _wg_task: Optional[asyncio.Task] = None
+        # Last successfully collected WireGuard status aliases (merged into gql).
+        _last_wg_status: dict = {}
+
+        try:
+            yield 'event: connected\ndata: {"message":"Dashboard stream connected"}\n\n'
+            while True:
+                if await request.is_disconnected():
+                    break
+
+                # ----------------------------------------------------------------
+                # Fast main query: CPU, storage, system status, interface counters,
+                # WireGuard config (for interface discovery).  Typically 100–500 ms.
+                # ----------------------------------------------------------------
+                gql = await asyncio.create_task(
+                    _fetch_graphql_dashboard(service, include_wireguard)
+                )
+                if gql is None:
+                    yield f'event: error\ndata: {{"channel":"all","message":"GraphQL fetch failed"}}\n\n'
+                    await asyncio.sleep(1)  # brief backoff on error before retrying
+                    continue
+
+                # --- interface-counters ---
+                try:
+                    iface_list = _gql_result(gql, "InterfaceCounters") or []
+                    interfaces = parse_gql_interface_counters(iface_list)
+                    payload = {
+                        "interfaces": [i.dict() for i in interfaces],
+                        "total": len(interfaces),
+                    }
+                    yield f"event: interface-counters\ndata: {json.dumps(payload)}\n\n"
+                except Exception:
+                    logger.exception("SSE interface-counters parse error")
+                    yield f'event: error\ndata: {{"channel":"interface-counters","message":"Parse failed"}}\n\n'
+
+                # --- system-info ---
+                try:
+                    sys_result = _gql_result(gql, "SystemStatus") or {}
+                    cpu_result = _gql_result(gql, "CPU") or {}
+                    storage_result = _gql_result(gql, "Storage") or {}
+                    cpu_count = cpu_result.get("count", 1)
+                    system_payload = {
+                        "memory": parse_gql_memory(sys_result.get("ram") or {}),
+                        "version": parse_gql_version(sys_result.get("version") or {}),
+                        "disk": parse_gql_storage(storage_result),
+                        "load": parse_gql_load(sys_result.get("uptime") or {}, cpu_count),
+                    }
+                    yield f"event: system-info\ndata: {json.dumps(system_payload)}\n\n"
+                except Exception:
+                    logger.exception("SSE system-info parse error")
+                    yield f'event: error\ndata: {{"channel":"system-info","message":"Parse failed"}}\n\n'
+
+                # --- wireguard-peers ---
+                # The WireGuard Show query takes ~5 s per interface.  Instead of
+                # awaiting it in the hot loop (which would stall fast data), we
+                # keep a single background asyncio.Task running continuously.
+                # Each loop iteration: collect the result if the task finished, then
+                # immediately fire the next query.  The main loop never blocks on it.
+                if include_wireguard:
+                    try:
+                        # Refresh interface list from this cycle's config snapshot.
+                        config_text = _gql_result(gql, "WireGuardConfig") or ""
+                        parsed_config = _parse_vyos_text_config(config_text)
+                        new_ifaces = list((parsed_config.get("wireguard") or {}).keys())
+                        if new_ifaces:
+                            _cached_wg_ifaces = new_ifaces
+
+                        # Collect result if the background task has finished.
+                        if _wg_task is not None and _wg_task.done():
+                            try:
+                                _last_wg_status = _wg_task.result() or {}
+                            except Exception:
+                                _last_wg_status = {}
+                            _wg_task = None
+
+                        # Immediately fire a new background task if none is running.
+                        if _wg_task is None and _cached_wg_ifaces:
+                            _wg_task = asyncio.create_task(
+                                _fetch_gql_wg_status(service, _cached_wg_ifaces)
+                            )
+
+                        # Emit using the last known WireGuard status — non-blocking.
+                        merged_gql = {**gql, **_last_wg_status}
+                        wg_payload = _collect_wg_from_gql(merged_gql, parsed_config)
+                        yield f"event: wireguard-peers\ndata: {json.dumps(wg_payload)}\n\n"
+                    except Exception:
+                        logger.exception("SSE wireguard-peers error")
+                        yield f'event: error\ndata: {{"channel":"wireguard-peers","message":"Failed to fetch"}}\n\n'
+
+                # No fixed sleep — query again immediately.
+                # asyncio.sleep(0) yields control to the event loop so other
+                # coroutines (e.g. the WireGuard background task) can make progress.
+                await asyncio.sleep(0)
+
+        finally:
+            # Clean up the WireGuard background task on disconnect or error.
+            if _wg_task and not _wg_task.done():
+                _wg_task.cancel()
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )

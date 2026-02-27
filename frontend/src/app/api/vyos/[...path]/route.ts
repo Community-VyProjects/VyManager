@@ -100,6 +100,20 @@ async function proxyRequest(
       body,
     });
 
+    // Stream SSE responses directly without buffering
+    const contentType = response.headers.get("Content-Type") || "";
+    if (contentType.includes("text/event-stream")) {
+      return new Response(response.body, {
+        status: response.status,
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          "X-Accel-Buffering": "no",
+          "Connection": "keep-alive",
+        },
+      });
+    }
+
     // Parse response
     const responseText = await response.text();
 

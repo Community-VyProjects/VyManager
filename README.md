@@ -31,7 +31,7 @@ We now flexibly support all active VyOS versions, including rolling releases.
 ### Prerequisites
 
 - **Docker & Docker Compose** installed on your host machine
-- **VyOS Router** with REST API enabled (see [Step 1](#step-1-enable-the-vyos-rest-api))
+- **VyOS Router** with REST API and GraphQL enabled (see [Step 1](#step-1-enable-the-vyos-rest-api))
 
 ---
 
@@ -53,8 +53,11 @@ set service https api keys id vymanager key YOUR_SECURE_API_KEY
 # Enable REST functionality (VyOS 1.5+ only)
 set service https api rest
 
-# Optional: Enable GraphQL
+# Enable GraphQL (required for dashboard streaming)
 set service https api graphql
+
+# Set GraphQL authentication to use the API key defined above
+set service https api graphql authentication type key
 
 # Save and apply
 commit
@@ -63,6 +66,8 @@ exit
 ```
 
 > **Security Note**: Keep your API key secure! You'll need it during the VyManager setup wizard.
+
+> **GraphQL is required** for the live dashboard cards (interface counters, system info, network speed graph, and WireGuard peers). All dashboard data is streamed via the VyOS GraphQL API using the same API key configured above.
 
 ### Step 2: Create the project directory
 
