@@ -28,11 +28,18 @@ import { LoadData, DiskPartition } from "@/hooks/useDashboardSSE";
 // Helpers
 // ============================================================================
 
-/** Parse a memory string like "15.54 GB" or "1.62 GB" → float (GB). */
+/** Parse a memory string like "220.41 MB" or "7.77 GB" → float (GB). */
 function parseMemoryGB(s: string | null): number {
   if (!s) return 0;
-  const m = s.match(/([\d.]+)/);
-  return m ? parseFloat(m[1]) : 0;
+  const m = s.match(/([\d.]+)\s*(GB|MB|KB|B)/i);
+  if (!m) return 0;
+  const value = parseFloat(m[1]);
+  switch (m[2].toUpperCase()) {
+    case "GB": return value;
+    case "MB": return value / 1024;
+    case "KB": return value / (1024 * 1024);
+    default:   return value / (1024 * 1024 * 1024); // B
+  }
 }
 
 /** Parse "20%" → 20 */
