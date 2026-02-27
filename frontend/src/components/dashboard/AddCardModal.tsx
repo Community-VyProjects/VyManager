@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Network, Plus, Server, Shield, Lock } from "lucide-react";
+import { Network, Plus, Server, Shield, Lock, TrendingUp } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 
@@ -42,6 +42,12 @@ const AVAILABLE_CARDS: AvailableCard[] = [
     description: "Live peer status with handshake times, transfer stats, and connection health",
     icon: Shield,
     requiredPermission: FeatureGroup.WIREGUARD,
+  },
+  {
+    type: "network-speed",
+    name: "Network Speed",
+    description: "Real-time download and upload speed graph for any interface over a 2-minute rolling window",
+    icon: TrendingUp,
   },
 ];
 

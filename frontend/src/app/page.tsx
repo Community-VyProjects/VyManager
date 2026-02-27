@@ -12,6 +12,7 @@ import { dashboardService, DashboardCard, DashboardLayout } from "@/lib/api/dash
 import { InterfaceStatisticsCard } from "@/components/dashboard/InterfaceStatisticsCard";
 import { SystemInfoCard } from "@/components/dashboard/SystemInfoCard";
 import { WireGuardPeersCard } from "@/components/dashboard/WireGuardPeersCard";
+import { NetworkSpeedCard } from "@/components/dashboard/NetworkSpeedCard";
 import { AddCardModal } from "@/components/dashboard/AddCardModal";
 import {
   DndContext,
@@ -136,7 +137,7 @@ export default function Home() {
         const cardsWithSpan = (response.layout.cards || []).map((card) => {
           if (card.span === undefined) {
             // Set default span based on card type
-            if (card.type === "interface-statistics") {
+            if (card.type === "interface-statistics" || card.type === "network-speed") {
               return { ...card, span: 2 };
             }
             return { ...card, span: 1 };
@@ -346,6 +347,9 @@ export default function Home() {
     if (cardType === "interface-statistics") {
       defaultSpan = 2;
     }
+    if (cardType === "network-speed") {
+      defaultSpan = 2;
+    }
     // system-info defaults to 1 column (already set above)
 
     // New cards always start at column 0
@@ -440,12 +444,22 @@ export default function Home() {
     setHasUnsavedChanges(false);
   };
 
+  const handleCardConfigChange = (cardId: string, config: Record<string, unknown>) => {
+    setCards((prev) =>
+      prev.map((c) => (c.id === cardId ? { ...c, config } : c))
+    );
+    setHasUnsavedChanges(true);
+  };
+
   const renderCard = (card: DashboardCard) => {
     const baseProps = {
       config: card.config,
       onRemove: editMode ? () => handleRemoveCard(card.id) : undefined,
       span: card.span || 1,
       onSpanChange: editMode ? (newSpan: number) => handleCardSpanChange(card.id, newSpan) : undefined,
+      onConfigChange: editMode
+        ? (config: Record<string, unknown>) => handleCardConfigChange(card.id, config)
+        : undefined,
     };
 
     switch (card.type) {
@@ -455,6 +469,8 @@ export default function Home() {
         return <SystemInfoCard {...baseProps} />;
       case "wireguard-peers":
         return <WireGuardPeersCard {...baseProps} />;
+      case "network-speed":
+        return <NetworkSpeedCard {...baseProps} />;
       default:
         return null;
     }
