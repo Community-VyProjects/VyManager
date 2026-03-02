@@ -19,6 +19,7 @@ from routers.firewall import ipv4 as firewall_ipv4
 from routers.firewall import ipv6 as firewall_ipv6
 from routers.firewall import bridge as firewall_bridge
 from routers.firewall import flowtables as firewall_flowtables
+from routers.firewall import zones as firewall_zones
 from routers.nat import nat
 from routers.dhcp import dhcp
 from routers.static_routes import static_routes
@@ -258,6 +259,7 @@ app.include_router(firewall_ipv4.router)
 app.include_router(firewall_ipv6.router)
 app.include_router(firewall_bridge.router)
 app.include_router(firewall_flowtables.router)
+app.include_router(firewall_zones.router)
 app.include_router(nat.router)
 app.include_router(dhcp.router)
 app.include_router(static_routes.router)
