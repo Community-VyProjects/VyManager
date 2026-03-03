@@ -234,6 +234,25 @@ class FirewallZonesBatchBuilder:
         )
         return self.add_set(path)
 
+    def set_zone_from_ipv4(
+        self, zone_name: str, value: str
+    ) -> "FirewallZonesBatchBuilder":
+        """Set IPv4 firewall ruleset for from-zone traffic (2-param batch-safe variant).
+
+        value must be encoded as '{from_zone}:{chain_name}'.
+        Zone names cannot contain colons, so a single split on ':' is unambiguous.
+        """
+        try:
+            from_zone, ruleset = value.split(":", 1)
+        except ValueError:
+            raise ValueError(
+                f"set_zone_from_ipv4: value must be 'from_zone:chain_name', got {value!r}"
+            )
+        path = self.mappers[self.mapper_key].get_zone_from_firewall_name(
+            zone_name, from_zone, ruleset
+        )
+        return self.add_set(path)
+
     def delete_zone_from_firewall_name(
         self, zone_name: str, from_zone: str
     ) -> "FirewallZonesBatchBuilder":
@@ -247,6 +266,24 @@ class FirewallZonesBatchBuilder:
         self, zone_name: str, from_zone: str, ruleset: str
     ) -> "FirewallZonesBatchBuilder":
         """Set IPv6 firewall ruleset for traffic from a zone."""
+        path = self.mappers[self.mapper_key].get_zone_from_firewall_ipv6_name(
+            zone_name, from_zone, ruleset
+        )
+        return self.add_set(path)
+
+    def set_zone_from_ipv6(
+        self, zone_name: str, value: str
+    ) -> "FirewallZonesBatchBuilder":
+        """Set IPv6 firewall ruleset for from-zone traffic (2-param batch-safe variant).
+
+        value must be encoded as '{from_zone}:{chain_name}'.
+        """
+        try:
+            from_zone, ruleset = value.split(":", 1)
+        except ValueError:
+            raise ValueError(
+                f"set_zone_from_ipv6: value must be 'from_zone:chain_name', got {value!r}"
+            )
         path = self.mappers[self.mapper_key].get_zone_from_firewall_ipv6_name(
             zone_name, from_zone, ruleset
         )
