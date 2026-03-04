@@ -169,6 +169,32 @@ async def _fetch_graphql_dashboard(service, include_wireguard: bool) -> Optional
         return None
 
 
+def _build_fast_gql_payload(api_key: str) -> dict:
+    """Build a GraphQL payload that fetches interface counters only."""
+    k = json.dumps(api_key)
+    return {"query": f"{{ InterfaceCounters: ShowCountersInterfaces(data: {{key: {k}}}) {{ data {{ result }} }} }}"}
+
+
+async def _fetch_graphql_fast(service) -> Optional[dict]:
+    """Fire a minimal GraphQL POST for interface counters only."""
+    api_key = str(service.config.apikey)
+    url = f"{service.config.protocol}://{service.config.hostname}:{service.config.port}/graphql"
+    payload = _build_fast_gql_payload(api_key)
+    try:
+        async with httpx.AsyncClient(verify=service.config.verify, timeout=15.0) as client:
+            resp = await client.post(url, json=payload, auth=("vyos", api_key))
+        if resp.status_code != 200:
+            logger.error("GraphQL fast fetch HTTP error %d", resp.status_code)
+            return None
+        body = resp.json()
+        if "errors" in body:
+            logger.warning("GraphQL fast response errors: %s", body["errors"])
+        return body.get("data")
+    except Exception:
+        logger.exception("GraphQL fast dashboard fetch failed")
+        return None
+
+
 def _gql_result(gql: dict, key: str):
     """Safely extract ``data.result`` from a named GraphQL alias."""
     return (gql.get(key) or {}).get("data", {}).get("result")
@@ -735,6 +761,200 @@ def _parse_wg_summary(output: str) -> dict:
 
 
 # ========================================================================
+# Broadcaster: shared per-device SSE data pump
+# ========================================================================
+
+_SLOW_EVERY = 5          # emit system-info / WG every N fast cycles (= every 5 s)
+_WG_MIN_INTERVAL = 15.0  # minimum seconds between WireGuard status queries
+
+
+class DeviceDataBroadcaster:
+    """
+    One shared background task per VyOS device instance.
+    All SSE clients connected to the same device subscribe to this broadcaster
+    instead of each running their own VyOS query loop.
+
+    Fast data (interface counters): fetched every 1 s.
+    Slow data (CPU, RAM, disk, WireGuard config): fetched every 5 s.
+    WireGuard live peer status: background task, minimum 15 s between queries.
+    """
+
+    def __init__(self, key: str, service) -> None:
+        self._key = key
+        self._service = service
+        self._subscribers: list[asyncio.Queue] = []
+        self._task: Optional[asyncio.Task] = None
+        self._wg_task: Optional[asyncio.Task] = None
+        self._last_wg_status: dict = {}
+        self._cached_wg_ifaces: list[str] = []
+        self._last_wg_query_time: float = 0.0
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
+    def subscribe(self) -> asyncio.Queue:
+        """Add a subscriber queue and ensure the background task is running."""
+        q: asyncio.Queue = asyncio.Queue(maxsize=32)
+        self._subscribers.append(q)
+        if self._task is None or self._task.done():
+            self._task = asyncio.create_task(self._run())
+            self._task.add_done_callback(self._on_task_done)
+        return q
+
+    def unsubscribe(self, q: asyncio.Queue) -> None:
+        """Remove a subscriber queue; stop background tasks when the last one leaves."""
+        try:
+            self._subscribers.remove(q)
+        except ValueError:
+            pass
+        if not self._subscribers:
+            if self._task and not self._task.done():
+                self._task.cancel()
+            if self._wg_task and not self._wg_task.done():
+                self._wg_task.cancel()
+            _broadcasters.pop(self._key, None)
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    def _push_to_all(self, event: dict) -> None:
+        """Put an event into every subscriber queue. Drop oldest if full."""
+        for q in list(self._subscribers):
+            if q.full():
+                try:
+                    q.get_nowait()
+                except asyncio.QueueEmpty:
+                    pass
+            try:
+                q.put_nowait(event)
+            except asyncio.QueueFull:
+                logger.debug("Broadcaster queue still full after drop; skipping subscriber")
+
+    def _broadcast_interface_counters(self, gql: dict) -> None:
+        try:
+            iface_list = _gql_result(gql, "InterfaceCounters") or []
+            interfaces = parse_gql_interface_counters(iface_list)
+            self._push_to_all({
+                "type": "interface-counters",
+                "data": {"interfaces": [i.dict() for i in interfaces], "total": len(interfaces)},
+            })
+        except Exception:
+            logger.exception("Broadcaster: interface-counters parse error")
+            self._push_to_all({"type": "error", "data": {"channel": "interface-counters", "message": "Parse failed"}})
+
+    def _broadcast_system_info(self, gql: dict) -> None:
+        try:
+            sys_result = _gql_result(gql, "SystemStatus") or {}
+            cpu_result = _gql_result(gql, "CPU") or {}
+            storage_result = _gql_result(gql, "Storage") or {}
+            cpu_count = cpu_result.get("count", 1)
+            self._push_to_all({
+                "type": "system-info",
+                "data": {
+                    "memory": parse_gql_memory(sys_result.get("ram") or {}),
+                    "version": parse_gql_version(sys_result.get("version") or {}),
+                    "disk": parse_gql_storage(storage_result),
+                    "load": parse_gql_load(sys_result.get("uptime") or {}, cpu_count),
+                },
+            })
+        except Exception:
+            logger.exception("Broadcaster: system-info parse error")
+            self._push_to_all({"type": "error", "data": {"channel": "system-info", "message": "Parse failed"}})
+
+    def _handle_wg_cycle(self, gql: dict) -> None:
+        try:
+            config_text = _gql_result(gql, "WireGuardConfig") or ""
+            parsed_config = _parse_vyos_text_config(config_text)
+            new_ifaces = list((parsed_config.get("wireguard") or {}).keys())
+            if new_ifaces:
+                self._cached_wg_ifaces = new_ifaces
+
+            # Collect completed WG task
+            if self._wg_task is not None and self._wg_task.done():
+                try:
+                    self._last_wg_status = self._wg_task.result() or {}
+                except Exception:
+                    self._last_wg_status = {}
+                self._wg_task = None
+                self._last_wg_query_time = asyncio.get_event_loop().time()
+
+            # Start new WG task if cooldown elapsed
+            now = asyncio.get_event_loop().time()
+            if (self._wg_task is None
+                    and self._cached_wg_ifaces
+                    and (now - self._last_wg_query_time) >= _WG_MIN_INTERVAL):
+                self._wg_task = asyncio.create_task(
+                    _fetch_gql_wg_status(self._service, self._cached_wg_ifaces)
+                )
+
+            merged_gql = {**gql, **self._last_wg_status}
+            wg_payload = _collect_wg_from_gql(merged_gql, parsed_config)
+            self._push_to_all({"type": "wireguard-peers", "data": wg_payload})
+        except Exception:
+            logger.exception("Broadcaster: wireguard-peers error")
+            self._push_to_all({"type": "error", "data": {"channel": "wireguard-peers", "message": "Failed to fetch"}})
+
+    def _on_task_done(self, fut: asyncio.Future) -> None:
+        """Clean up if _run() exits unexpectedly."""
+        if fut.cancelled():
+            return
+        exc = fut.exception()
+        if exc:
+            logger.error("Broadcaster _run crashed for %s: %s", self._key, exc)
+            _broadcasters.pop(self._key, None)
+            if self._wg_task and not self._wg_task.done():
+                self._wg_task.cancel()
+
+    # ------------------------------------------------------------------
+    # Main loop
+    # ------------------------------------------------------------------
+
+    async def _run(self) -> None:
+        cycle = 0
+        try:
+            while self._subscribers:
+                if cycle % _SLOW_EVERY == 0:
+                    # Full query: counters + system info + WireGuard config
+                    gql = await _fetch_graphql_dashboard(self._service, include_wireguard=True)
+                    if gql is not None:
+                        self._broadcast_interface_counters(gql)
+                        self._broadcast_system_info(gql)
+                        self._handle_wg_cycle(gql)
+                    else:
+                        self._push_to_all({"type": "error", "data": {"channel": "all", "message": "GraphQL fetch failed"}})
+                else:
+                    # Fast query: interface counters only
+                    gql = await _fetch_graphql_fast(self._service)
+                    if gql is not None:
+                        self._broadcast_interface_counters(gql)
+                    else:
+                        self._push_to_all({"type": "error", "data": {"channel": "interface-counters", "message": "GraphQL fast fetch failed"}})
+
+                cycle += 1
+                await asyncio.sleep(1.0)
+        except asyncio.CancelledError:
+            raise
+        finally:
+            if self._wg_task and not self._wg_task.done():
+                self._wg_task.cancel()
+
+
+# Global broadcaster registry: instance_id -> DeviceDataBroadcaster
+# Entries are added on first subscribe and removed when the last subscriber leaves.
+_broadcasters: dict[str, DeviceDataBroadcaster] = {}
+
+
+def _get_broadcaster(service) -> DeviceDataBroadcaster:
+    """Return the existing broadcaster for this device instance, creating one if needed."""
+    key: str = service.config.instance_id
+    if key not in _broadcasters:
+        _broadcasters[key] = DeviceDataBroadcaster(key, service)
+    return _broadcasters[key]
+
+
+# ========================================================================
 # Endpoint: SSE Dashboard Stream
 # ========================================================================
 
@@ -744,121 +964,34 @@ async def dashboard_stream(request: Request):
     """
     Server-Sent Events stream for dashboard data.
 
-    Pushes interface-counters and system-info events as fast as the VyOS device
-    responds — the GraphQL round-trip time is the natural rate limiter.
-    WireGuard peer status runs as a persistent background task (takes ~5 s per
-    query); the main loop never blocks on it and uses the last known result.
-    Includes wireguard-peers channel when the user has WIREGUARD read permission.
-    A single connection per session replaces per-card polling.
+    All clients connected to the same VyOS instance share one DeviceDataBroadcaster
+    that runs a single set of VyOS GraphQL queries.
+
+    Fast data  (interface counters): every 1 s.
+    Slow data  (system info, WG config): every 5 s.
+    WG live peers: background task, 15 s minimum between queries.
     """
     service = get_session_vyos_service(request)
-
-    # Check optional channel permissions once — before the loop starts.
     include_wireguard = await has_permission(request, FeatureGroup.WIREGUARD, PermissionLevel.READ)
+    broadcaster = _get_broadcaster(service)
 
     async def event_generator():
-        # Persistent state across loop iterations.
-        _cached_wg_ifaces: List[str] = []
-        # Background WireGuard status task — runs concurrently, never blocks the loop.
-        _wg_task: Optional[asyncio.Task] = None
-        # Last successfully collected WireGuard status aliases (merged into gql).
-        _last_wg_status: dict = {}
-
+        queue = broadcaster.subscribe()
         try:
             yield 'event: connected\ndata: {"message":"Dashboard stream connected"}\n\n'
             while True:
                 if await request.is_disconnected():
                     break
-
-                # ----------------------------------------------------------------
-                # Fast main query: CPU, storage, system status, interface counters,
-                # WireGuard config (for interface discovery).  Typically 100–500 ms.
-                # ----------------------------------------------------------------
-                gql = await asyncio.create_task(
-                    _fetch_graphql_dashboard(service, include_wireguard)
-                )
-                if gql is None:
-                    yield f'event: error\ndata: {{"channel":"all","message":"GraphQL fetch failed"}}\n\n'
-                    await asyncio.sleep(1)  # brief backoff on error before retrying
+                try:
+                    event = await asyncio.wait_for(queue.get(), timeout=30.0)
+                except asyncio.TimeoutError:
+                    yield ": keep-alive\n\n"
                     continue
-
-                # --- interface-counters ---
-                try:
-                    iface_list = _gql_result(gql, "InterfaceCounters") or []
-                    interfaces = parse_gql_interface_counters(iface_list)
-                    payload = {
-                        "interfaces": [i.dict() for i in interfaces],
-                        "total": len(interfaces),
-                    }
-                    yield f"event: interface-counters\ndata: {json.dumps(payload)}\n\n"
-                except Exception:
-                    logger.exception("SSE interface-counters parse error")
-                    yield f'event: error\ndata: {{"channel":"interface-counters","message":"Parse failed"}}\n\n'
-
-                # --- system-info ---
-                try:
-                    sys_result = _gql_result(gql, "SystemStatus") or {}
-                    cpu_result = _gql_result(gql, "CPU") or {}
-                    storage_result = _gql_result(gql, "Storage") or {}
-                    cpu_count = cpu_result.get("count", 1)
-                    system_payload = {
-                        "memory": parse_gql_memory(sys_result.get("ram") or {}),
-                        "version": parse_gql_version(sys_result.get("version") or {}),
-                        "disk": parse_gql_storage(storage_result),
-                        "load": parse_gql_load(sys_result.get("uptime") or {}, cpu_count),
-                    }
-                    yield f"event: system-info\ndata: {json.dumps(system_payload)}\n\n"
-                except Exception:
-                    logger.exception("SSE system-info parse error")
-                    yield f'event: error\ndata: {{"channel":"system-info","message":"Parse failed"}}\n\n'
-
-                # --- wireguard-peers ---
-                # The WireGuard Show query takes ~5 s per interface.  Instead of
-                # awaiting it in the hot loop (which would stall fast data), we
-                # keep a single background asyncio.Task running continuously.
-                # Each loop iteration: collect the result if the task finished, then
-                # immediately fire the next query.  The main loop never blocks on it.
-                if include_wireguard:
-                    try:
-                        # Refresh interface list from this cycle's config snapshot.
-                        config_text = _gql_result(gql, "WireGuardConfig") or ""
-                        parsed_config = _parse_vyos_text_config(config_text)
-                        new_ifaces = list((parsed_config.get("wireguard") or {}).keys())
-                        if new_ifaces:
-                            _cached_wg_ifaces = new_ifaces
-
-                        # Collect result if the background task has finished.
-                        if _wg_task is not None and _wg_task.done():
-                            try:
-                                _last_wg_status = _wg_task.result() or {}
-                            except Exception:
-                                _last_wg_status = {}
-                            _wg_task = None
-
-                        # Immediately fire a new background task if none is running.
-                        if _wg_task is None and _cached_wg_ifaces:
-                            _wg_task = asyncio.create_task(
-                                _fetch_gql_wg_status(service, _cached_wg_ifaces)
-                            )
-
-                        # Emit using the last known WireGuard status — non-blocking.
-                        merged_gql = {**gql, **_last_wg_status}
-                        wg_payload = _collect_wg_from_gql(merged_gql, parsed_config)
-                        yield f"event: wireguard-peers\ndata: {json.dumps(wg_payload)}\n\n"
-                    except Exception:
-                        logger.exception("SSE wireguard-peers error")
-                        yield f'event: error\ndata: {{"channel":"wireguard-peers","message":"Failed to fetch"}}\n\n'
-
-                # 1-second cadence — fast enough for a smooth graph while avoiding
-                # the jarring effect of data arriving faster than the eye can follow.
-                # Also gives the event loop a chance to advance the WireGuard
-                # background task between main-query iterations.
-                await asyncio.sleep(1)
-
+                if event["type"] == "wireguard-peers" and not include_wireguard:
+                    continue
+                yield f'event: {event["type"]}\ndata: {json.dumps(event["data"])}\n\n'
         finally:
-            # Clean up the WireGuard background task on disconnect or error.
-            if _wg_task and not _wg_task.done():
-                _wg_task.cancel()
+            broadcaster.unsubscribe(queue)
 
     return StreamingResponse(
         event_generator(),
