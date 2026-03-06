@@ -8,10 +8,11 @@ This keeps the codebase organized and maintainable as it grows.
 from .base import BaseFeatureMapper, CommandMapperRegistry
 from .interfaces import EthernetInterfaceMapper, DummyInterfaceMapper
 from .interfaces.ethernet_versions import get_ethernet_mapper
-from .firewall import FirewallGroupsMapper, FirewallIPv4Mapper, FirewallIPv6Mapper, BridgeFirewallMapper, FlowtablesMapper
+from .firewall import FirewallGroupsMapper, FirewallIPv4Mapper, FirewallIPv6Mapper, BridgeFirewallMapper, FlowtablesMapper, FirewallZonesMapper
 from .firewall.groups_versions import get_firewall_groups_mapper
 from .firewall.ipv4_versions import get_firewall_ipv4_mapper
 from .firewall.ipv6_versions import get_firewall_ipv6_mapper
+from .firewall.zones_versions import get_firewall_zones_mapper
 from .nat import NATMapper
 from .nat.nat_versions import get_nat_mapper
 from .dhcp import DHCPMapper
@@ -97,6 +98,8 @@ CommandMapperRegistry.register_feature("wireguard", get_wireguard_mapper)
 CommandMapperRegistry.register_feature("firewall_bridge", BridgeFirewallMapper)
 # Flowtables uses direct class (no version differences)
 CommandMapperRegistry.register_feature("firewall_flowtables", FlowtablesMapper)
+# Firewall Zones uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("firewall_zones", get_firewall_zones_mapper)
 # Babel uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("babel", get_babel_mapper)
 # BFD uses factory for version-specific mappers
@@ -155,6 +158,7 @@ __all__ = [
     "WireGuardMapper",
     "BridgeFirewallMapper",
     "FlowtablesMapper",
+    "FirewallZonesMapper",
     "BabelMapper",
     "BfdMapper",
     "BgpMapper",

@@ -9,6 +9,7 @@ from .ipv4 import FirewallIPv4Mapper
 from .ipv6 import FirewallIPv6Mapper
 from .bridge import BridgeFirewallMapper
 from .flowtables import FlowtablesMapper
+from .zones import FirewallZonesMapper
 
 __all__ = [
     "FirewallGroupsMapper",
@@ -16,4 +17,5 @@ __all__ = [
     "FirewallIPv6Mapper",
     "BridgeFirewallMapper",
     "FlowtablesMapper",
+    "FirewallZonesMapper",
 ]
