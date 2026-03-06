@@ -25,14 +25,16 @@ import {
   Plus,
   GripVertical,
   ArrowUpDown,
+  Globe,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useEffect, useCallback, type CSSProperties } from "react";
 import { firewallZonesService, resolveChainName } from "@/lib/api/firewall-zones";
+import { firewallGroupsService, type FirewallGroup } from "@/lib/api/firewall-groups";
 import { firewallIPv4Service } from "@/lib/api/firewall-ipv4";
 import { firewallIPv6Service } from "@/lib/api/firewall-ipv6";
 import type { FirewallZone, ZonesCapabilities } from "@/lib/api/types/firewall-zones";
-import type { FirewallConfigResponse, FirewallRule } from "@/lib/api/firewall-ipv4";
+import type { FirewallConfigResponse, FirewallRule, FirewallCapabilitiesResponse } from "@/lib/api/firewall-ipv4";
 import { CreateZoneModal } from "@/components/firewall/zones/CreateZoneModal";
 import { EditZoneModal } from "@/components/firewall/zones/EditZoneModal";
 import { ZoneRulePanel } from "@/components/firewall/zones/ZoneRulePanel";
@@ -77,11 +79,13 @@ function SortableRuleRow({
   row,
   onClick,
   isReordering,
+  groups,
 }: {
   id: string;
   row: PolicyRow;
   onClick: () => void;
   isReordering: boolean;
+  groups: FirewallGroup[];
 }) {
   const {
     attributes,
@@ -97,22 +101,88 @@ function SortableRuleRow({
     transition,
   };
 
-  function getAddr(obj: { address?: string | null; group?: Record<string, string> | null } | null | undefined): string {
-    if (!obj) return "Any";
-    if (obj.address) return obj.address;
-    if (obj.group) {
-      const entries = Object.entries(obj.group).filter(([k]) => k !== "port-group");
-      const [, val] = entries[0] ?? [];
-      return val ?? "Any";
-    }
-    return "Any";
+  function getGroupMembers(name: string): string[] {
+    return groups.find((g) => g.name === name)?.members ?? [];
   }
 
-  function getPort(obj: { port?: string | null; group?: Record<string, string> | null } | null | undefined): string {
-    if (!obj) return "Any";
-    if (obj.port) return obj.port;
-    if (obj.group?.["port-group"]) return obj.group["port-group"];
-    return "Any";
+  type AddrObj = { address?: string | null; group?: Record<string, string> | null; geoip?: { country_code?: string[] | null; inverse_match?: boolean | null } | null; mac_address?: string | null } | null | undefined;
+  type PortObj = { port?: string | null; group?: Record<string, string> | null } | null | undefined;
+
+  function renderAddr(obj: AddrObj) {
+    if (!obj) return <span className="text-muted-foreground">Any</span>;
+    const nonPortGroups = obj.group ? Object.entries(obj.group).filter(([k]) => k !== "port-group") : [];
+    const hasContent = obj.address || nonPortGroups.length > 0 || (obj.geoip?.country_code?.length ?? 0) > 0 || obj.mac_address;
+    if (!hasContent) return <span className="text-muted-foreground">Any</span>;
+    return (
+      <div className="flex flex-col gap-1">
+        {obj.address && (
+          <code className="text-xs bg-muted/50 px-1.5 py-0.5 rounded font-mono">{obj.address}</code>
+        )}
+        {obj.mac_address && (
+          <code className="text-xs bg-muted/50 px-1.5 py-0.5 rounded font-mono">{obj.mac_address}</code>
+        )}
+        {nonPortGroups.map(([, name]) => {
+          const members = getGroupMembers(name);
+          return (
+            <Tooltip key={name}>
+              <TooltipTrigger asChild>
+                <Badge variant="outline" className="text-xs cursor-help w-fit">{name}</Badge>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="font-semibold text-xs mb-1">{name}</p>
+                <p className="text-xs">{members.length > 0 ? members.join(", ") : "No members"}</p>
+              </TooltipContent>
+            </Tooltip>
+          );
+        })}
+        {(obj.geoip?.country_code?.length ?? 0) > 0 && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge
+                variant="outline"
+                className={cn(
+                  "text-xs cursor-help gap-1 w-fit",
+                  obj.geoip!.inverse_match
+                    ? "bg-orange-500/10 text-orange-500 border-orange-500/20"
+                    : "bg-purple-500/10 text-purple-500 border-purple-500/20"
+                )}
+              >
+                <Globe className="h-3 w-3" />
+                {obj.geoip!.inverse_match && "!"}
+                {obj.geoip!.country_code!.length === 1
+                  ? obj.geoip!.country_code![0].toUpperCase()
+                  : `Countries (${obj.geoip!.country_code!.length})`}
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="font-semibold text-xs mb-1">{obj.geoip!.inverse_match ? "Excluded Countries" : "Countries"}</p>
+              <p className="text-xs">{obj.geoip!.country_code!.map((c) => c.toUpperCase()).join(", ")}</p>
+            </TooltipContent>
+          </Tooltip>
+        )}
+      </div>
+    );
+  }
+
+  function renderPort(obj: PortObj) {
+    if (!obj) return <span className="text-muted-foreground">Any</span>;
+    if (obj.port) return <span className="font-mono text-xs">{obj.port}</span>;
+    if (obj.group?.["port-group"]) {
+      const name = obj.group["port-group"];
+      const members = getGroupMembers(name);
+      return (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-500 border-blue-500/20 cursor-help">{name}</Badge>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p className="font-semibold text-xs mb-1">{name}</p>
+            <p className="text-xs">{members.length > 0 ? members.join(", ") : "No ports"}</p>
+          </TooltipContent>
+        </Tooltip>
+      );
+    }
+    return <span className="text-muted-foreground">Any</span>;
   }
 
   return (
@@ -183,15 +253,15 @@ function SortableRuleRow({
         <Badge variant="outline" className="font-mono text-[10px]">{row.sourceZone}</Badge>
       </TableCell>
 
-      <TableCell className="font-mono text-xs">{getAddr(row.rule.source)}</TableCell>
-      <TableCell className="font-mono">{getPort(row.rule.source)}</TableCell>
+      <TableCell>{renderAddr(row.rule.source)}</TableCell>
+      <TableCell>{renderPort(row.rule.source)}</TableCell>
 
       <TableCell>
         <Badge variant="outline" className="font-mono text-[10px]">{row.destZone}</Badge>
       </TableCell>
 
-      <TableCell className="font-mono text-xs">{getAddr(row.rule.destination)}</TableCell>
-      <TableCell className="font-mono">{getPort(row.rule.destination)}</TableCell>
+      <TableCell>{renderAddr(row.rule.destination)}</TableCell>
+      <TableCell>{renderPort(row.rule.destination)}</TableCell>
     </TableRow>
   );
 }
@@ -265,6 +335,8 @@ export default function FirewallZonesPage() {
   const [capabilities, setCapabilities] = useState<ZonesCapabilities | null>(null);
   const [ipv4Config, setIpv4Config] = useState<FirewallConfigResponse | null>(null);
   const [ipv6Config, setIpv6Config] = useState<FirewallConfigResponse | null>(null);
+  const [firewallCaps, setFirewallCaps] = useState<FirewallCapabilitiesResponse | null>(null);
+  const [groups, setGroups] = useState<FirewallGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -301,16 +373,30 @@ export default function FirewallZonesPage() {
     setLoading(true);
     setError(null);
     try {
-      const [caps, zonesData, v4, v6] = await Promise.all([
+      const [caps, zonesData, v4, v6, fwCaps, groupsData] = await Promise.all([
         firewallZonesService.getCapabilities(),
         firewallZonesService.getConfig(refresh),
         firewallIPv4Service.getConfig(refresh),
         firewallIPv6Service.getConfig(refresh),
+        firewallIPv4Service.getCapabilities(),
+        firewallGroupsService.getConfig(refresh),
       ]);
       setCapabilities(caps);
       setZones(zonesData.zones);
       setIpv4Config(v4);
       setIpv6Config(v6);
+      setFirewallCaps(fwCaps);
+      setGroups([
+        ...groupsData.address_groups,
+        ...groupsData.ipv6_address_groups,
+        ...groupsData.network_groups,
+        ...groupsData.ipv6_network_groups,
+        ...groupsData.port_groups,
+        ...groupsData.interface_groups,
+        ...groupsData.mac_groups,
+        ...groupsData.domain_groups,
+        ...groupsData.remote_groups,
+      ]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load firewall zones");
     } finally {
@@ -911,6 +997,7 @@ export default function FirewallZonesPage() {
                               row={row}
                               isReordering={isReordering}
                               onClick={() => openEditPanel(row)}
+                              groups={groups}
                             />
                           );
                         })}
@@ -991,7 +1078,7 @@ export default function FirewallZonesPage() {
           zones={zones}
           existingRules={panelExistingRules}
           getChainRules={getChainRules}
-          capabilities={null}
+          capabilities={firewallCaps}
           canEdit={canEdit}
         />
 

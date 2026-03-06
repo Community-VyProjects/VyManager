@@ -278,7 +278,11 @@ export function ZoneRulePanel({
 
     // Source
     const src = r.source;
-    if (!src || (!src.address && !src.group && !src.geoip && !src.mac_address)) {
+    // Non-port group entries determine the source match mode
+    const srcNonPortGroup = src?.group
+      ? Object.entries(src.group).filter(([k]) => k !== "port-group")
+      : [];
+    if (!src || (!src.address && srcNonPortGroup.length === 0 && !src.geoip && !src.mac_address)) {
       setSrcMode("any");
     } else if (src.mac_address) {
       setSrcMode("mac");
@@ -287,9 +291,9 @@ export function ZoneRulePanel({
       setSrcMode("geoip");
       setSrcGeoip(src.geoip.country_code ?? []);
       setSrcGeoipInverse(src.geoip.inverse_match ?? false);
-    } else if (src.group) {
+    } else if (srcNonPortGroup.length > 0) {
       setSrcMode("group");
-      const [groupType, groupName] = Object.entries(src.group)[0] ?? [];
+      const [groupType, groupName] = srcNonPortGroup[0];
       setSrcGroupType(groupType ?? "address-group");
       setSrcGroupName(groupName ?? "");
     } else if (src.address) {
@@ -315,15 +319,19 @@ export function ZoneRulePanel({
 
     // Destination
     const dst = r.destination;
-    if (!dst || (!dst.address && !dst.group && !dst.geoip)) {
+    // Non-port group entries determine the destination match mode
+    const dstNonPortGroup = dst?.group
+      ? Object.entries(dst.group).filter(([k]) => k !== "port-group")
+      : [];
+    if (!dst || (!dst.address && dstNonPortGroup.length === 0 && !dst.geoip)) {
       setDstMode("any");
     } else if (dst.geoip) {
       setDstMode("geoip");
       setDstGeoip(dst.geoip.country_code ?? []);
       setDstGeoipInverse(dst.geoip.inverse_match ?? false);
-    } else if (dst.group) {
+    } else if (dstNonPortGroup.length > 0) {
       setDstMode("group");
-      const [groupType, groupName] = Object.entries(dst.group)[0] ?? [];
+      const [groupType, groupName] = dstNonPortGroup[0];
       setDstGroupType(groupType ?? "address-group");
       setDstGroupName(groupName ?? "");
     } else if (dst.address) {
@@ -379,7 +387,7 @@ export function ZoneRulePanel({
     // Load auxiliary data
     const loadGroups = async () => {
       try {
-        const cfg = await firewallGroupsService.getConfig();
+        const cfg = await firewallGroupsService.getConfig(true);
         const allGroups = [
           ...cfg.address_groups,
           ...cfg.ipv6_address_groups,
@@ -498,10 +506,10 @@ export function ZoneRulePanel({
       if (action === "jump" && jumpTarget) config.jump_target = jumpTarget;
       if (action === "offload" && offloadTarget) config.offload_target = offloadTarget;
 
-      // Source
+      // Source — always set (empty object = "any", triggers delete in updateRule)
       const hasSrc = srcMode !== "any" || srcPortMode !== "any";
+      config.source = {};
       if (hasSrc) {
-        config.source = {};
         if (srcMode === "address" && srcAddress.trim()) {
           config.source.address = srcAddressInvert ? `!${srcAddress.trim()}` : srcAddress.trim();
         } else if (srcMode === "group" && srcGroupName) {
@@ -519,9 +527,10 @@ export function ZoneRulePanel({
       }
 
       // Destination
+      // Destination — always set (empty object = "any", triggers delete in updateRule)
       const hasDst = dstMode !== "any" || dstPortMode !== "any";
+      config.destination = {};
       if (hasDst) {
-        config.destination = {};
         if (dstMode === "address" && dstAddress.trim()) {
           config.destination.address = dstAddressInvert ? `!${dstAddress.trim()}` : dstAddress.trim();
         } else if (dstMode === "group" && dstGroupName) {
@@ -622,19 +631,20 @@ export function ZoneRulePanel({
   };
 
   // ── Address group type options ────────────────────────────────────────────
+  const supportsRemoteGroup = capabilities?.features.remote_group?.supported ?? false;
   const addrGroupTypeOptions = isV6
     ? [
         { value: "ipv6-address-group", label: "IPv6 Address Group" },
         { value: "ipv6-network-group", label: "IPv6 Network Group" },
         { value: "domain-group", label: "Domain Group" },
-        { value: "remote-group", label: "Remote Group" },
+        ...(supportsRemoteGroup ? [{ value: "remote-group", label: "Remote Group" }] : []),
       ]
     : [
         { value: "address-group", label: "Address Group" },
         { value: "network-group", label: "Network Group" },
         { value: "domain-group", label: "Domain Group" },
         { value: "mac-group", label: "MAC Group" },
-        { value: "remote-group", label: "Remote Group" },
+        ...(supportsRemoteGroup ? [{ value: "remote-group", label: "Remote Group" }] : []),
       ];
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -861,7 +871,6 @@ export function ZoneRulePanel({
                           {addrGroupTypeOptions.map((o) => (
                             <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
                           ))}
-                          <SelectItem value="port-group" className="text-xs">Port Group</SelectItem>
                         </SelectContent>
                       </Select>
                       <Select value={srcGroupName} onValueChange={setSrcGroupName} disabled={!canEdit}>
