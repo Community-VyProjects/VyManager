@@ -3,8 +3,6 @@
  */
 
 import { apiClient } from "./client";
-import { firewallIPv4Service } from "./firewall-ipv4";
-import { firewallIPv6Service } from "./firewall-ipv6";
 import type {
   ZonesCapabilities,
   ZonesConfigResponse,
@@ -30,132 +28,66 @@ class FirewallZonesService {
   }
 
   // ---------------------------------------------------------------------------
-  // Zone CRUD helpers
+  // Zone provisioning — single-payload create/delete with chains
   // ---------------------------------------------------------------------------
 
-  async createZone(
+  /**
+   * Provision a zone in one atomic transaction:
+   * - Creates the zone
+   * - Creates IPv4 + IPv6 chains for every pair (both directions), default drop
+   * - Wires from-zone assignments
+   * - If isFirstZone: also creates LOCAL zone with accept-all rule 100
+   */
+  async provisionZone(
     name: string,
-    config: Partial<FirewallZone>,
-    capabilities: ZonesCapabilities | null
+    config: {
+      description?: string | null;
+      defaultAction?: string;
+      defaultLog?: boolean;
+      interfaces?: string[];
+      vrfs?: string[];
+    },
+    existingZones: string[],
+    isFirstZone: boolean
   ): Promise<VyOSResponse> {
-    const ops: ZoneBatchOperation[] = [{ op: "set_zone" }];
-
-    if (config.description) {
-      ops.push({ op: "set_zone_description", value: config.description });
-    }
-    if (config.default_action) {
-      ops.push({ op: "set_zone_default_action", value: config.default_action });
-    }
-    if (config.default_log) {
-      ops.push({ op: "set_zone_default_log" });
-    }
-    if (config.local_zone) {
-      ops.push({ op: "set_zone_local_zone" });
-    }
-
-    for (const iface of config.interfaces ?? []) {
-      ops.push({ op: "set_zone_interface", value: iface });
-    }
-
-    if (capabilities?.features.member_vrf.supported) {
-      for (const vrf of config.vrfs ?? []) {
-        ops.push({ op: "set_zone_member_vrf", value: vrf });
-      }
-    }
-
-    if (capabilities?.features.default_firewall.supported && config.default_firewall) {
-      if (config.default_firewall.name) {
-        ops.push({ op: "set_zone_default_firewall_name", value: config.default_firewall.name });
-      }
-      if (config.default_firewall.ipv6_name) {
-        ops.push({ op: "set_zone_default_firewall_ipv6_name", value: config.default_firewall.ipv6_name });
-      }
-    }
-
-    const result = await this.batchConfigure({ zone_name: name, operations: ops });
-    if (!result.success) throw new Error(result.error ?? "Failed to create zone");
+    const result = await apiClient.post<VyOSResponse>("/vyos/firewall/zones/provision", {
+      zone_name: name,
+      description: config.description ?? null,
+      default_action: config.defaultAction ?? "drop",
+      default_log: config.defaultLog ?? false,
+      interfaces: config.interfaces ?? [],
+      vrfs: config.vrfs ?? [],
+      existing_zones: existingZones,
+      is_first_zone: isFirstZone,
+    });
+    if (!result.success) throw new Error(result.error ?? "Failed to provision zone");
     return result;
   }
 
   /**
-   * Create a zone and automatically provision firewall chains + from-zone
-   * assignments for every existing zone pair in both directions.
-   *
-   * Chain naming: {FROM}-{TO} for IPv4, {FROM}-{TO}-V6 for IPv6.
-   * Progress callbacks let the modal display live status.
+   * Deprovision a zone in one atomic transaction:
+   * - Deletes the zone
+   * - Deletes all IPv4 + IPv6 chains for pairs involving this zone
+   * - Removes from-zone references in peer zones
+   * - If isLastZone: also deletes the LOCAL zone and LOCAL chains
    */
-  async createZoneWithChains(
+  async deprovisionZone(
     name: string,
-    config: Partial<FirewallZone>,
-    capabilities: ZonesCapabilities | null,
-    existingZones: FirewallZone[],
-    onProgress?: (step: string) => void
-  ): Promise<{ zoneCreated: boolean; chainErrors: string[] }> {
-    const chainErrors: string[] = [];
-
-    // 1. Create the zone itself
-    onProgress?.("Creating zone…");
-    await this.createZone(name, config, capabilities);
-
-    // Non-local zones that are eligible for zone-pair policies
-    const peers = existingZones.filter((z) => !z.local_zone);
-
-    // 2. For each existing peer zone, set up both directions
-    for (const peer of peers) {
-      // ---- Direction A: new zone → peer zone (traffic from NEW to PEER)
-      //      firewall zone PEER from NEW firewall name NEW-PEER
-      const a4 = `${name}-${peer.name}`;     // IPv4 chain name
-      const a6 = `${name}-${peer.name}-V6`;  // IPv6 chain name
-
-      onProgress?.(`Creating chains for ${name} → ${peer.name}…`);
-      try {
-        await firewallIPv4Service.createCustomChain(a4, `Auto: traffic from ${name} to ${peer.name}`, "drop");
-      } catch (e) {
-        chainErrors.push(`IPv4 chain ${a4}: ${e instanceof Error ? e.message : String(e)}`);
-      }
-      try {
-        await firewallIPv6Service.createCustomChain(a6, `Auto: traffic from ${name} to ${peer.name} (IPv6)`, "drop");
-      } catch (e) {
-        chainErrors.push(`IPv6 chain ${a6}: ${e instanceof Error ? e.message : String(e)}`);
-      }
-
-      // Assign: zone PEER, from-zone NEW → chain a4 / a6
-      onProgress?.(`Assigning policies for ${name} → ${peer.name}…`);
-      try {
-        await this.setFromPolicy(peer.name, name, a4, a6);
-      } catch (e) {
-        chainErrors.push(`From-policy ${name}→${peer.name}: ${e instanceof Error ? e.message : String(e)}`);
-      }
-
-      // ---- Direction B: peer zone → new zone (traffic from PEER to NEW)
-      //      firewall zone NEW from PEER firewall name PEER-NEW
-      const b4 = `${peer.name}-${name}`;
-      const b6 = `${peer.name}-${name}-V6`;
-
-      onProgress?.(`Creating chains for ${peer.name} → ${name}…`);
-      try {
-        await firewallIPv4Service.createCustomChain(b4, `Auto: traffic from ${peer.name} to ${name}`, "drop");
-      } catch (e) {
-        chainErrors.push(`IPv4 chain ${b4}: ${e instanceof Error ? e.message : String(e)}`);
-      }
-      try {
-        await firewallIPv6Service.createCustomChain(b6, `Auto: traffic from ${peer.name} to ${name} (IPv6)`, "drop");
-      } catch (e) {
-        chainErrors.push(`IPv6 chain ${b6}: ${e instanceof Error ? e.message : String(e)}`);
-      }
-
-      // Assign: zone NEW, from-zone PEER → chain b4 / b6
-      onProgress?.(`Assigning policies for ${peer.name} → ${name}…`);
-      try {
-        await this.setFromPolicy(name, peer.name, b4, b6);
-      } catch (e) {
-        chainErrors.push(`From-policy ${peer.name}→${name}: ${e instanceof Error ? e.message : String(e)}`);
-      }
-    }
-
-    onProgress?.("Done");
-    return { zoneCreated: true, chainErrors };
+    peerZones: string[],
+    isLastZone: boolean
+  ): Promise<VyOSResponse> {
+    const result = await apiClient.post<VyOSResponse>("/vyos/firewall/zones/deprovision", {
+      zone_name: name,
+      peer_zones: peerZones,
+      is_last_zone: isLastZone,
+    });
+    if (!result.success) throw new Error(result.error ?? "Failed to deprovision zone");
+    return result;
   }
+
+  // ---------------------------------------------------------------------------
+  // Zone update helper (description, default action, log, interfaces, vrfs)
+  // ---------------------------------------------------------------------------
 
   async updateZone(
     name: string,
@@ -190,14 +122,6 @@ class FirewallZonesService {
       }
     }
 
-    if (updated.local_zone !== undefined && updated.local_zone !== original.local_zone) {
-      if (updated.local_zone) {
-        ops.push({ op: "set_zone_local_zone" });
-      } else {
-        ops.push({ op: "delete_zone_local_zone" });
-      }
-    }
-
     if (updated.interfaces !== undefined) {
       const oldIfaces = original.interfaces;
       const newIfaces = updated.interfaces;
@@ -228,40 +152,10 @@ class FirewallZonesService {
       }
     }
 
-    if (capabilities?.features.default_firewall.supported && updated.default_firewall !== undefined) {
-      const newName = updated.default_firewall?.name ?? null;
-      const oldName = original.default_firewall?.name ?? null;
-      if (newName !== oldName) {
-        if (newName) {
-          ops.push({ op: "set_zone_default_firewall_name", value: newName });
-        } else {
-          ops.push({ op: "delete_zone_default_firewall_name" });
-        }
-      }
-      const newIpv6 = updated.default_firewall?.ipv6_name ?? null;
-      const oldIpv6 = original.default_firewall?.ipv6_name ?? null;
-      if (newIpv6 !== oldIpv6) {
-        if (newIpv6) {
-          ops.push({ op: "set_zone_default_firewall_ipv6_name", value: newIpv6 });
-        } else {
-          ops.push({ op: "delete_zone_default_firewall_ipv6_name" });
-        }
-      }
-    }
-
     if (ops.length === 0) return { success: true };
 
     const result = await this.batchConfigure({ zone_name: name, operations: ops });
     if (!result.success) throw new Error(result.error ?? "Failed to update zone");
-    return result;
-  }
-
-  async deleteZone(name: string): Promise<VyOSResponse> {
-    const result = await this.batchConfigure({
-      zone_name: name,
-      operations: [{ op: "delete_zone" }],
-    });
-    if (!result.success) throw new Error(result.error ?? "Failed to delete zone");
     return result;
   }
 
@@ -346,3 +240,41 @@ class FirewallZonesService {
 
 export const firewallZonesService = new FirewallZonesService();
 export type { FirewallZone, ZonesCapabilities, ZonesConfigResponse, VyOSResponse };
+
+// ---------------------------------------------------------------------------
+// Utility: resolve the VyOS chain name from a source→dest zone pair
+// ---------------------------------------------------------------------------
+
+/**
+ * Looks up the actual firewall chain name for a given zone pair from the
+ * live zone configuration. Uses the stored from_zones/intra_zone_filtering
+ * entries rather than constructing a name, so it works regardless of how
+ * chains were provisioned.
+ */
+export function resolveChainName(
+  srcZone: string,
+  dstZone: string,
+  ipVersion: "ipv4" | "ipv6",
+  zones: FirewallZone[]
+): string | null {
+  if (!srcZone || !dstZone) return null;
+
+  // Intra-zone: same source and destination
+  if (srcZone === dstZone) {
+    const zone = zones.find((z) => z.name === srcZone);
+    const intra = zone?.intra_zone_filtering;
+    if (!intra) return null;
+    return ipVersion === "ipv4"
+      ? (intra.firewall_name ?? null)
+      : (intra.firewall_ipv6_name ?? null);
+  }
+
+  // Regular zone pair: look in dest zone's from_zones for the source zone
+  const destZoneObj = zones.find((z) => z.name === dstZone);
+  if (!destZoneObj) return null;
+  const fromEntry = destZoneObj.from_zones.find((f) => f.from_zone === srcZone);
+  if (!fromEntry) return null;
+  return ipVersion === "ipv4"
+    ? (fromEntry.firewall_name ?? null)
+    : (fromEntry.firewall_ipv6_name ?? null);
+}

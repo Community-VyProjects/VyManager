@@ -41,16 +41,24 @@ export function ZonePolicyModal({
   const [ipv4Name, setIpv4Name] = useState("");
   const [ipv6Name, setIpv6Name] = useState("");
 
+  const isIntraZone = sourceZone === destZone;
+
   // Load existing policy on open
   useEffect(() => {
     if (open) {
-      const dest = zones.find((z) => z.name === destZone);
-      const fromEntry = dest?.from_zones.find((f) => f.from_zone === sourceZone);
-      setIpv4Name(fromEntry?.firewall_name ?? "");
-      setIpv6Name(fromEntry?.firewall_ipv6_name ?? "");
+      if (isIntraZone) {
+        const zone = zones.find((z) => z.name === sourceZone);
+        setIpv4Name(zone?.intra_zone_filtering?.firewall_name ?? "");
+        setIpv6Name(zone?.intra_zone_filtering?.firewall_ipv6_name ?? "");
+      } else {
+        const dest = zones.find((z) => z.name === destZone);
+        const fromEntry = dest?.from_zones.find((f) => f.from_zone === sourceZone);
+        setIpv4Name(fromEntry?.firewall_name ?? "");
+        setIpv6Name(fromEntry?.firewall_ipv6_name ?? "");
+      }
       setError(null);
     }
-  }, [open, sourceZone, destZone, zones]);
+  }, [open, sourceZone, destZone, zones, isIntraZone]);
 
   const handleClose = () => {
     setError(null);
@@ -64,7 +72,9 @@ export function ZonePolicyModal({
       const v4 = ipv4Name.trim() || null;
       const v6 = ipv6Name.trim() || null;
 
-      if (!v4 && !v6) {
+      if (isIntraZone) {
+        await firewallZonesService.setIntraZone(sourceZone, { firewallName: v4, firewallIpv6Name: v6 });
+      } else if (!v4 && !v6) {
         await firewallZonesService.deleteFromPolicy(destZone, sourceZone);
       } else {
         await firewallZonesService.setFromPolicy(destZone, sourceZone, v4, v6);
@@ -82,7 +92,11 @@ export function ZonePolicyModal({
     setLoading(true);
     setError(null);
     try {
-      await firewallZonesService.deleteFromPolicy(destZone, sourceZone);
+      if (isIntraZone) {
+        await firewallZonesService.setIntraZone(sourceZone, { firewallName: null, firewallIpv6Name: null });
+      } else {
+        await firewallZonesService.deleteFromPolicy(destZone, sourceZone);
+      }
       handleClose();
       onSuccess();
     } catch (err) {
@@ -93,27 +107,38 @@ export function ZonePolicyModal({
   };
 
   const dest = zones.find((z) => z.name === destZone);
-  const fromEntry = dest?.from_zones.find((f) => f.from_zone === sourceZone);
-  const hasExisting = !!fromEntry;
+  const fromEntry = isIntraZone
+    ? zones.find((z) => z.name === sourceZone)?.intra_zone_filtering
+    : dest?.from_zones.find((f) => f.from_zone === sourceZone);
+  const hasExisting = !!fromEntry?.firewall_name || !!fromEntry?.firewall_ipv6_name;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            Policy:{" "}
-            <Badge variant="outline" className="font-mono text-sm">
-              {sourceZone}
-            </Badge>
-            <ArrowRight className="h-4 w-4 text-muted-foreground" />
-            <Badge variant="outline" className="font-mono text-sm">
-              {destZone}
-            </Badge>
+            {isIntraZone ? (
+              <>
+                Intra-zone Policy:{" "}
+                <Badge variant="outline" className="font-mono text-sm">{sourceZone}</Badge>
+              </>
+            ) : (
+              <>
+                Policy:{" "}
+                <Badge variant="outline" className="font-mono text-sm">{sourceZone}</Badge>
+                <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                <Badge variant="outline" className="font-mono text-sm">{destZone}</Badge>
+              </>
+            )}
           </DialogTitle>
           <DialogDescription>
-            {canEdit
-              ? "Assign firewall rulesets applied to traffic entering the destination zone from the source zone. Clear both to remove the policy."
-              : "Firewall rulesets applied to traffic entering the destination zone from the source zone."}
+            {isIntraZone
+              ? canEdit
+                ? "Assign firewall rulesets applied to traffic within the same zone. Clear both to remove the intra-zone policy."
+                : "Firewall rulesets applied to traffic within this zone."
+              : canEdit
+                ? "Assign firewall rulesets applied to traffic entering the destination zone from the source zone. Clear both to remove the policy."
+                : "Firewall rulesets applied to traffic entering the destination zone from the source zone."}
           </DialogDescription>
         </DialogHeader>
 
@@ -132,7 +157,7 @@ export function ZonePolicyModal({
                 id="policy-ipv4"
                 value={ipv4Name}
                 onChange={(e) => setIpv4Name(e.target.value)}
-                placeholder={`e.g., ${sourceZone}_TO_${destZone}`}
+                placeholder={isIntraZone ? `e.g., ${sourceZone}-${sourceZone}` : `e.g., ${sourceZone}_TO_${destZone}`}
                 className="font-mono"
                 disabled={!canEdit}
               />
@@ -151,7 +176,7 @@ export function ZonePolicyModal({
                 id="policy-ipv6"
                 value={ipv6Name}
                 onChange={(e) => setIpv6Name(e.target.value)}
-                placeholder={`e.g., ${sourceZone}_TO_${destZone}_V6`}
+                placeholder={isIntraZone ? `e.g., ${sourceZone}-${sourceZone}-V6` : `e.g., ${sourceZone}_TO_${destZone}_V6`}
                 className="font-mono"
                 disabled={!canEdit}
               />
@@ -163,9 +188,9 @@ export function ZonePolicyModal({
             </div>
           </div>
 
-          {!canEdit && !fromEntry && (
+          {!canEdit && !hasExisting && (
             <p className="text-sm text-muted-foreground text-center py-2">
-              No policy configured for this zone pair.
+              {isIntraZone ? "No intra-zone policy configured." : "No policy configured for this zone pair."}
             </p>
           )}
         </div>
