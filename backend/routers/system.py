@@ -199,6 +199,38 @@ class VyOSResponse(BaseModel):
     error: Optional[str] = None
 
 
+class GeneralSettingsRequest(BaseModel):
+    """Atomic update for all general system settings in one VyOS commit."""
+    hostname: Optional[str] = None
+    clear_hostname: bool = False
+    domain_name: Optional[str] = None
+    clear_domain_name: bool = False
+    time_zone: Optional[str] = None
+    clear_time_zone: bool = False
+    performance: Optional[str] = None
+    clear_performance: bool = False
+    name_servers_add: List[str] = Field(default_factory=list)
+    name_servers_remove: List[str] = Field(default_factory=list)
+
+
+class LoginSettingsRequest(BaseModel):
+    """Atomic update for login timeout and banners in one VyOS commit."""
+    timeout: Optional[int] = None
+    clear_timeout: bool = False
+    pre_login_banner: Optional[str] = None
+    clear_pre_login_banner: bool = False
+    post_login_banner: Optional[str] = None
+    clear_post_login_banner: bool = False
+
+
+class WatchdogSettingsRequest(BaseModel):
+    """Atomic update for watchdog timeout and reboot-timeout in one VyOS commit."""
+    timeout: Optional[int] = None
+    clear_timeout: bool = False
+    reboot_timeout: Optional[int] = None
+    clear_reboot_timeout: bool = False
+
+
 # =============================================================================
 # Config parsing helpers
 # =============================================================================
@@ -460,6 +492,167 @@ def _parse_performance(system_config: dict, version: str) -> Optional[str]:
     perf_mapper = CommandMapperRegistry.get_mapper("system_performance", version)
     option = system_config.get("option") or {}
     return perf_mapper.parse_performance(option)
+
+
+# =============================================================================
+# Endpoint 0: General settings (single atomic commit)
+# =============================================================================
+
+
+@router.post("/general", response_model=VyOSResponse)
+async def update_general_settings(
+    http_request: Request,
+    body: GeneralSettingsRequest,
+) -> VyOSResponse:
+    """
+    Update all general system settings in a single VyOS commit.
+
+    Combines hostname, domain, timezone, performance, and name-server changes
+    that would otherwise require separate /batch calls (each needing a different
+    item_name) into one atomic operation.
+    """
+    await require_write_permission(http_request, FeatureGroup.SYSTEM)
+    try:
+        service = get_session_vyos_service(http_request)
+        version = service.get_version()
+        builder = SystemBatchBuilder(version=version)
+
+        if body.hostname:
+            builder.set_hostname(body.hostname)
+        elif body.clear_hostname:
+            builder.delete_hostname()
+
+        if body.domain_name:
+            builder.set_domain_name(body.domain_name)
+        elif body.clear_domain_name:
+            builder.delete_domain_name()
+
+        if body.time_zone:
+            builder.set_time_zone(body.time_zone)
+        elif body.clear_time_zone:
+            builder.delete_time_zone()
+
+        # Performance uses its own mapper but ops go into the same builder/commit
+        if body.performance:
+            perf_mapper = CommandMapperRegistry.get_mapper("system_performance", version)
+            builder.add_set(perf_mapper.get_performance_set_path(body.performance))
+        elif body.clear_performance:
+            perf_mapper = CommandMapperRegistry.get_mapper("system_performance", version)
+            builder.add_delete(perf_mapper.get_performance_delete_path())
+
+        for ns in body.name_servers_remove:
+            builder.delete_name_server(ns)
+        for ns in body.name_servers_add:
+            builder.add_name_server(ns)
+
+        if builder.is_empty():
+            return VyOSResponse(success=True, data={"message": "No changes to apply"})
+
+        response = await run_in_threadpool(service.execute_batch, builder)
+        return VyOSResponse(
+            success=response.status == 200,
+            data={"message": "General settings updated"},
+            error=response.error if response.error else None,
+        )
+    except Exception:
+        logger.exception("Unhandled error in update_general_settings")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+# =============================================================================
+# Endpoint 0b: Login settings (single atomic commit)
+# =============================================================================
+
+
+@router.post("/login-settings", response_model=VyOSResponse)
+async def update_login_settings(
+    http_request: Request,
+    body: LoginSettingsRequest,
+) -> VyOSResponse:
+    """
+    Update login timeout and banners in a single VyOS commit.
+
+    Combines timeout, pre-login banner, and post-login banner changes that
+    would otherwise require separate /batch calls (each needing a different
+    item_name) into one atomic operation.
+    """
+    await require_write_permission(http_request, FeatureGroup.SYSTEM)
+    try:
+        service = get_session_vyos_service(http_request)
+        version = service.get_version()
+        builder = SystemBatchBuilder(version=version)
+
+        if body.timeout is not None:
+            builder.set_login_timeout(str(body.timeout))
+        elif body.clear_timeout:
+            builder.delete_login_timeout()
+
+        if body.pre_login_banner is not None:
+            builder.set_pre_login_banner(body.pre_login_banner)
+        elif body.clear_pre_login_banner:
+            builder.delete_pre_login_banner()
+
+        if body.post_login_banner is not None:
+            builder.set_post_login_banner(body.post_login_banner)
+        elif body.clear_post_login_banner:
+            builder.delete_post_login_banner()
+
+        if builder.is_empty():
+            return VyOSResponse(success=True, data={"message": "No changes to apply"})
+
+        response = await run_in_threadpool(service.execute_batch, builder)
+        return VyOSResponse(
+            success=response.status == 200,
+            data={"message": "Login settings updated"},
+            error=response.error if response.error else None,
+        )
+    except Exception:
+        logger.exception("Unhandled error in update_login_settings")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+# =============================================================================
+# Endpoint 0c: Watchdog settings (single atomic commit)
+# =============================================================================
+
+
+@router.post("/watchdog-settings", response_model=VyOSResponse)
+async def update_watchdog_settings(
+    http_request: Request,
+    body: WatchdogSettingsRequest,
+) -> VyOSResponse:
+    """
+    Update watchdog timeout and reboot-timeout in a single VyOS commit.
+
+    Combines both timeout fields that would otherwise need separate /batch
+    calls (each needing a different item_name) into one atomic operation.
+    """
+    await require_write_permission(http_request, FeatureGroup.SYSTEM)
+    try:
+        service = get_session_vyos_service(http_request)
+        version = service.get_version()
+        builder = SystemBatchBuilder(version=version)
+
+        if body.timeout is not None:
+            builder.set_watchdog_timeout(str(body.timeout))
+        elif body.clear_timeout:
+            builder.delete_watchdog_timeout()
+
+        if body.reboot_timeout is not None:
+            builder.set_watchdog_reboot_timeout(str(body.reboot_timeout))
+
+        if builder.is_empty():
+            return VyOSResponse(success=True, data={"message": "No changes to apply"})
+
+        response = await run_in_threadpool(service.execute_batch, builder)
+        return VyOSResponse(
+            success=response.status == 200,
+            data={"message": "Watchdog settings updated"},
+            error=response.error if response.error else None,
+        )
+    except Exception:
+        logger.exception("Unhandled error in update_watchdog_settings")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # =============================================================================

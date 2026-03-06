@@ -222,8 +222,9 @@ const navigation: NavItem[] = [
   },
   {
     title: "System",
+    href: "/system/settings",
     icon: Server,
-    children: [],
+    requiredPermission: FeatureGroup.SYSTEM,
   },
   {
     title: "Settings",
