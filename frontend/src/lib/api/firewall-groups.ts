@@ -23,8 +23,10 @@ class FirewallGroupsService {
   /**
    * Get all firewall group configurations
    */
-  async getConfig(): Promise<GroupsConfigResponse> {
-    return apiClient.get<GroupsConfigResponse>("/vyos/firewall/groups/config");
+  async getConfig(refresh = false): Promise<GroupsConfigResponse> {
+    return apiClient.get<GroupsConfigResponse>("/vyos/firewall/groups/config", {
+      refresh: refresh.toString(),
+    });
   }
 
   /**

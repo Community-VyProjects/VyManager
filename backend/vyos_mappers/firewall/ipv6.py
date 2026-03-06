@@ -218,6 +218,12 @@ class FirewallIPv6Mapper(BaseFeatureMapper):
             return ["firewall", "ipv6", "name", chain, "rule", str(rule_number), "source", "group", "address-group", group_name]
         return ["firewall", "ipv6", chain, "filter", "rule", str(rule_number), "source", "group", "address-group", group_name]
 
+    def get_rule_source_group_path(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
+        """Get command path for the entire source group node (for deletion)."""
+        if is_custom:
+            return ["firewall", "ipv6", "name", chain, "rule", str(rule_number), "source", "group"]
+        return ["firewall", "ipv6", chain, "filter", "rule", str(rule_number), "source", "group"]
+
     def get_rule_source_group_address_path(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
         """Get command path for source address group (for deletion)."""
         if is_custom:
@@ -329,6 +335,12 @@ class FirewallIPv6Mapper(BaseFeatureMapper):
         if is_custom:
             return ["firewall", "ipv6", "name", chain, "rule", str(rule_number), "destination", "group", "address-group", group_name]
         return ["firewall", "ipv6", chain, "filter", "rule", str(rule_number), "destination", "group", "address-group", group_name]
+
+    def get_rule_destination_group_path(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
+        """Get command path for the entire destination group node (for deletion)."""
+        if is_custom:
+            return ["firewall", "ipv6", "name", chain, "rule", str(rule_number), "destination", "group"]
+        return ["firewall", "ipv6", chain, "filter", "rule", str(rule_number), "destination", "group"]
 
     def get_rule_destination_group_address_path(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
         """Get command path for destination address group (for deletion)."""
