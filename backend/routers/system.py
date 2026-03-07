@@ -1,23 +1,35 @@
 """
-System Information Endpoints
+System Configuration Endpoints
 
-API endpoints for retrieving system information about the VyOS device.
+API endpoints for managing VyOS system configuration:
+  - GET  /vyos/system/capabilities  — version-aware feature flags
+  - GET  /vyos/system/config        — full system config (all subsections)
+  - POST /vyos/system/batch         — atomic batch operations
+  - GET  /vyos/system/info          — instance/connection info (legacy)
 """
 
 from fastapi import APIRouter, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, List, Any
+import inspect
+import logging
 
 from session_vyos_service import get_session_vyos_service
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 from vyos_mappers import CommandMapperRegistry
-import logging
+from vyos_builders import SystemBatchBuilder
+
 logger = logging.getLogger(__name__)
 
-# Router for system endpoints
 router = APIRouter(prefix="/vyos/system", tags=["system"])
+
+# Builder infrastructure methods that must never be invokable via the batch API
+_INTERNAL_BUILDER_METHODS = frozenset({
+    "add_set", "add_delete", "get_operations", "is_empty", "clear",
+    "get_capabilities",
+})
 
 
 # Stub functions for backwards compatibility with app.py
@@ -31,6 +43,11 @@ def set_configured_device_name(name):
     pass
 
 
+# =============================================================================
+# Pydantic models — Response
+# =============================================================================
+
+
 class SystemInfo(BaseModel):
     """System information response model."""
     instance_id: str
@@ -41,56 +58,800 @@ class SystemInfo(BaseModel):
     connected: bool
 
 
+class LoginSshKey(BaseModel):
+    key_name: str
+    key_type: Optional[str] = None
+
+
+class LoginUser(BaseModel):
+    username: str
+    full_name: Optional[str] = None
+    has_password: bool = False
+    ssh_keys: List[LoginSshKey] = Field(default_factory=list)
+
+
+class LoginBanners(BaseModel):
+    pre_login: Optional[str] = None
+    post_login: Optional[str] = None
+
+
+class LoginConfig(BaseModel):
+    users: List[LoginUser] = Field(default_factory=list)
+    timeout: Optional[int] = None
+    banners: LoginBanners = Field(default_factory=LoginBanners)
+    operator_groups: List[str] = Field(default_factory=list)
+
+
+class SyslogFacility(BaseModel):
+    facility: str
+    level: str
+
+
+class SyslogRemoteHost(BaseModel):
+    host: str
+    facilities: List[SyslogFacility] = Field(default_factory=list)
+    port: Optional[int] = None
+    protocol: Optional[str] = None
+
+
+class SyslogFileEntry(BaseModel):
+    filename: str
+    facilities: List[SyslogFacility] = Field(default_factory=list)
+
+
+class SyslogUserEntry(BaseModel):
+    username: str
+    facilities: List[SyslogFacility] = Field(default_factory=list)
+
+
+class SyslogConfig(BaseModel):
+    """Normalised syslog config — local/global mapped to 'local_facilities'."""
+    local_facilities: List[SyslogFacility] = Field(default_factory=list)
+    preserve_fqdn: bool = False
+    remote_hosts: List[SyslogRemoteHost] = Field(default_factory=list)
+    console_facilities: List[SyslogFacility] = Field(default_factory=list)
+    # 1.4 only
+    files: List[SyslogFileEntry] = Field(default_factory=list)
+    users: List[SyslogUserEntry] = Field(default_factory=list)
+
+
+class ConntrackConfig(BaseModel):
+    modules: List[str] = Field(default_factory=list)
+    table_size: Optional[int] = None
+    hash_size: Optional[int] = None
+    expect_table_size: Optional[int] = None
+    tcp_loose: Optional[str] = None
+    tcp_half_open_connections: Optional[int] = None
+    tcp_max_retrans: Optional[int] = None
+
+
+class ConfigManagement(BaseModel):
+    commit_revisions: Optional[int] = None
+    archive_locations: List[str] = Field(default_factory=list)
+
+
+class StaticHostEntry(BaseModel):
+    hostname: str
+    inet: Optional[str] = None
+    aliases: List[str] = Field(default_factory=list)
+
+
+class ConsoleDevice(BaseModel):
+    device: str
+    speed: Optional[str] = None
+    powersave: bool = False
+
+
+class SysctlParameter(BaseModel):
+    parameter: str
+    value: str
+
+
+class WatchdogConfig(BaseModel):
+    timeout: Optional[int] = None
+    reboot_timeout: Optional[int] = None
+
+
 class SystemConfig(BaseModel):
-    """System configuration response model."""
+    """Full system configuration across all subsections."""
     hostname: Optional[str] = None
-    timezone: Optional[str] = None
-    name_servers: list[str] = Field(default_factory=list)
     domain_name: Optional[str] = None
-    performance: Optional[str] = Field(
+    domain_search: List[str] = Field(default_factory=list)
+    name_servers: List[str] = Field(default_factory=list)
+    time_zone: Optional[str] = None
+    performance: Optional[str] = None
+    login: LoginConfig = Field(default_factory=LoginConfig)
+    syslog: SyslogConfig = Field(default_factory=SyslogConfig)
+    conntrack: ConntrackConfig = Field(default_factory=ConntrackConfig)
+    config_management: ConfigManagement = Field(default_factory=ConfigManagement)
+    static_host_mapping: List[StaticHostEntry] = Field(default_factory=list)
+    console_devices: List[ConsoleDevice] = Field(default_factory=list)
+    sysctl_parameters: List[SysctlParameter] = Field(default_factory=list)
+    watchdog: Optional[WatchdogConfig] = None
+    wireless_country_code: Optional[str] = None
+    frr_profile: Optional[str] = None
+
+
+# =============================================================================
+# Pydantic models — Batch request
+# =============================================================================
+
+
+class SystemBatchOperation(BaseModel):
+    op: str = Field(..., description="Builder method name")
+    value: Optional[str] = Field(
         None,
-        description="System option performance profile (VyOS 1.5)",
-    )
-    raw_config: Dict[str, Any] = Field(default_factory=dict)
-
-
-class PerformanceUpdateRequest(BaseModel):
-    """Request to update system option performance. Valid values depend on VyOS version (1.4: throughput, latency; 1.5: five profiles)."""
-    performance: Optional[str] = Field(
-        None,
-        description="Performance profile. Use GET /capabilities for allowed values per version. Null to clear.",
+        description=(
+            "Value for the operation. For methods needing two extra args, "
+            "use comma-separated: 'arg1,arg2'."
+        ),
     )
 
 
-class PerformanceUpdateResponse(BaseModel):
-    """Response from performance update."""
+class SystemBatchRequest(BaseModel):
+    item_name: str = Field(..., description="Primary item identifier (hostname, username, IP, …)")
+    operations: List[SystemBatchOperation]
+
+
+class VyOSResponse(BaseModel):
     success: bool
-    message: str
+    data: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
 
 
-@router.get("/info", response_model=SystemInfo)
-async def get_system_info(request: Request) -> SystemInfo:
-    """
-    Get system information about the active VyOS instance.
+class GeneralSettingsRequest(BaseModel):
+    """Atomic update for all general system settings in one VyOS commit."""
+    hostname: Optional[str] = None
+    clear_hostname: bool = False
+    domain_name: Optional[str] = None
+    clear_domain_name: bool = False
+    time_zone: Optional[str] = None
+    clear_time_zone: bool = False
+    performance: Optional[str] = None
+    clear_performance: bool = False
+    name_servers_add: List[str] = Field(default_factory=list)
+    name_servers_remove: List[str] = Field(default_factory=list)
 
-    Returns:
-    - instance_id: The ID of the connected instance
-    - instance_name: The name of the instance
-    - site_name: The site the instance belongs to
-    - vyos_version: VyOS version (e.g., "1.4", "1.5")
-    - connection_host: The hostname/IP we're connected to
-    - connected: Whether we can connect to the device
+
+class LoginSettingsRequest(BaseModel):
+    """Atomic update for login timeout and banners in one VyOS commit."""
+    timeout: Optional[int] = None
+    clear_timeout: bool = False
+    pre_login_banner: Optional[str] = None
+    clear_pre_login_banner: bool = False
+    post_login_banner: Optional[str] = None
+    clear_post_login_banner: bool = False
+
+
+class WatchdogSettingsRequest(BaseModel):
+    """Atomic update for watchdog timeout and reboot-timeout in one VyOS commit."""
+    timeout: Optional[int] = None
+    clear_timeout: bool = False
+    reboot_timeout: Optional[int] = None
+    clear_reboot_timeout: bool = False
+
+
+# =============================================================================
+# Config parsing helpers
+# =============================================================================
+
+
+def _parse_syslog_facilities(raw: dict) -> List[SyslogFacility]:
+    """Parse facility node: {facility: {<name>: {level: <level>}}} → list."""
+    facilities = []
+    facility_raw = raw.get("facility", {}) if raw else {}
+    if not isinstance(facility_raw, dict):
+        return facilities
+    for fac_name, fac_cfg in facility_raw.items():
+        if fac_cfg is None:
+            fac_cfg = {}
+        level = fac_cfg.get("level") or "info"
+        facilities.append(SyslogFacility(facility=fac_name, level=level))
+    return facilities
+
+
+def _parse_syslog(system_config: dict, mapper) -> SyslogConfig:
+    syslog_raw = system_config.get("syslog", {}) or {}
+
+    local_key = mapper.get_syslog_local_config_key()
+    remote_key = mapper.get_syslog_remote_config_key()
+
+    local_raw = syslog_raw.get(local_key, {}) or {}
+    local_facilities = _parse_syslog_facilities(local_raw)
+    preserve_fqdn = "preserve-fqdn" in local_raw
+
+    remote_hosts = []
+    remote_raw = syslog_raw.get(remote_key, {}) or {}
+    if isinstance(remote_raw, dict):
+        for host, host_cfg in remote_raw.items():
+            if host_cfg is None:
+                host_cfg = {}
+            facilities = _parse_syslog_facilities(host_cfg)
+            port_val = host_cfg.get("port")
+            remote_hosts.append(SyslogRemoteHost(
+                host=host,
+                facilities=facilities,
+                port=int(port_val) if port_val else None,
+                protocol=host_cfg.get("protocol"),
+            ))
+
+    console_facilities = []
+    console_raw = syslog_raw.get("console", {}) or {}
+    if console_raw:
+        console_facilities = _parse_syslog_facilities(console_raw)
+
+    # 1.4-only: file targets
+    files = []
+    file_raw = syslog_raw.get("file", {}) or {}
+    if isinstance(file_raw, dict):
+        for fname, fcfg in file_raw.items():
+            if fcfg is None:
+                fcfg = {}
+            files.append(SyslogFileEntry(
+                filename=fname,
+                facilities=_parse_syslog_facilities(fcfg),
+            ))
+
+    # 1.4-only: user targets
+    users_syslog = []
+    user_raw = syslog_raw.get("user", {}) or {}
+    if isinstance(user_raw, dict):
+        for uname, ucfg in user_raw.items():
+            if ucfg is None:
+                ucfg = {}
+            users_syslog.append(SyslogUserEntry(
+                username=uname,
+                facilities=_parse_syslog_facilities(ucfg),
+            ))
+
+    return SyslogConfig(
+        local_facilities=local_facilities,
+        preserve_fqdn=preserve_fqdn,
+        remote_hosts=remote_hosts,
+        console_facilities=console_facilities,
+        files=files,
+        users=users_syslog,
+    )
+
+
+def _parse_login(system_config: dict) -> LoginConfig:
+    login_raw = system_config.get("login", {}) or {}
+    users_raw = login_raw.get("user", {}) or {}
+    users = []
+    if isinstance(users_raw, dict):
+        for username, user_cfg in users_raw.items():
+            if user_cfg is None:
+                user_cfg = {}
+            auth = user_cfg.get("authentication", {}) or {}
+            has_password = bool(
+                auth.get("encrypted-password") or auth.get("plaintext-password")
+            )
+            keys_raw = auth.get("public-keys", {}) or {}
+            ssh_keys = []
+            if isinstance(keys_raw, dict):
+                for key_name, key_cfg in keys_raw.items():
+                    if key_cfg is None:
+                        key_cfg = {}
+                    ssh_keys.append(LoginSshKey(
+                        key_name=key_name,
+                        key_type=key_cfg.get("type"),
+                    ))
+            users.append(LoginUser(
+                username=username,
+                full_name=user_cfg.get("full-name"),
+                has_password=has_password,
+                ssh_keys=ssh_keys,
+            ))
+
+    timeout_raw = login_raw.get("timeout")
+    timeout = int(timeout_raw) if timeout_raw else None
+
+    banner_raw = login_raw.get("banner", {}) or {}
+    banners = LoginBanners(
+        pre_login=banner_raw.get("pre-login"),
+        post_login=banner_raw.get("post-login"),
+    )
+
+    op_groups_raw = login_raw.get("operator-group", {}) or {}
+    operator_groups = list(op_groups_raw.keys()) if isinstance(op_groups_raw, dict) else []
+
+    return LoginConfig(
+        users=users,
+        timeout=timeout,
+        banners=banners,
+        operator_groups=operator_groups,
+    )
+
+
+def _parse_conntrack(system_config: dict) -> ConntrackConfig:
+    ct_raw = system_config.get("conntrack", {}) or {}
+
+    # Modules: node with leaf children (each key = module name)
+    modules_raw = ct_raw.get("modules", {}) or {}
+    modules = list(modules_raw.keys()) if isinstance(modules_raw, dict) else []
+
+    table_size = ct_raw.get("table-size")
+    hash_size = ct_raw.get("hash-size")
+    expect_size = ct_raw.get("expect-table-size")
+
+    tcp_raw = ct_raw.get("tcp", {}) or {}
+    tcp_loose = tcp_raw.get("loose")
+    tcp_half_open = tcp_raw.get("half-open-connections")
+    tcp_max_retrans = tcp_raw.get("max-retrans")
+
+    return ConntrackConfig(
+        modules=modules,
+        table_size=int(table_size) if table_size else None,
+        hash_size=int(hash_size) if hash_size else None,
+        expect_table_size=int(expect_size) if expect_size else None,
+        tcp_loose=tcp_loose,
+        tcp_half_open_connections=int(tcp_half_open) if tcp_half_open else None,
+        tcp_max_retrans=int(tcp_max_retrans) if tcp_max_retrans else None,
+    )
+
+
+def _parse_config_management(system_config: dict) -> ConfigManagement:
+    cm_raw = system_config.get("config-management", {}) or {}
+    revisions = cm_raw.get("commit-revisions")
+    archive_raw = cm_raw.get("commit-archive", {}) or {}
+    locations_raw = archive_raw.get("location", []) if isinstance(archive_raw, dict) else []
+    if isinstance(locations_raw, str):
+        locations_raw = [locations_raw]
+
+    return ConfigManagement(
+        commit_revisions=int(revisions) if revisions else None,
+        archive_locations=locations_raw if isinstance(locations_raw, list) else [],
+    )
+
+
+def _parse_static_host_mapping(system_config: dict) -> List[StaticHostEntry]:
+    shm_raw = system_config.get("static-host-mapping", {}) or {}
+    hosts_raw = shm_raw.get("host-name", {}) if isinstance(shm_raw, dict) else {}
+    entries = []
+    if isinstance(hosts_raw, dict):
+        for hostname, host_cfg in hosts_raw.items():
+            if host_cfg is None:
+                host_cfg = {}
+            inet = host_cfg.get("inet")
+            aliases_raw = host_cfg.get("alias", [])
+            if isinstance(aliases_raw, str):
+                aliases_raw = [aliases_raw]
+            entries.append(StaticHostEntry(
+                hostname=hostname,
+                inet=inet,
+                aliases=aliases_raw if isinstance(aliases_raw, list) else [],
+            ))
+    return entries
+
+
+def _parse_console(system_config: dict) -> List[ConsoleDevice]:
+    console_raw = system_config.get("console", {}) or {}
+    devices_raw = console_raw.get("device", {}) or {}
+    devices = []
+    if isinstance(devices_raw, dict):
+        for dev_name, dev_cfg in devices_raw.items():
+            if dev_cfg is None:
+                dev_cfg = {}
+            devices.append(ConsoleDevice(
+                device=dev_name,
+                speed=dev_cfg.get("speed"),
+                powersave="powersave" in dev_cfg,
+            ))
+    return devices
+
+
+def _parse_sysctl(system_config: dict) -> List[SysctlParameter]:
+    sysctl_raw = system_config.get("sysctl", {}) or {}
+    params_raw = sysctl_raw.get("parameter", {}) or {}
+    params = []
+    if isinstance(params_raw, dict):
+        for pname, pcfg in params_raw.items():
+            if pcfg is None:
+                pcfg = {}
+            val = pcfg.get("value")
+            if val is not None:
+                params.append(SysctlParameter(parameter=pname, value=str(val)))
+    return params
+
+
+def _parse_watchdog(system_config: dict) -> Optional[WatchdogConfig]:
+    wd_raw = system_config.get("watchdog", {})
+    if not wd_raw:
+        return None
+    timeout = wd_raw.get("timeout")
+    reboot_timeout = wd_raw.get("reboot-timeout")
+    if timeout is None and reboot_timeout is None:
+        return None
+    return WatchdogConfig(
+        timeout=int(timeout) if timeout else None,
+        reboot_timeout=int(reboot_timeout) if reboot_timeout else None,
+    )
+
+
+def _parse_name_servers(system_config: dict) -> List[str]:
+    ns_val = system_config.get("name-server")
+    if not ns_val:
+        return []
+    if isinstance(ns_val, list):
+        return ns_val
+    return [ns_val]
+
+
+def _parse_domain_search(system_config: dict) -> List[str]:
+    ds_raw = system_config.get("domain-search", {}) or {}
+    if isinstance(ds_raw, dict):
+        domains_raw = ds_raw.get("domain", [])
+        if isinstance(domains_raw, list):
+            return domains_raw
+        if isinstance(domains_raw, str):
+            return [domains_raw]
+    return []
+
+
+def _parse_performance(system_config: dict, version: str) -> Optional[str]:
+    perf_mapper = CommandMapperRegistry.get_mapper("system_performance", version)
+    option = system_config.get("option") or {}
+    return perf_mapper.parse_performance(option)
+
+
+# =============================================================================
+# Endpoint 0: General settings (single atomic commit)
+# =============================================================================
+
+
+@router.post("/general", response_model=VyOSResponse)
+async def update_general_settings(
+    http_request: Request,
+    body: GeneralSettingsRequest,
+) -> VyOSResponse:
+    """
+    Update all general system settings in a single VyOS commit.
+
+    Combines hostname, domain, timezone, performance, and name-server changes
+    that would otherwise require separate /batch calls (each needing a different
+    item_name) into one atomic operation.
+    """
+    await require_write_permission(http_request, FeatureGroup.SYSTEM)
+    try:
+        service = get_session_vyos_service(http_request)
+        version = service.get_version()
+        builder = SystemBatchBuilder(version=version)
+
+        if body.hostname:
+            builder.set_hostname(body.hostname)
+        elif body.clear_hostname:
+            builder.delete_hostname()
+
+        if body.domain_name:
+            builder.set_domain_name(body.domain_name)
+        elif body.clear_domain_name:
+            builder.delete_domain_name()
+
+        if body.time_zone:
+            builder.set_time_zone(body.time_zone)
+        elif body.clear_time_zone:
+            builder.delete_time_zone()
+
+        # Performance uses its own mapper but ops go into the same builder/commit
+        if body.performance:
+            perf_mapper = CommandMapperRegistry.get_mapper("system_performance", version)
+            builder.add_set(perf_mapper.get_performance_set_path(body.performance))
+        elif body.clear_performance:
+            perf_mapper = CommandMapperRegistry.get_mapper("system_performance", version)
+            builder.add_delete(perf_mapper.get_performance_delete_path())
+
+        for ns in body.name_servers_remove:
+            builder.delete_name_server(ns)
+        for ns in body.name_servers_add:
+            builder.add_name_server(ns)
+
+        if builder.is_empty():
+            return VyOSResponse(success=True, data={"message": "No changes to apply"})
+
+        response = await run_in_threadpool(service.execute_batch, builder)
+        return VyOSResponse(
+            success=response.status == 200,
+            data={"message": "General settings updated"},
+            error=response.error if response.error else None,
+        )
+    except Exception:
+        logger.exception("Unhandled error in update_general_settings")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+# =============================================================================
+# Endpoint 0b: Login settings (single atomic commit)
+# =============================================================================
+
+
+@router.post("/login-settings", response_model=VyOSResponse)
+async def update_login_settings(
+    http_request: Request,
+    body: LoginSettingsRequest,
+) -> VyOSResponse:
+    """
+    Update login timeout and banners in a single VyOS commit.
+
+    Combines timeout, pre-login banner, and post-login banner changes that
+    would otherwise require separate /batch calls (each needing a different
+    item_name) into one atomic operation.
+    """
+    await require_write_permission(http_request, FeatureGroup.SYSTEM)
+    try:
+        service = get_session_vyos_service(http_request)
+        version = service.get_version()
+        builder = SystemBatchBuilder(version=version)
+
+        if body.timeout is not None:
+            builder.set_login_timeout(str(body.timeout))
+        elif body.clear_timeout:
+            builder.delete_login_timeout()
+
+        if body.pre_login_banner is not None:
+            builder.set_pre_login_banner(body.pre_login_banner)
+        elif body.clear_pre_login_banner:
+            builder.delete_pre_login_banner()
+
+        if body.post_login_banner is not None:
+            builder.set_post_login_banner(body.post_login_banner)
+        elif body.clear_post_login_banner:
+            builder.delete_post_login_banner()
+
+        if builder.is_empty():
+            return VyOSResponse(success=True, data={"message": "No changes to apply"})
+
+        response = await run_in_threadpool(service.execute_batch, builder)
+        return VyOSResponse(
+            success=response.status == 200,
+            data={"message": "Login settings updated"},
+            error=response.error if response.error else None,
+        )
+    except Exception:
+        logger.exception("Unhandled error in update_login_settings")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+# =============================================================================
+# Endpoint 0c: Watchdog settings (single atomic commit)
+# =============================================================================
+
+
+@router.post("/watchdog-settings", response_model=VyOSResponse)
+async def update_watchdog_settings(
+    http_request: Request,
+    body: WatchdogSettingsRequest,
+) -> VyOSResponse:
+    """
+    Update watchdog timeout and reboot-timeout in a single VyOS commit.
+
+    Combines both timeout fields that would otherwise need separate /batch
+    calls (each needing a different item_name) into one atomic operation.
+    """
+    await require_write_permission(http_request, FeatureGroup.SYSTEM)
+    try:
+        service = get_session_vyos_service(http_request)
+        version = service.get_version()
+        builder = SystemBatchBuilder(version=version)
+
+        if body.timeout is not None:
+            builder.set_watchdog_timeout(str(body.timeout))
+        elif body.clear_timeout:
+            builder.delete_watchdog_timeout()
+
+        if body.reboot_timeout is not None:
+            builder.set_watchdog_reboot_timeout(str(body.reboot_timeout))
+
+        if builder.is_empty():
+            return VyOSResponse(success=True, data={"message": "No changes to apply"})
+
+        response = await run_in_threadpool(service.execute_batch, builder)
+        return VyOSResponse(
+            success=response.status == 200,
+            data={"message": "Watchdog settings updated"},
+            error=response.error if response.error else None,
+        )
+    except Exception:
+        logger.exception("Unhandled error in update_watchdog_settings")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+# =============================================================================
+# Endpoint 1: Capabilities
+# =============================================================================
+
+
+@router.get("/capabilities")
+async def get_system_capabilities(request: Request) -> Dict[str, Any]:
+    """
+    Return version-aware feature flags for the system section.
+
+    The frontend uses this to:
+    - Know which syslog model is active (local vs global, remote vs host)
+    - Know which features are 1.5-only (watchdog, wireless, operator-group)
+    - Show the correct performance profile options
+    - Show available conntrack modules
     """
     await require_read_permission(request, FeatureGroup.SYSTEM)
     try:
         service = get_session_vyos_service(request)
-        instance = request.state.instance
+        version = service.get_version()
+        builder = SystemBatchBuilder(version=version)
+        caps = builder.get_capabilities()
 
+        # Merge performance capabilities
+        perf_mapper = CommandMapperRegistry.get_mapper("system_performance", version)
+        perf_options = perf_mapper.get_valid_performance_options()
+        caps["performance_options"] = [
+            {"value": v, "label": label, "description": desc}
+            for v, label, desc in perf_options
+        ]
+
+        return caps
+    except Exception:
+        logger.exception("Unhandled error in get_system_capabilities")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+# =============================================================================
+# Endpoint 2: Config
+# =============================================================================
+
+
+@router.get("/config", response_model=SystemConfig)
+async def get_system_config(request: Request, refresh: bool = False) -> SystemConfig:
+    """
+    Return full system configuration across all subsections.
+
+    Config is normalised for both VyOS 1.4 and 1.5 — the frontend does not
+    need to know the VyOS version to render the data.
+    """
+    await require_read_permission(request, FeatureGroup.SYSTEM)
+    try:
+        service = get_session_vyos_service(request)
+        version = service.get_version()
+        full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
+        system_config = full_config.get("system", {}) or {}
+
+        mapper = CommandMapperRegistry.get_mapper("system", version)
+
+        return SystemConfig(
+            hostname=system_config.get("host-name"),
+            domain_name=system_config.get("domain-name"),
+            domain_search=_parse_domain_search(system_config),
+            name_servers=_parse_name_servers(system_config),
+            time_zone=system_config.get("time-zone"),
+            performance=_parse_performance(system_config, version),
+            login=_parse_login(system_config),
+            syslog=_parse_syslog(system_config, mapper),
+            conntrack=_parse_conntrack(system_config),
+            config_management=_parse_config_management(system_config),
+            static_host_mapping=_parse_static_host_mapping(system_config),
+            console_devices=_parse_console(system_config),
+            sysctl_parameters=_parse_sysctl(system_config),
+            watchdog=_parse_watchdog(system_config),
+            wireless_country_code=system_config.get("wireless", {}).get("country-code") if system_config.get("wireless") else None,
+            frr_profile=system_config.get("frr", {}).get("profile") if system_config.get("frr") else None,
+        )
+    except Exception:
+        logger.exception("Unhandled error in get_system_config")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+# =============================================================================
+# Endpoint 3: Batch operations
+# =============================================================================
+
+
+@router.post("/batch", response_model=VyOSResponse)
+async def system_batch_configure(
+    http_request: Request,
+    body: SystemBatchRequest,
+) -> VyOSResponse:
+    """
+    Execute a batch of system configuration operations atomically.
+
+    The ``item_name`` field identifies the primary item (hostname, username,
+    IP address, syslog facility, etc.).  Each operation's ``value`` field
+    provides one additional argument; for operations requiring two extra
+    arguments, encode them comma-separated: ``"facility,level"``.
+
+    Available operations mirror ``SystemBatchBuilder`` public methods.
+
+    Example — change hostname::
+
+        POST /vyos/system/batch
+        {
+            "item_name": "new-hostname",
+            "operations": [{"op": "set_hostname"}]
+        }
+
+    Example — add syslog remote host facility::
+
+        POST /vyos/system/batch
+        {
+            "item_name": "192.168.1.100",
+            "operations": [{"op": "set_syslog_remote_facility", "value": "all,info"}]
+        }
+    """
+    await require_write_permission(http_request, FeatureGroup.SYSTEM)
+
+    try:
+        service = get_session_vyos_service(http_request)
+        version = service.get_version()
+        builder = SystemBatchBuilder(version=version)
+
+        for operation in body.operations:
+            if operation.op.startswith("_") or operation.op in _INTERNAL_BUILDER_METHODS:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid operation: {operation.op}",
+                )
+            method = getattr(builder, operation.op, None)
+            if not callable(method):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Unknown operation: {operation.op}",
+                )
+
+            sig = inspect.signature(method)
+            params = [p for p in sig.parameters.keys() if p != "self"]
+            n = len(params)
+
+            if n == 0:
+                method()
+            elif n == 1:
+                method(body.item_name)
+            elif n == 2:
+                if operation.value is None:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Operation '{operation.op}' requires a value",
+                    )
+                method(body.item_name, operation.value)
+            elif n >= 3:
+                # Third (and beyond) args encoded as comma-separated in value
+                if not operation.value:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Operation '{operation.op}' requires a comma-separated value",
+                    )
+                extra = operation.value.split(",", n - 2)
+                if len(extra) < n - 1:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Operation '{operation.op}' requires {n - 1} comma-separated values",
+                    )
+                method(body.item_name, *extra[: n - 1])
+
+        response = await run_in_threadpool(service.execute_batch, builder)
+
+        return VyOSResponse(
+            success=response.status == 200,
+            data={"message": "System configuration updated"},
+            error=response.error if response.error else None,
+        )
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Unhandled error in system_batch_configure")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+# =============================================================================
+# Legacy endpoints (kept for backwards compatibility)
+# =============================================================================
+
+
+@router.get("/info", response_model=SystemInfo)
+async def get_system_info(request: Request) -> SystemInfo:
+    """Get system information about the active VyOS instance."""
+    await require_read_permission(request, FeatureGroup.SYSTEM)
+    try:
+        service = get_session_vyos_service(request)
+        instance = request.state.instance
         version = service.get_version()
         hostname = service.config.hostname
 
-        # Try to get config to verify connection
         try:
             await run_in_threadpool(service.get_full_config)
             connected = True
@@ -100,151 +861,13 @@ async def get_system_info(request: Request) -> SystemInfo:
         site = getattr(request.state, "site", None)
 
         return SystemInfo(
-            instance_id=instance['id'],
-            instance_name=instance['name'],
+            instance_id=instance["id"],
+            instance_name=instance["name"],
             site_name=site["name"] if site and site.get("name") else "Unknown",
             vyos_version=version,
             connection_host=hostname,
             connected=connected,
         )
-    except Exception as e:
-        logger.exception("Unhandled error")
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-@router.get("/config", response_model=SystemConfig)
-async def get_system_config(request: Request, refresh: bool = False) -> SystemConfig:
-    """
-    Get system configuration from VyOS (hostname, timezone, name servers, etc.).
-
-    This endpoint retrieves system-level configuration that may differ between
-    VyOS versions 1.4 and 1.5, and returns it in a generalized format.
-
-    Args:
-        request: FastAPI request object (contains user session)
-        refresh: If True, force refresh from VyOS. If False, use cache.
-
-    Returns:
-        SystemConfig with generalized system settings
-    """
-    await require_read_permission(request, FeatureGroup.SYSTEM)
-    try:
-        service = get_session_vyos_service(request)
-
-        # Get full config (will use cache unless refresh=True)
-        full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
-
-        # Extract system configuration
-        system_config = full_config.get("system", {})
-
-        # Parse hostname
-        hostname = system_config.get("host-name")
-
-        # Parse timezone
-        timezone = system_config.get("time-zone")
-
-        # Parse name servers (can be string or list depending on version)
-        name_servers = []
-        ns_value = system_config.get("name-server")
-        if ns_value:
-            if isinstance(ns_value, list):
-                name_servers = ns_value
-            elif isinstance(ns_value, str):
-                name_servers = [ns_value]
-
-        # Parse domain name
-        domain_name = system_config.get("domain-name")
-
-        # Parse system option performance (version-aware via mapper)
-        version = service.get_version()
-        perf_mapper = CommandMapperRegistry.get_mapper("system_performance", version)
-        option = system_config.get("option") or {}
-        performance = perf_mapper.parse_performance(option)
-
-        return SystemConfig(
-            hostname=hostname,
-            timezone=timezone,
-            name_servers=name_servers,
-            domain_name=domain_name,
-            performance=performance,
-            raw_config=system_config,
-        )
-    except Exception as e:
-        logger.exception("Unhandled error")
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-@router.get("/capabilities")
-async def get_system_capabilities(request: Request) -> Dict[str, Any]:
-    """
-    Get system-related capabilities for the active instance (e.g. performance options per VyOS version).
-    Frontend uses this to adapt UI (e.g. show only throughput/latency on 1.4, all five on 1.5).
-    """
-    await require_read_permission(request, FeatureGroup.SYSTEM)
-    try:
-        service = get_session_vyos_service(request)
-        version = service.get_version()
-        perf_mapper = CommandMapperRegistry.get_mapper("system_performance", version)
-        options = perf_mapper.get_valid_performance_options()
-        performance_options = [
-            {"value": v, "label": label, "description": desc}
-            for v, label, desc in options
-        ]
-        return {
-            "version": version,
-            "performance_options": performance_options,
-        }
-    except Exception as e:
-        logger.exception("Unhandled error")
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-@router.patch("/config/performance", response_model=PerformanceUpdateResponse)
-async def update_system_performance(request: Request, body: PerformanceUpdateRequest) -> PerformanceUpdateResponse:
-    """
-    Set or clear system option performance profile.
-    Valid values depend on VyOS version (see GET /capabilities).
-    """
-    await require_write_permission(request, FeatureGroup.SYSTEM)
-
-    value = body.performance
-    stripped = (value or "").strip()
-
-    try:
-        service = get_session_vyos_service(request)
-        version = service.get_version()
-        perf_mapper = CommandMapperRegistry.get_mapper("system_performance", version)
-        valid_values = perf_mapper.get_valid_performance_values()
-
-        if stripped and stripped not in valid_values:
-            return PerformanceUpdateResponse(
-                success=False,
-                message="Invalid performance profile",
-                error=f"Must be one of: {', '.join(valid_values)}",
-            )
-
-        batch = service.create_system_performance_batch()
-        if not stripped:
-            batch.delete_performance()
-        else:
-            batch.set_performance(stripped)
-
-        response = await run_in_threadpool(service.execute_batch, batch)
-
-        if response.status != 200:
-            return PerformanceUpdateResponse(
-                success=False,
-                message="Failed to update performance option",
-                error=response.error or "Unknown error",
-            )
-
-        await run_in_threadpool(service.get_full_config, True)
-        return PerformanceUpdateResponse(
-            success=True,
-            message="Performance option updated. Save config to make persistent.",
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.exception("Unhandled error")
+    except Exception:
+        logger.exception("Unhandled error in get_system_info")
         raise HTTPException(status_code=500, detail="Internal server error")
