@@ -86,11 +86,9 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
   // Console devices
   const [editingConsole, setEditingConsole] = useState<string | null>(null); // device name being edited
   const [consoleSpeed, setConsoleSpeed] = useState("");
+  const [consolePowersave, setConsolePowersave] = useState(false);
   const [consoleSaving, setConsoleSaving] = useState(false);
   const [consoleError, setConsoleError] = useState<string | null>(null);
-  const [deleteConsoleTarget, setDeleteConsoleTarget] = useState<string | null>(null);
-  const [deletingConsole, setDeletingConsole] = useState(false);
-  const [powersaveSaving, setPowersaveSaving] = useState(false);
 
   // Watchdog (1.5)
   const [editingWd, setEditingWd] = useState(false);
@@ -215,59 +213,37 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
   };
 
   // Console device handlers
-  const handleSaveConsoleSpeed = async () => {
+  const handleSaveConsoleDevice = async () => {
     if (!editingConsole) return;
     setConsoleSaving(true);
     setConsoleError(null);
     try {
-      const result = await systemSettingsService.setConsoleSpeed(editingConsole, consoleSpeed);
-      if (!result.success) {
-        setConsoleError(result.error ?? "Failed to update speed");
-      } else {
-        toast.success("Console speed updated");
-        setEditingConsole(null);
-        onRefresh();
+      const currentDevice = config.console_devices.find((d) => d.device === editingConsole);
+      const speedChanged = consoleSpeed !== (currentDevice?.speed ?? "");
+      const powersaveChanged = consolePowersave !== (currentDevice?.powersave ?? false);
+
+      if (speedChanged) {
+        const r = await systemSettingsService.setConsoleSpeed(editingConsole, consoleSpeed);
+        if (!r.success) {
+          setConsoleError(r.error ?? "Failed to update speed");
+          return;
+        }
       }
+      if (powersaveChanged) {
+        const r = await systemSettingsService.setConsolePowersave(consolePowersave);
+        if (!r.success) {
+          setConsoleError(r.error ?? "Failed to update powersave");
+          return;
+        }
+      }
+
+      toast.success("Console device updated");
+      setEditingConsole(null);
+      onRefresh();
     } catch {
       setConsoleError("An unexpected error occurred");
     } finally {
       setConsoleSaving(false);
-    }
-  };
-
-  const handleDeleteConsoleDevice = async () => {
-    if (!deleteConsoleTarget) return;
-    setDeletingConsole(true);
-    try {
-      const result = await systemSettingsService.deleteConsoleDevice(deleteConsoleTarget);
-      if (!result.success) {
-        toast.error("Delete failed", result.error ?? "Failed to delete console device");
-      } else {
-        toast.success("Console device removed");
-        onRefresh();
-      }
-    } catch {
-      toast.error("Error", "An unexpected error occurred");
-    } finally {
-      setDeletingConsole(false);
-      setDeleteConsoleTarget(null);
-    }
-  };
-
-  const handleTogglePowersave = async (enabled: boolean) => {
-    setPowersaveSaving(true);
-    try {
-      const result = await systemSettingsService.setConsolePowersave(enabled);
-      if (!result.success) {
-        toast.error("Failed", result.error ?? "Could not update powersave");
-      } else {
-        toast.success(enabled ? "Powersave enabled" : "Powersave disabled");
-        onRefresh();
-      }
-    } catch {
-      toast.error("Error", "An unexpected error occurred");
-    } finally {
-      setPowersaveSaving(false);
     }
   };
 
@@ -546,26 +522,29 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
                       )}
                     </TableCell>
                     <TableCell>
-                      {!isReadOnly ? (
+                      {editingConsole === d.device ? (
                         <button
-                          className="text-sm font-medium disabled:opacity-50"
-                          disabled={powersaveSaving}
-                          onClick={() => handleTogglePowersave(!d.powersave)}
-                          title={d.powersave ? "Click to disable" : "Click to enable"}
+                          type="button"
+                          className="text-sm font-medium"
+                          onClick={() => setConsolePowersave(!consolePowersave)}
                         >
-                          {d.powersave
+                          {consolePowersave
                             ? <span className="text-green-600 dark:text-green-400">Enabled</span>
                             : <span className="text-muted-foreground">Disabled</span>}
                         </button>
                       ) : (
-                        <span>{d.powersave ? "Enabled" : "Disabled"}</span>
+                        <span className="text-sm">
+                          {d.powersave
+                            ? <span className="text-green-600 dark:text-green-400">Enabled</span>
+                            : <span className="text-muted-foreground">Disabled</span>}
+                        </span>
                       )}
                     </TableCell>
                     {!isReadOnly && (
                       <TableCell className="text-right">
                         {editingConsole === d.device ? (
                           <div className="flex justify-end gap-2">
-                            <Button size="sm" onClick={handleSaveConsoleSpeed} disabled={consoleSaving}>
+                            <Button size="sm" onClick={handleSaveConsoleDevice} disabled={consoleSaving}>
                               {consoleSaving ? "Saving…" : "Save"}
                             </Button>
                             <Button size="sm" variant="outline" onClick={() => { setEditingConsole(null); setConsoleError(null); }}>
@@ -573,27 +552,18 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
                             </Button>
                           </div>
                         ) : (
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setConsoleSpeed(d.speed ?? "9600");
-                                setConsoleError(null);
-                                setEditingConsole(d.device);
-                              }}
-                            >
-                              <Edit2 className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-destructive hover:text-destructive"
-                              onClick={() => setDeleteConsoleTarget(d.device)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setConsoleSpeed(d.speed ?? "9600");
+                              setConsolePowersave(d.powersave);
+                              setConsoleError(null);
+                              setEditingConsole(d.device);
+                            }}
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
                         )}
                       </TableCell>
                     )}
@@ -604,27 +574,6 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
           </CardContent>
         </Card>
       )}
-
-      <AlertDialog open={!!deleteConsoleTarget} onOpenChange={(o: boolean) => { if (!o) setDeleteConsoleTarget(null); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remove Console Device</AlertDialogTitle>
-            <AlertDialogDescription>
-              Remove console device <strong>{deleteConsoleTarget}</strong>?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deletingConsole}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteConsoleDevice}
-              disabled={deletingConsole}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {deletingConsole ? "Removing…" : "Remove"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       {/* Watchdog / Wireless / FRR — small cards in a responsive grid */}
       {(features.watchdog.supported || features.wireless.supported || features.frr_profile.supported) && (

@@ -592,6 +592,12 @@ async def firewall_ipv4_reorder_rules(http_request: Request, request: ReorderFir
                     builder.set_rule_source_port(request.chain, new_number, source["port"], request.is_custom_chain)
                 if source.get("mac_address"):
                     builder.set_rule_source_mac(request.chain, new_number, source["mac_address"], request.is_custom_chain)
+                if source.get("geoip"):
+                    geoip = source["geoip"]
+                    for code in (geoip.get("country_code") or []):
+                        builder.set_rule_source_geoip_country(request.chain, new_number, code, request.is_custom_chain)
+                    if geoip.get("inverse_match"):
+                        builder.set_rule_source_geoip_inverse(request.chain, new_number, request.is_custom_chain)
                 if source.get("group"):
                     group = source["group"]
                     for group_type, group_name in group.items():
@@ -601,6 +607,12 @@ async def firewall_ipv4_reorder_rules(http_request: Request, request: ReorderFir
                             builder.set_rule_source_group_network(request.chain, new_number, group_name, request.is_custom_chain)
                         elif "port" in group_type:
                             builder.set_rule_source_group_port(request.chain, new_number, group_name, request.is_custom_chain)
+                        elif "mac" in group_type:
+                            builder.set_rule_source_group_mac(request.chain, new_number, group_name, request.is_custom_chain)
+                        elif "domain" in group_type:
+                            builder.set_rule_source_group_domain(request.chain, new_number, group_name, request.is_custom_chain)
+                        elif "remote" in group_type:
+                            builder.set_rule_source_group_remote(request.chain, new_number, group_name, request.is_custom_chain)
 
             # Destination
             if rule_data.get("destination"):
@@ -609,6 +621,12 @@ async def firewall_ipv4_reorder_rules(http_request: Request, request: ReorderFir
                     builder.set_rule_destination_address(request.chain, new_number, dest["address"], request.is_custom_chain)
                 if dest.get("port"):
                     builder.set_rule_destination_port(request.chain, new_number, dest["port"], request.is_custom_chain)
+                if dest.get("geoip"):
+                    geoip = dest["geoip"]
+                    for code in (geoip.get("country_code") or []):
+                        builder.set_rule_destination_geoip_country(request.chain, new_number, code, request.is_custom_chain)
+                    if geoip.get("inverse_match"):
+                        builder.set_rule_destination_geoip_inverse(request.chain, new_number, request.is_custom_chain)
                 if dest.get("group"):
                     group = dest["group"]
                     for group_type, group_name in group.items():
@@ -618,6 +636,12 @@ async def firewall_ipv4_reorder_rules(http_request: Request, request: ReorderFir
                             builder.set_rule_destination_group_network(request.chain, new_number, group_name, request.is_custom_chain)
                         elif "port" in group_type:
                             builder.set_rule_destination_group_port(request.chain, new_number, group_name, request.is_custom_chain)
+                        elif "mac" in group_type:
+                            builder.set_rule_destination_group_mac(request.chain, new_number, group_name, request.is_custom_chain)
+                        elif "domain" in group_type:
+                            builder.set_rule_destination_group_domain(request.chain, new_number, group_name, request.is_custom_chain)
+                        elif "remote" in group_type:
+                            builder.set_rule_destination_group_remote(request.chain, new_number, group_name, request.is_custom_chain)
 
             # State
             if rule_data.get("state"):
