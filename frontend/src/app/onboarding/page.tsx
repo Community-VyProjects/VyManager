@@ -112,6 +112,12 @@ export default function OnboardingPage() {
       return;
     }
 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(adminData.email)) {
+      setError("Please enter a valid email address (e.g., admin@example.com)");
+      return;
+    }
+
     // Just move to next step - don't create user yet
     setStep(2);
   };
@@ -173,6 +179,7 @@ export default function OnboardingPage() {
       if (signUpResult.error) {
         setError(signUpResult.error.message || "Failed to create admin account");
         setLoading(false);
+        setIsSubmitting(false);
         return;
       }
 
