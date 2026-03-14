@@ -23,7 +23,8 @@ interface Props {
 
 export function HostMappingModal({ open, onOpenChange, onSuccess }: Props) {
   const [hostname, setHostname] = useState("");
-  const [inet, setInet] = useState("");
+  const [inetList, setInetList] = useState<string[]>([]);
+  const [inetInput, setInetInput] = useState("");
   const [aliases, setAliases] = useState<string[]>([]);
   const [aliasInput, setAliasInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -32,7 +33,8 @@ export function HostMappingModal({ open, onOpenChange, onSuccess }: Props) {
   useEffect(() => {
     if (open) {
       setHostname("");
-      setInet("");
+      setInetList([]);
+      setInetInput("");
       setAliases([]);
       setAliasInput("");
       setError(null);
@@ -42,6 +44,18 @@ export function HostMappingModal({ open, onOpenChange, onSuccess }: Props) {
   const handleClose = () => {
     setError(null);
     onOpenChange(false);
+  };
+
+  const addInet = () => {
+    const ip = inetInput.trim();
+    if (ip && !inetList.includes(ip)) {
+      setInetList((prev) => [...prev, ip]);
+    }
+    setInetInput("");
+  };
+
+  const removeInet = (ip: string) => {
+    setInetList((prev) => prev.filter((i) => i !== ip));
   };
 
   const addAlias = () => {
@@ -64,8 +78,8 @@ export function HostMappingModal({ open, onOpenChange, onSuccess }: Props) {
       setError("Hostname is required.");
       return;
     }
-    if (!inet.trim()) {
-      setError("IP address is required.");
+    if (inetList.length === 0) {
+      setError("At least one IP address is required.");
       return;
     }
 
@@ -73,7 +87,7 @@ export function HostMappingModal({ open, onOpenChange, onSuccess }: Props) {
     try {
       const result = await systemSettingsService.createStaticHost(
         hostname.trim(),
-        inet.trim(),
+        inetList,
         aliases,
       );
 
@@ -127,28 +141,40 @@ export function HostMappingModal({ open, onOpenChange, onSuccess }: Props) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="inet">IP Address</Label>
-            <Input
-              id="inet"
-              value={inet}
-              onChange={(e) => setInet(e.target.value)}
-              placeholder="192.168.1.100"
-            />
+            <Label>IP Address(es)</Label>
+            <div className="flex gap-2">
+              <Input
+                value={inetInput}
+                onChange={(e) => setInetInput(e.target.value)}
+                placeholder="192.168.1.100"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addInet();
+                  }
+                }}
+              />
+              <Button type="button" variant="outline" size="sm" onClick={addInet}>
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+            {inetList.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {inetList.map((ip) => (
+                  <Badge key={ip} variant="secondary" className="flex items-center gap-1 font-mono">
+                    {ip}
+                    <button type="button" onClick={() => removeInet(ip)}>
+                      <X className="h-3 w-3 ml-1" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Aliases */}
           <div className="space-y-2">
             <Label>Aliases (optional)</Label>
-            <div className="flex flex-wrap gap-2 min-h-[2rem]">
-              {aliases.map((a) => (
-                <Badge key={a} variant="secondary" className="flex items-center gap-1">
-                  {a}
-                  <button type="button" onClick={() => removeAlias(a)}>
-                    <X className="h-3 w-3 ml-1" />
-                  </button>
-                </Badge>
-              ))}
-            </div>
             <div className="flex gap-2">
               <Input
                 value={aliasInput}
@@ -165,6 +191,18 @@ export function HostMappingModal({ open, onOpenChange, onSuccess }: Props) {
                 <Plus className="h-4 w-4" />
               </Button>
             </div>
+            {aliases.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {aliases.map((a) => (
+                  <Badge key={a} variant="secondary" className="flex items-center gap-1">
+                    {a}
+                    <button type="button" onClick={() => removeAlias(a)}>
+                      <X className="h-3 w-3 ml-1" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="flex justify-end gap-2 pt-2">

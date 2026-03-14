@@ -132,7 +132,7 @@ class ConfigManagement(BaseModel):
 
 class StaticHostEntry(BaseModel):
     hostname: str
-    inet: Optional[str] = None
+    inet: List[str] = Field(default_factory=list)
     aliases: List[str] = Field(default_factory=list)
 
 
@@ -412,7 +412,9 @@ def _parse_static_host_mapping(system_config: dict) -> List[StaticHostEntry]:
         for hostname, host_cfg in hosts_raw.items():
             if host_cfg is None:
                 host_cfg = {}
-            inet = host_cfg.get("inet")
+            inet = host_cfg.get("inet") or []
+            if isinstance(inet, str):
+                inet = [inet]
             aliases_raw = host_cfg.get("alias", [])
             if isinstance(aliases_raw, str):
                 aliases_raw = [aliases_raw]

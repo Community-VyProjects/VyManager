@@ -112,8 +112,16 @@ export function HostMappingPanel({ config, isReadOnly, onRefresh }: Props) {
               config.static_host_mapping.map((entry) => (
                 <TableRow key={entry.hostname}>
                   <TableCell className="font-mono">{entry.hostname}</TableCell>
-                  <TableCell className="font-mono">
-                    {entry.inet ?? <span className="text-muted-foreground">—</span>}
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {entry.inet.length > 0 ? entry.inet.map((ip) => (
+                        <Badge key={ip} variant="outline" className="font-mono text-xs">
+                          {ip}
+                        </Badge>
+                      )) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">

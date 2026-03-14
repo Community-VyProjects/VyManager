@@ -127,7 +127,7 @@ export interface ConfigManagement {
 
 export interface StaticHostEntry {
   hostname: string;
-  inet: string | null;
+  inet: string[];
   aliases: string[];
 }
 
@@ -400,10 +400,13 @@ class SystemSettingsService {
 
   async createStaticHost(
     hostname: string,
-    inet: string,
+    inet: string[],
     aliases?: string[],
   ): Promise<VyOSResponse> {
-    const ops: BatchOp[] = [{ op: "set_static_host", value: inet }];
+    const ops: BatchOp[] = [];
+    for (const ip of inet) {
+      ops.push({ op: "set_static_host", value: ip });
+    }
     for (const alias of aliases ?? []) {
       ops.push({ op: "add_static_host_alias", value: alias });
     }
