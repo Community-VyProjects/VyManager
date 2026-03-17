@@ -68,6 +68,7 @@ const ROLE_STYLES: Record<string, { bg: string; text: string; icon: any }> = {
 const FEATURE_ICONS: Record<FeatureGroup, any> = {
   [FeatureGroup.FIREWALL]: Shield,
   [FeatureGroup.NAT]: Network,
+  [FeatureGroup.NAT64]: Globe,
   [FeatureGroup.DHCP]: Wifi,
   [FeatureGroup.INTERFACES]: Router,
   [FeatureGroup.FIREWALL_GROUPS]: Shield,
@@ -128,6 +129,7 @@ const FEATURE_ICONS: Record<FeatureGroup, any> = {
 const FEATURE_NAMES: Record<FeatureGroup, string> = {
   [FeatureGroup.FIREWALL]: "Firewall",
   [FeatureGroup.NAT]: "NAT",
+  [FeatureGroup.NAT64]: "NAT64",
   [FeatureGroup.DHCP]: "DHCP",
   [FeatureGroup.INTERFACES]: "Interfaces",
   [FeatureGroup.FIREWALL_GROUPS]: "Firewall Groups",

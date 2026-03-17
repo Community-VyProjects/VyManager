@@ -205,6 +205,7 @@ async def get_user_feature_permissions(request: Request) -> dict:
 ROUTER_FEATURE_MAP = {
     "/vyos/firewall": FeatureGroup.FIREWALL,
     "/vyos/nat": FeatureGroup.NAT,
+    "/vyos/nat64": FeatureGroup.NAT64,
     "/vyos/dhcp": FeatureGroup.DHCP,
     "/vyos/interfaces": FeatureGroup.INTERFACES,
     "/vyos/static-routes": FeatureGroup.STATIC_ROUTES,

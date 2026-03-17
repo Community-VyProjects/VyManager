@@ -26,6 +26,7 @@ class FeatureGroup(str, Enum):
     # Legacy/Parent features (for backward compatibility)
     FIREWALL = "FIREWALL"
     NAT = "NAT"
+    NAT64 = "NAT64"
     DHCP = "DHCP"
     INTERFACES = "INTERFACES"
 
@@ -128,6 +129,7 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.FIREWALL_FLOWTABLES: PermissionLevel.WRITE,
         FeatureGroup.NETWORK: PermissionLevel.WRITE,
         FeatureGroup.NAT: PermissionLevel.WRITE,
+        FeatureGroup.NAT64: PermissionLevel.WRITE,
         FeatureGroup.DHCP: PermissionLevel.WRITE,
         FeatureGroup.INTERFACES: PermissionLevel.WRITE,
         FeatureGroup.VRF: PermissionLevel.WRITE,
@@ -187,6 +189,7 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.FIREWALL_FLOWTABLES: PermissionLevel.WRITE,
         FeatureGroup.NETWORK: PermissionLevel.WRITE,
         FeatureGroup.NAT: PermissionLevel.WRITE,
+        FeatureGroup.NAT64: PermissionLevel.WRITE,
         FeatureGroup.DHCP: PermissionLevel.WRITE,
         FeatureGroup.INTERFACES: PermissionLevel.WRITE,
         FeatureGroup.VRF: PermissionLevel.WRITE,
@@ -247,6 +250,7 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.FIREWALL_FLOWTABLES: PermissionLevel.READ,
         FeatureGroup.NETWORK: PermissionLevel.READ,
         FeatureGroup.NAT: PermissionLevel.READ,
+        FeatureGroup.NAT64: PermissionLevel.READ,
         FeatureGroup.DHCP: PermissionLevel.READ,
         FeatureGroup.INTERFACES: PermissionLevel.READ,
         FeatureGroup.VRF: PermissionLevel.READ,
@@ -348,6 +352,7 @@ async def get_user_permissions(
                 FeatureGroup.FIREWALL_GLOBAL_OPTIONS,
                 FeatureGroup.NETWORK,
                 FeatureGroup.NAT,
+                FeatureGroup.NAT64,
                 FeatureGroup.DHCP,
                 FeatureGroup.INTERFACES,
                 FeatureGroup.VRF,
@@ -427,6 +432,7 @@ async def get_user_permissions(
                 FeatureGroup.FIREWALL_GLOBAL_OPTIONS,
                 FeatureGroup.NETWORK,
                 FeatureGroup.NAT,
+                FeatureGroup.NAT64,
                 FeatureGroup.DHCP,
                 FeatureGroup.INTERFACES,
                 FeatureGroup.VRF,
@@ -677,6 +683,7 @@ def _apply_parent_child_permissions(permissions: Dict[FeatureGroup, PermissionLe
             FeatureGroup.VRF,
             FeatureGroup.LOAD_BALANCING,
             FeatureGroup.NAT,
+            FeatureGroup.NAT64,
         ]
         for child in network_children:
             current = permissions.get(child, PermissionLevel.NONE)

@@ -96,6 +96,11 @@ const navigation: NavItem[] = [
         href: "/network/nat",
         requiredPermission: FeatureGroup.NAT
       },
+      {
+        title: "NAT64",
+        href: "/network/nat64",
+        requiredPermission: FeatureGroup.NAT64
+      },
     ],
   },
   {
