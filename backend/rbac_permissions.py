@@ -27,6 +27,7 @@ class FeatureGroup(str, Enum):
     FIREWALL = "FIREWALL"
     NAT = "NAT"
     NAT64 = "NAT64"
+    NAT66 = "NAT66"
     DHCP = "DHCP"
     INTERFACES = "INTERFACES"
 
@@ -130,6 +131,7 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.NETWORK: PermissionLevel.WRITE,
         FeatureGroup.NAT: PermissionLevel.WRITE,
         FeatureGroup.NAT64: PermissionLevel.WRITE,
+        FeatureGroup.NAT66: PermissionLevel.WRITE,
         FeatureGroup.DHCP: PermissionLevel.WRITE,
         FeatureGroup.INTERFACES: PermissionLevel.WRITE,
         FeatureGroup.VRF: PermissionLevel.WRITE,
@@ -190,6 +192,7 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.NETWORK: PermissionLevel.WRITE,
         FeatureGroup.NAT: PermissionLevel.WRITE,
         FeatureGroup.NAT64: PermissionLevel.WRITE,
+        FeatureGroup.NAT66: PermissionLevel.WRITE,
         FeatureGroup.DHCP: PermissionLevel.WRITE,
         FeatureGroup.INTERFACES: PermissionLevel.WRITE,
         FeatureGroup.VRF: PermissionLevel.WRITE,
@@ -251,6 +254,7 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.NETWORK: PermissionLevel.READ,
         FeatureGroup.NAT: PermissionLevel.READ,
         FeatureGroup.NAT64: PermissionLevel.READ,
+        FeatureGroup.NAT66: PermissionLevel.READ,
         FeatureGroup.DHCP: PermissionLevel.READ,
         FeatureGroup.INTERFACES: PermissionLevel.READ,
         FeatureGroup.VRF: PermissionLevel.READ,
@@ -353,6 +357,7 @@ async def get_user_permissions(
                 FeatureGroup.NETWORK,
                 FeatureGroup.NAT,
                 FeatureGroup.NAT64,
+                FeatureGroup.NAT66,
                 FeatureGroup.DHCP,
                 FeatureGroup.INTERFACES,
                 FeatureGroup.VRF,
@@ -433,6 +438,7 @@ async def get_user_permissions(
                 FeatureGroup.NETWORK,
                 FeatureGroup.NAT,
                 FeatureGroup.NAT64,
+                FeatureGroup.NAT66,
                 FeatureGroup.DHCP,
                 FeatureGroup.INTERFACES,
                 FeatureGroup.VRF,
@@ -684,6 +690,7 @@ def _apply_parent_child_permissions(permissions: Dict[FeatureGroup, PermissionLe
             FeatureGroup.LOAD_BALANCING,
             FeatureGroup.NAT,
             FeatureGroup.NAT64,
+            FeatureGroup.NAT66,
         ]
         for child in network_children:
             current = permissions.get(child, PermissionLevel.NONE)
