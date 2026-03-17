@@ -46,8 +46,9 @@ class NATBatchOperation(BaseModel):
 
 class NATBatchRequest(BaseModel):
     """Model for batch NAT rule configuration."""
-    rule_number: int = Field(..., description="NAT rule number")
-    nat_type: str = Field(..., description="NAT type: source, destination, or static")
+    rule_number: Optional[int] = Field(None, description="NAT rule number (for source/destination/static/cgnat rules)")
+    item_name: Optional[str] = Field(None, description="Item name (for CGNAT pool operations)")
+    nat_type: str = Field(..., description="NAT type: source, destination, static, or cgnat")
     operations: List[NATBatchOperation] = Field(..., description="List of operations to perform")
 
     class Config:
@@ -175,11 +176,47 @@ class StaticNATRule(BaseModel):
     log: bool = False
 
 
+class CGNATExternalPoolRange(BaseModel):
+    """CGNAT external pool range entry."""
+    range: str
+    seq: Optional[str] = None
+
+
+class CGNATExternalPool(BaseModel):
+    """CGNAT external pool configuration."""
+    name: str
+    external_port_range: Optional[str] = None
+    per_user_limit_port: Optional[str] = None
+    ranges: List[CGNATExternalPoolRange] = []
+
+
+class CGNATInternalPool(BaseModel):
+    """CGNAT internal pool configuration."""
+    name: str
+    ranges: List[str] = []
+
+
+class CGNATRule(BaseModel):
+    """CGNAT rule configuration."""
+    rule_number: int
+    source_pool: Optional[str] = None
+    translation_pool: Optional[str] = None
+
+
+class CGNATConfig(BaseModel):
+    """CGNAT configuration."""
+    log_allocation: bool = False
+    external_pools: List[CGNATExternalPool] = []
+    internal_pools: List[CGNATInternalPool] = []
+    rules: List[CGNATRule] = []
+
+
 class NATConfigResponse(BaseModel):
     """Response containing all NAT configurations."""
     source_rules: List[SourceNATRule] = []
     destination_rules: List[DestinationNATRule] = []
     static_rules: List[StaticNATRule] = []
+    cgnat: Optional[CGNATConfig] = None
     total: int = 0
     by_type: Dict[str, int] = {}
 
@@ -410,23 +447,103 @@ async def get_nat_config(http_request: Request, refresh: bool = False):
                 )
                 static_rules.append(rule)
 
+        # Parse CGNAT config (VyOS 1.5+)
+        cgnat_config = None
+        if "cgnat" in nat_config:
+            cgnat_data = nat_config["cgnat"]
+            external_pools = []
+            internal_pools = []
+            cgnat_rules = []
+
+            # Parse external pools
+            if "pool" in cgnat_data and "external" in cgnat_data["pool"]:
+                for pool_name, pool_data in cgnat_data["pool"]["external"].items():
+                    if not isinstance(pool_data, dict):
+                        continue
+                    ranges = []
+                    if "range" in pool_data and isinstance(pool_data["range"], dict):
+                        for range_val, range_data in pool_data["range"].items():
+                            seq = None
+                            if isinstance(range_data, dict):
+                                seq = range_data.get("seq")
+                                if seq is not None:
+                                    seq = str(seq)
+                            ranges.append(CGNATExternalPoolRange(range=range_val, seq=seq))
+                    ext_port_range = pool_data.get("external-port-range")
+                    per_user_port = None
+                    if "per-user-limit" in pool_data and isinstance(pool_data["per-user-limit"], dict):
+                        per_user_port = pool_data["per-user-limit"].get("port")
+                        if per_user_port is not None:
+                            per_user_port = str(per_user_port)
+                    external_pools.append(CGNATExternalPool(
+                        name=pool_name,
+                        external_port_range=str(ext_port_range) if ext_port_range else None,
+                        per_user_limit_port=per_user_port,
+                        ranges=ranges,
+                    ))
+
+            # Parse internal pools
+            if "pool" in cgnat_data and "internal" in cgnat_data["pool"]:
+                for pool_name, pool_data in cgnat_data["pool"]["internal"].items():
+                    if not isinstance(pool_data, dict):
+                        continue
+                    ranges = []
+                    if "range" in pool_data:
+                        if isinstance(pool_data["range"], list):
+                            ranges = pool_data["range"]
+                        elif isinstance(pool_data["range"], str):
+                            ranges = [pool_data["range"]]
+                    internal_pools.append(CGNATInternalPool(
+                        name=pool_name,
+                        ranges=ranges,
+                    ))
+
+            # Parse CGNAT rules
+            if "rule" in cgnat_data and isinstance(cgnat_data["rule"], dict):
+                for rule_num, rule_data in cgnat_data["rule"].items():
+                    if not isinstance(rule_data, dict):
+                        continue
+                    source_pool = None
+                    if "source" in rule_data and isinstance(rule_data["source"], dict):
+                        source_pool = rule_data["source"].get("pool")
+                    translation_pool = None
+                    if "translation" in rule_data and isinstance(rule_data["translation"], dict):
+                        translation_pool = rule_data["translation"].get("pool")
+                    cgnat_rules.append(CGNATRule(
+                        rule_number=int(rule_num),
+                        source_pool=source_pool,
+                        translation_pool=translation_pool,
+                    ))
+
+            cgnat_rules.sort(key=lambda x: x.rule_number)
+
+            cgnat_config = CGNATConfig(
+                log_allocation="log-allocation" in cgnat_data,
+                external_pools=external_pools,
+                internal_pools=internal_pools,
+                rules=cgnat_rules,
+            )
+
         # Sort rules by rule number
         source_rules.sort(key=lambda x: x.rule_number)
         destination_rules.sort(key=lambda x: x.rule_number)
         static_rules.sort(key=lambda x: x.rule_number)
 
         # Calculate totals
-        total = len(source_rules) + len(destination_rules) + len(static_rules)
+        cgnat_rule_count = len(cgnat_config.rules) if cgnat_config else 0
+        total = len(source_rules) + len(destination_rules) + len(static_rules) + cgnat_rule_count
         by_type = {
             "source": len(source_rules),
             "destination": len(destination_rules),
-            "static": len(static_rules)
+            "static": len(static_rules),
+            "cgnat": cgnat_rule_count,
         }
 
         return NATConfigResponse(
             source_rules=source_rules,
             destination_rules=destination_rules,
             static_rules=static_rules,
+            cgnat=cgnat_config,
             total=total,
             by_type=by_type
         )
@@ -466,6 +583,13 @@ async def batch_configure_nat(http_request: Request, request: NATBatchRequest):
         # Create NAT batch builder
         batch = NATBatchBuilder(version=version)
 
+        # Determine the primary identifier based on request
+        # For source/destination/static: rule_number (int)
+        # For CGNAT pool ops: item_name (str)
+        # For CGNAT rule ops: rule_number (int)
+        # For CGNAT global ops (log-allocation): no identifier
+        primary_id = request.rule_number if request.rule_number is not None else request.item_name
+
         # Map operations to batch builder methods
         for operation in request.operations:
             op_name = operation.op
@@ -482,40 +606,50 @@ async def batch_configure_nat(http_request: Request, request: NATBatchRequest):
 
             # Inspect method signature to determine parameters
             sig = inspect.signature(method)
-            params = list(sig.parameters.keys())
-
-            # Remove 'self' from params list
-            if 'self' in params:
-                params.remove('self')
+            params = [p for p in sig.parameters.keys() if p != 'self']
 
             logger.info(f"Method {op_name} expects parameters: {params}")
 
             # Call the method with appropriate parameters
             try:
                 if len(params) == 0:
-                    # Method takes no parameters
+                    # Method takes no parameters (e.g., set_cgnat_log_allocation)
                     method()
                 elif len(params) == 1:
-                    # Method takes one parameter (rule_number)
-                    method(request.rule_number)
+                    # Method takes one parameter (rule_number or pool_name)
+                    if primary_id is None:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Operation {op_name} requires rule_number or item_name"
+                        )
+                    method(primary_id)
                 elif len(params) == 2:
-                    # Method takes two parameters (rule_number, value)
+                    # Method takes two parameters (identifier + value)
+                    if primary_id is None:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Operation {op_name} requires rule_number or item_name"
+                        )
                     if op_value is None:
                         raise HTTPException(
                             status_code=400,
                             detail=f"Operation {op_name} requires a value"
                         )
-                    method(request.rule_number, op_value)
+                    method(primary_id, op_value)
                 elif len(params) == 3:
-                    # Method takes three parameters (rule_number, param1, param2)
-                    # This is typically for group operations
+                    # Method takes three parameters (identifier + 2 values)
+                    # Value is a JSON dict with 2 values
                     import json
+                    if primary_id is None:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Operation {op_name} requires rule_number or item_name"
+                        )
                     try:
                         value_dict = json.loads(op_value) if isinstance(op_value, str) else op_value
                         if isinstance(value_dict, dict) and len(value_dict) >= 2:
-                            # Extract the two values from the dict
                             values = list(value_dict.values())
-                            method(request.rule_number, values[0], values[1])
+                            method(primary_id, values[0], values[1])
                         else:
                             raise HTTPException(
                                 status_code=400,
@@ -548,14 +682,15 @@ async def batch_configure_nat(http_request: Request, request: NATBatchRequest):
         response = service.execute_batch(batch)
 
         # Handle empty string result (convert to None for Pydantic validation)
+        identifier = request.rule_number if request.rule_number is not None else request.item_name
+        msg = f"Configured NAT {request.nat_type} {identifier}"
         result_data = response.result
         if result_data == '' or result_data is None:
-            result_data = {"message": f"Configured NAT rule {request.rule_number}"}
+            result_data = {"message": msg}
         elif not isinstance(result_data, dict):
-            # If it's not a dict and not empty, wrap it
-            result_data = {"result": result_data, "message": f"Configured NAT rule {request.rule_number}"}
+            result_data = {"result": result_data, "message": msg}
         else:
-            result_data["message"] = f"Configured NAT rule {request.rule_number}"
+            result_data["message"] = msg
 
         return VyOSResponse(
             success=response.status == 200,

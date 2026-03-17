@@ -414,3 +414,73 @@ class NATMapper(BaseFeatureMapper):
     def get_static_rule_translation_address_path(self, rule_number: int) -> List[str]:
         """Get command path for static rule translation address (for deletion)."""
         return ["nat", "static", "rule", str(rule_number), "translation", "address"]
+
+    # ==================== CGNAT Commands (VyOS 1.5+) ====================
+
+    def get_cgnat_log_allocation(self) -> List[str]:
+        """Get command path for CGNAT log-allocation."""
+        return ["nat", "cgnat", "log-allocation"]
+
+    def get_cgnat_pool_external(self, pool_name: str) -> List[str]:
+        """Get command path for CGNAT external pool."""
+        return ["nat", "cgnat", "pool", "external", pool_name]
+
+    def get_cgnat_pool_external_port_range(self, pool_name: str, port_range: str) -> List[str]:
+        """Get command path for CGNAT external pool external-port-range."""
+        return ["nat", "cgnat", "pool", "external", pool_name, "external-port-range", port_range]
+
+    def get_cgnat_pool_external_port_range_path(self, pool_name: str) -> List[str]:
+        """Get command path for CGNAT external pool external-port-range (for deletion)."""
+        return ["nat", "cgnat", "pool", "external", pool_name, "external-port-range"]
+
+    def get_cgnat_pool_external_per_user_limit_port(self, pool_name: str, port: str) -> List[str]:
+        """Get command path for CGNAT external pool per-user-limit port."""
+        return ["nat", "cgnat", "pool", "external", pool_name, "per-user-limit", "port", port]
+
+    def get_cgnat_pool_external_per_user_limit_port_path(self, pool_name: str) -> List[str]:
+        """Get command path for CGNAT external pool per-user-limit port (for deletion)."""
+        return ["nat", "cgnat", "pool", "external", pool_name, "per-user-limit", "port"]
+
+    def get_cgnat_pool_external_range(self, pool_name: str, ip_range: str) -> List[str]:
+        """Get command path for CGNAT external pool range."""
+        return ["nat", "cgnat", "pool", "external", pool_name, "range", ip_range]
+
+    def get_cgnat_pool_external_range_seq(self, pool_name: str, ip_range: str, seq: str) -> List[str]:
+        """Get command path for CGNAT external pool range sequence."""
+        return ["nat", "cgnat", "pool", "external", pool_name, "range", ip_range, "seq", seq]
+
+    def get_cgnat_pool_external_range_seq_path(self, pool_name: str, ip_range: str) -> List[str]:
+        """Get command path for CGNAT external pool range sequence (for deletion)."""
+        return ["nat", "cgnat", "pool", "external", pool_name, "range", ip_range, "seq"]
+
+    def get_cgnat_pool_internal(self, pool_name: str) -> List[str]:
+        """Get command path for CGNAT internal pool."""
+        return ["nat", "cgnat", "pool", "internal", pool_name]
+
+    def get_cgnat_pool_internal_range(self, pool_name: str, ip_range: str) -> List[str]:
+        """Get command path for CGNAT internal pool range."""
+        return ["nat", "cgnat", "pool", "internal", pool_name, "range", ip_range]
+
+    def get_cgnat_pool_internal_range_path(self, pool_name: str) -> List[str]:
+        """Get command path for CGNAT internal pool range (for deletion)."""
+        return ["nat", "cgnat", "pool", "internal", pool_name, "range"]
+
+    def get_cgnat_rule(self, rule_number: int) -> List[str]:
+        """Get command path for CGNAT rule."""
+        return ["nat", "cgnat", "rule", str(rule_number)]
+
+    def get_cgnat_rule_source_pool(self, rule_number: int, pool_name: str) -> List[str]:
+        """Get command path for CGNAT rule source pool."""
+        return ["nat", "cgnat", "rule", str(rule_number), "source", "pool", pool_name]
+
+    def get_cgnat_rule_source_pool_path(self, rule_number: int) -> List[str]:
+        """Get command path for CGNAT rule source pool (for deletion)."""
+        return ["nat", "cgnat", "rule", str(rule_number), "source", "pool"]
+
+    def get_cgnat_rule_translation_pool(self, rule_number: int, pool_name: str) -> List[str]:
+        """Get command path for CGNAT rule translation pool."""
+        return ["nat", "cgnat", "rule", str(rule_number), "translation", "pool", pool_name]
+
+    def get_cgnat_rule_translation_pool_path(self, rule_number: int) -> List[str]:
+        """Get command path for CGNAT rule translation pool (for deletion)."""
+        return ["nat", "cgnat", "rule", str(rule_number), "translation", "pool"]

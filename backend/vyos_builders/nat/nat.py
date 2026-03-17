@@ -901,6 +901,146 @@ class NATBatchBuilder:
         return self.add_delete(path)
 
     # ========================================================================
+    # CGNAT Operations (VyOS 1.5+)
+    # ========================================================================
+
+    def set_cgnat_log_allocation(self) -> "NATBatchBuilder":
+        """Enable CGNAT log-allocation."""
+        path = self.mappers[self.mapper_key].get_cgnat_log_allocation()
+        return self.add_set(path)
+
+    def delete_cgnat_log_allocation(self) -> "NATBatchBuilder":
+        """Disable CGNAT log-allocation."""
+        path = self.mappers[self.mapper_key].get_cgnat_log_allocation()
+        return self.add_delete(path)
+
+    # -- External Pool --
+
+    def set_cgnat_pool_external(self, pool_name: str) -> "NATBatchBuilder":
+        """Create CGNAT external pool."""
+        path = self.mappers[self.mapper_key].get_cgnat_pool_external(pool_name)
+        return self.add_set(path)
+
+    def delete_cgnat_pool_external(self, pool_name: str) -> "NATBatchBuilder":
+        """Delete CGNAT external pool."""
+        path = self.mappers[self.mapper_key].get_cgnat_pool_external(pool_name)
+        return self.add_delete(path)
+
+    def set_cgnat_pool_external_port_range(
+        self, pool_name: str, port_range: str
+    ) -> "NATBatchBuilder":
+        """Set CGNAT external pool external-port-range."""
+        path = self.mappers[self.mapper_key].get_cgnat_pool_external_port_range(pool_name, port_range)
+        return self.add_set(path)
+
+    def delete_cgnat_pool_external_port_range(self, pool_name: str) -> "NATBatchBuilder":
+        """Delete CGNAT external pool external-port-range."""
+        path = self.mappers[self.mapper_key].get_cgnat_pool_external_port_range_path(pool_name)
+        return self.add_delete(path)
+
+    def set_cgnat_pool_external_per_user_limit_port(
+        self, pool_name: str, port: str
+    ) -> "NATBatchBuilder":
+        """Set CGNAT external pool per-user-limit port."""
+        path = self.mappers[self.mapper_key].get_cgnat_pool_external_per_user_limit_port(pool_name, port)
+        return self.add_set(path)
+
+    def delete_cgnat_pool_external_per_user_limit_port(self, pool_name: str) -> "NATBatchBuilder":
+        """Delete CGNAT external pool per-user-limit port."""
+        path = self.mappers[self.mapper_key].get_cgnat_pool_external_per_user_limit_port_path(pool_name)
+        return self.add_delete(path)
+
+    def set_cgnat_pool_external_range(
+        self, pool_name: str, ip_range: str
+    ) -> "NATBatchBuilder":
+        """Add CGNAT external pool range."""
+        path = self.mappers[self.mapper_key].get_cgnat_pool_external_range(pool_name, ip_range)
+        return self.add_set(path)
+
+    def delete_cgnat_pool_external_range(
+        self, pool_name: str, ip_range: str
+    ) -> "NATBatchBuilder":
+        """Delete CGNAT external pool range."""
+        path = self.mappers[self.mapper_key].get_cgnat_pool_external_range(pool_name, ip_range)
+        return self.add_delete(path)
+
+    def set_cgnat_pool_external_range_seq(
+        self, pool_name: str, ip_range: str, seq: str
+    ) -> "NATBatchBuilder":
+        """Set CGNAT external pool range sequence."""
+        path = self.mappers[self.mapper_key].get_cgnat_pool_external_range_seq(pool_name, ip_range, seq)
+        return self.add_set(path)
+
+    def delete_cgnat_pool_external_range_seq(
+        self, pool_name: str, ip_range: str
+    ) -> "NATBatchBuilder":
+        """Delete CGNAT external pool range sequence."""
+        path = self.mappers[self.mapper_key].get_cgnat_pool_external_range_seq_path(pool_name, ip_range)
+        return self.add_delete(path)
+
+    # -- Internal Pool --
+
+    def set_cgnat_pool_internal(self, pool_name: str) -> "NATBatchBuilder":
+        """Create CGNAT internal pool."""
+        path = self.mappers[self.mapper_key].get_cgnat_pool_internal(pool_name)
+        return self.add_set(path)
+
+    def delete_cgnat_pool_internal(self, pool_name: str) -> "NATBatchBuilder":
+        """Delete CGNAT internal pool."""
+        path = self.mappers[self.mapper_key].get_cgnat_pool_internal(pool_name)
+        return self.add_delete(path)
+
+    def set_cgnat_pool_internal_range(
+        self, pool_name: str, ip_range: str
+    ) -> "NATBatchBuilder":
+        """Add CGNAT internal pool range."""
+        path = self.mappers[self.mapper_key].get_cgnat_pool_internal_range(pool_name, ip_range)
+        return self.add_set(path)
+
+    def delete_cgnat_pool_internal_range(
+        self, pool_name: str, ip_range: str
+    ) -> "NATBatchBuilder":
+        """Delete CGNAT internal pool range."""
+        path = self.mappers[self.mapper_key].get_cgnat_pool_internal_range(pool_name, ip_range)
+        return self.add_delete(path)
+
+    # -- CGNAT Rules --
+
+    def set_cgnat_rule(self, rule_number: int) -> "NATBatchBuilder":
+        """Create CGNAT rule."""
+        path = self.mappers[self.mapper_key].get_cgnat_rule(rule_number)
+        return self.add_set(path)
+
+    def delete_cgnat_rule(self, rule_number: int) -> "NATBatchBuilder":
+        """Delete CGNAT rule."""
+        path = self.mappers[self.mapper_key].get_cgnat_rule(rule_number)
+        return self.add_delete(path)
+
+    def set_cgnat_rule_source_pool(
+        self, rule_number: int, pool_name: str
+    ) -> "NATBatchBuilder":
+        """Set CGNAT rule source pool."""
+        path = self.mappers[self.mapper_key].get_cgnat_rule_source_pool(rule_number, pool_name)
+        return self.add_set(path)
+
+    def delete_cgnat_rule_source_pool(self, rule_number: int) -> "NATBatchBuilder":
+        """Delete CGNAT rule source pool."""
+        path = self.mappers[self.mapper_key].get_cgnat_rule_source_pool_path(rule_number)
+        return self.add_delete(path)
+
+    def set_cgnat_rule_translation_pool(
+        self, rule_number: int, pool_name: str
+    ) -> "NATBatchBuilder":
+        """Set CGNAT rule translation pool."""
+        path = self.mappers[self.mapper_key].get_cgnat_rule_translation_pool(rule_number, pool_name)
+        return self.add_set(path)
+
+    def delete_cgnat_rule_translation_pool(self, rule_number: int) -> "NATBatchBuilder":
+        """Delete CGNAT rule translation pool."""
+        path = self.mappers[self.mapper_key].get_cgnat_rule_translation_pool_path(rule_number)
+        return self.add_delete(path)
+
+    # ========================================================================
     # Capabilities
     # ========================================================================
 
@@ -926,10 +1066,15 @@ class NATBatchBuilder:
                 "static": {
                     "supported": True,
                     "description": "Static 1:1 NAT mapping"
+                },
+                "cgnat": {
+                    "supported": is_v15,
+                    "description": "Carrier-grade NAT (CGNAT) - VyOS 1.5+ only"
                 }
             },
             "features": {
                 "fqdn": {"supported": is_v15, "description": "FQDN-based matching for source/destination"},
+                "cgnat": {"supported": is_v15, "description": "Carrier-grade NAT with internal/external pools"},
                 "translation_options": {"supported": True, "description": "Translation address-mapping and port-mapping options"},
                 "translation_redirect": {"supported": True, "description": "Destination NAT redirect port"},
                 "load_balance_weight": {"supported": True, "description": "Backend weight for load balancing"},
@@ -1051,6 +1196,30 @@ class NATBatchBuilder:
                     "delete_static_rule_log",
                     "set_static_rule_translation_address",
                     "delete_static_rule_translation_address",
-                ]
+                ],
+                "cgnat": [
+                    "set_cgnat_log_allocation",
+                    "delete_cgnat_log_allocation",
+                    "set_cgnat_pool_external",
+                    "delete_cgnat_pool_external",
+                    "set_cgnat_pool_external_port_range",
+                    "delete_cgnat_pool_external_port_range",
+                    "set_cgnat_pool_external_per_user_limit_port",
+                    "delete_cgnat_pool_external_per_user_limit_port",
+                    "set_cgnat_pool_external_range",
+                    "delete_cgnat_pool_external_range",
+                    "set_cgnat_pool_external_range_seq",
+                    "delete_cgnat_pool_external_range_seq",
+                    "set_cgnat_pool_internal",
+                    "delete_cgnat_pool_internal",
+                    "set_cgnat_pool_internal_range",
+                    "delete_cgnat_pool_internal_range",
+                    "set_cgnat_rule",
+                    "delete_cgnat_rule",
+                    "set_cgnat_rule_source_pool",
+                    "delete_cgnat_rule_source_pool",
+                    "set_cgnat_rule_translation_pool",
+                    "delete_cgnat_rule_translation_pool",
+                ] if is_v15 else []
             }
         }
