@@ -232,10 +232,10 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
     setTranslationPort(rule.translation?.port || "");
 
     // Load balance
-    const hasLoadBalancing = !!(rule.load_balance?.hash || rule.load_balance?.backend?.[0]);
+    const hasLoadBalancing = !!(rule.load_balance?.hash || rule.load_balance?.backends?.[0]);
     setLoadBalancingEnabled(hasLoadBalancing);
     setLoadBalanceHash(rule.load_balance?.hash || "");
-    setLoadBalanceBackend(rule.load_balance?.backend?.[0] || "");
+    setLoadBalanceBackend(rule.load_balance?.backends?.[0]?.name || "");
 
     // Flags
     setDisable(rule.disable);

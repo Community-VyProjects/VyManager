@@ -83,7 +83,7 @@ class ReorderRuleItem(BaseModel):
 
 class ReorderNATRequest(BaseModel):
     """Request model for reordering NAT rules."""
-    nat_type: str = Field(..., description="NAT type: source, destination, or static")
+    nat_type: str = Field(..., description="NAT type: source, destination, static, or cgnat")
     rules: List[ReorderRuleItem] = Field(..., description="List of rules with their old and new numbers")
 
 
@@ -745,6 +745,8 @@ async def reorder_nat_rules(http_request: Request, request: ReorderNATRequest):
                 batch.delete_destination_rule(rule_item.old_number)
             elif request.nat_type == "static":
                 batch.delete_static_rule(rule_item.old_number)
+            elif request.nat_type == "cgnat":
+                batch.delete_cgnat_rule(rule_item.old_number)
 
         # Step 2: Create all rules with new numbers
         for rule_item in request.rules:
@@ -786,6 +788,22 @@ async def reorder_nat_rules(http_request: Request, request: ReorderNATRequest):
                     batch.set_source_rule_translation_options_address_mapping(new_num, rule_data["translation_options_address_mapping"])
                 if rule_data.get("translation_options_port_mapping"):
                     batch.set_source_rule_translation_options_port_mapping(new_num, rule_data["translation_options_port_mapping"])
+                # Source groups
+                if rule_data.get("source_group"):
+                    for gtype, gname in rule_data["source_group"].items():
+                        batch.set_source_rule_source_group(new_num, gtype, gname)
+                # Destination groups
+                if rule_data.get("destination_group"):
+                    for gtype, gname in rule_data["destination_group"].items():
+                        batch.set_source_rule_destination_group(new_num, gtype, gname)
+                # Load balance
+                if rule_data.get("load_balance_hash"):
+                    batch.set_source_rule_load_balance_hash(new_num, rule_data["load_balance_hash"])
+                if rule_data.get("load_balance_backends"):
+                    for backend in rule_data["load_balance_backends"]:
+                        batch.set_source_rule_load_balance_backend(new_num, backend["name"])
+                        if backend.get("weight"):
+                            batch.set_source_rule_load_balance_backend_weight(new_num, backend["name"], backend["weight"])
                 if rule_data.get("disable"):
                     batch.set_source_rule_disable(new_num)
                 if rule_data.get("exclude"):
@@ -830,6 +848,22 @@ async def reorder_nat_rules(http_request: Request, request: ReorderNATRequest):
                     batch.set_destination_rule_translation_options_port_mapping(new_num, rule_data["translation_options_port_mapping"])
                 if rule_data.get("translation_redirect_port"):
                     batch.set_destination_rule_translation_redirect_port(new_num, rule_data["translation_redirect_port"])
+                # Source groups
+                if rule_data.get("source_group"):
+                    for gtype, gname in rule_data["source_group"].items():
+                        batch.set_destination_rule_source_group(new_num, gtype, gname)
+                # Destination groups
+                if rule_data.get("destination_group"):
+                    for gtype, gname in rule_data["destination_group"].items():
+                        batch.set_destination_rule_destination_group(new_num, gtype, gname)
+                # Load balance
+                if rule_data.get("load_balance_hash"):
+                    batch.set_destination_rule_load_balance_hash(new_num, rule_data["load_balance_hash"])
+                if rule_data.get("load_balance_backends"):
+                    for backend in rule_data["load_balance_backends"]:
+                        batch.set_destination_rule_load_balance_backend(new_num, backend["name"])
+                        if backend.get("weight"):
+                            batch.set_destination_rule_load_balance_backend_weight(new_num, backend["name"], backend["weight"])
                 if rule_data.get("disable"):
                     batch.set_destination_rule_disable(new_num)
                 if rule_data.get("exclude"):
@@ -852,6 +886,15 @@ async def reorder_nat_rules(http_request: Request, request: ReorderNATRequest):
                     batch.set_static_rule_translation_address(new_num, rule_data["translation_address"])
                 if rule_data.get("log"):
                     batch.set_static_rule_log(new_num)
+
+            elif request.nat_type == "cgnat":
+                # Create CGNAT rule
+                batch.set_cgnat_rule(new_num)
+
+                if rule_data.get("source_pool"):
+                    batch.set_cgnat_rule_source_pool(new_num, rule_data["source_pool"])
+                if rule_data.get("translation_pool"):
+                    batch.set_cgnat_rule_translation_pool(new_num, rule_data["translation_pool"])
 
         if batch.is_empty():
             return VyOSResponse(
