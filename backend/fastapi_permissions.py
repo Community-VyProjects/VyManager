@@ -113,6 +113,20 @@ async def require_write_permission(request: Request, feature: FeatureGroup) -> N
     await require_permission(request, feature, PermissionLevel.WRITE)
 
 
+async def has_permission(request: Request, feature: FeatureGroup, level: PermissionLevel) -> bool:
+    """
+    Soft permission check — returns True/False instead of raising.
+
+    Use for optional data channels (e.g., SSE streams) where a missing
+    permission should silently skip the channel rather than fail the request.
+    """
+    try:
+        await require_permission(request, feature, level)
+        return True
+    except HTTPException:
+        return False
+
+
 async def require_super_admin(request: Request) -> None:
     """
     Require user to be a Site ADMIN.
@@ -203,6 +217,7 @@ ROUTER_FEATURE_MAP = {
     "/vyos/large-community-list": FeatureGroup.ROUTING_POLICIES,
     "/vyos/prefix-list": FeatureGroup.ROUTING_POLICIES,
     "/vyos/local-route": FeatureGroup.ROUTING_POLICIES,
+    "/vyos/ospf": FeatureGroup.OSPF,
     "/vyos/system": FeatureGroup.SYSTEM,
     "/vyos/config": FeatureGroup.CONFIGURATION,
     "/vyos/power": FeatureGroup.SYSTEM,

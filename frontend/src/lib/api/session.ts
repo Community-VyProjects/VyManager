@@ -8,6 +8,7 @@
  */
 
 import { apiClient } from "./client";
+import { ApiError } from "@/lib/types/api";
 
 // ============================================================================
 // TypeScript Interfaces
@@ -29,8 +30,15 @@ export interface Instance {
   description?: string | null;
   host: string;
   port: number;
+  protocol: string;
+  verify_ssl: boolean;
   vyos_version?: string | null;
   is_active: boolean;
+  ssh_port: number;
+  ssh_username?: string | null;
+  ssh_key_configured: boolean;
+  commit_confirm_enabled: boolean;
+  commit_confirm_minutes: number;
   created_at: string;
   updated_at: string;
 }
@@ -83,6 +91,10 @@ export interface InstanceCreateRequest {
   protocol?: string;
   verify_ssl?: boolean;
   is_active?: boolean;
+  ssh_port?: number;
+  ssh_username?: string;
+  commit_confirm_enabled?: boolean;
+  commit_confirm_minutes?: number;
 }
 
 export interface InstanceUpdateRequest {
@@ -96,6 +108,10 @@ export interface InstanceUpdateRequest {
   verify_ssl?: boolean;
   is_active?: boolean;
   site_id?: string; // For moving instance to different site
+  ssh_port?: number;
+  ssh_username?: string;
+  commit_confirm_enabled?: boolean;
+  commit_confirm_minutes?: number;
 }
 
 export interface AuthSessionInfo {
@@ -129,9 +145,9 @@ class SessionService {
   async getCurrentSession(): Promise<ActiveSession | null> {
     try {
       return await apiClient.get<ActiveSession>("/session/current");
-    } catch (error: any) {
+    } catch (error) {
       // Return null if no session (expected when user hasn't connected)
-      if (error.status === 404 || error.status === 400) {
+      if ((error as ApiError).status === 404 || (error as ApiError).status === 400) {
         return null;
       }
       throw error;

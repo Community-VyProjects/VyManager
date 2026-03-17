@@ -34,6 +34,8 @@ class FeatureGroup(str, Enum):
     FIREWALL_POLICIES = "FIREWALL_POLICIES"
     FIREWALL_ZONES = "FIREWALL_ZONES"
     FIREWALL_GLOBAL_OPTIONS = "FIREWALL_GLOBAL_OPTIONS"
+    FIREWALL_BRIDGE = "FIREWALL_BRIDGE"
+    FIREWALL_FLOWTABLES = "FIREWALL_FLOWTABLES"
 
     # Network features
     NETWORK = "NETWORK"
@@ -85,8 +87,12 @@ class FeatureGroup(str, Enum):
     PIM = "PIM"
     PIM6 = "PIM6"
 
+    HIGH_AVAILABILITY = "HIGH_AVAILABILITY"
+
     SYSTEM = "SYSTEM"
+    POWER = "POWER"  # Reboot, shutdown actions
     CONFIGURATION = "CONFIGURATION"
+    MONITORING = "MONITORING"  # SSH monitoring / live traffic
     DASHBOARD = "DASHBOARD"
     SITES_INSTANCES = "SITES_INSTANCES"
     USER_MANAGEMENT = "USER_MANAGEMENT"
@@ -118,6 +124,8 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.FIREWALL_POLICIES: PermissionLevel.WRITE,
         FeatureGroup.FIREWALL_ZONES: PermissionLevel.WRITE,
         FeatureGroup.FIREWALL_GLOBAL_OPTIONS: PermissionLevel.WRITE,
+        FeatureGroup.FIREWALL_BRIDGE: PermissionLevel.WRITE,
+        FeatureGroup.FIREWALL_FLOWTABLES: PermissionLevel.WRITE,
         FeatureGroup.NETWORK: PermissionLevel.WRITE,
         FeatureGroup.NAT: PermissionLevel.WRITE,
         FeatureGroup.DHCP: PermissionLevel.WRITE,
@@ -159,8 +167,11 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.IGMP_PROXY: PermissionLevel.WRITE,
         FeatureGroup.PIM: PermissionLevel.WRITE,
         FeatureGroup.PIM6: PermissionLevel.WRITE,
+        FeatureGroup.HIGH_AVAILABILITY: PermissionLevel.WRITE,
         FeatureGroup.SYSTEM: PermissionLevel.WRITE,
+        FeatureGroup.POWER: PermissionLevel.WRITE,
         FeatureGroup.CONFIGURATION: PermissionLevel.WRITE,
+        FeatureGroup.MONITORING: PermissionLevel.WRITE,
         FeatureGroup.DASHBOARD: PermissionLevel.WRITE,
         FeatureGroup.SITES_INSTANCES: PermissionLevel.WRITE,
         FeatureGroup.USER_MANAGEMENT: PermissionLevel.WRITE,
@@ -172,6 +183,8 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.FIREWALL_POLICIES: PermissionLevel.WRITE,
         FeatureGroup.FIREWALL_ZONES: PermissionLevel.WRITE,
         FeatureGroup.FIREWALL_GLOBAL_OPTIONS: PermissionLevel.WRITE,
+        FeatureGroup.FIREWALL_BRIDGE: PermissionLevel.WRITE,
+        FeatureGroup.FIREWALL_FLOWTABLES: PermissionLevel.WRITE,
         FeatureGroup.NETWORK: PermissionLevel.WRITE,
         FeatureGroup.NAT: PermissionLevel.WRITE,
         FeatureGroup.DHCP: PermissionLevel.WRITE,
@@ -213,8 +226,11 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.IGMP_PROXY: PermissionLevel.WRITE,
         FeatureGroup.PIM: PermissionLevel.WRITE,
         FeatureGroup.PIM6: PermissionLevel.WRITE,
+        FeatureGroup.HIGH_AVAILABILITY: PermissionLevel.WRITE,
         FeatureGroup.SYSTEM: PermissionLevel.WRITE,
+        FeatureGroup.POWER: PermissionLevel.WRITE,
         FeatureGroup.CONFIGURATION: PermissionLevel.WRITE,
+        FeatureGroup.MONITORING: PermissionLevel.WRITE,
         FeatureGroup.DASHBOARD: PermissionLevel.WRITE,
         # No site/instance or user management
         FeatureGroup.SITES_INSTANCES: PermissionLevel.NONE,
@@ -227,6 +243,8 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.FIREWALL_POLICIES: PermissionLevel.READ,
         FeatureGroup.FIREWALL_ZONES: PermissionLevel.READ,
         FeatureGroup.FIREWALL_GLOBAL_OPTIONS: PermissionLevel.READ,
+        FeatureGroup.FIREWALL_BRIDGE: PermissionLevel.READ,
+        FeatureGroup.FIREWALL_FLOWTABLES: PermissionLevel.READ,
         FeatureGroup.NETWORK: PermissionLevel.READ,
         FeatureGroup.NAT: PermissionLevel.READ,
         FeatureGroup.DHCP: PermissionLevel.READ,
@@ -268,8 +286,11 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.IGMP_PROXY: PermissionLevel.READ,
         FeatureGroup.PIM: PermissionLevel.READ,
         FeatureGroup.PIM6: PermissionLevel.READ,
+        FeatureGroup.HIGH_AVAILABILITY: PermissionLevel.READ,
         FeatureGroup.SYSTEM: PermissionLevel.READ,
+        FeatureGroup.POWER: PermissionLevel.READ,  # Can see status, cannot execute power actions
         FeatureGroup.CONFIGURATION: PermissionLevel.READ,
+        FeatureGroup.MONITORING: PermissionLevel.NONE,
         FeatureGroup.DASHBOARD: PermissionLevel.WRITE,
         # No site/instance or user management
         FeatureGroup.SITES_INSTANCES: PermissionLevel.NONE,
@@ -366,8 +387,11 @@ async def get_user_permissions(
                 FeatureGroup.IGMP_PROXY,
                 FeatureGroup.PIM,
                 FeatureGroup.PIM6,
+                FeatureGroup.HIGH_AVAILABILITY,
                 FeatureGroup.SYSTEM,
+                FeatureGroup.POWER,
                 FeatureGroup.CONFIGURATION,
+                FeatureGroup.MONITORING,
                 FeatureGroup.DASHBOARD,
                 FeatureGroup.SITES_INSTANCES,
                 FeatureGroup.USER_MANAGEMENT,
@@ -442,8 +466,11 @@ async def get_user_permissions(
                 FeatureGroup.IGMP_PROXY,
                 FeatureGroup.PIM,
                 FeatureGroup.PIM6,
+                FeatureGroup.HIGH_AVAILABILITY,
                 FeatureGroup.SYSTEM,
+                FeatureGroup.POWER,
                 FeatureGroup.CONFIGURATION,
+                FeatureGroup.MONITORING,
                 FeatureGroup.DASHBOARD,
             ]
             for feature in vyos_features:

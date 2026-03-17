@@ -12,6 +12,8 @@ from typing import List, Dict, Optional, Any
 from session_vyos_service import get_session_vyos_service
 from vyos_builders import FirewallGroupsBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission, FeatureGroup
+import logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/firewall/groups", tags=["firewall-groups"])
 
@@ -113,7 +115,8 @@ async def get_groups_capabilities(request: Request):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/config", response_model=GroupsConfigResponse)
@@ -316,7 +319,8 @@ async def get_groups_config(request: Request, refresh: bool = False):
     except KeyError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/batch", response_model=VyOSResponse)
@@ -700,7 +704,6 @@ async def configure_group_batch(http_request: Request, request: GroupBatchReques
                     detail=f"Unsupported operation: {op_type}"
                 )
 
-        # Execute the batch
         response = service.execute_batch(batch)
 
         # Handle empty string result (convert to None for Pydantic validation)
@@ -722,4 +725,5 @@ async def configure_group_batch(http_request: Request, request: GroupBatchReques
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")

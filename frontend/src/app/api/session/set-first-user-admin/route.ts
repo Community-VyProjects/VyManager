@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
+import { ApiError } from "@/lib/types/api";
 
 const prisma = new PrismaClient();
 
@@ -39,10 +40,10 @@ export async function POST(request: NextRequest) {
     console.log(`[Onboarding] Set first user ${user.email} as ADMIN`);
 
     return NextResponse.json({ success: true });
-  } catch (error: any) {
+  } catch (error) {
     console.error("[Onboarding] Error setting first user as ADMIN:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to set user as ADMIN" },
+      { error: (error as ApiError).message || "Failed to set user as ADMIN" },
       { status: 500 }
     );
   }

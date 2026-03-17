@@ -10,6 +10,9 @@ import { useSession } from "@/lib/auth-client";
 import { useSessionStore } from "@/store/session-store";
 import { dashboardService, DashboardCard, DashboardLayout } from "@/lib/api/dashboard";
 import { InterfaceStatisticsCard } from "@/components/dashboard/InterfaceStatisticsCard";
+import { SystemInfoCard } from "@/components/dashboard/SystemInfoCard";
+import { WireGuardPeersCard } from "@/components/dashboard/WireGuardPeersCard";
+import { NetworkSpeedCard } from "@/components/dashboard/NetworkSpeedCard";
 import { AddCardModal } from "@/components/dashboard/AddCardModal";
 import {
   DndContext,
@@ -27,6 +30,8 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { ApiError } from "@/lib/types/api";
+import { DashboardDataProvider } from "@/contexts/DashboardDataContext";
 
 // Sortable card wrapper component
 function SortableCard({ card, children }: { card: DashboardCard; children: React.ReactNode }) {
@@ -113,6 +118,7 @@ export default function Home() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [saving, setSaving] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [canEditDashboard, setCanEditDashboard] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -131,7 +137,7 @@ export default function Home() {
         const cardsWithSpan = (response.layout.cards || []).map((card) => {
           if (card.span === undefined) {
             // Set default span based on card type
-            if (card.type === "interface-statistics") {
+            if (card.type === "interface-statistics" || card.type === "network-speed") {
               return { ...card, span: 2 };
             }
             return { ...card, span: 1 };
@@ -142,9 +148,9 @@ export default function Home() {
       } else {
         setCards([]);
       }
-    } catch (err: any) {
+    } catch (err) {
       // Extract error message for logging
-      const errorMessage = err?.message || err?.error || err?.detail || "Unknown error";
+      const errorMessage = (err as ApiError).message || (err as ApiError).message || (err as ApiError).message || "Unknown error";
       console.error("Failed to load dashboard layout:", errorMessage);
     }
   };
@@ -186,6 +192,18 @@ export default function Home() {
       const sessionLoaded = await loadSession();
       // Always try to load dashboard - the API will return empty if no layout exists
       await loadDashboard();
+
+      // Check if user has permission to edit the dashboard layout
+      try {
+        const perms = await fetch("/api/vyos/permissions", { credentials: "include" });
+        if (perms.ok) {
+          const data = await perms.json();
+          setCanEditDashboard(data["DASHBOARD"] === "WRITE");
+        }
+      } catch {
+        // If permissions check fails, default to no edit access
+      }
+
       setIsChecking(false);
     };
 
@@ -329,6 +347,10 @@ export default function Home() {
     if (cardType === "interface-statistics") {
       defaultSpan = 2;
     }
+    if (cardType === "network-speed") {
+      defaultSpan = 2;
+    }
+    // system-info defaults to 1 column (already set above)
 
     // New cards always start at column 0
     const targetColumn = 0;
@@ -422,17 +444,33 @@ export default function Home() {
     setHasUnsavedChanges(false);
   };
 
+  const handleCardConfigChange = (cardId: string, config: Record<string, unknown>) => {
+    setCards((prev) =>
+      prev.map((c) => (c.id === cardId ? { ...c, config } : c))
+    );
+    setHasUnsavedChanges(true);
+  };
+
   const renderCard = (card: DashboardCard) => {
     const baseProps = {
       config: card.config,
       onRemove: editMode ? () => handleRemoveCard(card.id) : undefined,
       span: card.span || 1,
       onSpanChange: editMode ? (newSpan: number) => handleCardSpanChange(card.id, newSpan) : undefined,
+      onConfigChange: editMode
+        ? (config: Record<string, unknown>) => handleCardConfigChange(card.id, config)
+        : undefined,
     };
 
     switch (card.type) {
       case "interface-statistics":
         return <InterfaceStatisticsCard {...baseProps} />;
+      case "system-info":
+        return <SystemInfoCard {...baseProps} />;
+      case "wireguard-peers":
+        return <WireGuardPeersCard {...baseProps} />;
+      case "network-speed":
+        return <NetworkSpeedCard {...baseProps} />;
       default:
         return null;
     }
@@ -473,40 +511,44 @@ export default function Home() {
               </p>
             </div>
             <div className="flex items-center gap-2">
-              {hasUnsavedChanges && (
+              {canEditDashboard && (
                 <>
-                  <Button variant="outline" onClick={handleCancel} disabled={saving}>
-                    <X className="h-4 w-4 mr-2" />
-                    Cancel
-                  </Button>
-                  <Button onClick={handleSave} disabled={saving}>
-                    <Save className="h-4 w-4 mr-2" />
-                    {saving ? "Saving..." : "Save Layout"}
+                  {hasUnsavedChanges && (
+                    <>
+                      <Button variant="outline" onClick={handleCancel} disabled={saving}>
+                        <X className="h-4 w-4 mr-2" />
+                        Cancel
+                      </Button>
+                      <Button onClick={handleSave} disabled={saving}>
+                        <Save className="h-4 w-4 mr-2" />
+                        {saving ? "Saving..." : "Save Layout"}
+                      </Button>
+                    </>
+                  )}
+                  {editMode && (
+                    <Button onClick={() => setAddCardModalOpen(true)}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Card
+                    </Button>
+                  )}
+                  <Button
+                    variant={editMode ? "default" : "outline"}
+                    onClick={() => setEditMode(!editMode)}
+                  >
+                    {editMode ? (
+                      <>
+                        <X className="h-4 w-4 mr-2" />
+                        Exit Edit
+                      </>
+                    ) : (
+                      <>
+                        <Edit3 className="h-4 w-4 mr-2" />
+                        Edit Dashboard
+                      </>
+                    )}
                   </Button>
                 </>
               )}
-              {editMode && (
-                <Button onClick={() => setAddCardModalOpen(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Card
-                </Button>
-              )}
-              <Button
-                variant={editMode ? "default" : "outline"}
-                onClick={() => setEditMode(!editMode)}
-              >
-                {editMode ? (
-                  <>
-                    <X className="h-4 w-4 mr-2" />
-                    Exit Edit
-                  </>
-                ) : (
-                  <>
-                    <Edit3 className="h-4 w-4 mr-2" />
-                    Edit Dashboard
-                  </>
-                )}
-              </Button>
             </div>
           </div>
 
@@ -563,10 +605,13 @@ export default function Home() {
         </div>
 
         {/* Dashboard Grid */}
+        <DashboardDataProvider>
         {cards.length === 0 && !editMode ? (
           <div className="text-center py-12">
             <p className="text-muted-foreground mb-4">
-              Your dashboard is empty. Click &quot;Edit Dashboard&quot; to add cards.
+              {canEditDashboard
+                ? "Your dashboard is empty. Click \"Edit Dashboard\" to add cards."
+                : "Your dashboard is empty."}
             </p>
           </div>
         ) : (
@@ -650,6 +695,7 @@ export default function Home() {
           onOpenChange={setAddCardModalOpen}
           onAddCard={handleAddCard}
         />
+        </DashboardDataProvider>
       </div>
     </AppLayout>
   );

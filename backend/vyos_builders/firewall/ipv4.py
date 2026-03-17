@@ -244,6 +244,11 @@ class FirewallIPv4BatchBuilder:
         path = self.mappers[self.mapper_key].get_rule_source_group_address(chain, rule_number, group_name, is_custom)
         return self.add_set(path)
 
+    def delete_rule_source_group(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallIPv4BatchBuilder":
+        """Delete entire source group node."""
+        path = self.mappers[self.mapper_key].get_rule_source_group_path(chain, rule_number, is_custom)
+        return self.add_delete(path)
+
     def delete_rule_source_group_address(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallIPv4BatchBuilder":
         """Delete source address group."""
         path = self.mappers[self.mapper_key].get_rule_source_group_address_path(chain, rule_number, is_custom)
@@ -357,6 +362,11 @@ class FirewallIPv4BatchBuilder:
         """Set destination address group."""
         path = self.mappers[self.mapper_key].get_rule_destination_group_address(chain, rule_number, group_name, is_custom)
         return self.add_set(path)
+
+    def delete_rule_destination_group(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallIPv4BatchBuilder":
+        """Delete entire destination group node."""
+        path = self.mappers[self.mapper_key].get_rule_destination_group_path(chain, rule_number, is_custom)
+        return self.add_delete(path)
 
     def delete_rule_destination_group_address(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallIPv4BatchBuilder":
         """Delete destination address group."""
@@ -565,6 +575,20 @@ class FirewallIPv4BatchBuilder:
     def delete_rule_jump_target(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallIPv4BatchBuilder":
         """Delete jump target."""
         path = self.mappers[self.mapper_key].get_rule_jump_target_path(chain, rule_number, is_custom)
+        return self.add_delete(path)
+
+    # ========================================================================
+    # Rule Properties - Offload Target (Flowtables)
+    # ========================================================================
+
+    def set_rule_offload_target(self, chain: str, rule_number: int, target: str, is_custom: bool = False) -> "FirewallIPv4BatchBuilder":
+        """Set offload target (flowtable) for the rule."""
+        path = self.mappers[self.mapper_key].get_rule_offload_target(chain, rule_number, target, is_custom)
+        return self.add_set(path)
+
+    def delete_rule_offload_target(self, chain: str, rule_number: int, is_custom: bool = False) -> "FirewallIPv4BatchBuilder":
+        """Delete offload target."""
+        path = self.mappers[self.mapper_key].get_rule_offload_target_path(chain, rule_number, is_custom)
         return self.add_delete(path)
 
     # ========================================================================

@@ -1,0 +1,172 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { InterfaceCounter } from "@/lib/api/show";
+
+// ============================================================================
+// Types
+// ============================================================================
+
+export type SSEStatus = "disconnected" | "connecting" | "connected" | "error";
+
+export interface InterfaceCountersData {
+  interfaces: InterfaceCounter[];
+  total: number;
+}
+
+export interface SystemMemoryData {
+  total: string | null;
+  free: string | null;
+  used: string | null;
+}
+
+export interface SystemVersionData {
+  version?: string | null;
+  release_train?: string | null;
+  release_flavor?: string | null;
+  built_by?: string | null;
+  built_on?: string | null;
+  build_uuid?: string | null;
+  build_commit_id?: string | null;
+  architecture?: string | null;
+  boot_via?: string | null;
+  system_type?: string | null;
+  secure_boot?: string | null;
+  hardware_vendor?: string | null;
+  hardware_model?: string | null;
+  hardware_s_n?: string | null;
+  [key: string]: string | null | undefined;
+}
+
+export interface DiskPartition {
+  filesystem: string;
+  size: string;
+  used: string;
+  available: string;
+  use_percent: string;
+  mounted_on?: string;
+}
+
+export interface LoadData {
+  uptime: string | null;
+  load_1min: number | null;
+  load_5min: number | null;
+  load_15min: number | null;
+}
+
+export interface SystemInfoData {
+  memory: SystemMemoryData;
+  version: SystemVersionData;
+  disk: DiskPartition[];
+  load: LoadData | null;
+}
+
+export interface WireGuardPeerData {
+  name: string;
+  public_key: string | null;
+  allowed_ips: string[];
+  endpoint: string | null;
+  latest_handshake: string | null;
+  latest_handshake_seconds: number | null;
+  transfer_rx: string | null;
+  transfer_tx: string | null;
+  status: "connected" | "idle" | "never";
+}
+
+export interface WireGuardInterfaceData {
+  name: string;
+  description: string | null;
+  addresses: string[];
+  port: string | null;
+  disabled: boolean;
+  peers: WireGuardPeerData[];
+}
+
+export interface WireGuardPeersData {
+  interfaces: WireGuardInterfaceData[];
+  total: number;
+}
+
+export interface DashboardSSEData {
+  interfaceCounters: InterfaceCountersData | null;
+  systemInfo: SystemInfoData | null;
+  wireguardPeers: WireGuardPeersData | null;
+}
+
+export interface DashboardSSEState {
+  status: SSEStatus;
+  data: DashboardSSEData;
+  error: string | null;
+}
+
+// ============================================================================
+// Hook
+// ============================================================================
+
+export function useDashboardSSE(): DashboardSSEState {
+  const [status, setStatus] = useState<SSEStatus>("disconnected");
+  const [data, setData] = useState<DashboardSSEData>({ interfaceCounters: null, systemInfo: null, wireguardPeers: null });
+  const [error, setError] = useState<string | null>(null);
+  const esRef = useRef<EventSource | null>(null);
+
+  useEffect(() => {
+    setStatus("connecting");
+
+    const es = new EventSource("/api/vyos/show/stream");
+    esRef.current = es;
+
+    es.addEventListener("connected", () => {
+      setStatus("connected");
+      setError(null);
+    });
+
+    es.addEventListener("interface-counters", (event: MessageEvent) => {
+      try {
+        const payload = JSON.parse(event.data) as InterfaceCountersData;
+        setData((prev) => ({ ...prev, interfaceCounters: payload }));
+      } catch {
+        // Ignore malformed payloads
+      }
+    });
+
+    es.addEventListener("system-info", (event: MessageEvent) => {
+      try {
+        const payload = JSON.parse(event.data) as SystemInfoData;
+        setData((prev) => ({ ...prev, systemInfo: payload }));
+      } catch {
+        // Ignore malformed payloads
+      }
+    });
+
+    es.addEventListener("wireguard-peers", (event: MessageEvent) => {
+      try {
+        const payload = JSON.parse(event.data) as WireGuardPeersData;
+        setData((prev) => ({ ...prev, wireguardPeers: payload }));
+      } catch {
+        // Ignore malformed payloads
+      }
+    });
+
+    es.addEventListener("error", (event: MessageEvent) => {
+      try {
+        const payload = JSON.parse(event.data) as { channel: string; message: string };
+        setError(`${payload.channel}: ${payload.message}`);
+      } catch {
+        // Ignore malformed payloads
+      }
+    });
+
+    es.onerror = () => {
+      // EventSource auto-reconnects; update status to show it's recovering
+      setStatus("error");
+    };
+
+    return () => {
+      es.close();
+      esRef.current = null;
+      setStatus("disconnected");
+    };
+  }, []);
+
+  return { status, data, error };
+}

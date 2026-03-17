@@ -7,10 +7,21 @@ Much cleaner and easier to maintain!
 
 from typing import Optional, Union, Dict, Any, List
 from contextlib import contextmanager
+import json
+import requests as _requests
 
 from pyvyos import VyDevice
 from pyvyos.core.rest_client import ApiResponse
-from vyos_builders import EthernetBatchBuilder, DummyBatchBuilder, FirewallGroupsBatchBuilder, NATBatchBuilder, DHCPBatchBuilder, WireGuardBatchBuilder
+import commit_confirm_state
+from vyos_builders import (
+    EthernetBatchBuilder,
+    DummyBatchBuilder,
+    FirewallGroupsBatchBuilder,
+    NATBatchBuilder,
+    DHCPBatchBuilder,
+    WireGuardBatchBuilder,
+    SystemPerformanceBatchBuilder,
+)
 
 
 class VyOSDeviceConfig:
@@ -25,6 +36,9 @@ class VyOSDeviceConfig:
         port: int = 443,
         verify: bool = False,
         timeout: int = 10,
+        commit_confirm_enabled: bool = False,
+        commit_confirm_minutes: int = 5,
+        instance_id: str = "",
     ):
         self.hostname = hostname
         self.apikey = apikey
@@ -33,6 +47,9 @@ class VyOSDeviceConfig:
         self.port = port
         self.verify = verify
         self.timeout = timeout
+        self.commit_confirm_enabled = commit_confirm_enabled
+        self.commit_confirm_minutes = commit_confirm_minutes
+        self.instance_id = instance_id
 
 
 class VyOSService:
@@ -90,13 +107,165 @@ class VyOSService:
         """
         return NATBatchBuilder(self.config.version)
 
-    def execute_batch(self, batch: Union[EthernetBatchBuilder, DummyBatchBuilder, FirewallGroupsBatchBuilder, NATBatchBuilder, DHCPBatchBuilder, WireGuardBatchBuilder]) -> ApiResponse:
-        """Execute a batch of operations using configure_multiple_op."""
+    def create_system_performance_batch(self) -> SystemPerformanceBatchBuilder:
+        """
+        Create a batch builder for system option performance.
+        Version-aware (1.4: throughput/latency; 1.5: five profiles).
+        """
+        return SystemPerformanceBatchBuilder(self.config.version)
+
+    def execute_batch(
+        self,
+        batch: Union[
+            EthernetBatchBuilder,
+            DummyBatchBuilder,
+            FirewallGroupsBatchBuilder,
+            NATBatchBuilder,
+            DHCPBatchBuilder,
+            WireGuardBatchBuilder,
+            SystemPerformanceBatchBuilder,
+        ],
+    ) -> ApiResponse:
+        """Execute a batch of operations using configure_multiple_op.
+
+        If commit-confirm is enabled for this instance (and the VyOS version
+        supports it), the batch is executed with a rollback timer automatically.
+        No router changes are needed — the feature is fully transparent.
+        """
+        if self.config.commit_confirm_enabled and self.config.instance_id:
+            return self.execute_batch_with_confirm(batch, self.config.instance_id)
+
         if batch.is_empty():
             raise ValueError("Cannot execute empty batch")
 
         operations = batch.get_operations()
         return self.device.configure_multiple_op(op_path=operations)
+
+    def execute_batch_with_confirm(
+        self,
+        batch,
+        instance_id: str,
+        confirm_time_minutes: int = 5,
+        action: str = "reload",
+    ) -> ApiResponse:
+        """
+        Execute a batch using VyOS commit-confirm.
+
+        Applies operations to the running config with an automatic rollback
+        timer. The caller must confirm via confirm_commit() before the timer
+        expires, otherwise VyOS will revert the changes.
+
+        Raises:
+            HTTPException 409: If a commit-confirm is already active for this instance.
+            ValueError: If the batch is empty.
+        """
+        from fastapi import HTTPException
+
+        # Fall back to regular commit if feature is disabled or VyOS version
+        # doesn't support commit-confirm (requires 1.5+).
+        version = self.config.version or ""
+        supports_commit_confirm = "1.5" in version or "1.6" in version
+        if not self.config.commit_confirm_enabled or not supports_commit_confirm:
+            return self.execute_batch(batch)
+
+        if commit_confirm_state.is_active(instance_id):
+            session = commit_confirm_state.get_active(instance_id)
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"A commit-confirm is already active for this instance. "
+                    f"Please confirm or wait {session.seconds_remaining()} seconds for it to expire."
+                ),
+            )
+
+        if batch.is_empty():
+            raise ValueError("Cannot execute empty batch")
+
+        # Use the per-instance configured confirm time
+        confirm_time_minutes = self.config.commit_confirm_minutes
+
+        operations = batch.get_operations()
+
+        # Step 1: Execute all operations as a normal atomic batch.
+        batch_response = self.device.configure_multiple_op(op_path=operations)
+        if batch_response.status != 200:
+            return batch_response
+
+        # Step 2: Arm the commit-confirm rollback timer.
+        #
+        # VyOS only arms the rollback when confirm_time is inside a SINGLE
+        # operation JSON object (not an array). Sending the last operation again
+        # as a single object with confirm_time is idempotent (set is a no-op if
+        # already set; delete is a no-op if already deleted) and properly arms
+        # the timer so VyOS will revert if the user doesn't confirm in time.
+        last_op = {**operations[-1], "confirm_time": confirm_time_minutes}
+        url = f"{self.config.protocol}://{self.config.hostname}:{self.config.port}/configure"
+        payload = {
+            "data": json.dumps(last_op),
+            "key": self.config.apikey,
+        }
+
+        try:
+            resp = _requests.post(
+                url,
+                data=payload,
+                verify=self.config.verify,
+                timeout=self.config.timeout,
+            )
+            resp.raise_for_status()
+            body = resp.json()
+            if body.get("success"):
+                commit_confirm_state.set_active(instance_id, confirm_time_minutes, action)
+                return ApiResponse(status=200, request={}, result=body.get("data") or {}, error=False)
+            else:
+                error_msg = body.get("error", "Unknown error from VyOS API")
+                return ApiResponse(status=400, request={}, result={}, error=error_msg)
+        except _requests.exceptions.Timeout:
+            return ApiResponse(status=504, request={}, result={}, error="Request timed out")
+        except _requests.exceptions.RequestException as exc:
+            return ApiResponse(status=503, request={}, result={}, error=str(exc))
+
+    def confirm_commit(self, instance_id: str) -> ApiResponse:
+        """
+        Confirm an active commit-confirm session, stopping the rollback timer.
+
+        Raises:
+            HTTPException 409: If no active commit-confirm session exists.
+        """
+        from fastapi import HTTPException
+
+        if not commit_confirm_state.is_active(instance_id):
+            raise HTTPException(
+                status_code=409,
+                detail="No active commit-confirm session for this instance.",
+            )
+
+        # Tested format: confirm goes to /config-file with op: confirm
+        url = f"{self.config.protocol}://{self.config.hostname}:{self.config.port}/config-file"
+        payload = {
+            "data": json.dumps({"op": "confirm"}),
+            "key": self.config.apikey,
+        }
+
+        try:
+            resp = _requests.post(
+                url,
+                data=payload,
+                verify=self.config.verify,
+                timeout=self.config.timeout,
+            )
+            resp.raise_for_status()
+            body = resp.json()
+            if body.get("success"):
+                commit_confirm_state.clear(instance_id)
+                return ApiResponse(status=200, request={}, result=body.get("data") or {}, error=False)
+            else:
+                error_msg = body.get("error", "Unknown error from VyOS API")
+                return ApiResponse(status=400, request={}, result={}, error=error_msg)
+        except _requests.exceptions.Timeout:
+            return ApiResponse(status=504, request={}, result={}, error="Request timed out")
+        except _requests.exceptions.RequestException as exc:
+            return ApiResponse(status=503, request={}, result={}, error=str(exc))
 
     def configure_batch(self, commands: List[str]) -> Dict[str, Any]:
         """

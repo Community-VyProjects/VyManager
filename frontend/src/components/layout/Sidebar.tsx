@@ -10,7 +10,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { ChevronDown, Shield, Network, Server, Settings, LayoutDashboard, Route, Lock, LogOut, User, FileText, Building2, Power, PowerOff } from "lucide-react";
+import { Activity, ChevronDown, HeartPulse, Shield, Network, Server, Settings, LayoutDashboard, Route, Lock, LogOut, User, FileText, Building2, Power, PowerOff, Scale } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { useSession, signOut } from "@/lib/auth-client";
@@ -46,6 +46,11 @@ const navigation: NavItem[] = [
         requiredPermission: FeatureGroup.FIREWALL_POLICIES
       },
       {
+        title: "Bridge",
+        href: "/firewall/bridge",
+        requiredPermission: FeatureGroup.FIREWALL_BRIDGE
+      },
+      {
         title: "Groups",
         href: "/firewall/groups",
         requiredPermission: FeatureGroup.FIREWALL_GROUPS
@@ -59,6 +64,11 @@ const navigation: NavItem[] = [
         title: "Global Options",
         href: "/firewall/global-options",
         requiredPermission: FeatureGroup.FIREWALL_GLOBAL_OPTIONS
+      },
+      {
+        title: "Flowtables",
+        href: "/firewall/flowtables",
+        requiredPermission: FeatureGroup.FIREWALL_FLOWTABLES
       },
     ],
   },
@@ -80,11 +90,6 @@ const navigation: NavItem[] = [
         title: "Interfaces",
         href: "/network/interfaces",
         requiredPermission: FeatureGroup.INTERFACES
-      },
-      {
-        title: "Load Balancing",
-        href: "/network/load-balancing",
-        requiredPermission: FeatureGroup.LOAD_BALANCING
       },
       {
         title: "NAT",
@@ -187,9 +192,39 @@ const navigation: NavItem[] = [
     ],
   },
   {
+    title: "Load Balancing",
+    icon: Scale,
+    requiredPermission: FeatureGroup.LOAD_BALANCING,
+    children: [
+      {
+        title: "HAProxy",
+        href: "/load-balancing/haproxy",
+        requiredPermission: FeatureGroup.LOAD_BALANCING,
+      },
+      {
+        title: "WAN",
+        href: "/load-balancing/wan",
+        requiredPermission: FeatureGroup.LOAD_BALANCING,
+      },
+    ],
+  },
+  {
+    title: "High Availability",
+    href: "/network/high-availability",
+    icon: HeartPulse,
+    requiredPermission: FeatureGroup.HIGH_AVAILABILITY,
+  },
+  {
+    title: "Monitoring",
+    href: "/monitoring",
+    icon: Activity,
+    requiredPermission: FeatureGroup.MONITORING,
+  },
+  {
     title: "System",
+    href: "/system/settings",
     icon: Server,
-    children: [],
+    requiredPermission: FeatureGroup.SYSTEM,
   },
   {
     title: "Settings",
@@ -299,6 +334,26 @@ export function Sidebar() {
                    canRead(FeatureGroup.IGMP_PROXY) ||
                    canRead(FeatureGroup.PIM) ||
                    canRead(FeatureGroup.PIM6);
+          }
+
+          // Special cases for Firewall sub-features: show if user has FIREWALL OR the specific permission
+          if (child.requiredPermission === FeatureGroup.FIREWALL_POLICIES) {
+            return canRead(FeatureGroup.FIREWALL) || canRead(FeatureGroup.FIREWALL_POLICIES);
+          }
+          if (child.requiredPermission === FeatureGroup.FIREWALL_BRIDGE) {
+            return canRead(FeatureGroup.FIREWALL) || canRead(FeatureGroup.FIREWALL_BRIDGE);
+          }
+          if (child.requiredPermission === FeatureGroup.FIREWALL_GROUPS) {
+            return canRead(FeatureGroup.FIREWALL) || canRead(FeatureGroup.FIREWALL_GROUPS);
+          }
+          if (child.requiredPermission === FeatureGroup.FIREWALL_ZONES) {
+            return canRead(FeatureGroup.FIREWALL) || canRead(FeatureGroup.FIREWALL_ZONES);
+          }
+          if (child.requiredPermission === FeatureGroup.FIREWALL_GLOBAL_OPTIONS) {
+            return canRead(FeatureGroup.FIREWALL) || canRead(FeatureGroup.FIREWALL_GLOBAL_OPTIONS);
+          }
+          if (child.requiredPermission === FeatureGroup.FIREWALL_FLOWTABLES) {
+            return canRead(FeatureGroup.FIREWALL) || canRead(FeatureGroup.FIREWALL_FLOWTABLES);
           }
 
           // Special cases for Routing Policies: show if user has ROUTING_POLICIES OR the specific permission

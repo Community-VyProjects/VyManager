@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getAuth } from "@/lib/auth";
+import { ApiError } from "@/lib/types/api";
 
 /**
  * Internal API endpoint for creating users from the backend.
@@ -36,6 +37,7 @@ export async function POST(request: NextRequest) {
 
     // Use Better Auth's internal API to create the user
     // This ensures password hashing is done correctly
+    const auth = await getAuth();
     const result = await auth.api.signUpEmail({
       body: {
         email,
@@ -59,9 +61,9 @@ export async function POST(request: NextRequest) {
         name: result.user.name,
       },
     });
-  } catch (error: any) {
+  } catch (error) {
     // Check for specific error types
-    if (error.message?.includes("already exists") || error.message?.includes("duplicate")) {
+    if ((error as ApiError).message?.includes("already exists") || (error as ApiError).message?.includes("duplicate")) {
       return NextResponse.json(
         { error: "Email already exists" },
         { status: 400 }
@@ -69,7 +71,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { error: error.message || "Failed to create user" },
+      { error: (error as ApiError).message || "Failed to create user" },
       { status: 500 }
     );
   }

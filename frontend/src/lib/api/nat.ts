@@ -1,4 +1,5 @@
 import { apiClient } from "./client";
+import { ApiError } from "@/lib/types/api";
 
 // ==================== Type Definitions ====================
 
@@ -136,9 +137,9 @@ class NATService {
     try {
       const response = await apiClient.post<VyOSResponse>("/vyos/nat/batch", request);
       return response;
-    } catch (error: any) {
+    } catch (error) {
       // Extract detailed error message from API response
-      const errorMessage = error?.details?.detail || error?.message || "Unknown error";
+      const errorMessage = ((error as ApiError).details as { detail?: string })?.detail || (error as ApiError).message || "Unknown error";
       throw new Error(errorMessage);
     }
   }
@@ -484,6 +485,15 @@ class NATService {
       disable?: boolean;
       exclude?: boolean;
       log?: boolean;
+      // Delete flags for clearing fields
+      delete_source_address?: boolean;
+      delete_source_port?: boolean;
+      delete_source_group?: boolean;
+      delete_destination_address?: boolean;
+      delete_destination_port?: boolean;
+      delete_destination_group?: boolean;
+      delete_outbound_interface_name?: boolean;
+      delete_outbound_interface_group?: boolean;
     }
   ): Promise<VyOSResponse> {
     // Build operations just like createSourceRule
@@ -498,35 +508,64 @@ class NATService {
       }
     }
 
-    // Source
-    if (config.source_address) {
+    // Source - handle deletions first, then sets
+    if (config.delete_source_address) {
+      operations.push({ op: "delete_source_rule_source_address" });
+    } else if (config.source_address) {
       operations.push({ op: "set_source_rule_source_address", value: config.source_address });
     }
-    if (config.source_port) {
+
+    if (config.delete_source_port) {
+      operations.push({ op: "delete_source_rule_source_port" });
+    } else if (config.source_port) {
       operations.push({ op: "set_source_rule_source_port", value: config.source_port });
     }
-    if (config.source_group_type && config.source_group_name) {
+
+    if (config.delete_source_group) {
+      // Delete all possible group types (backend expects just the group_type string)
+      operations.push({ op: "delete_source_rule_source_group", value: "address-group" });
+      operations.push({ op: "delete_source_rule_source_group", value: "network-group" });
+      operations.push({ op: "delete_source_rule_source_group", value: "domain-group" });
+    } else if (config.source_group_type && config.source_group_name) {
       operations.push({
         op: "set_source_rule_source_group",
         value: JSON.stringify({ group_type: config.source_group_type, group_name: config.source_group_name })
       });
     }
 
-    // Destination
-    if (config.destination_address) {
+    // Destination - handle deletions first, then sets
+    if (config.delete_destination_address) {
+      operations.push({ op: "delete_source_rule_destination_address" });
+    } else if (config.destination_address) {
       operations.push({ op: "set_source_rule_destination_address", value: config.destination_address });
     }
-    if (config.destination_port) {
+
+    if (config.delete_destination_port) {
+      operations.push({ op: "delete_source_rule_destination_port" });
+    } else if (config.destination_port) {
       operations.push({ op: "set_source_rule_destination_port", value: config.destination_port });
     }
-    if (config.destination_group_type && config.destination_group_name) {
+
+    if (config.delete_destination_group) {
+      // Delete all possible group types (backend expects just the group_type string)
+      operations.push({ op: "delete_source_rule_destination_group", value: "address-group" });
+      operations.push({ op: "delete_source_rule_destination_group", value: "network-group" });
+      operations.push({ op: "delete_source_rule_destination_group", value: "domain-group" });
+    } else if (config.destination_group_type && config.destination_group_name) {
       operations.push({
         op: "set_source_rule_destination_group",
         value: JSON.stringify({ group_type: config.destination_group_type, group_name: config.destination_group_name })
       });
     }
 
-    // Outbound interface
+    // Outbound interface - handle deletions first when switching types
+    if (config.delete_outbound_interface_name) {
+      operations.push({ op: "delete_source_rule_outbound_interface_name" });
+    }
+    if (config.delete_outbound_interface_group) {
+      operations.push({ op: "delete_source_rule_outbound_interface_group" });
+    }
+
     if (config.outbound_interface_type && config.outbound_interface_value) {
       let interfaceValue = config.outbound_interface_value;
       if (config.outbound_interface_invert) {
@@ -618,6 +657,15 @@ class NATService {
       disable?: boolean;
       exclude?: boolean;
       log?: boolean;
+      // Delete flags for clearing fields
+      delete_source_address?: boolean;
+      delete_source_port?: boolean;
+      delete_source_group?: boolean;
+      delete_destination_address?: boolean;
+      delete_destination_port?: boolean;
+      delete_destination_group?: boolean;
+      delete_inbound_interface_name?: boolean;
+      delete_inbound_interface_group?: boolean;
     }
   ): Promise<VyOSResponse> {
     // Build operations just like createDestinationRule
@@ -632,35 +680,64 @@ class NATService {
       }
     }
 
-    // Source
-    if (config.source_address) {
+    // Source - handle deletions first, then sets
+    if (config.delete_source_address) {
+      operations.push({ op: "delete_destination_rule_source_address" });
+    } else if (config.source_address) {
       operations.push({ op: "set_destination_rule_source_address", value: config.source_address });
     }
-    if (config.source_port) {
+
+    if (config.delete_source_port) {
+      operations.push({ op: "delete_destination_rule_source_port" });
+    } else if (config.source_port) {
       operations.push({ op: "set_destination_rule_source_port", value: config.source_port });
     }
-    if (config.source_group_type && config.source_group_name) {
+
+    if (config.delete_source_group) {
+      // Delete all possible group types (backend expects just the group_type string)
+      operations.push({ op: "delete_destination_rule_source_group", value: "address-group" });
+      operations.push({ op: "delete_destination_rule_source_group", value: "network-group" });
+      operations.push({ op: "delete_destination_rule_source_group", value: "domain-group" });
+    } else if (config.source_group_type && config.source_group_name) {
       operations.push({
         op: "set_destination_rule_source_group",
         value: JSON.stringify({ group_type: config.source_group_type, group_name: config.source_group_name })
       });
     }
 
-    // Destination
-    if (config.destination_address) {
+    // Destination - handle deletions first, then sets
+    if (config.delete_destination_address) {
+      operations.push({ op: "delete_destination_rule_destination_address" });
+    } else if (config.destination_address) {
       operations.push({ op: "set_destination_rule_destination_address", value: config.destination_address });
     }
-    if (config.destination_port) {
+
+    if (config.delete_destination_port) {
+      operations.push({ op: "delete_destination_rule_destination_port" });
+    } else if (config.destination_port) {
       operations.push({ op: "set_destination_rule_destination_port", value: config.destination_port });
     }
-    if (config.destination_group_type && config.destination_group_name) {
+
+    if (config.delete_destination_group) {
+      // Delete all possible group types (backend expects just the group_type string)
+      operations.push({ op: "delete_destination_rule_destination_group", value: "address-group" });
+      operations.push({ op: "delete_destination_rule_destination_group", value: "network-group" });
+      operations.push({ op: "delete_destination_rule_destination_group", value: "domain-group" });
+    } else if (config.destination_group_type && config.destination_group_name) {
       operations.push({
         op: "set_destination_rule_destination_group",
         value: JSON.stringify({ group_type: config.destination_group_type, group_name: config.destination_group_name })
       });
     }
 
-    // Inbound interface
+    // Inbound interface - handle deletions first when switching types
+    if (config.delete_inbound_interface_name) {
+      operations.push({ op: "delete_destination_rule_inbound_interface_name" });
+    }
+    if (config.delete_inbound_interface_group) {
+      operations.push({ op: "delete_destination_rule_inbound_interface_group" });
+    }
+
     if (config.inbound_interface_type && config.inbound_interface_value) {
       let interfaceValue = config.inbound_interface_value;
       if (config.inbound_interface_invert) {
@@ -745,12 +822,14 @@ class NATService {
     if (config.description !== undefined) {
       if (config.description) {
         operations.push({ op: "set_static_rule_description", value: config.description });
+      } else {
+        operations.push({ op: "delete_static_rule_description" });
       }
     }
 
     // Destination address
     if (config.destination_address) {
-      operations.push({ op: "set_static_rule_destination", value: config.destination_address });
+      operations.push({ op: "set_static_rule_destination_address", value: config.destination_address });
     }
 
     // Inbound interface
@@ -762,7 +841,7 @@ class NATService {
 
     // Translation address
     if (config.translation_address) {
-      operations.push({ op: "set_static_rule_translation", value: config.translation_address });
+      operations.push({ op: "set_static_rule_translation_address", value: config.translation_address });
     }
 
     const result = await this.batchConfigure({
@@ -856,8 +935,8 @@ class NATService {
         rules: rules
       });
       return response;
-    } catch (error: any) {
-      const errorMessage = error?.details?.detail || error?.message || "Unknown error";
+    } catch (error) {
+      const errorMessage = ((error as ApiError).details as { detail?: string })?.detail || (error as ApiError).message || "Unknown error";
       throw new Error(errorMessage);
     }
   }

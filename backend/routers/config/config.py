@@ -10,7 +10,12 @@ from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 from session_vyos_service import get_session_vyos_service
+from fastapi_permissions import require_read_permission, require_write_permission
+from rbac_permissions import FeatureGroup
+import commit_confirm_state
 import json
+import logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/config", tags=["config"])
 
@@ -112,6 +117,7 @@ async def get_config_snapshot(request: Request):
     This represents the state of the configuration when it was last saved to disk.
     Used to compare against the current running config to detect unsaved changes.
     """
+    await require_read_permission(request, FeatureGroup.CONFIGURATION)
     try:
         global _saved_config_snapshots
 
@@ -136,7 +142,8 @@ async def get_config_snapshot(request: Request):
         raise  # Re-raise HTTP exceptions as-is
     except Exception as e:
         print(f"[ConfigRouter] Error in /config/snapshot: {type(e).__name__}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/diff", response_model=ConfigDiffResponse)
@@ -147,6 +154,7 @@ async def get_config_diff(request: Request):
     Returns structured diff showing what has been added, removed, or modified
     since the last save operation.
     """
+    await require_read_permission(request, FeatureGroup.CONFIGURATION)
     try:
         global _saved_config_snapshots
 
@@ -183,7 +191,8 @@ async def get_config_diff(request: Request):
         raise  # Re-raise HTTP exceptions as-is
     except Exception as e:
         print(f"[ConfigRouter] Error in /config/diff: {type(e).__name__}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/save", response_model=SaveConfigResponse)
@@ -198,6 +207,7 @@ async def save_config(request: Request, file: Optional[str] = None):
     Args:
         file: Optional path to save config to (default is /config/config.boot)
     """
+    await require_write_permission(request, FeatureGroup.CONFIGURATION)
     try:
         global _saved_config_snapshots
 
@@ -226,10 +236,11 @@ async def save_config(request: Request, file: Optional[str] = None):
         raise  # Re-raise HTTP exceptions as-is
     except Exception as e:
         print(f"[ConfigRouter] Error in /config/save: {type(e).__name__}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.post("/refresh")
+@router.post("/refresh", response_model=SaveConfigResponse)
 async def refresh_config(request: Request):
     """
     Force refresh the configuration cache.
@@ -239,32 +250,87 @@ async def refresh_config(request: Request):
     try:
         service = get_session_vyos_service(request)
         await run_in_threadpool(service.get_full_config, refresh=True)
-        return {"success": True, "message": "Configuration cache refreshed"}
+        return SaveConfigResponse(success=True, message="Configuration cache refreshed")
     except Exception as e:
         print(f"[ConfigRouter] Error in /config/refresh: {type(e).__name__}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.post("/initialize-snapshot")
-async def initialize_snapshot(request: Request):
+# ========================================================================
+# Commit-Confirm Endpoints
+# ========================================================================
+
+class CommitConfirmStatusResponse(BaseModel):
+    active: bool
+    instance_id: Optional[str] = None
+    confirm_time_minutes: Optional[int] = None
+    action: Optional[str] = None
+    seconds_remaining: Optional[int] = None
+    expires_at: Optional[str] = None
+
+
+class CommitConfirmRequest(BaseModel):
+    confirm_time_minutes: int = 5
+    action: str = "reload"
+
+
+@router.get("/commit-confirm/status", response_model=CommitConfirmStatusResponse)
+async def get_commit_confirm_status(request: Request):
     """
-    Initialize the snapshot with the current running config for the active instance.
+    Get the current commit-confirm status for the active instance.
 
-    This should be called on application startup or when you want to
-    mark the current state as "saved".
+    Returns active=True with countdown info if a commit-confirm is in progress,
+    or active=False if no commit-confirm is active (or it has expired).
     """
+    await require_read_permission(request, FeatureGroup.CONFIGURATION)
     try:
-        global _saved_config_snapshots
+        instance_id = request.state.instance["id"]
+        session = commit_confirm_state.get_active(instance_id)
+        if session is None:
+            return CommitConfirmStatusResponse(active=False)
+        return CommitConfirmStatusResponse(**session.to_dict())
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Unhandled error in /config/commit-confirm/status")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
+
+@router.post("/commit-confirm/confirm", response_model=SaveConfigResponse)
+async def confirm_commit(request: Request):
+    """
+    Confirm the active commit-confirm, stopping the rollback timer.
+
+    This makes the previously applied changes permanent and saves the
+    configuration to disk.
+    """
+    await require_write_permission(request, FeatureGroup.CONFIGURATION)
+    try:
         service = get_session_vyos_service(request)
-        instance_id = request.state.instance['id']
-        current_config = await run_in_threadpool(service.get_full_config, refresh=True)
-        _saved_config_snapshots[instance_id] = current_config
+        instance_id = request.state.instance["id"]
 
-        return {
-            "success": True,
-            "message": "Snapshot initialized with current configuration"
-        }
-    except Exception as e:
-        print(f"[ConfigRouter] Error in /config/initialize-snapshot: {type(e).__name__}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        response = await run_in_threadpool(service.confirm_commit, instance_id)
+
+        if response.status != 200:
+            return SaveConfigResponse(
+                success=False,
+                message="Failed to confirm commit",
+                error=response.error or "Unknown error",
+            )
+
+        # Refresh the config cache so the unsaved-changes banner reflects
+        # the new running config, prompting the user to save when ready.
+        await run_in_threadpool(service.get_full_config, refresh=True)
+
+        return SaveConfigResponse(
+            success=True,
+            message="Commit confirmed — changes are live. Save configuration when ready.",
+        )
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Unhandled error in /config/commit-confirm/confirm")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+

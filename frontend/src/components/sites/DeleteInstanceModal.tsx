@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { AlertCircle, Loader2, AlertTriangle } from "lucide-react";
 import { sessionService, Instance } from "@/lib/api/session";
+import { ApiError } from "@/lib/types/api";
 
 interface DeleteInstanceModalProps {
   open: boolean;
@@ -46,8 +47,8 @@ export function DeleteInstanceModal({
       await sessionService.deleteInstance(instance.id);
       handleClose();
       onSuccess();
-    } catch (err: any) {
-      setError(err.message || "Failed to delete instance");
+    } catch (err) {
+      setError((err as ApiError).message || "Failed to delete instance");
     } finally {
       setLoading(false);
     }

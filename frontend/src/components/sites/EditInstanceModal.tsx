@@ -24,6 +24,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { AlertCircle, Loader2, Server } from "lucide-react";
 import { sessionService, Instance, Site } from "@/lib/api/session";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SSHKeySetup } from "@/components/monitoring/SSHKeySetup";
 
 interface EditInstanceModalProps {
   open: boolean;
@@ -50,6 +51,10 @@ export function EditInstanceModal({
   const [verifySsl, setVerifySsl] = useState(false);
   const [isActive, setIsActive] = useState(true);
   const [siteId, setSiteId] = useState("");
+  const [sshPort, setSshPort] = useState("22");
+  const [sshUsername, setSshUsername] = useState("");
+  const [commitConfirmEnabled, setCommitConfirmEnabled] = useState(false);
+  const [commitConfirmMinutes, setCommitConfirmMinutes] = useState("5");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -62,10 +67,14 @@ export function EditInstanceModal({
       setVyosVersion(instance.vyos_version || "1.5");
       setIsActive(instance.is_active);
       setSiteId(instance.site_id);
+      setSshPort((instance.ssh_port ?? 22).toString());
+      setSshUsername(instance.ssh_username || "");
+      setCommitConfirmEnabled(instance.commit_confirm_enabled ?? false);
+      setCommitConfirmMinutes((instance.commit_confirm_minutes ?? 5).toString());
       // Don't populate API key for security
       setApiKey("");
-      setProtocol("https");
-      setVerifySsl(false);
+      setProtocol(instance.protocol || "https");
+      setVerifySsl(instance.verify_ssl ?? false);
     }
   }, [instance, open]);
 
@@ -80,6 +89,10 @@ export function EditInstanceModal({
     setVerifySsl(false);
     setIsActive(true);
     setSiteId("");
+    setSshPort("22");
+    setSshUsername("");
+    setCommitConfirmEnabled(false);
+    setCommitConfirmMinutes("5");
     setError(null);
     onOpenChange(false);
   };
@@ -89,7 +102,6 @@ export function EditInstanceModal({
 
     if (!instance) return;
 
-    // Validation
     if (!name.trim()) {
       setError("Instance name is required");
       return;
@@ -105,27 +117,35 @@ export function EditInstanceModal({
       return;
     }
 
+    const sshPortNum = parseInt(sshPort);
+    if (isNaN(sshPortNum) || sshPortNum < 1 || sshPortNum > 65535) {
+      setError("SSH port must be between 1 and 65535");
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
     try {
-      const updateData: any = {
+      const updateData: Record<string, unknown> = {
         name: name.trim(),
         description: description.trim() || null,
         host: host.trim(),
         port: portNum,
+        protocol: protocol,
         vyos_version: vyosVersion,
         is_active: isActive,
+        ssh_port: sshPortNum,
+        ssh_username: sshUsername.trim() || null,
+        verify_ssl: verifySsl,
+        commit_confirm_enabled: commitConfirmEnabled,
+        commit_confirm_minutes: parseInt(commitConfirmMinutes) || 5,
       };
 
-      // Only include API key if it was changed
       if (apiKey.trim()) {
         updateData.api_key = apiKey.trim();
-        updateData.protocol = protocol;
-        updateData.verify_ssl = verifySsl;
       }
 
-      // Only include site_id if it was changed
       if (siteId !== instance.site_id) {
         updateData.site_id = siteId;
       }
@@ -134,8 +154,9 @@ export function EditInstanceModal({
 
       handleClose();
       onSuccess();
-    } catch (err: any) {
-      setError(err.message || "Failed to update instance");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to update instance";
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -144,11 +165,11 @@ export function EditInstanceModal({
   if (!instance) return null;
 
   const canMoveSite = sites.length > 1;
-  const currentSite = sites.find((s) => s.id === instance.site_id);
+  const isAdmin = sites.find((s) => s.id === instance.site_id)?.role === "ADMIN";
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[620px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center gap-2">
             <div className="rounded-lg bg-primary/10 p-2">
@@ -163,15 +184,15 @@ export function EditInstanceModal({
           </div>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit}>
-          <Tabs defaultValue="basic" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="basic">Basic Info</TabsTrigger>
-              <TabsTrigger value="connection">Connection</TabsTrigger>
-            </TabsList>
+        <Tabs defaultValue="basic" className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="basic">Basic Info</TabsTrigger>
+            <TabsTrigger value="connection">Connection</TabsTrigger>
+            <TabsTrigger value="ssh">SSH</TabsTrigger>
+          </TabsList>
 
+          <form onSubmit={handleSubmit}>
             <TabsContent value="basic" className="space-y-4 mt-4">
-              {/* Error Display */}
               {error && (
                 <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3">
                   <div className="flex items-start gap-2">
@@ -181,11 +202,8 @@ export function EditInstanceModal({
                 </div>
               )}
 
-              {/* Instance Name */}
               <div className="space-y-2">
-                <Label htmlFor="name" className="required">
-                  Instance Name
-                </Label>
+                <Label htmlFor="name">Instance Name</Label>
                 <Input
                   id="name"
                   value={name}
@@ -196,7 +214,6 @@ export function EditInstanceModal({
                 />
               </div>
 
-              {/* Description */}
               <div className="space-y-2">
                 <Label htmlFor="description">Description (Optional)</Label>
                 <Textarea
@@ -209,7 +226,6 @@ export function EditInstanceModal({
                 />
               </div>
 
-              {/* Site Selection (Move to different site) */}
               {canMoveSite && (
                 <div className="space-y-2">
                   <Label htmlFor="siteId">Site</Label>
@@ -240,7 +256,6 @@ export function EditInstanceModal({
                 </div>
               )}
 
-              {/* VyOS Version */}
               <div className="space-y-2">
                 <Label htmlFor="vyosVersion">VyOS Version</Label>
                 <Select
@@ -258,7 +273,6 @@ export function EditInstanceModal({
                 </Select>
               </div>
 
-              {/* Active Checkbox */}
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="isActive"
@@ -270,10 +284,65 @@ export function EditInstanceModal({
                   Instance is active
                 </Label>
               </div>
+
+              {/* Commit-Confirm */}
+              <div className="space-y-3 rounded-lg border p-3">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="editCommitConfirmEnabled"
+                    checked={commitConfirmEnabled}
+                    onCheckedChange={(checked) => setCommitConfirmEnabled(checked as boolean)}
+                    disabled={loading || vyosVersion === "1.4"}
+                  />
+                  <div>
+                    <Label htmlFor="editCommitConfirmEnabled" className="cursor-pointer">
+                      Enable Commit-Confirm
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      {vyosVersion === "1.4"
+                        ? "Not supported on VyOS 1.4"
+                        : "All changes will require confirmation or VyOS will auto-revert"}
+                    </p>
+                  </div>
+                </div>
+                {commitConfirmEnabled && (
+                  <div className="flex items-center gap-3 pl-6">
+                    <Label htmlFor="editCommitConfirmMinutes" className="whitespace-nowrap text-sm">
+                      Confirm window
+                    </Label>
+                    <Input
+                      id="editCommitConfirmMinutes"
+                      type="number"
+                      min={1}
+                      max={60}
+                      value={commitConfirmMinutes}
+                      onChange={(e) => setCommitConfirmMinutes(e.target.value)}
+                      disabled={loading}
+                      className="w-20"
+                    />
+                    <span className="text-sm text-muted-foreground">minutes</span>
+                  </div>
+                )}
+              </div>
+
+              <DialogFooter className="pt-2">
+                <Button type="button" variant="outline" onClick={handleClose} disabled={loading}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={loading}>
+                  {loading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Save Changes"
+                  )}
+                </Button>
+              </DialogFooter>
             </TabsContent>
 
             <TabsContent value="connection" className="space-y-4 mt-4">
-              {/* Error Display */}
               {error && (
                 <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3">
                   <div className="flex items-start gap-2">
@@ -283,11 +352,8 @@ export function EditInstanceModal({
                 </div>
               )}
 
-              {/* Host */}
               <div className="space-y-2">
-                <Label htmlFor="host" className="required">
-                  Host
-                </Label>
+                <Label htmlFor="host">Host</Label>
                 <Input
                   id="host"
                   value={host}
@@ -298,9 +364,8 @@ export function EditInstanceModal({
                 />
               </div>
 
-              {/* Port */}
               <div className="space-y-2">
-                <Label htmlFor="port">Port</Label>
+                <Label htmlFor="port">API Port</Label>
                 <Input
                   id="port"
                   type="number"
@@ -313,14 +378,12 @@ export function EditInstanceModal({
                 />
               </div>
 
-              {/* API Key Update Section */}
               <div className="rounded-lg border border-border bg-muted/50 p-4 space-y-3">
                 <p className="text-sm font-medium">Update API Credentials (Optional)</p>
                 <p className="text-xs text-muted-foreground">
                   Leave blank to keep existing credentials
                 </p>
 
-                {/* Protocol */}
                 <div className="space-y-2">
                   <Label htmlFor="protocol">Protocol</Label>
                   <Select
@@ -338,7 +401,6 @@ export function EditInstanceModal({
                   </Select>
                 </div>
 
-                {/* API Key */}
                 <div className="space-y-2">
                   <Label htmlFor="apiKey">New API Key</Label>
                   <Input
@@ -351,7 +413,6 @@ export function EditInstanceModal({
                   />
                 </div>
 
-                {/* Verify SSL */}
                 <div className="flex items-center space-x-2">
                   <Checkbox
                     id="verifySsl"
@@ -366,30 +427,92 @@ export function EditInstanceModal({
                   </Label>
                 </div>
               </div>
-            </TabsContent>
-          </Tabs>
 
-          <DialogFooter className="mt-6">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleClose}
-              disabled={loading}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? (
+              <DialogFooter className="pt-2">
+                <Button type="button" variant="outline" onClick={handleClose} disabled={loading}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={loading}>
+                  {loading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Save Changes"
+                  )}
+                </Button>
+              </DialogFooter>
+            </TabsContent>
+
+            <TabsContent value="ssh" className="space-y-4 mt-4">
+              {/* SSH connection fields — saved with the form */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="sshUsername">SSH Username</Label>
+                  <Input
+                    id="sshUsername"
+                    value={sshUsername}
+                    onChange={(e) => setSshUsername(e.target.value)}
+                    placeholder="vyos"
+                    disabled={loading}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="sshPort">SSH Port</Label>
+                  <Input
+                    id="sshPort"
+                    type="number"
+                    value={sshPort}
+                    onChange={(e) => setSshPort(e.target.value)}
+                    placeholder="22"
+                    min="1"
+                    max="65535"
+                    disabled={loading}
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pb-2">
+                <Button type="button" variant="outline" onClick={handleClose} disabled={loading}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={loading}>
+                  {loading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Save Changes"
+                  )}
+                </Button>
+              </div>
+
+              {/* SSH key management — only for site admins */}
+              {isAdmin ? (
                 <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Saving...
+                  <div className="border-t pt-4">
+                    <p className="text-sm font-medium mb-1">SSH Key</p>
+                    <p className="text-xs text-muted-foreground mb-4">
+                      Generate an SSH keypair and install the public key on your VyOS device to enable real-time monitoring.
+                    </p>
+                    <SSHKeySetup
+                      instanceId={instance.id}
+                      sshUsername={sshUsername || instance.ssh_username}
+                    />
+                  </div>
                 </>
               ) : (
-                "Save Changes"
+                <div className="rounded-lg border bg-muted/50 p-3 border-t mt-2">
+                  <p className="text-sm text-muted-foreground">
+                    SSH key management requires site Admin access.
+                  </p>
+                </div>
               )}
-            </Button>
-          </DialogFooter>
-        </form>
+            </TabsContent>
+          </form>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );

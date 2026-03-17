@@ -6,7 +6,7 @@ Each builder includes all necessary operations for its feature type.
 """
 
 from .interfaces import EthernetInterfaceBuilderMixin, DummyInterfaceBuilderMixin
-from .firewall import FirewallGroupsBatchBuilder, FirewallIPv4BatchBuilder, FirewallIPv6BatchBuilder
+from .firewall import FirewallGroupsBatchBuilder, FirewallIPv4BatchBuilder, FirewallIPv6BatchBuilder, BridgeFirewallBatchBuilder, FirewallZonesBatchBuilder
 from .nat import NATBatchBuilder
 from .dhcp import DHCPBatchBuilder
 from .static_routes import StaticRoutesBatchBuilder
@@ -21,6 +21,17 @@ from .extcommunity_list import ExtCommunityListBatchBuilder
 from .large_community_list import LargeCommunityListBatchBuilder
 from .firewall_global_options import FirewallGlobalOptionsBatchBuilder
 from .wireguard import WireGuardBatchBuilder
+from .babel import BabelBatchBuilder
+from .bfd import BfdBatchBuilder
+from .bgp import BgpBatchBuilder
+from .failover import FailoverBatchBuilder
+from .ospf import OspfBatchBuilder
+from .ospfv3 import Ospfv3BatchBuilder
+from .vrf import VrfBatchBuilder
+from .system import SystemPerformanceBatchBuilder, SystemBatchBuilder
+from .high_availability import HighAvailabilityBatchBuilder
+from .load_balancing import LoadBalancingBatchBuilder
+from .isis import IsisBatchBuilder
 
 # Directly use the self-contained builders
 EthernetBatchBuilder = EthernetInterfaceBuilderMixin
@@ -46,4 +57,18 @@ __all__ = [
     "LargeCommunityListBatchBuilder",
     "FirewallGlobalOptionsBatchBuilder",
     "WireGuardBatchBuilder",
+    "BridgeFirewallBatchBuilder",
+    "FirewallZonesBatchBuilder",
+    "BabelBatchBuilder",
+    "BfdBatchBuilder",
+    "BgpBatchBuilder",
+    "FailoverBatchBuilder",
+    "OspfBatchBuilder",
+    "Ospfv3BatchBuilder",
+    "VrfBatchBuilder",
+    "SystemPerformanceBatchBuilder",
+    "SystemBatchBuilder",
+    "HighAvailabilityBatchBuilder",
+    "LoadBalancingBatchBuilder",
+    "IsisBatchBuilder",
 ]

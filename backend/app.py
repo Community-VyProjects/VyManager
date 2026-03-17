@@ -1,17 +1,15 @@
-import urllib3
-urllib3.disable_warnings()
-
 import os
 import asyncpg
 import asyncio
 from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
 
 from middleware.auth import AuthenticationMiddleware
 from middleware.session import SessionMiddleware
+from fastapi_permissions import get_user_feature_permissions
 
 # Import routers
 from routers.session import session as session_router
@@ -19,6 +17,9 @@ from routers.interfaces import ethernet, dummy
 from routers.firewall import groups
 from routers.firewall import ipv4 as firewall_ipv4
 from routers.firewall import ipv6 as firewall_ipv6
+from routers.firewall import bridge as firewall_bridge
+from routers.firewall import flowtables as firewall_flowtables
+from routers.firewall import zones as firewall_zones
 from routers.nat import nat
 from routers.dhcp import dhcp
 from routers.static_routes import static_routes
@@ -33,12 +34,25 @@ from routers.extcommunity_list import extcommunity_list
 from routers.large_community_list import large_community_list
 from routers.firewall_global_options import firewall_global_options
 from routers.wireguard import wireguard
+from routers.babel import babel
+from routers.bfd import bfd
+from routers.bgp import bgp
+from routers.failover import failover
+from routers.igmp_proxy import igmp_proxy
+from routers.ospf import ospf
+from routers.ospfv3 import ospfv3
+from routers.vrf import vrf
 from routers import system
 from routers import power as power_router
 from routers.config import config as config_router
 from routers import show as show_router
 from routers import dashboard as dashboard_router
 from routers import user_management as user_management_router
+from routers.monitoring import monitoring as monitoring_router
+from routers.high_availability import high_availability as high_availability_router
+from routers.load_balancing import load_balancing as load_balancing_router
+from routers.isis import isis as isis_router
+from routers.mpls import mpls as mpls_router
 
 # Global variables
 db_pool: Optional[asyncpg.Pool] = None
@@ -220,6 +234,19 @@ app.add_middleware(AuthenticationMiddleware)
 
 
 # ============================================================================
+# Permissions Endpoint
+# ============================================================================
+
+@app.get("/vyos/permissions", tags=["permissions"])
+async def get_permissions(request: Request) -> dict:
+    """
+    Get all feature permissions for the authenticated user on their active instance.
+    Used by the frontend to conditionally show/hide UI elements based on permissions.
+    """
+    return await get_user_feature_permissions(request)
+
+
+# ============================================================================
 # Application Setup
 # ============================================================================
 
@@ -230,6 +257,9 @@ app.include_router(dummy.router)
 app.include_router(groups.router)
 app.include_router(firewall_ipv4.router)
 app.include_router(firewall_ipv6.router)
+app.include_router(firewall_bridge.router)
+app.include_router(firewall_flowtables.router)
+app.include_router(firewall_zones.router)
 app.include_router(nat.router)
 app.include_router(dhcp.router)
 app.include_router(static_routes.router)
@@ -244,12 +274,25 @@ app.include_router(extcommunity_list.router)
 app.include_router(large_community_list.router)
 app.include_router(firewall_global_options.router)
 app.include_router(wireguard.router)
+app.include_router(babel.router)
+app.include_router(bfd.router)
+app.include_router(bgp.router)
+app.include_router(failover.router)
+app.include_router(igmp_proxy.router)
+app.include_router(ospf.router)
+app.include_router(ospfv3.router)
+app.include_router(vrf.router)
 app.include_router(system.router)
 app.include_router(power_router.router)
 app.include_router(config_router.router)
 app.include_router(show_router.router)
 app.include_router(dashboard_router.router)
 app.include_router(user_management_router.router)
+app.include_router(monitoring_router.router)
+app.include_router(high_availability_router.router)
+app.include_router(load_balancing_router.router)
+app.include_router(isis_router.router)
+app.include_router(mpls_router.router)
 
 
 # ============================================================================

@@ -93,7 +93,7 @@ export function PowerActionBanner() {
         setShowCancelledMessage(false);
         setStatus(null);
       }, 5000);
-    } catch (err: any) {
+    } catch (err) {
       console.error("Failed to cancel power action:", err);
     } finally {
       setCancelling(false);

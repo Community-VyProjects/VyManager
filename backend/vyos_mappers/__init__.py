@@ -8,10 +8,11 @@ This keeps the codebase organized and maintainable as it grows.
 from .base import BaseFeatureMapper, CommandMapperRegistry
 from .interfaces import EthernetInterfaceMapper, DummyInterfaceMapper
 from .interfaces.ethernet_versions import get_ethernet_mapper
-from .firewall import FirewallGroupsMapper, FirewallIPv4Mapper, FirewallIPv6Mapper
+from .firewall import FirewallGroupsMapper, FirewallIPv4Mapper, FirewallIPv6Mapper, BridgeFirewallMapper, FlowtablesMapper, FirewallZonesMapper
 from .firewall.groups_versions import get_firewall_groups_mapper
 from .firewall.ipv4_versions import get_firewall_ipv4_mapper
 from .firewall.ipv6_versions import get_firewall_ipv6_mapper
+from .firewall.zones_versions import get_firewall_zones_mapper
 from .nat import NATMapper
 from .nat.nat_versions import get_nat_mapper
 from .dhcp import DHCPMapper
@@ -33,6 +34,34 @@ from .firewall_global_options import FirewallGlobalOptionsMapper
 from .firewall_global_options.firewall_global_options_versions import get_firewall_global_options_mapper
 from .wireguard import WireGuardMapper
 from .wireguard.wireguard_versions import get_wireguard_mapper
+from .babel import BabelMapper
+from .babel.babel_versions import get_babel_mapper
+from .bfd import BfdMapper
+from .bfd.bfd_versions import get_bfd_mapper
+from .bgp import BgpMapper
+from .bgp.bgp_versions import get_bgp_mapper
+from .failover import FailoverMapper
+from .failover.failover_versions import get_failover_mapper
+from .igmp_proxy import IgmpProxyMapper
+from .ospf import OspfMapper
+from .ospf.ospf_versions import get_ospf_mapper
+from .ospfv3 import Ospfv3Mapper
+from .ospfv3.ospfv3_versions import get_ospfv3_mapper
+from .vrf import VrfMapper, VrfStaticMapper, VrfRpkiMapper, VrfFailoverMapper
+from .vrf import VrfOspfMapper, VrfOspfv3Mapper, VrfIsisMapper, VrfBgpMapper
+from .vrf import VrfDhcpMapper, VrfDhcpv6Mapper
+from .vrf.vrf_versions import get_vrf_mapper, get_vrf_static_mapper
+from .system.performance_versions import get_system_performance_mapper
+from .system.system_mapper import SystemMapper
+from .system.system_versions import get_system_mapper
+from .high_availability import HighAvailabilityMapper
+from .high_availability.high_availability_versions import get_high_availability_mapper
+from .load_balancing import LoadBalancingMapper
+from .load_balancing.load_balancing_versions import get_load_balancing_mapper
+from .isis import IsisMapper
+from .isis.isis_versions import get_isis_mapper
+from .mpls import MplsMapper
+from .mpls.mpls_versions import get_mpls_mapper
 
 # Auto-register all mappers
 # Ethernet uses factory for version-specific mappers
@@ -67,10 +96,55 @@ CommandMapperRegistry.register_feature("as_path_list", AsPathListMapper)
 CommandMapperRegistry.register_feature("firewall_global_options", get_firewall_global_options_mapper)
 # WireGuard uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("wireguard", get_wireguard_mapper)
+# Bridge Firewall uses direct class (version checking is internal)
+CommandMapperRegistry.register_feature("firewall_bridge", BridgeFirewallMapper)
+# Flowtables uses direct class (no version differences)
+CommandMapperRegistry.register_feature("firewall_flowtables", FlowtablesMapper)
+# Firewall Zones uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("firewall_zones", get_firewall_zones_mapper)
+# Babel uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("babel", get_babel_mapper)
+# BFD uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("bfd", get_bfd_mapper)
+# BGP uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("bgp", get_bgp_mapper)
+# Failover uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("failover", get_failover_mapper)
+# IGMP Proxy uses direct class (no version differences)
+CommandMapperRegistry.register_feature("igmp_proxy", IgmpProxyMapper)
+# OSPF uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("ospf", get_ospf_mapper)
+# OSPFv3 uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("ospfv3", get_ospfv3_mapper)
+# VRF uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("vrf", get_vrf_mapper)
+# VRF Static Routes uses factory for version-specific BFD paths
+CommandMapperRegistry.register_feature("vrf_static", get_vrf_static_mapper)
+# VRF sub-mappers use lambda factories (they don't take version in constructor)
+CommandMapperRegistry.register_feature("vrf_rpki", lambda v: VrfRpkiMapper())
+CommandMapperRegistry.register_feature("vrf_failover", lambda v: VrfFailoverMapper())
+CommandMapperRegistry.register_feature("vrf_ospf", lambda v: VrfOspfMapper())
+CommandMapperRegistry.register_feature("vrf_ospfv3", lambda v: VrfOspfv3Mapper())
+CommandMapperRegistry.register_feature("vrf_isis", lambda v: VrfIsisMapper())
+CommandMapperRegistry.register_feature("vrf_bgp", lambda v: VrfBgpMapper())
+CommandMapperRegistry.register_feature("vrf_dhcp", lambda v: VrfDhcpMapper())
+CommandMapperRegistry.register_feature("vrf_dhcpv6", lambda v: VrfDhcpv6Mapper())
+CommandMapperRegistry.register_feature("system_performance", get_system_performance_mapper)
+# System general mapper (hostname, login, syslog, conntrack, etc.)
+CommandMapperRegistry.register_feature("system", get_system_mapper)
+# High Availability uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("high_availability", get_high_availability_mapper)
+# Load Balancing uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("load_balancing", get_load_balancing_mapper)
+# ISIS uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("isis", get_isis_mapper)
+# MPLS uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("mpls", get_mpls_mapper)
 
 __all__ = [
     "BaseFeatureMapper",
     "CommandMapperRegistry",
+    "SystemMapper",
     "EthernetInterfaceMapper",
     "DummyInterfaceMapper",
     "FirewallGroupsMapper",
@@ -87,4 +161,27 @@ __all__ = [
     "AsPathListMapper",
     "FirewallGlobalOptionsMapper",
     "WireGuardMapper",
+    "BridgeFirewallMapper",
+    "FlowtablesMapper",
+    "FirewallZonesMapper",
+    "BabelMapper",
+    "BfdMapper",
+    "BgpMapper",
+    "FailoverMapper",
+    "IgmpProxyMapper",
+    "OspfMapper",
+    "Ospfv3Mapper",
+    "VrfMapper",
+    "VrfStaticMapper",
+    "VrfRpkiMapper",
+    "VrfFailoverMapper",
+    "VrfOspfMapper",
+    "VrfOspfv3Mapper",
+    "VrfIsisMapper",
+    "VrfBgpMapper",
+    "VrfDhcpMapper",
+    "VrfDhcpv6Mapper",
+    "HighAvailabilityMapper",
+    "IsisMapper",
+    "MplsMapper",
 ]

@@ -123,12 +123,16 @@ export function DeleteStaticRouteModal({ open, onOpenChange, onSuccess, route }:
                 </div>
               )}
 
-              {route.dhcp_interface && (
+              {route.dhcp_interfaces && route.dhcp_interfaces.length > 0 && (
                 <div className="space-y-1">
-                  <span className="text-xs font-medium text-muted-foreground">DHCP Interface:</span>
-                  <Badge variant="outline" className="text-xs">
-                    {route.dhcp_interface}
-                  </Badge>
+                  <span className="text-xs font-medium text-muted-foreground">DHCP Interface(s):</span>
+                  <div className="flex flex-wrap gap-1">
+                    {route.dhcp_interfaces.map((iface, idx) => (
+                      <Badge key={idx} variant="outline" className="text-xs">
+                        {iface}
+                      </Badge>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>

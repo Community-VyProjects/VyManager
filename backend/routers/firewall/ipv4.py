@@ -13,6 +13,8 @@ from session_vyos_service import get_session_vyos_service
 from vyos_builders import FirewallIPv4BatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission, FeatureGroup
 import inspect
+import logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/firewall/ipv4", tags=["firewall_ipv4"])
 
@@ -92,6 +94,7 @@ class FirewallRule(BaseModel):
     tcp_flags: Optional[List[str]] = None
     icmp_type_name: Optional[str] = None
     jump_target: Optional[str] = None
+    offload_target: Optional[str] = None
     disable: bool = False
     log: bool = False
 
@@ -188,7 +191,8 @@ async def get_firewall_ipv4_capabilities(request: Request):
 
         return capabilities
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ========================================================================
@@ -376,6 +380,7 @@ async def get_firewall_ipv4_config(http_request: Request, refresh: bool = False)
                 tcp_flags=tcp_flags,
                 icmp_type_name=icmp_type_name,
                 jump_target=rule_data.get("jump-target"),
+                offload_target=rule_data.get("offload-target"),
                 disable="disable" in rule_data or rule_data.get("disable") == "",
                 log="log" in rule_data or rule_data.get("log") == ""
             )
@@ -452,7 +457,8 @@ async def get_firewall_ipv4_config(http_request: Request, refresh: bool = False)
             total_rules=total_rules
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ========================================================================
@@ -522,7 +528,8 @@ async def firewall_ipv4_batch_configure(http_request: Request, request: Firewall
             error=response.error if response.error else None
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ========================================================================
@@ -585,6 +592,12 @@ async def firewall_ipv4_reorder_rules(http_request: Request, request: ReorderFir
                     builder.set_rule_source_port(request.chain, new_number, source["port"], request.is_custom_chain)
                 if source.get("mac_address"):
                     builder.set_rule_source_mac(request.chain, new_number, source["mac_address"], request.is_custom_chain)
+                if source.get("geoip"):
+                    geoip = source["geoip"]
+                    for code in (geoip.get("country_code") or []):
+                        builder.set_rule_source_geoip_country(request.chain, new_number, code, request.is_custom_chain)
+                    if geoip.get("inverse_match"):
+                        builder.set_rule_source_geoip_inverse(request.chain, new_number, request.is_custom_chain)
                 if source.get("group"):
                     group = source["group"]
                     for group_type, group_name in group.items():
@@ -594,6 +607,12 @@ async def firewall_ipv4_reorder_rules(http_request: Request, request: ReorderFir
                             builder.set_rule_source_group_network(request.chain, new_number, group_name, request.is_custom_chain)
                         elif "port" in group_type:
                             builder.set_rule_source_group_port(request.chain, new_number, group_name, request.is_custom_chain)
+                        elif "mac" in group_type:
+                            builder.set_rule_source_group_mac(request.chain, new_number, group_name, request.is_custom_chain)
+                        elif "domain" in group_type:
+                            builder.set_rule_source_group_domain(request.chain, new_number, group_name, request.is_custom_chain)
+                        elif "remote" in group_type:
+                            builder.set_rule_source_group_remote(request.chain, new_number, group_name, request.is_custom_chain)
 
             # Destination
             if rule_data.get("destination"):
@@ -602,6 +621,12 @@ async def firewall_ipv4_reorder_rules(http_request: Request, request: ReorderFir
                     builder.set_rule_destination_address(request.chain, new_number, dest["address"], request.is_custom_chain)
                 if dest.get("port"):
                     builder.set_rule_destination_port(request.chain, new_number, dest["port"], request.is_custom_chain)
+                if dest.get("geoip"):
+                    geoip = dest["geoip"]
+                    for code in (geoip.get("country_code") or []):
+                        builder.set_rule_destination_geoip_country(request.chain, new_number, code, request.is_custom_chain)
+                    if geoip.get("inverse_match"):
+                        builder.set_rule_destination_geoip_inverse(request.chain, new_number, request.is_custom_chain)
                 if dest.get("group"):
                     group = dest["group"]
                     for group_type, group_name in group.items():
@@ -611,6 +636,12 @@ async def firewall_ipv4_reorder_rules(http_request: Request, request: ReorderFir
                             builder.set_rule_destination_group_network(request.chain, new_number, group_name, request.is_custom_chain)
                         elif "port" in group_type:
                             builder.set_rule_destination_group_port(request.chain, new_number, group_name, request.is_custom_chain)
+                        elif "mac" in group_type:
+                            builder.set_rule_destination_group_mac(request.chain, new_number, group_name, request.is_custom_chain)
+                        elif "domain" in group_type:
+                            builder.set_rule_destination_group_domain(request.chain, new_number, group_name, request.is_custom_chain)
+                        elif "remote" in group_type:
+                            builder.set_rule_destination_group_remote(request.chain, new_number, group_name, request.is_custom_chain)
 
             # State
             if rule_data.get("state"):
@@ -655,6 +686,10 @@ async def firewall_ipv4_reorder_rules(http_request: Request, request: ReorderFir
             if rule_data.get("jump_target"):
                 builder.set_rule_jump_target(request.chain, new_number, rule_data["jump_target"], request.is_custom_chain)
 
+            # Offload target
+            if rule_data.get("offload_target"):
+                builder.set_rule_offload_target(request.chain, new_number, rule_data["offload_target"], request.is_custom_chain)
+
             # Flags
             if rule_data.get("disable"):
                 builder.set_rule_disable(request.chain, new_number, request.is_custom_chain)
@@ -671,4 +706,5 @@ async def firewall_ipv4_reorder_rules(http_request: Request, request: ReorderFir
             error=response.error if response.error else None
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")

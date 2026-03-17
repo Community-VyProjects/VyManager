@@ -15,6 +15,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { AlertCircle, Network, Loader2 } from "lucide-react";
 import { routeService } from "@/lib/api/route";
 import { apiClient } from "@/lib/api/client";
+import { ApiError } from "@/lib/types/api";
 
 interface ManagePolicyInterfacesModalProps {
   open: boolean;
@@ -91,8 +92,8 @@ export function ManagePolicyInterfacesModal({
       }
       setSelectedInterfaces(assigned);
       setOriginalInterfaces(assigned);
-    } catch (err: any) {
-      setError(err.message || "Failed to load data");
+    } catch (err) {
+      setError((err as ApiError).message || "Failed to load data");
     } finally {
       setLoadingData(false);
     }
@@ -138,8 +139,8 @@ export function ManagePolicyInterfacesModal({
 
       handleClose();
       onSuccess();
-    } catch (err: any) {
-      setError(err.message || "Failed to update interfaces");
+    } catch (err) {
+      setError((err as ApiError).message || "Failed to update interfaces");
     } finally {
       setLoading(false);
     }

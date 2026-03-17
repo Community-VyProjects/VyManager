@@ -19,6 +19,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Loader2, AlertCircle, CheckCircle2, Building2, Server, User } from "lucide-react";
 import { signUp, signIn } from "@/lib/auth-client";
 import { sessionService } from "@/lib/api/session";
+import { ApiError } from "@/lib/types/api";
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -111,6 +112,12 @@ export default function OnboardingPage() {
       return;
     }
 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(adminData.email)) {
+      setError("Please enter a valid email address (e.g., admin@example.com)");
+      return;
+    }
+
     // Just move to next step - don't create user yet
     setStep(2);
   };
@@ -172,6 +179,7 @@ export default function OnboardingPage() {
       if (signUpResult.error) {
         setError(signUpResult.error.message || "Failed to create admin account");
         setLoading(false);
+        setIsSubmitting(false);
         return;
       }
 
@@ -242,9 +250,9 @@ export default function OnboardingPage() {
       // Setup complete! Redirect to sites page
       router.push("/sites");
       router.refresh();
-    } catch (err: any) {
+    } catch (err) {
       console.error("[Onboarding] Error:", err);
-      setError(err.message || "Failed to complete setup. Please try again.");
+      setError((err as ApiError).message || "Failed to complete setup. Please try again.");
       setIsSubmitting(false); // Allow user to go back and fix issues
     } finally {
       setLoading(false);

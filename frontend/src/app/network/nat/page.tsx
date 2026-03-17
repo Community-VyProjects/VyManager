@@ -178,6 +178,7 @@ export default function NATPage() {
             destination_address: sRule.destination?.address,
             destination_port: sRule.destination?.port,
             outbound_interface_name: sRule.outbound_interface?.name,
+            outbound_interface_group: sRule.outbound_interface?.group,
             protocol: sRule.protocol,
             packet_type: sRule.packet_type,
             translation_address: sRule.translation?.address,
@@ -194,6 +195,7 @@ export default function NATPage() {
             destination_address: dRule.destination?.address,
             destination_port: dRule.destination?.port,
             inbound_interface_name: dRule.inbound_interface?.name,
+            inbound_interface_group: dRule.inbound_interface?.group,
             protocol: dRule.protocol,
             packet_type: dRule.packet_type,
             translation_address: dRule.translation?.address,
@@ -245,7 +247,8 @@ export default function NATPage() {
         sRule.protocol?.toLowerCase().includes(query) ||
         sRule.source?.address?.toLowerCase().includes(query) ||
         sRule.destination?.address?.toLowerCase().includes(query) ||
-        sRule.outbound_interface?.name?.toLowerCase().includes(query)
+        sRule.outbound_interface?.name?.toLowerCase().includes(query) ||
+        sRule.outbound_interface?.group?.toLowerCase().includes(query)
       );
     } else if (selectedType === "destination") {
       const dRule = rule as DestinationNATRule;
@@ -255,6 +258,7 @@ export default function NATPage() {
         dRule.protocol?.toLowerCase().includes(query) ||
         dRule.destination?.address?.toLowerCase().includes(query) ||
         dRule.inbound_interface?.name?.toLowerCase().includes(query) ||
+        dRule.inbound_interface?.group?.toLowerCase().includes(query) ||
         dRule.translation?.address?.toLowerCase().includes(query)
       );
     } else {

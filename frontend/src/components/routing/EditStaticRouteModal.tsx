@@ -11,7 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircle, Plus, Trash2 } from "lucide-react";
 import { staticRoutesService } from "@/lib/api/static-routes";
-import { apiClient } from "@/lib/api/client";
+import { showService } from "@/lib/api/show";
 import type { StaticRoute, StaticRoutesCapabilities } from "@/lib/api/static-routes";
 
 interface EditStaticRouteModalProps {
@@ -84,28 +84,8 @@ export function EditStaticRouteModal({ open, onOpenChange, onSuccess, route }: E
 
   const loadInterfaces = async () => {
     try {
-      const interfaceNames: string[] = [];
-
-      // Fetch ethernet interfaces
-      try {
-        const ethernetConfig = await apiClient.get<{ interfaces: Array<{ name: string }> }>("/vyos/ethernet/config");
-        interfaceNames.push(...ethernetConfig.interfaces.map(iface => iface.name));
-      } catch (err) {
-        console.error("Failed to load ethernet interfaces:", err);
-      }
-
-      // Fetch dummy interfaces
-      try {
-        const dummyConfig = await apiClient.get<{ interfaces: Array<{ name: string }> }>("/vyos/dummy/config");
-        interfaceNames.push(...dummyConfig.interfaces.map(iface => iface.name));
-      } catch (err) {
-        console.error("Failed to load dummy interfaces:", err);
-      }
-
-      // Sort interfaces alphabetically
-      interfaceNames.sort();
-
-      setAvailableInterfaces(interfaceNames);
+      const response = await showService.getAllInterfaces();
+      setAvailableInterfaces(response.interfaces.map((i) => i.name));
     } catch (err) {
       console.error("Failed to load interfaces:", err);
     }
@@ -149,8 +129,8 @@ export function EditStaticRouteModal({ open, onOpenChange, onSuccess, route }: E
     setRejectDistance(route.reject_distance?.toString() || "");
     setRejectTag(route.reject_tag?.toString() || "");
 
-    // Populate DHCP interface
-    setDhcpInterface(route.dhcp_interface || "");
+    // Populate DHCP interface (take first one if multiple)
+    setDhcpInterface(route.dhcp_interfaces?.[0] || "");
   };
 
   const resetForm = () => {
@@ -258,8 +238,9 @@ export function EditStaticRouteModal({ open, onOpenChange, onSuccess, route }: E
       }
 
       // DHCP interface (1.4 only)
-      if (dhcpInterface.trim() !== route.dhcp_interface && capabilities?.features.dhcp_interface_1_4.supported) {
-        config.dhcp_interface = dhcpInterface.trim() || null;
+      const currentDhcp = route.dhcp_interfaces?.[0] || "";
+      if (dhcpInterface.trim() !== currentDhcp && capabilities?.features.dhcp_interface.supported) {
+        config.dhcp_interfaces = dhcpInterface.trim() ? [dhcpInterface.trim()] : [];
       }
 
       // Update route
@@ -472,7 +453,7 @@ export function EditStaticRouteModal({ open, onOpenChange, onSuccess, route }: E
                             <SelectTrigger>
                               <SelectValue placeholder="Select interface" />
                             </SelectTrigger>
-                            <SelectContent>
+                            <SelectContent className="max-h-60 overflow-y-auto">
                               {availableInterfaces.map((interfaceName) => (
                                 <SelectItem key={interfaceName} value={interfaceName}>
                                   {interfaceName}
@@ -614,7 +595,7 @@ export function EditStaticRouteModal({ open, onOpenChange, onSuccess, route }: E
 
           {/* Advanced Tab */}
           <TabsContent value="advanced" className="space-y-4">
-            {capabilities?.features.dhcp_interface_1_4.supported && (
+            {capabilities?.features.dhcp_interface.supported && (
               <div className="space-y-2">
                 <Label htmlFor="dhcp-interface">DHCP Interface</Label>
                 <Input
@@ -629,7 +610,7 @@ export function EditStaticRouteModal({ open, onOpenChange, onSuccess, route }: E
               </div>
             )}
 
-            {!capabilities?.features.dhcp_interface_1_4.supported && (
+            {!capabilities?.features.dhcp_interface.supported && (
               <div className="bg-muted/50 border rounded-lg p-4">
                 <p className="text-sm text-muted-foreground">
                   No advanced options available for this VyOS version.

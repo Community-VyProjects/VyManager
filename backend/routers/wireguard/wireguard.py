@@ -19,6 +19,8 @@ from rbac_permissions import FeatureGroup
 import asyncpg
 import inspect
 import re
+import logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/vpn/wireguard", tags=["wireguard"])
 
@@ -134,7 +136,8 @@ async def get_wireguard_capabilities(request: Request):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ========================================================================
@@ -192,6 +195,7 @@ async def get_wireguard_config(request: Request, refresh: bool = False):
                 "mtu": iface_data.get("mtu"),
                 "fwmark": iface_data.get("fwmark"),
                 "per_client_thread": iface_data.get("per_client_thread", False),
+                "disabled": iface_data.get("disabled", False),
                 "peers": peers,
                 "peer_count": len(peers),
             })
@@ -203,7 +207,8 @@ async def get_wireguard_config(request: Request, refresh: bool = False):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ========================================================================
@@ -257,7 +262,8 @@ async def wireguard_interface_batch(request: Request, body: WireGuardInterfaceBa
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ========================================================================
@@ -313,7 +319,8 @@ async def wireguard_peer_batch(request: Request, body: WireGuardPeerBatchRequest
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ========================================================================
@@ -367,7 +374,8 @@ async def generate_keypair(request: Request):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ========================================================================
@@ -408,7 +416,8 @@ async def generate_psk(request: Request):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ========================================================================
@@ -442,19 +451,31 @@ async def get_interface_status(request: Request, interface_name: str):
         output = response.result if hasattr(response, 'result') else str(response)
 
         # Parse the output to extract peer status information
+        # Handles two formats:
+        # - Stream release: "peer: <public_key>" (public key directly on peer line)
+        # - Rolling release: "peer: <name>" then "public key: <key>" on separate line
         peers_status = {}
-        current_peer = None
+        current_peer_data = None
+
+        def is_wireguard_public_key(value: str) -> bool:
+            """Check if a string looks like a WireGuard public key (base64, ~44 chars)."""
+            return bool(re.match(r'^[A-Za-z0-9+/=]{43,44}$', value))
 
         if isinstance(output, str):
             lines = output.strip().split('\n')
             for line in lines:
                 line_stripped = line.strip()
 
-                # Detect peer section (public key line)
+                # Detect peer section
                 if line_stripped.startswith('peer:'):
-                    current_peer = line_stripped.split(':', 1)[1].strip()
-                    peers_status[current_peer] = {
-                        "public_key": current_peer,
+                    # Save previous peer if we have one with a public key
+                    if current_peer_data and current_peer_data.get("public_key"):
+                        peers_status[current_peer_data["public_key"]] = current_peer_data
+
+                    peer_value = line_stripped.split(':', 1)[1].strip()
+                    current_peer_data = {
+                        "peer_name": None,
+                        "public_key": None,
                         "latest_handshake": None,
                         "latest_handshake_seconds": None,
                         "transfer_rx": None,
@@ -462,31 +483,50 @@ async def get_interface_status(request: Request, interface_name: str):
                         "endpoint": None,
                     }
 
-                elif current_peer:
+                    # Check if this is stream format (public key directly) or rolling (peer name)
+                    if is_wireguard_public_key(peer_value):
+                        # Stream format: peer line contains the public key
+                        current_peer_data["public_key"] = peer_value
+                    else:
+                        # Rolling format: peer line contains the peer name
+                        current_peer_data["peer_name"] = peer_value
+
+                elif current_peer_data:
                     # Parse peer details
-                    if 'latest handshake:' in line_stripped.lower():
+                    line_lower = line_stripped.lower()
+
+                    if line_lower.startswith('public key:'):
+                        # Rolling release format - public key on separate line
+                        public_key = line_stripped.split(':', 1)[1].strip()
+                        current_peer_data["public_key"] = public_key
+
+                    elif 'latest handshake:' in line_lower:
                         handshake_str = line_stripped.split(':', 1)[1].strip()
-                        peers_status[current_peer]["latest_handshake"] = handshake_str
+                        current_peer_data["latest_handshake"] = handshake_str
                         # Convert to seconds for comparison
                         seconds = _parse_handshake_time(handshake_str)
-                        peers_status[current_peer]["latest_handshake_seconds"] = seconds
+                        current_peer_data["latest_handshake_seconds"] = seconds
 
-                    elif 'transfer:' in line_stripped.lower():
+                    elif line_lower.startswith('transfer:'):
                         transfer_str = line_stripped.split(':', 1)[1].strip()
-                        peers_status[current_peer]["transfer"] = transfer_str
+                        current_peer_data["transfer"] = transfer_str
                         # Parse rx/tx
                         if 'received' in transfer_str and 'sent' in transfer_str:
                             parts = transfer_str.split(',')
                             for part in parts:
                                 part = part.strip()
                                 if 'received' in part:
-                                    peers_status[current_peer]["transfer_rx"] = part.replace('received', '').strip()
+                                    current_peer_data["transfer_rx"] = part.replace('received', '').strip()
                                 elif 'sent' in part:
-                                    peers_status[current_peer]["transfer_tx"] = part.replace('sent', '').strip()
+                                    current_peer_data["transfer_tx"] = part.replace('sent', '').strip()
 
-                    elif 'endpoint:' in line_stripped.lower():
+                    elif line_lower.startswith('endpoint:'):
                         endpoint_str = line_stripped.split(':', 1)[1].strip()
-                        peers_status[current_peer]["endpoint"] = endpoint_str
+                        current_peer_data["endpoint"] = endpoint_str
+
+            # Don't forget to save the last peer
+            if current_peer_data and current_peer_data.get("public_key"):
+                peers_status[current_peer_data["public_key"]] = current_peer_data
 
         return VyOSResponse(
             success=True,
@@ -499,40 +539,65 @@ async def get_interface_status(request: Request, interface_name: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 def _parse_handshake_time(handshake_str: str) -> int | None:
     """
     Parse WireGuard handshake time string to seconds.
 
+    Handles two formats:
+    - Stream release: "1 minute, 32 seconds ago", "45 seconds ago"
+    - Rolling release: "0:00:48", "1:23:45" (H:MM:SS or M:SS format)
+
     Examples:
         "1 minute, 32 seconds ago" -> 92
         "2 hours, 15 minutes, 30 seconds ago" -> 8130
         "45 seconds ago" -> 45
+        "0:00:48" -> 48
+        "1:23:45" -> 5025
         "(none)" -> None
     """
     if not handshake_str or handshake_str.lower() in ['(none)', 'none', '-']:
         return None
 
+    handshake_str = handshake_str.strip()
+
+    # Check for time format (H:MM:SS or M:SS) - rolling release format
+    time_match = re.match(r'^(\d+):(\d{2}):(\d{2})$', handshake_str)
+    if time_match:
+        hours = int(time_match.group(1))
+        minutes = int(time_match.group(2))
+        seconds = int(time_match.group(3))
+        return hours * 3600 + minutes * 60 + seconds
+
+    # Check for M:SS format (minutes:seconds)
+    time_match_short = re.match(r'^(\d+):(\d{2})$', handshake_str)
+    if time_match_short:
+        minutes = int(time_match_short.group(1))
+        seconds = int(time_match_short.group(2))
+        return minutes * 60 + seconds
+
+    # Fall back to stream release format: "X minutes, Y seconds ago"
     total_seconds = 0
-    handshake_str = handshake_str.lower().replace(' ago', '').strip()
+    handshake_lower = handshake_str.lower().replace(' ago', '').strip()
 
     # Parse hours
-    if 'hour' in handshake_str:
-        match = re.search(r'(\d+)\s*hour', handshake_str)
+    if 'hour' in handshake_lower:
+        match = re.search(r'(\d+)\s*hour', handshake_lower)
         if match:
             total_seconds += int(match.group(1)) * 3600
 
     # Parse minutes
-    if 'minute' in handshake_str:
-        match = re.search(r'(\d+)\s*minute', handshake_str)
+    if 'minute' in handshake_lower:
+        match = re.search(r'(\d+)\s*minute', handshake_lower)
         if match:
             total_seconds += int(match.group(1)) * 60
 
     # Parse seconds
-    if 'second' in handshake_str:
-        match = re.search(r'(\d+)\s*second', handshake_str)
+    if 'second' in handshake_lower:
+        match = re.search(r'(\d+)\s*second', handshake_lower)
         if match:
             total_seconds += int(match.group(1))
 
@@ -605,4 +670,5 @@ async def get_interface_public_key(request: Request, interface_name: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")

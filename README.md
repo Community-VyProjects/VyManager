@@ -1,22 +1,22 @@
-# 🖥️ VyManager
+# VyManager
 ## Enterprise-grade VyOS Router Management System
 
 Modern web interface to make configuring, deploying and monitoring VyOS routers easier
 
-## 🎯 Open Beta Community Release
+## Open Beta Community Release
 
 Open beta release. Expect lower stability and bugs. This release provides a lot of structural improvements over the older legacy version.
 We now flexibly support all active VyOS versions, including rolling releases.
 
-### [➡️ Skip to Quick Start](#-quick-start)
+### [Skip to Quick Start](#quick-start)
 
-**[💭 Join our Discord community to receive official updates](https://discord.gg/k9SSkK7wPQ)**
+**[Join our Discord community to receive official updates](https://discord.gg/k9SSkK7wPQ)**
 
-**Give us a star ⭐ to support us!**
+**Give us a star to support us!**
 
 ---
 
-### 📸 Screenshots
+### Screenshots
 
 <img width="1911" height="862" alt="image" src="https://github.com/user-attachments/assets/b23d2eb2-32bc-4e01-9d62-7eefc76e1526" />
 <img width="532" height="403" alt="image" src="https://github.com/user-attachments/assets/eb1070eb-4996-4669-a165-d555d191173c" />
@@ -24,24 +24,22 @@ We now flexibly support all active VyOS versions, including rolling releases.
 <img width="1919" height="933" alt="image" src="https://github.com/user-attachments/assets/2f883341-8d2c-4022-a33d-17f9a93e33a7" />
 <img width="1919" height="935" alt="image" src="https://github.com/user-attachments/assets/0ef645db-7c62-4f07-8b00-309f81773b3a" />
 
-
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
-- **Docker & Docker Compose** (recommended for easiest setup)
-- OR **Node.js 24.x** and **Python 3.11+** (for manual setup)
-- **VyOS Router** with REST API enabled (see setup below)
+- **Docker & Docker Compose** installed on your host machine
+- **VyOS Router** with REST API and GraphQL enabled (see [Step 1](#step-1-enable-the-vyos-rest-api))
 
 ---
 
-## 🔧 Setup Guide
+## Deployment Guide
 
-### Step 1: Setup VyOS Router REST API
+### Step 1: Enable the VyOS REST API
 
-Before deploying VyManager, you need to enable the REST API on your VyOS router(s).
+Before deploying VyManager, enable the REST API on your VyOS router(s).
 
 Connect to your VyOS router via SSH and run:
 
@@ -55,8 +53,11 @@ set service https api keys id vymanager key YOUR_SECURE_API_KEY
 # Enable REST functionality (VyOS 1.5+ only)
 set service https api rest
 
-# Optional: Enable GraphQL
+# Enable GraphQL (required for dashboard streaming)
 set service https api graphql
+
+# Set GraphQL authentication to use the API key defined above
+set service https api graphql authentication type key
 
 # Save and apply
 commit
@@ -64,79 +65,162 @@ save
 exit
 ```
 
-> 💡 **Security Note**: Keep your API key secure! You'll need it during the VyManager setup wizard.
+> **Security Note**: Keep your API key secure! You'll need it during the VyManager setup wizard.
 
-### Step 2: Configure Environment Files
+> **GraphQL is required** for the live dashboard cards (interface counters, system info, network speed graph, and WireGuard peers). All dashboard data is streamed via the VyOS GraphQL API using the same API key configured above.
 
-#### Frontend Configuration
+### Step 2: Create the project directory
 
-Copy `frontend/.env.example` to `frontend/.env`:
+Create a new directory for VyManager and navigate into it:
 
 ```bash
-cp frontend/.env.example frontend/.env
+mkdir vymanager
+cd vymanager
 ```
 
-Edit `frontend/.env`:
+You will create two files inside this directory: `docker-compose.yml` and `.env`.
+
+### Step 3: Create the docker-compose.yml
+
+Create a file named `docker-compose.yml` with the following contents:
+
+```yaml
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: vymanager-postgres
+    environment:
+      POSTGRES_USER: vymanager
+      POSTGRES_PASSWORD: CHANGE_ME_POSTGRES_PASSWORD
+      POSTGRES_DB: vymanager
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - vymanager-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vymanager -d vymanager"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  backend:
+    image: ghcr.io/community-vyprojects/vymanager-backend:beta
+    container_name: vymanager-backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    restart: unless-stopped
+    networks:
+      - vymanager-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/docs"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  frontend:
+    image: ghcr.io/community-vyprojects/vymanager-frontend:beta
+    container_name: vymanager-frontend
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    depends_on:
+      backend:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - vymanager-network
+
+networks:
+  vymanager-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+```
+
+### Step 4: Create the .env file
+
+Create a file named `.env` in the same directory. Both the backend and frontend containers read from this single file.
+
+You **must** change these values before starting:
+
+1. **`POSTGRES_PASSWORD`** — Change this in **both** `docker-compose.yml` and `DATABASE_URL` below; they must match. Generate one with: `openssl rand -hex 32`
+2. **`BETTER_AUTH_SECRET`** — Used to sign and verify session tokens; appears **twice** in the file (once for each service) and must be the **same value** in both places. Generate with: `openssl rand -base64 32`
+3. **`SSH_ENCRYPTION_KEY`** — Used to encrypt stored SSH private keys at rest. Generate with: `openssl rand -hex 32`
+4. **`BETTER_AUTH_URL` / `NEXT_PUBLIC_APP_URL`** — Replace `<YOUR_SERVER_IP>` with the IP or hostname users will open in their browser.
+5. **`TRUSTED_ORIGINS`** — Comma-separated list of every URL users will access VyManager from.
 
 ```env
-# Authentication (CHANGE THIS!)
-BETTER_AUTH_SECRET=your-super-secret-key-change-in-production-CHANGE-THIS
+# ── Backend ──────────────────────────────────────────────
+# CHANGE_ME_POSTGRES_PASSWORD must match POSTGRES_PASSWORD in docker-compose.yml
+DATABASE_URL=postgresql://vymanager:CHANGE_ME_POSTGRES_PASSWORD@postgres:5432/vymanager
+FRONTEND_URL=http://frontend:3000
 
-# Leave these as default for Docker deployment
+# CHANGE THIS — use a long random string (e.g. openssl rand -base64 32)
+# Must match the BETTER_AUTH_SECRET value below — both services use this file
+BETTER_AUTH_SECRET=Change-This-To-Something-Secret
+
+# CHANGE THIS — use a long random hex string (e.g. openssl rand -hex 32)
+SSH_ENCRYPTION_KEY=Change-This-To-A-Hex-String
+
+# ── Frontend ─────────────────────────────────────────────
 NODE_ENV=production
 VYMANAGER_ENV=production
-BETTER_AUTH_URL=http://localhost:3000
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-NEXT_PUBLIC_API_URL=http://backend:8000
 
-# Database (change password in production!)
-DATABASE_URL=postgresql://vymanager:vymanager_secure_password@postgres:5432/vymanager_auth
+# Must be the same value as BETTER_AUTH_SECRET above
+BETTER_AUTH_SECRET=Change-This-To-Something-Secret
 
-# Add your server IP if accessing from other machines
-TRUSTED_ORIGINS=http://localhost:3000,http://192.168.1.100:3000
+# CHANGE THIS — set to the URL where users access VyManager in their browser
+BETTER_AUTH_URL=http://<YOUR_SERVER_IP>:3000
+NEXT_PUBLIC_APP_URL=http://<YOUR_SERVER_IP>:3000
+
+# Internal Docker network URL — do not change unless you rename the backend service
+BACKEND_URL=http://backend:8000
+
+# CHANGE THIS — comma-separated list of every URL users will access VyManager from
+# Example: http://192.168.1.50:3000,http://vymanager.lan:3000
+TRUSTED_ORIGINS=http://<YOUR_SERVER_IP>:3000,http://localhost:3000
 ```
 
-#### Backend Configuration
+> **Tip**: Generate a strong secret with: `openssl rand -hex 32`
 
-Copy `backend/.env.example` to `backend/.env`:
+### Step 5: Start VyManager
+
+From inside the `vymanager` directory, run:
 
 ```bash
-cp backend/.env.example backend/.env
+docker compose up -d
 ```
 
-Edit `backend/.env`:
+Docker will pull the images, start PostgreSQL, wait for it to be healthy, then start the backend and frontend. This may take a minute on first run.
 
-```env
-# Database Connection
-DATABASE_URL=postgresql://vymanager:vymanager_secure_password@postgres:5432/vymanager_auth
-
-# Frontend URL
-FRONTEND_URL=http://localhost:3000
-```
-
-> 📝 **Note**: VyOS instance configuration is now managed through the web UI, not environment variables!
-
-### Step 3: Deploy with Docker Compose
+Check that all three containers are running:
 
 ```bash
-# Enter pre-compiled images directory
-cd /container/vymanager-prod
-
-# Start all services
-docker compose -f env-file-docker-compose.yml up -d
-
-# View logs
-docker compose logs -f
-
-# Check status
 docker compose ps
 ```
 
-### Step 4: Complete First-Time Setup Wizard
+You should see `vymanager-postgres`, `vymanager-backend`, and `vymanager-frontend` all in a **healthy** / **running** state.
 
-1. **Open your browser** and navigate to `http://localhost:3000`
+### Step 6: Complete the Setup Wizard
 
-2. **Onboarding Wizard** will automatically launch (first-time only):
+1. **Open your browser** and navigate to `http://<YOUR_SERVER_IP>:3000`
+
+2. The **onboarding wizard** will launch automatically on first visit:
    - **Step 1**: Create your admin account
    - **Step 2**: Create your first site (e.g., "Headquarters")
    - **Step 3**: Add your first VyOS instance
@@ -146,11 +230,55 @@ docker compose ps
      - API Key: The key you created in Step 1
      - Version: Select your VyOS version (1.4 or 1.5)
 
-3. **Start Managing!** You'll be automatically logged in and redirected to the dashboard
+3. **Start Managing!** You'll be automatically logged in and redirected to the dashboard.
 
 ---
 
-## 🏗️ Architecture Overview
+## Managing the Deployment
+
+### Common Docker Commands
+
+```bash
+# View logs (all services)
+docker compose logs -f
+
+# View logs for a single service
+docker compose logs -f backend
+docker compose logs -f frontend
+docker compose logs -f postgres
+
+# Stop all services
+docker compose down
+
+# Restart all services
+docker compose restart
+
+# Restart a single service
+docker compose restart backend
+
+# Pull latest images and recreate containers
+docker compose pull
+docker compose up -d
+
+# Remove everything including the database volume
+docker compose down -v
+```
+
+### Updating VyManager
+
+When a new version is released, update by pulling the latest images:
+
+```bash
+cd vymanager
+docker compose pull
+docker compose up -d
+```
+
+Your database and configuration are preserved in the `postgres_data` volume.
+
+---
+
+## Architecture Overview
 
 ### Multi-Instance Management
 
@@ -163,7 +291,7 @@ VyManager uses a **multi-instance architecture** allowing you to manage multiple
 
 ### Database-Driven Configuration
 
-Unlike traditional single-device management tools, VyManager stores all instance configurations in a PostgreSQL database:
+VyManager stores all instance configurations in a PostgreSQL database:
 
 ```
 PostgreSQL Database
@@ -174,135 +302,11 @@ PostgreSQL Database
 └── active_sessions # Current connections
 ```
 
-All VyOS instances are managed through the web UI - no hardcoded configuration!
+All VyOS instances are managed through the web UI — no hardcoded configuration.
 
 ---
 
-## 📁 Project Structure
-
-```
-vymanager/
-├── frontend/              # Next.js 16 frontend application
-│   ├── src/
-│   │   ├── app/          # Next.js app router pages
-│   │   │   ├── onboarding/    # First-time setup wizard
-│   │   │   ├── sites/         # Site & instance management
-│   │   │   ├── login/         # Authentication
-│   │   │   └── [features]/    # VyOS configuration pages
-│   │   ├── components/   # React components
-│   │   │   ├── sites/         # Site management components
-│   │   │   ├── layout/        # Navigation & layout
-│   │   │   └── ui/            # shadcn/ui components
-│   │   └── lib/          # Utilities and API clients
-│   │       └── api/           # Backend API services
-│   ├── prisma/           # Database schema & migrations
-│   │   └── migrations/        # Multi-instance schema
-│   ├── public/           # Static assets
-│   └── Dockerfile        # Frontend container
-
-├── backend/              # FastAPI backend application
-│   ├── routers/          # API route handlers
-│   │   ├── session/           # Session & instance management
-│   │   ├── firewall/          # Firewall configuration
-│   │   ├── network/           # Network configuration
-│   │   ├── interfaces/        # Interface management
-│   │   └── [features]/        # Other VyOS features
-│   ├── vyos_mappers/     # VyOS version mappers (1.4 vs 1.5)
-│   ├── vyos_builders/    # Configuration builders
-│   ├── vyos_service.py   # VyOS device service layer
-│   ├── app.py            # Main FastAPI application
-│   └── Dockerfile        # Backend container
-
-├── docker-compose.yml    # Multi-service orchestration
-│   ├── postgres          # PostgreSQL database
-│   ├── backend           # FastAPI API server
-│   └── frontend          # Next.js web app
-
-└── README.md             # This file
-```
-
----
-
-## 🎨 Tech Stack
-
-### Frontend
-- **Framework**: Next.js 16 (App Router)
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS v4
-- **UI Components**: shadcn/ui
-- **Icons**: Lucide React
-- **Authentication**: Better-auth
-- **State Management**: Zustand
-- **Database ORM**: Prisma
-
-### Backend
-- **Framework**: FastAPI
-- **Language**: Python 3.11+
-- **VyOS SDK**: pyvyos (custom)
-- **Database**: PostgreSQL
-- **DB Driver**: asyncpg
-
-### Infrastructure
-- **Container**: Docker & Docker Compose
-- **Database**: PostgreSQL 15
-- **Reverse Proxy**: Nginx (optional)
-
----
-
-## 📜 Available Scripts
-
-### Docker Commands (Recommended)
-
-```bash
-# Start all services
-docker compose up -d
-
-# View logs
-docker compose logs -f
-docker compose logs -f backend    # Backend only
-docker compose logs -f frontend   # Frontend only
-
-# Stop all services
-docker compose down
-
-# Rebuild after code changes
-docker compose build
-docker compose up -d
-
-# Restart a specific service
-docker compose restart backend
-docker compose restart frontend
-
-# Clean everything (including database)
-docker compose down -v
-```
-
-### Root-level npm Commands
-
-```bash
-# Development
-npm run dev              # Start all services with Docker
-npm run dev:down         # Stop Docker services
-
-# Production
-npm start                # Start services in detached mode
-npm stop                 # Stop all services
-
-# Logs
-npm run logs             # View all logs
-npm run logs:frontend    # Frontend logs only
-npm run logs:backend     # Backend logs only
-
-# Build
-npm run build:docker     # Build Docker images
-
-# Maintenance
-npm run clean            # Clean all build artifacts and containers
-```
-
----
-
-## 🔍 Managing Multiple VyOS Instances
+## Managing Multiple VyOS Instances
 
 ### Adding More Sites
 
@@ -330,10 +334,7 @@ npm run clean            # Clean all build artifacts and containers
 1. Navigate to **Site Manager**
 2. Select a site
 3. Click **"Connect"** on any instance card
-4. VyManager will:
-   - Test the connection
-   - Verify API credentials
-   - Redirect you to the dashboard if successful
+4. VyManager will test the connection, verify API credentials, and redirect you to the dashboard
 5. You can now manage that VyOS router!
 
 ### Switching Between Instances
@@ -344,7 +345,7 @@ npm run clean            # Clean all build artifacts and containers
 
 ---
 
-## 🛡️ Role-Based Access Control
+## Role-Based Access Control
 
 VyManager implements granular role-based access:
 
@@ -358,7 +359,7 @@ Roles are assigned per-site, allowing flexible multi-tenant scenarios.
 
 ---
 
-## 🏗️ Version-Aware Architecture
+## Version-Aware Architecture
 
 VyManager supports multiple VyOS versions (1.4, 1.5+) using a version-aware backend architecture.
 
@@ -376,36 +377,13 @@ Mappers (Version-Specific Commands)
 VyOS Device (1.4 or 1.5)
 ```
 
-**Example**:
-- **VyOS 1.4**: Uses `firewall group address-group`
-- **VyOS 1.5**: Uses `firewall group address-group` (same)
-- **New Features**: Automatically disabled on older versions
-
-### Capabilities Endpoint
-
-Every feature exposes a `/capabilities` endpoint:
-
-```json
-{
-  "version": "1.5",
-  "features": {
-    "domain_groups": {
-      "supported": true,
-      "description": "Domain-based firewall groups"
-    },
-    "ipv6_nat": {
-      "supported": true,
-      "description": "IPv6 NAT rules"
-    }
-  }
-}
-```
-
-The frontend conditionally shows/hides features based on capabilities.
+Every feature exposes a `/capabilities` endpoint that tells the frontend which features are available for the connected VyOS version. The frontend conditionally shows/hides features based on these capabilities.
 
 ---
 
-## 🧪 Development Setup
+## Development Setup
+
+If you want to contribute or run VyManager from source, follow the instructions below.
 
 ### Frontend Development
 
@@ -443,8 +421,6 @@ pip install -r requirements.txt
 # Run with auto-reload
 uvicorn app:app --reload --host 0.0.0.0 --port 8000 --proxy-headers
 
-> When serving behind Traefik/Nginx (HTTPS), make sure the proxy forwards `X-Forwarded-Proto`/`X-Forwarded-Port` so FastAPI can emit the correct scheme for redirects.
-
 # View API docs
 # Navigate to http://localhost:8000/docs
 ```
@@ -466,81 +442,83 @@ npx prisma studio
 
 ---
 
-## 🐳 Docker Production Deployment
+## Tech Stack
 
-### Using docker-compose.prod.yml
+### Frontend
+- **Framework**: Next.js 16 (App Router)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS v4
+- **UI Components**: shadcn/ui
+- **Icons**: Lucide React
+- **Authentication**: Better-auth
+- **State Management**: Zustand
+- **Database ORM**: Prisma
 
-```bash
-# Build images
-docker compose -f docker-compose.prod.yml build
+### Backend
+- **Framework**: FastAPI
+- **Language**: Python 3.11+
+- **VyOS SDK**: pyvyos (custom)
+- **Database**: PostgreSQL
+- **DB Driver**: asyncpg
 
-# Start services
-docker compose -f docker-compose.prod.yml up -d
-
-# View logs
-docker compose -f docker-compose.prod.yml logs -f
-```
-
-### Environment Variables for Production
-
-**Frontend `.env`**:
-```env
-NODE_ENV=production
-BETTER_AUTH_SECRET=<strong-random-secret-256-bits>
-BETTER_AUTH_SECURE_COOKIES=false
-BETTER_AUTH_URL=https://vymanager.yourdomain.com
-DATABASE_URL=postgresql://user:pass@postgres:5432/vymanager_auth
-TRUSTED_ORIGINS=https://vymanager.yourdomain.com
-```
-
-**Backend `.env`**:
-```env
-DATABASE_URL=postgresql://user:pass@postgres:5432/vymanager_auth
-FRONTEND_URL=https://vymanager.yourdomain.com
-```
-
-### Reverse Proxy (Nginx)
-
-```nginx
-server {
-    listen 80;
-    server_name vymanager.yourdomain.com;
-
-    location / {
-        proxy_pass http://localhost:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-    }
-}
-```
+### Infrastructure
+- **Container**: Docker & Docker Compose
+- **Database**: PostgreSQL 16
+- **Container Registry**: GitHub Container Registry (ghcr.io)
 
 ---
 
-## 📚 Additional Documentation
+## Security Considerations
 
-- **Frontend**: See `frontend/README.md`
-- **Backend**: See `backend/README.md`
-- **API Docs**: http://localhost:8000/docs (when running)
-- **VyOS Docs**: https://docs.vyos.io/
-- **Architecture Guide**: See `CLAUDE.md` for feature development patterns
-
----
-
-## 🔒 Security Considerations
-
-1. **Change Default Secrets**: Always change `BETTER_AUTH_SECRET` and database passwords
-2. **Use HTTPS**: Enable SSL/TLS for production deployments
-3. **Secure API Keys**: Store VyOS API keys securely, never commit to git
-4. **Database Backups**: Regularly backup the PostgreSQL database
+1. **Change Default Secrets**: Always change `BETTER_AUTH_SECRET` and database passwords before deploying
+2. **Use HTTPS**: Enable SSL/TLS for production deployments (use a reverse proxy like Nginx or Traefik)
+3. **Secure API Keys**: Store VyOS API keys securely, never commit them to git
+4. **Database Backups**: Regularly backup the PostgreSQL database (`postgres_data` volume)
 5. **Network Isolation**: Run VyManager in a secure network segment
 6. **Update Regularly**: Keep VyManager and VyOS up to date
 
 ---
 
-## 🤝 Contributing
+## Troubleshooting
+
+### Cannot Connect to VyOS Instance
+
+1. **Check API Key**: Verify the API key in VyOS matches your input
+2. **Check Network**: Ensure VyManager can reach the VyOS IP address
+3. **Check Port**: Default is 443, verify it's not blocked by firewall
+4. **Check SSL**: If using self-signed cert, set "Verify SSL" to false
+
+### Containers Not Starting
+
+```bash
+# Check container status and health
+docker compose ps
+
+# Check logs for errors
+docker compose logs postgres
+docker compose logs backend
+docker compose logs frontend
+```
+
+### Database Connection Failed
+
+```bash
+# Verify PostgreSQL is healthy
+docker compose ps postgres
+
+# Check that DATABASE_URL in .env matches the postgres service credentials
+# The hostname must be "postgres" (the Docker service name), not "localhost"
+```
+
+### Frontend Cannot Reach Backend
+
+- Verify `BACKEND_URL=http://backend:8000` in your `.env` file (uses Docker service name)
+- Verify `TRUSTED_ORIGINS` includes the URL you are accessing VyManager from in your browser
+- Check that the backend container is healthy: `docker compose ps backend`
+
+---
+
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
@@ -552,59 +530,19 @@ server {
 
 ---
 
-## 🐛 Troubleshooting
-
-### Cannot Connect to VyOS Instance
-
-1. **Check API Key**: Verify the API key in VyOS matches your input
-2. **Check Network**: Ensure VyManager can reach the VyOS IP address
-3. **Check Port**: Default is 443, verify it's not blocked by firewall
-4. **Check SSL**: If using self-signed cert, set "Verify SSL" to false
-
-### Database Connection Failed
-
-```bash
-# Check if PostgreSQL is running
-docker compose ps
-
-# Check database logs
-docker compose logs postgres
-
-# Verify DATABASE_URL is correct in .env files
-```
-
-### Frontend Build Errors
-
-```bash
-# Clear node_modules and rebuild
-cd frontend
-rm -rf node_modules .next
-npm install
-npm run build
-```
-
-### Backend Import Errors
-
-```bash
-# Reinstall Python dependencies
-cd backend
-pip install -r requirements.txt --force-reinstall
-```
-
----
-
-## 📄 License
+## License
 
 See LICENSE.md for details.
 
 ---
 
-## 🆘 Support
+## Support
 
 - **Issues**: [GitHub Issues](https://github.com/Community-VyProjects/VyManager/issues)
 - **Discord**: [Join our community](https://discord.gg/k9SSkK7wPQ)
-- **Documentation**: Check `CLAUDE.md` for development patterns
+- **API Docs**: http://localhost:8000/docs (when running)
+- **VyOS Docs**: https://docs.vyos.io/
 
 ---
 
-**Built with ❤️ for the VyOS community**
+**Built with love for the VyOS community**

@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { sessionService, Site } from "@/lib/api/session";
 import { ViewInstanceAccessModal } from "./ViewInstanceAccessModal";
+import { ApiError } from "@/lib/types/api";
 
 interface InstanceWithSite {
   id: string;
@@ -101,8 +102,8 @@ export function InstancesTab() {
       }
       setInstances(allInstances);
       setFilteredInstances(allInstances);
-    } catch (err: any) {
-      setError(err.message || "Failed to load sites");
+    } catch (err) {
+      setError((err as ApiError).message || "Failed to load sites");
     } finally {
       setLoading(false);
     }

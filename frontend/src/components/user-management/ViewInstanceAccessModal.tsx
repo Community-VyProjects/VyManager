@@ -42,8 +42,10 @@ import {
   Radio,
   UserCircle,
   Route,
+  Power,
 } from "lucide-react";
 import { userManagementService, FeatureGroup, InstanceUserListItem } from "@/lib/api/user-management";
+import { ApiError } from "@/lib/types/api";
 
 interface ViewInstanceAccessModalProps {
   open: boolean;
@@ -72,6 +74,8 @@ const FEATURE_ICONS: Record<FeatureGroup, any> = {
   [FeatureGroup.FIREWALL_POLICIES]: Shield,
   [FeatureGroup.FIREWALL_ZONES]: Shield,
   [FeatureGroup.FIREWALL_GLOBAL_OPTIONS]: Shield,
+  [FeatureGroup.FIREWALL_BRIDGE]: Shield,
+  [FeatureGroup.FIREWALL_FLOWTABLES]: Shield,
   [FeatureGroup.NETWORK]: Network,
   [FeatureGroup.VRF]: Network,
   [FeatureGroup.LOAD_BALANCING]: Network,
@@ -112,9 +116,12 @@ const FEATURE_ICONS: Record<FeatureGroup, any> = {
   [FeatureGroup.PIM6]: Radio,
   [FeatureGroup.SYSTEM]: Server,
   [FeatureGroup.CONFIGURATION]: Server,
+  [FeatureGroup.MONITORING]: Activity,
   [FeatureGroup.DASHBOARD]: Server,
   [FeatureGroup.SITES_INSTANCES]: Building2,
   [FeatureGroup.USER_MANAGEMENT]: UserCircle,
+  [FeatureGroup.POWER]: Power,
+  [FeatureGroup.HIGH_AVAILABILITY]: Shield,
 };
 
 // Feature display names
@@ -127,6 +134,8 @@ const FEATURE_NAMES: Record<FeatureGroup, string> = {
   [FeatureGroup.FIREWALL_POLICIES]: "Firewall Policies",
   [FeatureGroup.FIREWALL_ZONES]: "Firewall Zones",
   [FeatureGroup.FIREWALL_GLOBAL_OPTIONS]: "Firewall Global Options",
+  [FeatureGroup.FIREWALL_BRIDGE]: "Bridge Firewall",
+  [FeatureGroup.FIREWALL_FLOWTABLES]: "Flowtables",
   [FeatureGroup.NETWORK]: "Network",
   [FeatureGroup.VRF]: "VRF",
   [FeatureGroup.LOAD_BALANCING]: "Load Balancing",
@@ -167,9 +176,12 @@ const FEATURE_NAMES: Record<FeatureGroup, string> = {
   [FeatureGroup.PIM6]: "PIM6",
   [FeatureGroup.SYSTEM]: "System",
   [FeatureGroup.CONFIGURATION]: "Configuration",
+  [FeatureGroup.MONITORING]: "Monitoring",
   [FeatureGroup.DASHBOARD]: "Dashboard",
   [FeatureGroup.SITES_INSTANCES]: "Sites & Instances",
   [FeatureGroup.USER_MANAGEMENT]: "User Management",
+  [FeatureGroup.POWER]: "Power",
+  [FeatureGroup.HIGH_AVAILABILITY]: "High Availability",
 };
 
 export function ViewInstanceAccessModal({
@@ -217,8 +229,8 @@ export function ViewInstanceAccessModal({
       const data = await userManagementService.getInstanceUsers(instance.id);
       setUsers(data);
       setFilteredUsers(data);
-    } catch (err: any) {
-      setError(err.message || "Failed to load instance users");
+    } catch (err) {
+      setError((err as ApiError).message || "Failed to load instance users");
     } finally {
       setLoading(false);
     }

@@ -406,7 +406,7 @@ class AccessListService {
     listType: string,
     ruleNumber: number,
     rule: Partial<AccessListRule>
-  ): Promise<any> {
+  ): Promise<VyOSResponse> {
     const operations: AccessListBatchOperation[] = [];
 
     // Delete existing source first
@@ -533,7 +533,7 @@ class AccessListService {
     identifier: string,
     listType: string,
     ruleNumber: number
-  ): Promise<any> {
+  ): Promise<VyOSResponse> {
     const operations: AccessListBatchOperation[] = [];
     operations.push({
       op: listType === "ipv4" ? "delete_rule" : "delete_rule6"

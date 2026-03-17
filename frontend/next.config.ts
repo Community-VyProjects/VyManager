@@ -1,24 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  async rewrites() {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-    return [
-      {
-        source: '/api/vyos/:path*',
-        destination: `${apiUrl}/vyos/:path*`,
-      },
-      {
-        source: '/api/dashboard/:path*',
-        destination: `${apiUrl}/dashboard/:path*`,
-      },
-      {
-        source: '/api/user-management/:path*',
-        destination: `${apiUrl}/user-management/:path*`,
-      },
-      // Note: /api/session/* is handled by API routes, not rewrites
-    ];
-  },
+  // IMPORTANT: We do NOT use rewrites here because they are evaluated at BUILD TIME
+  // and cannot be configured at runtime. Instead, all API proxying is done through
+  // API route handlers in src/app/api/* which read BACKEND_URL at RUNTIME.
+  //
+  // This allows users to set BACKEND_URL=http://some-host:8000 in their .env
+  // without needing to rebuild the Docker image.
 };
 
 export default nextConfig;

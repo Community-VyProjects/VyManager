@@ -31,6 +31,7 @@ import {
   EyeOff,
 } from "lucide-react";
 import { wireguardService, WireGuardCapabilities } from "@/lib/api/wireguard";
+import { ApiError } from "@/lib/types/api";
 
 interface QuickSetupWizardProps {
   open: boolean;
@@ -303,8 +304,8 @@ PersistentKeepalive = 25`;
 
       setResult(setupResult);
       setStep("complete");
-    } catch (err: any) {
-      setError(err.message || "Setup failed");
+    } catch (err) {
+      setError((err as ApiError).message || "Setup failed");
     } finally {
       setLoading(false);
     }

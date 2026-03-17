@@ -28,6 +28,15 @@ export interface SaveConfigResponse {
   error?: string | null;
 }
 
+export interface CommitConfirmStatus {
+  active: boolean;
+  instance_id?: string | null;
+  confirm_time_minutes?: number | null;
+  action?: string | null;
+  seconds_remaining?: number | null;
+  expires_at?: string | null;
+}
+
 // ============================================================================
 // API Service
 // ============================================================================
@@ -58,15 +67,22 @@ class ConfigService {
   /**
    * Force refresh the configuration cache
    */
-  async refreshConfig(): Promise<any> {
+  async refreshConfig(): Promise<{ success: boolean; message: string }> {
     return apiClient.post("/vyos/config/refresh");
   }
 
   /**
-   * Initialize the snapshot with current config
+   * Get the current commit-confirm status for the active instance
    */
-  async initializeSnapshot(): Promise<any> {
-    return apiClient.post("/vyos/config/initialize-snapshot");
+  async getCommitConfirmStatus(): Promise<CommitConfirmStatus> {
+    return apiClient.get<CommitConfirmStatus>("/vyos/config/commit-confirm/status");
+  }
+
+  /**
+   * Confirm an active commit-confirm, stopping the rollback timer and saving to disk
+   */
+  async confirmCommit(): Promise<SaveConfigResponse> {
+    return apiClient.post<SaveConfigResponse>("/vyos/config/commit-confirm/confirm");
   }
 }
 

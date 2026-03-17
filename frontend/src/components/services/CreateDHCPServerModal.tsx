@@ -18,6 +18,7 @@ import { AlertCircle, Plus, X, Info } from "lucide-react";
 import { dhcpService, type DHCPCapabilitiesResponse, type DHCPRange } from "@/lib/api/dhcp";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { ApiError } from "@/lib/types/api";
 
 // Validation helper functions
 const isValidIPv4 = (ip: string): boolean => {
@@ -393,8 +394,8 @@ export function CreateDHCPServerModal({
 
       handleClose();
       onSuccess();
-    } catch (err: any) {
-      setError(err.message || "Failed to create DHCP server");
+    } catch (err) {
+      setError((err as ApiError).message || "Failed to create DHCP server");
     } finally {
       setLoading(false);
     }

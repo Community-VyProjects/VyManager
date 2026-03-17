@@ -26,6 +26,7 @@ export interface WireGuardInterface {
   mtu?: string | null;
   fwmark?: string | null;
   per_client_thread: boolean;
+  disabled?: boolean;
   peers: WireGuardPeer[];
   peer_count: number;
 }
@@ -123,7 +124,7 @@ class WireGuardService {
   /**
    * Refresh the cached configuration
    */
-  async refreshConfig(): Promise<any> {
+  async refreshConfig(): Promise<VyOSResponse> {
     return apiClient.post("/vyos/config/refresh");
   }
 
@@ -201,6 +202,7 @@ class WireGuardService {
       private_key?: string | null;
       mtu?: string | null;
       per_client_thread?: boolean;
+      disabled?: boolean;
     }
   ): Promise<VyOSResponse> {
     const operations: WireGuardBatchOperation[] = [];
@@ -259,6 +261,15 @@ class WireGuardService {
         operations.push({ op: "set_interface_per_client_thread" });
       } else if (!newConfig.per_client_thread && currentConfig.per_client_thread) {
         operations.push({ op: "delete_interface_per_client_thread" });
+      }
+    }
+
+    // Handle disabled
+    if (newConfig.disabled !== undefined) {
+      if (newConfig.disabled && !currentConfig.disabled) {
+        operations.push({ op: "set_interface_disable" });
+      } else if (!newConfig.disabled && currentConfig.disabled) {
+        operations.push({ op: "delete_interface_disable" });
       }
     }
 

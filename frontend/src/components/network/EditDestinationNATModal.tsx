@@ -13,10 +13,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircle } from "lucide-react";
 import { natService } from "@/lib/api/nat";
 import { firewallGroupsService } from "@/lib/api/firewall-groups";
-import { ethernetService } from "@/lib/api/ethernet";
+import { configService } from "@/lib/api/config";
 import type { FirewallGroup } from "@/lib/api/types/firewall-groups";
-import type { EthernetInterface } from "@/lib/api/types/ethernet";
 import type { DestinationNATRule } from "@/lib/api/nat";
+
+interface SimpleInterface {
+  name: string;
+  type: string;
+}
 
 interface EditDestinationNATModalProps {
   open: boolean;
@@ -31,7 +35,7 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
 
   // Dropdown data
   const [groups, setGroups] = useState<FirewallGroup[]>([]);
-  const [interfaces, setInterfaces] = useState<EthernetInterface[]>([]);
+  const [interfaces, setInterfaces] = useState<SimpleInterface[]>([]);
 
   // Form fields - Description
   const [description, setDescription] = useState("");
@@ -74,6 +78,53 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
   const [exclude, setExclude] = useState(false);
   const [log, setLog] = useState(false);
 
+  // Track original values to detect when fields are cleared
+  const [originalSourceAddress, setOriginalSourceAddress] = useState("");
+  const [originalSourcePort, setOriginalSourcePort] = useState("");
+  const [originalSourceGroup, setOriginalSourceGroup] = useState(false);
+  const [originalDestinationAddress, setOriginalDestinationAddress] = useState("");
+  const [originalDestinationPort, setOriginalDestinationPort] = useState("");
+  const [originalDestinationGroup, setOriginalDestinationGroup] = useState(false);
+  const [originalInboundInterfaceType, setOriginalInboundInterfaceType] = useState<"name" | "group" | null>(null);
+
+  // Reset all form fields to defaults
+  const resetForm = () => {
+    setDescription("");
+    setSourceType("address");
+    setSourceAddress("");
+    setSourcePort("");
+    setSourceGroupType("");
+    setSourceGroupName("");
+    setDestinationType("address");
+    setDestinationAddress("");
+    setDestinationPort("");
+    setDestinationGroupType("");
+    setDestinationGroupName("");
+    setInboundInterfaceType("name");
+    setInboundInterfaceName("");
+    setInboundInterfaceGroup("");
+    setInboundInterfaceInvert(false);
+    setProtocol("");
+    setPacketType("");
+    setTranslationAddress("");
+    setTranslationPort("");
+    setLoadBalancingEnabled(false);
+    setLoadBalanceHash("");
+    setLoadBalanceBackend("");
+    setDisable(false);
+    setExclude(false);
+    setLog(false);
+    // Reset original tracking values
+    setOriginalSourceAddress("");
+    setOriginalSourcePort("");
+    setOriginalSourceGroup(false);
+    setOriginalDestinationAddress("");
+    setOriginalDestinationPort("");
+    setOriginalDestinationGroup(false);
+    setOriginalInboundInterfaceType(null);
+    setError(null);
+  };
+
   // Load groups and interfaces on mount
   useEffect(() => {
     if (open) {
@@ -85,6 +136,8 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
   // Populate form when rule changes
   useEffect(() => {
     if (rule && open) {
+      // Reset form first to clear any stale data from previous rule
+      resetForm();
       populateForm(rule);
     }
   }, [rule, open]);
@@ -111,6 +164,7 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
     if (rule.source?.address) {
       setSourceType("address");
       setSourceAddress(rule.source.address);
+      setOriginalSourceAddress(rule.source.address);
     } else if (rule.source?.group) {
       setSourceType("group");
       const groupEntries = Object.entries(rule.source.group);
@@ -118,14 +172,20 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
         const [type, name] = groupEntries[0];
         setSourceGroupType(type);
         setSourceGroupName(name);
+        setOriginalSourceGroup(true);
       }
+    } else {
+      setOriginalSourceAddress("");
+      setOriginalSourceGroup(false);
     }
     setSourcePort(rule.source?.port || "");
+    setOriginalSourcePort(rule.source?.port || "");
 
     // Destination
     if (rule.destination?.address) {
       setDestinationType("address");
       setDestinationAddress(rule.destination.address);
+      setOriginalDestinationAddress(rule.destination.address);
     } else if (rule.destination?.group) {
       setDestinationType("group");
       const groupEntries = Object.entries(rule.destination.group);
@@ -133,9 +193,14 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
         const [type, name] = groupEntries[0];
         setDestinationGroupType(type);
         setDestinationGroupName(name);
+        setOriginalDestinationGroup(true);
       }
+    } else {
+      setOriginalDestinationAddress("");
+      setOriginalDestinationGroup(false);
     }
     setDestinationPort(rule.destination?.port || "");
+    setOriginalDestinationPort(rule.destination?.port || "");
 
     // Inbound interface
     if (rule.inbound_interface) {
@@ -143,6 +208,7 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
       if (interfaceEntries.length > 0) {
         const [type, value] = interfaceEntries[0];
         setInboundInterfaceType(type as "name" | "group");
+        setOriginalInboundInterfaceType(type as "name" | "group");
 
         // Check for inverted interface (starts with !)
         const isInverted = value.startsWith("!");
@@ -200,8 +266,54 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
 
   const loadInterfaces = async () => {
     try {
-      const config = await ethernetService.getConfig();
-      setInterfaces(config.interfaces);
+      const snapshot = await configService.getSnapshot();
+      const interfacesConfig = snapshot.config?.interfaces || {};
+      const allInterfaces: SimpleInterface[] = [];
+
+      // Parse all interface types from the config
+      const interfaceTypes = [
+        "ethernet",
+        "wireguard",
+        "vti",
+        "tunnel",
+        "dummy",
+        "loopback",
+        "bridge",
+        "bonding",
+        "pppoe",
+        "wwan",
+        "macsec",
+        "openvpn",
+        "vxlan",
+        "geneve",
+        "l2tpv3",
+        "sstpc",
+        "virtual-ethernet",
+      ];
+
+      for (const ifaceType of interfaceTypes) {
+        const typeInterfaces = interfacesConfig[ifaceType];
+        if (typeInterfaces && typeof typeInterfaces === "object") {
+          for (const ifaceName of Object.keys(typeInterfaces)) {
+            allInterfaces.push({ name: ifaceName, type: ifaceType });
+
+            // Check for VLANs (vif) under ethernet/bonding/bridge interfaces
+            const ifaceConfig = typeInterfaces[ifaceName];
+            if (ifaceConfig?.vif && typeof ifaceConfig.vif === "object") {
+              for (const vlanId of Object.keys(ifaceConfig.vif)) {
+                allInterfaces.push({
+                  name: `${ifaceName}.${vlanId}`,
+                  type: "vlan",
+                });
+              }
+            }
+          }
+        }
+      }
+
+      // Sort interfaces by name
+      allInterfaces.sort((a, b) => a.name.localeCompare(b.name));
+      setInterfaces(allInterfaces);
     } catch (err) {
       console.error("Failed to load interfaces:", err);
     }
@@ -225,34 +337,84 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
         config.description = description.trim();
       }
 
-      // Source
-      if (sourceType === "address" && sourceAddress.trim()) {
-        config.source_address = sourceAddress.trim();
-      } else if (sourceType === "group" && sourceGroupType && sourceGroupName) {
-        config.source_group_type = sourceGroupType;
-        config.source_group_name = sourceGroupName;
+      // Source - handle both setting new values and deleting cleared values
+      if (sourceType === "address") {
+        if (sourceAddress.trim()) {
+          config.source_address = sourceAddress.trim();
+        } else if (originalSourceAddress) {
+          // Address was cleared - need to delete it
+          config.delete_source_address = true;
+        }
+        // If switching from group to address with no value, delete the group
+        if (originalSourceGroup) {
+          config.delete_source_group = true;
+        }
+      } else if (sourceType === "group") {
+        if (sourceGroupType && sourceGroupName) {
+          config.source_group_type = sourceGroupType;
+          config.source_group_name = sourceGroupName;
+        } else if (originalSourceGroup) {
+          // Group was cleared - need to delete it
+          config.delete_source_group = true;
+        }
+        // If switching from address to group with no value, delete the address
+        if (originalSourceAddress) {
+          config.delete_source_address = true;
+        }
       }
+
       if (sourcePort.trim()) {
         config.source_port = sourcePort.trim();
+      } else if (originalSourcePort) {
+        // Port was cleared - need to delete it
+        config.delete_source_port = true;
       }
 
-      // Destination
-      if (destinationType === "address" && destinationAddress.trim()) {
-        config.destination_address = destinationAddress.trim();
-      } else if (destinationType === "group" && destinationGroupType && destinationGroupName) {
-        config.destination_group_type = destinationGroupType;
-        config.destination_group_name = destinationGroupName;
+      // Destination - handle both setting new values and deleting cleared values
+      if (destinationType === "address") {
+        if (destinationAddress.trim()) {
+          config.destination_address = destinationAddress.trim();
+        } else if (originalDestinationAddress) {
+          // Address was cleared - need to delete it
+          config.delete_destination_address = true;
+        }
+        // If switching from group to address with no value, delete the group
+        if (originalDestinationGroup) {
+          config.delete_destination_group = true;
+        }
+      } else if (destinationType === "group") {
+        if (destinationGroupType && destinationGroupName) {
+          config.destination_group_type = destinationGroupType;
+          config.destination_group_name = destinationGroupName;
+        } else if (originalDestinationGroup) {
+          // Group was cleared - need to delete it
+          config.delete_destination_group = true;
+        }
+        // If switching from address to group with no value, delete the address
+        if (originalDestinationAddress) {
+          config.delete_destination_address = true;
+        }
       }
+
       if (destinationPort.trim()) {
         config.destination_port = destinationPort.trim();
+      } else if (originalDestinationPort) {
+        // Port was cleared - need to delete it
+        config.delete_destination_port = true;
       }
 
-      // Inbound interface
+      // Inbound interface - delete the old type when switching between name and group
       if (inboundInterfaceType === "name" && inboundInterfaceName) {
+        if (originalInboundInterfaceType === "group") {
+          config.delete_inbound_interface_group = true;
+        }
         config.inbound_interface_type = "name";
         config.inbound_interface_value = inboundInterfaceName;
         config.inbound_interface_invert = inboundInterfaceInvert;
       } else if (inboundInterfaceType === "group" && inboundInterfaceGroup) {
+        if (originalInboundInterfaceType === "name") {
+          config.delete_inbound_interface_name = true;
+        }
         config.inbound_interface_type = "group";
         config.inbound_interface_value = inboundInterfaceGroup;
         config.inbound_interface_invert = inboundInterfaceInvert;

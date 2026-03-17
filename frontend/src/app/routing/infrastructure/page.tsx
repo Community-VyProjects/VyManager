@@ -2,6 +2,8 @@
 
 import { AppLayout } from "@/components/layout/AppLayout";
 import { InProgress } from "@/components/layout/InProgress";
+import { BfdContent } from "@/components/bfd/BfdContent";
+import { MplsContent } from "@/components/mpls/MplsContent";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Settings, ChevronRight, Activity, Box, Waypoints, Globe, Shield } from "lucide-react";
@@ -119,7 +121,13 @@ export default function InfrastructurePage() {
 
         {/* Main Content Area */}
         <div className="flex-1">
-          <InProgress />
+          {selectedInfra === "bfd" ? (
+            <BfdContent />
+          ) : selectedInfra === "mpls" ? (
+            <MplsContent />
+          ) : (
+            <InProgress />
+          )}
         </div>
       </div>
     </AppLayout>

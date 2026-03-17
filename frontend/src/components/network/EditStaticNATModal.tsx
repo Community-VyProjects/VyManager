@@ -9,9 +9,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { AlertCircle } from "lucide-react";
 import { natService } from "@/lib/api/nat";
-import { ethernetService } from "@/lib/api/ethernet";
-import type { EthernetInterface } from "@/lib/api/types/ethernet";
+import { configService } from "@/lib/api/config";
 import type { StaticNATRule } from "@/lib/api/nat";
+
+interface SimpleInterface {
+  name: string;
+  type: string;
+}
 
 interface EditStaticNATModalProps {
   open: boolean;
@@ -25,7 +29,7 @@ export function EditStaticNATModal({ open, onOpenChange, rule, onSuccess }: Edit
   const [error, setError] = useState<string | null>(null);
 
   // Dropdown data
-  const [interfaces, setInterfaces] = useState<EthernetInterface[]>([]);
+  const [interfaces, setInterfaces] = useState<SimpleInterface[]>([]);
 
   // Form fields - Description
   const [description, setDescription] = useState("");
@@ -39,6 +43,15 @@ export function EditStaticNATModal({ open, onOpenChange, rule, onSuccess }: Edit
   // Translation
   const [translationAddress, setTranslationAddress] = useState("");
 
+  // Reset all form fields to defaults
+  const resetForm = () => {
+    setDescription("");
+    setDestinationAddress("");
+    setInboundInterfaceName("");
+    setTranslationAddress("");
+    setError(null);
+  };
+
   // Load interfaces on mount
   useEffect(() => {
     if (open) {
@@ -49,6 +62,8 @@ export function EditStaticNATModal({ open, onOpenChange, rule, onSuccess }: Edit
   // Populate form when rule changes
   useEffect(() => {
     if (rule && open) {
+      // Reset form first to clear any stale data from previous rule
+      resetForm();
       populateForm(rule);
     }
   }, [rule, open]);
@@ -75,8 +90,54 @@ export function EditStaticNATModal({ open, onOpenChange, rule, onSuccess }: Edit
 
   const loadInterfaces = async () => {
     try {
-      const config = await ethernetService.getConfig();
-      setInterfaces(config.interfaces);
+      const snapshot = await configService.getSnapshot();
+      const interfacesConfig = snapshot.config?.interfaces || {};
+      const allInterfaces: SimpleInterface[] = [];
+
+      // Parse all interface types from the config
+      const interfaceTypes = [
+        "ethernet",
+        "wireguard",
+        "vti",
+        "tunnel",
+        "dummy",
+        "loopback",
+        "bridge",
+        "bonding",
+        "pppoe",
+        "wwan",
+        "macsec",
+        "openvpn",
+        "vxlan",
+        "geneve",
+        "l2tpv3",
+        "sstpc",
+        "virtual-ethernet",
+      ];
+
+      for (const ifaceType of interfaceTypes) {
+        const typeInterfaces = interfacesConfig[ifaceType];
+        if (typeInterfaces && typeof typeInterfaces === "object") {
+          for (const ifaceName of Object.keys(typeInterfaces)) {
+            allInterfaces.push({ name: ifaceName, type: ifaceType });
+
+            // Check for VLANs (vif) under ethernet/bonding/bridge interfaces
+            const ifaceConfig = typeInterfaces[ifaceName];
+            if (ifaceConfig?.vif && typeof ifaceConfig.vif === "object") {
+              for (const vlanId of Object.keys(ifaceConfig.vif)) {
+                allInterfaces.push({
+                  name: `${ifaceName}.${vlanId}`,
+                  type: "vlan",
+                });
+              }
+            }
+          }
+        }
+      }
+
+      // Sort interfaces by name
+      allInterfaces.sort((a, b) => a.name.localeCompare(b.name));
+      setInterfaces(allInterfaces);
     } catch (err) {
       console.error("Failed to load interfaces:", err);
     }
@@ -94,11 +155,10 @@ export function EditStaticNATModal({ open, onOpenChange, rule, onSuccess }: Edit
     setError(null);
 
     try {
-      const config: any = {};
+      const config: Record<string, string> = {};
 
-      if (description.trim()) {
-        config.description = description.trim();
-      }
+      // Always pass description so service can set or delete it
+      config.description = description.trim();
 
       // Destination
       if (destinationAddress.trim()) {

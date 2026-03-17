@@ -1,4 +1,5 @@
 import { apiClient } from "./client";
+import { ApiError } from "@/lib/types/api";
 
 // ============================================================================
 // TypeScript Interfaces (matching backend Pydantic models)
@@ -114,6 +115,8 @@ export enum FeatureGroup {
   FIREWALL_POLICIES = "FIREWALL_POLICIES",
   FIREWALL_ZONES = "FIREWALL_ZONES",
   FIREWALL_GLOBAL_OPTIONS = "FIREWALL_GLOBAL_OPTIONS",
+  FIREWALL_BRIDGE = "FIREWALL_BRIDGE",
+  FIREWALL_FLOWTABLES = "FIREWALL_FLOWTABLES",
 
   // Network features
   NETWORK = "NETWORK",
@@ -169,9 +172,12 @@ export enum FeatureGroup {
 
   SYSTEM = "SYSTEM",
   CONFIGURATION = "CONFIGURATION",
+  MONITORING = "MONITORING",
   DASHBOARD = "DASHBOARD",
   SITES_INSTANCES = "SITES_INSTANCES",
   USER_MANAGEMENT = "USER_MANAGEMENT",
+  POWER = "POWER",
+  HIGH_AVAILABILITY = "HIGH_AVAILABILITY",
 }
 
 // ============================================================================
@@ -190,8 +196,8 @@ class UserManagementService {
   async getMyPermissions(): Promise<MyPermissionsResponse> {
     try {
       return await apiClient.get<MyPermissionsResponse>("/user-management/my-permissions");
-    } catch (error: any) {
-      const errorMessage = error?.details?.detail || error?.message || "Failed to fetch permissions";
+    } catch (error) {
+      const errorMessage = ((error as ApiError).details as { detail?: string })?.detail || (error as ApiError).message || "Failed to fetch permissions";
       throw new Error(errorMessage);
     }
   }
@@ -207,8 +213,8 @@ class UserManagementService {
   async listUsers(): Promise<UserListItem[]> {
     try {
       return await apiClient.get<UserListItem[]>("/user-management/users");
-    } catch (error: any) {
-      const errorMessage = error?.details?.detail || error?.message || "Failed to fetch users";
+    } catch (error) {
+      const errorMessage = ((error as ApiError).details as { detail?: string })?.detail || (error as ApiError).message || "Failed to fetch users";
       throw new Error(errorMessage);
     }
   }
@@ -220,8 +226,8 @@ class UserManagementService {
   async getUser(userId: string): Promise<UserDetail> {
     try {
       return await apiClient.get<UserDetail>(`/user-management/users/${userId}`);
-    } catch (error: any) {
-      const errorMessage = error?.details?.detail || error?.message || "Failed to fetch user";
+    } catch (error) {
+      const errorMessage = ((error as ApiError).details as { detail?: string })?.detail || (error as ApiError).message || "Failed to fetch user";
       throw new Error(errorMessage);
     }
   }
@@ -235,8 +241,8 @@ class UserManagementService {
       return await apiClient.get<UserInstanceAssignment[]>(
         `/user-management/users/${userId}/assignments`
       );
-    } catch (error: any) {
-      const errorMessage = error?.details?.detail || error?.message || "Failed to fetch user assignments";
+    } catch (error) {
+      const errorMessage = ((error as ApiError).details as { detail?: string })?.detail || (error as ApiError).message || "Failed to fetch user assignments";
       throw new Error(errorMessage);
     }
   }
@@ -248,8 +254,8 @@ class UserManagementService {
   async createUser(data: CreateUserRequest): Promise<UserDetail> {
     try {
       return await apiClient.post<UserDetail>("/user-management/users", data);
-    } catch (error: any) {
-      const errorMessage = error?.details?.detail || error?.message || "Failed to create user";
+    } catch (error) {
+      const errorMessage = ((error as ApiError).details as { detail?: string })?.detail || (error as ApiError).message || "Failed to create user";
       throw new Error(errorMessage);
     }
   }
@@ -261,8 +267,8 @@ class UserManagementService {
   async updateUser(userId: string, data: UpdateUserRequest): Promise<UserDetail> {
     try {
       return await apiClient.put<UserDetail>(`/user-management/users/${userId}`, data);
-    } catch (error: any) {
-      const errorMessage = error?.details?.detail || error?.message || "Failed to update user";
+    } catch (error) {
+      const errorMessage = ((error as ApiError).details as { detail?: string })?.detail || (error as ApiError).message || "Failed to update user";
       throw new Error(errorMessage);
     }
   }
@@ -276,8 +282,8 @@ class UserManagementService {
       return await apiClient.delete<{ success: boolean; message: string }>(
         `/user-management/users/${userId}`
       );
-    } catch (error: any) {
-      const errorMessage = error?.details?.detail || error?.message || "Failed to delete user";
+    } catch (error) {
+      const errorMessage = ((error as ApiError).details as { detail?: string })?.detail || (error as ApiError).message || "Failed to delete user";
       throw new Error(errorMessage);
     }
   }
@@ -297,8 +303,8 @@ class UserManagementService {
         "/user-management/assignments",
         data
       );
-    } catch (error: any) {
-      const errorMessage = error?.details?.detail || error?.message || "Failed to assign user";
+    } catch (error) {
+      const errorMessage = ((error as ApiError).details as { detail?: string })?.detail || (error as ApiError).message || "Failed to assign user";
       throw new Error(errorMessage);
     }
   }
@@ -312,8 +318,8 @@ class UserManagementService {
       return await apiClient.delete<{ success: boolean; message: string }>(
         `/user-management/assignments/${assignmentId}`
       );
-    } catch (error: any) {
-      const errorMessage = error?.details?.detail || error?.message || "Failed to remove assignment";
+    } catch (error) {
+      const errorMessage = ((error as ApiError).details as { detail?: string })?.detail || (error as ApiError).message || "Failed to remove assignment";
       throw new Error(errorMessage);
     }
   }
@@ -331,8 +337,8 @@ class UserManagementService {
       return await apiClient.get<InstanceUserListItem[]>(
         `/user-management/instances/${instanceId}/users`
       );
-    } catch (error: any) {
-      const errorMessage = error?.details?.detail || error?.message || "Failed to fetch instance users";
+    } catch (error) {
+      const errorMessage = ((error as ApiError).details as { detail?: string })?.detail || (error as ApiError).message || "Failed to fetch instance users";
       throw new Error(errorMessage);
     }
   }

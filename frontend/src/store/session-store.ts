@@ -7,6 +7,7 @@
 
 import { create } from "zustand";
 import { ActiveSession, sessionService } from "@/lib/api/session";
+import { ApiError } from "@/lib/types/api";
 
 interface SessionState {
   // Current active session (null if not connected)
@@ -38,9 +39,9 @@ export const useSessionStore = create<SessionState>((set) => ({
     try {
       const session = await sessionService.getCurrentSession();
       set({ activeSession: session, isLoading: false });
-    } catch (error: any) {
+    } catch (error) {
       set({
-        error: error.message || "Failed to load session",
+        error: (error as ApiError).message || "Failed to load session",
         isLoading: false,
       });
     }
@@ -56,9 +57,9 @@ export const useSessionStore = create<SessionState>((set) => ({
       // Reload session to get updated data
       const session = await sessionService.getCurrentSession();
       set({ activeSession: session, isLoading: false });
-    } catch (error: any) {
+    } catch (error) {
       set({
-        error: error.message || "Failed to connect to instance",
+        error: (error as ApiError).message || "Failed to connect to instance",
         isLoading: false,
       });
       throw error; // Re-throw so UI can handle it
@@ -73,9 +74,9 @@ export const useSessionStore = create<SessionState>((set) => ({
     try {
       await sessionService.disconnect();
       set({ activeSession: null, isLoading: false });
-    } catch (error: any) {
+    } catch (error) {
       set({
-        error: error.message || "Failed to disconnect",
+        error: (error as ApiError).message || "Failed to disconnect",
         isLoading: false,
       });
       throw error;

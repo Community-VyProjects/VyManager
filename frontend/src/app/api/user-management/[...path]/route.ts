@@ -7,7 +7,9 @@
 
 import { NextRequest, NextResponse } from "next/server";
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://backend:8000";
+// Runtime environment variable - NOT NEXT_PUBLIC_ so it's read at runtime
+// This allows users to configure the backend URL without rebuilding
+const getBackendUrl = () => process.env.BACKEND_URL || "http://backend:8000";
 
 export async function GET(
   request: NextRequest,
@@ -46,16 +48,15 @@ async function proxyRequest(
   path: string[],
   method: string
 ) {
-  try {
-    console.log(`[UserManagementProxy] ${method} /api/user-management/${path.join("/")}`);
+  const BACKEND_URL = getBackendUrl();
 
+  try {
     // Get the session token from request cookies
     const sessionToken = request.cookies.get("better-auth.session_token");
 
     // Build the backend URL
     const backendPath = `/user-management/${path.join("/")}`;
     const backendUrl = `${BACKEND_URL}${backendPath}`;
-    console.log(`[UserManagementProxy] Proxying to: ${backendUrl}`);
 
     // Copy search params
     const url = new URL(backendUrl);
@@ -90,8 +91,6 @@ async function proxyRequest(
       headers,
       body,
     });
-
-    console.log(`[UserManagementProxy] Backend response: ${response.status} ${response.statusText}`);
 
     // Parse response
     const responseText = await response.text();

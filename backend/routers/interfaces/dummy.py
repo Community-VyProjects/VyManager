@@ -13,6 +13,8 @@ from typing import Dict, List, Optional
 from session_vyos_service import get_session_vyos_service
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
+import logging
+logger = logging.getLogger(__name__)
 
 # Router for dummy interface endpoints
 router = APIRouter(prefix="/vyos/dummy", tags=["dummy-interface"])
@@ -192,7 +194,8 @@ async def get_dummy_config(http_request: Request) -> DummyInterfacesConfigRespon
     except KeyError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -336,4 +339,5 @@ async def configure_interface_batch(http_request: Request, request: InterfaceBat
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")

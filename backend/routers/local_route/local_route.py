@@ -14,6 +14,8 @@ from vyos_builders import LocalRouteBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 import inspect
+import logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/local-route", tags=["local-route"])
 
@@ -117,7 +119,8 @@ async def get_local_route_capabilities(request: Request):
             capabilities["instance_id"] = request.state.instance.get("id")
         return capabilities
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -203,7 +206,8 @@ async def get_local_route_config(http_request: Request, refresh: bool = False):
             total_ipv6=len(ipv6_rules),
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -247,7 +251,8 @@ async def local_route_batch_configure(http_request: Request, body: LocalRouteBat
             error=response.error if response.error else None,
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ============================================================================
@@ -320,4 +325,5 @@ async def local_route_reorder_rules(http_request: Request, body: LocalRouteReord
             error=response.error if response.error else None,
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")

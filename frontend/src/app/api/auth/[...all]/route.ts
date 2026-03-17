@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+import { getAuth } from "@/lib/auth";
 import { toNextJsHandler } from "better-auth/next-js";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -6,22 +6,59 @@ import { NextRequest, NextResponse } from "next/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// Get the original handlers
-const handlers = toNextJsHandler(auth);
-
 const allowOnboardingFailOpen = process.env.ALLOW_ONBOARDING_FAIL_OPEN === "true";
 
-// Wrap POST handler to add onboarding validation for signup
-async function POST_WITH_VALIDATION(request: NextRequest) {
+// Simple in-memory rate limiter for login attempts
+const LOGIN_RATE_LIMIT = 10;        // max attempts
+const LOGIN_RATE_WINDOW_MS = 60_000; // per 1 minute
+const loginAttempts = new Map<string, { count: number; resetAt: number }>();
+
+function getClientIp(request: NextRequest): string {
+  return (
+    request.headers.get("x-forwarded-for")?.split(",")[0].trim() ??
+    request.headers.get("x-real-ip") ??
+    "unknown"
+  );
+}
+
+function checkLoginRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const record = loginAttempts.get(ip);
+  if (!record || now > record.resetAt) {
+    loginAttempts.set(ip, { count: 1, resetAt: now + LOGIN_RATE_WINDOW_MS });
+    return true;
+  }
+  if (record.count >= LOGIN_RATE_LIMIT) return false;
+  record.count++;
+  return true;
+}
+
+export async function GET(request: NextRequest) {
+  const auth = await getAuth();
+  const handlers = toNextJsHandler(auth);
+  return handlers.GET(request);
+}
+
+export async function POST(request: NextRequest) {
   const url = new URL(request.url);
   const path = url.pathname;
+
+  // Rate limit login attempts
+  if (path.includes("/sign-in")) {
+    if (!checkLoginRateLimit(getClientIp(request))) {
+      return NextResponse.json(
+        { error: { message: "Too many login attempts. Please try again later." } },
+        { status: 429 }
+      );
+    }
+  }
 
   // Check if this is a signup request
   if (path.includes("/sign-up")) {
     try {
       // SECURITY: Check if onboarding is complete
       // If users already exist, reject signup attempts
-      const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const backendUrl = process.env.BACKEND_URL || "http://backend:8000";
       const onboardingCheck = await fetch(`${backendUrl}/session/onboarding-status`);
 
       if (onboardingCheck.ok) {
@@ -29,7 +66,6 @@ async function POST_WITH_VALIDATION(request: NextRequest) {
 
         if (!data.needs_onboarding) {
           // Onboarding is complete - reject signup
-          console.log("[Auth] Blocked signup attempt - onboarding already complete");
           return NextResponse.json(
             {
               error: {
@@ -55,9 +91,7 @@ async function POST_WITH_VALIDATION(request: NextRequest) {
     }
   }
 
-  // Call the original handler
+  const auth = await getAuth();
+  const handlers = toNextJsHandler(auth);
   return handlers.POST(request);
 }
-
-export const GET = handlers.GET;
-export const POST = POST_WITH_VALIDATION;

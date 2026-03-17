@@ -11,6 +11,30 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 import asyncpg
 from typing import Optional
+from session_cookie import verify_session_cookie
+
+
+class _SecureStr:
+    """Wraps a sensitive string to prevent accidental logging or serialization.
+
+    repr() and str() return '[REDACTED]' so the value never appears in logs.
+    JSON serialization raises TypeError to prevent accidental data exposure.
+    Use .value to access the underlying string only where it is explicitly needed.
+    """
+    __slots__ = ("_value",)
+
+    def __init__(self, value: str):
+        self._value = value
+
+    @property
+    def value(self) -> str:
+        return self._value
+
+    def __repr__(self) -> str:
+        return "'[REDACTED]'"
+
+    def __str__(self) -> str:
+        return "[REDACTED]"
 
 
 class SessionMiddleware(BaseHTTPMiddleware):
@@ -75,10 +99,9 @@ class SessionMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         try:
-            # Get current auth session token from cookie
+            # Get current auth session token from cookie and verify its signature
             cookie_token = request.cookies.get("better-auth.session_token")
-            # Extract session ID (everything before the first dot)
-            current_session_token = cookie_token.split(".")[0] if cookie_token else None
+            current_session_token = verify_session_cookie(cookie_token) if cookie_token else None
 
             async with db_pool.acquire() as conn:
                 # First check if user is site-level ADMIN
@@ -108,6 +131,8 @@ class SessionMiddleware(BaseHTTPMiddleware):
                             i."vyosVersion" as vyos_version,
                             i.protocol,
                             i."verifySsl" as verify_ssl,
+                            i."commitConfirmEnabled" as commit_confirm_enabled,
+                            i."commitConfirmMinutes" as commit_confirm_minutes,
                             s.name as site_name,
                             'ADMIN' as user_role
                         FROM active_sessions a
@@ -135,6 +160,8 @@ class SessionMiddleware(BaseHTTPMiddleware):
                             i."vyosVersion" as vyos_version,
                             i.protocol,
                             i."verifySsl" as verify_ssl,
+                            i."commitConfirmEnabled" as commit_confirm_enabled,
+                            i."commitConfirmMinutes" as commit_confirm_minutes,
                             s.name as site_name,
                             uir.role as user_role
                         FROM active_sessions a
@@ -179,19 +206,21 @@ class SessionMiddleware(BaseHTTPMiddleware):
                             )
 
                 if session:
-                    # User has an active session - inject instance details
+                    # User has an active session - inject instance details.
+                    # api_key is wrapped in _SecureStr so it never appears in logs.
+                    # Legacy username/password fields are omitted (always empty, never used).
                     request.state.instance = {
                         "id": session["instance_id"],
                         "name": session["instance_name"],
                         "host": session["host"],
                         "port": session["port"],
-                        "username": session["username"],
-                        "password": session["password"],  # API key
-                        "api_key": session["api_key"],
+                        "api_key": _SecureStr(session["api_key"] or ""),
                         "is_active": session["is_active"],
                         "vyos_version": session.get("vyos_version"),
                         "protocol": session.get("protocol"),
                         "verify_ssl": session.get("verify_ssl"),
+                        "commit_confirm_enabled": session.get("commit_confirm_enabled") or False,
+                        "commit_confirm_minutes": session.get("commit_confirm_minutes") or 5,
                     }
                     request.state.site = {
                         "id": session["site_id"],

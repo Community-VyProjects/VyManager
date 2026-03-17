@@ -8,12 +8,12 @@ export function Toaster() {
   const { toasts, removeToast } = useToastStore();
 
   return (
-    <div className="fixed top-20 right-4 z-[100] flex flex-col gap-2 max-w-md">
+    <div className="fixed bottom-4 right-4 z-[100] flex flex-col-reverse gap-2 max-w-md">
       {toasts.map((toast) => (
         <div
           key={toast.id}
           className={cn(
-            "flex items-start gap-3 p-4 rounded-lg shadow-lg border animate-in slide-in-from-top-5",
+            "flex items-start gap-3 p-4 rounded-lg shadow-lg border animate-in slide-in-from-bottom-5",
             "bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60",
             toast.variant === "destructive" && "border-red-500/50 bg-red-50 dark:bg-red-950/30",
             toast.variant === "success" && "border-green-500/50 bg-green-50 dark:bg-green-950/30",

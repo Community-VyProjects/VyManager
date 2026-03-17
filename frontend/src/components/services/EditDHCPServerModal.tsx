@@ -23,6 +23,7 @@ import {
 } from "@/lib/api/dhcp";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { ApiError } from "@/lib/types/api";
 
 // Validation helper functions
 const isValidIPv4 = (ip: string): boolean => {
@@ -327,8 +328,8 @@ export function EditDHCPServerModal({
 
       handleClose();
       onSuccess();
-    } catch (err: any) {
-      setError(err.message || "Failed to update DHCP server");
+    } catch (err) {
+      setError((err as ApiError).message || "Failed to update DHCP server");
     } finally {
       setLoading(false);
     }

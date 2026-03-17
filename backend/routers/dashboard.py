@@ -13,6 +13,10 @@ import json
 import uuid
 
 from session_vyos_service import get_session_vyos_service
+from fastapi_permissions import require_read_permission, require_write_permission
+from rbac_permissions import FeatureGroup
+import logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
@@ -33,6 +37,12 @@ class DashboardLayoutResponse(BaseModel):
     exists: bool
 
 
+class SaveLayoutResponse(BaseModel):
+    """Response model for saving dashboard layout."""
+    success: bool
+    message: str
+
+
 # ========================================================================
 # Endpoint: Get Layout
 # ========================================================================
@@ -46,6 +56,7 @@ async def get_dashboard_layout(request: Request):
     Returns:
         The saved layout or None if no layout exists
     """
+    await require_read_permission(request, FeatureGroup.DASHBOARD)
     try:
         user = request.state.user
         if not user:
@@ -88,7 +99,8 @@ async def get_dashboard_layout(request: Request):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ========================================================================
@@ -96,13 +108,14 @@ async def get_dashboard_layout(request: Request):
 # ========================================================================
 
 
-@router.post("/layout")
+@router.post("/layout", response_model=SaveLayoutResponse)
 async def save_dashboard_layout(request: Request, body: DashboardLayoutRequest):
     """
     Save the user's dashboard layout for the current instance.
 
     Upserts the layout (creates if doesn't exist, updates if exists).
     """
+    await require_write_permission(request, FeatureGroup.DASHBOARD)
     try:
         user = request.state.user
         if not user:
@@ -137,9 +150,10 @@ async def save_dashboard_layout(request: Request, body: DashboardLayoutRequest):
                 layout_json
             )
 
-        return {"success": True, "message": "Dashboard layout saved"}
+        return SaveLayoutResponse(success=True, message="Dashboard layout saved")
 
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")

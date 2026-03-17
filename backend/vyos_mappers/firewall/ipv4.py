@@ -218,6 +218,12 @@ class FirewallIPv4Mapper(BaseFeatureMapper):
             return ["firewall", "ipv4", "name", chain, "rule", str(rule_number), "source", "group", "address-group", group_name]
         return ["firewall", "ipv4", chain, "filter", "rule", str(rule_number), "source", "group", "address-group", group_name]
 
+    def get_rule_source_group_path(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
+        """Get command path for the entire source group node (for deletion)."""
+        if is_custom:
+            return ["firewall", "ipv4", "name", chain, "rule", str(rule_number), "source", "group"]
+        return ["firewall", "ipv4", chain, "filter", "rule", str(rule_number), "source", "group"]
+
     def get_rule_source_group_address_path(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
         """Get command path for source address group (for deletion)."""
         if is_custom:
@@ -353,6 +359,12 @@ class FirewallIPv4Mapper(BaseFeatureMapper):
         if is_custom:
             return ["firewall", "ipv4", "name", chain, "rule", str(rule_number), "destination", "group", "address-group", group_name]
         return ["firewall", "ipv4", chain, "filter", "rule", str(rule_number), "destination", "group", "address-group", group_name]
+
+    def get_rule_destination_group_path(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
+        """Get command path for the entire destination group node (for deletion)."""
+        if is_custom:
+            return ["firewall", "ipv4", "name", chain, "rule", str(rule_number), "destination", "group"]
+        return ["firewall", "ipv4", chain, "filter", "rule", str(rule_number), "destination", "group"]
 
     def get_rule_destination_group_address_path(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
         """Get command path for destination address group (for deletion)."""
@@ -613,3 +625,19 @@ class FirewallIPv4Mapper(BaseFeatureMapper):
         if is_custom:
             return ["firewall", "ipv4", "name", chain, "rule", str(rule_number), "jump-target"]
         return ["firewall", "ipv4", chain, "filter", "rule", str(rule_number), "jump-target"]
+
+    # ========================================================================
+    # Rule Properties - Offload Target (Flowtables)
+    # ========================================================================
+
+    def get_rule_offload_target(self, chain: str, rule_number: int, target: str, is_custom: bool = False) -> List[str]:
+        """Get command path for setting offload target (flowtable)."""
+        if is_custom:
+            return ["firewall", "ipv4", "name", chain, "rule", str(rule_number), "offload-target", target]
+        return ["firewall", "ipv4", chain, "filter", "rule", str(rule_number), "offload-target", target]
+
+    def get_rule_offload_target_path(self, chain: str, rule_number: int, is_custom: bool = False) -> List[str]:
+        """Get command path for offload target (for deletion)."""
+        if is_custom:
+            return ["firewall", "ipv4", "name", chain, "rule", str(rule_number), "offload-target"]
+        return ["firewall", "ipv4", chain, "filter", "rule", str(rule_number), "offload-target"]

@@ -13,9 +13,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircle } from "lucide-react";
 import { natService } from "@/lib/api/nat";
 import { firewallGroupsService } from "@/lib/api/firewall-groups";
-import { ethernetService } from "@/lib/api/ethernet";
+import { configService } from "@/lib/api/config";
 import type { FirewallGroup } from "@/lib/api/types/firewall-groups";
-import type { EthernetInterface } from "@/lib/api/types/ethernet";
+
+interface SimpleInterface {
+  name: string;
+  type: string;
+}
 
 interface CreateDestinationNATModalProps {
   open: boolean;
@@ -29,7 +33,7 @@ export function CreateDestinationNATModal({ open, onOpenChange, onSuccess }: Cre
 
   // Dropdown data
   const [groups, setGroups] = useState<FirewallGroup[]>([]);
-  const [interfaces, setInterfaces] = useState<EthernetInterface[]>([]);
+  const [interfaces, setInterfaces] = useState<SimpleInterface[]>([]);
 
   // Auto-calculated rule number
   const [ruleNumber, setRuleNumber] = useState<number>(10);
@@ -78,6 +82,8 @@ export function CreateDestinationNATModal({ open, onOpenChange, onSuccess }: Cre
   // Load groups, interfaces, and calculate next rule number on mount
   useEffect(() => {
     if (open) {
+      // Reset form to ensure clean state when opening
+      resetForm();
       loadGroups();
       loadInterfaces();
       calculateNextRuleNumber();
@@ -121,8 +127,54 @@ export function CreateDestinationNATModal({ open, onOpenChange, onSuccess }: Cre
 
   const loadInterfaces = async () => {
     try {
-      const config = await ethernetService.getConfig();
-      setInterfaces(config.interfaces);
+      const snapshot = await configService.getSnapshot();
+      const interfacesConfig = snapshot.config?.interfaces || {};
+      const allInterfaces: SimpleInterface[] = [];
+
+      // Parse all interface types from the config
+      const interfaceTypes = [
+        "ethernet",
+        "wireguard",
+        "vti",
+        "tunnel",
+        "dummy",
+        "loopback",
+        "bridge",
+        "bonding",
+        "pppoe",
+        "wwan",
+        "macsec",
+        "openvpn",
+        "vxlan",
+        "geneve",
+        "l2tpv3",
+        "sstpc",
+        "virtual-ethernet",
+      ];
+
+      for (const ifaceType of interfaceTypes) {
+        const typeInterfaces = interfacesConfig[ifaceType];
+        if (typeInterfaces && typeof typeInterfaces === "object") {
+          for (const ifaceName of Object.keys(typeInterfaces)) {
+            allInterfaces.push({ name: ifaceName, type: ifaceType });
+
+            // Check for VLANs (vif) under ethernet/bonding/bridge interfaces
+            const ifaceConfig = typeInterfaces[ifaceName];
+            if (ifaceConfig?.vif && typeof ifaceConfig.vif === "object") {
+              for (const vlanId of Object.keys(ifaceConfig.vif)) {
+                allInterfaces.push({
+                  name: `${ifaceName}.${vlanId}`,
+                  type: "vlan",
+                });
+              }
+            }
+          }
+        }
+      }
+
+      // Sort interfaces by name
+      allInterfaces.sort((a, b) => a.name.localeCompare(b.name));
+      setInterfaces(allInterfaces);
     } catch (err) {
       console.error("Failed to load interfaces:", err);
     }

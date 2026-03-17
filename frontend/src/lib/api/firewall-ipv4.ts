@@ -61,6 +61,7 @@ export interface FirewallRule {
   tcp_flags?: FirewallRuleTcpFlags | string[] | null; // Object for updates, array from backend
   icmp_type_name?: string | null;
   jump_target?: string | null;
+  offload_target?: string | null;
   disable: boolean;
   log: boolean;
 }
@@ -291,6 +292,8 @@ class FirewallIPv4Service {
             operations.push({ op: "set_rule_source_group_mac", value: groupName });
           } else if (groupType.includes("domain")) {
             operations.push({ op: "set_rule_source_group_domain", value: groupName });
+          } else if (groupType.includes("remote")) {
+            operations.push({ op: "set_rule_source_group_remote", value: groupName });
           }
         }
       }
@@ -328,6 +331,8 @@ class FirewallIPv4Service {
             operations.push({ op: "set_rule_destination_group_mac", value: groupName });
           } else if (groupType.includes("domain")) {
             operations.push({ op: "set_rule_destination_group_domain", value: groupName });
+          } else if (groupType.includes("remote")) {
+            operations.push({ op: "set_rule_destination_group_remote", value: groupName });
           }
         }
       }
@@ -392,6 +397,11 @@ class FirewallIPv4Service {
     // Set jump target
     if (config.jump_target) {
       operations.push({ op: "set_rule_jump_target", value: config.jump_target });
+    }
+
+    // Set offload target
+    if (config.offload_target) {
+      operations.push({ op: "set_rule_offload_target", value: config.offload_target });
     }
 
     // Set flags
@@ -486,18 +496,24 @@ class FirewallIPv4Service {
           operations.push({ op: "delete_rule_source_geoip" });
         }
         if (currentRule.source?.group) {
-          // Delete ALL existing groups (address, network, port, etc.)
-          for (const [groupType] of Object.entries(currentRule.source.group)) {
-            if (groupType.includes("address")) {
-              operations.push({ op: "delete_rule_source_group_address" });
-            } else if (groupType.includes("network")) {
-              operations.push({ op: "delete_rule_source_group_network" });
-            } else if (groupType.includes("port")) {
-              operations.push({ op: "delete_rule_source_group_port" });
-            } else if (groupType.includes("mac")) {
-              operations.push({ op: "delete_rule_source_group_mac" });
-            } else if (groupType.includes("domain")) {
-              operations.push({ op: "delete_rule_source_group_domain" });
+          // If the new config has no group at all, delete the entire group node to avoid empty container error
+          if (!config.source?.group) {
+            operations.push({ op: "delete_rule_source_group" });
+          } else {
+            for (const [groupType] of Object.entries(currentRule.source.group)) {
+              if (groupType.includes("address")) {
+                operations.push({ op: "delete_rule_source_group_address" });
+              } else if (groupType.includes("network")) {
+                operations.push({ op: "delete_rule_source_group_network" });
+              } else if (groupType.includes("port")) {
+                operations.push({ op: "delete_rule_source_group_port" });
+              } else if (groupType.includes("mac")) {
+                operations.push({ op: "delete_rule_source_group_mac" });
+              } else if (groupType.includes("domain")) {
+                operations.push({ op: "delete_rule_source_group_domain" });
+              } else if (groupType.includes("remote")) {
+                operations.push({ op: "delete_rule_source_group_remote" });
+              }
             }
           }
         }
@@ -538,6 +554,8 @@ class FirewallIPv4Service {
               operations.push({ op: "set_rule_source_group_mac", value: groupName });
             } else if (groupType.includes("domain")) {
               operations.push({ op: "set_rule_source_group_domain", value: groupName });
+            } else if (groupType.includes("remote")) {
+              operations.push({ op: "set_rule_source_group_remote", value: groupName });
             }
           }
         }
@@ -565,18 +583,24 @@ class FirewallIPv4Service {
           operations.push({ op: "delete_rule_destination_geoip" });
         }
         if (currentRule.destination?.group) {
-          // Delete ALL existing groups (address, network, port, etc.)
-          for (const [groupType] of Object.entries(currentRule.destination.group)) {
-            if (groupType.includes("address")) {
-              operations.push({ op: "delete_rule_destination_group_address" });
-            } else if (groupType.includes("network")) {
-              operations.push({ op: "delete_rule_destination_group_network" });
-            } else if (groupType.includes("port")) {
-              operations.push({ op: "delete_rule_destination_group_port" });
-            } else if (groupType.includes("mac")) {
-              operations.push({ op: "delete_rule_destination_group_mac" });
-            } else if (groupType.includes("domain")) {
-              operations.push({ op: "delete_rule_destination_group_domain" });
+          // If the new config has no group at all, delete the entire group node to avoid empty container error
+          if (!config.destination?.group) {
+            operations.push({ op: "delete_rule_destination_group" });
+          } else {
+            for (const [groupType] of Object.entries(currentRule.destination.group)) {
+              if (groupType.includes("address")) {
+                operations.push({ op: "delete_rule_destination_group_address" });
+              } else if (groupType.includes("network")) {
+                operations.push({ op: "delete_rule_destination_group_network" });
+              } else if (groupType.includes("port")) {
+                operations.push({ op: "delete_rule_destination_group_port" });
+              } else if (groupType.includes("mac")) {
+                operations.push({ op: "delete_rule_destination_group_mac" });
+              } else if (groupType.includes("domain")) {
+                operations.push({ op: "delete_rule_destination_group_domain" });
+              } else if (groupType.includes("remote")) {
+                operations.push({ op: "delete_rule_destination_group_remote" });
+              }
             }
           }
         }
@@ -603,6 +627,8 @@ class FirewallIPv4Service {
               operations.push({ op: "set_rule_destination_group_mac", value: groupName });
             } else if (groupType.includes("domain")) {
               operations.push({ op: "set_rule_destination_group_domain", value: groupName });
+            } else if (groupType.includes("remote")) {
+              operations.push({ op: "set_rule_destination_group_remote", value: groupName });
             }
           }
         }
@@ -738,6 +764,15 @@ class FirewallIPv4Service {
         operations.push({ op: "set_rule_jump_target", value: config.jump_target });
       } else if (currentRule.jump_target) {
         operations.push({ op: "delete_rule_jump_target" });
+      }
+    }
+
+    // Update offload target
+    if (hasChanged(config.offload_target, currentRule.offload_target)) {
+      if (config.offload_target) {
+        operations.push({ op: "set_rule_offload_target", value: config.offload_target });
+      } else if (currentRule.offload_target) {
+        operations.push({ op: "delete_rule_offload_target" });
       }
     }
 

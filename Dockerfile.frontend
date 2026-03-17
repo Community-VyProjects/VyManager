@@ -2,26 +2,51 @@
 # This Dockerfile is used by docker-publish-frontend.yml workflow
 # It copies the frontend directory from the repository root
 
-FROM node:24-alpine
+# ---- Build Stage ----
+FROM node:24-alpine AS builder
 
-# Install netcat for health checks and wait scripts
-RUN apk add --no-cache netcat-openbsd
-
-# Set working directory
 WORKDIR /app
+
+# Install required system packages
+RUN apk add --no-cache openssl
 
 # Copy package files and prisma schema first for better caching
 COPY frontend/package*.json ./
 COPY frontend/prisma ./prisma/
+COPY frontend/next.config.* ./
 
-# Install dependencies
-RUN npm install
+# Install all dependencies (including dev) for the build
+RUN npm install --include=dev
+
+# Copy application code
+COPY frontend/ .
 
 # Generate Prisma Client
 RUN npx prisma generate
 
-# Copy application code
-COPY frontend/ .
+# Build Next.js for production
+ENV NODE_ENV=production
+ENV BETTER_AUTH_SECRET=dummy_secret_for_build_only
+ENV BACKEND_URL=http://backend:8000
+RUN npm run build
+
+
+# ---- Production Runtime Stage ----
+FROM node:24-alpine AS runner
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+# Install netcat for health checks and wait scripts
+RUN apk add --no-cache netcat-openbsd
+
+# Copy only necessary production artifacts
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
 
 # Copy and set entrypoint script
 COPY frontend/docker-entrypoint.sh /usr/local/bin/

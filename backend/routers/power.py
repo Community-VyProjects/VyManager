@@ -2,7 +2,7 @@
 System Power Management Router
 
 API endpoints for managing VyOS system power actions (reboot, poweroff).
-Restricted to instance ADMIN role only.
+Uses RBAC permission system - requires WRITE permission on POWER feature.
 
 Uses session-based architecture - VyOS instance comes from user's active session.
 """
@@ -18,47 +18,12 @@ import re
 import uuid
 
 from session_vyos_service import get_session_vyos_service
+from fastapi_permissions import require_read_permission, require_write_permission
+from rbac_permissions import FeatureGroup
+import logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/power", tags=["power"])
-
-# ========================================================================
-# Permission Check Helper
-# ========================================================================
-
-async def check_power_permission(request: Request) -> None:
-    """
-    Check if user has permission to execute power actions.
-    Only instance ADMIN role is allowed.
-
-    Raises:
-        HTTPException(403): If user doesn't have ADMIN role on the instance
-    """
-    user = request.state.user
-    if not user:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
-    instance = request.state.instance
-    if not instance:
-        raise HTTPException(status_code=404, detail="No active instance")
-
-    instance_id = instance["id"]
-    db_pool: asyncpg.Pool = request.app.state.db_pool
-
-    async with db_pool.acquire() as conn:
-        result = await conn.fetchrow(
-            """
-            SELECT role FROM user_instance_roles
-            WHERE "userId" = $1 AND "instanceId" = $2
-            """,
-            user["id"],
-            instance_id,
-        )
-
-        if not result or result["role"] != "ADMIN":
-            raise HTTPException(
-                status_code=403,
-                detail="Insufficient permissions. Power actions require instance ADMIN role.",
-            )
 
 
 # ========================================================================
@@ -189,8 +154,8 @@ async def reboot_system(request: Request, body: PowerActionRequest):
     - in: Reboot in X minutes
     - cancel: Cancel a pending reboot
     """
-    # Check permissions
-    await check_power_permission(request)
+    # Check RBAC permissions - requires WRITE on POWER feature
+    await require_write_permission(request, FeatureGroup.POWER)
 
     # Get VyOS service and instance info
     service = get_session_vyos_service(request)
@@ -277,7 +242,8 @@ async def reboot_system(request: Request, body: PowerActionRequest):
         raise
     except Exception as e:
         print(f"[Power] Error in reboot: {type(e).__name__}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
     # Store scheduled action in database (except for 'now' and 'cancel')
     if body.action in ["at", "in"] and scheduled_time:
@@ -343,8 +309,8 @@ async def poweroff_system(request: Request, body: PowerActionRequest):
     - in: Poweroff in X minutes
     - cancel: Cancel a pending poweroff
     """
-    # Check permissions
-    await check_power_permission(request)
+    # Check RBAC permissions - requires WRITE on POWER feature
+    await require_write_permission(request, FeatureGroup.POWER)
 
     # Get VyOS service and instance info
     service = get_session_vyos_service(request)
@@ -451,7 +417,8 @@ async def poweroff_system(request: Request, body: PowerActionRequest):
         raise
     except Exception as e:
         print(f"[Power] Error in poweroff: {type(e).__name__}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
     # Store scheduled action in database (except for 'now' and 'cancel')
     if body.action in ["at", "in"] and scheduled_time:
@@ -512,7 +479,11 @@ async def get_power_status(request: Request):
     Check if a reboot or poweroff is scheduled for the current instance.
 
     This endpoint is polled by the frontend to display the banner.
+    Requires READ permission on POWER feature.
     """
+    # Check RBAC permissions - requires READ on POWER feature
+    await require_read_permission(request, FeatureGroup.POWER)
+
     # Get VyOS service and instance info
     service = get_session_vyos_service(request)
     instance = request.state.instance

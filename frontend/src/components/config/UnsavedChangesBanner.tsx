@@ -1,82 +1,185 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { AlertTriangle, Save, FileText } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { AlertTriangle, Save, FileText, CheckCircle, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { configService, type ConfigDiff } from "@/lib/api/config";
+import { configService, type ConfigDiff, type CommitConfirmStatus } from "@/lib/api/config";
 import { ConfigDiffModal } from "./ConfigDiffModal";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/useToast";
+import { ApiError } from "@/lib/types/api";
 
 export function UnsavedChangesBanner() {
   const [diff, setDiff] = useState<ConfigDiff | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [commitConfirm, setCommitConfirm] = useState<CommitConfirmStatus | null>(null);
+  const [confirming, setConfirming] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showDiffModal, setShowDiffModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Tick every second to update countdown display when commit-confirm is active
+  const [, setTick] = useState(0);
+  const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const { toast } = useToast();
 
-  // Poll for changes every 10 seconds
+  // Manage the per-second tick for the countdown
   useEffect(() => {
-    const checkForChanges = async () => {
+    if (commitConfirm?.active) {
+      tickRef.current = setInterval(() => setTick((t) => t + 1), 1000);
+    } else {
+      if (tickRef.current) {
+        clearInterval(tickRef.current);
+        tickRef.current = null;
+      }
+    }
+    return () => {
+      if (tickRef.current) clearInterval(tickRef.current);
+    };
+  }, [commitConfirm?.active]);
+
+  // Poll commit-confirm status every 5 s, config diff every 10 s
+  useEffect(() => {
+    const checkStatus = async () => {
       try {
-        setLoading(true);
-        const diffResult = await configService.getDiff();
+        const [diffResult, ccStatus] = await Promise.all([
+          configService.getDiff(),
+          configService.getCommitConfirmStatus(),
+        ]);
         setDiff(diffResult);
+        setCommitConfirm(ccStatus);
         setError(null);
-      } catch (err: any) {
-        // Extract error message for logging and display
-        const errorMessage = err?.message || err?.error || err?.detail || "Failed to check for changes";
-        console.error("Failed to check for config changes:", errorMessage);
-        setError(errorMessage);
-      } finally {
-        setLoading(false);
+      } catch (err) {
+        const msg = (err as ApiError).message || "Failed to check configuration status";
+        console.error("Banner status check failed:", msg);
+        setError(msg);
       }
     };
 
-    // Check immediately
-    checkForChanges();
-
-    // Then poll every 10 seconds
-    const interval = setInterval(checkForChanges, 10000);
-
+    checkStatus();
+    const interval = setInterval(checkStatus, 5000);
     return () => clearInterval(interval);
   }, []);
+
+  const handleConfirm = async () => {
+    setConfirming(true);
+    setError(null);
+    try {
+      const result = await configService.confirmCommit();
+      if (!result.success) {
+        const msg = result.error || "Failed to confirm commit";
+        setError(msg);
+        toast.error("Confirm Failed", msg);
+        return;
+      }
+      toast.success("Changes Confirmed", "Your changes are live. Save configuration when ready.");
+      setCommitConfirm({ active: false });
+      const newDiff = await configService.getDiff();
+      setDiff(newDiff);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to confirm commit";
+      setError(msg);
+      toast.error("Confirm Failed", msg);
+    } finally {
+      setConfirming(false);
+    }
+  };
 
   const handleSave = async () => {
     setSaving(true);
     setError(null);
-
     try {
       const result = await configService.saveConfig();
-
       if (!result.success) {
-        const errorMsg = result.error || "Failed to save configuration";
-        setError(errorMsg);
-        toast.error("Save Failed", errorMsg);
+        const msg = result.error || "Failed to save configuration";
+        setError(msg);
+        toast.error("Save Failed", msg);
         return;
       }
-
-      // Success!
-      toast.success("Configuration Saved", "Your changes have been written to disk successfully");
-
-      // Refresh diff after save
+      toast.success("Configuration Saved", "Your changes have been written to disk successfully.");
       const newDiff = await configService.getDiff();
       setDiff(newDiff);
-
-      // Clear any previous errors
       setError(null);
     } catch (err) {
-      console.error("Failed to save configuration:", err);
-      const errorMsg = err instanceof Error ? err.message : "Failed to save configuration";
-      setError(errorMsg);
-      toast.error("Save Failed", errorMsg);
+      const msg = err instanceof Error ? (err as ApiError).message : "Failed to save configuration";
+      setError(msg);
+      toast.error("Save Failed", msg);
     } finally {
       setSaving(false);
     }
   };
 
-  // Don't show if no changes
+  // Calculate live seconds remaining from expires_at (more accurate than polled value)
+  const secondsRemaining = (() => {
+    if (!commitConfirm?.active || !commitConfirm.expires_at) return 0;
+    const diff = new Date(commitConfirm.expires_at).getTime() - Date.now();
+    return Math.max(0, Math.floor(diff / 1000));
+  })();
+
+  const formatCountdown = (secs: number) => {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m}:${String(s).padStart(2, "0")}`;
+  };
+
+  // ── Commit-confirm active: show countdown banner (highest priority) ──
+  if (commitConfirm?.active) {
+    const isUrgent = secondsRemaining <= 60;
+    return (
+      <>
+      <div
+        className={cn(
+          "fixed top-0 left-64 right-0 z-50",
+          "shadow-lg border-b",
+          isUrgent
+            ? "bg-gradient-to-r from-red-600 to-orange-500 border-red-700/20"
+            : "bg-gradient-to-r from-amber-500 to-yellow-400 border-amber-600/20"
+        )}
+      >
+        <div className="container mx-auto px-4 py-3">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <Clock className="h-5 w-5 text-white flex-shrink-0" />
+              <div className="flex flex-col">
+                <p className="text-sm font-semibold text-white">
+                  Commit-Confirm Active — confirm before changes revert
+                </p>
+                <p className="text-xs text-white/80">
+                  Auto-{commitConfirm.action ?? "reload"} in{" "}
+                  <span className={cn("font-mono font-bold", isUrgent && "text-white")}>
+                    {formatCountdown(secondsRemaining)}
+                  </span>
+                  {" "}· {commitConfirm.confirm_time_minutes} min window
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {error && (
+                <span className="text-xs text-white bg-red-600/30 px-3 py-1 rounded">
+                  {error}
+                </span>
+              )}
+              <Button
+                size="sm"
+                onClick={handleConfirm}
+                disabled={confirming}
+                className="bg-white text-amber-600 hover:bg-amber-50 font-semibold"
+              >
+                <CheckCircle className="h-4 w-4 mr-2" />
+                {confirming ? "Confirming..." : "Confirm Changes"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Spacer so content isn't hidden under the fixed banner */}
+      <div className="h-16" />
+    </>
+  );
+  }
+
+
+  // ── No commit-confirm: show unsaved-changes banner if there are diffs ──
   if (!diff?.has_changes) {
     return null;
   }
@@ -94,7 +197,6 @@ export function UnsavedChangesBanner() {
       >
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between gap-4">
-            {/* Left side - Icon and message */}
             <div className="flex items-center gap-3">
               <div className="flex-shrink-0">
                 <AlertTriangle className="h-5 w-5 text-white" />
@@ -113,7 +215,6 @@ export function UnsavedChangesBanner() {
               </div>
             </div>
 
-            {/* Right side - Actions */}
             <div className="flex items-center gap-2">
               {error && (
                 <span className="text-xs text-white bg-red-600/30 px-3 py-1 rounded">
@@ -148,7 +249,6 @@ export function UnsavedChangesBanner() {
       {/* Spacer to push content down when banner is visible */}
       <div className="h-16" />
 
-      {/* Diff Modal */}
       <ConfigDiffModal
         open={showDiffModal}
         onOpenChange={setShowDiffModal}

@@ -18,6 +18,7 @@ import { CreateInstanceModal } from "./CreateInstanceModal";
 import { EditInstanceModal } from "./EditInstanceModal";
 import { MoveInstanceModal } from "./MoveInstanceModal";
 import { DeleteInstanceModal } from "./DeleteInstanceModal";
+import { ApiError } from "@/lib/types/api";
 
 interface SiteCardProps {
   site: Site;
@@ -62,8 +63,8 @@ export function SiteCard({
     try {
       const data = await sessionService.listInstances(site.id);
       setInstances(data);
-    } catch (err: any) {
-      setError(err.message || "Failed to load instances");
+    } catch (err) {
+      setError((err as ApiError).message || "Failed to load instances");
     } finally {
       setLoading(false);
     }

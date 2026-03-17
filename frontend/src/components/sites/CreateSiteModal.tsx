@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertCircle, Loader2, Building2 } from "lucide-react";
 import { sessionService } from "@/lib/api/session";
+import { ApiError } from "@/lib/types/api";
 
 interface CreateSiteModalProps {
   open: boolean;
@@ -58,8 +59,8 @@ export function CreateSiteModal({
 
       handleClose();
       onSuccess();
-    } catch (err: any) {
-      setError(err.message || "Failed to create site");
+    } catch (err) {
+      setError((err as ApiError).message || "Failed to create site");
     } finally {
       setLoading(false);
     }
