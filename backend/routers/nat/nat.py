@@ -5,6 +5,8 @@ API endpoints for managing VyOS NAT configuration.
 Supports source NAT, destination NAT, and static NAT rules.
 """
 
+import logging
+
 from fastapi import APIRouter, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
@@ -13,6 +15,8 @@ from session_vyos_service import get_session_vyos_service
 from vyos_builders import NATBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/nat", tags=["nat"])
 
@@ -85,6 +89,7 @@ class ReorderNATRequest(BaseModel):
 class NATRuleSource(BaseModel):
     """Source configuration for NAT rule."""
     address: Optional[str] = None
+    fqdn: Optional[str] = None
     port: Optional[str] = None
     group: Optional[Dict[str, str]] = None  # {type: name}
 
@@ -92,20 +97,40 @@ class NATRuleSource(BaseModel):
 class NATRuleDestination(BaseModel):
     """Destination configuration for NAT rule."""
     address: Optional[str] = None
+    fqdn: Optional[str] = None
     port: Optional[str] = None
     group: Optional[Dict[str, str]] = None  # {type: name}
+
+
+class NATRuleTranslationOptions(BaseModel):
+    """Translation options configuration."""
+    address_mapping: Optional[str] = None
+    port_mapping: Optional[str] = None
+
+
+class NATRuleTranslationRedirect(BaseModel):
+    """Translation redirect configuration."""
+    port: Optional[str] = None
 
 
 class NATRuleTranslation(BaseModel):
     """Translation configuration for NAT rule."""
     address: Optional[str] = None
     port: Optional[str] = None
+    options: Optional[NATRuleTranslationOptions] = None
+    redirect: Optional[NATRuleTranslationRedirect] = None
+
+
+class NATRuleLoadBalanceBackend(BaseModel):
+    """Load balance backend with optional weight."""
+    name: str
+    weight: Optional[str] = None
 
 
 class NATRuleLoadBalance(BaseModel):
     """Load balance configuration for NAT rule."""
     hash: Optional[str] = None
-    backend: List[str] = []
+    backends: List[NATRuleLoadBalanceBackend] = []
 
 
 class SourceNATRule(BaseModel):
@@ -147,6 +172,7 @@ class StaticNATRule(BaseModel):
     destination: Optional[Dict[str, str]] = None  # {address: value}
     inbound_interface: Optional[str] = None
     translation: Optional[Dict[str, str]] = None  # {address: value}
+    log: bool = False
 
 
 class NATConfigResponse(BaseModel):
@@ -156,6 +182,27 @@ class NATConfigResponse(BaseModel):
     static_rules: List[StaticNATRule] = []
     total: int = 0
     by_type: Dict[str, int] = {}
+
+
+def _parse_load_balance(rule_data: Dict[str, Any]) -> Optional[NATRuleLoadBalance]:
+    """Parse load-balance config from rule data."""
+    if "load-balance" not in rule_data:
+        return None
+    lb_data = rule_data["load-balance"]
+    backends = []
+    if "backend" in lb_data:
+        if isinstance(lb_data["backend"], dict):
+            for name, backend_data in lb_data["backend"].items():
+                weight = None
+                if isinstance(backend_data, dict):
+                    weight = backend_data.get("weight")
+                backends.append(NATRuleLoadBalanceBackend(name=name, weight=str(weight) if weight else None))
+        elif isinstance(lb_data["backend"], str):
+            backends.append(NATRuleLoadBalanceBackend(name=lb_data["backend"]))
+    return NATRuleLoadBalance(
+        hash=lb_data.get("hash"),
+        backends=backends
+    )
 
 
 @router.get("/capabilities")
@@ -227,6 +274,7 @@ async def get_nat_config(http_request: Request, refresh: bool = False):
                 if "source" in rule_data:
                     source = NATRuleSource(
                         address=rule_data["source"].get("address"),
+                        fqdn=rule_data["source"].get("fqdn"),
                         port=rule_data["source"].get("port"),
                         group=rule_data["source"].get("group")
                     )
@@ -235,6 +283,7 @@ async def get_nat_config(http_request: Request, refresh: bool = False):
                 if "destination" in rule_data:
                     destination = NATRuleDestination(
                         address=rule_data["destination"].get("address"),
+                        fqdn=rule_data["destination"].get("fqdn"),
                         port=rule_data["destination"].get("port"),
                         group=rule_data["destination"].get("group")
                     )
@@ -245,25 +294,20 @@ async def get_nat_config(http_request: Request, refresh: bool = False):
 
                 translation = None
                 if "translation" in rule_data:
+                    trans_data = rule_data["translation"]
+                    options = None
+                    if "options" in trans_data:
+                        options = NATRuleTranslationOptions(
+                            address_mapping=trans_data["options"].get("address-mapping"),
+                            port_mapping=trans_data["options"].get("port-mapping")
+                        )
                     translation = NATRuleTranslation(
-                        address=rule_data["translation"].get("address"),
-                        port=rule_data["translation"].get("port")
+                        address=trans_data.get("address"),
+                        port=trans_data.get("port"),
+                        options=options,
                     )
 
-                load_balance = None
-                if "load-balance" in rule_data:
-                    lb_data = rule_data["load-balance"]
-                    backends = []
-                    if "backend" in lb_data:
-                        # backend can be a dict of backends
-                        if isinstance(lb_data["backend"], dict):
-                            backends = list(lb_data["backend"].keys())
-                        elif isinstance(lb_data["backend"], str):
-                            backends = [lb_data["backend"]]
-                    load_balance = NATRuleLoadBalance(
-                        hash=lb_data.get("hash"),
-                        backend=backends
-                    )
+                load_balance = _parse_load_balance(rule_data)
 
                 rule = SourceNATRule(
                     rule_number=int(rule_num),
@@ -288,6 +332,7 @@ async def get_nat_config(http_request: Request, refresh: bool = False):
                 if "source" in rule_data:
                     source = NATRuleSource(
                         address=rule_data["source"].get("address"),
+                        fqdn=rule_data["source"].get("fqdn"),
                         port=rule_data["source"].get("port"),
                         group=rule_data["source"].get("group")
                     )
@@ -296,6 +341,7 @@ async def get_nat_config(http_request: Request, refresh: bool = False):
                 if "destination" in rule_data:
                     destination = NATRuleDestination(
                         address=rule_data["destination"].get("address"),
+                        fqdn=rule_data["destination"].get("fqdn"),
                         port=rule_data["destination"].get("port"),
                         group=rule_data["destination"].get("group")
                     )
@@ -306,25 +352,26 @@ async def get_nat_config(http_request: Request, refresh: bool = False):
 
                 translation = None
                 if "translation" in rule_data:
+                    trans_data = rule_data["translation"]
+                    options = None
+                    if "options" in trans_data:
+                        options = NATRuleTranslationOptions(
+                            address_mapping=trans_data["options"].get("address-mapping"),
+                            port_mapping=trans_data["options"].get("port-mapping")
+                        )
+                    redirect = None
+                    if "redirect" in trans_data:
+                        redirect = NATRuleTranslationRedirect(
+                            port=trans_data["redirect"].get("port")
+                        )
                     translation = NATRuleTranslation(
-                        address=rule_data["translation"].get("address"),
-                        port=rule_data["translation"].get("port")
+                        address=trans_data.get("address"),
+                        port=trans_data.get("port"),
+                        options=options,
+                        redirect=redirect,
                     )
 
-                load_balance = None
-                if "load-balance" in rule_data:
-                    lb_data = rule_data["load-balance"]
-                    backends = []
-                    if "backend" in lb_data:
-                        # backend can be a dict of backends
-                        if isinstance(lb_data["backend"], dict):
-                            backends = list(lb_data["backend"].keys())
-                        elif isinstance(lb_data["backend"], str):
-                            backends = [lb_data["backend"]]
-                    load_balance = NATRuleLoadBalance(
-                        hash=lb_data.get("hash"),
-                        backend=backends
-                    )
+                load_balance = _parse_load_balance(rule_data)
 
                 rule = DestinationNATRule(
                     rule_number=int(rule_num),
@@ -358,7 +405,8 @@ async def get_nat_config(http_request: Request, refresh: bool = False):
                     description=rule_data.get("description"),
                     destination=destination,
                     inbound_interface=rule_data.get("inbound-interface"),
-                    translation=translation
+                    translation=translation,
+                    log="log" in rule_data
                 )
                 static_rules.append(rule)
 
@@ -411,9 +459,6 @@ async def batch_configure_nat(http_request: Request, request: NATBatchRequest):
 
     try:
         import inspect
-        import logging
-
-        logger = logging.getLogger(__name__)
 
         service = get_session_vyos_service(http_request)
         version = service.get_version()
@@ -580,20 +625,32 @@ async def reorder_nat_rules(http_request: Request, request: ReorderNATRequest):
                     batch.set_source_rule_description(new_num, rule_data["description"])
                 if rule_data.get("source_address"):
                     batch.set_source_rule_source_address(new_num, rule_data["source_address"])
+                if rule_data.get("source_fqdn"):
+                    batch.set_source_rule_source_fqdn(new_num, rule_data["source_fqdn"])
                 if rule_data.get("source_port"):
                     batch.set_source_rule_source_port(new_num, rule_data["source_port"])
                 if rule_data.get("destination_address"):
                     batch.set_source_rule_destination_address(new_num, rule_data["destination_address"])
+                if rule_data.get("destination_fqdn"):
+                    batch.set_source_rule_destination_fqdn(new_num, rule_data["destination_fqdn"])
                 if rule_data.get("destination_port"):
                     batch.set_source_rule_destination_port(new_num, rule_data["destination_port"])
                 if rule_data.get("outbound_interface_name"):
                     batch.set_source_rule_outbound_interface_name(new_num, rule_data["outbound_interface_name"])
+                if rule_data.get("outbound_interface_group"):
+                    batch.set_source_rule_outbound_interface_group(new_num, rule_data["outbound_interface_group"])
                 if rule_data.get("protocol"):
                     batch.set_source_rule_protocol(new_num, rule_data["protocol"])
                 if rule_data.get("packet_type"):
                     batch.set_source_rule_packet_type(new_num, rule_data["packet_type"])
                 if rule_data.get("translation_address"):
                     batch.set_source_rule_translation_address(new_num, rule_data["translation_address"])
+                if rule_data.get("translation_port"):
+                    batch.set_source_rule_translation_port(new_num, rule_data["translation_port"])
+                if rule_data.get("translation_options_address_mapping"):
+                    batch.set_source_rule_translation_options_address_mapping(new_num, rule_data["translation_options_address_mapping"])
+                if rule_data.get("translation_options_port_mapping"):
+                    batch.set_source_rule_translation_options_port_mapping(new_num, rule_data["translation_options_port_mapping"])
                 if rule_data.get("disable"):
                     batch.set_source_rule_disable(new_num)
                 if rule_data.get("exclude"):
@@ -610,14 +667,20 @@ async def reorder_nat_rules(http_request: Request, request: ReorderNATRequest):
                     batch.set_destination_rule_description(new_num, rule_data["description"])
                 if rule_data.get("source_address"):
                     batch.set_destination_rule_source_address(new_num, rule_data["source_address"])
+                if rule_data.get("source_fqdn"):
+                    batch.set_destination_rule_source_fqdn(new_num, rule_data["source_fqdn"])
                 if rule_data.get("source_port"):
                     batch.set_destination_rule_source_port(new_num, rule_data["source_port"])
                 if rule_data.get("destination_address"):
                     batch.set_destination_rule_destination_address(new_num, rule_data["destination_address"])
+                if rule_data.get("destination_fqdn"):
+                    batch.set_destination_rule_destination_fqdn(new_num, rule_data["destination_fqdn"])
                 if rule_data.get("destination_port"):
                     batch.set_destination_rule_destination_port(new_num, rule_data["destination_port"])
                 if rule_data.get("inbound_interface_name"):
                     batch.set_destination_rule_inbound_interface_name(new_num, rule_data["inbound_interface_name"])
+                if rule_data.get("inbound_interface_group"):
+                    batch.set_destination_rule_inbound_interface_group(new_num, rule_data["inbound_interface_group"])
                 if rule_data.get("protocol"):
                     batch.set_destination_rule_protocol(new_num, rule_data["protocol"])
                 if rule_data.get("packet_type"):
@@ -626,6 +689,12 @@ async def reorder_nat_rules(http_request: Request, request: ReorderNATRequest):
                     batch.set_destination_rule_translation_address(new_num, rule_data["translation_address"])
                 if rule_data.get("translation_port"):
                     batch.set_destination_rule_translation_port(new_num, rule_data["translation_port"])
+                if rule_data.get("translation_options_address_mapping"):
+                    batch.set_destination_rule_translation_options_address_mapping(new_num, rule_data["translation_options_address_mapping"])
+                if rule_data.get("translation_options_port_mapping"):
+                    batch.set_destination_rule_translation_options_port_mapping(new_num, rule_data["translation_options_port_mapping"])
+                if rule_data.get("translation_redirect_port"):
+                    batch.set_destination_rule_translation_redirect_port(new_num, rule_data["translation_redirect_port"])
                 if rule_data.get("disable"):
                     batch.set_destination_rule_disable(new_num)
                 if rule_data.get("exclude"):
@@ -646,6 +715,8 @@ async def reorder_nat_rules(http_request: Request, request: ReorderNATRequest):
                     batch.set_static_rule_inbound_interface(new_num, rule_data["inbound_interface"])
                 if rule_data.get("translation_address"):
                     batch.set_static_rule_translation_address(new_num, rule_data["translation_address"])
+                if rule_data.get("log"):
+                    batch.set_static_rule_log(new_num)
 
         if batch.is_empty():
             return VyOSResponse(

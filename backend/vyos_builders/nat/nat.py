@@ -318,6 +318,98 @@ class NATBatchBuilder:
         )
         return self.add_delete(path)
 
+    def set_source_rule_translation_port(
+        self, rule_number: int, port: str
+    ) -> "NATBatchBuilder":
+        """Set source rule translation port."""
+        path = self.mappers[self.mapper_key].get_source_rule_translation_port(
+            rule_number, port
+        )
+        return self.add_set(path)
+
+    def delete_source_rule_translation_port(self, rule_number: int) -> "NATBatchBuilder":
+        """Delete source rule translation port."""
+        path = self.mappers[self.mapper_key].get_source_rule_translation_port_path(rule_number)
+        return self.add_delete(path)
+
+    def set_source_rule_source_fqdn(
+        self, rule_number: int, fqdn: str
+    ) -> "NATBatchBuilder":
+        """Set source rule source FQDN."""
+        path = self.mappers[self.mapper_key].get_source_rule_source_fqdn(rule_number, fqdn)
+        return self.add_set(path)
+
+    def delete_source_rule_source_fqdn(self, rule_number: int) -> "NATBatchBuilder":
+        """Delete source rule source FQDN."""
+        path = self.mappers[self.mapper_key].get_source_rule_source_fqdn_path(rule_number)
+        return self.add_delete(path)
+
+    def set_source_rule_destination_fqdn(
+        self, rule_number: int, fqdn: str
+    ) -> "NATBatchBuilder":
+        """Set source rule destination FQDN."""
+        path = self.mappers[self.mapper_key].get_source_rule_destination_fqdn(rule_number, fqdn)
+        return self.add_set(path)
+
+    def delete_source_rule_destination_fqdn(self, rule_number: int) -> "NATBatchBuilder":
+        """Delete source rule destination FQDN."""
+        path = self.mappers[self.mapper_key].get_source_rule_destination_fqdn_path(rule_number)
+        return self.add_delete(path)
+
+    def set_source_rule_translation_options_address_mapping(
+        self, rule_number: int, value: str
+    ) -> "NATBatchBuilder":
+        """Set source rule translation options address-mapping."""
+        path = self.mappers[self.mapper_key].get_source_rule_translation_options_address_mapping(
+            rule_number, value
+        )
+        return self.add_set(path)
+
+    def delete_source_rule_translation_options_address_mapping(
+        self, rule_number: int
+    ) -> "NATBatchBuilder":
+        """Delete source rule translation options address-mapping."""
+        path = self.mappers[self.mapper_key].get_source_rule_translation_options_address_mapping_path(
+            rule_number
+        )
+        return self.add_delete(path)
+
+    def set_source_rule_translation_options_port_mapping(
+        self, rule_number: int, value: str
+    ) -> "NATBatchBuilder":
+        """Set source rule translation options port-mapping."""
+        path = self.mappers[self.mapper_key].get_source_rule_translation_options_port_mapping(
+            rule_number, value
+        )
+        return self.add_set(path)
+
+    def delete_source_rule_translation_options_port_mapping(
+        self, rule_number: int
+    ) -> "NATBatchBuilder":
+        """Delete source rule translation options port-mapping."""
+        path = self.mappers[self.mapper_key].get_source_rule_translation_options_port_mapping_path(
+            rule_number
+        )
+        return self.add_delete(path)
+
+    def set_source_rule_load_balance_backend_weight(
+        self, rule_number: int, backend: str, weight: str
+    ) -> "NATBatchBuilder":
+        """Set source rule load-balance backend weight."""
+        path = self.mappers[self.mapper_key].get_source_rule_load_balance_backend_weight(
+            rule_number, backend, weight
+        )
+        return self.add_set(path)
+
+    def delete_source_rule_load_balance_backend_weight(
+        self, rule_number: int, backend: str
+    ) -> "NATBatchBuilder":
+        """Delete source rule load-balance backend weight."""
+        path = self.mappers[self.mapper_key].get_source_rule_load_balance_backend_weight_path(
+            rule_number, backend
+        )
+        return self.add_delete(path)
+
     # ========================================================================
     # Destination NAT Rule Operations
     # ========================================================================
@@ -622,6 +714,102 @@ class NATBatchBuilder:
         )
         return self.add_delete(path)
 
+    def set_destination_rule_source_fqdn(
+        self, rule_number: int, fqdn: str
+    ) -> "NATBatchBuilder":
+        """Set destination rule source FQDN."""
+        path = self.mappers[self.mapper_key].get_destination_rule_source_fqdn(rule_number, fqdn)
+        return self.add_set(path)
+
+    def delete_destination_rule_source_fqdn(self, rule_number: int) -> "NATBatchBuilder":
+        """Delete destination rule source FQDN."""
+        path = self.mappers[self.mapper_key].get_destination_rule_source_fqdn_path(rule_number)
+        return self.add_delete(path)
+
+    def set_destination_rule_destination_fqdn(
+        self, rule_number: int, fqdn: str
+    ) -> "NATBatchBuilder":
+        """Set destination rule destination FQDN."""
+        path = self.mappers[self.mapper_key].get_destination_rule_destination_fqdn(rule_number, fqdn)
+        return self.add_set(path)
+
+    def delete_destination_rule_destination_fqdn(self, rule_number: int) -> "NATBatchBuilder":
+        """Delete destination rule destination FQDN."""
+        path = self.mappers[self.mapper_key].get_destination_rule_destination_fqdn_path(rule_number)
+        return self.add_delete(path)
+
+    def set_destination_rule_translation_options_address_mapping(
+        self, rule_number: int, value: str
+    ) -> "NATBatchBuilder":
+        """Set destination rule translation options address-mapping."""
+        path = self.mappers[self.mapper_key].get_destination_rule_translation_options_address_mapping(
+            rule_number, value
+        )
+        return self.add_set(path)
+
+    def delete_destination_rule_translation_options_address_mapping(
+        self, rule_number: int
+    ) -> "NATBatchBuilder":
+        """Delete destination rule translation options address-mapping."""
+        path = self.mappers[self.mapper_key].get_destination_rule_translation_options_address_mapping_path(
+            rule_number
+        )
+        return self.add_delete(path)
+
+    def set_destination_rule_translation_options_port_mapping(
+        self, rule_number: int, value: str
+    ) -> "NATBatchBuilder":
+        """Set destination rule translation options port-mapping."""
+        path = self.mappers[self.mapper_key].get_destination_rule_translation_options_port_mapping(
+            rule_number, value
+        )
+        return self.add_set(path)
+
+    def delete_destination_rule_translation_options_port_mapping(
+        self, rule_number: int
+    ) -> "NATBatchBuilder":
+        """Delete destination rule translation options port-mapping."""
+        path = self.mappers[self.mapper_key].get_destination_rule_translation_options_port_mapping_path(
+            rule_number
+        )
+        return self.add_delete(path)
+
+    def set_destination_rule_translation_redirect_port(
+        self, rule_number: int, port: str
+    ) -> "NATBatchBuilder":
+        """Set destination rule translation redirect port."""
+        path = self.mappers[self.mapper_key].get_destination_rule_translation_redirect_port(
+            rule_number, port
+        )
+        return self.add_set(path)
+
+    def delete_destination_rule_translation_redirect_port(
+        self, rule_number: int
+    ) -> "NATBatchBuilder":
+        """Delete destination rule translation redirect port."""
+        path = self.mappers[self.mapper_key].get_destination_rule_translation_redirect_port_path(
+            rule_number
+        )
+        return self.add_delete(path)
+
+    def set_destination_rule_load_balance_backend_weight(
+        self, rule_number: int, backend: str, weight: str
+    ) -> "NATBatchBuilder":
+        """Set destination rule load-balance backend weight."""
+        path = self.mappers[self.mapper_key].get_destination_rule_load_balance_backend_weight(
+            rule_number, backend, weight
+        )
+        return self.add_set(path)
+
+    def delete_destination_rule_load_balance_backend_weight(
+        self, rule_number: int, backend: str
+    ) -> "NATBatchBuilder":
+        """Delete destination rule load-balance backend weight."""
+        path = self.mappers[self.mapper_key].get_destination_rule_load_balance_backend_weight_path(
+            rule_number, backend
+        )
+        return self.add_delete(path)
+
     # ========================================================================
     # Static NAT Rule Operations
     # ========================================================================
@@ -648,6 +836,16 @@ class NATBatchBuilder:
     def delete_static_rule_description(self, rule_number: int) -> "NATBatchBuilder":
         """Delete static rule description."""
         path = self.mappers[self.mapper_key].get_static_rule_description_path(rule_number)
+        return self.add_delete(path)
+
+    def set_static_rule_log(self, rule_number: int) -> "NATBatchBuilder":
+        """Set static rule log flag."""
+        path = self.mappers[self.mapper_key].get_static_rule_log(rule_number)
+        return self.add_set(path)
+
+    def delete_static_rule_log(self, rule_number: int) -> "NATBatchBuilder":
+        """Delete static rule log flag."""
+        path = self.mappers[self.mapper_key].get_static_rule_log(rule_number)
         return self.add_delete(path)
 
     def set_static_rule_destination_address(
@@ -708,8 +906,14 @@ class NATBatchBuilder:
 
     def get_capabilities(self) -> Dict[str, Any]:
         """Get capabilities for the current VyOS version."""
+        is_v15 = "1.5" in self.version
+
         return {
             "version": self.version,
+            "version_info": {
+                "is_1_4": "1.4" in self.version,
+                "is_1_5": is_v15,
+            },
             "nat_types": {
                 "source": {
                     "supported": True,
@@ -724,57 +928,129 @@ class NATBatchBuilder:
                     "description": "Static 1:1 NAT mapping"
                 }
             },
+            "features": {
+                "fqdn": {"supported": is_v15, "description": "FQDN-based matching for source/destination"},
+                "translation_options": {"supported": True, "description": "Translation address-mapping and port-mapping options"},
+                "translation_redirect": {"supported": True, "description": "Destination NAT redirect port"},
+                "load_balance_weight": {"supported": True, "description": "Backend weight for load balancing"},
+                "static_log": {"supported": True, "description": "Logging for static NAT rules"},
+            },
             "operations": {
                 "source_nat": [
                     "set_source_rule",
                     "delete_source_rule",
                     "set_source_rule_packet_type",
+                    "delete_source_rule_packet_type",
                     "set_source_rule_description",
+                    "delete_source_rule_description",
                     "set_source_rule_destination_address",
+                    "delete_source_rule_destination_address",
+                    "set_source_rule_destination_fqdn",
+                    "delete_source_rule_destination_fqdn",
                     "set_source_rule_destination_group",
+                    "delete_source_rule_destination_group",
                     "set_source_rule_destination_port",
+                    "delete_source_rule_destination_port",
                     "set_source_rule_disable",
+                    "delete_source_rule_disable",
                     "set_source_rule_exclude",
+                    "delete_source_rule_exclude",
                     "set_source_rule_load_balance_hash",
+                    "delete_source_rule_load_balance_hash",
                     "set_source_rule_load_balance_backend",
+                    "delete_source_rule_load_balance_backend",
+                    "set_source_rule_load_balance_backend_weight",
+                    "delete_source_rule_load_balance_backend_weight",
                     "set_source_rule_log",
+                    "delete_source_rule_log",
                     "set_source_rule_outbound_interface_name",
+                    "delete_source_rule_outbound_interface_name",
                     "set_source_rule_outbound_interface_group",
+                    "delete_source_rule_outbound_interface_group",
                     "set_source_rule_protocol",
+                    "delete_source_rule_protocol",
                     "set_source_rule_source_address",
+                    "delete_source_rule_source_address",
+                    "set_source_rule_source_fqdn",
+                    "delete_source_rule_source_fqdn",
                     "set_source_rule_source_group",
+                    "delete_source_rule_source_group",
                     "set_source_rule_source_port",
-                    "set_source_rule_translation_address"
+                    "delete_source_rule_source_port",
+                    "set_source_rule_translation_address",
+                    "delete_source_rule_translation_address",
+                    "set_source_rule_translation_port",
+                    "delete_source_rule_translation_port",
+                    "set_source_rule_translation_options_address_mapping",
+                    "delete_source_rule_translation_options_address_mapping",
+                    "set_source_rule_translation_options_port_mapping",
+                    "delete_source_rule_translation_options_port_mapping",
                 ],
                 "destination_nat": [
                     "set_destination_rule",
                     "delete_destination_rule",
                     "set_destination_rule_packet_type",
+                    "delete_destination_rule_packet_type",
                     "set_destination_rule_description",
+                    "delete_destination_rule_description",
                     "set_destination_rule_destination_address",
+                    "delete_destination_rule_destination_address",
+                    "set_destination_rule_destination_fqdn",
+                    "delete_destination_rule_destination_fqdn",
                     "set_destination_rule_destination_group",
+                    "delete_destination_rule_destination_group",
                     "set_destination_rule_destination_port",
+                    "delete_destination_rule_destination_port",
                     "set_destination_rule_disable",
+                    "delete_destination_rule_disable",
                     "set_destination_rule_exclude",
+                    "delete_destination_rule_exclude",
                     "set_destination_rule_load_balance_hash",
+                    "delete_destination_rule_load_balance_hash",
                     "set_destination_rule_load_balance_backend",
+                    "delete_destination_rule_load_balance_backend",
+                    "set_destination_rule_load_balance_backend_weight",
+                    "delete_destination_rule_load_balance_backend_weight",
                     "set_destination_rule_log",
+                    "delete_destination_rule_log",
                     "set_destination_rule_inbound_interface_name",
+                    "delete_destination_rule_inbound_interface_name",
                     "set_destination_rule_inbound_interface_group",
+                    "delete_destination_rule_inbound_interface_group",
                     "set_destination_rule_protocol",
+                    "delete_destination_rule_protocol",
                     "set_destination_rule_source_address",
+                    "delete_destination_rule_source_address",
+                    "set_destination_rule_source_fqdn",
+                    "delete_destination_rule_source_fqdn",
                     "set_destination_rule_source_group",
+                    "delete_destination_rule_source_group",
                     "set_destination_rule_source_port",
+                    "delete_destination_rule_source_port",
                     "set_destination_rule_translation_address",
-                    "set_destination_rule_translation_port"
+                    "delete_destination_rule_translation_address",
+                    "set_destination_rule_translation_port",
+                    "delete_destination_rule_translation_port",
+                    "set_destination_rule_translation_options_address_mapping",
+                    "delete_destination_rule_translation_options_address_mapping",
+                    "set_destination_rule_translation_options_port_mapping",
+                    "delete_destination_rule_translation_options_port_mapping",
+                    "set_destination_rule_translation_redirect_port",
+                    "delete_destination_rule_translation_redirect_port",
                 ],
                 "static_nat": [
                     "set_static_rule",
                     "delete_static_rule",
                     "set_static_rule_description",
+                    "delete_static_rule_description",
                     "set_static_rule_destination_address",
+                    "delete_static_rule_destination_address",
                     "set_static_rule_inbound_interface",
-                    "set_static_rule_translation_address"
+                    "delete_static_rule_inbound_interface",
+                    "set_static_rule_log",
+                    "delete_static_rule_log",
+                    "set_static_rule_translation_address",
+                    "delete_static_rule_translation_address",
                 ]
             }
         }
