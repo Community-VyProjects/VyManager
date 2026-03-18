@@ -216,10 +216,12 @@ class NATService {
       source_port?: string;
       source_group_type?: string;
       source_group_name?: string;
+      source_port_group_name?: string;
       destination_address?: string;
       destination_port?: string;
       destination_group_type?: string;
       destination_group_name?: string;
+      destination_port_group_name?: string;
       outbound_interface_type?: "name" | "group";
       outbound_interface_value?: string;
       outbound_interface_invert?: boolean;
@@ -257,6 +259,12 @@ class NATService {
         value: JSON.stringify({ group_type: config.source_group_type, group_name: config.source_group_name })
       });
     }
+    if (config.source_port_group_name) {
+      operations.push({
+        op: "set_source_rule_source_group",
+        value: JSON.stringify({ group_type: "port-group", group_name: config.source_port_group_name })
+      });
+    }
 
     // Destination
     if (config.destination_address) {
@@ -269,6 +277,12 @@ class NATService {
       operations.push({
         op: "set_source_rule_destination_group",
         value: JSON.stringify({ group_type: config.destination_group_type, group_name: config.destination_group_name })
+      });
+    }
+    if (config.destination_port_group_name) {
+      operations.push({
+        op: "set_source_rule_destination_group",
+        value: JSON.stringify({ group_type: "port-group", group_name: config.destination_port_group_name })
       });
     }
 
@@ -346,10 +360,12 @@ class NATService {
       source_port?: string;
       source_group_type?: string;
       source_group_name?: string;
+      source_port_group_name?: string;
       destination_address?: string;
       destination_port?: string;
       destination_group_type?: string;
       destination_group_name?: string;
+      destination_port_group_name?: string;
       inbound_interface_type?: "name" | "group";
       inbound_interface_value?: string;
       inbound_interface_invert?: boolean;
@@ -387,6 +403,12 @@ class NATService {
         value: JSON.stringify({ group_type: config.source_group_type, group_name: config.source_group_name })
       });
     }
+    if (config.source_port_group_name) {
+      operations.push({
+        op: "set_destination_rule_source_group",
+        value: JSON.stringify({ group_type: "port-group", group_name: config.source_port_group_name })
+      });
+    }
 
     // Destination
     if (config.destination_address) {
@@ -399,6 +421,12 @@ class NATService {
       operations.push({
         op: "set_destination_rule_destination_group",
         value: JSON.stringify({ group_type: config.destination_group_type, group_name: config.destination_group_name })
+      });
+    }
+    if (config.destination_port_group_name) {
+      operations.push({
+        op: "set_destination_rule_destination_group",
+        value: JSON.stringify({ group_type: "port-group", group_name: config.destination_port_group_name })
       });
     }
 
@@ -535,10 +563,12 @@ class NATService {
       source_port?: string;
       source_group_type?: string;
       source_group_name?: string;
+      source_port_group_name?: string;
       destination_address?: string;
       destination_port?: string;
       destination_group_type?: string;
       destination_group_name?: string;
+      destination_port_group_name?: string;
       outbound_interface_type?: "name" | "group";
       outbound_interface_value?: string;
       outbound_interface_invert?: boolean;
@@ -556,9 +586,11 @@ class NATService {
       delete_source_address?: boolean;
       delete_source_port?: boolean;
       delete_source_group?: boolean;
+      delete_source_port_group?: boolean;
       delete_destination_address?: boolean;
       delete_destination_port?: boolean;
       delete_destination_group?: boolean;
+      delete_destination_port_group?: boolean;
       delete_outbound_interface_name?: boolean;
       delete_outbound_interface_group?: boolean;
     }
@@ -600,6 +632,15 @@ class NATService {
       });
     }
 
+    if (config.delete_source_port_group) {
+      operations.push({ op: "delete_source_rule_source_group", value: "port-group" });
+    } else if (config.source_port_group_name) {
+      operations.push({
+        op: "set_source_rule_source_group",
+        value: JSON.stringify({ group_type: "port-group", group_name: config.source_port_group_name })
+      });
+    }
+
     // Destination - handle deletions first, then sets
     if (config.delete_destination_address) {
       operations.push({ op: "delete_source_rule_destination_address" });
@@ -622,6 +663,15 @@ class NATService {
       operations.push({
         op: "set_source_rule_destination_group",
         value: JSON.stringify({ group_type: config.destination_group_type, group_name: config.destination_group_name })
+      });
+    }
+
+    if (config.delete_destination_port_group) {
+      operations.push({ op: "delete_source_rule_destination_group", value: "port-group" });
+    } else if (config.destination_port_group_name) {
+      operations.push({
+        op: "set_source_rule_destination_group",
+        value: JSON.stringify({ group_type: "port-group", group_name: config.destination_port_group_name })
       });
     }
 
@@ -707,10 +757,12 @@ class NATService {
       source_port?: string;
       source_group_type?: string;
       source_group_name?: string;
+      source_port_group_name?: string;
       destination_address?: string;
       destination_port?: string;
       destination_group_type?: string;
       destination_group_name?: string;
+      destination_port_group_name?: string;
       inbound_interface_type?: "name" | "group";
       inbound_interface_value?: string;
       inbound_interface_invert?: boolean;
@@ -728,9 +780,11 @@ class NATService {
       delete_source_address?: boolean;
       delete_source_port?: boolean;
       delete_source_group?: boolean;
+      delete_source_port_group?: boolean;
       delete_destination_address?: boolean;
       delete_destination_port?: boolean;
       delete_destination_group?: boolean;
+      delete_destination_port_group?: boolean;
       delete_inbound_interface_name?: boolean;
       delete_inbound_interface_group?: boolean;
     }
@@ -772,6 +826,15 @@ class NATService {
       });
     }
 
+    if (config.delete_source_port_group) {
+      operations.push({ op: "delete_destination_rule_source_group", value: "port-group" });
+    } else if (config.source_port_group_name) {
+      operations.push({
+        op: "set_destination_rule_source_group",
+        value: JSON.stringify({ group_type: "port-group", group_name: config.source_port_group_name })
+      });
+    }
+
     // Destination - handle deletions first, then sets
     if (config.delete_destination_address) {
       operations.push({ op: "delete_destination_rule_destination_address" });
@@ -794,6 +857,15 @@ class NATService {
       operations.push({
         op: "set_destination_rule_destination_group",
         value: JSON.stringify({ group_type: config.destination_group_type, group_name: config.destination_group_name })
+      });
+    }
+
+    if (config.delete_destination_port_group) {
+      operations.push({ op: "delete_destination_rule_destination_group", value: "port-group" });
+    } else if (config.destination_port_group_name) {
+      operations.push({
+        op: "set_destination_rule_destination_group",
+        value: JSON.stringify({ group_type: "port-group", group_name: config.destination_port_group_name })
       });
     }
 

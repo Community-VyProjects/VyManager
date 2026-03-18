@@ -47,6 +47,8 @@ export function CreateSourceNATModal({ open, onOpenChange, onSuccess }: CreateSo
   const [sourceGroupType, setSourceGroupType] = useState("");
   const [sourceGroupName, setSourceGroupName] = useState("");
   const [sourcePort, setSourcePort] = useState("");
+  const [sourcePortType, setSourcePortType] = useState<"input" | "group">("input");
+  const [sourcePortGroupName, setSourcePortGroupName] = useState("");
 
   // Destination
   const [destinationType, setDestinationType] = useState<"address" | "group">("address");
@@ -54,6 +56,8 @@ export function CreateSourceNATModal({ open, onOpenChange, onSuccess }: CreateSo
   const [destinationGroupType, setDestinationGroupType] = useState("");
   const [destinationGroupName, setDestinationGroupName] = useState("");
   const [destinationPort, setDestinationPort] = useState("");
+  const [destPortType, setDestPortType] = useState<"input" | "group">("input");
+  const [destPortGroupName, setDestPortGroupName] = useState("");
 
   // Outbound interface
   const [outboundInterfaceType, setOutboundInterfaceType] = useState<"name" | "group">("name");
@@ -92,7 +96,7 @@ export function CreateSourceNATModal({ open, onOpenChange, onSuccess }: CreateSo
 
   // Auto-adjust protocol when ports are used
   useEffect(() => {
-    const hasPort = sourcePort.trim() || destinationPort.trim();
+    const hasPort = sourcePort.trim() || destinationPort.trim() || sourcePortGroupName || destPortGroupName;
     const portCompatibleProtocols = ["tcp", "udp", "tcp_udp"];
 
     if (hasPort && !portCompatibleProtocols.includes(protocol)) {
@@ -102,7 +106,7 @@ export function CreateSourceNATModal({ open, onOpenChange, onSuccess }: CreateSo
       // Switch back to "all" when ports are cleared
       setProtocol("all");
     }
-  }, [sourcePort, destinationPort, protocol]);
+  }, [sourcePort, destinationPort, sourcePortGroupName, destPortGroupName, protocol]);
 
   const loadGroups = async () => {
     try {
@@ -212,6 +216,10 @@ export function CreateSourceNATModal({ open, onOpenChange, onSuccess }: CreateSo
     setDestinationGroupType("");
     setDestinationGroupName("");
     setDestinationPort("");
+    setSourcePortType("input");
+    setSourcePortGroupName("");
+    setDestPortType("input");
+    setDestPortGroupName("");
     setOutboundInterfaceType("name");
     setOutboundInterfaceName("");
     setOutboundInterfaceGroup("");
@@ -251,8 +259,10 @@ export function CreateSourceNATModal({ open, onOpenChange, onSuccess }: CreateSo
         config.source_group_type = sourceGroupType;
         config.source_group_name = sourceGroupName;
       }
-      if (sourcePort.trim()) {
+      if (sourcePortType === "input" && sourcePort.trim()) {
         config.source_port = sourcePort.trim();
+      } else if (sourcePortType === "group" && sourcePortGroupName) {
+        config.source_port_group_name = sourcePortGroupName;
       }
 
       // Destination
@@ -262,8 +272,10 @@ export function CreateSourceNATModal({ open, onOpenChange, onSuccess }: CreateSo
         config.destination_group_type = destinationGroupType;
         config.destination_group_name = destinationGroupName;
       }
-      if (destinationPort.trim()) {
+      if (destPortType === "input" && destinationPort.trim()) {
         config.destination_port = destinationPort.trim();
+      } else if (destPortType === "group" && destPortGroupName) {
+        config.destination_port_group_name = destPortGroupName;
       }
 
       // Outbound interface
@@ -326,6 +338,7 @@ export function CreateSourceNATModal({ open, onOpenChange, onSuccess }: CreateSo
   const getNetworkGroups = () => (groups || []).filter(g => g.type === "network-group" || g.type === "ipv6-network-group");
   const getDomainGroups = () => (groups || []).filter(g => g.type === "domain-group");
   const getInterfaceGroups = () => (groups || []).filter(g => g.type === "interface-group");
+  const getPortGroups = () => (groups || []).filter(g => g.type === "port-group");
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -493,7 +506,7 @@ export function CreateSourceNATModal({ open, onOpenChange, onSuccess }: CreateSo
                   <SelectTrigger id="protocol">
                     <SelectValue />
                   </SelectTrigger>
-                  {(sourcePort.trim() || destinationPort.trim()) ? (
+                  {(sourcePort.trim() || destinationPort.trim() || sourcePortGroupName || destPortGroupName) ? (
                     // When ports are specified, only allow TCP/UDP protocols
                     <SelectContent>
                       <SelectItem value="tcp">TCP</SelectItem>
@@ -563,7 +576,7 @@ export function CreateSourceNATModal({ open, onOpenChange, onSuccess }: CreateSo
                     </SelectContent>
                   )}
                 </Select>
-                {(sourcePort.trim() || destinationPort.trim()) && (
+                {(sourcePort.trim() || destinationPort.trim() || sourcePortGroupName || destPortGroupName) && (
                   <p className="text-xs text-muted-foreground">
                     Only TCP/UDP protocols are available when using ports
                   </p>
@@ -635,15 +648,43 @@ export function CreateSourceNATModal({ open, onOpenChange, onSuccess }: CreateSo
                 </>
               )}
 
-              <div className="space-y-2">
-                <Label htmlFor="source-port">Source Port</Label>
-                <Input
-                  id="source-port"
-                  value={sourcePort}
-                  onChange={(e) => setSourcePort(e.target.value)}
-                  placeholder="e.g., 80, 443, 1024-65535"
-                  className="font-mono"
-                />
+              <div className="space-y-3">
+                <Label className="text-base font-medium">Source Port</Label>
+                <RadioGroup value={sourcePortType} onValueChange={(v) => {
+                  setSourcePortType(v as "input" | "group");
+                  if (v === "input") setSourcePortGroupName("");
+                  if (v === "group") setSourcePort("");
+                }}>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="input" id="source-port-input-radio" />
+                    <Label htmlFor="source-port-input-radio">Port</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="group" id="source-port-group-radio" />
+                    <Label htmlFor="source-port-group-radio">Port Group</Label>
+                  </div>
+                </RadioGroup>
+
+                {sourcePortType === "input" ? (
+                  <Input
+                    id="source-port"
+                    value={sourcePort}
+                    onChange={(e) => setSourcePort(e.target.value)}
+                    placeholder="e.g., 80, 443, 1024-65535"
+                    className="font-mono"
+                  />
+                ) : (
+                  <Select value={sourcePortGroupName} onValueChange={setSourcePortGroupName}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select port group" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getPortGroups().map((g) => (
+                        <SelectItem key={g.name} value={g.name}>{g.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
             </TabsContent>
 
@@ -711,15 +752,43 @@ export function CreateSourceNATModal({ open, onOpenChange, onSuccess }: CreateSo
                 </>
               )}
 
-              <div className="space-y-2">
-                <Label htmlFor="destination-port">Destination Port</Label>
-                <Input
-                  id="destination-port"
-                  value={destinationPort}
-                  onChange={(e) => setDestinationPort(e.target.value)}
-                  placeholder="e.g., 80, 443, 8080"
-                  className="font-mono"
-                />
+              <div className="space-y-3">
+                <Label className="text-base font-medium">Destination Port</Label>
+                <RadioGroup value={destPortType} onValueChange={(v) => {
+                  setDestPortType(v as "input" | "group");
+                  if (v === "input") setDestPortGroupName("");
+                  if (v === "group") setDestinationPort("");
+                }}>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="input" id="dest-port-input-radio" />
+                    <Label htmlFor="dest-port-input-radio">Port</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="group" id="dest-port-group-radio" />
+                    <Label htmlFor="dest-port-group-radio">Port Group</Label>
+                  </div>
+                </RadioGroup>
+
+                {destPortType === "input" ? (
+                  <Input
+                    id="destination-port"
+                    value={destinationPort}
+                    onChange={(e) => setDestinationPort(e.target.value)}
+                    placeholder="e.g., 80, 443, 8080"
+                    className="font-mono"
+                  />
+                ) : (
+                  <Select value={destPortGroupName} onValueChange={setDestPortGroupName}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select port group" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getPortGroups().map((g) => (
+                        <SelectItem key={g.name} value={g.name}>{g.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
             </TabsContent>
 
