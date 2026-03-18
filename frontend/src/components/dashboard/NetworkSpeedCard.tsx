@@ -40,6 +40,8 @@ import { useDashboardData } from "@/contexts/DashboardDataContext";
 const WINDOW_MS = 120_000;
 /** Safety cap on stored points (prevents unbounded growth at very high sample rates) */
 const MAX_POINTS = 1_000;
+/** Number of recent samples to average for smoothing (reduces spiky readings) */
+const SMOOTHING_WINDOW = 3;
 
 // ============================================================================
 // Types
@@ -166,7 +168,11 @@ export function NetworkSpeedCard({
   useEffect(() => {
     setHistory([]);
     prevRef.current = null;
+    rawBufferRef.current = [];
   }, [selectedIface]);
+
+  // Buffer of recent raw speed samples for smoothing
+  const rawBufferRef = useRef<{ rx: number; tx: number }[]>([]);
 
   // Compute speed deltas on each SSE counter update
   useEffect(() => {
@@ -191,10 +197,18 @@ export function NetworkSpeedCard({
           ((iface.tx_bytes - prev.tx_bytes) * 8) / elapsed
         );
 
+        // Push raw sample and keep only the last SMOOTHING_WINDOW entries
+        const buf = rawBufferRef.current;
+        buf.push({ rx: rxBps, tx: txBps });
+        if (buf.length > SMOOTHING_WINDOW) buf.shift();
+
+        // Average over the buffer to smooth out spikes
+        const smoothRx = buf.reduce((s, p) => s + p.rx, 0) / buf.length;
+        const smoothTx = buf.reduce((s, p) => s + p.tx, 0) / buf.length;
+
         setHistory((h) => {
-          // Keep only points within the rolling 2-minute window, plus safety cap
           const cutoff = now - WINDOW_MS;
-          return [...h, { ts: now, rx: rxBps, tx: txBps }]
+          return [...h, { ts: now, rx: smoothRx, tx: smoothTx }]
             .filter((pt) => pt.ts >= cutoff)
             .slice(-MAX_POINTS);
         });
