@@ -154,6 +154,7 @@ export function ZoneRulePanel({
   const [srcAddressError, setSrcAddressError] = useState<string | null>(null);
   const [srcGroupType, setSrcGroupType] = useState("address-group");
   const [srcGroupName, setSrcGroupName] = useState("");
+  const [srcGroupInvert, setSrcGroupInvert] = useState(false);
   const [srcGeoip, setSrcGeoip] = useState<string[]>([]);
   const [srcGeoipInverse, setSrcGeoipInverse] = useState(false);
   const [srcMac, setSrcMac] = useState("");
@@ -161,6 +162,7 @@ export function ZoneRulePanel({
   const [srcPortMode, setSrcPortMode] = useState<PortMode>("any");
   const [srcPort, setSrcPort] = useState("");
   const [srcPortGroup, setSrcPortGroup] = useState("");
+  const [srcPortGroupInvert, setSrcPortGroupInvert] = useState(false);
   const [srcPortError, setSrcPortError] = useState<string | null>(null);
 
   // ── Destination ───────────────────────────────────────────────────────────
@@ -170,11 +172,13 @@ export function ZoneRulePanel({
   const [dstAddressError, setDstAddressError] = useState<string | null>(null);
   const [dstGroupType, setDstGroupType] = useState("address-group");
   const [dstGroupName, setDstGroupName] = useState("");
+  const [dstGroupInvert, setDstGroupInvert] = useState(false);
   const [dstGeoip, setDstGeoip] = useState<string[]>([]);
   const [dstGeoipInverse, setDstGeoipInverse] = useState(false);
   const [dstPortMode, setDstPortMode] = useState<PortMode>("any");
   const [dstPort, setDstPort] = useState("");
   const [dstPortGroup, setDstPortGroup] = useState("");
+  const [dstPortGroupInvert, setDstPortGroupInvert] = useState(false);
   const [dstPortError, setDstPortError] = useState<string | null>(null);
 
   // ── State matching ────────────────────────────────────────────────────────
@@ -226,6 +230,7 @@ export function ZoneRulePanel({
     setSrcAddressError(null);
     setSrcGroupType("address-group");
     setSrcGroupName("");
+    setSrcGroupInvert(false);
     setSrcGeoip([]);
     setSrcGeoipInverse(false);
     setSrcMac("");
@@ -233,6 +238,7 @@ export function ZoneRulePanel({
     setSrcPortMode("any");
     setSrcPort("");
     setSrcPortGroup("");
+    setSrcPortGroupInvert(false);
     setSrcPortError(null);
     setDstMode("any");
     setDstAddress("");
@@ -240,11 +246,13 @@ export function ZoneRulePanel({
     setDstAddressError(null);
     setDstGroupType("address-group");
     setDstGroupName("");
+    setDstGroupInvert(false);
     setDstGeoip([]);
     setDstGeoipInverse(false);
     setDstPortMode("any");
     setDstPort("");
     setDstPortGroup("");
+    setDstPortGroupInvert(false);
     setDstPortError(null);
     setStateEstablished(false);
     setStateNew(false);
@@ -293,9 +301,15 @@ export function ZoneRulePanel({
       setSrcGeoipInverse(src.geoip.inverse_match ?? false);
     } else if (srcNonPortGroup.length > 0) {
       setSrcMode("group");
-      const [groupType, groupName] = srcNonPortGroup[0];
+      const [groupType, rawGroupName] = srcNonPortGroup[0];
       setSrcGroupType(groupType ?? "address-group");
-      setSrcGroupName(groupName ?? "");
+      if (rawGroupName?.startsWith("!")) {
+        setSrcGroupName(rawGroupName.substring(1));
+        setSrcGroupInvert(true);
+      } else {
+        setSrcGroupName(rawGroupName ?? "");
+        setSrcGroupInvert(false);
+      }
     } else if (src.address) {
       setSrcMode("address");
       const addr = src.address;
@@ -312,7 +326,14 @@ export function ZoneRulePanel({
       setSrcPort(src.port);
     } else if (src?.group?.["port-group"]) {
       setSrcPortMode("group");
-      setSrcPortGroup(src.group["port-group"]);
+      const rawPortGroup = src.group["port-group"];
+      if (rawPortGroup.startsWith("!")) {
+        setSrcPortGroup(rawPortGroup.substring(1));
+        setSrcPortGroupInvert(true);
+      } else {
+        setSrcPortGroup(rawPortGroup);
+        setSrcPortGroupInvert(false);
+      }
     } else {
       setSrcPortMode("any");
     }
@@ -331,9 +352,15 @@ export function ZoneRulePanel({
       setDstGeoipInverse(dst.geoip.inverse_match ?? false);
     } else if (dstNonPortGroup.length > 0) {
       setDstMode("group");
-      const [groupType, groupName] = dstNonPortGroup[0];
+      const [groupType, rawGroupName] = dstNonPortGroup[0];
       setDstGroupType(groupType ?? "address-group");
-      setDstGroupName(groupName ?? "");
+      if (rawGroupName?.startsWith("!")) {
+        setDstGroupName(rawGroupName.substring(1));
+        setDstGroupInvert(true);
+      } else {
+        setDstGroupName(rawGroupName ?? "");
+        setDstGroupInvert(false);
+      }
     } else if (dst.address) {
       setDstMode("address");
       const addr = dst.address;
@@ -350,7 +377,14 @@ export function ZoneRulePanel({
       setDstPort(dst.port);
     } else if (dst?.group?.["port-group"]) {
       setDstPortMode("group");
-      setDstPortGroup(dst.group["port-group"]);
+      const rawPortGroup = dst.group["port-group"];
+      if (rawPortGroup.startsWith("!")) {
+        setDstPortGroup(rawPortGroup.substring(1));
+        setDstPortGroupInvert(true);
+      } else {
+        setDstPortGroup(rawPortGroup);
+        setDstPortGroupInvert(false);
+      }
     } else {
       setDstPortMode("any");
     }
@@ -513,7 +547,7 @@ export function ZoneRulePanel({
         if (srcMode === "address" && srcAddress.trim()) {
           config.source.address = srcAddressInvert ? `!${srcAddress.trim()}` : srcAddress.trim();
         } else if (srcMode === "group" && srcGroupName) {
-          config.source.group = { [srcGroupType]: srcGroupName };
+          config.source.group = { [srcGroupType]: srcGroupInvert ? `!${srcGroupName}` : srcGroupName };
         } else if (srcMode === "geoip" && srcGeoip.length > 0) {
           config.source.geoip = { country_code: srcGeoip, inverse_match: srcGeoipInverse };
         } else if (srcMode === "mac" && srcMac.trim()) {
@@ -522,7 +556,7 @@ export function ZoneRulePanel({
         if (srcPortMode === "port" && srcPort.trim()) {
           config.source.port = srcPort.trim();
         } else if (srcPortMode === "group" && srcPortGroup) {
-          config.source = { ...config.source, group: { ...(config.source.group ?? {}), "port-group": srcPortGroup } };
+          config.source = { ...config.source, group: { ...(config.source.group ?? {}), "port-group": srcPortGroupInvert ? `!${srcPortGroup}` : srcPortGroup } };
         }
       }
 
@@ -534,14 +568,14 @@ export function ZoneRulePanel({
         if (dstMode === "address" && dstAddress.trim()) {
           config.destination.address = dstAddressInvert ? `!${dstAddress.trim()}` : dstAddress.trim();
         } else if (dstMode === "group" && dstGroupName) {
-          config.destination.group = { [dstGroupType]: dstGroupName };
+          config.destination.group = { [dstGroupType]: dstGroupInvert ? `!${dstGroupName}` : dstGroupName };
         } else if (dstMode === "geoip" && dstGeoip.length > 0) {
           config.destination.geoip = { country_code: dstGeoip, inverse_match: dstGeoipInverse };
         }
         if (dstPortMode === "port" && dstPort.trim()) {
           config.destination.port = dstPort.trim();
         } else if (dstPortMode === "group" && dstPortGroup) {
-          config.destination = { ...config.destination, group: { ...(config.destination.group ?? {}), "port-group": dstPortGroup } };
+          config.destination = { ...config.destination, group: { ...(config.destination.group ?? {}), "port-group": dstPortGroupInvert ? `!${dstPortGroup}` : dstPortGroup } };
         }
       }
 
@@ -862,27 +896,33 @@ export function ZoneRulePanel({
                   )}
 
                   {srcMode === "group" && (
-                    <div className="flex gap-2">
-                      <Select value={srcGroupType} onValueChange={(v) => { setSrcGroupType(v); setSrcGroupName(""); }} disabled={!canEdit}>
-                        <SelectTrigger className="h-8 text-xs w-44">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {addrGroupTypeOptions.map((o) => (
-                            <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Select value={srcGroupName} onValueChange={setSrcGroupName} disabled={!canEdit}>
-                        <SelectTrigger className="h-8 text-xs flex-1">
-                          <SelectValue placeholder="Select group" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {groupsByType(srcGroupType).map((g) => (
-                            <SelectItem key={g.name} value={g.name} className="text-xs font-mono">{g.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    <div className="space-y-1">
+                      <div className="flex gap-2">
+                        <Select value={srcGroupType} onValueChange={(v) => { setSrcGroupType(v); setSrcGroupName(""); }} disabled={!canEdit}>
+                          <SelectTrigger className="h-8 text-xs w-44">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {addrGroupTypeOptions.map((o) => (
+                              <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Select value={srcGroupName} onValueChange={setSrcGroupName} disabled={!canEdit}>
+                          <SelectTrigger className="h-8 text-xs flex-1">
+                            <SelectValue placeholder="Select group" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {groupsByType(srcGroupType).map((g) => (
+                              <SelectItem key={g.name} value={g.name} className="text-xs font-mono">{g.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <label className="flex items-center gap-1 text-xs whitespace-nowrap cursor-pointer">
+                        <Checkbox checked={srcGroupInvert} onCheckedChange={(c) => setSrcGroupInvert(!!c)} disabled={!canEdit} className="h-3.5 w-3.5" />
+                        Invert (match packets NOT in this group)
+                      </label>
                     </div>
                   )}
 
@@ -929,16 +969,22 @@ export function ZoneRulePanel({
                     </div>
                   )}
                   {srcPortMode === "group" && (
-                    <Select value={srcPortGroup} onValueChange={setSrcPortGroup} disabled={!canEdit}>
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue placeholder="Select port group" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {portGroups.map((g) => (
-                          <SelectItem key={g.name} value={g.name} className="text-xs font-mono">{g.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="space-y-1">
+                      <Select value={srcPortGroup} onValueChange={setSrcPortGroup} disabled={!canEdit}>
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue placeholder="Select port group" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {portGroups.map((g) => (
+                            <SelectItem key={g.name} value={g.name} className="text-xs font-mono">{g.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <label className="flex items-center gap-1 text-xs whitespace-nowrap cursor-pointer">
+                        <Checkbox checked={srcPortGroupInvert} onCheckedChange={(c) => setSrcPortGroupInvert(!!c)} disabled={!canEdit} className="h-3.5 w-3.5" />
+                        Invert (match packets NOT in this group)
+                      </label>
+                    </div>
                   )}
                 </div>
               </div>
@@ -980,27 +1026,33 @@ export function ZoneRulePanel({
                   )}
 
                   {dstMode === "group" && (
-                    <div className="flex gap-2">
-                      <Select value={dstGroupType} onValueChange={(v) => { setDstGroupType(v); setDstGroupName(""); }} disabled={!canEdit}>
-                        <SelectTrigger className="h-8 text-xs w-44">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {addrGroupTypeOptions.map((o) => (
-                            <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Select value={dstGroupName} onValueChange={setDstGroupName} disabled={!canEdit}>
-                        <SelectTrigger className="h-8 text-xs flex-1">
-                          <SelectValue placeholder="Select group" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {groupsByType(dstGroupType).map((g) => (
-                            <SelectItem key={g.name} value={g.name} className="text-xs font-mono">{g.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    <div className="space-y-1">
+                      <div className="flex gap-2">
+                        <Select value={dstGroupType} onValueChange={(v) => { setDstGroupType(v); setDstGroupName(""); }} disabled={!canEdit}>
+                          <SelectTrigger className="h-8 text-xs w-44">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {addrGroupTypeOptions.map((o) => (
+                              <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Select value={dstGroupName} onValueChange={setDstGroupName} disabled={!canEdit}>
+                          <SelectTrigger className="h-8 text-xs flex-1">
+                            <SelectValue placeholder="Select group" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {groupsByType(dstGroupType).map((g) => (
+                              <SelectItem key={g.name} value={g.name} className="text-xs font-mono">{g.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <label className="flex items-center gap-1 text-xs whitespace-nowrap cursor-pointer">
+                        <Checkbox checked={dstGroupInvert} onCheckedChange={(c) => setDstGroupInvert(!!c)} disabled={!canEdit} className="h-3.5 w-3.5" />
+                        Invert (match packets NOT in this group)
+                      </label>
                     </div>
                   )}
 
@@ -1034,16 +1086,22 @@ export function ZoneRulePanel({
                     </div>
                   )}
                   {dstPortMode === "group" && (
-                    <Select value={dstPortGroup} onValueChange={setDstPortGroup} disabled={!canEdit}>
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue placeholder="Select port group" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {portGroups.map((g) => (
-                          <SelectItem key={g.name} value={g.name} className="text-xs font-mono">{g.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="space-y-1">
+                      <Select value={dstPortGroup} onValueChange={setDstPortGroup} disabled={!canEdit}>
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue placeholder="Select port group" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {portGroups.map((g) => (
+                            <SelectItem key={g.name} value={g.name} className="text-xs font-mono">{g.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <label className="flex items-center gap-1 text-xs whitespace-nowrap cursor-pointer">
+                        <Checkbox checked={dstPortGroupInvert} onCheckedChange={(c) => setDstPortGroupInvert(!!c)} disabled={!canEdit} className="h-3.5 w-3.5" />
+                        Invert (match packets NOT in this group)
+                      </label>
+                    </div>
                   )}
                 </div>
               </div>
