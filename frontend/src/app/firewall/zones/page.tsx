@@ -102,7 +102,8 @@ function SortableRuleRow({
   };
 
   function getGroupMembers(name: string): string[] {
-    return groups.find((g) => g.name === name)?.members ?? [];
+    const cleanName = name.startsWith("!") ? name.substring(1) : name;
+    return groups.find((g) => g.name === cleanName)?.members ?? [];
   }
 
   type AddrObj = { address?: string | null; group?: Record<string, string> | null; geoip?: { country_code?: string[] | null; inverse_match?: boolean | null } | null; mac_address?: string | null } | null | undefined;
@@ -122,14 +123,18 @@ function SortableRuleRow({
           <code className="text-xs bg-muted/50 px-1.5 py-0.5 rounded font-mono">{obj.mac_address}</code>
         )}
         {nonPortGroups.map(([, name]) => {
+          const inverted = name.startsWith("!");
+          const displayName = inverted ? name.substring(1) : name;
           const members = getGroupMembers(name);
           return (
             <Tooltip key={name}>
               <TooltipTrigger asChild>
-                <Badge variant="outline" className="text-xs cursor-help w-fit">{name}</Badge>
+                <Badge variant="outline" className={cn("text-xs cursor-help w-fit", inverted && "bg-orange-500/10 text-orange-500 border-orange-500/20")}>
+                  {inverted && "!"}{displayName}
+                </Badge>
               </TooltipTrigger>
               <TooltipContent>
-                <p className="font-semibold text-xs mb-1">{name}</p>
+                <p className="font-semibold text-xs mb-1">{inverted ? `NOT ${displayName}` : displayName}</p>
                 <p className="text-xs">{members.length > 0 ? members.join(", ") : "No members"}</p>
               </TooltipContent>
             </Tooltip>
@@ -169,14 +174,18 @@ function SortableRuleRow({
     if (obj.port) return <span className="font-mono text-xs">{obj.port}</span>;
     if (obj.group?.["port-group"]) {
       const name = obj.group["port-group"];
+      const inverted = name.startsWith("!");
+      const displayName = inverted ? name.substring(1) : name;
       const members = getGroupMembers(name);
       return (
         <Tooltip>
           <TooltipTrigger asChild>
-            <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-500 border-blue-500/20 cursor-help">{name}</Badge>
+            <Badge variant="outline" className={cn("text-xs cursor-help", inverted ? "bg-orange-500/10 text-orange-500 border-orange-500/20" : "bg-blue-500/10 text-blue-500 border-blue-500/20")}>
+              {inverted && "!"}{displayName}
+            </Badge>
           </TooltipTrigger>
           <TooltipContent>
-            <p className="font-semibold text-xs mb-1">{name}</p>
+            <p className="font-semibold text-xs mb-1">{inverted ? `NOT ${displayName}` : displayName}</p>
             <p className="text-xs">{members.length > 0 ? members.join(", ") : "No ports"}</p>
           </TooltipContent>
         </Tooltip>

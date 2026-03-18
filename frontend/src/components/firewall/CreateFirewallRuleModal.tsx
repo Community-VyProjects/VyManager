@@ -82,6 +82,7 @@ export function CreateFirewallRuleModal({
   const [sourceGeoipInverse, setSourceGeoipInverse] = useState(false);
   const [sourceGroupType, setSourceGroupType] = useState("");
   const [sourceGroupName, setSourceGroupName] = useState("");
+  const [sourceGroupInvert, setSourceGroupInvert] = useState(false);
 
   // Destination fields
   const [destMode, setDestMode] = useState<"any" | "address" | "group" | "geoip">("any");
@@ -105,6 +106,9 @@ export function CreateFirewallRuleModal({
   }, [sourcePort, destPort, sourcePortGroup, destPortGroup, ruleProtocol]);
   const [destGroupType, setDestGroupType] = useState("");
   const [destGroupName, setDestGroupName] = useState("");
+  const [destGroupInvert, setDestGroupInvert] = useState(false);
+  const [sourcePortGroupInvert, setSourcePortGroupInvert] = useState(false);
+  const [destPortGroupInvert, setDestPortGroupInvert] = useState(false);
 
   // State fields
   const [stateEstablished, setStateEstablished] = useState(false);
@@ -294,16 +298,20 @@ export function CreateFirewallRuleModal({
     setSourceGeoipInverse(false);
     setSourceGroupType("");
     setSourceGroupName("");
+    setSourceGroupInvert(false);
+    setSourcePortGroupInvert(false);
     setDestMode("any");
     setDestAddress("");
     setDestAddressInvert(false);
     setDestPortMode("any");
     setDestPort("");
     setDestPortGroup("");
+    setDestPortGroupInvert(false);
     setDestGeoipCountry([]);
     setDestGeoipInverse(false);
     setDestGroupType("");
     setDestGroupName("");
+    setDestGroupInvert(false);
     setStateEstablished(false);
     setStateNew(false);
     setStateRelated(false);
@@ -427,7 +435,7 @@ export function CreateFirewallRuleModal({
           config.source.address = sourceAddressInvert ? `!${addr}` : addr;
         } else if (sourceMode === "group" && sourceGroupType && sourceGroupName) {
           // Address or network group - mutually exclusive with address, geoip, and mac
-          config.source.group = { [sourceGroupType]: sourceGroupName };
+          config.source.group = { [sourceGroupType]: sourceGroupInvert ? `!${sourceGroupName}` : sourceGroupName };
         } else if (sourceMode === "geoip" && sourceGeoipCountry.length > 0) {
           // GeoIP - mutually exclusive with address, group, and mac
           config.source.geoip = {
@@ -447,7 +455,7 @@ export function CreateFirewallRuleModal({
           if (!config.source.group) {
             config.source.group = {};
           }
-          config.source.group["port-group"] = sourcePortGroup;
+          config.source.group["port-group"] = sourcePortGroupInvert ? `!${sourcePortGroup}` : sourcePortGroup;
         }
       }
 
@@ -468,7 +476,7 @@ export function CreateFirewallRuleModal({
           config.destination.address = destAddressInvert ? `!${addr}` : addr;
         } else if (destMode === "group" && destGroupType && destGroupName) {
           // Address or network group - mutually exclusive with address and geoip
-          config.destination.group = { [destGroupType]: destGroupName };
+          config.destination.group = { [destGroupType]: destGroupInvert ? `!${destGroupName}` : destGroupName };
         } else if (destMode === "geoip" && destGeoipCountry.length > 0) {
           // GeoIP - mutually exclusive with address and group
           config.destination.geoip = {
@@ -485,7 +493,7 @@ export function CreateFirewallRuleModal({
           if (!config.destination.group) {
             config.destination.group = {};
           }
-          config.destination.group["port-group"] = destPortGroup;
+          config.destination.group["port-group"] = destPortGroupInvert ? `!${destPortGroup}` : destPortGroup;
         }
       }
 
@@ -970,6 +978,12 @@ export function CreateFirewallRuleModal({
                       </SelectContent>
                     </Select>
                   </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox id="sourceGroupInvert" checked={sourceGroupInvert} onCheckedChange={(c) => setSourceGroupInvert(!!c)} />
+                    <Label htmlFor="sourceGroupInvert" className="cursor-pointer font-normal text-sm">
+                      Invert (match packets NOT in this group)
+                    </Label>
+                  </div>
                 </div>
               </div>
             )}
@@ -1075,7 +1089,7 @@ export function CreateFirewallRuleModal({
               )}
 
               {sourcePortMode === "group" && (
-                <div className="pl-6 border-l-2 border-primary/20">
+                <div className="pl-6 border-l-2 border-primary/20 space-y-2">
                   <Select value={sourcePortGroup} onValueChange={setSourcePortGroup}>
                     <SelectTrigger id="sourcePortGroup">
                       <SelectValue placeholder="Select port group" />
@@ -1088,6 +1102,12 @@ export function CreateFirewallRuleModal({
                       ))}
                     </SelectContent>
                   </Select>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox id="sourcePortGroupInvert" checked={sourcePortGroupInvert} onCheckedChange={(c) => setSourcePortGroupInvert(!!c)} />
+                    <Label htmlFor="sourcePortGroupInvert" className="cursor-pointer font-normal text-sm">
+                      Invert (match packets NOT in this group)
+                    </Label>
+                  </div>
                 </div>
               )}
 
@@ -1241,6 +1261,12 @@ export function CreateFirewallRuleModal({
                       </SelectContent>
                     </Select>
                   </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox id="destGroupInvert" checked={destGroupInvert} onCheckedChange={(c) => setDestGroupInvert(!!c)} />
+                    <Label htmlFor="destGroupInvert" className="cursor-pointer font-normal text-sm">
+                      Invert (match packets NOT in this group)
+                    </Label>
+                  </div>
                 </div>
               </div>
             )}
@@ -1317,7 +1343,7 @@ export function CreateFirewallRuleModal({
               )}
 
               {destPortMode === "group" && (
-                <div className="pl-6 border-l-2 border-primary/20">
+                <div className="pl-6 border-l-2 border-primary/20 space-y-2">
                   <Select value={destPortGroup} onValueChange={setDestPortGroup}>
                     <SelectTrigger id="destPortGroup">
                       <SelectValue placeholder="Select port group" />
@@ -1330,6 +1356,12 @@ export function CreateFirewallRuleModal({
                       ))}
                     </SelectContent>
                   </Select>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox id="destPortGroupInvert" checked={destPortGroupInvert} onCheckedChange={(c) => setDestPortGroupInvert(!!c)} />
+                    <Label htmlFor="destPortGroupInvert" className="cursor-pointer font-normal text-sm">
+                      Invert (match packets NOT in this group)
+                    </Label>
+                  </div>
                 </div>
               )}
 

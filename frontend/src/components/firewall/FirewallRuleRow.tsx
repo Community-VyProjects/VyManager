@@ -27,7 +27,8 @@ interface FirewallRuleRowProps {
 export function FirewallRuleRow({ rule, onEdit, onDelete, isDragging, groups = [] }: FirewallRuleRowProps) {
   // Helper function to find group members for tooltip
   const getGroupMembers = (groupName: string): string[] => {
-    const group = groups.find((g) => g.name === groupName);
+    const cleanName = groupName.startsWith("!") ? groupName.substring(1) : groupName;
+    const group = groups.find((g) => g.name === cleanName);
     return group?.members || [];
   };
 
@@ -131,18 +132,20 @@ export function FirewallRuleRow({ rule, onEdit, onDelete, isDragging, groups = [
             {rule.source.group && Object.entries(rule.source.group)
               .filter(([type]) => type !== "port-group")
               .map(([type, name]) => {
+                const inverted = name.startsWith("!");
+                const displayName = inverted ? name.substring(1) : name;
                 const members = getGroupMembers(name);
                 return (
                   <TooltipProvider key={type}>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Badge variant="outline" className="text-xs cursor-help">
-                          {name}
+                        <Badge variant="outline" className={cn("text-xs cursor-help", inverted && "bg-orange-500/10 text-orange-500 border-orange-500/20")}>
+                          {inverted && "!"}{displayName}
                         </Badge>
                       </TooltipTrigger>
                       <TooltipContent>
                         <div className="max-w-xs">
-                          <p className="font-semibold text-xs mb-1">{name}</p>
+                          <p className="font-semibold text-xs mb-1">{inverted ? `NOT ${displayName}` : displayName}</p>
                           {members.length > 0 ? (
                             <p className="text-xs">{members.join(", ")}</p>
                           ) : (
@@ -207,18 +210,20 @@ export function FirewallRuleRow({ rule, onEdit, onDelete, isDragging, groups = [
             )}
             {rule.source.group?.["port-group"] && (() => {
               const portGroupName = rule.source.group["port-group"];
+              const inverted = portGroupName.startsWith("!");
+              const displayName = inverted ? portGroupName.substring(1) : portGroupName;
               const members = getGroupMembers(portGroupName);
               return (
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-500 border-blue-500/20 cursor-help">
-                        {portGroupName}
+                      <Badge variant="outline" className={cn("text-xs cursor-help", inverted ? "bg-orange-500/10 text-orange-500 border-orange-500/20" : "bg-blue-500/10 text-blue-500 border-blue-500/20")}>
+                        {inverted && "!"}{displayName}
                       </Badge>
                     </TooltipTrigger>
                     <TooltipContent>
                       <div className="max-w-xs">
-                        <p className="font-semibold text-xs mb-1">{portGroupName}</p>
+                        <p className="font-semibold text-xs mb-1">{inverted ? `NOT ${displayName}` : displayName}</p>
                         {members.length > 0 ? (
                           <p className="text-xs">{members.join(", ")}</p>
                         ) : (
@@ -248,18 +253,20 @@ export function FirewallRuleRow({ rule, onEdit, onDelete, isDragging, groups = [
             {rule.destination.group && Object.entries(rule.destination.group)
               .filter(([type]) => type !== "port-group")
               .map(([type, name]) => {
+                const inverted = name.startsWith("!");
+                const displayName = inverted ? name.substring(1) : name;
                 const members = getGroupMembers(name);
                 return (
                   <TooltipProvider key={type}>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Badge variant="outline" className="text-xs cursor-help">
-                          {name}
+                        <Badge variant="outline" className={cn("text-xs cursor-help", inverted && "bg-orange-500/10 text-orange-500 border-orange-500/20")}>
+                          {inverted && "!"}{displayName}
                         </Badge>
                       </TooltipTrigger>
                       <TooltipContent>
                         <div className="max-w-xs">
-                          <p className="font-semibold text-xs mb-1">{name}</p>
+                          <p className="font-semibold text-xs mb-1">{inverted ? `NOT ${displayName}` : displayName}</p>
                           {members.length > 0 ? (
                             <p className="text-xs">{members.join(", ")}</p>
                           ) : (
@@ -324,18 +331,20 @@ export function FirewallRuleRow({ rule, onEdit, onDelete, isDragging, groups = [
             )}
             {rule.destination.group?.["port-group"] && (() => {
               const portGroupName = rule.destination.group["port-group"];
+              const inverted = portGroupName.startsWith("!");
+              const displayName = inverted ? portGroupName.substring(1) : portGroupName;
               const members = getGroupMembers(portGroupName);
               return (
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-500 border-blue-500/20 cursor-help">
-                        {portGroupName}
+                      <Badge variant="outline" className={cn("text-xs cursor-help", inverted ? "bg-orange-500/10 text-orange-500 border-orange-500/20" : "bg-blue-500/10 text-blue-500 border-blue-500/20")}>
+                        {inverted && "!"}{displayName}
                       </Badge>
                     </TooltipTrigger>
                     <TooltipContent>
                       <div className="max-w-xs">
-                        <p className="font-semibold text-xs mb-1">{portGroupName}</p>
+                        <p className="font-semibold text-xs mb-1">{inverted ? `NOT ${displayName}` : displayName}</p>
                         {members.length > 0 ? (
                           <p className="text-xs">{members.join(", ")}</p>
                         ) : (
