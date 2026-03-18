@@ -31,17 +31,7 @@ export function DeleteNATModal({ open, onOpenChange, rule, ruleType, onSuccess }
     setError(null);
 
     try {
-      switch (ruleType) {
-        case "source":
-          await natService.deleteSourceRule(rule.rule_number);
-          break;
-        case "destination":
-          await natService.deleteDestinationRule(rule.rule_number);
-          break;
-        case "static":
-          await natService.deleteStaticRule(rule.rule_number);
-          break;
-      }
+      await natService.deleteAndCompactRules(ruleType, rule.rule_number);
 
       handleClose();
       onSuccess();

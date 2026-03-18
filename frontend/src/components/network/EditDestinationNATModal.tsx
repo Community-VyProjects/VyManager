@@ -47,12 +47,20 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
   const [sourceGroupType, setSourceGroupType] = useState("");
   const [sourceGroupName, setSourceGroupName] = useState("");
 
+  // Source port type (input vs group)
+  const [sourcePortType, setSourcePortType] = useState<"input" | "group">("input");
+  const [sourcePortGroupName, setSourcePortGroupName] = useState("");
+
   // Destination fields
   const [destinationType, setDestinationType] = useState<"address" | "group">("address");
   const [destinationAddress, setDestinationAddress] = useState("");
   const [destinationPort, setDestinationPort] = useState("");
   const [destinationGroupType, setDestinationGroupType] = useState("");
   const [destinationGroupName, setDestinationGroupName] = useState("");
+
+  // Destination port type (input vs group)
+  const [destPortType, setDestPortType] = useState<"input" | "group">("input");
+  const [destPortGroupName, setDestPortGroupName] = useState("");
 
   // Inbound interface
   const [inboundInterfaceType, setInboundInterfaceType] = useState<"name" | "group">("name");
@@ -86,6 +94,8 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
   const [originalDestinationPort, setOriginalDestinationPort] = useState("");
   const [originalDestinationGroup, setOriginalDestinationGroup] = useState(false);
   const [originalInboundInterfaceType, setOriginalInboundInterfaceType] = useState<"name" | "group" | null>(null);
+  const [originalSourcePortGroup, setOriginalSourcePortGroup] = useState(false);
+  const [originalDestPortGroup, setOriginalDestPortGroup] = useState(false);
 
   // Reset all form fields to defaults
   const resetForm = () => {
@@ -122,6 +132,12 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
     setOriginalDestinationPort("");
     setOriginalDestinationGroup(false);
     setOriginalInboundInterfaceType(null);
+    setSourcePortType("input");
+    setSourcePortGroupName("");
+    setDestPortType("input");
+    setDestPortGroupName("");
+    setOriginalSourcePortGroup(false);
+    setOriginalDestPortGroup(false);
     setError(null);
   };
 
@@ -144,7 +160,7 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
 
   // Auto-adjust protocol when ports are used
   useEffect(() => {
-    const hasPort = sourcePort.trim() || destinationPort.trim() || translationPort.trim();
+    const hasPort = sourcePort.trim() || destinationPort.trim() || translationPort.trim() || sourcePortGroupName || destPortGroupName;
     const portCompatibleProtocols = ["tcp", "udp", "tcp_udp"];
 
     if (hasPort && !portCompatibleProtocols.includes(protocol)) {
@@ -154,7 +170,7 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
       // Switch back to "all" when ports are cleared
       setProtocol("all");
     }
-  }, [sourcePort, destinationPort, translationPort, protocol]);
+  }, [sourcePort, destinationPort, translationPort, sourcePortGroupName, destPortGroupName, protocol]);
 
   const populateForm = (rule: DestinationNATRule) => {
     // Description
@@ -178,8 +194,19 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
       setOriginalSourceAddress("");
       setOriginalSourceGroup(false);
     }
-    setSourcePort(rule.source?.port || "");
-    setOriginalSourcePort(rule.source?.port || "");
+    if (rule.source?.group?.["port-group"]) {
+      setSourcePortType("group");
+      setSourcePortGroupName(rule.source.group["port-group"]);
+      setSourcePort("");
+      setOriginalSourcePort("");
+      setOriginalSourcePortGroup(true);
+    } else {
+      setSourcePortType("input");
+      setSourcePort(rule.source?.port || "");
+      setSourcePortGroupName("");
+      setOriginalSourcePort(rule.source?.port || "");
+      setOriginalSourcePortGroup(false);
+    }
 
     // Destination
     if (rule.destination?.address) {
@@ -199,8 +226,19 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
       setOriginalDestinationAddress("");
       setOriginalDestinationGroup(false);
     }
-    setDestinationPort(rule.destination?.port || "");
-    setOriginalDestinationPort(rule.destination?.port || "");
+    if (rule.destination?.group?.["port-group"]) {
+      setDestPortType("group");
+      setDestPortGroupName(rule.destination.group["port-group"]);
+      setDestinationPort("");
+      setOriginalDestinationPort("");
+      setOriginalDestPortGroup(true);
+    } else {
+      setDestPortType("input");
+      setDestinationPort(rule.destination?.port || "");
+      setDestPortGroupName("");
+      setOriginalDestinationPort(rule.destination?.port || "");
+      setOriginalDestPortGroup(false);
+    }
 
     // Inbound interface
     if (rule.inbound_interface) {
@@ -232,10 +270,10 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
     setTranslationPort(rule.translation?.port || "");
 
     // Load balance
-    const hasLoadBalancing = !!(rule.load_balance?.hash || rule.load_balance?.backend?.[0]);
+    const hasLoadBalancing = !!(rule.load_balance?.hash || rule.load_balance?.backends?.[0]);
     setLoadBalancingEnabled(hasLoadBalancing);
     setLoadBalanceHash(rule.load_balance?.hash || "");
-    setLoadBalanceBackend(rule.load_balance?.backend?.[0] || "");
+    setLoadBalanceBackend(rule.load_balance?.backends?.[0]?.name || "");
 
     // Flags
     setDisable(rule.disable);
@@ -363,11 +401,22 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
         }
       }
 
-      if (sourcePort.trim()) {
-        config.source_port = sourcePort.trim();
-      } else if (originalSourcePort) {
-        // Port was cleared - need to delete it
-        config.delete_source_port = true;
+      if (sourcePortType === "input") {
+        if (sourcePort.trim()) {
+          config.source_port = sourcePort.trim();
+        } else if (originalSourcePort) {
+          config.delete_source_port = true;
+        }
+        // If switching from port group to manual port, delete the port group
+        if (originalSourcePortGroup) {
+          config.delete_source_port_group = true;
+        }
+      } else if (sourcePortType === "group" && sourcePortGroupName) {
+        config.source_port_group_name = sourcePortGroupName;
+        // If switching from manual port to port group, delete the port
+        if (originalSourcePort) {
+          config.delete_source_port = true;
+        }
       }
 
       // Destination - handle both setting new values and deleting cleared values
@@ -396,11 +445,22 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
         }
       }
 
-      if (destinationPort.trim()) {
-        config.destination_port = destinationPort.trim();
-      } else if (originalDestinationPort) {
-        // Port was cleared - need to delete it
-        config.delete_destination_port = true;
+      if (destPortType === "input") {
+        if (destinationPort.trim()) {
+          config.destination_port = destinationPort.trim();
+        } else if (originalDestinationPort) {
+          config.delete_destination_port = true;
+        }
+        // If switching from port group to manual port, delete the port group
+        if (originalDestPortGroup) {
+          config.delete_destination_port_group = true;
+        }
+      } else if (destPortType === "group" && destPortGroupName) {
+        config.destination_port_group_name = destPortGroupName;
+        // If switching from manual port to port group, delete the port
+        if (originalDestinationPort) {
+          config.delete_destination_port = true;
+        }
       }
 
       // Inbound interface - delete the old type when switching between name and group
@@ -472,6 +532,7 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
   const getNetworkGroups = () => (groups || []).filter(g => g.type === "network-group" || g.type === "ipv6-network-group");
   const getDomainGroups = () => (groups || []).filter(g => g.type === "domain-group");
   const getInterfaceGroups = () => (groups || []).filter(g => g.type === "interface-group");
+  const getPortGroups = () => (groups || []).filter(g => g.type === "port-group");
 
   if (!rule) return null;
 
@@ -609,7 +670,7 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
                   <SelectTrigger id="protocol">
                     <SelectValue />
                   </SelectTrigger>
-                  {(sourcePort.trim() || destinationPort.trim() || translationPort.trim()) ? (
+                  {(sourcePort.trim() || destinationPort.trim() || translationPort.trim() || sourcePortGroupName || destPortGroupName) ? (
                     // When ports are specified, only allow TCP/UDP protocols
                     <SelectContent>
                       <SelectItem value="tcp">TCP</SelectItem>
@@ -679,7 +740,7 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
                     </SelectContent>
                   )}
                 </Select>
-                {(sourcePort.trim() || destinationPort.trim() || translationPort.trim()) && (
+                {(sourcePort.trim() || destinationPort.trim() || translationPort.trim() || sourcePortGroupName || destPortGroupName) && (
                   <p className="text-xs text-muted-foreground">
                     Only TCP/UDP protocols are available when using ports
                   </p>
@@ -751,15 +812,43 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
                 </>
               )}
 
-              <div className="space-y-2">
-                <Label htmlFor="source-port">Source Port</Label>
-                <Input
-                  id="source-port"
-                  value={sourcePort}
-                  onChange={(e) => setSourcePort(e.target.value)}
-                  placeholder="e.g., 80, 443, 1024-65535"
-                  className="font-mono"
-                />
+              <div className="space-y-3">
+                <Label className="text-base font-medium">Source Port</Label>
+                <RadioGroup value={sourcePortType} onValueChange={(v) => {
+                  setSourcePortType(v as "input" | "group");
+                  if (v === "input") setSourcePortGroupName("");
+                  if (v === "group") setSourcePort("");
+                }}>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="input" id="source-port-input-radio" />
+                    <Label htmlFor="source-port-input-radio">Port</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="group" id="source-port-group-radio" />
+                    <Label htmlFor="source-port-group-radio">Port Group</Label>
+                  </div>
+                </RadioGroup>
+
+                {sourcePortType === "input" ? (
+                  <Input
+                    id="source-port"
+                    value={sourcePort}
+                    onChange={(e) => setSourcePort(e.target.value)}
+                    placeholder="e.g., 80, 443, 1024-65535"
+                    className="font-mono"
+                  />
+                ) : (
+                  <Select value={sourcePortGroupName} onValueChange={setSourcePortGroupName}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select port group" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getPortGroups().map((g) => (
+                        <SelectItem key={g.name} value={g.name}>{g.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
             </TabsContent>
 
@@ -827,15 +916,43 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
                 </>
               )}
 
-              <div className="space-y-2">
-                <Label htmlFor="destination-port">Destination Port</Label>
-                <Input
-                  id="destination-port"
-                  value={destinationPort}
-                  onChange={(e) => setDestinationPort(e.target.value)}
-                  placeholder="e.g., 80, 443, 8080"
-                  className="font-mono"
-                />
+              <div className="space-y-3">
+                <Label className="text-base font-medium">Destination Port</Label>
+                <RadioGroup value={destPortType} onValueChange={(v) => {
+                  setDestPortType(v as "input" | "group");
+                  if (v === "input") setDestPortGroupName("");
+                  if (v === "group") setDestinationPort("");
+                }}>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="input" id="dest-port-input-radio" />
+                    <Label htmlFor="dest-port-input-radio">Port</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="group" id="dest-port-group-radio" />
+                    <Label htmlFor="dest-port-group-radio">Port Group</Label>
+                  </div>
+                </RadioGroup>
+
+                {destPortType === "input" ? (
+                  <Input
+                    id="destination-port"
+                    value={destinationPort}
+                    onChange={(e) => setDestinationPort(e.target.value)}
+                    placeholder="e.g., 80, 443, 8080"
+                    className="font-mono"
+                  />
+                ) : (
+                  <Select value={destPortGroupName} onValueChange={setDestPortGroupName}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select port group" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getPortGroups().map((g) => (
+                        <SelectItem key={g.name} value={g.name}>{g.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
             </TabsContent>
 

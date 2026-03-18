@@ -15,6 +15,10 @@ from .firewall.ipv6_versions import get_firewall_ipv6_mapper
 from .firewall.zones_versions import get_firewall_zones_mapper
 from .nat import NATMapper
 from .nat.nat_versions import get_nat_mapper
+from .nat64 import NAT64Mapper
+from .nat64.nat64_versions import get_nat64_mapper
+from .nat66 import NAT66Mapper
+from .nat66.nat66_versions import get_nat66_mapper
 from .dhcp import DHCPMapper
 from .dhcp.dhcp_versions import get_dhcp_mapper
 from .static_routes import StaticRoutesMapper
@@ -76,6 +80,10 @@ CommandMapperRegistry.register_feature("firewall_ipv4", get_firewall_ipv4_mapper
 CommandMapperRegistry.register_feature("firewall_ipv6", get_firewall_ipv6_mapper)
 # NAT uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("nat", get_nat_mapper)
+# NAT64 uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("nat64", get_nat64_mapper)
+# NAT66 uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("nat66", get_nat66_mapper)
 # DHCP uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("dhcp", get_dhcp_mapper)
 # Static Routes uses factory for version-specific mappers
@@ -151,6 +159,8 @@ __all__ = [
     "FirewallIPv4Mapper",
     "FirewallIPv6Mapper",
     "NATMapper",
+    "NAT64Mapper",
+    "NAT66Mapper",
     "DHCPMapper",
     "StaticRoutesMapper",
     "RouteMapMapper",

@@ -26,12 +26,13 @@ import {
   ChevronRight,
   Network,
   Shield,
-  GripVertical
+  GripVertical,
+  Layers
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { DndContext, closestCenter, DragOverlay, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
-import { natService, type NATConfigResponse, type SourceNATRule, type DestinationNATRule, type StaticNATRule } from "@/lib/api/nat";
+import { natService, type NATConfigResponse, type NATCapabilities, type SourceNATRule, type DestinationNATRule, type StaticNATRule } from "@/lib/api/nat";
 import { cn } from "@/lib/utils";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { CreateSourceNATModal } from "@/components/network/CreateSourceNATModal";
@@ -43,14 +44,16 @@ import { EditStaticNATModal } from "@/components/network/EditStaticNATModal";
 import { DeleteNATModal } from "@/components/network/DeleteNATModal";
 import { NATRuleRow } from "@/components/network/NATRuleRow";
 import { NATReorderBanner } from "@/components/network/NATReorderBanner";
+import { CGNATView } from "@/components/network/CGNATView";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 
-type RuleType = "source" | "destination" | "static";
+type RuleType = "source" | "destination" | "static" | "cgnat";
 
 export default function NATPage() {
   const { canRead, canWrite, isLoading: permissionsLoading } = usePermissions();
   const [config, setConfig] = useState<NATConfigResponse | null>(null);
+  const [capabilities, setCapabilities] = useState<NATCapabilities | null>(null);
   const [selectedType, setSelectedType] = useState<RuleType>("source");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -102,6 +105,7 @@ export default function NATPage() {
 
   useEffect(() => {
     fetchConfig();
+    natService.getCapabilities().then(setCapabilities).catch(console.error);
   }, []);
 
   const sourceRules = config ? config.source_rules : [];
@@ -121,9 +125,12 @@ export default function NATPage() {
   const totalSourceRules = sourceRules.length;
   const totalDestinationRules = destinationRules.length;
   const totalStaticRules = staticRules.length;
-  const totalRules = totalSourceRules + totalDestinationRules + totalStaticRules;
+  const cgnatRules = config?.cgnat?.rules?.length ?? 0;
+  const cgnatPools = (config?.cgnat?.external_pools?.length ?? 0) + (config?.cgnat?.internal_pools?.length ?? 0);
+  const cgnatSupported = capabilities?.nat_types?.cgnat?.supported ?? false;
+  const totalRules = totalSourceRules + totalDestinationRules + totalStaticRules + cgnatRules;
 
-  const currentRules = hasChanges ? reorderedRules : (selectedType === "source" ? sourceRules : selectedType === "destination" ? destinationRules : staticRules);
+  const currentRules = selectedType === "cgnat" ? [] : hasChanges ? reorderedRules : (selectedType === "source" ? sourceRules : selectedType === "destination" ? destinationRules : staticRules);
 
   // Drag and drop handlers
   const handleDragStart = (event: any) => {
@@ -222,7 +229,7 @@ export default function NATPage() {
       });
 
       // Call the new bulk reorder endpoint (single API call, single VyOS commit)
-      await natService.reorderRules(selectedType, reorderItems);
+      await natService.reorderRules(selectedType as "source" | "destination" | "static", reorderItems);
 
       // Refresh config and reset state
       await fetchConfig(true);
@@ -474,13 +481,89 @@ export default function NATPage() {
                     </div>
                   </div>
                 </button>
+
+                {/* CGNAT (VyOS 1.5+ only) */}
+                {cgnatSupported && (
+                  <button
+                    onClick={() => setSelectedType("cgnat")}
+                    className={cn(
+                      "w-full text-left rounded-lg px-3 py-3 transition-all",
+                      selectedType === "cgnat"
+                        ? "bg-accent text-accent-foreground shadow-sm"
+                        : "hover:bg-accent/50"
+                    )}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className={cn(
+                        "mt-0.5 rounded-md p-1.5",
+                        selectedType === "cgnat" ? "bg-primary/10" : "bg-muted"
+                      )}>
+                        <Layers className={cn(
+                          "h-4 w-4",
+                          selectedType === "cgnat" ? "text-primary" : "text-muted-foreground"
+                        )} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <span className="font-medium text-sm text-foreground">
+                            CGNAT
+                          </span>
+                          {selectedType === "cgnat" && (
+                            <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
+                          )}
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-xs text-muted-foreground">
+                            {cgnatRules} {cgnatRules === 1 ? "rule" : "rules"}, {cgnatPools} {cgnatPools === 1 ? "pool" : "pools"}
+                          </span>
+                          <span className="text-xs text-muted-foreground">Carrier-grade NAT</span>
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                )}
               </div>
             )}
           </ScrollArea>
         </div>
 
-        {/* Main Content - Rules Table */}
+        {/* Main Content */}
         <div className="flex-1 flex flex-col">
+          {selectedType === "cgnat" ? (
+            <div className="flex-1 flex flex-col">
+              <div className="p-6 pb-4 border-b border-border">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex-1">
+                    <h1 className="text-2xl font-bold text-foreground">
+                      CGNAT Rules
+                    </h1>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      Carrier-grade NAT for large-scale address translation
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fetchConfig(true)}
+                    disabled={loading}
+                    className="gap-2"
+                  >
+                    <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+                    Refresh
+                  </Button>
+                </div>
+              </div>
+              <div className="p-6 flex-1 overflow-auto">
+                <CGNATView
+                  config={config?.cgnat}
+                  onRefresh={() => fetchConfig(true)}
+                  canWrite={canWrite(FeatureGroup.NAT)}
+                  loading={loading}
+                />
+              </div>
+            </div>
+          ) : (
+          <>
           {/* Header */}
           <div className="p-6 pb-4 border-b border-border">
             <div className="flex items-start justify-between mb-4">
@@ -809,6 +892,8 @@ export default function NATPage() {
               </div>
             )}
           </div>
+          </>
+          )}
         </div>
       </div>
 
@@ -860,7 +945,7 @@ export default function NATPage() {
         open={!!deletingRule}
         onOpenChange={(open) => !open && setDeletingRule(null)}
         rule={deletingRule}
-        ruleType={deleteRuleType}
+        ruleType={deleteRuleType as "source" | "destination" | "static"}
         onSuccess={() => fetchConfig(true)}
       />
     </AppLayout>

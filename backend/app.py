@@ -21,6 +21,8 @@ from routers.firewall import bridge as firewall_bridge
 from routers.firewall import flowtables as firewall_flowtables
 from routers.firewall import zones as firewall_zones
 from routers.nat import nat
+from routers.nat64 import nat64
+from routers.nat66 import nat66
 from routers.dhcp import dhcp
 from routers.static_routes import static_routes
 from routers.route_map import route_map
@@ -261,6 +263,8 @@ app.include_router(firewall_bridge.router)
 app.include_router(firewall_flowtables.router)
 app.include_router(firewall_zones.router)
 app.include_router(nat.router)
+app.include_router(nat64.router)
+app.include_router(nat66.router)
 app.include_router(dhcp.router)
 app.include_router(static_routes.router)
 app.include_router(route_map.router)
@@ -316,6 +320,8 @@ async def read_root() -> dict:
             "firewall-ipv6",
             "firewall-global-options",
             "nat",
+            "nat64",
+            "nat66",
             "dhcp-server",
             "static-routes",
             "route-map",
