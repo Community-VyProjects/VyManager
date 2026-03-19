@@ -32,3 +32,4 @@ jobs:
         with:
           generate_release_notes: true
           prerelease: ${{ steps.prerelease.outputs.is_prerelease == 'true' }}
+          make_latest: "true"
