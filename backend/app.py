@@ -55,6 +55,7 @@ from routers.high_availability import high_availability as high_availability_rou
 from routers.load_balancing import load_balancing as load_balancing_router
 from routers.isis import isis as isis_router
 from routers.mpls import mpls as mpls_router
+from routers import version as version_router
 
 # Global variables
 db_pool: Optional[asyncpg.Pool] = None
@@ -205,7 +206,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="VyOS Management API",
-    version="1.0.0",
+    version=os.environ.get("VYMANAGER_VERSION", "dev"),
     description="FastAPI backend for managing VyOS devices with version-aware commands",
     lifespan=lifespan,
 )
@@ -297,6 +298,7 @@ app.include_router(high_availability_router.router)
 app.include_router(load_balancing_router.router)
 app.include_router(isis_router.router)
 app.include_router(mpls_router.router)
+app.include_router(version_router.router)
 
 
 # ============================================================================
