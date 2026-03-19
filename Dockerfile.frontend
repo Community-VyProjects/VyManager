@@ -5,6 +5,11 @@
 # ---- Build Stage ----
 FROM node:24-alpine AS builder
 
+ARG VYMANAGER_VERSION=dev
+ARG VYMANAGER_ENV=production
+ENV NEXT_PUBLIC_VYMANAGER_VERSION=${VYMANAGER_VERSION}
+ENV NEXT_PUBLIC_VYMANAGER_ENV=${VYMANAGER_ENV}
+
 WORKDIR /app
 
 # Install required system packages
