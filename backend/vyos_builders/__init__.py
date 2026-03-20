@@ -34,6 +34,7 @@ from .system import SystemPerformanceBatchBuilder, SystemBatchBuilder
 from .high_availability import HighAvailabilityBatchBuilder
 from .load_balancing import LoadBalancingBatchBuilder
 from .isis import IsisBatchBuilder
+from .ipsec import IPSecBatchBuilder
 
 # Directly use the self-contained builders
 EthernetBatchBuilder = EthernetInterfaceBuilderMixin
@@ -75,4 +76,5 @@ __all__ = [
     "HighAvailabilityBatchBuilder",
     "LoadBalancingBatchBuilder",
     "IsisBatchBuilder",
+    "IPSecBatchBuilder",
 ]

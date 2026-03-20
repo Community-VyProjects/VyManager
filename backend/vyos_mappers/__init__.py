@@ -66,6 +66,8 @@ from .isis import IsisMapper
 from .isis.isis_versions import get_isis_mapper
 from .mpls import MplsMapper
 from .mpls.mpls_versions import get_mpls_mapper
+from .ipsec import IPSecMapper
+from .ipsec.ipsec_versions import get_ipsec_mapper
 
 # Auto-register all mappers
 # Ethernet uses factory for version-specific mappers
@@ -148,6 +150,8 @@ CommandMapperRegistry.register_feature("load_balancing", get_load_balancing_mapp
 CommandMapperRegistry.register_feature("isis", get_isis_mapper)
 # MPLS uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("mpls", get_mpls_mapper)
+# IPSec uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("ipsec", get_ipsec_mapper)
 
 __all__ = [
     "BaseFeatureMapper",
@@ -194,4 +198,5 @@ __all__ = [
     "HighAvailabilityMapper",
     "IsisMapper",
     "MplsMapper",
+    "IPSecMapper",
 ]
