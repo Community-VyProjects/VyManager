@@ -232,7 +232,13 @@ async def ipsec_batch_configure(http_request: Request, request: IPSecBatchReques
             if len(params) >= 1:
                 args.append(request.item_name)
             if len(params) >= 2 and operation.value is not None:
-                args.append(operation.value)
+                # For methods with 3+ params, split value on '|' delimiter
+                # e.g. "1|aes256" -> ["1", "aes256"] for proposal num + encryption
+                if len(params) >= 3:
+                    parts = operation.value.split("|", len(params) - 2)
+                    args.extend(parts)
+                else:
+                    args.append(operation.value)
 
             method(*args)
 
