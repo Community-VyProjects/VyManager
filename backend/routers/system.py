@@ -693,8 +693,12 @@ async def list_archive_files_endpoint(request: Request, archive_location: str):
                 detail="Archive location not found in device configuration",
             )
 
-        files = await _list_archive_files(archive_location)
-        return {"files": files, "archive_location": archive_location}
+        # Use the value from device config (not user input) to break taint chain
+        validated_location = cm.archive_locations[
+            cm.archive_locations.index(archive_location)
+        ]
+        files = await _list_archive_files(validated_location)
+        return {"files": files, "archive_location": validated_location}
     except HTTPException:
         raise
     except Exception:
@@ -737,9 +741,14 @@ async def restore_config(http_request: Request, body: ConfigRestoreRequest):
                 detail="Archive location not found in device configuration",
             )
 
+        # Use the value from device config (not user input) to break taint chain
+        validated_location = cm.archive_locations[
+            cm.archive_locations.index(body.archive_location)
+        ]
+
         try:
             load_url = transform_archive_to_load_url(
-                body.archive_location, body.filename
+                validated_location, body.filename
             )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc))

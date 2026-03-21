@@ -9,8 +9,10 @@ Handles:
 
 import asyncio
 import ftplib
+import ipaddress
 import logging
 import re
+import socket
 from typing import Dict, List, Optional
 from urllib.parse import urlparse, urlunparse
 
@@ -23,6 +25,9 @@ logger = logging.getLogger(__name__)
 _FILENAME_RE = re.compile(r"^config\.boot[\w.\-]*$")
 
 _CONNECTION_TIMEOUT = 10
+
+# Schemes allowed for HTTP-based archive listing
+_ALLOWED_HTTP_SCHEMES = frozenset({"http", "https"})
 
 
 def parse_archive_url(archive_url: str) -> Dict[str, Optional[str]]:
@@ -46,6 +51,44 @@ def validate_filename(filename: str) -> bool:
     return bool(_FILENAME_RE.match(filename))
 
 
+def _validate_http_url(url: str) -> str:
+    """
+    Validate and sanitise a URL for outbound HTTP requests.
+
+    Ensures:
+      - Scheme is http or https
+      - Hostname resolves to a non-private IP (prevents SSRF to internal services)
+
+    Returns the validated, credential-free URL string.
+    Raises ValueError if the URL is unsafe.
+    """
+    parsed = urlparse(url)
+
+    if parsed.scheme not in _ALLOWED_HTTP_SCHEMES:
+        raise ValueError(f"Unsupported HTTP scheme: {parsed.scheme}")
+
+    hostname = parsed.hostname
+    if not hostname:
+        raise ValueError("Missing hostname in URL")
+
+    # Resolve hostname and reject private/loopback addresses
+    try:
+        addr_info = socket.getaddrinfo(hostname, None, socket.AF_UNSPEC, socket.SOCK_STREAM)
+    except socket.gaierror as exc:
+        raise ValueError(f"Cannot resolve hostname: {exc}") from exc
+
+    for family, _type, _proto, _canon, sockaddr in addr_info:
+        ip = ipaddress.ip_address(sockaddr[0])
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
+            raise ValueError("Archive HTTP URL must not point to a private address")
+
+    # Rebuild URL without credentials
+    clean = parsed._replace(
+        netloc=f"{hostname}" + (f":{parsed.port}" if parsed.port else "")
+    )
+    return urlunparse(clean)
+
+
 async def list_archive_files(archive_url: str) -> List[Dict[str, Optional[str | int]]]:
     """
     List config backup files at the given archive location.
@@ -53,15 +96,30 @@ async def list_archive_files(archive_url: str) -> List[Dict[str, Optional[str | 
     Returns list of {"filename": str, "modified": str|None, "size": int|None}
     sorted by filename descending (newest first, since filenames contain timestamps).
     """
-    parts = parse_archive_url(archive_url)
-    scheme = (parts["scheme"] or "").lower().rstrip("+")
+    parsed = urlparse(archive_url)
+    scheme = (parsed.scheme or "").lower().rstrip("+")
+    hostname = parsed.hostname or ""
+    port = parsed.port
+    username = parsed.username
+    password = parsed.password
+    path = parsed.path
+    if not path.endswith("/"):
+        path += "/"
 
     if scheme in ("scp", "sftp"):
-        return await _list_sftp(parts)
+        return await _list_sftp(
+            hostname=hostname, port=port or 22,
+            username=username or "vyos", password=password,
+            path=path,
+        )
     elif scheme == "ftp":
-        return await _list_ftp(parts)
+        return await _list_ftp(
+            hostname=hostname, port=port or 21,
+            username=username or "anonymous", password=password or "",
+            path=path,
+        )
     elif scheme in ("http", "https"):
-        return await _list_http(archive_url, parts)
+        return await _list_http(archive_url)
     elif scheme == "tftp":
         return []  # TFTP has no directory listing support
     elif scheme.startswith("git"):
@@ -70,14 +128,11 @@ async def list_archive_files(archive_url: str) -> List[Dict[str, Optional[str | 
         return []
 
 
-async def _list_sftp(parts: Dict) -> List[Dict]:
+async def _list_sftp(
+    *, hostname: str, port: int, username: str,
+    password: Optional[str], path: str,
+) -> List[Dict]:
     """List files via SFTP (works for both scp:// and sftp:// archive URLs)."""
-    hostname = parts["hostname"]
-    port = int(parts["port"]) if parts["port"] else 22
-    username = parts["username"] or "vyos"
-    password = parts["password"]
-    path = parts["path"]
-
     connect_kwargs: Dict = {
         "host": hostname,
         "port": port,
@@ -93,10 +148,10 @@ async def _list_sftp(parts: Dict) -> List[Dict]:
             timeout=_CONNECTION_TIMEOUT,
         )
     except asyncio.TimeoutError:
-        logger.warning("SFTP connection to %s timed out", hostname)
+        logger.warning("SFTP connection timed out")
         return []
-    except (OSError, asyncssh.Error) as exc:
-        logger.warning("SFTP connection to %s failed: %s", hostname, exc)
+    except (OSError, asyncssh.Error):
+        logger.warning("SFTP connection failed")
         return []
 
     files = []
@@ -119,21 +174,19 @@ async def _list_sftp(parts: Dict) -> List[Dict]:
                         "modified": modified,
                         "size": attrs.size,
                     })
-    except (asyncssh.SFTPError, OSError) as exc:
-        logger.warning("SFTP listing at %s failed: %s", path, exc)
+    except (asyncssh.SFTPError, OSError):
+        logger.warning("SFTP directory listing failed")
         return []
 
     files.sort(key=lambda f: f["filename"], reverse=True)
     return files
 
 
-async def _list_ftp(parts: Dict) -> List[Dict]:
+async def _list_ftp(
+    *, hostname: str, port: int, username: str,
+    password: str, path: str,
+) -> List[Dict]:
     """List files via FTP."""
-    hostname = parts["hostname"]
-    port = int(parts["port"]) if parts["port"] else 21
-    username = parts["username"] or "anonymous"
-    password = parts["password"] or ""
-    path = parts["path"]
 
     def _do_ftp() -> List[Dict]:
         files = []
@@ -157,8 +210,8 @@ async def _list_ftp(parts: Dict) -> List[Dict]:
                 })
 
             ftp.quit()
-        except Exception as exc:
-            logger.warning("FTP listing at %s failed: %s", hostname, exc)
+        except Exception:
+            logger.warning("FTP directory listing failed")
             # Fallback: try NLST if MLSD fails
             try:
                 ftp2 = ftplib.FTP()
@@ -197,33 +250,35 @@ def _parse_mlsd_line(line: str) -> Dict:
     return result
 
 
-async def _list_http(archive_url: str, parts: Dict) -> List[Dict]:
+async def _list_http(archive_url: str) -> List[Dict]:
     """Best-effort HTTP directory listing (many servers won't support this)."""
-    # Strip credentials for the request, pass as auth
-    url = archive_url
+    parsed = urlparse(archive_url)
+
+    # Extract auth before validation strips credentials
     auth = None
-    if parts["username"]:
-        auth = (parts["username"], parts["password"] or "")
-        # Rebuild URL without credentials
-        parsed = urlparse(archive_url)
-        clean = parsed._replace(netloc=f"{parsed.hostname}" + (f":{parsed.port}" if parsed.port else ""))
-        url = urlunparse(clean)
+    if parsed.username:
+        auth = (parsed.username, parsed.password or "")
+
+    # Validate scheme and reject private/loopback targets (SSRF protection)
+    try:
+        safe_url = _validate_http_url(archive_url)
+    except ValueError:
+        logger.warning("HTTP archive URL failed safety validation")
+        return []
 
     files = []
     try:
         async with httpx.AsyncClient(timeout=_CONNECTION_TIMEOUT, verify=True) as client:
-            resp = await client.get(url, auth=auth)
+            resp = await client.get(safe_url, auth=auth)
             if resp.status_code != 200:
                 return []
-            # Parse HTML for links matching config.boot*
-            import re as _re
-            links = _re.findall(r'href=["\']([^"\']+)["\']', resp.text)
+            links = re.findall(r'href=["\']([^"\']+)["\']', resp.text)
             for link in links:
                 name = link.rstrip("/").rsplit("/", 1)[-1]
                 if _FILENAME_RE.match(name):
                     files.append({"filename": name, "modified": None, "size": None})
-    except Exception as exc:
-        logger.warning("HTTP listing at %s failed: %s", url, exc)
+    except Exception:
+        logger.warning("HTTP directory listing failed")
 
     files.sort(key=lambda f: f["filename"], reverse=True)
     return files
@@ -234,7 +289,7 @@ def transform_archive_to_load_url(archive_url: str, filename: str) -> str:
     Transform an archive (save) URL + filename into a load URL.
 
     Protocol-specific transformations:
-      - SCP: Insert ':' between host and path → scp://user:pass@host:/path/file
+      - SCP: Insert ':' between host and path -> scp://user:pass@host:/path/file
       - HTTP/HTTPS: Strip credentials
       - SFTP/FTP: Append filename to path as-is
       - TFTP: Append filename
