@@ -170,6 +170,17 @@ export interface SystemConfig {
 // Batch operation helper
 // ============================================================================
 
+export interface ArchiveFile {
+  filename: string;
+  modified: string | null;
+  size: number | null;
+}
+
+export interface ArchiveFilesResponse {
+  files: ArchiveFile[];
+  archive_location: string;
+}
+
 interface BatchOp {
   op: string;
   value?: string | null;
@@ -442,6 +453,19 @@ class SystemSettingsService {
 
   async deleteArchiveLocation(url: string): Promise<VyOSResponse> {
     return this.batch(url, [{ op: "delete_commit_archive_location" }]);
+  }
+
+  async listArchiveFiles(archiveLocation: string): Promise<ArchiveFilesResponse> {
+    return apiClient.get<ArchiveFilesResponse>("/vyos/system/config/archive-files", {
+      archive_location: archiveLocation,
+    });
+  }
+
+  async restoreFromArchive(archiveLocation: string, filename: string): Promise<VyOSResponse> {
+    return apiClient.post<VyOSResponse>("/vyos/system/config/restore", {
+      archive_location: archiveLocation,
+      filename,
+    });
   }
 
   // --------------------------------------------------------------------------
