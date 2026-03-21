@@ -199,6 +199,11 @@ const navigation: NavItem[] = [
         href: "/vpn/wireguard",
         requiredPermission: FeatureGroup.WIREGUARD
       },
+      {
+        title: "L2TP",
+        href: "/vpn/l2tp",
+        requiredPermission: FeatureGroup.L2TP
+      },
     ],
   },
   {

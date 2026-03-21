@@ -129,6 +129,7 @@ export enum FeatureGroup {
   VPN = "VPN",
   IPSEC = "IPSEC",
   WIREGUARD = "WIREGUARD",
+  L2TP = "L2TP",
 
   // Routing features (three-level hierarchy)
   ROUTING = "ROUTING",

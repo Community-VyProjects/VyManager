@@ -111,6 +111,7 @@ const FEATURE_ICONS: Record<FeatureGroup, any> = {
   [FeatureGroup.VPN]: Lock,
   [FeatureGroup.IPSEC]: Lock,
   [FeatureGroup.WIREGUARD]: Lock,
+  [FeatureGroup.L2TP]: Lock,
   [FeatureGroup.ROUTING]: Router,
   [FeatureGroup.UNICAST_PROTOCOLS]: Router,
   [FeatureGroup.BGP]: Router,
@@ -173,6 +174,7 @@ const FEATURE_NAMES: Record<FeatureGroup, string> = {
   [FeatureGroup.VPN]: "VPN",
   [FeatureGroup.IPSEC]: "IPsec",
   [FeatureGroup.WIREGUARD]: "WireGuard",
+  [FeatureGroup.L2TP]: "L2TP",
   [FeatureGroup.ROUTING]: "Routing",
   [FeatureGroup.UNICAST_PROTOCOLS]: "Unicast Protocols",
   [FeatureGroup.BGP]: "BGP",
@@ -330,6 +332,7 @@ const FEATURE_CATEGORIES: FeatureCategory[] = [
         children: [
           { feature: FeatureGroup.IPSEC },
           { feature: FeatureGroup.WIREGUARD },
+          { feature: FeatureGroup.L2TP },
         ],
       },
     ],

@@ -56,6 +56,7 @@ from routers.load_balancing import load_balancing as load_balancing_router
 from routers.isis import isis as isis_router
 from routers.mpls import mpls as mpls_router
 from routers.ipsec import ipsec as ipsec_router
+from routers.l2tp import l2tp as l2tp_router
 from routers import version as version_router
 
 # Global variables
@@ -300,6 +301,7 @@ app.include_router(load_balancing_router.router)
 app.include_router(isis_router.router)
 app.include_router(mpls_router.router)
 app.include_router(ipsec_router.router)
+app.include_router(l2tp_router.router)
 app.include_router(version_router.router)
 
 
