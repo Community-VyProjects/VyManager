@@ -68,6 +68,8 @@ from .mpls import MplsMapper
 from .mpls.mpls_versions import get_mpls_mapper
 from .ipsec import IPSecMapper
 from .ipsec.ipsec_versions import get_ipsec_mapper
+from .l2tp import L2TPMapper
+from .l2tp.l2tp_versions import get_l2tp_mapper
 
 # Auto-register all mappers
 # Ethernet uses factory for version-specific mappers
@@ -152,6 +154,8 @@ CommandMapperRegistry.register_feature("isis", get_isis_mapper)
 CommandMapperRegistry.register_feature("mpls", get_mpls_mapper)
 # IPSec uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("ipsec", get_ipsec_mapper)
+# L2TP uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("l2tp", get_l2tp_mapper)
 
 __all__ = [
     "BaseFeatureMapper",
@@ -199,4 +203,5 @@ __all__ = [
     "IsisMapper",
     "MplsMapper",
     "IPSecMapper",
+    "L2TPMapper",
 ]
