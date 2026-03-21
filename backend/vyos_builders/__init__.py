@@ -35,6 +35,7 @@ from .high_availability import HighAvailabilityBatchBuilder
 from .load_balancing import LoadBalancingBatchBuilder
 from .isis import IsisBatchBuilder
 from .ipsec import IPSecBatchBuilder
+from .pki import PKIBatchBuilder
 
 # Directly use the self-contained builders
 EthernetBatchBuilder = EthernetInterfaceBuilderMixin
@@ -77,4 +78,5 @@ __all__ = [
     "LoadBalancingBatchBuilder",
     "IsisBatchBuilder",
     "IPSecBatchBuilder",
+    "PKIBatchBuilder",
 ]
