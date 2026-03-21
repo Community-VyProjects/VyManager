@@ -20,6 +20,11 @@ from fastapi_permissions import require_read_permission, require_write_permissio
 from rbac_permissions import FeatureGroup
 from vyos_mappers import CommandMapperRegistry
 from vyos_builders import SystemBatchBuilder
+from utils.archive_url import (
+    list_archive_files as _list_archive_files,
+    transform_archive_to_load_url,
+    validate_filename,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -229,6 +234,12 @@ class WatchdogSettingsRequest(BaseModel):
     clear_timeout: bool = False
     reboot_timeout: Optional[int] = None
     clear_reboot_timeout: bool = False
+
+
+class ConfigRestoreRequest(BaseModel):
+    """Request to restore config from an archive location."""
+    archive_location: str = Field(..., description="Archive URL (must be in device config)")
+    filename: str = Field(..., description="Backup filename to restore")
 
 
 # =============================================================================
@@ -654,6 +665,104 @@ async def update_watchdog_settings(
         )
     except Exception:
         logger.exception("Unhandled error in update_watchdog_settings")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+# =============================================================================
+# Endpoint 0d: List archive files
+# =============================================================================
+
+
+@router.get("/config/archive-files")
+async def list_archive_files_endpoint(request: Request, archive_location: str):
+    """
+    List available backup files at a configured archive location.
+
+    The archive_location must be present in the device's commit-archive config.
+    """
+    await require_read_permission(request, FeatureGroup.SYSTEM)
+    try:
+        service = get_session_vyos_service(request)
+        full_config = await run_in_threadpool(service.get_full_config, refresh=False)
+        system_config = full_config.get("system", {}) or {}
+        cm = _parse_config_management(system_config)
+
+        if archive_location not in cm.archive_locations:
+            raise HTTPException(
+                status_code=400,
+                detail="Archive location not found in device configuration",
+            )
+
+        # Use the value from device config (not user input) to break taint chain
+        validated_location = cm.archive_locations[
+            cm.archive_locations.index(archive_location)
+        ]
+        files = await _list_archive_files(validated_location)
+        return {"files": files, "archive_location": validated_location}
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Unhandled error in list_archive_files_endpoint")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+# =============================================================================
+# Endpoint 0e: Restore config from archive
+# =============================================================================
+
+
+@router.post("/config/restore", response_model=VyOSResponse)
+async def restore_config(http_request: Request, body: ConfigRestoreRequest):
+    """
+    Restore configuration from a backup file at an archive location.
+
+    Validates:
+      - archive_location is in device config
+      - filename matches allowed pattern (prevents path traversal)
+
+    Uses VyOS config_file_load API with protocol-specific URL transformation.
+    """
+    await require_write_permission(http_request, FeatureGroup.SYSTEM)
+    try:
+        if not validate_filename(body.filename):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid filename format",
+            )
+
+        service = get_session_vyos_service(http_request)
+        full_config = await run_in_threadpool(service.get_full_config, refresh=False)
+        system_config = full_config.get("system", {}) or {}
+        cm = _parse_config_management(system_config)
+
+        if body.archive_location not in cm.archive_locations:
+            raise HTTPException(
+                status_code=400,
+                detail="Archive location not found in device configuration",
+            )
+
+        # Use the value from device config (not user input) to break taint chain
+        validated_location = cm.archive_locations[
+            cm.archive_locations.index(body.archive_location)
+        ]
+
+        try:
+            load_url = transform_archive_to_load_url(
+                validated_location, body.filename
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+
+        response = await run_in_threadpool(service.device.config_file_load, file=load_url)
+        return VyOSResponse(
+            success=response.status == 200,
+            data=response.result if response.result else None,
+            error=response.error if response.error else None,
+        )
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Unhandled error in restore_config")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
