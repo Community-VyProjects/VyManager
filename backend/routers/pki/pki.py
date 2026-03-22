@@ -946,9 +946,7 @@ async def generate_openssh(http_request: Request, request: GenerateOpenSSHReques
             builder.set_openssh_public_key(request.name, pub_key_data)
             builder.set_openssh_private_key(request.name, priv_pem)
 
-            logger.info("OpenSSH generate attempt (%s): ops=%s", fmt_name, builder.get_operations())
             response = service.execute_batch(builder)
-            logger.info("OpenSSH generate (%s): status=%s error=%s", fmt_name, response.status, response.error)
 
             if response.status == 200:
                 return VyOSResponse(
@@ -958,7 +956,6 @@ async def generate_openssh(http_request: Request, request: GenerateOpenSSHReques
 
             # If first format failed, delete the partial node before retrying
             if fmt_name == "OpenSSH":
-                logger.info("OpenSSH format failed, cleaning up and trying PKCS8")
                 cleanup = PKIBatchBuilder(version=version)
                 cleanup.delete_openssh(request.name)
                 service.execute_batch(cleanup)
