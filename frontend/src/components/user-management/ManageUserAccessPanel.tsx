@@ -65,6 +65,7 @@ import {
   Radio,
   Power,
   Scale,
+  ShieldCheck,
 } from "lucide-react";
 import {
   userManagementService,
@@ -112,6 +113,7 @@ const FEATURE_ICONS: Record<FeatureGroup, any> = {
   [FeatureGroup.IPSEC]: Lock,
   [FeatureGroup.WIREGUARD]: Lock,
   [FeatureGroup.L2TP]: Lock,
+  [FeatureGroup.PKI]: ShieldCheck,
   [FeatureGroup.ROUTING]: Router,
   [FeatureGroup.UNICAST_PROTOCOLS]: Router,
   [FeatureGroup.BGP]: Router,
@@ -175,6 +177,7 @@ const FEATURE_NAMES: Record<FeatureGroup, string> = {
   [FeatureGroup.IPSEC]: "IPsec",
   [FeatureGroup.WIREGUARD]: "WireGuard",
   [FeatureGroup.L2TP]: "L2TP",
+  [FeatureGroup.PKI]: "PKI",
   [FeatureGroup.ROUTING]: "Routing",
   [FeatureGroup.UNICAST_PROTOCOLS]: "Unicast Protocols",
   [FeatureGroup.BGP]: "BGP",
@@ -335,6 +338,7 @@ const FEATURE_CATEGORIES: FeatureCategory[] = [
           { feature: FeatureGroup.L2TP },
         ],
       },
+      { feature: FeatureGroup.PKI },
     ],
   },
   {

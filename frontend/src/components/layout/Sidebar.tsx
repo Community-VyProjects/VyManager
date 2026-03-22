@@ -10,7 +10,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { Activity, ChevronDown, HeartPulse, Shield, Network, Server, Settings, LayoutDashboard, Route, Lock, LogOut, User, FileText, Building2, Power, PowerOff, Scale } from "lucide-react";
+import { Activity, ChevronDown, HeartPulse, Shield, ShieldCheck, Network, Server, Settings, LayoutDashboard, Route, Lock, LogOut, User, FileText, Building2, Power, PowerOff, Scale } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { useSession, signOut } from "@/lib/auth-client";
@@ -133,6 +133,12 @@ const navigation: NavItem[] = [
         requiredPermission: FeatureGroup.MULTICAST
       },
     ],
+  },
+  {
+    title: "PKI",
+    href: "/pki",
+    icon: ShieldCheck,
+    requiredPermission: FeatureGroup.PKI,
   },
   {
     title: "Policies",
