@@ -131,6 +131,9 @@ export enum FeatureGroup {
   WIREGUARD = "WIREGUARD",
   L2TP = "L2TP",
 
+  // PKI
+  PKI = "PKI",
+
   // Routing features (three-level hierarchy)
   ROUTING = "ROUTING",
   UNICAST_PROTOCOLS = "UNICAST_PROTOCOLS",
