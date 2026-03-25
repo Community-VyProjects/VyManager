@@ -137,6 +137,16 @@ class WireGuardBatchBuilder:
         path = self.mappers[self.mapper_key].get_interface_per_client_thread(interface)
         return self.add_delete(path)
 
+    def set_interface_mss_clamping(self, interface: str) -> "WireGuardBatchBuilder":
+        """Enable MSS clamping for a WireGuard interface."""
+        path = ["firewall", "options", "interface", interface, "adjust-mss", "clamp-mss-to-pmtu"]
+        return self.add_set(path)
+
+    def delete_interface_mss_clamping(self, interface: str) -> "WireGuardBatchBuilder":
+        """Disable MSS clamping for a WireGuard interface."""
+        path = ["firewall", "options", "interface", interface, "adjust-mss", "clamp-mss-to-pmtu"]
+        return self.add_delete(path)
+
     def set_interface_disable(self, interface: str) -> "WireGuardBatchBuilder":
         """Disable interface."""
         path = self.mappers[self.mapper_key].get_interface_disable(interface)

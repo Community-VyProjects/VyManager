@@ -196,6 +196,14 @@ async def get_wireguard_config(request: Request, refresh: bool = False):
                 "fwmark": iface_data.get("fwmark"),
                 "per_client_thread": iface_data.get("per_client_thread", False),
                 "disabled": iface_data.get("disabled", False),
+                "mss_clamping": bool(
+                    full_config.get("firewall", {})
+                    .get("options", {})
+                    .get("interface", {})
+                    .get(iface_name, {})
+                    .get("adjust-mss", {})
+                    .get("clamp-mss-to-pmtu")
+                ),
                 "peers": peers,
                 "peer_count": len(peers),
             })
@@ -233,6 +241,12 @@ async def wireguard_interface_batch(request: Request, body: WireGuardInterfaceBa
             method_name = operation.op
             method = getattr(builder, method_name, None)
 
+            if method is None and method_name == "set_interface_mss_clamping":
+                builder.add_set(["firewall", "options", "interface", body.interface, "adjust-mss", "clamp-mss-to-pmtu"])
+                continue
+            if method is None and method_name == "delete_interface_mss_clamping":
+                builder.add_delete(["firewall", "options", "interface", body.interface, "adjust-mss", "clamp-mss-to-pmtu"])
+                continue
             if method is None:
                 raise HTTPException(
                     status_code=400,

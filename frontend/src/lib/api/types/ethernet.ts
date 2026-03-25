@@ -73,6 +73,7 @@ export interface VIFConfig {
   mac?: string | null;
   vrf?: string | null;
   disable?: boolean | null;
+  mss_clamping?: boolean | null;
 }
 
 export interface VIFSConfig extends VIFConfig {

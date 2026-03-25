@@ -53,6 +53,7 @@ export function EditInterfaceModal({
   const [privateKey, setPrivateKey] = useState("");
   const [mtu, setMtu] = useState("");
   const [perClientThread, setPerClientThread] = useState(false);
+  const [mssClamping, setMssClamping] = useState(false);
   const [disabled, setDisabled] = useState(false);
 
   // UI state
@@ -72,6 +73,7 @@ export function EditInterfaceModal({
       setPrivateKey(interfaceData.private_key || "");
       setMtu(interfaceData.mtu || "");
       setPerClientThread(interfaceData.per_client_thread);
+      setMssClamping(interfaceData.mss_clamping || false);
       setDisabled(interfaceData.disabled || false);
       setGeneratedPublicKey(null);
     }
@@ -113,6 +115,7 @@ export function EditInterfaceModal({
     setPrivateKey("");
     setMtu("");
     setPerClientThread(false);
+    setMssClamping(false);
     setDisabled(false);
     setError(null);
     setShowPrivateKey(false);
@@ -169,6 +172,11 @@ export function EditInterfaceModal({
       // Per-client thread change
       if (perClientThread !== interfaceData.per_client_thread) {
         newConfig.per_client_thread = perClientThread;
+      }
+
+      // MSS clamping change
+      if (mssClamping !== (interfaceData.mss_clamping || false)) {
+        newConfig.mss_clamping = mssClamping;
       }
 
       // Disabled change
@@ -403,6 +411,22 @@ export function EditInterfaceModal({
                 </div>
               </div>
             )}
+
+            <div className="flex items-center space-x-2 rounded-lg border p-3">
+              <Checkbox
+                id="edit-mss-clamping"
+                checked={mssClamping}
+                onCheckedChange={(checked) => setMssClamping(checked === true)}
+              />
+              <div className="flex-1">
+                <Label htmlFor="edit-mss-clamping" className="cursor-pointer">
+                  TCP MSS Clamping
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Adjusts TCP MSS to match the path MTU to prevent fragmentation issues.
+                </p>
+              </div>
+            </div>
           </TabsContent>
         </Tabs>
 

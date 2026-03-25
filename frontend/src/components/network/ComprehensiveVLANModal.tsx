@@ -66,6 +66,9 @@ export function ComprehensiveVLANModal({
   const [dhcpClientId, setDhcpClientId] = useState("");
   const [dhcpHostName, setDhcpHostName] = useState("");
 
+  // TCP MSS settings
+  const [mssClamping, setMssClamping] = useState(false);
+
   // IPv6 settings
   const [ipv6Autoconf, setIpv6Autoconf] = useState(false);
   const [ipv6Eui64, setIpv6Eui64] = useState("");
@@ -81,6 +84,7 @@ export function ComprehensiveVLANModal({
       setMac(vlan.mac || "");
       setVrf(vlan.vrf || "");
       setDisabled(vlan.disable || false);
+      setMssClamping(vlan.mss_clamping || false);
     } else {
       resetForm();
     }
@@ -98,6 +102,7 @@ export function ComprehensiveVLANModal({
     setDisabled(false);
     setDhcpClientId("");
     setDhcpHostName("");
+    setMssClamping(false);
     setIpv6Autoconf(false);
     setIpv6Eui64("");
     setError(null);
@@ -199,6 +204,36 @@ export function ComprehensiveVLANModal({
       operations.push({ op: disabled ? "set_vif_disable" : "delete_vif_disable", value: vid });
     } else if (mode === "create" && disabled) {
       operations.push({ op: "set_vif_disable", value: vid });
+    }
+
+    // TCP MSS clamping
+    if (capabilities?.features.tcp_mss?.clamp_to_pmtu_ipv4 || capabilities?.features.tcp_mss?.clamp_to_pmtu_ipv6) {
+      const currentlyClamping = vlan?.mss_clamping || false;
+
+      if (mode === "create" && mssClamping) {
+        if (capabilities.features.tcp_mss.clamp_to_pmtu_ipv4) {
+          operations.push({ op: "set_vif_ip_adjust_mss_clamp_to_pmtu", value: vid });
+        }
+        if (capabilities.features.tcp_mss.clamp_to_pmtu_ipv6) {
+          operations.push({ op: "set_vif_ipv6_adjust_mss_clamp_to_pmtu", value: vid });
+        }
+      } else if (mode === "edit") {
+        if (mssClamping && !currentlyClamping) {
+          if (capabilities.features.tcp_mss.clamp_to_pmtu_ipv4) {
+            operations.push({ op: "set_vif_ip_adjust_mss_clamp_to_pmtu", value: vid });
+          }
+          if (capabilities.features.tcp_mss.clamp_to_pmtu_ipv6) {
+            operations.push({ op: "set_vif_ipv6_adjust_mss_clamp_to_pmtu", value: vid });
+          }
+        } else if (!mssClamping && currentlyClamping) {
+          if (capabilities.features.tcp_mss.ipv4_adjust || capabilities.features.tcp_mss.clamp_to_pmtu_ipv4) {
+            operations.push({ op: "delete_vif_ip_adjust_mss", value: vid });
+          }
+          if (capabilities.features.tcp_mss.ipv6_adjust || capabilities.features.tcp_mss.clamp_to_pmtu_ipv6) {
+            operations.push({ op: "delete_vif_ipv6_adjust_mss", value: vid });
+          }
+        }
+      }
     }
 
     // DHCP options - require (vlan_id,value)
@@ -489,6 +524,22 @@ export function ComprehensiveVLANModal({
                         onChange={(e) => setDhcpHostName(e.target.value)}
                       />
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {(capabilities?.features.tcp_mss?.clamp_to_pmtu_ipv4 || capabilities?.features.tcp_mss?.clamp_to_pmtu_ipv6) && (
+                <div className="space-y-2">
+                  <h3 className="text-sm font-semibold">TCP MSS</h3>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="mss-clamping"
+                      checked={mssClamping}
+                      onCheckedChange={(checked) => setMssClamping(checked as boolean)}
+                    />
+                    <Label htmlFor="mss-clamping" className="cursor-pointer text-sm">
+                      Enable TCP MSS clamping to PMTU (IPv4+IPv6)
+                    </Label>
                   </div>
                 </div>
               )}

@@ -721,9 +721,25 @@ class EthernetInterfaceMapper(BaseFeatureMapper):
         """Get command path for VIF IPv4 TCP MSS."""
         return ["interfaces", self.interface_type, interface, "vif", vlan_id, "ip", "adjust-mss", mss]
 
+    def get_vif_ip_adjust_mss_path(self, interface: str, vlan_id: str) -> List[str]:
+        """Get command path for deleting VIF IPv4 TCP MSS."""
+        return ["interfaces", self.interface_type, interface, "vif", vlan_id, "ip", "adjust-mss"]
+
+    def get_vif_ip_adjust_mss_clamp_mss_to_pmtu(self, interface: str, vlan_id: str) -> List[str]:
+        """Get command path for VIF IPv4 TCP MSS clamping to PMTU."""
+        return ["interfaces", self.interface_type, interface, "vif", vlan_id, "ip", "adjust-mss", "clamp-mss-to-pmtu"]
+
     def get_vif_ip_disable_forwarding(self, interface: str, vlan_id: str) -> List[str]:
         """Get command path for VIF IP disable forwarding."""
         return ["interfaces", self.interface_type, interface, "vif", vlan_id, "ip", "disable-forwarding"]
+
+    def get_vif_ipv6_adjust_mss_path(self, interface: str, vlan_id: str) -> List[str]:
+        """Get command path for deleting VIF IPv6 TCP MSS."""
+        return ["interfaces", self.interface_type, interface, "vif", vlan_id, "ipv6", "adjust-mss"]
+
+    def get_vif_ipv6_adjust_mss_clamp_mss_to_pmtu(self, interface: str, vlan_id: str) -> List[str]:
+        """Get command path for VIF IPv6 TCP MSS clamping to PMTU."""
+        return ["interfaces", self.interface_type, interface, "vif", vlan_id, "ipv6", "adjust-mss", "clamp-mss-to-pmtu"]
 
     def get_vif_ip_source_validation(self, interface: str, vlan_id: str, mode: str) -> List[str]:
         """Get command path for VIF IP source validation."""
@@ -979,6 +995,10 @@ class EthernetInterfaceMapper(BaseFeatureMapper):
                         "mac": vif_config.get("mac"),
                         "vrf": vif_config.get("vrf"),
                         "disable": "disable" in vif_config,
+                        "mss_clamping": (
+                            (isinstance(vif_config.get("ip"), dict) and vif_config.get("ip").get("adjust-mss") == "clamp-mss-to-pmtu")
+                            or (isinstance(vif_config.get("ipv6"), dict) and vif_config.get("ipv6").get("adjust-mss") == "clamp-mss-to-pmtu")
+                        ),
                     })
         return vif_parsed if vif_parsed else None
 

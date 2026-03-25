@@ -1314,6 +1314,21 @@ class EthernetInterfaceBuilderMixin:
         path = self.mappers[self.interface_mapper_key].get_vif_ip_adjust_mss(interface, vlan_id, mss)
         return self.add_set(path)
 
+    def set_vif_ip_adjust_mss_clamp_mss_to_pmtu(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Enable VIF IPv4 MSS clamping to PMTU"""
+        path = self.mappers[self.interface_mapper_key].get_vif_ip_adjust_mss_clamp_mss_to_pmtu(interface, vlan_id)
+        return self.add_set(path)
+
+    def delete_vif_ip_adjust_mss(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Delete VIF IPv4 MSS setting"""
+        path = self.mappers[self.interface_mapper_key].get_vif_ip_adjust_mss_path(interface, vlan_id)
+        return self.add_delete(path)
+
+    def delete_vif_ip_adjust_mss_clamp_mss_to_pmtu(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Disable VIF IPv4 MSS clamping"""
+        path = self.mappers[self.interface_mapper_key].get_vif_ip_adjust_mss_path(interface, vlan_id)
+        return self.add_delete(path)
+
     def set_vif_ip_disable_forwarding(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
         """Disable IP forwarding on VIF"""
         path = self.mappers[self.interface_mapper_key].get_vif_ip_disable_forwarding(interface, vlan_id)
@@ -1358,6 +1373,21 @@ class EthernetInterfaceBuilderMixin:
         """Set VIF IPv6 TCP MSS"""
         path = self.mappers[self.interface_mapper_key].get_vif_ipv6_adjust_mss(interface, vlan_id, mss)
         return self.add_set(path)
+
+    def set_vif_ipv6_adjust_mss_clamp_mss_to_pmtu(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Enable VIF IPv6 MSS clamping to PMTU"""
+        path = self.mappers[self.interface_mapper_key].get_vif_ipv6_adjust_mss_clamp_mss_to_pmtu(interface, vlan_id)
+        return self.add_set(path)
+
+    def delete_vif_ipv6_adjust_mss(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Delete VIF IPv6 MSS setting"""
+        path = self.mappers[self.interface_mapper_key].get_vif_ipv6_adjust_mss_path(interface, vlan_id)
+        return self.add_delete(path)
+
+    def delete_vif_ipv6_adjust_mss_clamp_mss_to_pmtu(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Disable VIF IPv6 MSS clamping"""
+        path = self.mappers[self.interface_mapper_key].get_vif_ipv6_adjust_mss_path(interface, vlan_id)
+        return self.add_delete(path)
 
     def set_vif_ipv6_accept_dad(self, interface: str, vlan_id: str, count: str) -> "EthernetInterfaceBuilderMixin":
         """Set VIF IPv6 accept DAD count"""
