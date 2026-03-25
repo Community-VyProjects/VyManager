@@ -40,6 +40,7 @@ import {
   Globe,
   Settings2,
   Link2,
+  Loader2,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
@@ -53,7 +54,7 @@ import {
   type DHCPRange,
 } from "@/lib/api/dhcp";
 import { cn } from "@/lib/utils";
-import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { ClickableSubnet } from "@/components/ui/clickable-items";
 import { CreateDHCPServerModal } from "@/components/services/CreateDHCPServerModal";
 import { EditDHCPServerModal } from "@/components/services/EditDHCPServerModal";
 import { DeleteDHCPModal } from "@/components/services/DeleteDHCPModal";
@@ -301,7 +302,10 @@ export default function DHCPPage() {
     return (
       <AppLayout>
         <div className="flex items-center justify-center h-full">
-          <LoadingSpinner />
+          <div className="text-center space-y-4">
+            <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
+            <p className="text-muted-foreground">Loading DHCP configuration...</p>
+          </div>
         </div>
       </AppLayout>
     );
@@ -567,7 +571,16 @@ export default function DHCPPage() {
                                     <TableCell className="font-medium">
                                       <div className="flex items-center gap-2">
                                         <Network className="h-4 w-4 text-muted-foreground" />
-                                        {subnet.subnet}
+                                        <ClickableSubnet
+                                          subnet={subnet.subnet}
+                                          networkName={currentNetwork.name}
+                                          data={{ network: currentNetwork, subnet }}
+                                          variant="link"
+                                          size="sm"
+                                          showIcon={false}
+                                        >
+                                          {subnet.subnet}
+                                        </ClickableSubnet>
                                         {capabilities?.has_subnet_id && subnet.subnet_id && (
                                           <Badge variant="outline" className="text-xs ml-1">
                                             ID: {subnet.subnet_id}
@@ -1005,7 +1018,10 @@ export default function DHCPPage() {
                       <ScrollArea className="h-full">
                         {leasesLoading ? (
                           <div className="flex items-center justify-center py-12">
-                            <LoadingSpinner />
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              Loading leases...
+                            </div>
                           </div>
                         ) : filteredLeases.length === 0 ? (
                           <div className="flex flex-col items-center justify-center py-12">
