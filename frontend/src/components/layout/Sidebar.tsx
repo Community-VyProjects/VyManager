@@ -17,6 +17,7 @@ import { useSession, signOut } from "@/lib/auth-client";
 import { useSessionStore } from "@/store/session-store";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
+import { ThemeSelector } from "@/components/ui/theme-selector";
 
 interface NavItem {
   title: string;
@@ -535,6 +536,11 @@ export function Sidebar() {
 
       {/* Footer */}
       <div className="border-t border-border p-4 space-y-3 shrink-0">
+        {/* Theme Selector */}
+        <div className="space-y-2">
+          <ThemeSelector />
+        </div>
+
         {/* Active Instance Indicator */}
         {activeSession ? (
           <div className="space-y-2">
