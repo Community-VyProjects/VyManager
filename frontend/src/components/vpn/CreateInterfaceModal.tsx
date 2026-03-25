@@ -51,6 +51,7 @@ export function CreateInterfaceModal({
   const [privateKey, setPrivateKey] = useState("");
   const [mtu, setMtu] = useState("");
   const [perClientThread, setPerClientThread] = useState(false);
+  const [mssClamping, setMssClamping] = useState(false);
 
   // UI state
   const [loading, setLoading] = useState(false);
@@ -107,6 +108,7 @@ export function CreateInterfaceModal({
     setPrivateKey("");
     setMtu("");
     setPerClientThread(false);
+    setMssClamping(false);
     setError(null);
     setShowPrivateKey(false);
     setGeneratedPublicKey(null);
@@ -173,6 +175,9 @@ export function CreateInterfaceModal({
 
       if (perClientThread && capabilities?.features.per_client_thread.supported) {
         config.per_client_thread = true;
+      }
+      if (mssClamping) {
+        config.mss_clamping = true;
       }
 
       const result = await wireguardService.createInterface(config);
@@ -394,6 +399,22 @@ export function CreateInterfaceModal({
                 </div>
               </div>
             )}
+
+            <div className="flex items-center space-x-2 rounded-lg border p-3">
+              <Checkbox
+                id="mssClamping"
+                checked={mssClamping}
+                onCheckedChange={(checked) => setMssClamping(checked === true)}
+              />
+              <div className="flex-1">
+                <Label htmlFor="mssClamping" className="cursor-pointer">
+                  MSS Clamping
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Set firewall options interface {name || "wg0"} adjust-mss clamp-mss-to-pmtu.
+                </p>
+              </div>
+            </div>
           </TabsContent>
         </Tabs>
 

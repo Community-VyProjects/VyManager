@@ -177,6 +177,7 @@ class VIFConfig(BaseModel):
     mac: Optional[str] = None
     vrf: Optional[str] = None
     disable: Optional[bool] = None
+    mss_clamping: Optional[bool] = None
 
 class VIFSConfig(BaseModel):
     """QinQ service VLAN (VIF-S) configuration"""
@@ -649,11 +650,11 @@ async def get_ethernet_capabilities(request: Request) -> Dict[str, Any]:
                     "set_vif_egress_qos", "delete_vif_egress_qos",
                     "set_vif_ingress_qos", "delete_vif_ingress_qos",
                     "set_vif_redirect", "delete_vif_redirect",
-                    "set_vif_ip_adjust_mss", "set_vif_ip_disable_forwarding",
+                    "set_vif_ip_adjust_mss", "set_vif_ip_adjust_mss_clamp_to_pmtu", "set_vif_ip_disable_forwarding",
                     "set_vif_ip_source_validation", "set_vif_ip_enable_proxy_arp",
                     "set_vif_ip_arp_cache_timeout",
                     "set_vif_mirror_ingress", "set_vif_mirror_egress", "delete_vif_mirror",
-                    "set_vif_ipv6_disable_forwarding", "set_vif_ipv6_adjust_mss",
+                    "set_vif_ipv6_disable_forwarding", "set_vif_ipv6_adjust_mss", "set_vif_ipv6_adjust_mss_clamp_to_pmtu",
                     "set_vif_ipv6_accept_dad", "set_vif_ipv6_dup_addr_detect_transmits",
                 ],
                 "vlan_vif_s": [
@@ -930,6 +931,10 @@ async def configure_interface_batch(http_request: Request, request: InterfaceBat
     | `set_vif_dhcp_options_host_name` | Yes (vlan_id,hostname) | Set VIF DHCP hostname |
     | `set_vif_ipv6_address_autoconf` | Yes (vlan_id) | Enable VIF IPv6 autoconf |
     | `set_vif_ipv6_address_eui64` | Yes (vlan_id,prefix) | Set VIF IPv6 EUI-64 |
+    | `set_vif_ip_adjust_mss` | Yes (vlan_id,mss) | Set VIF IPv4 TCP MSS |
+    | `set_vif_ip_adjust_mss_clamp_to_pmtu` | Yes (vlan_id) | Enable VIF IPv4 MSS clamping to PMTU |
+    | `set_vif_ipv6_adjust_mss` | Yes (vlan_id,mss) | Set VIF IPv6 TCP MSS |
+    | `set_vif_ipv6_adjust_mss_clamp_to_pmtu` | Yes (vlan_id) | Enable VIF IPv6 MSS clamping to PMTU |
 
     **VLAN Sub-interface Operations (VIF-S - QinQ Service):**
 
@@ -1582,6 +1587,28 @@ async def configure_interface_batch(http_request: Request, request: InterfaceBat
                 if len(parts) != 2:
                     raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,prefix'")
                 batch.set_vif_ipv6_address_eui64(request.interface, parts[0], parts[1])
+            elif op_type == "set_vif_ip_adjust_mss":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id,mss)")
+                parts = value.split(",", 1)
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,mss'")
+                batch.set_vif_ip_adjust_mss(request.interface, parts[0], parts[1])
+            elif op_type == "set_vif_ip_adjust_mss_clamp_to_pmtu":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.set_vif_ip_adjust_mss_clamp_to_pmtu(request.interface, value)
+            elif op_type == "set_vif_ipv6_adjust_mss":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id,mss)")
+                parts = value.split(",", 1)
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,mss'")
+                batch.set_vif_ipv6_adjust_mss(request.interface, parts[0], parts[1])
+            elif op_type == "set_vif_ipv6_adjust_mss_clamp_to_pmtu":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.set_vif_ipv6_adjust_mss_clamp_to_pmtu(request.interface, value)
             # VIF-S (QinQ Service VLAN) Sub-interface Operations
             elif op_type == "set_vif_s_address":
                 if not value:

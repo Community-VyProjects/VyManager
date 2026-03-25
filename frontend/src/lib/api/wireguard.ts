@@ -26,6 +26,7 @@ export interface WireGuardInterface {
   mtu?: string | null;
   fwmark?: string | null;
   per_client_thread: boolean;
+  mss_clamping?: boolean;
   disabled?: boolean;
   peers: WireGuardPeer[];
   peer_count: number;
@@ -158,6 +159,7 @@ class WireGuardService {
     private_key?: string;
     mtu?: string;
     per_client_thread?: boolean;
+    mss_clamping?: boolean;
   }): Promise<VyOSResponse> {
     const operations: WireGuardBatchOperation[] = [];
 
@@ -185,6 +187,9 @@ class WireGuardService {
     if (config.per_client_thread) {
       operations.push({ op: "set_interface_per_client_thread" });
     }
+    if (config.mss_clamping) {
+      operations.push({ op: "set_interface_mss_clamping" });
+    }
 
     return this.interfaceBatch(config.name, operations);
   }
@@ -202,6 +207,7 @@ class WireGuardService {
       private_key?: string | null;
       mtu?: string | null;
       per_client_thread?: boolean;
+      mss_clamping?: boolean;
       disabled?: boolean;
     }
   ): Promise<VyOSResponse> {
@@ -261,6 +267,15 @@ class WireGuardService {
         operations.push({ op: "set_interface_per_client_thread" });
       } else if (!newConfig.per_client_thread && currentConfig.per_client_thread) {
         operations.push({ op: "delete_interface_per_client_thread" });
+      }
+    }
+
+    // Handle MSS clamping
+    if (newConfig.mss_clamping !== undefined) {
+      if (newConfig.mss_clamping && !currentConfig.mss_clamping) {
+        operations.push({ op: "set_interface_mss_clamping" });
+      } else if (!newConfig.mss_clamping && currentConfig.mss_clamping) {
+        operations.push({ op: "delete_interface_mss_clamping" });
       }
     }
 
