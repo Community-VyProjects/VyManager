@@ -23,15 +23,26 @@ if [ -d "prisma/migrations" ] && [ "$(ls -A prisma/migrations)" ]; then
 
   # Try to apply migrations
   if ! npx prisma migrate deploy 2>&1; then
-    # If deploy fails, it might be because the schema exists but migration isn't marked as applied
-    echo "⚠️  Migration deployment failed - checking if schema needs baselining..."
+    echo "⚠️  Migration deployment failed - attempting to resolve..."
 
-    # Get the migration name (first directory in prisma/migrations)
-    MIGRATION_NAME=$(ls prisma/migrations | head -n 1)
+    # Resolve any failed migrations by marking them as rolled back, then re-applying
+    for MIGRATION_DIR in prisma/migrations/*/; do
+      MIGRATION_NAME=$(basename "$MIGRATION_DIR")
+      # Skip the migration_lock.toml entry
+      [ "$MIGRATION_NAME" = "migration_lock.toml" ] && continue
+      echo "📌 Resolving migration: $MIGRATION_NAME"
+      npx prisma migrate resolve --rolled-back "$MIGRATION_NAME" 2>/dev/null || true
+    done
 
-    if [ -n "$MIGRATION_NAME" ]; then
-      echo "📌 Marking migration as already applied: $MIGRATION_NAME"
-      npx prisma migrate resolve --applied "$MIGRATION_NAME" || true
+    # Retry deployment after resolving failed migrations
+    echo "🔄 Retrying migration deployment..."
+    if ! npx prisma migrate deploy 2>&1; then
+      echo "⚠️  Retry failed - marking all migrations as applied..."
+      for MIGRATION_DIR in prisma/migrations/*/; do
+        MIGRATION_NAME=$(basename "$MIGRATION_DIR")
+        [ "$MIGRATION_NAME" = "migration_lock.toml" ] && continue
+        npx prisma migrate resolve --applied "$MIGRATION_NAME" 2>/dev/null || true
+      done
     fi
   fi
 else

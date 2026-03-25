@@ -179,6 +179,7 @@ model Instance {
   // Commit-confirm settings
   commitConfirmEnabled Boolean @default(false) // Use commit-confirm for all changes
   commitConfirmMinutes Int     @default(5)      // Minutes before auto-revert if not confirmed
+  timeout              Int     @default(10)     // API request timeout in seconds
 
   // SSH / Monitoring fields
   sshPort           Int      @default(22)

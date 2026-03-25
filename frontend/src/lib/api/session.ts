@@ -39,6 +39,7 @@ export interface Instance {
   ssh_key_configured: boolean;
   commit_confirm_enabled: boolean;
   commit_confirm_minutes: number;
+  timeout: number;
   created_at: string;
   updated_at: string;
 }
@@ -95,6 +96,7 @@ export interface InstanceCreateRequest {
   ssh_username?: string;
   commit_confirm_enabled?: boolean;
   commit_confirm_minutes?: number;
+  timeout?: number;
 }
 
 export interface InstanceUpdateRequest {
@@ -112,6 +114,7 @@ export interface InstanceUpdateRequest {
   ssh_username?: string;
   commit_confirm_enabled?: boolean;
   commit_confirm_minutes?: number;
+  timeout?: number;
 }
 
 export interface AuthSessionInfo {
