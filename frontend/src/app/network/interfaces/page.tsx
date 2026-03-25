@@ -24,6 +24,8 @@ import { ComprehensiveEthernetModal } from "@/components/network/ComprehensiveEt
 import { ComprehensiveVLANModal } from "@/components/network/ComprehensiveVLANModal";
 import { DeleteEthernetModal } from "@/components/network/DeleteEthernetModal";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { usePermissions } from "@/hooks/usePermissions";
+import { FeatureGroup } from "@/lib/api/user-management";
 
 type InterfaceType = "ethernet" | "vlan";
 
@@ -49,6 +51,8 @@ export default function InterfacesPage() {
   // VLAN Modal states
   const [isCreateVLANModalOpen, setIsCreateVLANModalOpen] = useState(false);
   const [editingVLAN, setEditingVLAN] = useState<VLANWithParent | null>(null);
+
+  const { canWrite } = usePermissions();
 
   const loadData = async () => {
     try {
@@ -268,6 +272,7 @@ export default function InterfacesPage() {
                     setIsCreateInterfaceModalOpen(true);
                   }
                 }}
+                disabled={!canWrite(FeatureGroup.INTERFACES)}
               >
                 <Plus className="h-4 w-4" />
                 {selectedType === "ethernet" ? "Create Interface" : "Create VLAN"}
@@ -330,6 +335,7 @@ export default function InterfacesPage() {
                       <TableHeader>
                         <TableRow>
                           <TableHead>Name</TableHead>
+                          <TableHead>Status</TableHead>
                           <TableHead>Description</TableHead>
                           <TableHead>Addresses</TableHead>
                           <TableHead>VRF</TableHead>
@@ -347,6 +353,11 @@ export default function InterfacesPage() {
                                 <code className="font-semibold font-mono text-foreground">
                                   {iface.name}
                                 </code>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant={iface.disable ? "secondary" : "default"} className="text-xs">
+                                  {iface.disable ? "Disabled" : "Enabled"}
+                                </Badge>
                               </TableCell>
                               <TableCell className="text-muted-foreground max-w-[200px] truncate">
                                 {iface.description || "—"}
@@ -406,6 +417,7 @@ export default function InterfacesPage() {
                                     size="sm"
                                     onClick={() => setEditingInterface(iface)}
                                     className="h-7 w-7 p-0"
+                                    disabled={!canWrite(FeatureGroup.INTERFACES)}
                                   >
                                     <Pencil className="h-3.5 w-3.5" />
                                   </Button>
@@ -414,6 +426,7 @@ export default function InterfacesPage() {
                                     size="sm"
                                     onClick={() => setDeletingInterface(iface)}
                                     className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                                    disabled={!canWrite(FeatureGroup.INTERFACES)}
                                   >
                                     <Trash2 className="h-3.5 w-3.5" />
                                   </Button>
@@ -530,6 +543,7 @@ export default function InterfacesPage() {
                                   size="sm"
                                   onClick={() => setEditingVLAN(vlan)}
                                   className="h-7 w-7 p-0"
+                                  disabled={!canWrite(FeatureGroup.INTERFACES)}
                                 >
                                   <Pencil className="h-3.5 w-3.5" />
                                 </Button>
@@ -540,6 +554,7 @@ export default function InterfacesPage() {
                                     // TODO: Implement VLAN delete
                                   }}
                                   className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                                  disabled={!canWrite(FeatureGroup.INTERFACES)}
                                 >
                                   <Trash2 className="h-3.5 w-3.5" />
                                 </Button>

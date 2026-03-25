@@ -10,12 +10,18 @@ export interface DHCPOptionsConfig {
   vendor_class_id?: string | null;
   no_default_route?: boolean | null;
   default_route_distance?: string | null;
+  reject?: string | string[] | null;
+  user_class?: string | null;
+  mtu?: boolean | null;
 }
 
 export interface DHCPv6OptionsConfig {
   duid?: string | null;
   rapid_commit?: boolean | null;
   pd?: Record<string, unknown> | null;
+  no_release?: boolean | null;
+  parameters_only?: boolean | null;
+  temporary?: boolean | null;
 }
 
 export interface OffloadConfig {
@@ -25,6 +31,8 @@ export interface OffloadConfig {
   rps?: string | null;
   sg?: string | null;
   tso?: string | null;
+  hw_tc_offload?: string | null;
+  rfs?: string | null;
 }
 
 export interface RingBufferConfig {
@@ -43,6 +51,7 @@ export interface IPConfig {
   proxy_arp_pvlan?: boolean | null;
   source_validation?: string | null;
   enable_directed_broadcast?: boolean | null;
+  disable_forwarding?: boolean | null;
 }
 
 export interface IPv6Config {
@@ -50,6 +59,10 @@ export interface IPv6Config {
   adjust_mss?: string | null;
   disable_forwarding?: boolean | null;
   dup_addr_detect_transmits?: string | null;
+  accept_dad?: string | null;
+  no_default_link_local?: boolean | null;
+  base_reachable_time?: string | null;
+  source_validation?: string | null;
 }
 
 export interface VIFConfig {
@@ -75,10 +88,41 @@ export interface EAPoLConfig {
   ca_cert_file?: string | null;
   cert_file?: string | null;
   key_file?: string | null;
+  passphrase?: string | null;
 }
 
 export interface EVPNConfig {
   uplink?: boolean | null;
+}
+
+export interface InterruptCoalescingConfig {
+  adaptive_rx?: boolean | null;
+  adaptive_tx?: boolean | null;
+  cqe_mode_rx?: boolean | null;
+  cqe_mode_tx?: boolean | null;
+  rx_usecs?: string | null;
+  rx_frames?: string | null;
+  tx_usecs?: string | null;
+  tx_frames?: string | null;
+  rx_usecs_irq?: string | null;
+  rx_usecs_low?: string | null;
+  rx_usecs_high?: string | null;
+  tx_usecs_irq?: string | null;
+  tx_usecs_low?: string | null;
+  tx_usecs_high?: string | null;
+  rx_frames_irq?: string | null;
+  rx_frame_low?: string | null;
+  rx_frame_high?: string | null;
+  tx_frames_irq?: string | null;
+  tx_frame_low?: string | null;
+  tx_frame_high?: string | null;
+  pkt_rate_low?: string | null;
+  pkt_rate_high?: string | null;
+  sample_interval?: string | null;
+  stats_block_usecs?: string | null;
+  tx_aggr_max_bytes?: string | null;
+  tx_aggr_max_frames?: string | null;
+  tx_aggr_time_usecs?: string | null;
 }
 
 // Main Ethernet Interface type
@@ -107,6 +151,9 @@ export interface EthernetInterface {
   mirror?: MirrorConfig | null;
   eapol?: EAPoLConfig | null;
   evpn?: EVPNConfig | null;
+  redirect?: string | null;
+  interrupt_coalescing?: InterruptCoalescingConfig | null;
+  switchdev?: boolean | null;
 }
 
 // API Response types
@@ -138,6 +185,9 @@ export interface EthernetCapabilities {
     port_mirror: Record<string, boolean>;
     eapol: Record<string, boolean>;
     evpn: Record<string, boolean>;
+    redirect: boolean;
+    interrupt_coalescing: Record<string, boolean>;
+    switchdev: Record<string, boolean>;
   };
   operations: Record<string, string[]>;
   version_info: {
