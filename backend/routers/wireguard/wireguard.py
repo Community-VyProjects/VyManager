@@ -11,76 +11,18 @@ Uses pyvyos generate method for key generation.
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
-from vyos_service import VyOSService, VyOSDeviceConfig
 from vyos_builders import WireGuardBatchBuilder
 from vyos_mappers.wireguard import WireGuardMapper
+from session_vyos_service import get_session_vyos_service
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
-import asyncpg
 import inspect
 import re
 import logging
+import requests as _requests
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/vpn/wireguard", tags=["wireguard"])
-
-
-# ========================================================================
-# Helper Function: Get User's VyOS Service
-# ========================================================================
-
-async def get_user_vyos_service(request: Request) -> VyOSService:
-    """
-    Get the VyOS service for the user's active session.
-
-    Returns:
-        VyOSService configured for the user's connected instance
-
-    Raises:
-        HTTPException(401): If user is not authenticated
-        HTTPException(404): If user has no active VyOS session
-        HTTPException(500): If database query fails
-    """
-    user = request.state.user
-    if not user:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
-    db_pool: asyncpg.Pool = request.app.state.db_pool
-
-    async with db_pool.acquire() as conn:
-        result = await conn.fetchrow("""
-            SELECT
-                i.id as instance_id,
-                i.name as instance_name,
-                i.host,
-                i.port,
-                i."apiKey",
-                i."vyosVersion",
-                i.protocol,
-                i."verifySsl"
-            FROM active_sessions s
-            JOIN instances i ON s."instanceId" = i.id
-            WHERE s."userId" = $1
-            LIMIT 1
-        """, user["id"])
-
-        if not result:
-            raise HTTPException(
-                status_code=404,
-                detail="No active VyOS instance. Please connect to an instance first."
-            )
-
-        device_config = VyOSDeviceConfig(
-            hostname=result["host"],
-            apikey=result["apiKey"],
-            version=result["vyosVersion"],
-            protocol=result["protocol"],
-            port=result["port"],
-            verify=result["verifySsl"],
-            timeout=10,
-        )
-
-        return VyOSService(device_config)
 
 
 # ========================================================================
@@ -126,7 +68,7 @@ async def get_wireguard_capabilities(request: Request):
     """
     await require_read_permission(request, FeatureGroup.WIREGUARD)
     try:
-        service = await get_user_vyos_service(request)
+        service = get_session_vyos_service(request)
         version = service.get_version()
 
         builder = WireGuardBatchBuilder(version=version)
@@ -158,7 +100,7 @@ async def get_wireguard_config(request: Request, refresh: bool = False):
     """
     await require_read_permission(request, FeatureGroup.WIREGUARD)
     try:
-        service = await get_user_vyos_service(request)
+        service = get_session_vyos_service(request)
         version = service.get_version()
 
         # Fetch configuration from VyOS
@@ -232,7 +174,7 @@ async def wireguard_interface_batch(request: Request, body: WireGuardInterfaceBa
     """
     await require_write_permission(request, FeatureGroup.WIREGUARD)
     try:
-        service = await get_user_vyos_service(request)
+        service = get_session_vyos_service(request)
         version = service.get_version()
 
         builder = WireGuardBatchBuilder(version=version)
@@ -275,6 +217,9 @@ async def wireguard_interface_batch(request: Request, body: WireGuardInterfaceBa
         )
     except HTTPException:
         raise
+    except _requests.exceptions.Timeout:
+        logger.warning("VyOS API timed out during interface batch operation")
+        raise HTTPException(status_code=504, detail="VyOS API request timed out. Try increasing the timeout in instance settings.")
     except Exception as e:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -293,7 +238,7 @@ async def wireguard_peer_batch(request: Request, body: WireGuardPeerBatchRequest
     """
     await require_write_permission(request, FeatureGroup.WIREGUARD)
     try:
-        service = await get_user_vyos_service(request)
+        service = get_session_vyos_service(request)
         version = service.get_version()
 
         builder = WireGuardBatchBuilder(version=version)
@@ -332,6 +277,9 @@ async def wireguard_peer_batch(request: Request, body: WireGuardPeerBatchRequest
         )
     except HTTPException:
         raise
+    except _requests.exceptions.Timeout:
+        logger.warning("VyOS API timed out during peer batch operation")
+        raise HTTPException(status_code=504, detail="VyOS API request timed out. Try increasing the timeout in instance settings.")
     except Exception as e:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -350,7 +298,7 @@ async def generate_keypair(request: Request):
     """
     await require_write_permission(request, FeatureGroup.WIREGUARD)
     try:
-        service = await get_user_vyos_service(request)
+        service = get_session_vyos_service(request)
 
         # Use pyvyos generate method with wireguard key-pair path
         response = service.device.generate(path=["pki", "wireguard", "key-pair"])
@@ -405,7 +353,7 @@ async def generate_psk(request: Request):
     """
     await require_write_permission(request, FeatureGroup.WIREGUARD)
     try:
-        service = await get_user_vyos_service(request)
+        service = get_session_vyos_service(request)
 
         # Use pyvyos generate method with preshared-key path
         response = service.device.generate(path=["pki", "wireguard", "preshared-key"])
@@ -448,7 +396,7 @@ async def get_interface_status(request: Request, interface_name: str):
     """
     await require_read_permission(request, FeatureGroup.WIREGUARD)
     try:
-        service = await get_user_vyos_service(request)
+        service = get_session_vyos_service(request)
 
         # Use VyOS show command to get WireGuard interface summary
         # Command: show interfaces wireguard <interface> summary
@@ -628,7 +576,7 @@ async def get_interface_public_key(request: Request, interface_name: str):
     """
     await require_read_permission(request, FeatureGroup.WIREGUARD)
     try:
-        service = await get_user_vyos_service(request)
+        service = get_session_vyos_service(request)
 
         # Use VyOS show command to get WireGuard interface summary
         # This returns the public key along with other interface info
