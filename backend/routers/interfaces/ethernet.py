@@ -115,6 +115,8 @@ class OffloadConfig(BaseModel):
     rps: Optional[str] = None
     sg: Optional[str] = None
     tso: Optional[str] = None
+    hw_tc_offload: Optional[str] = None
+    rfs: Optional[str] = None
 
 class RingBufferConfig(BaseModel):
     """Ring buffer settings"""
@@ -133,6 +135,7 @@ class IPConfig(BaseModel):
     proxy_arp_pvlan: Optional[bool] = None
     source_validation: Optional[str] = None
     enable_directed_broadcast: Optional[bool] = None
+    disable_forwarding: Optional[bool] = None
 
 class IPv6Config(BaseModel):
     """IPv6 configuration settings"""
@@ -140,6 +143,10 @@ class IPv6Config(BaseModel):
     adjust_mss: Optional[str] = None
     disable_forwarding: Optional[bool] = None
     dup_addr_detect_transmits: Optional[str] = None
+    accept_dad: Optional[str] = None
+    no_default_link_local: Optional[bool] = None
+    base_reachable_time: Optional[str] = None
+    source_validation: Optional[str] = None
 
 class DHCPOptionsConfig(BaseModel):
     """DHCP options"""
@@ -148,12 +155,18 @@ class DHCPOptionsConfig(BaseModel):
     vendor_class_id: Optional[str] = None
     no_default_route: Optional[bool] = None
     default_route_distance: Optional[str] = None
+    reject: Optional[Any] = None
+    user_class: Optional[str] = None
+    mtu: Optional[bool] = None
 
 class DHCPv6OptionsConfig(BaseModel):
     """DHCPv6 options"""
     duid: Optional[str] = None
     rapid_commit: Optional[bool] = None
     pd: Optional[Dict] = None
+    no_release: Optional[bool] = None
+    parameters_only: Optional[bool] = None
+    temporary: Optional[bool] = None
 
 class VIFConfig(BaseModel):
     """VLAN sub-interface (VIF) configuration"""
@@ -186,10 +199,41 @@ class EAPoLConfig(BaseModel):
     ca_cert_file: Optional[str] = None
     cert_file: Optional[str] = None
     key_file: Optional[str] = None
+    passphrase: Optional[str] = None
 
 class EVPNConfig(BaseModel):
     """EVPN configuration"""
     uplink: Optional[bool] = None
+
+class InterruptCoalescingConfig(BaseModel):
+    """Interrupt coalescing configuration (VyOS 1.5+)"""
+    adaptive_rx: Optional[bool] = None
+    adaptive_tx: Optional[bool] = None
+    cqe_mode_rx: Optional[bool] = None
+    cqe_mode_tx: Optional[bool] = None
+    rx_usecs: Optional[str] = None
+    rx_frames: Optional[str] = None
+    tx_usecs: Optional[str] = None
+    tx_frames: Optional[str] = None
+    rx_usecs_irq: Optional[str] = None
+    rx_usecs_low: Optional[str] = None
+    rx_usecs_high: Optional[str] = None
+    tx_usecs_irq: Optional[str] = None
+    tx_usecs_low: Optional[str] = None
+    tx_usecs_high: Optional[str] = None
+    rx_frames_irq: Optional[str] = None
+    rx_frame_low: Optional[str] = None
+    rx_frame_high: Optional[str] = None
+    tx_frames_irq: Optional[str] = None
+    tx_frame_low: Optional[str] = None
+    tx_frame_high: Optional[str] = None
+    pkt_rate_low: Optional[str] = None
+    pkt_rate_high: Optional[str] = None
+    sample_interval: Optional[str] = None
+    stats_block_usecs: Optional[str] = None
+    tx_aggr_max_bytes: Optional[str] = None
+    tx_aggr_max_frames: Optional[str] = None
+    tx_aggr_time_usecs: Optional[str] = None
 
 class EthernetInterfaceConfigResponse(BaseModel):
     """Ethernet interface configuration from VyOS (read operation)"""
@@ -228,6 +272,9 @@ class EthernetInterfaceConfigResponse(BaseModel):
     mirror: Optional[MirrorConfig] = Field(None, description="Port mirroring configuration")
     eapol: Optional[EAPoLConfig] = Field(None, description="802.1X EAPoL configuration")
     evpn: Optional[EVPNConfig] = Field(None, description="EVPN configuration")
+    redirect: Optional[str] = Field(None, description="Traffic redirect target")
+    interrupt_coalescing: Optional[InterruptCoalescingConfig] = Field(None, description="Interrupt coalescing configuration (1.5+)")
+    switchdev: Optional[bool] = Field(None, description="Switchdev mode (1.5+)")
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -350,6 +397,8 @@ async def get_ethernet_capabilities(request: Request) -> Dict[str, Any]:
                     "rps": True,
                     "sg": True,
                     "tso": True,
+                    "hw_tc_offload": True,
+                    "rfs": True,
                 },
 
                 # Ring buffer (all versions)
@@ -381,6 +430,7 @@ async def get_ethernet_capabilities(request: Request) -> Dict[str, Any]:
                 "ip": {
                     "source_validation": True,
                     "directed_broadcast": version_float >= 1.5,  # 1.5+ only
+                    "disable_forwarding": True,
                 },
 
                 # IPv6 (all versions)
@@ -389,6 +439,11 @@ async def get_ethernet_capabilities(request: Request) -> Dict[str, Any]:
                     "eui64": True,
                     "disable_forwarding": True,
                     "dup_addr_detect_transmits": True,
+                    "accept_dad": True,
+                    "no_default_link_local": True,
+                    "base_reachable_time": True,
+                    "source_validation": True,
+                    "interface_identifier": version_float >= 1.5,
                 },
 
                 # Flow control & link detection (all versions)
@@ -402,6 +457,9 @@ async def get_ethernet_capabilities(request: Request) -> Dict[str, Any]:
                     "vendor_class_id": True,
                     "no_default_route": True,
                     "default_route_distance": True,
+                    "reject": True,
+                    "user_class": True,
+                    "mtu": True,
                 },
 
                 # DHCPv6 (all versions)
@@ -409,6 +467,11 @@ async def get_ethernet_capabilities(request: Request) -> Dict[str, Any]:
                     "duid": True,
                     "rapid_commit": True,
                     "prefix_delegation": True,
+                    "no_release": True,
+                    "parameters_only": True,
+                    "temporary": True,
+                    "no_request_dns": version_float >= 1.5,
+                    "no_request_domain_name": version_float >= 1.5,
                 },
 
                 # VLANs (all versions)
@@ -438,11 +501,25 @@ async def get_ethernet_capabilities(request: Request) -> Dict[str, Any]:
                     "ca_cert_file": True,
                     "cert_file": True,
                     "key_file": True,
+                    "passphrase": True,
                 },
 
                 # EVPN (all versions)
                 "evpn": {
                     "uplink_tracking": True,
+                },
+
+                # Redirect (all versions)
+                "redirect": True,
+
+                # Interrupt Coalescing (1.5+ only)
+                "interrupt_coalescing": {
+                    "supported": version_float >= 1.5,
+                },
+
+                # Switchdev (1.5+ only)
+                "switchdev": {
+                    "supported": version_float >= 1.5,
                 },
             },
 
@@ -482,6 +559,8 @@ async def get_ethernet_capabilities(request: Request) -> Dict[str, Any]:
                     "delete_offload_sg",
                     "set_offload_tso",
                     "delete_offload_tso",
+                    "set_offload_hw_tc_offload", "delete_offload_hw_tc_offload",
+                    "set_offload_rfs", "delete_offload_rfs",
                 ],
                 "ring_buffer": [
                     "set_ring_buffer_rx",
@@ -506,13 +585,18 @@ async def get_ethernet_capabilities(request: Request) -> Dict[str, Any]:
                 "ip": [
                     "set_ip_source_validation",
                     "delete_ip_source_validation",
+                    "set_ip_disable_forwarding", "delete_ip_disable_forwarding",
                 ] + (["set_ip_enable_directed_broadcast"] if version_float >= 1.5 else []),
                 "ipv6": [
                     "set_ipv6_address_autoconf",
                     "set_ipv6_address_eui64",
                     "set_ipv6_disable_forwarding",
                     "set_ipv6_dup_addr_detect_transmits",
-                ],
+                    "set_ipv6_accept_dad",
+                    "set_ipv6_address_no_default_link_local", "delete_ipv6_address_no_default_link_local",
+                    "set_ipv6_base_reachable_time",
+                    "set_ipv6_source_validation", "delete_ipv6_source_validation",
+                ] + (["set_ipv6_address_interface_identifier"] if version_float >= 1.5 else []),
                 "flow_link": [
                     "set_disable_flow_control",
                     "delete_disable_flow_control",
@@ -525,12 +609,24 @@ async def get_ethernet_capabilities(request: Request) -> Dict[str, Any]:
                     "set_dhcp_options_vendor_class_id",
                     "set_dhcp_options_no_default_route",
                     "set_dhcp_options_default_route_distance",
+                    "set_dhcp_options_reject",
+                    "set_dhcp_options_user_class",
+                    "set_dhcp_options_mtu",
+                    "delete_dhcp_options",
                 ],
                 "dhcpv6": [
                     "set_dhcpv6_options_duid",
                     "set_dhcpv6_options_rapid_commit",
                     "set_dhcpv6_options_pd",
-                ],
+                    "set_dhcpv6_options_no_release",
+                    "set_dhcpv6_options_parameters_only",
+                    "set_dhcpv6_options_temporary",
+                    "set_dhcpv6_options_pd_length",
+                    "set_dhcpv6_options_pd_interface",
+                    "set_dhcpv6_options_pd_interface_address",
+                    "set_dhcpv6_options_pd_interface_sla_id",
+                    "delete_dhcpv6_options",
+                ] + (["set_dhcpv6_options_no_request_dns", "set_dhcpv6_options_no_request_domain_name"] if version_float >= 1.5 else []),
                 "vlan_vif": [
                     "set_vif",
                     "delete_vif",
@@ -550,6 +646,15 @@ async def get_ethernet_capabilities(request: Request) -> Dict[str, Any]:
                     "set_vif_dhcp_options_host_name",
                     "set_vif_ipv6_address_autoconf",
                     "set_vif_ipv6_address_eui64",
+                    "set_vif_egress_qos", "delete_vif_egress_qos",
+                    "set_vif_ingress_qos", "delete_vif_ingress_qos",
+                    "set_vif_redirect", "delete_vif_redirect",
+                    "set_vif_ip_adjust_mss", "set_vif_ip_disable_forwarding",
+                    "set_vif_ip_source_validation", "set_vif_ip_enable_proxy_arp",
+                    "set_vif_ip_arp_cache_timeout",
+                    "set_vif_mirror_ingress", "set_vif_mirror_egress", "delete_vif_mirror",
+                    "set_vif_ipv6_disable_forwarding", "set_vif_ipv6_adjust_mss",
+                    "set_vif_ipv6_accept_dad", "set_vif_ipv6_dup_addr_detect_transmits",
                 ],
                 "vlan_vif_s": [
                     "set_vif_s",
@@ -598,11 +703,35 @@ async def get_ethernet_capabilities(request: Request) -> Dict[str, Any]:
                     "set_eapol_ca_cert_file",
                     "set_eapol_cert_file",
                     "set_eapol_key_file",
+                    "set_eapol_passphrase",
+                    "delete_eapol",
                 ],
                 "evpn": [
                     "set_evpn_uplink",
                     "delete_evpn",
                 ],
+                "redirect": [
+                    "set_redirect",
+                    "delete_redirect",
+                ],
+                "switchdev": (["set_switchdev", "delete_switchdev"] if version_float >= 1.5 else []),
+                "interrupt_coalescing": ([
+                    "set_interrupt_coalescing_adaptive_rx", "delete_interrupt_coalescing_adaptive_rx",
+                    "set_interrupt_coalescing_adaptive_tx", "delete_interrupt_coalescing_adaptive_tx",
+                    "set_interrupt_coalescing_cqe_mode_rx", "delete_interrupt_coalescing_cqe_mode_rx",
+                    "set_interrupt_coalescing_cqe_mode_tx", "delete_interrupt_coalescing_cqe_mode_tx",
+                    "set_interrupt_coalescing_rx_usecs", "set_interrupt_coalescing_rx_frames",
+                    "set_interrupt_coalescing_tx_usecs", "set_interrupt_coalescing_tx_frames",
+                    "set_interrupt_coalescing_rx_usecs_irq", "set_interrupt_coalescing_rx_usecs_low", "set_interrupt_coalescing_rx_usecs_high",
+                    "set_interrupt_coalescing_tx_usecs_irq", "set_interrupt_coalescing_tx_usecs_low", "set_interrupt_coalescing_tx_usecs_high",
+                    "set_interrupt_coalescing_rx_frames_irq", "set_interrupt_coalescing_rx_frame_low", "set_interrupt_coalescing_rx_frame_high",
+                    "set_interrupt_coalescing_tx_frames_irq", "set_interrupt_coalescing_tx_frame_low", "set_interrupt_coalescing_tx_frame_high",
+                    "set_interrupt_coalescing_pkt_rate_low", "set_interrupt_coalescing_pkt_rate_high",
+                    "set_interrupt_coalescing_sample_interval", "set_interrupt_coalescing_stats_block_usecs",
+                    "set_interrupt_coalescing_tx_aggr_max_bytes", "set_interrupt_coalescing_tx_aggr_max_frames",
+                    "set_interrupt_coalescing_tx_aggr_time_usecs",
+                    "delete_interrupt_coalescing",
+                ] if version_float >= 1.5 else []),
             },
 
             # Version-specific feature notes
@@ -613,13 +742,21 @@ async def get_ethernet_capabilities(request: Request) -> Dict[str, Any]:
                     "1.4": {
                         "description": "Base VyOS 1.4 feature set",
                         "limitations": [
-                            "Directed broadcast not available"
+                            "Directed broadcast not available",
+                            "Interrupt coalescing not available",
+                            "Switchdev not available",
+                            "DHCPv6 no-request-dns/no-request-domain-name not available",
+                            "IPv6 interface-identifier not available",
                         ]
                     },
                     "1.5": {
                         "description": "VyOS 1.5 with enhanced features",
                         "new_features": [
-                            "IP directed broadcast support"
+                            "IP directed broadcast support",
+                            "Interrupt coalescing support",
+                            "Switchdev mode",
+                            "DHCPv6 no-request-dns and no-request-domain-name",
+                            "IPv6 interface-identifier",
                         ]
                     }
                 }
@@ -1129,6 +1266,227 @@ async def configure_interface_batch(http_request: Request, request: InterfaceBat
                 batch.set_evpn_uplink(request.interface)
             elif op_type == "delete_evpn":
                 batch.delete_evpn(request.interface)
+            # DHCP Options (additional)
+            elif op_type == "set_dhcp_options_reject":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
+                batch.set_dhcp_options_reject(request.interface, value)
+            elif op_type == "set_dhcp_options_user_class":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
+                batch.set_dhcp_options_user_class(request.interface, value)
+            elif op_type == "set_dhcp_options_mtu":
+                batch.set_dhcp_options_mtu(request.interface)
+            elif op_type == "delete_dhcp_options":
+                batch.delete_dhcp_options(request.interface)
+            # DHCPv6 Options (additional)
+            elif op_type == "set_dhcpv6_options_no_release":
+                batch.set_dhcpv6_options_no_release(request.interface)
+            elif op_type == "set_dhcpv6_options_parameters_only":
+                batch.set_dhcpv6_options_parameters_only(request.interface)
+            elif op_type == "set_dhcpv6_options_temporary":
+                batch.set_dhcpv6_options_temporary(request.interface)
+            elif op_type == "set_dhcpv6_options_pd_length":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (pd_id,length)")
+                parts = value.split(",")
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'pd_id,length'")
+                batch.set_dhcpv6_options_pd_length(request.interface, parts[0], parts[1])
+            elif op_type == "set_dhcpv6_options_pd_interface":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (pd_id,interface)")
+                parts = value.split(",")
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'pd_id,interface'")
+                batch.set_dhcpv6_options_pd_interface(request.interface, parts[0], parts[1])
+            elif op_type == "set_dhcpv6_options_pd_interface_address":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (pd_id,interface,address)")
+                parts = value.split(",", 2)
+                if len(parts) != 3:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'pd_id,interface,address'")
+                batch.set_dhcpv6_options_pd_interface_address(request.interface, parts[0], parts[1], parts[2])
+            elif op_type == "set_dhcpv6_options_pd_interface_sla_id":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (pd_id,interface,sla_id)")
+                parts = value.split(",", 2)
+                if len(parts) != 3:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'pd_id,interface,sla_id'")
+                batch.set_dhcpv6_options_pd_interface_sla_id(request.interface, parts[0], parts[1], parts[2])
+            elif op_type == "delete_dhcpv6_options":
+                batch.delete_dhcpv6_options(request.interface)
+            elif op_type == "set_dhcpv6_options_no_request_dns":
+                batch.set_dhcpv6_options_no_request_dns(request.interface)
+            elif op_type == "set_dhcpv6_options_no_request_domain_name":
+                batch.set_dhcpv6_options_no_request_domain_name(request.interface)
+            # IP (additional)
+            elif op_type == "set_ip_disable_forwarding":
+                batch.set_ip_disable_forwarding(request.interface)
+            elif op_type == "delete_ip_disable_forwarding":
+                batch.delete_ip_disable_forwarding(request.interface)
+            # IPv6 (additional)
+            elif op_type == "set_ipv6_accept_dad":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
+                batch.set_ipv6_accept_dad(request.interface, value)
+            elif op_type == "set_ipv6_address_no_default_link_local":
+                batch.set_ipv6_address_no_default_link_local(request.interface)
+            elif op_type == "delete_ipv6_address_no_default_link_local":
+                batch.delete_ipv6_address_no_default_link_local(request.interface)
+            elif op_type == "set_ipv6_base_reachable_time":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
+                batch.set_ipv6_base_reachable_time(request.interface, value)
+            elif op_type == "set_ipv6_source_validation":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
+                batch.set_ipv6_source_validation(request.interface, value)
+            elif op_type == "delete_ipv6_source_validation":
+                batch.delete_ipv6_source_validation(request.interface)
+            elif op_type == "set_ipv6_address_interface_identifier":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
+                batch.set_ipv6_address_interface_identifier(request.interface, value)
+            # Offload (additional)
+            elif op_type == "set_offload_hw_tc_offload":
+                batch.set_offload_hw_tc_offload(request.interface)
+            elif op_type == "delete_offload_hw_tc_offload":
+                batch.delete_offload_hw_tc_offload(request.interface)
+            elif op_type == "set_offload_rfs":
+                batch.set_offload_rfs(request.interface)
+            elif op_type == "delete_offload_rfs":
+                batch.delete_offload_rfs(request.interface)
+            # Redirect
+            elif op_type == "set_redirect":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
+                batch.set_redirect(request.interface, value)
+            elif op_type == "delete_redirect":
+                batch.delete_redirect(request.interface)
+            # EAPoL (additional)
+            elif op_type == "set_eapol_passphrase":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
+                batch.set_eapol_passphrase(request.interface, value)
+            elif op_type == "delete_eapol":
+                batch.delete_eapol(request.interface)
+            # Switchdev (1.5+)
+            elif op_type == "set_switchdev":
+                batch.set_switchdev(request.interface)
+            elif op_type == "delete_switchdev":
+                batch.delete_switchdev(request.interface)
+            # Interrupt Coalescing (1.5+)
+            elif op_type == "set_interrupt_coalescing_adaptive_rx":
+                batch.set_interrupt_coalescing_adaptive_rx(request.interface)
+            elif op_type == "delete_interrupt_coalescing_adaptive_rx":
+                batch.delete_interrupt_coalescing_adaptive_rx(request.interface)
+            elif op_type == "set_interrupt_coalescing_adaptive_tx":
+                batch.set_interrupt_coalescing_adaptive_tx(request.interface)
+            elif op_type == "delete_interrupt_coalescing_adaptive_tx":
+                batch.delete_interrupt_coalescing_adaptive_tx(request.interface)
+            elif op_type == "set_interrupt_coalescing_cqe_mode_rx":
+                batch.set_interrupt_coalescing_cqe_mode_rx(request.interface)
+            elif op_type == "delete_interrupt_coalescing_cqe_mode_rx":
+                batch.delete_interrupt_coalescing_cqe_mode_rx(request.interface)
+            elif op_type == "set_interrupt_coalescing_cqe_mode_tx":
+                batch.set_interrupt_coalescing_cqe_mode_tx(request.interface)
+            elif op_type == "delete_interrupt_coalescing_cqe_mode_tx":
+                batch.delete_interrupt_coalescing_cqe_mode_tx(request.interface)
+            elif op_type == "set_interrupt_coalescing_rx_usecs":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
+                batch.set_interrupt_coalescing_rx_usecs(request.interface, value)
+            elif op_type == "set_interrupt_coalescing_rx_frames":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
+                batch.set_interrupt_coalescing_rx_frames(request.interface, value)
+            elif op_type == "set_interrupt_coalescing_tx_usecs":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
+                batch.set_interrupt_coalescing_tx_usecs(request.interface, value)
+            elif op_type == "set_interrupt_coalescing_tx_frames":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
+                batch.set_interrupt_coalescing_tx_frames(request.interface, value)
+            elif op_type == "set_interrupt_coalescing_rx_usecs_irq":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
+                batch.set_interrupt_coalescing_rx_usecs_irq(request.interface, value)
+            elif op_type == "set_interrupt_coalescing_rx_usecs_low":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
+                batch.set_interrupt_coalescing_rx_usecs_low(request.interface, value)
+            elif op_type == "set_interrupt_coalescing_rx_usecs_high":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
+                batch.set_interrupt_coalescing_rx_usecs_high(request.interface, value)
+            elif op_type == "set_interrupt_coalescing_tx_usecs_irq":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
+                batch.set_interrupt_coalescing_tx_usecs_irq(request.interface, value)
+            elif op_type == "set_interrupt_coalescing_tx_usecs_low":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
+                batch.set_interrupt_coalescing_tx_usecs_low(request.interface, value)
+            elif op_type == "set_interrupt_coalescing_tx_usecs_high":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
+                batch.set_interrupt_coalescing_tx_usecs_high(request.interface, value)
+            elif op_type == "set_interrupt_coalescing_rx_frames_irq":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
+                batch.set_interrupt_coalescing_rx_frames_irq(request.interface, value)
+            elif op_type == "set_interrupt_coalescing_rx_frame_low":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
+                batch.set_interrupt_coalescing_rx_frame_low(request.interface, value)
+            elif op_type == "set_interrupt_coalescing_rx_frame_high":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
+                batch.set_interrupt_coalescing_rx_frame_high(request.interface, value)
+            elif op_type == "set_interrupt_coalescing_tx_frames_irq":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
+                batch.set_interrupt_coalescing_tx_frames_irq(request.interface, value)
+            elif op_type == "set_interrupt_coalescing_tx_frame_low":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
+                batch.set_interrupt_coalescing_tx_frame_low(request.interface, value)
+            elif op_type == "set_interrupt_coalescing_tx_frame_high":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
+                batch.set_interrupt_coalescing_tx_frame_high(request.interface, value)
+            elif op_type == "set_interrupt_coalescing_pkt_rate_low":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
+                batch.set_interrupt_coalescing_pkt_rate_low(request.interface, value)
+            elif op_type == "set_interrupt_coalescing_pkt_rate_high":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
+                batch.set_interrupt_coalescing_pkt_rate_high(request.interface, value)
+            elif op_type == "set_interrupt_coalescing_sample_interval":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
+                batch.set_interrupt_coalescing_sample_interval(request.interface, value)
+            elif op_type == "set_interrupt_coalescing_stats_block_usecs":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
+                batch.set_interrupt_coalescing_stats_block_usecs(request.interface, value)
+            elif op_type == "set_interrupt_coalescing_tx_aggr_max_bytes":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
+                batch.set_interrupt_coalescing_tx_aggr_max_bytes(request.interface, value)
+            elif op_type == "set_interrupt_coalescing_tx_aggr_max_frames":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
+                batch.set_interrupt_coalescing_tx_aggr_max_frames(request.interface, value)
+            elif op_type == "set_interrupt_coalescing_tx_aggr_time_usecs":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
+                batch.set_interrupt_coalescing_tx_aggr_time_usecs(request.interface, value)
+            elif op_type == "delete_interrupt_coalescing":
+                batch.delete_interrupt_coalescing(request.interface)
             # VIF (802.1q VLAN) Sub-interface Operations
             elif op_type == "set_vif_address":
                 if not value:
