@@ -52,6 +52,7 @@ export function CreateInstanceModal({
   const [sshUsername, setSshUsername] = useState("");
   const [commitConfirmEnabled, setCommitConfirmEnabled] = useState(false);
   const [commitConfirmMinutes, setCommitConfirmMinutes] = useState("5");
+  const [timeout, setTimeout] = useState("10");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -69,6 +70,7 @@ export function CreateInstanceModal({
     setSshUsername("");
     setCommitConfirmEnabled(false);
     setCommitConfirmMinutes("5");
+    setTimeout("10");
     setError(null);
     onOpenChange(false);
   };
@@ -119,6 +121,7 @@ export function CreateInstanceModal({
         ssh_username: sshUsername.trim() || undefined,
         commit_confirm_enabled: commitConfirmEnabled,
         commit_confirm_minutes: parseInt(commitConfirmMinutes) || 5,
+        timeout: parseInt(timeout) || 10,
       });
 
       handleClose();
@@ -360,6 +363,24 @@ export function CreateInstanceModal({
                 <Label htmlFor="verifySsl" className="cursor-pointer">
                   Verify SSL certificate
                 </Label>
+              </div>
+
+              {/* Timeout */}
+              <div className="space-y-2">
+                <Label htmlFor="timeout">API Timeout (seconds)</Label>
+                <Input
+                  id="timeout"
+                  type="number"
+                  value={timeout}
+                  onChange={(e) => setTimeout(e.target.value)}
+                  placeholder="10"
+                  min="1"
+                  max="300"
+                  disabled={loading}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Timeout for API requests to the VyOS device (1-300 seconds)
+                </p>
               </div>
             </TabsContent>
 

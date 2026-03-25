@@ -55,6 +55,7 @@ export function EditInstanceModal({
   const [sshUsername, setSshUsername] = useState("");
   const [commitConfirmEnabled, setCommitConfirmEnabled] = useState(false);
   const [commitConfirmMinutes, setCommitConfirmMinutes] = useState("5");
+  const [timeout, setTimeout] = useState("10");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -71,6 +72,7 @@ export function EditInstanceModal({
       setSshUsername(instance.ssh_username || "");
       setCommitConfirmEnabled(instance.commit_confirm_enabled ?? false);
       setCommitConfirmMinutes((instance.commit_confirm_minutes ?? 5).toString());
+      setTimeout((instance.timeout ?? 10).toString());
       // Don't populate API key for security
       setApiKey("");
       setProtocol(instance.protocol || "https");
@@ -93,6 +95,7 @@ export function EditInstanceModal({
     setSshUsername("");
     setCommitConfirmEnabled(false);
     setCommitConfirmMinutes("5");
+    setTimeout("10");
     setError(null);
     onOpenChange(false);
   };
@@ -140,6 +143,7 @@ export function EditInstanceModal({
         verify_ssl: verifySsl,
         commit_confirm_enabled: commitConfirmEnabled,
         commit_confirm_minutes: parseInt(commitConfirmMinutes) || 5,
+        timeout: parseInt(timeout) || 10,
       };
 
       if (apiKey.trim()) {
@@ -426,6 +430,23 @@ export function EditInstanceModal({
                     Verify SSL certificate
                   </Label>
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="editTimeout">API Timeout (seconds)</Label>
+                <Input
+                  id="editTimeout"
+                  type="number"
+                  value={timeout}
+                  onChange={(e) => setTimeout(e.target.value)}
+                  placeholder="10"
+                  min="1"
+                  max="300"
+                  disabled={loading}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Timeout for API requests to the VyOS device (1-300 seconds)
+                </p>
               </div>
 
               <DialogFooter className="pt-2">

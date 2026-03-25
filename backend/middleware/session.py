@@ -133,6 +133,7 @@ class SessionMiddleware(BaseHTTPMiddleware):
                             i."verifySsl" as verify_ssl,
                             i."commitConfirmEnabled" as commit_confirm_enabled,
                             i."commitConfirmMinutes" as commit_confirm_minutes,
+                            i.timeout,
                             s.name as site_name,
                             'ADMIN' as user_role
                         FROM active_sessions a
@@ -162,6 +163,7 @@ class SessionMiddleware(BaseHTTPMiddleware):
                             i."verifySsl" as verify_ssl,
                             i."commitConfirmEnabled" as commit_confirm_enabled,
                             i."commitConfirmMinutes" as commit_confirm_minutes,
+                            i.timeout,
                             s.name as site_name,
                             uir.role as user_role
                         FROM active_sessions a
@@ -221,6 +223,7 @@ class SessionMiddleware(BaseHTTPMiddleware):
                         "verify_ssl": session.get("verify_ssl"),
                         "commit_confirm_enabled": session.get("commit_confirm_enabled") or False,
                         "commit_confirm_minutes": session.get("commit_confirm_minutes") or 5,
+                        "timeout": session.get("timeout") or 10,
                     }
                     request.state.site = {
                         "id": session["site_id"],

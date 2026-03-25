@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "instances" ADD COLUMN IF NOT EXISTS "timeout" INTEGER NOT NULL DEFAULT 10;
