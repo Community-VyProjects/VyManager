@@ -23,7 +23,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ethernetService } from "@/lib/api/ethernet";
 import type { EthernetInterface, EthernetCapabilities, BatchOperation } from "@/lib/api/types/ethernet";
-import { Loader2, X } from "lucide-react";
+import { Loader2, X, AlertCircle } from "lucide-react";
 
 interface ComprehensiveEthernetModalProps {
   open: boolean;
@@ -65,6 +65,8 @@ export function ComprehensiveEthernetModal({
   const [offloadRps, setOffloadRps] = useState("");
   const [offloadSg, setOffloadSg] = useState("");
   const [offloadTso, setOffloadTso] = useState("");
+  const [offloadHwTcOffload, setOffloadHwTcOffload] = useState("");
+  const [offloadRfs, setOffloadRfs] = useState("");
 
   // Ring buffer
   const [ringBufferRx, setRingBufferRx] = useState("");
@@ -88,12 +90,17 @@ export function ComprehensiveEthernetModal({
   // IP settings
   const [ipSourceValidation, setIpSourceValidation] = useState("");
   const [ipEnableDirectedBroadcast, setIpEnableDirectedBroadcast] = useState(false);
+  const [ipDisableForwarding, setIpDisableForwarding] = useState(false);
 
   // IPv6 settings
   const [ipv6Autoconf, setIpv6Autoconf] = useState(false);
   const [ipv6Eui64, setIpv6Eui64] = useState("");
   const [ipv6DisableForwarding, setIpv6DisableForwarding] = useState(false);
   const [ipv6DupAddrDetectTransmits, setIpv6DupAddrDetectTransmits] = useState("");
+  const [ipv6AcceptDad, setIpv6AcceptDad] = useState("");
+  const [ipv6NoDefaultLinkLocal, setIpv6NoDefaultLinkLocal] = useState(false);
+  const [ipv6BaseReachableTime, setIpv6BaseReachableTime] = useState("");
+  const [ipv6SourceValidation, setIpv6SourceValidation] = useState("");
 
   // Flow and Link
   const [disableFlowControl, setDisableFlowControl] = useState(false);
@@ -105,10 +112,16 @@ export function ComprehensiveEthernetModal({
   const [dhcpVendorClassId, setDhcpVendorClassId] = useState("");
   const [dhcpNoDefaultRoute, setDhcpNoDefaultRoute] = useState(false);
   const [dhcpDefaultRouteDistance, setDhcpDefaultRouteDistance] = useState("");
+  const [dhcpReject, setDhcpReject] = useState("");
+  const [dhcpUserClass, setDhcpUserClass] = useState("");
+  const [dhcpMtu, setDhcpMtu] = useState(false);
 
   // DHCPv6 options
   const [dhcpv6Duid, setDhcpv6Duid] = useState("");
   const [dhcpv6RapidCommit, setDhcpv6RapidCommit] = useState(false);
+  const [dhcpv6NoRelease, setDhcpv6NoRelease] = useState(false);
+  const [dhcpv6ParametersOnly, setDhcpv6ParametersOnly] = useState(false);
+  const [dhcpv6Temporary, setDhcpv6Temporary] = useState(false);
 
   // Port mirroring
   const [mirrorIngress, setMirrorIngress] = useState("");
@@ -118,9 +131,26 @@ export function ComprehensiveEthernetModal({
   const [eapolCaCertFile, setEapolCaCertFile] = useState("");
   const [eapolCertFile, setEapolCertFile] = useState("");
   const [eapolKeyFile, setEapolKeyFile] = useState("");
+  const [eapolPassphrase, setEapolPassphrase] = useState("");
 
   // EVPN
   const [evpnUplink, setEvpnUplink] = useState(false);
+
+  // Redirect
+  const [redirect, setRedirect] = useState("");
+
+  // Switchdev
+  const [switchdev, setSwitchdev] = useState(false);
+
+  // Interrupt Coalescing
+  const [icAdaptiveRx, setIcAdaptiveRx] = useState(false);
+  const [icAdaptiveTx, setIcAdaptiveTx] = useState(false);
+  const [icCqeModeRx, setIcCqeModeRx] = useState(false);
+  const [icCqeModeTx, setIcCqeModeTx] = useState(false);
+  const [icRxUsecs, setIcRxUsecs] = useState("");
+  const [icRxFrames, setIcRxFrames] = useState("");
+  const [icTxUsecs, setIcTxUsecs] = useState("");
+  const [icTxFrames, setIcTxFrames] = useState("");
 
   // Initialize form with interface data
   useEffect(() => {
@@ -145,6 +175,8 @@ export function ComprehensiveEthernetModal({
         setOffloadRps(iface.offload.rps || "");
         setOffloadSg(iface.offload.sg || "");
         setOffloadTso(iface.offload.tso || "");
+        setOffloadHwTcOffload(iface.offload.hw_tc_offload || "");
+        setOffloadRfs(iface.offload.rfs || "");
       }
 
       // Ring buffer
@@ -165,6 +197,7 @@ export function ComprehensiveEthernetModal({
         setArpProxyArpPvlan(iface.ip.proxy_arp_pvlan || false);
         setIpSourceValidation(iface.ip.source_validation || "");
         setIpEnableDirectedBroadcast(iface.ip.enable_directed_broadcast || false);
+        setIpDisableForwarding(iface.ip.disable_forwarding || false);
       }
 
       // IPv6 settings
@@ -172,6 +205,10 @@ export function ComprehensiveEthernetModal({
         setIpv6AdjustMss(iface.ipv6.adjust_mss || "");
         setIpv6DisableForwarding(iface.ipv6.disable_forwarding || false);
         setIpv6DupAddrDetectTransmits(iface.ipv6.dup_addr_detect_transmits || "");
+        setIpv6AcceptDad(iface.ipv6.accept_dad || "");
+        setIpv6NoDefaultLinkLocal(iface.ipv6.no_default_link_local || false);
+        setIpv6BaseReachableTime(iface.ipv6.base_reachable_time || "");
+        setIpv6SourceValidation(iface.ipv6.source_validation || "");
       }
 
       // DHCP options
@@ -181,12 +218,19 @@ export function ComprehensiveEthernetModal({
         setDhcpVendorClassId(iface.dhcp_options.vendor_class_id || "");
         setDhcpNoDefaultRoute(iface.dhcp_options.no_default_route || false);
         setDhcpDefaultRouteDistance(iface.dhcp_options.default_route_distance || "");
+        const reject = iface.dhcp_options.reject;
+        setDhcpReject(Array.isArray(reject) ? reject.join(", ") : reject || "");
+        setDhcpUserClass(iface.dhcp_options.user_class || "");
+        setDhcpMtu(iface.dhcp_options.mtu || false);
       }
 
       // DHCPv6 options
       if (iface.dhcpv6_options) {
         setDhcpv6Duid(iface.dhcpv6_options.duid || "");
         setDhcpv6RapidCommit(iface.dhcpv6_options.rapid_commit || false);
+        setDhcpv6NoRelease(iface.dhcpv6_options.no_release || false);
+        setDhcpv6ParametersOnly(iface.dhcpv6_options.parameters_only || false);
+        setDhcpv6Temporary(iface.dhcpv6_options.temporary || false);
       }
 
       // Port mirroring
@@ -200,11 +244,30 @@ export function ComprehensiveEthernetModal({
         setEapolCaCertFile(iface.eapol.ca_cert_file || "");
         setEapolCertFile(iface.eapol.cert_file || "");
         setEapolKeyFile(iface.eapol.key_file || "");
+        setEapolPassphrase(iface.eapol.passphrase || "");
       }
 
       // EVPN
       if (iface.evpn) {
         setEvpnUplink(iface.evpn.uplink || false);
+      }
+
+      // Redirect
+      setRedirect(iface.redirect || "");
+
+      // Switchdev
+      setSwitchdev(iface.switchdev || false);
+
+      // Interrupt Coalescing
+      if (iface.interrupt_coalescing) {
+        setIcAdaptiveRx(iface.interrupt_coalescing.adaptive_rx || false);
+        setIcAdaptiveTx(iface.interrupt_coalescing.adaptive_tx || false);
+        setIcCqeModeRx(iface.interrupt_coalescing.cqe_mode_rx || false);
+        setIcCqeModeTx(iface.interrupt_coalescing.cqe_mode_tx || false);
+        setIcRxUsecs(iface.interrupt_coalescing.rx_usecs || "");
+        setIcRxFrames(iface.interrupt_coalescing.rx_frames || "");
+        setIcTxUsecs(iface.interrupt_coalescing.tx_usecs || "");
+        setIcTxFrames(iface.interrupt_coalescing.tx_frames || "");
       }
     } else {
       resetForm();
@@ -228,6 +291,8 @@ export function ComprehensiveEthernetModal({
     setOffloadRps("");
     setOffloadSg("");
     setOffloadTso("");
+    setOffloadHwTcOffload("");
+    setOffloadRfs("");
     setRingBufferRx("");
     setRingBufferTx("");
     setIpAdjustMss("");
@@ -243,10 +308,15 @@ export function ComprehensiveEthernetModal({
     setArpProxyArpPvlan(false);
     setIpSourceValidation("");
     setIpEnableDirectedBroadcast(false);
+    setIpDisableForwarding(false);
     setIpv6Autoconf(false);
     setIpv6Eui64("");
     setIpv6DisableForwarding(false);
     setIpv6DupAddrDetectTransmits("");
+    setIpv6AcceptDad("");
+    setIpv6NoDefaultLinkLocal(false);
+    setIpv6BaseReachableTime("");
+    setIpv6SourceValidation("");
     setDisableFlowControl(false);
     setDisableLinkDetect(false);
     setDhcpClientId("");
@@ -254,14 +324,31 @@ export function ComprehensiveEthernetModal({
     setDhcpVendorClassId("");
     setDhcpNoDefaultRoute(false);
     setDhcpDefaultRouteDistance("");
+    setDhcpReject("");
+    setDhcpUserClass("");
+    setDhcpMtu(false);
     setDhcpv6Duid("");
     setDhcpv6RapidCommit(false);
+    setDhcpv6NoRelease(false);
+    setDhcpv6ParametersOnly(false);
+    setDhcpv6Temporary(false);
     setMirrorIngress("");
     setMirrorEgress("");
     setEapolCaCertFile("");
     setEapolCertFile("");
     setEapolKeyFile("");
+    setEapolPassphrase("");
     setEvpnUplink(false);
+    setRedirect("");
+    setSwitchdev(false);
+    setIcAdaptiveRx(false);
+    setIcAdaptiveTx(false);
+    setIcCqeModeRx(false);
+    setIcCqeModeTx(false);
+    setIcRxUsecs("");
+    setIcRxFrames("");
+    setIcTxUsecs("");
+    setIcTxFrames("");
     setError(null);
   };
 
@@ -311,6 +398,22 @@ export function ComprehensiveEthernetModal({
       }
     };
 
+    // Helper for boolean toggle operations
+    const addBooleanToggle = (
+      currentValue: boolean | undefined | null,
+      newValue: boolean,
+      setOp: string,
+      deleteOp: string
+    ) => {
+      if (mode === "create") {
+        if (newValue) operations.push({ op: setOp });
+      } else if (mode === "edit") {
+        if (newValue !== (currentValue || false)) {
+          operations.push({ op: newValue ? setOp : deleteOp });
+        }
+      }
+    };
+
     // Basic settings
     addIfChanged(iface?.description, description, "set_description", "delete_description");
     addIfChanged(iface?.mtu, mtu, "set_mtu", "delete_mtu");
@@ -351,12 +454,10 @@ export function ComprehensiveEthernetModal({
         const newValue = newVal.trim();
 
         if (mode === "create") {
-          // Only set if explicitly "on"
           if (newValue === "on") {
             operations.push({ op: setOp });
           }
         } else if (mode === "edit") {
-          // Only add operation if value changed
           if (currentValue !== newValue) {
             if (newValue === "on") {
               operations.push({ op: setOp });
@@ -373,6 +474,8 @@ export function ComprehensiveEthernetModal({
       handleOffloadSetting(iface?.offload?.rps, offloadRps, "set_offload_rps", "delete_offload_rps");
       handleOffloadSetting(iface?.offload?.sg, offloadSg, "set_offload_sg", "delete_offload_sg");
       handleOffloadSetting(iface?.offload?.tso, offloadTso, "set_offload_tso", "delete_offload_tso");
+      handleOffloadSetting(iface?.offload?.hw_tc_offload, offloadHwTcOffload, "set_offload_hw_tc_offload", "delete_offload_hw_tc_offload");
+      handleOffloadSetting(iface?.offload?.rfs, offloadRfs, "set_offload_rfs", "delete_offload_rfs");
     }
 
     // Ring buffer
@@ -424,6 +527,7 @@ export function ComprehensiveEthernetModal({
       if (ipEnableDirectedBroadcast !== (iface?.ip?.enable_directed_broadcast || false)) {
         operations.push({ op: "set_ip_enable_directed_broadcast", value: ipEnableDirectedBroadcast ? "true" : "false" });
       }
+      addBooleanToggle(iface?.ip?.disable_forwarding, ipDisableForwarding, "set_ip_disable_forwarding", "delete_ip_disable_forwarding");
     }
 
     // IPv6 settings
@@ -436,6 +540,10 @@ export function ComprehensiveEthernetModal({
         operations.push({ op: "set_ipv6_disable_forwarding", value: ipv6DisableForwarding ? "true" : "false" });
       }
       addIfChanged(iface?.ipv6?.dup_addr_detect_transmits, ipv6DupAddrDetectTransmits, "set_ipv6_dup_addr_detect_transmits");
+      addIfChanged(iface?.ipv6?.accept_dad, ipv6AcceptDad, "set_ipv6_accept_dad");
+      addBooleanToggle(iface?.ipv6?.no_default_link_local, ipv6NoDefaultLinkLocal, "set_ipv6_address_no_default_link_local", "delete_ipv6_address_no_default_link_local");
+      addIfChanged(iface?.ipv6?.base_reachable_time, ipv6BaseReachableTime, "set_ipv6_base_reachable_time");
+      addIfChanged(iface?.ipv6?.source_validation, ipv6SourceValidation, "set_ipv6_source_validation", "delete_ipv6_source_validation");
     }
 
     // Flow and Link
@@ -455,6 +563,13 @@ export function ComprehensiveEthernetModal({
         operations.push({ op: "set_dhcp_options_no_default_route", value: dhcpNoDefaultRoute ? "true" : "false" });
       }
       addIfChanged(iface?.dhcp_options?.default_route_distance, dhcpDefaultRouteDistance, "set_dhcp_options_default_route_distance");
+      addIfChanged(
+        Array.isArray(iface?.dhcp_options?.reject) ? iface.dhcp_options.reject.join(", ") : (iface?.dhcp_options?.reject || ""),
+        dhcpReject,
+        "set_dhcp_options_reject"
+      );
+      addIfChanged(iface?.dhcp_options?.user_class, dhcpUserClass, "set_dhcp_options_user_class");
+      addBooleanToggle(iface?.dhcp_options?.mtu, dhcpMtu, "set_dhcp_options_mtu", "delete_dhcp_options");
     }
 
     // DHCPv6 options
@@ -463,6 +578,9 @@ export function ComprehensiveEthernetModal({
       if (dhcpv6RapidCommit !== (iface?.dhcpv6_options?.rapid_commit || false)) {
         operations.push({ op: "set_dhcpv6_options_rapid_commit", value: dhcpv6RapidCommit ? "true" : "false" });
       }
+      addBooleanToggle(iface?.dhcpv6_options?.no_release, dhcpv6NoRelease, "set_dhcpv6_options_no_release", "delete_dhcpv6_options");
+      addBooleanToggle(iface?.dhcpv6_options?.parameters_only, dhcpv6ParametersOnly, "set_dhcpv6_options_parameters_only", "delete_dhcpv6_options");
+      addBooleanToggle(iface?.dhcpv6_options?.temporary, dhcpv6Temporary, "set_dhcpv6_options_temporary", "delete_dhcpv6_options");
     }
 
     // Port mirroring
@@ -476,6 +594,7 @@ export function ComprehensiveEthernetModal({
       addIfChanged(iface?.eapol?.ca_cert_file, eapolCaCertFile, "set_eapol_ca_cert_file");
       addIfChanged(iface?.eapol?.cert_file, eapolCertFile, "set_eapol_cert_file");
       addIfChanged(iface?.eapol?.key_file, eapolKeyFile, "set_eapol_key_file");
+      addIfChanged(iface?.eapol?.passphrase, eapolPassphrase, "set_eapol_passphrase");
     }
 
     // EVPN
@@ -483,6 +602,28 @@ export function ComprehensiveEthernetModal({
       if (evpnUplink !== (iface?.evpn?.uplink || false)) {
         operations.push({ op: evpnUplink ? "set_evpn_uplink" : "delete_evpn" });
       }
+    }
+
+    // Redirect
+    if (capabilities?.features.redirect) {
+      addIfChanged(iface?.redirect, redirect, "set_redirect", "delete_redirect");
+    }
+
+    // Switchdev
+    if (capabilities?.features.switchdev?.supported) {
+      addBooleanToggle(iface?.switchdev, switchdev, "set_switchdev", "delete_switchdev");
+    }
+
+    // Interrupt Coalescing
+    if (capabilities?.features.interrupt_coalescing?.supported) {
+      addBooleanToggle(iface?.interrupt_coalescing?.adaptive_rx, icAdaptiveRx, "set_interrupt_coalescing_adaptive_rx", "delete_interrupt_coalescing_adaptive_rx");
+      addBooleanToggle(iface?.interrupt_coalescing?.adaptive_tx, icAdaptiveTx, "set_interrupt_coalescing_adaptive_tx", "delete_interrupt_coalescing_adaptive_tx");
+      addBooleanToggle(iface?.interrupt_coalescing?.cqe_mode_rx, icCqeModeRx, "set_interrupt_coalescing_cqe_mode_rx", "delete_interrupt_coalescing_cqe_mode_rx");
+      addBooleanToggle(iface?.interrupt_coalescing?.cqe_mode_tx, icCqeModeTx, "set_interrupt_coalescing_cqe_mode_tx", "delete_interrupt_coalescing_cqe_mode_tx");
+      addIfChanged(iface?.interrupt_coalescing?.rx_usecs, icRxUsecs, "set_interrupt_coalescing_rx_usecs");
+      addIfChanged(iface?.interrupt_coalescing?.rx_frames, icRxFrames, "set_interrupt_coalescing_rx_frames");
+      addIfChanged(iface?.interrupt_coalescing?.tx_usecs, icTxUsecs, "set_interrupt_coalescing_tx_usecs");
+      addIfChanged(iface?.interrupt_coalescing?.tx_frames, icTxFrames, "set_interrupt_coalescing_tx_frames");
     }
 
     return operations;
@@ -544,8 +685,9 @@ export function ComprehensiveEthernetModal({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <div className="bg-destructive/10 text-destructive px-4 py-3 rounded-md text-sm">
-              {error}
+            <div className="bg-destructive/10 border border-destructive/20 rounded-md p-3 flex items-start gap-2">
+              <AlertCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+              <pre className="whitespace-pre-wrap font-mono text-sm text-destructive">{error}</pre>
             </div>
           )}
 
@@ -817,6 +959,38 @@ export function ComprehensiveEthernetModal({
                       </Select>
                     </div>
 
+                    {/* HW TC Offload */}
+                    {capabilities?.features.offload.hw_tc_offload && (
+                      <div className="space-y-2">
+                        <Label htmlFor="offload-hw-tc">HW TC Offload</Label>
+                        <Select value={offloadHwTcOffload} onValueChange={setOffloadHwTcOffload}>
+                          <SelectTrigger id="offload-hw-tc">
+                            <SelectValue placeholder="Select..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="on">On</SelectItem>
+                            <SelectItem value="off">Off</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+
+                    {/* RFS */}
+                    {capabilities?.features.offload.rfs && (
+                      <div className="space-y-2">
+                        <Label htmlFor="offload-rfs">RFS</Label>
+                        <Select value={offloadRfs} onValueChange={setOffloadRfs}>
+                          <SelectTrigger id="offload-rfs">
+                            <SelectValue placeholder="Select..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="on">On</SelectItem>
+                            <SelectItem value="off">Off</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+
                   </div>
                 </div>
               )}
@@ -1031,16 +1205,32 @@ export function ComprehensiveEthernetModal({
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="flex items-center space-x-2 pt-8">
-                      <Checkbox
-                        id="ip-directed-broadcast"
-                        checked={ipEnableDirectedBroadcast}
-                        onCheckedChange={(checked) => setIpEnableDirectedBroadcast(checked as boolean)}
-                      />
-                      <Label htmlFor="ip-directed-broadcast" className="cursor-pointer text-sm">
-                        Enable Directed Broadcast
-                      </Label>
-                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {capabilities?.features.ip.directed_broadcast && (
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="ip-directed-broadcast"
+                          checked={ipEnableDirectedBroadcast}
+                          onCheckedChange={(checked) => setIpEnableDirectedBroadcast(checked as boolean)}
+                        />
+                        <Label htmlFor="ip-directed-broadcast" className="cursor-pointer text-sm">
+                          Enable Directed Broadcast
+                        </Label>
+                      </div>
+                    )}
+                    {capabilities?.features.ip.disable_forwarding && (
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="ip-disable-forwarding"
+                          checked={ipDisableForwarding}
+                          onCheckedChange={(checked) => setIpDisableForwarding(checked as boolean)}
+                        />
+                        <Label htmlFor="ip-disable-forwarding" className="cursor-pointer text-sm">
+                          Disable Forwarding
+                        </Label>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -1068,6 +1258,45 @@ export function ComprehensiveEthernetModal({
                         onChange={(e) => setIpv6DupAddrDetectTransmits(e.target.value)}
                       />
                     </div>
+                    {capabilities?.features.ipv6.accept_dad && (
+                      <div className="space-y-2">
+                        <Label htmlFor="ipv6-accept-dad">Accept DAD</Label>
+                        <Input
+                          id="ipv6-accept-dad"
+                          type="number"
+                          placeholder="0, 1, or 2"
+                          value={ipv6AcceptDad}
+                          onChange={(e) => setIpv6AcceptDad(e.target.value)}
+                        />
+                      </div>
+                    )}
+                    {capabilities?.features.ipv6.base_reachable_time && (
+                      <div className="space-y-2">
+                        <Label htmlFor="ipv6-base-reachable-time">Base Reachable Time</Label>
+                        <Input
+                          id="ipv6-base-reachable-time"
+                          type="number"
+                          placeholder="30"
+                          value={ipv6BaseReachableTime}
+                          onChange={(e) => setIpv6BaseReachableTime(e.target.value)}
+                        />
+                      </div>
+                    )}
+                    {capabilities?.features.ipv6.source_validation && (
+                      <div className="space-y-2">
+                        <Label htmlFor="ipv6-source-validation">Source Validation</Label>
+                        <Select value={ipv6SourceValidation || "none"} onValueChange={(v) => setIpv6SourceValidation(v === "none" ? "" : v)}>
+                          <SelectTrigger id="ipv6-source-validation">
+                            <SelectValue placeholder="None" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">None</SelectItem>
+                            <SelectItem value="strict">Strict</SelectItem>
+                            <SelectItem value="loose">Loose</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div className="flex items-center space-x-2">
@@ -1090,6 +1319,18 @@ export function ComprehensiveEthernetModal({
                         Disable Forwarding
                       </Label>
                     </div>
+                    {capabilities?.features.ipv6.no_default_link_local && (
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="ipv6-no-default-link-local"
+                          checked={ipv6NoDefaultLinkLocal}
+                          onCheckedChange={(checked) => setIpv6NoDefaultLinkLocal(checked as boolean)}
+                        />
+                        <Label htmlFor="ipv6-no-default-link-local" className="cursor-pointer text-sm">
+                          No Default Link-Local
+                        </Label>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -1138,16 +1379,52 @@ export function ComprehensiveEthernetModal({
                         onChange={(e) => setDhcpDefaultRouteDistance(e.target.value)}
                       />
                     </div>
+                    {capabilities?.features.dhcp.reject && (
+                      <div className="space-y-2">
+                        <Label htmlFor="dhcp-reject">Reject Server</Label>
+                        <Input
+                          id="dhcp-reject"
+                          placeholder="192.168.1.1"
+                          value={dhcpReject}
+                          onChange={(e) => setDhcpReject(e.target.value)}
+                        />
+                      </div>
+                    )}
+                    {capabilities?.features.dhcp.user_class && (
+                      <div className="space-y-2">
+                        <Label htmlFor="dhcp-user-class">User Class</Label>
+                        <Input
+                          id="dhcp-user-class"
+                          placeholder="user-class"
+                          value={dhcpUserClass}
+                          onChange={(e) => setDhcpUserClass(e.target.value)}
+                        />
+                      </div>
+                    )}
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="dhcp-no-default-route"
-                      checked={dhcpNoDefaultRoute}
-                      onCheckedChange={(checked) => setDhcpNoDefaultRoute(checked as boolean)}
-                    />
-                    <Label htmlFor="dhcp-no-default-route" className="cursor-pointer text-sm">
-                      No Default Route
-                    </Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="dhcp-no-default-route"
+                        checked={dhcpNoDefaultRoute}
+                        onCheckedChange={(checked) => setDhcpNoDefaultRoute(checked as boolean)}
+                      />
+                      <Label htmlFor="dhcp-no-default-route" className="cursor-pointer text-sm">
+                        No Default Route
+                      </Label>
+                    </div>
+                    {capabilities?.features.dhcp.mtu && (
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="dhcp-mtu"
+                          checked={dhcpMtu}
+                          onCheckedChange={(checked) => setDhcpMtu(checked as boolean)}
+                        />
+                        <Label htmlFor="dhcp-mtu" className="cursor-pointer text-sm">
+                          Request MTU
+                        </Label>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -1166,15 +1443,53 @@ export function ComprehensiveEthernetModal({
                       />
                     </div>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="dhcpv6-rapid-commit"
-                      checked={dhcpv6RapidCommit}
-                      onCheckedChange={(checked) => setDhcpv6RapidCommit(checked as boolean)}
-                    />
-                    <Label htmlFor="dhcpv6-rapid-commit" className="cursor-pointer text-sm">
-                      Rapid Commit
-                    </Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="dhcpv6-rapid-commit"
+                        checked={dhcpv6RapidCommit}
+                        onCheckedChange={(checked) => setDhcpv6RapidCommit(checked as boolean)}
+                      />
+                      <Label htmlFor="dhcpv6-rapid-commit" className="cursor-pointer text-sm">
+                        Rapid Commit
+                      </Label>
+                    </div>
+                    {capabilities?.features.dhcpv6.no_release && (
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="dhcpv6-no-release"
+                          checked={dhcpv6NoRelease}
+                          onCheckedChange={(checked) => setDhcpv6NoRelease(checked as boolean)}
+                        />
+                        <Label htmlFor="dhcpv6-no-release" className="cursor-pointer text-sm">
+                          No Release
+                        </Label>
+                      </div>
+                    )}
+                    {capabilities?.features.dhcpv6.parameters_only && (
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="dhcpv6-parameters-only"
+                          checked={dhcpv6ParametersOnly}
+                          onCheckedChange={(checked) => setDhcpv6ParametersOnly(checked as boolean)}
+                        />
+                        <Label htmlFor="dhcpv6-parameters-only" className="cursor-pointer text-sm">
+                          Parameters Only
+                        </Label>
+                      </div>
+                    )}
+                    {capabilities?.features.dhcpv6.temporary && (
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="dhcpv6-temporary"
+                          checked={dhcpv6Temporary}
+                          onCheckedChange={(checked) => setDhcpv6Temporary(checked as boolean)}
+                        />
+                        <Label htmlFor="dhcpv6-temporary" className="cursor-pointer text-sm">
+                          Temporary
+                        </Label>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -1239,6 +1554,18 @@ export function ComprehensiveEthernetModal({
                         onChange={(e) => setEapolKeyFile(e.target.value)}
                       />
                     </div>
+                    {capabilities?.features.eapol.passphrase && (
+                      <div className="space-y-2">
+                        <Label htmlFor="eapol-passphrase">Passphrase</Label>
+                        <Input
+                          id="eapol-passphrase"
+                          type="password"
+                          placeholder="EAPoL passphrase"
+                          value={eapolPassphrase}
+                          onChange={(e) => setEapolPassphrase(e.target.value)}
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -1255,6 +1582,127 @@ export function ComprehensiveEthernetModal({
                     <Label htmlFor="evpn-uplink" className="cursor-pointer text-sm">
                       Enable EVPN Uplink Tracking
                     </Label>
+                  </div>
+                </div>
+              )}
+
+              {capabilities?.features.redirect && (
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold">Traffic Redirect</h3>
+                  <div className="space-y-2">
+                    <Label htmlFor="redirect">Redirect to Interface</Label>
+                    <Input
+                      id="redirect"
+                      placeholder="eth1"
+                      value={redirect}
+                      onChange={(e) => setRedirect(e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {capabilities?.features.switchdev?.supported && (
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold">Switchdev</h3>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="switchdev"
+                      checked={switchdev}
+                      onCheckedChange={(checked) => setSwitchdev(checked as boolean)}
+                    />
+                    <Label htmlFor="switchdev" className="cursor-pointer text-sm">
+                      Enable Switchdev Mode
+                    </Label>
+                  </div>
+                </div>
+              )}
+
+              {capabilities?.features.interrupt_coalescing?.supported && (
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold">Interrupt Coalescing</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="ic-rx-usecs">RX Usecs</Label>
+                      <Input
+                        id="ic-rx-usecs"
+                        type="number"
+                        placeholder="0"
+                        value={icRxUsecs}
+                        onChange={(e) => setIcRxUsecs(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="ic-tx-usecs">TX Usecs</Label>
+                      <Input
+                        id="ic-tx-usecs"
+                        type="number"
+                        placeholder="0"
+                        value={icTxUsecs}
+                        onChange={(e) => setIcTxUsecs(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="ic-rx-frames">RX Frames</Label>
+                      <Input
+                        id="ic-rx-frames"
+                        type="number"
+                        placeholder="0"
+                        value={icRxFrames}
+                        onChange={(e) => setIcRxFrames(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="ic-tx-frames">TX Frames</Label>
+                      <Input
+                        id="ic-tx-frames"
+                        type="number"
+                        placeholder="0"
+                        value={icTxFrames}
+                        onChange={(e) => setIcTxFrames(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="ic-adaptive-rx"
+                        checked={icAdaptiveRx}
+                        onCheckedChange={(checked) => setIcAdaptiveRx(checked as boolean)}
+                      />
+                      <Label htmlFor="ic-adaptive-rx" className="cursor-pointer text-sm">
+                        Adaptive RX
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="ic-adaptive-tx"
+                        checked={icAdaptiveTx}
+                        onCheckedChange={(checked) => setIcAdaptiveTx(checked as boolean)}
+                      />
+                      <Label htmlFor="ic-adaptive-tx" className="cursor-pointer text-sm">
+                        Adaptive TX
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="ic-cqe-mode-rx"
+                        checked={icCqeModeRx}
+                        onCheckedChange={(checked) => setIcCqeModeRx(checked as boolean)}
+                      />
+                      <Label htmlFor="ic-cqe-mode-rx" className="cursor-pointer text-sm">
+                        CQE Mode RX
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="ic-cqe-mode-tx"
+                        checked={icCqeModeTx}
+                        onCheckedChange={(checked) => setIcCqeModeTx(checked as boolean)}
+                      />
+                      <Label htmlFor="ic-cqe-mode-tx" className="cursor-pointer text-sm">
+                        CQE Mode TX
+                      </Label>
+                    </div>
                   </div>
                 </div>
               )}

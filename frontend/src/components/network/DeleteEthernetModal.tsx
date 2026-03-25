@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ethernetService } from "@/lib/api/ethernet";
 import type { EthernetInterface } from "@/lib/api/types/ethernet";
-import { Loader2, AlertTriangle } from "lucide-react";
+import { Loader2, AlertTriangle, AlertCircle } from "lucide-react";
 
 interface DeleteEthernetModalProps {
   open: boolean;
@@ -64,8 +64,9 @@ export function DeleteEthernetModal({
 
         <div className="space-y-4">
           {error && (
-            <div className="bg-destructive/10 text-destructive px-4 py-3 rounded-md text-sm">
-              {error}
+            <div className="bg-destructive/10 border border-destructive/20 rounded-md p-3 flex items-start gap-2">
+              <AlertCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+              <pre className="whitespace-pre-wrap font-mono text-sm text-destructive">{error}</pre>
             </div>
           )}
 

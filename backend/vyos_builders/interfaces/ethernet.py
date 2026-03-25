@@ -911,3 +911,460 @@ class EthernetInterfaceBuilderMixin:
         """Delete EVPN configuration"""
         path = self.mappers[self.interface_mapper_key].get_evpn_path(interface)
         return self.add_delete(path)
+
+    # ========================================================================
+    # DHCP Options (additional)
+    # ========================================================================
+
+    def set_dhcp_options_reject(self, interface: str, server: str) -> "EthernetInterfaceBuilderMixin":
+        """Set DHCP reject server"""
+        path = self.mappers[self.interface_mapper_key].get_dhcp_options_reject(interface, server)
+        return self.add_set(path)
+
+    def set_dhcp_options_user_class(self, interface: str, user_class: str) -> "EthernetInterfaceBuilderMixin":
+        """Set DHCP user class"""
+        path = self.mappers[self.interface_mapper_key].get_dhcp_options_user_class(interface, user_class)
+        return self.add_set(path)
+
+    def set_dhcp_options_mtu(self, interface: str) -> "EthernetInterfaceBuilderMixin":
+        """Enable DHCP MTU option"""
+        path = self.mappers[self.interface_mapper_key].get_dhcp_options_mtu(interface)
+        return self.add_set(path)
+
+    def delete_dhcp_options(self, interface: str) -> "EthernetInterfaceBuilderMixin":
+        """Delete all DHCP options"""
+        path = self.mappers[self.interface_mapper_key].get_dhcp_options_path(interface)
+        return self.add_delete(path)
+
+    # ========================================================================
+    # DHCPv6 Options (additional)
+    # ========================================================================
+
+    def set_dhcpv6_options_no_release(self, interface: str) -> "EthernetInterfaceBuilderMixin":
+        """Enable DHCPv6 no-release"""
+        path = self.mappers[self.interface_mapper_key].get_dhcpv6_options_no_release(interface)
+        return self.add_set(path)
+
+    def set_dhcpv6_options_parameters_only(self, interface: str) -> "EthernetInterfaceBuilderMixin":
+        """Enable DHCPv6 parameters-only"""
+        path = self.mappers[self.interface_mapper_key].get_dhcpv6_options_parameters_only(interface)
+        return self.add_set(path)
+
+    def set_dhcpv6_options_temporary(self, interface: str) -> "EthernetInterfaceBuilderMixin":
+        """Enable DHCPv6 temporary address"""
+        path = self.mappers[self.interface_mapper_key].get_dhcpv6_options_temporary(interface)
+        return self.add_set(path)
+
+    def set_dhcpv6_options_pd_length(self, interface: str, pd_id: str, length: str) -> "EthernetInterfaceBuilderMixin":
+        """Set DHCPv6 prefix delegation length"""
+        path = self.mappers[self.interface_mapper_key].get_dhcpv6_options_pd_length(interface, pd_id, length)
+        return self.add_set(path)
+
+    def set_dhcpv6_options_pd_interface(self, interface: str, pd_id: str, pd_iface: str) -> "EthernetInterfaceBuilderMixin":
+        """Set DHCPv6 prefix delegation interface"""
+        path = self.mappers[self.interface_mapper_key].get_dhcpv6_options_pd_interface(interface, pd_id, pd_iface)
+        return self.add_set(path)
+
+    def set_dhcpv6_options_pd_interface_address(self, interface: str, pd_id: str, pd_iface: str, address: str) -> "EthernetInterfaceBuilderMixin":
+        """Set DHCPv6 prefix delegation interface address"""
+        path = self.mappers[self.interface_mapper_key].get_dhcpv6_options_pd_interface_address(interface, pd_id, pd_iface, address)
+        return self.add_set(path)
+
+    def set_dhcpv6_options_pd_interface_sla_id(self, interface: str, pd_id: str, pd_iface: str, sla_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Set DHCPv6 prefix delegation interface SLA ID"""
+        path = self.mappers[self.interface_mapper_key].get_dhcpv6_options_pd_interface_sla_id(interface, pd_id, pd_iface, sla_id)
+        return self.add_set(path)
+
+    def delete_dhcpv6_options(self, interface: str) -> "EthernetInterfaceBuilderMixin":
+        """Delete all DHCPv6 options"""
+        path = self.mappers[self.interface_mapper_key].get_dhcpv6_options_path(interface)
+        return self.add_delete(path)
+
+    # DHCPv6 1.5+ only
+    def set_dhcpv6_options_no_request_dns(self, interface: str) -> "EthernetInterfaceBuilderMixin":
+        """Disable DHCPv6 DNS request (1.5+ only)"""
+        path = self.mappers[self.interface_mapper_key].get_dhcpv6_options_no_request_dns(interface)
+        return self.add_set(path)
+
+    def set_dhcpv6_options_no_request_domain_name(self, interface: str) -> "EthernetInterfaceBuilderMixin":
+        """Disable DHCPv6 domain name request (1.5+ only)"""
+        path = self.mappers[self.interface_mapper_key].get_dhcpv6_options_no_request_domain_name(interface)
+        return self.add_set(path)
+
+    # ========================================================================
+    # IP (additional)
+    # ========================================================================
+
+    def set_ip_disable_forwarding(self, interface: str) -> "EthernetInterfaceBuilderMixin":
+        """Disable IP forwarding on interface"""
+        path = self.mappers[self.interface_mapper_key].get_ip_disable_forwarding(interface)
+        return self.add_set(path)
+
+    def delete_ip_disable_forwarding(self, interface: str) -> "EthernetInterfaceBuilderMixin":
+        """Enable IP forwarding on interface (remove disable flag)"""
+        path = self.mappers[self.interface_mapper_key].get_ip_disable_forwarding(interface)
+        return self.add_delete(path)
+
+    # ========================================================================
+    # IPv6 (additional)
+    # ========================================================================
+
+    def set_ipv6_accept_dad(self, interface: str, count: str) -> "EthernetInterfaceBuilderMixin":
+        """Set IPv6 accept DAD count"""
+        path = self.mappers[self.interface_mapper_key].get_ipv6_accept_dad(interface, count)
+        return self.add_set(path)
+
+    def set_ipv6_address_no_default_link_local(self, interface: str) -> "EthernetInterfaceBuilderMixin":
+        """Disable default link-local address"""
+        path = self.mappers[self.interface_mapper_key].get_ipv6_address_no_default_link_local(interface)
+        return self.add_set(path)
+
+    def delete_ipv6_address_no_default_link_local(self, interface: str) -> "EthernetInterfaceBuilderMixin":
+        """Enable default link-local address"""
+        path = self.mappers[self.interface_mapper_key].get_ipv6_address_no_default_link_local(interface)
+        return self.add_delete(path)
+
+    def set_ipv6_base_reachable_time(self, interface: str, time: str) -> "EthernetInterfaceBuilderMixin":
+        """Set IPv6 base reachable time"""
+        path = self.mappers[self.interface_mapper_key].get_ipv6_base_reachable_time(interface, time)
+        return self.add_set(path)
+
+    def set_ipv6_source_validation(self, interface: str, mode: str) -> "EthernetInterfaceBuilderMixin":
+        """Set IPv6 source validation mode"""
+        path = self.mappers[self.interface_mapper_key].get_ipv6_source_validation(interface, mode)
+        return self.add_set(path)
+
+    def delete_ipv6_source_validation(self, interface: str) -> "EthernetInterfaceBuilderMixin":
+        """Delete IPv6 source validation"""
+        path = self.mappers[self.interface_mapper_key].get_ipv6_source_validation_path(interface)
+        return self.add_delete(path)
+
+    # IPv6 1.5+ only
+    def set_ipv6_address_interface_identifier(self, interface: str, identifier: str) -> "EthernetInterfaceBuilderMixin":
+        """Set IPv6 address interface identifier (1.5+ only)"""
+        path = self.mappers[self.interface_mapper_key].get_ipv6_address_interface_identifier(interface, identifier)
+        return self.add_set(path)
+
+    # ========================================================================
+    # Offload (additional)
+    # ========================================================================
+
+    def set_offload_hw_tc_offload(self, interface: str) -> "EthernetInterfaceBuilderMixin":
+        """Enable hardware TC offload"""
+        path = self.mappers[self.interface_mapper_key].get_offload_hw_tc_offload(interface)
+        return self.add_set(path)
+
+    def delete_offload_hw_tc_offload(self, interface: str) -> "EthernetInterfaceBuilderMixin":
+        """Delete hardware TC offload"""
+        path = self.mappers[self.interface_mapper_key].get_offload_hw_tc_offload(interface)
+        return self.add_delete(path)
+
+    def set_offload_rfs(self, interface: str) -> "EthernetInterfaceBuilderMixin":
+        """Enable Receive Flow Steering"""
+        path = self.mappers[self.interface_mapper_key].get_offload_rfs(interface)
+        return self.add_set(path)
+
+    def delete_offload_rfs(self, interface: str) -> "EthernetInterfaceBuilderMixin":
+        """Delete Receive Flow Steering"""
+        path = self.mappers[self.interface_mapper_key].get_offload_rfs(interface)
+        return self.add_delete(path)
+
+    # ========================================================================
+    # Redirect Operations
+    # ========================================================================
+
+    def set_redirect(self, interface: str, target: str) -> "EthernetInterfaceBuilderMixin":
+        """Set interface redirect target"""
+        path = self.mappers[self.interface_mapper_key].get_redirect(interface, target)
+        return self.add_set(path)
+
+    def delete_redirect(self, interface: str) -> "EthernetInterfaceBuilderMixin":
+        """Delete interface redirect"""
+        path = self.mappers[self.interface_mapper_key].get_redirect_path(interface)
+        return self.add_delete(path)
+
+    # ========================================================================
+    # EAPoL (additional)
+    # ========================================================================
+
+    def set_eapol_passphrase(self, interface: str, passphrase: str) -> "EthernetInterfaceBuilderMixin":
+        """Set EAPoL passphrase"""
+        path = self.mappers[self.interface_mapper_key].get_eapol_passphrase(interface, passphrase)
+        return self.add_set(path)
+
+    def delete_eapol(self, interface: str) -> "EthernetInterfaceBuilderMixin":
+        """Delete EAPoL configuration"""
+        path = self.mappers[self.interface_mapper_key].get_eapol_path(interface)
+        return self.add_delete(path)
+
+    # ========================================================================
+    # Switchdev Operations (1.5+)
+    # ========================================================================
+
+    def set_switchdev(self, interface: str) -> "EthernetInterfaceBuilderMixin":
+        """Enable switchdev (1.5+ only)"""
+        path = self.mappers[self.interface_mapper_key].get_switchdev(interface)
+        return self.add_set(path)
+
+    def delete_switchdev(self, interface: str) -> "EthernetInterfaceBuilderMixin":
+        """Delete switchdev configuration (1.5+ only)"""
+        path = self.mappers[self.interface_mapper_key].get_switchdev(interface)
+        return self.add_delete(path)
+
+    # ========================================================================
+    # Interrupt Coalescing Operations (1.5+)
+    # ========================================================================
+
+    def set_interrupt_coalescing_adaptive_rx(self, interface: str) -> "EthernetInterfaceBuilderMixin":
+        """Enable adaptive RX interrupt coalescing"""
+        path = self.mappers[self.interface_mapper_key].get_interrupt_coalescing_adaptive_rx(interface)
+        return self.add_set(path)
+
+    def delete_interrupt_coalescing_adaptive_rx(self, interface: str) -> "EthernetInterfaceBuilderMixin":
+        """Delete adaptive RX interrupt coalescing"""
+        path = self.mappers[self.interface_mapper_key].get_interrupt_coalescing_adaptive_rx(interface)
+        return self.add_delete(path)
+
+    def set_interrupt_coalescing_adaptive_tx(self, interface: str) -> "EthernetInterfaceBuilderMixin":
+        """Enable adaptive TX interrupt coalescing"""
+        path = self.mappers[self.interface_mapper_key].get_interrupt_coalescing_adaptive_tx(interface)
+        return self.add_set(path)
+
+    def delete_interrupt_coalescing_adaptive_tx(self, interface: str) -> "EthernetInterfaceBuilderMixin":
+        """Delete adaptive TX interrupt coalescing"""
+        path = self.mappers[self.interface_mapper_key].get_interrupt_coalescing_adaptive_tx(interface)
+        return self.add_delete(path)
+
+    def set_interrupt_coalescing_cqe_mode_rx(self, interface: str) -> "EthernetInterfaceBuilderMixin":
+        """Enable CQE mode RX interrupt coalescing"""
+        path = self.mappers[self.interface_mapper_key].get_interrupt_coalescing_cqe_mode_rx(interface)
+        return self.add_set(path)
+
+    def delete_interrupt_coalescing_cqe_mode_rx(self, interface: str) -> "EthernetInterfaceBuilderMixin":
+        """Delete CQE mode RX interrupt coalescing"""
+        path = self.mappers[self.interface_mapper_key].get_interrupt_coalescing_cqe_mode_rx(interface)
+        return self.add_delete(path)
+
+    def set_interrupt_coalescing_cqe_mode_tx(self, interface: str) -> "EthernetInterfaceBuilderMixin":
+        """Enable CQE mode TX interrupt coalescing"""
+        path = self.mappers[self.interface_mapper_key].get_interrupt_coalescing_cqe_mode_tx(interface)
+        return self.add_set(path)
+
+    def delete_interrupt_coalescing_cqe_mode_tx(self, interface: str) -> "EthernetInterfaceBuilderMixin":
+        """Delete CQE mode TX interrupt coalescing"""
+        path = self.mappers[self.interface_mapper_key].get_interrupt_coalescing_cqe_mode_tx(interface)
+        return self.add_delete(path)
+
+    def set_interrupt_coalescing_rx_usecs(self, interface: str, value: str) -> "EthernetInterfaceBuilderMixin":
+        """Set RX interrupt coalescing microseconds"""
+        path = self.mappers[self.interface_mapper_key].get_interrupt_coalescing_rx_usecs(interface, value)
+        return self.add_set(path)
+
+    def set_interrupt_coalescing_rx_frames(self, interface: str, value: str) -> "EthernetInterfaceBuilderMixin":
+        """Set RX interrupt coalescing frames"""
+        path = self.mappers[self.interface_mapper_key].get_interrupt_coalescing_rx_frames(interface, value)
+        return self.add_set(path)
+
+    def set_interrupt_coalescing_tx_usecs(self, interface: str, value: str) -> "EthernetInterfaceBuilderMixin":
+        """Set TX interrupt coalescing microseconds"""
+        path = self.mappers[self.interface_mapper_key].get_interrupt_coalescing_tx_usecs(interface, value)
+        return self.add_set(path)
+
+    def set_interrupt_coalescing_tx_frames(self, interface: str, value: str) -> "EthernetInterfaceBuilderMixin":
+        """Set TX interrupt coalescing frames"""
+        path = self.mappers[self.interface_mapper_key].get_interrupt_coalescing_tx_frames(interface, value)
+        return self.add_set(path)
+
+    def set_interrupt_coalescing_rx_usecs_irq(self, interface: str, value: str) -> "EthernetInterfaceBuilderMixin":
+        """Set RX interrupt coalescing microseconds IRQ"""
+        path = self.mappers[self.interface_mapper_key].get_interrupt_coalescing_rx_usecs_irq(interface, value)
+        return self.add_set(path)
+
+    def set_interrupt_coalescing_rx_usecs_low(self, interface: str, value: str) -> "EthernetInterfaceBuilderMixin":
+        """Set RX interrupt coalescing microseconds low"""
+        path = self.mappers[self.interface_mapper_key].get_interrupt_coalescing_rx_usecs_low(interface, value)
+        return self.add_set(path)
+
+    def set_interrupt_coalescing_rx_usecs_high(self, interface: str, value: str) -> "EthernetInterfaceBuilderMixin":
+        """Set RX interrupt coalescing microseconds high"""
+        path = self.mappers[self.interface_mapper_key].get_interrupt_coalescing_rx_usecs_high(interface, value)
+        return self.add_set(path)
+
+    def set_interrupt_coalescing_tx_usecs_irq(self, interface: str, value: str) -> "EthernetInterfaceBuilderMixin":
+        """Set TX interrupt coalescing microseconds IRQ"""
+        path = self.mappers[self.interface_mapper_key].get_interrupt_coalescing_tx_usecs_irq(interface, value)
+        return self.add_set(path)
+
+    def set_interrupt_coalescing_tx_usecs_low(self, interface: str, value: str) -> "EthernetInterfaceBuilderMixin":
+        """Set TX interrupt coalescing microseconds low"""
+        path = self.mappers[self.interface_mapper_key].get_interrupt_coalescing_tx_usecs_low(interface, value)
+        return self.add_set(path)
+
+    def set_interrupt_coalescing_tx_usecs_high(self, interface: str, value: str) -> "EthernetInterfaceBuilderMixin":
+        """Set TX interrupt coalescing microseconds high"""
+        path = self.mappers[self.interface_mapper_key].get_interrupt_coalescing_tx_usecs_high(interface, value)
+        return self.add_set(path)
+
+    def set_interrupt_coalescing_rx_frames_irq(self, interface: str, value: str) -> "EthernetInterfaceBuilderMixin":
+        """Set RX interrupt coalescing frames IRQ"""
+        path = self.mappers[self.interface_mapper_key].get_interrupt_coalescing_rx_frames_irq(interface, value)
+        return self.add_set(path)
+
+    def set_interrupt_coalescing_rx_frame_low(self, interface: str, value: str) -> "EthernetInterfaceBuilderMixin":
+        """Set RX interrupt coalescing frame low"""
+        path = self.mappers[self.interface_mapper_key].get_interrupt_coalescing_rx_frame_low(interface, value)
+        return self.add_set(path)
+
+    def set_interrupt_coalescing_rx_frame_high(self, interface: str, value: str) -> "EthernetInterfaceBuilderMixin":
+        """Set RX interrupt coalescing frame high"""
+        path = self.mappers[self.interface_mapper_key].get_interrupt_coalescing_rx_frame_high(interface, value)
+        return self.add_set(path)
+
+    def set_interrupt_coalescing_tx_frames_irq(self, interface: str, value: str) -> "EthernetInterfaceBuilderMixin":
+        """Set TX interrupt coalescing frames IRQ"""
+        path = self.mappers[self.interface_mapper_key].get_interrupt_coalescing_tx_frames_irq(interface, value)
+        return self.add_set(path)
+
+    def set_interrupt_coalescing_tx_frame_low(self, interface: str, value: str) -> "EthernetInterfaceBuilderMixin":
+        """Set TX interrupt coalescing frame low"""
+        path = self.mappers[self.interface_mapper_key].get_interrupt_coalescing_tx_frame_low(interface, value)
+        return self.add_set(path)
+
+    def set_interrupt_coalescing_tx_frame_high(self, interface: str, value: str) -> "EthernetInterfaceBuilderMixin":
+        """Set TX interrupt coalescing frame high"""
+        path = self.mappers[self.interface_mapper_key].get_interrupt_coalescing_tx_frame_high(interface, value)
+        return self.add_set(path)
+
+    def set_interrupt_coalescing_pkt_rate_low(self, interface: str, value: str) -> "EthernetInterfaceBuilderMixin":
+        """Set interrupt coalescing packet rate low"""
+        path = self.mappers[self.interface_mapper_key].get_interrupt_coalescing_pkt_rate_low(interface, value)
+        return self.add_set(path)
+
+    def set_interrupt_coalescing_pkt_rate_high(self, interface: str, value: str) -> "EthernetInterfaceBuilderMixin":
+        """Set interrupt coalescing packet rate high"""
+        path = self.mappers[self.interface_mapper_key].get_interrupt_coalescing_pkt_rate_high(interface, value)
+        return self.add_set(path)
+
+    def set_interrupt_coalescing_sample_interval(self, interface: str, value: str) -> "EthernetInterfaceBuilderMixin":
+        """Set interrupt coalescing sample interval"""
+        path = self.mappers[self.interface_mapper_key].get_interrupt_coalescing_sample_interval(interface, value)
+        return self.add_set(path)
+
+    def set_interrupt_coalescing_stats_block_usecs(self, interface: str, value: str) -> "EthernetInterfaceBuilderMixin":
+        """Set interrupt coalescing stats block microseconds"""
+        path = self.mappers[self.interface_mapper_key].get_interrupt_coalescing_stats_block_usecs(interface, value)
+        return self.add_set(path)
+
+    def set_interrupt_coalescing_tx_aggr_max_bytes(self, interface: str, value: str) -> "EthernetInterfaceBuilderMixin":
+        """Set TX aggregation max bytes"""
+        path = self.mappers[self.interface_mapper_key].get_interrupt_coalescing_tx_aggr_max_bytes(interface, value)
+        return self.add_set(path)
+
+    def set_interrupt_coalescing_tx_aggr_max_frames(self, interface: str, value: str) -> "EthernetInterfaceBuilderMixin":
+        """Set TX aggregation max frames"""
+        path = self.mappers[self.interface_mapper_key].get_interrupt_coalescing_tx_aggr_max_frames(interface, value)
+        return self.add_set(path)
+
+    def set_interrupt_coalescing_tx_aggr_time_usecs(self, interface: str, value: str) -> "EthernetInterfaceBuilderMixin":
+        """Set TX aggregation time microseconds"""
+        path = self.mappers[self.interface_mapper_key].get_interrupt_coalescing_tx_aggr_time_usecs(interface, value)
+        return self.add_set(path)
+
+    def delete_interrupt_coalescing(self, interface: str) -> "EthernetInterfaceBuilderMixin":
+        """Delete all interrupt coalescing settings"""
+        path = self.mappers[self.interface_mapper_key].get_interrupt_coalescing_path(interface)
+        return self.add_delete(path)
+
+    # ========================================================================
+    # VIF Additional Operations
+    # ========================================================================
+
+    def set_vif_egress_qos(self, interface: str, vlan_id: str, value: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF egress QoS mapping"""
+        path = self.mappers[self.interface_mapper_key].get_vif_egress_qos(interface, vlan_id, value)
+        return self.add_set(path)
+
+    def delete_vif_egress_qos(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Delete VIF egress QoS mapping"""
+        path = self.mappers[self.interface_mapper_key].get_vif_egress_qos_path(interface, vlan_id)
+        return self.add_delete(path)
+
+    def set_vif_ingress_qos(self, interface: str, vlan_id: str, value: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF ingress QoS mapping"""
+        path = self.mappers[self.interface_mapper_key].get_vif_ingress_qos(interface, vlan_id, value)
+        return self.add_set(path)
+
+    def delete_vif_ingress_qos(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Delete VIF ingress QoS mapping"""
+        path = self.mappers[self.interface_mapper_key].get_vif_ingress_qos_path(interface, vlan_id)
+        return self.add_delete(path)
+
+    def set_vif_redirect(self, interface: str, vlan_id: str, target: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF redirect target"""
+        path = self.mappers[self.interface_mapper_key].get_vif_redirect(interface, vlan_id, target)
+        return self.add_set(path)
+
+    def delete_vif_redirect(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Delete VIF redirect"""
+        path = self.mappers[self.interface_mapper_key].get_vif_redirect_path(interface, vlan_id)
+        return self.add_delete(path)
+
+    def set_vif_ip_adjust_mss(self, interface: str, vlan_id: str, mss: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF IPv4 TCP MSS"""
+        path = self.mappers[self.interface_mapper_key].get_vif_ip_adjust_mss(interface, vlan_id, mss)
+        return self.add_set(path)
+
+    def set_vif_ip_disable_forwarding(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Disable IP forwarding on VIF"""
+        path = self.mappers[self.interface_mapper_key].get_vif_ip_disable_forwarding(interface, vlan_id)
+        return self.add_set(path)
+
+    def set_vif_ip_source_validation(self, interface: str, vlan_id: str, mode: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF IP source validation mode"""
+        path = self.mappers[self.interface_mapper_key].get_vif_ip_source_validation(interface, vlan_id, mode)
+        return self.add_set(path)
+
+    def set_vif_ip_enable_proxy_arp(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Enable proxy ARP on VIF"""
+        path = self.mappers[self.interface_mapper_key].get_vif_ip_enable_proxy_arp(interface, vlan_id)
+        return self.add_set(path)
+
+    def set_vif_ip_arp_cache_timeout(self, interface: str, vlan_id: str, timeout: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF ARP cache timeout"""
+        path = self.mappers[self.interface_mapper_key].get_vif_ip_arp_cache_timeout(interface, vlan_id, timeout)
+        return self.add_set(path)
+
+    def set_vif_mirror_ingress(self, interface: str, vlan_id: str, target: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF ingress port mirroring"""
+        path = self.mappers[self.interface_mapper_key].get_vif_mirror_ingress(interface, vlan_id, target)
+        return self.add_set(path)
+
+    def set_vif_mirror_egress(self, interface: str, vlan_id: str, target: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF egress port mirroring"""
+        path = self.mappers[self.interface_mapper_key].get_vif_mirror_egress(interface, vlan_id, target)
+        return self.add_set(path)
+
+    def delete_vif_mirror(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Delete VIF port mirroring"""
+        path = self.mappers[self.interface_mapper_key].get_vif_mirror_path(interface, vlan_id)
+        return self.add_delete(path)
+
+    def set_vif_ipv6_disable_forwarding(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Disable IPv6 forwarding on VIF"""
+        path = self.mappers[self.interface_mapper_key].get_vif_ipv6_disable_forwarding(interface, vlan_id)
+        return self.add_set(path)
+
+    def set_vif_ipv6_adjust_mss(self, interface: str, vlan_id: str, mss: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF IPv6 TCP MSS"""
+        path = self.mappers[self.interface_mapper_key].get_vif_ipv6_adjust_mss(interface, vlan_id, mss)
+        return self.add_set(path)
+
+    def set_vif_ipv6_accept_dad(self, interface: str, vlan_id: str, count: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF IPv6 accept DAD count"""
+        path = self.mappers[self.interface_mapper_key].get_vif_ipv6_accept_dad(interface, vlan_id, count)
+        return self.add_set(path)
+
+    def set_vif_ipv6_dup_addr_detect_transmits(self, interface: str, vlan_id: str, count: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF IPv6 DAD transmits"""
+        path = self.mappers[self.interface_mapper_key].get_vif_ipv6_dup_addr_detect_transmits(interface, vlan_id, count)
+        return self.add_set(path)

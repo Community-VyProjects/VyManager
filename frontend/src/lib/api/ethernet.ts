@@ -31,7 +31,11 @@ class EthernetService {
    * Configure ethernet interface using batch operations
    */
   async batchConfigure(request: BatchRequest): Promise<VyOSResponse> {
-    return apiClient.post<VyOSResponse>("/vyos/ethernet/batch", request);
+    const result = await apiClient.post<VyOSResponse>("/vyos/ethernet/batch", request);
+    if (!result.success) {
+      throw new Error(result.error || "Operation failed");
+    }
+    return result;
   }
 
   /**
