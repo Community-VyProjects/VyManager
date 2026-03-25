@@ -112,6 +112,8 @@ services:
     container_name: vymanager-backend
     ports:
       - "8000:8000"
+    volumes:
+      - ./certs:/usr/local/share/ca-certificates/custom:ro
     env_file:
       - .env
     restart: unless-stopped
@@ -481,12 +483,40 @@ npx prisma studio
 
 ## Troubleshooting
 
+### Custom CA Certificates
+
+If your VyOS instances use certificates signed by a private CA (e.g., FreeIPA, Active Directory CS, internal PKI), you can add your CA certificates so that VyManager trusts them when "Verify SSL" is enabled.
+
+1. Create a `certs` directory next to your `docker-compose.yml`:
+   ```bash
+   mkdir certs
+   ```
+
+2. Copy your CA certificate(s) into it. Files must be PEM-encoded with a `.crt` extension:
+   ```bash
+   cp /path/to/my-ca.crt ./certs/
+   ```
+
+3. Restart the backend container:
+   ```bash
+   docker compose restart backend
+   ```
+
+The backend will automatically import all `.crt` files from the `certs` directory on startup. You can add multiple CA certificates — all of them will be trusted.
+
+> **Note**: The certificate must be in PEM format (starts with `-----BEGIN CERTIFICATE-----`). If you only have the raw base64 data, wrap it with the header and footer:
+> ```
+> -----BEGIN CERTIFICATE-----
+> <your base64 certificate data>
+> -----END CERTIFICATE-----
+> ```
+
 ### Cannot Connect to VyOS Instance
 
 1. **Check API Key**: Verify the API key in VyOS matches your input
 2. **Check Network**: Ensure VyManager can reach the VyOS IP address
 3. **Check Port**: Default is 443, verify it's not blocked by firewall
-4. **Check SSL**: If using self-signed cert, set "Verify SSL" to false
+4. **Check SSL**: If using self-signed cert, set "Verify SSL" to false or add your CA certificate (see [Custom CA Certificates](#custom-ca-certificates))
 
 ### Containers Not Starting
 
