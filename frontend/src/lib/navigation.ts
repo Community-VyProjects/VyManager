@@ -53,7 +53,7 @@ export const navigation: NavItem[] = [
       { title: "Multicast", href: "/routing/multicast", requiredPermission: FeatureGroup.MULTICAST },
     ],
   },
-  { title: "PKI", href: "/pki", icon: ShieldCheck, requiredPermission: FeatureGroup.PKI },
+{ title: "PKI", href: "/pki", icon: ShieldCheck, requiredPermission: FeatureGroup.PKI },
   {
     title: "Policies",
     icon: FileText,

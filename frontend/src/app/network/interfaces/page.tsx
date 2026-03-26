@@ -16,12 +16,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, RefreshCw, AlertCircle, Search, Cable, Pencil, Trash2, Network, ChevronRight, Shield } from "lucide-react";
+import { Plus, RefreshCw, AlertCircle, Search, Cable, Pencil, Trash2, Network, ChevronRight, Shield, Boxes } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { ethernetService } from "@/lib/api/ethernet";
 import type { EthernetInterface, EthernetCapabilities, VIFConfig, VIFSConfig } from "@/lib/api/types/ethernet";
 import { wireguardService, type WireGuardInterface } from "@/lib/api/wireguard";
+import { vxlanService, type VxlanInterface, type VxlanCapabilities } from "@/lib/api/vxlan";
+import { CreateVxlanModal } from "@/components/vxlan/CreateVxlanModal";
+import { EditVxlanModal } from "@/components/vxlan/EditVxlanModal";
+import { DeleteVxlanModal } from "@/components/vxlan/DeleteVxlanModal";
 import { ComprehensiveEthernetModal } from "@/components/network/ComprehensiveEthernetModal";
 import { ComprehensiveVLANModal } from "@/components/network/ComprehensiveVLANModal";
 import { ComprehensiveVIFSModal } from "@/components/network/ComprehensiveVIFSModal";
@@ -32,7 +36,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 
-type InterfaceType = "ethernet" | "vlan" | "wireguard";
+type InterfaceType = "ethernet" | "vlan" | "wireguard" | "vxlan";
 type VlanSubTab = "vif" | "vif-s" | "vif-c";
 
 interface VLANWithParent extends VIFConfig {
@@ -55,6 +59,8 @@ export default function InterfacesPage() {
   const [interfaces, setInterfaces] = useState<EthernetInterface[]>([]);
   const [capabilities, setCapabilities] = useState<EthernetCapabilities | null>(null);
   const [wireGuardInterfaces, setWireGuardInterfaces] = useState<WireGuardInterface[]>([]);
+  const [vxlanInterfaces, setVxlanInterfaces] = useState<VxlanInterface[]>([]);
+  const [vxlanCapabilities, setVxlanCapabilities] = useState<VxlanCapabilities | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -79,19 +85,28 @@ export default function InterfacesPage() {
   const [isCreateVIFCModalOpen, setIsCreateVIFCModalOpen] = useState(false);
   const [editingVIFC, setEditingVIFC] = useState<VIFCWithParent | null>(null);
 
+  // VXLAN Modal states
+  const [isCreateVxlanModalOpen, setIsCreateVxlanModalOpen] = useState(false);
+  const [editingVxlan, setEditingVxlan] = useState<VxlanInterface | null>(null);
+  const [deletingVxlan, setDeletingVxlan] = useState<VxlanInterface | null>(null);
+
   const { canWrite } = usePermissions();
 
   const loadData = async () => {
     try {
       setError(null);
-      const [configData, capabilitiesData, wgData] = await Promise.all([
+      const [configData, capabilitiesData, wgData, vxlanData, vxlanCapData] = await Promise.all([
         ethernetService.getConfig(),
         ethernetService.getCapabilities(),
         wireguardService.getConfig(),
+        vxlanService.getConfig(),
+        vxlanService.getCapabilities(),
       ]);
       setInterfaces(configData.interfaces);
       setCapabilities(capabilitiesData);
       setWireGuardInterfaces(wgData.interfaces);
+      setVxlanInterfaces(vxlanData.interfaces);
+      setVxlanCapabilities(vxlanCapData);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load interface data");
     } finally {
@@ -136,6 +151,7 @@ export default function InterfacesPage() {
   const totalInterfaces = interfaces.length;
   const totalVlans = allVifs.length + allVifS.length + allVifC.length;
   const totalWireGuard = wireGuardInterfaces.length;
+  const totalVxlan = vxlanInterfaces.length;
 
   // Filter interfaces based on search
   const filteredInterfaces = interfaces.filter((iface) => {
@@ -339,6 +355,17 @@ export default function InterfacesPage() {
     );
   });
 
+  const filteredVxlan = vxlanInterfaces.filter((iface) => {
+    if (searchQuery === "") return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      iface.name.toLowerCase().includes(q) ||
+      (iface.description || "").toLowerCase().includes(q) ||
+      iface.addresses?.some((addr) => addr.toLowerCase().includes(q)) ||
+      (iface.vni || "").includes(q)
+    );
+  });
+
   return (
     <AppLayout>
       <div className="flex h-full">
@@ -349,7 +376,7 @@ export default function InterfacesPage() {
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Interfaces</h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {totalInterfaces + totalVlans + totalWireGuard} total
+                  {totalInterfaces + totalVlans + totalWireGuard + totalVxlan} total
                 </p>
               </div>
               <Button
@@ -449,6 +476,42 @@ export default function InterfacesPage() {
                   </div>
                 </button>
 
+                {/* VXLAN */}
+                <button
+                  onClick={() => setSelectedType("vxlan")}
+                  className={cn(
+                    "w-full text-left rounded-lg px-3 py-3 transition-all",
+                    selectedType === "vxlan"
+                      ? "bg-accent text-accent-foreground shadow-sm"
+                      : "hover:bg-accent/50"
+                  )}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={cn(
+                      "mt-0.5 rounded-md p-1.5",
+                      selectedType === "vxlan" ? "bg-primary/10" : "bg-muted"
+                    )}>
+                      <Boxes className={cn(
+                        "h-4 w-4",
+                        selectedType === "vxlan" ? "text-primary" : "text-muted-foreground"
+                      )} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="font-medium text-sm text-foreground">
+                          VXLAN
+                        </span>
+                        {selectedType === "vxlan" && (
+                          <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
+                        )}
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {totalVxlan} {totalVxlan === 1 ? "tunnel" : "tunnels"}
+                      </span>
+                    </div>
+                  </div>
+                </button>
+
                 {/* WireGuard */}
                 <button
                   onClick={() => setSelectedType("wireguard")}
@@ -496,14 +559,16 @@ export default function InterfacesPage() {
             <div className="flex items-start justify-between mb-4">
               <div className="flex-1">
                 <h1 className="text-2xl font-bold text-foreground">
-                  {selectedType === "ethernet" ? "Ethernet Interfaces" : selectedType === "vlan" ? "VLANs" : "WireGuard Interfaces"}
+                  {selectedType === "ethernet" ? "Ethernet Interfaces" : selectedType === "vlan" ? "VLANs" : selectedType === "vxlan" ? "VXLAN Interfaces" : "WireGuard Interfaces"}
                 </h1>
                 <p className="text-sm text-muted-foreground mt-2">
                   {selectedType === "ethernet"
                     ? "Physical and virtual ethernet interface configurations"
                     : selectedType === "vlan"
                       ? "802.1Q VLAN, QinQ Service (VIF-S), and QinQ Customer (VIF-C) sub-interfaces"
-                      : "WireGuard tunnel interfaces and status"}
+                      : selectedType === "vxlan"
+                        ? "VXLAN tunnel interfaces for overlay networking"
+                        : "WireGuard tunnel interfaces and status"}
                 </p>
               </div>
               <Button
@@ -513,18 +578,22 @@ export default function InterfacesPage() {
                     handleCreateVlan();
                   } else if (selectedType === "wireguard") {
                     window.location.href = "/vpn/wireguard";
+                  } else if (selectedType === "vxlan") {
+                    setIsCreateVxlanModalOpen(true);
                   } else {
                     setIsCreateInterfaceModalOpen(true);
                   }
                 }}
-                disabled={!canWrite(FeatureGroup.INTERFACES)}
+                disabled={selectedType === "vxlan" ? !canWrite(FeatureGroup.VXLAN) : !canWrite(FeatureGroup.INTERFACES)}
               >
                 <Plus className="h-4 w-4" />
                 {selectedType === "ethernet"
                   ? "Create Interface"
                   : selectedType === "vlan"
                     ? `Create ${vlanSubTabLabel[vlanSubTab]}`
-                    : "Manage WireGuard"}
+                    : selectedType === "vxlan"
+                      ? "Create VXLAN"
+                      : "Manage WireGuard"}
               </Button>
             </div>
 
@@ -559,7 +628,9 @@ export default function InterfacesPage() {
                     ? "Search by name, description, IP address, VRF, or MAC..."
                     : selectedType === "vlan"
                       ? "Search by name, parent, description, IP address, or VRF..."
-                      : "Search by name, description, address..."
+                      : selectedType === "vxlan"
+                        ? "Search by name, description, address, or VNI..."
+                        : "Search by name, description, address..."
                 }
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -729,6 +800,86 @@ export default function InterfacesPage() {
                   (item) => setEditingVIFC(item),
                 )}
               </>
+            ) : selectedType === "vxlan" ? (
+              /* VXLAN Table */
+              filteredVxlan.length === 0 ? (
+                <Card className="border-border">
+                  <CardContent className="py-12">
+                    <div className="flex flex-col items-center gap-2">
+                      <Boxes className="h-12 w-12 text-muted-foreground/30" />
+                      <p className="text-muted-foreground">
+                        {searchQuery ? "No VXLAN interfaces matching your search" : "No VXLAN interfaces configured"}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <>
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>VNI</TableHead>
+                          <TableHead>Description</TableHead>
+                          <TableHead>Addresses</TableHead>
+                          <TableHead>Source</TableHead>
+                          <TableHead>Remotes</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="w-[80px]"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredVxlan.map((vx) => (
+                          <TableRow key={vx.name} className="group">
+                            <TableCell><code className="font-semibold font-mono text-foreground">{vx.name}</code></TableCell>
+                            <TableCell className="font-mono text-sm">{vx.vni || "—"}</TableCell>
+                            <TableCell className="text-muted-foreground max-w-[180px] truncate">{vx.description || "—"}</TableCell>
+                            <TableCell>
+                              {vx.addresses?.length ? (
+                                <div className="flex flex-wrap gap-1">
+                                  {vx.addresses.slice(0, 2).map((addr, idx) => <code key={idx} className="text-xs font-mono px-1.5 py-0.5 rounded bg-accent text-foreground">{addr}</code>)}
+                                  {vx.addresses.length > 2 && <Badge variant="secondary" className="text-xs px-1.5 py-0">+{vx.addresses.length - 2}</Badge>}
+                                </div>
+                              ) : <span className="text-muted-foreground">—</span>}
+                            </TableCell>
+                            <TableCell className="text-sm">{vx.source_address || vx.source_interface || "—"}</TableCell>
+                            <TableCell>
+                              {vx.remotes.length > 0 ? (
+                                <Badge variant="secondary" className="text-xs">{vx.remotes.length}</Badge>
+                              ) : vx.group ? (
+                                <span className="text-xs text-muted-foreground">{vx.group}</span>
+                              ) : <span className="text-muted-foreground">—</span>}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={vx.disabled ? "secondary" : "default"} className="text-xs">
+                                {vx.disabled ? "Disabled" : "Enabled"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                {canWrite(FeatureGroup.VXLAN) && (
+                                  <>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingVxlan(vx)}>
+                                      <Pencil className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeletingVxlan(vx)}>
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <p className="text-sm text-muted-foreground text-center mt-3">
+                    Showing {filteredVxlan.length} of {totalVxlan} tunnel{totalVxlan !== 1 ? "s" : ""}
+                  </p>
+                </>
+              )
             ) : filteredWireGuard.length === 0 ? (
               <Card className="border-border">
                 <CardContent className="py-12">
@@ -915,6 +1066,34 @@ export default function InterfacesPage() {
           }}
         />
       )}
+
+      {/* VXLAN Modals */}
+      <CreateVxlanModal
+        open={isCreateVxlanModalOpen}
+        onOpenChange={setIsCreateVxlanModalOpen}
+        onSuccess={loadData}
+        capabilities={vxlanCapabilities}
+        existingInterfaces={vxlanInterfaces.map((i) => i.name)}
+      />
+      <EditVxlanModal
+        open={!!editingVxlan}
+        onOpenChange={(open) => !open && setEditingVxlan(null)}
+        onSuccess={() => {
+          setEditingVxlan(null);
+          loadData();
+        }}
+        capabilities={vxlanCapabilities}
+        interfaceData={editingVxlan}
+      />
+      <DeleteVxlanModal
+        open={!!deletingVxlan}
+        onOpenChange={(open) => !open && setDeletingVxlan(null)}
+        onSuccess={() => {
+          setDeletingVxlan(null);
+          loadData();
+        }}
+        interfaceData={deletingVxlan}
+      />
     </AppLayout>
   );
 }

@@ -134,6 +134,9 @@ export enum FeatureGroup {
   // PKI
   PKI = "PKI",
 
+  // VXLAN
+  VXLAN = "VXLAN",
+
   // Routing features (three-level hierarchy)
   ROUTING = "ROUTING",
   UNICAST_PROTOCOLS = "UNICAST_PROTOCOLS",

@@ -381,6 +381,7 @@ async def get_user_permissions(
                 FeatureGroup.WIREGUARD,
                 FeatureGroup.L2TP,
                 FeatureGroup.PKI,
+                FeatureGroup.VXLAN,
                 FeatureGroup.ROUTING,
                 FeatureGroup.UNICAST_PROTOCOLS,
                 FeatureGroup.BGP,
@@ -464,6 +465,7 @@ async def get_user_permissions(
                 FeatureGroup.WIREGUARD,
                 FeatureGroup.L2TP,
                 FeatureGroup.PKI,
+                FeatureGroup.VXLAN,
                 FeatureGroup.ROUTING,  # Added for three-level hierarchy
                 FeatureGroup.UNICAST_PROTOCOLS,  # Added for three-level hierarchy
                 FeatureGroup.BGP,
