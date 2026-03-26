@@ -41,6 +41,7 @@ class FeatureGroup(str, Enum):
 
     # Network features
     NETWORK = "NETWORK"
+    VXLAN = "VXLAN"
     VRF = "VRF"
     LOAD_BALANCING = "LOAD_BALANCING"
 
@@ -138,6 +139,7 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.NAT66: PermissionLevel.WRITE,
         FeatureGroup.DHCP: PermissionLevel.WRITE,
         FeatureGroup.INTERFACES: PermissionLevel.WRITE,
+        FeatureGroup.VXLAN: PermissionLevel.WRITE,
         FeatureGroup.VRF: PermissionLevel.WRITE,
         FeatureGroup.LOAD_BALANCING: PermissionLevel.WRITE,
         FeatureGroup.VPN: PermissionLevel.WRITE,
@@ -201,6 +203,7 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.NAT66: PermissionLevel.WRITE,
         FeatureGroup.DHCP: PermissionLevel.WRITE,
         FeatureGroup.INTERFACES: PermissionLevel.WRITE,
+        FeatureGroup.VXLAN: PermissionLevel.WRITE,
         FeatureGroup.VRF: PermissionLevel.WRITE,
         FeatureGroup.LOAD_BALANCING: PermissionLevel.WRITE,
         FeatureGroup.VPN: PermissionLevel.WRITE,
@@ -265,6 +268,7 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.NAT66: PermissionLevel.READ,
         FeatureGroup.DHCP: PermissionLevel.READ,
         FeatureGroup.INTERFACES: PermissionLevel.READ,
+        FeatureGroup.VXLAN: PermissionLevel.READ,
         FeatureGroup.VRF: PermissionLevel.READ,
         FeatureGroup.LOAD_BALANCING: PermissionLevel.READ,
         FeatureGroup.VPN: PermissionLevel.READ,
