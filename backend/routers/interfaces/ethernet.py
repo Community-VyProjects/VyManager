@@ -477,17 +477,60 @@ async def get_ethernet_capabilities(request: Request) -> Dict[str, Any]:
 
                 # VLANs (all versions)
                 "vlan": {
-                    "vif": True,  # 802.1q single tag
-                    "vif_s": True,  # QinQ service VLAN
-                    "vif_c": True,  # QinQ customer VLAN
+                    "vif": True,
+                    "vif_s": True,
+                    "vif_c": True,
                     "vif_address": True,
                     "vif_description": True,
                     "vif_mtu": True,
                     "vif_mac": True,
                     "vif_vrf": True,
                     "vif_disable": True,
+                    "vif_disable_link_detect": True,
+                    "vif_egress_qos": True,
+                    "vif_ingress_qos": True,
+                    "vif_redirect": True,
+                    "vif_mirror": True,
                     "vif_dhcp_options": True,
+                    "vif_dhcp_options_default_route_distance": True,
+                    "vif_dhcp_options_mtu": True,
+                    "vif_dhcp_options_no_default_route": True,
+                    "vif_dhcp_options_reject": True,
+                    "vif_dhcp_options_user_class": True,
+                    "vif_dhcp_options_vendor_class_id": True,
+                    "vif_dhcpv6_options": True,
+                    "vif_dhcpv6_options_duid": True,
+                    "vif_dhcpv6_options_no_release": True,
+                    "vif_dhcpv6_options_parameters_only": True,
+                    "vif_dhcpv6_options_rapid_commit": True,
+                    "vif_dhcpv6_options_temporary": True,
+                    "vif_dhcpv6_options_pd": True,
+                    "vif_dhcpv6_options_no_request_dns": version_float >= 1.5,
+                    "vif_dhcpv6_options_no_request_domain_name": version_float >= 1.5,
+                    "vif_ip": True,
+                    "vif_ip_adjust_mss": True,
+                    "vif_ip_arp_cache_timeout": True,
+                    "vif_ip_disable_arp_filter": True,
+                    "vif_ip_disable_forwarding": True,
+                    "vif_ip_enable_arp_accept": True,
+                    "vif_ip_enable_arp_announce": True,
+                    "vif_ip_enable_arp_ignore": True,
+                    "vif_ip_enable_directed_broadcast": True,
+                    "vif_ip_enable_proxy_arp": True,
+                    "vif_ip_proxy_arp_pvlan": True,
+                    "vif_ip_source_validation": True,
                     "vif_ipv6": True,
+                    "vif_ipv6_address_autoconf": True,
+                    "vif_ipv6_address_eui64": True,
+                    "vif_ipv6_address_interface_identifier": version_float >= 1.5,
+                    "vif_ipv6_address_no_default_link_local": True,
+                    "vif_ipv6_accept_dad": True,
+                    "vif_ipv6_adjust_mss": True,
+                    "vif_ipv6_base_reachable_time": True,
+                    "vif_ipv6_disable_forwarding": True,
+                    "vif_ipv6_dup_addr_detect_transmits": True,
+                    "vif_ipv6_source_validation": True,
+                    "vif_s_protocol": True,
                 },
 
                 # Port mirroring (all versions)
@@ -639,26 +682,60 @@ async def get_ethernet_capabilities(request: Request) -> Dict[str, Any]:
                     "delete_vif_mtu",
                     "set_vif_disable",
                     "delete_vif_disable",
+                    "set_vif_disable_link_detect",
+                    "delete_vif_disable_link_detect",
                     "set_vif_vrf",
                     "delete_vif_vrf",
                     "set_vif_mac",
                     "delete_vif_mac",
-                    "set_vif_dhcp_options_client_id",
-                    "set_vif_dhcp_options_host_name",
-                    "set_vif_ipv6_address_autoconf",
-                    "set_vif_ipv6_address_eui64",
                     "set_vif_egress_qos", "delete_vif_egress_qos",
                     "set_vif_ingress_qos", "delete_vif_ingress_qos",
                     "set_vif_redirect", "delete_vif_redirect",
+                    "set_vif_mirror_ingress", "set_vif_mirror_egress", "delete_vif_mirror",
+                    "set_vif_dhcp_options_client_id",
+                    "set_vif_dhcp_options_host_name",
+                    "set_vif_dhcp_options_default_route_distance",
+                    "set_vif_dhcp_options_mtu",
+                    "set_vif_dhcp_options_no_default_route",
+                    "set_vif_dhcp_options_reject",
+                    "set_vif_dhcp_options_user_class",
+                    "set_vif_dhcp_options_vendor_class_id",
+                    "delete_vif_dhcp_options",
+                    "set_vif_dhcpv6_options_duid",
+                    "set_vif_dhcpv6_options_no_release",
+                    "set_vif_dhcpv6_options_parameters_only",
+                    "set_vif_dhcpv6_options_rapid_commit",
+                    "set_vif_dhcpv6_options_temporary",
+                    "set_vif_dhcpv6_options_pd",
+                    "set_vif_dhcpv6_options_pd_length",
+                    "set_vif_dhcpv6_options_pd_interface",
+                    "set_vif_dhcpv6_options_pd_interface_address",
+                    "set_vif_dhcpv6_options_pd_interface_sla_id",
+                    "set_vif_dhcpv6_options_no_request_dns",
+                    "set_vif_dhcpv6_options_no_request_domain_name",
+                    "delete_vif_dhcpv6_options",
                     "set_vif_ip_adjust_mss", "set_vif_ip_adjust_mss_clamp_to_pmtu", "set_vif_ip_disable_forwarding",
                     "set_vif_ip_source_validation", "set_vif_ip_enable_proxy_arp",
                     "set_vif_ip_arp_cache_timeout",
-                    "set_vif_mirror_ingress", "set_vif_mirror_egress", "delete_vif_mirror",
+                    "set_vif_ip_disable_arp_filter",
+                    "set_vif_ip_enable_arp_accept",
+                    "set_vif_ip_enable_arp_announce",
+                    "set_vif_ip_enable_arp_ignore",
+                    "set_vif_ip_enable_directed_broadcast",
+                    "set_vif_ip_proxy_arp_pvlan",
+                    "delete_vif_ip",
+                    "set_vif_ipv6_address_autoconf",
+                    "set_vif_ipv6_address_eui64",
+                    "set_vif_ipv6_address_interface_identifier",
+                    "set_vif_ipv6_address_no_default_link_local",
                     "set_vif_ipv6_disable_forwarding", "set_vif_ipv6_adjust_mss", "set_vif_ipv6_adjust_mss_clamp_to_pmtu",
                     "set_vif_ipv6_accept_dad", "set_vif_ipv6_dup_addr_detect_transmits",
+                    "set_vif_ipv6_base_reachable_time",
+                    "set_vif_ipv6_source_validation",
                 ],
                 "vlan_vif_s": [
                     "set_vif_s",
+                    "delete_vif_s",
                     "set_vif_s_address",
                     "delete_vif_s_address",
                     "set_vif_s_description",
@@ -667,17 +744,61 @@ async def get_ethernet_capabilities(request: Request) -> Dict[str, Any]:
                     "delete_vif_s_mtu",
                     "set_vif_s_disable",
                     "delete_vif_s_disable",
+                    "set_vif_s_disable_link_detect",
+                    "delete_vif_s_disable_link_detect",
                     "set_vif_s_vrf",
                     "delete_vif_s_vrf",
                     "set_vif_s_mac",
                     "delete_vif_s_mac",
+                    "set_vif_s_egress_qos", "delete_vif_s_egress_qos",
+                    "set_vif_s_ingress_qos", "delete_vif_s_ingress_qos",
+                    "set_vif_s_redirect", "delete_vif_s_redirect",
+                    "set_vif_s_mirror_ingress", "set_vif_s_mirror_egress", "delete_vif_s_mirror",
+                    "set_vif_s_protocol", "delete_vif_s_protocol",
                     "set_vif_s_dhcp_options_client_id",
                     "set_vif_s_dhcp_options_host_name",
+                    "set_vif_s_dhcp_options_default_route_distance",
+                    "set_vif_s_dhcp_options_mtu",
+                    "set_vif_s_dhcp_options_no_default_route",
+                    "set_vif_s_dhcp_options_reject",
+                    "set_vif_s_dhcp_options_user_class",
+                    "set_vif_s_dhcp_options_vendor_class_id",
+                    "delete_vif_s_dhcp_options",
+                    "set_vif_s_dhcpv6_options_duid",
+                    "set_vif_s_dhcpv6_options_no_release",
+                    "set_vif_s_dhcpv6_options_parameters_only",
+                    "set_vif_s_dhcpv6_options_rapid_commit",
+                    "set_vif_s_dhcpv6_options_temporary",
+                    "set_vif_s_dhcpv6_options_pd",
+                    "set_vif_s_dhcpv6_options_pd_length",
+                    "set_vif_s_dhcpv6_options_pd_interface",
+                    "set_vif_s_dhcpv6_options_pd_interface_address",
+                    "set_vif_s_dhcpv6_options_pd_interface_sla_id",
+                    "set_vif_s_dhcpv6_options_no_request_dns",
+                    "set_vif_s_dhcpv6_options_no_request_domain_name",
+                    "delete_vif_s_dhcpv6_options",
+                    "set_vif_s_ip_adjust_mss", "set_vif_s_ip_disable_forwarding",
+                    "set_vif_s_ip_source_validation", "set_vif_s_ip_enable_proxy_arp",
+                    "set_vif_s_ip_arp_cache_timeout",
+                    "set_vif_s_ip_disable_arp_filter",
+                    "set_vif_s_ip_enable_arp_accept",
+                    "set_vif_s_ip_enable_arp_announce",
+                    "set_vif_s_ip_enable_arp_ignore",
+                    "set_vif_s_ip_enable_directed_broadcast",
+                    "set_vif_s_ip_proxy_arp_pvlan",
+                    "delete_vif_s_ip",
                     "set_vif_s_ipv6_address_autoconf",
                     "set_vif_s_ipv6_address_eui64",
+                    "set_vif_s_ipv6_address_interface_identifier",
+                    "set_vif_s_ipv6_address_no_default_link_local",
+                    "set_vif_s_ipv6_disable_forwarding", "set_vif_s_ipv6_adjust_mss",
+                    "set_vif_s_ipv6_accept_dad", "set_vif_s_ipv6_dup_addr_detect_transmits",
+                    "set_vif_s_ipv6_base_reachable_time",
+                    "set_vif_s_ipv6_source_validation",
                 ],
                 "vlan_vif_c": [
                     "set_vif_c",
+                    "delete_vif_c",
                     "set_vif_c_address",
                     "delete_vif_c_address",
                     "set_vif_c_description",
@@ -686,14 +807,56 @@ async def get_ethernet_capabilities(request: Request) -> Dict[str, Any]:
                     "delete_vif_c_mtu",
                     "set_vif_c_disable",
                     "delete_vif_c_disable",
+                    "set_vif_c_disable_link_detect",
+                    "delete_vif_c_disable_link_detect",
                     "set_vif_c_vrf",
                     "delete_vif_c_vrf",
                     "set_vif_c_mac",
                     "delete_vif_c_mac",
+                    "set_vif_c_egress_qos", "delete_vif_c_egress_qos",
+                    "set_vif_c_ingress_qos", "delete_vif_c_ingress_qos",
+                    "set_vif_c_redirect", "delete_vif_c_redirect",
+                    "set_vif_c_mirror_ingress", "set_vif_c_mirror_egress", "delete_vif_c_mirror",
                     "set_vif_c_dhcp_options_client_id",
                     "set_vif_c_dhcp_options_host_name",
+                    "set_vif_c_dhcp_options_default_route_distance",
+                    "set_vif_c_dhcp_options_mtu",
+                    "set_vif_c_dhcp_options_no_default_route",
+                    "set_vif_c_dhcp_options_reject",
+                    "set_vif_c_dhcp_options_user_class",
+                    "set_vif_c_dhcp_options_vendor_class_id",
+                    "delete_vif_c_dhcp_options",
+                    "set_vif_c_dhcpv6_options_duid",
+                    "set_vif_c_dhcpv6_options_no_release",
+                    "set_vif_c_dhcpv6_options_parameters_only",
+                    "set_vif_c_dhcpv6_options_rapid_commit",
+                    "set_vif_c_dhcpv6_options_temporary",
+                    "set_vif_c_dhcpv6_options_pd",
+                    "set_vif_c_dhcpv6_options_pd_length",
+                    "set_vif_c_dhcpv6_options_pd_interface",
+                    "set_vif_c_dhcpv6_options_pd_interface_address",
+                    "set_vif_c_dhcpv6_options_pd_interface_sla_id",
+                    "set_vif_c_dhcpv6_options_no_request_dns",
+                    "set_vif_c_dhcpv6_options_no_request_domain_name",
+                    "delete_vif_c_dhcpv6_options",
+                    "set_vif_c_ip_adjust_mss", "set_vif_c_ip_disable_forwarding",
+                    "set_vif_c_ip_source_validation", "set_vif_c_ip_enable_proxy_arp",
+                    "set_vif_c_ip_arp_cache_timeout",
+                    "set_vif_c_ip_disable_arp_filter",
+                    "set_vif_c_ip_enable_arp_accept",
+                    "set_vif_c_ip_enable_arp_announce",
+                    "set_vif_c_ip_enable_arp_ignore",
+                    "set_vif_c_ip_enable_directed_broadcast",
+                    "set_vif_c_ip_proxy_arp_pvlan",
+                    "delete_vif_c_ip",
                     "set_vif_c_ipv6_address_autoconf",
                     "set_vif_c_ipv6_address_eui64",
+                    "set_vif_c_ipv6_address_interface_identifier",
+                    "set_vif_c_ipv6_address_no_default_link_local",
+                    "set_vif_c_ipv6_disable_forwarding", "set_vif_c_ipv6_adjust_mss",
+                    "set_vif_c_ipv6_accept_dad", "set_vif_c_ipv6_dup_addr_detect_transmits",
+                    "set_vif_c_ipv6_base_reachable_time",
+                    "set_vif_c_ipv6_source_validation",
                 ],
                 "port_mirror": [
                     "set_mirror_ingress",
@@ -1234,6 +1397,10 @@ async def configure_interface_batch(http_request: Request, request: InterfaceBat
                 if not value:
                     raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
                 batch.set_vif_s(request.interface, value)
+            elif op_type == "delete_vif_s":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
+                batch.delete_vif_s(request.interface, value)
             elif op_type == "set_vif_c":
                 if not value:
                     raise HTTPException(status_code=400, detail=f"{op_type} requires a value (s_vlan,c_vlan)")
@@ -1242,6 +1409,13 @@ async def configure_interface_batch(http_request: Request, request: InterfaceBat
                 if len(parts) != 2:
                     raise HTTPException(status_code=400, detail=f"{op_type} value must be 's_vlan,c_vlan'")
                 batch.set_vif_c(request.interface, parts[0], parts[1])
+            elif op_type == "delete_vif_c":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (s_vlan,c_vlan)")
+                parts = value.split(",")
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 's_vlan,c_vlan'")
+                batch.delete_vif_c(request.interface, parts[0], parts[1])
             # Port Mirroring
             elif op_type == "set_mirror_ingress":
                 if not value:
@@ -1587,6 +1761,119 @@ async def configure_interface_batch(http_request: Request, request: InterfaceBat
                 if len(parts) != 2:
                     raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,prefix'")
                 batch.set_vif_ipv6_address_eui64(request.interface, parts[0], parts[1])
+            # VIF DHCP Options (extended)
+            elif op_type == "set_vif_dhcp_options_default_route_distance":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id,distance)")
+                parts = value.split(",", 1)
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,distance'")
+                batch.set_vif_dhcp_options_default_route_distance(request.interface, parts[0], parts[1])
+            elif op_type == "set_vif_dhcp_options_mtu":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.set_vif_dhcp_options_mtu(request.interface, value)
+            elif op_type == "set_vif_dhcp_options_no_default_route":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.set_vif_dhcp_options_no_default_route(request.interface, value)
+            elif op_type == "set_vif_dhcp_options_reject":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id,address)")
+                parts = value.split(",", 1)
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,address'")
+                batch.set_vif_dhcp_options_reject(request.interface, parts[0], parts[1])
+            elif op_type == "set_vif_dhcp_options_user_class":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id,user_class)")
+                parts = value.split(",", 1)
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,user_class'")
+                batch.set_vif_dhcp_options_user_class(request.interface, parts[0], parts[1])
+            elif op_type == "set_vif_dhcp_options_vendor_class_id":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id,vendor_class_id)")
+                parts = value.split(",", 1)
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,vendor_class_id'")
+                batch.set_vif_dhcp_options_vendor_class_id(request.interface, parts[0], parts[1])
+            elif op_type == "delete_vif_dhcp_options":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.delete_vif_dhcp_options(request.interface, value)
+            # VIF DHCPv6 Options
+            elif op_type == "set_vif_dhcpv6_options_duid":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id,duid)")
+                parts = value.split(",", 1)
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,duid'")
+                batch.set_vif_dhcpv6_options_duid(request.interface, parts[0], parts[1])
+            elif op_type == "set_vif_dhcpv6_options_no_release":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.set_vif_dhcpv6_options_no_release(request.interface, value)
+            elif op_type == "set_vif_dhcpv6_options_parameters_only":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.set_vif_dhcpv6_options_parameters_only(request.interface, value)
+            elif op_type == "set_vif_dhcpv6_options_rapid_commit":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.set_vif_dhcpv6_options_rapid_commit(request.interface, value)
+            elif op_type == "set_vif_dhcpv6_options_temporary":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.set_vif_dhcpv6_options_temporary(request.interface, value)
+            elif op_type == "set_vif_dhcpv6_options_pd":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id,pd_id,prefix)")
+                parts = value.split(",", 2)
+                if len(parts) != 3:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,pd_id,prefix'")
+                batch.set_vif_dhcpv6_options_pd(request.interface, parts[0], parts[1], parts[2])
+            elif op_type == "set_vif_dhcpv6_options_pd_length":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id,pd_id,length)")
+                parts = value.split(",", 2)
+                if len(parts) != 3:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,pd_id,length'")
+                batch.set_vif_dhcpv6_options_pd_length(request.interface, parts[0], parts[1], parts[2])
+            elif op_type == "set_vif_dhcpv6_options_pd_interface":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id,pd_id,interface)")
+                parts = value.split(",", 2)
+                if len(parts) != 3:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,pd_id,interface'")
+                batch.set_vif_dhcpv6_options_pd_interface(request.interface, parts[0], parts[1], parts[2])
+            elif op_type == "set_vif_dhcpv6_options_pd_interface_address":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id,pd_id,interface,address)")
+                parts = value.split(",", 3)
+                if len(parts) != 4:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,pd_id,interface,address'")
+                batch.set_vif_dhcpv6_options_pd_interface_address(request.interface, parts[0], parts[1], parts[2], parts[3])
+            elif op_type == "set_vif_dhcpv6_options_pd_interface_sla_id":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id,pd_id,interface,sla_id)")
+                parts = value.split(",", 3)
+                if len(parts) != 4:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,pd_id,interface,sla_id'")
+                batch.set_vif_dhcpv6_options_pd_interface_sla_id(request.interface, parts[0], parts[1], parts[2], parts[3])
+            elif op_type == "set_vif_dhcpv6_options_no_request_dns":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.set_vif_dhcpv6_options_no_request_dns(request.interface, value)
+            elif op_type == "set_vif_dhcpv6_options_no_request_domain_name":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.set_vif_dhcpv6_options_no_request_domain_name(request.interface, value)
+            elif op_type == "delete_vif_dhcpv6_options":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.delete_vif_dhcpv6_options(request.interface, value)
+            # VIF IP Options
             elif op_type == "set_vif_ip_adjust_mss":
                 if not value:
                     raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id,mss)")
@@ -1598,6 +1885,75 @@ async def configure_interface_batch(http_request: Request, request: InterfaceBat
                 if not value:
                     raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
                 batch.set_vif_ip_adjust_mss_clamp_to_pmtu(request.interface, value)
+            elif op_type == "set_vif_ip_arp_cache_timeout":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id,timeout)")
+                parts = value.split(",", 1)
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,timeout'")
+                batch.set_vif_ip_arp_cache_timeout(request.interface, parts[0], parts[1])
+            elif op_type == "set_vif_ip_disable_arp_filter":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.set_vif_ip_disable_arp_filter(request.interface, value)
+            elif op_type == "set_vif_ip_disable_forwarding":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.set_vif_ip_disable_forwarding(request.interface, value)
+            elif op_type == "set_vif_ip_enable_arp_accept":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.set_vif_ip_enable_arp_accept(request.interface, value)
+            elif op_type == "set_vif_ip_enable_arp_announce":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.set_vif_ip_enable_arp_announce(request.interface, value)
+            elif op_type == "set_vif_ip_enable_arp_ignore":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.set_vif_ip_enable_arp_ignore(request.interface, value)
+            elif op_type == "set_vif_ip_enable_directed_broadcast":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.set_vif_ip_enable_directed_broadcast(request.interface, value)
+            elif op_type == "set_vif_ip_enable_proxy_arp":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.set_vif_ip_enable_proxy_arp(request.interface, value)
+            elif op_type == "set_vif_ip_proxy_arp_pvlan":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.set_vif_ip_proxy_arp_pvlan(request.interface, value)
+            elif op_type == "set_vif_ip_source_validation":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id,mode)")
+                parts = value.split(",", 1)
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,mode'")
+                batch.set_vif_ip_source_validation(request.interface, parts[0], parts[1])
+            elif op_type == "delete_vif_ip":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.delete_vif_ip(request.interface, value)
+            # VIF IPv6 Options
+            elif op_type == "set_vif_ipv6_address_interface_identifier":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id,identifier)")
+                parts = value.split(",", 1)
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,identifier'")
+                batch.set_vif_ipv6_address_interface_identifier(request.interface, parts[0], parts[1])
+            elif op_type == "set_vif_ipv6_address_no_default_link_local":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.set_vif_ipv6_address_no_default_link_local(request.interface, value)
+            elif op_type == "set_vif_ipv6_accept_dad":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id,dad)")
+                parts = value.split(",", 1)
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,dad'")
+                batch.set_vif_ipv6_accept_dad(request.interface, parts[0], parts[1])
             elif op_type == "set_vif_ipv6_adjust_mss":
                 if not value:
                     raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id,mss)")
@@ -1609,6 +1965,91 @@ async def configure_interface_batch(http_request: Request, request: InterfaceBat
                 if not value:
                     raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
                 batch.set_vif_ipv6_adjust_mss_clamp_to_pmtu(request.interface, value)
+            elif op_type == "set_vif_ipv6_base_reachable_time":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id,time)")
+                parts = value.split(",", 1)
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,time'")
+                batch.set_vif_ipv6_base_reachable_time(request.interface, parts[0], parts[1])
+            elif op_type == "set_vif_ipv6_disable_forwarding":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.set_vif_ipv6_disable_forwarding(request.interface, value)
+            elif op_type == "set_vif_ipv6_dup_addr_detect_transmits":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id,transmits)")
+                parts = value.split(",", 1)
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,transmits'")
+                batch.set_vif_ipv6_dup_addr_detect_transmits(request.interface, parts[0], parts[1])
+            elif op_type == "set_vif_ipv6_source_validation":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id,mode)")
+                parts = value.split(",", 1)
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,mode'")
+                batch.set_vif_ipv6_source_validation(request.interface, parts[0], parts[1])
+            # VIF Other (redirect, mirror, QoS, disable-link-detect)
+            elif op_type == "set_vif_redirect":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id,target)")
+                parts = value.split(",", 1)
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,target'")
+                batch.set_vif_redirect(request.interface, parts[0], parts[1])
+            elif op_type == "delete_vif_redirect":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.delete_vif_redirect(request.interface, value)
+            elif op_type == "set_vif_mirror_ingress":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id,target)")
+                parts = value.split(",", 1)
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,target'")
+                batch.set_vif_mirror_ingress(request.interface, parts[0], parts[1])
+            elif op_type == "set_vif_mirror_egress":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id,target)")
+                parts = value.split(",", 1)
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,target'")
+                batch.set_vif_mirror_egress(request.interface, parts[0], parts[1])
+            elif op_type == "delete_vif_mirror":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.delete_vif_mirror(request.interface, value)
+            elif op_type == "set_vif_egress_qos":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id,qos)")
+                parts = value.split(",", 1)
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,qos'")
+                batch.set_vif_egress_qos(request.interface, parts[0], parts[1])
+            elif op_type == "delete_vif_egress_qos":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.delete_vif_egress_qos(request.interface, value)
+            elif op_type == "set_vif_ingress_qos":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id,qos)")
+                parts = value.split(",", 1)
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,qos'")
+                batch.set_vif_ingress_qos(request.interface, parts[0], parts[1])
+            elif op_type == "delete_vif_ingress_qos":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.delete_vif_ingress_qos(request.interface, value)
+            elif op_type == "set_vif_disable_link_detect":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.set_vif_disable_link_detect(request.interface, value)
+            elif op_type == "delete_vif_disable_link_detect":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.delete_vif_disable_link_detect(request.interface, value)
             # VIF-S (QinQ Service VLAN) Sub-interface Operations
             elif op_type == "set_vif_s_address":
                 if not value:
@@ -1704,6 +2145,298 @@ async def configure_interface_batch(http_request: Request, request: InterfaceBat
                 if len(parts) != 2:
                     raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,prefix'")
                 batch.set_vif_s_ipv6_address_eui64(request.interface, parts[0], parts[1])
+            # VIF-S DHCP Options (extended)
+            elif op_type == "set_vif_s_dhcp_options_default_route_distance":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id,distance)")
+                parts = value.split(",", 1)
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,distance'")
+                batch.set_vif_s_dhcp_options_default_route_distance(request.interface, parts[0], parts[1])
+            elif op_type == "set_vif_s_dhcp_options_mtu":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.set_vif_s_dhcp_options_mtu(request.interface, value)
+            elif op_type == "set_vif_s_dhcp_options_no_default_route":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.set_vif_s_dhcp_options_no_default_route(request.interface, value)
+            elif op_type == "set_vif_s_dhcp_options_reject":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id,address)")
+                parts = value.split(",", 1)
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,address'")
+                batch.set_vif_s_dhcp_options_reject(request.interface, parts[0], parts[1])
+            elif op_type == "set_vif_s_dhcp_options_user_class":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id,user_class)")
+                parts = value.split(",", 1)
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,user_class'")
+                batch.set_vif_s_dhcp_options_user_class(request.interface, parts[0], parts[1])
+            elif op_type == "set_vif_s_dhcp_options_vendor_class_id":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id,vendor_class_id)")
+                parts = value.split(",", 1)
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,vendor_class_id'")
+                batch.set_vif_s_dhcp_options_vendor_class_id(request.interface, parts[0], parts[1])
+            elif op_type == "delete_vif_s_dhcp_options":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.delete_vif_s_dhcp_options(request.interface, value)
+            # VIF-S DHCPv6 Options
+            elif op_type == "set_vif_s_dhcpv6_options_duid":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id,duid)")
+                parts = value.split(",", 1)
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,duid'")
+                batch.set_vif_s_dhcpv6_options_duid(request.interface, parts[0], parts[1])
+            elif op_type == "set_vif_s_dhcpv6_options_no_release":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.set_vif_s_dhcpv6_options_no_release(request.interface, value)
+            elif op_type == "set_vif_s_dhcpv6_options_parameters_only":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.set_vif_s_dhcpv6_options_parameters_only(request.interface, value)
+            elif op_type == "set_vif_s_dhcpv6_options_rapid_commit":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.set_vif_s_dhcpv6_options_rapid_commit(request.interface, value)
+            elif op_type == "set_vif_s_dhcpv6_options_temporary":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.set_vif_s_dhcpv6_options_temporary(request.interface, value)
+            elif op_type == "set_vif_s_dhcpv6_options_pd":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id,pd_id,prefix)")
+                parts = value.split(",", 2)
+                if len(parts) != 3:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,pd_id,prefix'")
+                batch.set_vif_s_dhcpv6_options_pd(request.interface, parts[0], parts[1], parts[2])
+            elif op_type == "set_vif_s_dhcpv6_options_pd_length":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id,pd_id,length)")
+                parts = value.split(",", 2)
+                if len(parts) != 3:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,pd_id,length'")
+                batch.set_vif_s_dhcpv6_options_pd_length(request.interface, parts[0], parts[1], parts[2])
+            elif op_type == "set_vif_s_dhcpv6_options_pd_interface":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id,pd_id,interface)")
+                parts = value.split(",", 2)
+                if len(parts) != 3:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,pd_id,interface'")
+                batch.set_vif_s_dhcpv6_options_pd_interface(request.interface, parts[0], parts[1], parts[2])
+            elif op_type == "set_vif_s_dhcpv6_options_pd_interface_address":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id,pd_id,interface,address)")
+                parts = value.split(",", 3)
+                if len(parts) != 4:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,pd_id,interface,address'")
+                batch.set_vif_s_dhcpv6_options_pd_interface_address(request.interface, parts[0], parts[1], parts[2], parts[3])
+            elif op_type == "set_vif_s_dhcpv6_options_pd_interface_sla_id":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id,pd_id,interface,sla_id)")
+                parts = value.split(",", 3)
+                if len(parts) != 4:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,pd_id,interface,sla_id'")
+                batch.set_vif_s_dhcpv6_options_pd_interface_sla_id(request.interface, parts[0], parts[1], parts[2], parts[3])
+            elif op_type == "set_vif_s_dhcpv6_options_no_request_dns":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.set_vif_s_dhcpv6_options_no_request_dns(request.interface, value)
+            elif op_type == "set_vif_s_dhcpv6_options_no_request_domain_name":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.set_vif_s_dhcpv6_options_no_request_domain_name(request.interface, value)
+            elif op_type == "delete_vif_s_dhcpv6_options":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.delete_vif_s_dhcpv6_options(request.interface, value)
+            # VIF-S IP Options
+            elif op_type == "set_vif_s_ip_adjust_mss":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id,mss)")
+                parts = value.split(",", 1)
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,mss'")
+                batch.set_vif_s_ip_adjust_mss(request.interface, parts[0], parts[1])
+            elif op_type == "set_vif_s_ip_arp_cache_timeout":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id,timeout)")
+                parts = value.split(",", 1)
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,timeout'")
+                batch.set_vif_s_ip_arp_cache_timeout(request.interface, parts[0], parts[1])
+            elif op_type == "set_vif_s_ip_disable_arp_filter":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.set_vif_s_ip_disable_arp_filter(request.interface, value)
+            elif op_type == "set_vif_s_ip_disable_forwarding":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.set_vif_s_ip_disable_forwarding(request.interface, value)
+            elif op_type == "set_vif_s_ip_enable_arp_accept":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.set_vif_s_ip_enable_arp_accept(request.interface, value)
+            elif op_type == "set_vif_s_ip_enable_arp_announce":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.set_vif_s_ip_enable_arp_announce(request.interface, value)
+            elif op_type == "set_vif_s_ip_enable_arp_ignore":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.set_vif_s_ip_enable_arp_ignore(request.interface, value)
+            elif op_type == "set_vif_s_ip_enable_directed_broadcast":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.set_vif_s_ip_enable_directed_broadcast(request.interface, value)
+            elif op_type == "set_vif_s_ip_enable_proxy_arp":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.set_vif_s_ip_enable_proxy_arp(request.interface, value)
+            elif op_type == "set_vif_s_ip_proxy_arp_pvlan":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.set_vif_s_ip_proxy_arp_pvlan(request.interface, value)
+            elif op_type == "set_vif_s_ip_source_validation":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id,mode)")
+                parts = value.split(",", 1)
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,mode'")
+                batch.set_vif_s_ip_source_validation(request.interface, parts[0], parts[1])
+            elif op_type == "delete_vif_s_ip":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.delete_vif_s_ip(request.interface, value)
+            # VIF-S IPv6 Options
+            elif op_type == "set_vif_s_ipv6_address_interface_identifier":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id,identifier)")
+                parts = value.split(",", 1)
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,identifier'")
+                batch.set_vif_s_ipv6_address_interface_identifier(request.interface, parts[0], parts[1])
+            elif op_type == "set_vif_s_ipv6_address_no_default_link_local":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.set_vif_s_ipv6_address_no_default_link_local(request.interface, value)
+            elif op_type == "set_vif_s_ipv6_accept_dad":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id,dad)")
+                parts = value.split(",", 1)
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,dad'")
+                batch.set_vif_s_ipv6_accept_dad(request.interface, parts[0], parts[1])
+            elif op_type == "set_vif_s_ipv6_adjust_mss":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id,mss)")
+                parts = value.split(",", 1)
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,mss'")
+                batch.set_vif_s_ipv6_adjust_mss(request.interface, parts[0], parts[1])
+            elif op_type == "set_vif_s_ipv6_base_reachable_time":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id,time)")
+                parts = value.split(",", 1)
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,time'")
+                batch.set_vif_s_ipv6_base_reachable_time(request.interface, parts[0], parts[1])
+            elif op_type == "set_vif_s_ipv6_disable_forwarding":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.set_vif_s_ipv6_disable_forwarding(request.interface, value)
+            elif op_type == "set_vif_s_ipv6_dup_addr_detect_transmits":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id,transmits)")
+                parts = value.split(",", 1)
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,transmits'")
+                batch.set_vif_s_ipv6_dup_addr_detect_transmits(request.interface, parts[0], parts[1])
+            elif op_type == "set_vif_s_ipv6_source_validation":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id,mode)")
+                parts = value.split(",", 1)
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,mode'")
+                batch.set_vif_s_ipv6_source_validation(request.interface, parts[0], parts[1])
+            # VIF-S Other (redirect, mirror, QoS, protocol, disable-link-detect)
+            elif op_type == "set_vif_s_redirect":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id,target)")
+                parts = value.split(",", 1)
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,target'")
+                batch.set_vif_s_redirect(request.interface, parts[0], parts[1])
+            elif op_type == "delete_vif_s_redirect":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.delete_vif_s_redirect(request.interface, value)
+            elif op_type == "set_vif_s_mirror_ingress":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id,target)")
+                parts = value.split(",", 1)
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,target'")
+                batch.set_vif_s_mirror_ingress(request.interface, parts[0], parts[1])
+            elif op_type == "set_vif_s_mirror_egress":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id,target)")
+                parts = value.split(",", 1)
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,target'")
+                batch.set_vif_s_mirror_egress(request.interface, parts[0], parts[1])
+            elif op_type == "delete_vif_s_mirror":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.delete_vif_s_mirror(request.interface, value)
+            elif op_type == "set_vif_s_egress_qos":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id,qos)")
+                parts = value.split(",", 1)
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,qos'")
+                batch.set_vif_s_egress_qos(request.interface, parts[0], parts[1])
+            elif op_type == "delete_vif_s_egress_qos":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.delete_vif_s_egress_qos(request.interface, value)
+            elif op_type == "set_vif_s_ingress_qos":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id,qos)")
+                parts = value.split(",", 1)
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,qos'")
+                batch.set_vif_s_ingress_qos(request.interface, parts[0], parts[1])
+            elif op_type == "delete_vif_s_ingress_qos":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.delete_vif_s_ingress_qos(request.interface, value)
+            elif op_type == "set_vif_s_protocol":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id,protocol)")
+                parts = value.split(",", 1)
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 'vlan_id,protocol'")
+                batch.set_vif_s_protocol(request.interface, parts[0], parts[1])
+            elif op_type == "delete_vif_s_protocol":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.delete_vif_s_protocol(request.interface, value)
+            elif op_type == "set_vif_s_disable_link_detect":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.set_vif_s_disable_link_detect(request.interface, value)
+            elif op_type == "delete_vif_s_disable_link_detect":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (vlan_id)")
+                batch.delete_vif_s_disable_link_detect(request.interface, value)
             # VIF-C (QinQ Customer VLAN) Sub-interface Operations
             elif op_type == "set_vif_c_address":
                 if not value:
@@ -1817,6 +2550,340 @@ async def configure_interface_batch(http_request: Request, request: InterfaceBat
                 if len(parts) != 3:
                     raise HTTPException(status_code=400, detail=f"{op_type} value must be 's_vlan,c_vlan,prefix'")
                 batch.set_vif_c_ipv6_address_eui64(request.interface, parts[0], parts[1], parts[2])
+            # VIF-C DHCP Options (new)
+            elif op_type == "set_vif_c_dhcp_options_default_route_distance":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (s_vlan,c_vlan,distance)")
+                parts = value.split(",", 2)
+                if len(parts) != 3:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 's_vlan,c_vlan,distance'")
+                batch.set_vif_c_dhcp_options_default_route_distance(request.interface, parts[0], parts[1], parts[2])
+            elif op_type == "set_vif_c_dhcp_options_mtu":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (s_vlan,c_vlan)")
+                parts = value.split(",")
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 's_vlan,c_vlan'")
+                batch.set_vif_c_dhcp_options_mtu(request.interface, parts[0], parts[1])
+            elif op_type == "set_vif_c_dhcp_options_no_default_route":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (s_vlan,c_vlan)")
+                parts = value.split(",")
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 's_vlan,c_vlan'")
+                batch.set_vif_c_dhcp_options_no_default_route(request.interface, parts[0], parts[1])
+            elif op_type == "set_vif_c_dhcp_options_reject":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (s_vlan,c_vlan,address)")
+                parts = value.split(",", 2)
+                if len(parts) != 3:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 's_vlan,c_vlan,address'")
+                batch.set_vif_c_dhcp_options_reject(request.interface, parts[0], parts[1], parts[2])
+            elif op_type == "set_vif_c_dhcp_options_user_class":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (s_vlan,c_vlan,user_class)")
+                parts = value.split(",", 2)
+                if len(parts) != 3:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 's_vlan,c_vlan,user_class'")
+                batch.set_vif_c_dhcp_options_user_class(request.interface, parts[0], parts[1], parts[2])
+            elif op_type == "set_vif_c_dhcp_options_vendor_class_id":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (s_vlan,c_vlan,vendor_class_id)")
+                parts = value.split(",", 2)
+                if len(parts) != 3:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 's_vlan,c_vlan,vendor_class_id'")
+                batch.set_vif_c_dhcp_options_vendor_class_id(request.interface, parts[0], parts[1], parts[2])
+            elif op_type == "delete_vif_c_dhcp_options":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (s_vlan,c_vlan)")
+                parts = value.split(",")
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 's_vlan,c_vlan'")
+                batch.delete_vif_c_dhcp_options(request.interface, parts[0], parts[1])
+            # VIF-C DHCPv6 Options (new)
+            elif op_type == "set_vif_c_dhcpv6_options_duid":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (s_vlan,c_vlan,duid)")
+                parts = value.split(",", 2)
+                if len(parts) != 3:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 's_vlan,c_vlan,duid'")
+                batch.set_vif_c_dhcpv6_options_duid(request.interface, parts[0], parts[1], parts[2])
+            elif op_type == "set_vif_c_dhcpv6_options_no_release":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (s_vlan,c_vlan)")
+                parts = value.split(",")
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 's_vlan,c_vlan'")
+                batch.set_vif_c_dhcpv6_options_no_release(request.interface, parts[0], parts[1])
+            elif op_type == "set_vif_c_dhcpv6_options_parameters_only":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (s_vlan,c_vlan)")
+                parts = value.split(",")
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 's_vlan,c_vlan'")
+                batch.set_vif_c_dhcpv6_options_parameters_only(request.interface, parts[0], parts[1])
+            elif op_type == "set_vif_c_dhcpv6_options_rapid_commit":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (s_vlan,c_vlan)")
+                parts = value.split(",")
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 's_vlan,c_vlan'")
+                batch.set_vif_c_dhcpv6_options_rapid_commit(request.interface, parts[0], parts[1])
+            elif op_type == "set_vif_c_dhcpv6_options_temporary":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (s_vlan,c_vlan)")
+                parts = value.split(",")
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 's_vlan,c_vlan'")
+                batch.set_vif_c_dhcpv6_options_temporary(request.interface, parts[0], parts[1])
+            elif op_type == "set_vif_c_dhcpv6_options_pd":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (s_vlan,c_vlan,pd_id,prefix)")
+                parts = value.split(",", 3)
+                if len(parts) != 4:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 's_vlan,c_vlan,pd_id,prefix'")
+                batch.set_vif_c_dhcpv6_options_pd(request.interface, parts[0], parts[1], parts[2], parts[3])
+            elif op_type == "set_vif_c_dhcpv6_options_pd_length":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (s_vlan,c_vlan,pd_id,length)")
+                parts = value.split(",", 3)
+                if len(parts) != 4:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 's_vlan,c_vlan,pd_id,length'")
+                batch.set_vif_c_dhcpv6_options_pd_length(request.interface, parts[0], parts[1], parts[2], parts[3])
+            elif op_type == "set_vif_c_dhcpv6_options_pd_interface":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (s_vlan,c_vlan,pd_id,interface)")
+                parts = value.split(",", 3)
+                if len(parts) != 4:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 's_vlan,c_vlan,pd_id,interface'")
+                batch.set_vif_c_dhcpv6_options_pd_interface(request.interface, parts[0], parts[1], parts[2], parts[3])
+            elif op_type == "set_vif_c_dhcpv6_options_pd_interface_address":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (s_vlan,c_vlan,pd_id,interface,address)")
+                parts = value.split(",", 4)
+                if len(parts) != 5:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 's_vlan,c_vlan,pd_id,interface,address'")
+                batch.set_vif_c_dhcpv6_options_pd_interface_address(request.interface, parts[0], parts[1], parts[2], parts[3], parts[4])
+            elif op_type == "set_vif_c_dhcpv6_options_pd_interface_sla_id":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (s_vlan,c_vlan,pd_id,interface,sla_id)")
+                parts = value.split(",", 4)
+                if len(parts) != 5:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 's_vlan,c_vlan,pd_id,interface,sla_id'")
+                batch.set_vif_c_dhcpv6_options_pd_interface_sla_id(request.interface, parts[0], parts[1], parts[2], parts[3], parts[4])
+            elif op_type == "set_vif_c_dhcpv6_options_no_request_dns":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (s_vlan,c_vlan)")
+                parts = value.split(",")
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 's_vlan,c_vlan'")
+                batch.set_vif_c_dhcpv6_options_no_request_dns(request.interface, parts[0], parts[1])
+            elif op_type == "set_vif_c_dhcpv6_options_no_request_domain_name":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (s_vlan,c_vlan)")
+                parts = value.split(",")
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 's_vlan,c_vlan'")
+                batch.set_vif_c_dhcpv6_options_no_request_domain_name(request.interface, parts[0], parts[1])
+            elif op_type == "delete_vif_c_dhcpv6_options":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (s_vlan,c_vlan)")
+                parts = value.split(",")
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 's_vlan,c_vlan'")
+                batch.delete_vif_c_dhcpv6_options(request.interface, parts[0], parts[1])
+            # VIF-C IP Options (new)
+            elif op_type == "set_vif_c_ip_adjust_mss":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (s_vlan,c_vlan,mss)")
+                parts = value.split(",", 2)
+                if len(parts) != 3:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 's_vlan,c_vlan,mss'")
+                batch.set_vif_c_ip_adjust_mss(request.interface, parts[0], parts[1], parts[2])
+            elif op_type == "set_vif_c_ip_arp_cache_timeout":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (s_vlan,c_vlan,timeout)")
+                parts = value.split(",", 2)
+                if len(parts) != 3:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 's_vlan,c_vlan,timeout'")
+                batch.set_vif_c_ip_arp_cache_timeout(request.interface, parts[0], parts[1], parts[2])
+            elif op_type == "set_vif_c_ip_disable_arp_filter":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (s_vlan,c_vlan)")
+                parts = value.split(",")
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 's_vlan,c_vlan'")
+                batch.set_vif_c_ip_disable_arp_filter(request.interface, parts[0], parts[1])
+            elif op_type == "set_vif_c_ip_disable_forwarding":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (s_vlan,c_vlan)")
+                parts = value.split(",")
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 's_vlan,c_vlan'")
+                batch.set_vif_c_ip_disable_forwarding(request.interface, parts[0], parts[1])
+            elif op_type == "set_vif_c_ip_enable_arp_accept":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (s_vlan,c_vlan)")
+                parts = value.split(",")
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 's_vlan,c_vlan'")
+                batch.set_vif_c_ip_enable_arp_accept(request.interface, parts[0], parts[1])
+            elif op_type == "set_vif_c_ip_enable_arp_announce":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (s_vlan,c_vlan)")
+                parts = value.split(",")
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 's_vlan,c_vlan'")
+                batch.set_vif_c_ip_enable_arp_announce(request.interface, parts[0], parts[1])
+            elif op_type == "set_vif_c_ip_enable_arp_ignore":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (s_vlan,c_vlan)")
+                parts = value.split(",")
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 's_vlan,c_vlan'")
+                batch.set_vif_c_ip_enable_arp_ignore(request.interface, parts[0], parts[1])
+            elif op_type == "set_vif_c_ip_enable_directed_broadcast":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (s_vlan,c_vlan)")
+                parts = value.split(",")
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 's_vlan,c_vlan'")
+                batch.set_vif_c_ip_enable_directed_broadcast(request.interface, parts[0], parts[1])
+            elif op_type == "set_vif_c_ip_enable_proxy_arp":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (s_vlan,c_vlan)")
+                parts = value.split(",")
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 's_vlan,c_vlan'")
+                batch.set_vif_c_ip_enable_proxy_arp(request.interface, parts[0], parts[1])
+            elif op_type == "set_vif_c_ip_proxy_arp_pvlan":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (s_vlan,c_vlan)")
+                parts = value.split(",")
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 's_vlan,c_vlan'")
+                batch.set_vif_c_ip_proxy_arp_pvlan(request.interface, parts[0], parts[1])
+            elif op_type == "set_vif_c_ip_source_validation":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (s_vlan,c_vlan,mode)")
+                parts = value.split(",", 2)
+                if len(parts) != 3:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 's_vlan,c_vlan,mode'")
+                batch.set_vif_c_ip_source_validation(request.interface, parts[0], parts[1], parts[2])
+            elif op_type == "delete_vif_c_ip":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (s_vlan,c_vlan)")
+                parts = value.split(",")
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 's_vlan,c_vlan'")
+                batch.delete_vif_c_ip(request.interface, parts[0], parts[1])
+            # VIF-C IPv6 Options (new)
+            elif op_type == "set_vif_c_ipv6_address_interface_identifier":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (s_vlan,c_vlan,identifier)")
+                parts = value.split(",", 2)
+                if len(parts) != 3:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 's_vlan,c_vlan,identifier'")
+                batch.set_vif_c_ipv6_address_interface_identifier(request.interface, parts[0], parts[1], parts[2])
+            elif op_type == "set_vif_c_ipv6_address_no_default_link_local":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (s_vlan,c_vlan)")
+                parts = value.split(",")
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 's_vlan,c_vlan'")
+                batch.set_vif_c_ipv6_address_no_default_link_local(request.interface, parts[0], parts[1])
+            elif op_type == "set_vif_c_ipv6_accept_dad":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (s_vlan,c_vlan,count)")
+                parts = value.split(",", 2)
+                if len(parts) != 3:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 's_vlan,c_vlan,count'")
+                batch.set_vif_c_ipv6_accept_dad(request.interface, parts[0], parts[1], parts[2])
+            elif op_type == "set_vif_c_ipv6_adjust_mss":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (s_vlan,c_vlan,mss)")
+                parts = value.split(",", 2)
+                if len(parts) != 3:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 's_vlan,c_vlan,mss'")
+                batch.set_vif_c_ipv6_adjust_mss(request.interface, parts[0], parts[1], parts[2])
+            elif op_type == "set_vif_c_ipv6_base_reachable_time":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (s_vlan,c_vlan,time)")
+                parts = value.split(",", 2)
+                if len(parts) != 3:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 's_vlan,c_vlan,time'")
+                batch.set_vif_c_ipv6_base_reachable_time(request.interface, parts[0], parts[1], parts[2])
+            elif op_type == "set_vif_c_ipv6_disable_forwarding":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (s_vlan,c_vlan)")
+                parts = value.split(",")
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 's_vlan,c_vlan'")
+                batch.set_vif_c_ipv6_disable_forwarding(request.interface, parts[0], parts[1])
+            elif op_type == "set_vif_c_ipv6_dup_addr_detect_transmits":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (s_vlan,c_vlan,count)")
+                parts = value.split(",", 2)
+                if len(parts) != 3:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 's_vlan,c_vlan,count'")
+                batch.set_vif_c_ipv6_dup_addr_detect_transmits(request.interface, parts[0], parts[1], parts[2])
+            elif op_type == "set_vif_c_ipv6_source_validation":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (s_vlan,c_vlan,mode)")
+                parts = value.split(",", 2)
+                if len(parts) != 3:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 's_vlan,c_vlan,mode'")
+                batch.set_vif_c_ipv6_source_validation(request.interface, parts[0], parts[1], parts[2])
+            # VIF-C Redirect, Mirror, QoS, Disable-link-detect (new)
+            elif op_type == "set_vif_c_redirect":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (s_vlan,c_vlan,target)")
+                parts = value.split(",", 2)
+                if len(parts) != 3:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 's_vlan,c_vlan,target'")
+                batch.set_vif_c_redirect(request.interface, parts[0], parts[1], parts[2])
+            elif op_type == "delete_vif_c_redirect":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (s_vlan,c_vlan)")
+                parts = value.split(",")
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 's_vlan,c_vlan'")
+                batch.delete_vif_c_redirect(request.interface, parts[0], parts[1])
+            elif op_type == "set_vif_c_mirror_ingress":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (s_vlan,c_vlan,target)")
+                parts = value.split(",", 2)
+                if len(parts) != 3:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 's_vlan,c_vlan,target'")
+                batch.set_vif_c_mirror_ingress(request.interface, parts[0], parts[1], parts[2])
+            elif op_type == "set_vif_c_mirror_egress":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (s_vlan,c_vlan,target)")
+                parts = value.split(",", 2)
+                if len(parts) != 3:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 's_vlan,c_vlan,target'")
+                batch.set_vif_c_mirror_egress(request.interface, parts[0], parts[1], parts[2])
+            elif op_type == "delete_vif_c_mirror":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (s_vlan,c_vlan)")
+                parts = value.split(",")
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 's_vlan,c_vlan'")
+                batch.delete_vif_c_mirror(request.interface, parts[0], parts[1])
+            elif op_type == "set_vif_c_disable_link_detect":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (s_vlan,c_vlan)")
+                parts = value.split(",")
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 's_vlan,c_vlan'")
+                batch.set_vif_c_disable_link_detect(request.interface, parts[0], parts[1])
+            elif op_type == "delete_vif_c_disable_link_detect":
+                if not value:
+                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value (s_vlan,c_vlan)")
+                parts = value.split(",")
+                if len(parts) != 2:
+                    raise HTTPException(status_code=400, detail=f"{op_type} value must be 's_vlan,c_vlan'")
+                batch.delete_vif_c_disable_link_detect(request.interface, parts[0], parts[1])
             else:
                 raise HTTPException(
                     status_code=400,

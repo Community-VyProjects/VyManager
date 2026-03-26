@@ -25,22 +25,23 @@ import { ethernetService } from "@/lib/api/ethernet";
 import type { EthernetInterface, EthernetCapabilities, VIFConfig, BatchOperation } from "@/lib/api/types/ethernet";
 import { Loader2, X } from "lucide-react";
 
-interface VLANWithParent extends VIFConfig {
+interface VIFCWithParent extends VIFConfig {
   parentInterface: string;
+  sVlanId: string;
   fullName: string;
 }
 
-interface ComprehensiveVLANModalProps {
+interface ComprehensiveVIFCModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  vlan?: VLANWithParent | null;
+  vlan?: VIFCWithParent | null;
   interfaces: EthernetInterface[];
   capabilities: EthernetCapabilities | null;
   onSuccess: () => void;
   mode: "create" | "edit";
 }
 
-export function ComprehensiveVLANModal({
+export function ComprehensiveVIFCModal({
   open,
   onOpenChange,
   vlan,
@@ -48,27 +49,30 @@ export function ComprehensiveVLANModal({
   capabilities,
   onSuccess,
   mode,
-}: ComprehensiveVLANModalProps) {
+}: ComprehensiveVIFCModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Basic settings
+  // Basic
   const [parentInterface, setParentInterface] = useState("");
-  const [vlanId, setVlanId] = useState("");
+  const [sVlanId, setSVlanId] = useState("");
+  const [cVlanId, setCVlanId] = useState("");
   const [description, setDescription] = useState("");
   const [addresses, setAddresses] = useState<string[]>([]);
+  const [disabled, setDisabled] = useState(false);
+
+  // Advanced
   const [mtu, setMtu] = useState("");
   const [mac, setMac] = useState("");
   const [vrf, setVrf] = useState("");
-  const [disabled, setDisabled] = useState(false);
-  const [disableLinkDetect, setDisableLinkDetect] = useState(false);
   const [redirect, setRedirect] = useState("");
   const [egressQos, setEgressQos] = useState("");
   const [ingressQos, setIngressQos] = useState("");
   const [mirrorIngress, setMirrorIngress] = useState("");
   const [mirrorEgress, setMirrorEgress] = useState("");
+  const [disableLinkDetect, setDisableLinkDetect] = useState(false);
 
-  // DHCP options
+  // DHCP
   const [dhcpClientId, setDhcpClientId] = useState("");
   const [dhcpHostName, setDhcpHostName] = useState("");
   const [dhcpDefaultRouteDistance, setDhcpDefaultRouteDistance] = useState("");
@@ -77,8 +81,6 @@ export function ComprehensiveVLANModal({
   const [dhcpReject, setDhcpReject] = useState("");
   const [dhcpUserClass, setDhcpUserClass] = useState("");
   const [dhcpVendorClassId, setDhcpVendorClassId] = useState("");
-
-  // DHCPv6 options
   const [dhcpv6Duid, setDhcpv6Duid] = useState("");
   const [dhcpv6NoRelease, setDhcpv6NoRelease] = useState(false);
   const [dhcpv6ParametersOnly, setDhcpv6ParametersOnly] = useState(false);
@@ -87,7 +89,7 @@ export function ComprehensiveVLANModal({
   const [dhcpv6NoRequestDns, setDhcpv6NoRequestDns] = useState(false);
   const [dhcpv6NoRequestDomainName, setDhcpv6NoRequestDomainName] = useState(false);
 
-  // IP settings
+  // IP
   const [ipAdjustMss, setIpAdjustMss] = useState("");
   const [ipArpCacheTimeout, setIpArpCacheTimeout] = useState("");
   const [ipDisableArpFilter, setIpDisableArpFilter] = useState(false);
@@ -100,10 +102,7 @@ export function ComprehensiveVLANModal({
   const [ipProxyArpPvlan, setIpProxyArpPvlan] = useState(false);
   const [ipSourceValidation, setIpSourceValidation] = useState("");
 
-  // TCP MSS settings
-  const [mssClamping, setMssClamping] = useState(false);
-
-  // IPv6 settings
+  // IPv6
   const [ipv6Autoconf, setIpv6Autoconf] = useState(false);
   const [ipv6Eui64, setIpv6Eui64] = useState("");
   const [ipv6AcceptDad, setIpv6AcceptDad] = useState("");
@@ -115,37 +114,35 @@ export function ComprehensiveVLANModal({
   const [ipv6InterfaceIdentifier, setIpv6InterfaceIdentifier] = useState("");
   const [ipv6NoDefaultLinkLocal, setIpv6NoDefaultLinkLocal] = useState(false);
 
-  // Initialize form from existing VLAN data
+  // Get available S-VLANs for selected parent interface
+  const selectedInterface = interfaces.find((i) => i.name === parentInterface);
+  const availableSVlans = selectedInterface?.vif_s || [];
+
   useEffect(() => {
-    if (vlan && mode === "edit") {
+    if (mode === "edit" && vlan) {
       setParentInterface(vlan.parentInterface);
-      setVlanId(vlan.vlan_id);
+      setSVlanId(vlan.sVlanId);
+      setCVlanId(vlan.vlan_id);
       setDescription(vlan.description || "");
-      setAddresses(vlan.addresses.length > 0 ? [...vlan.addresses] : []);
+      setAddresses(vlan.addresses?.length ? [...vlan.addresses] : []);
+      setDisabled(vlan.disable || false);
       setMtu(vlan.mtu || "");
       setMac(vlan.mac || "");
       setVrf(vlan.vrf || "");
-      setDisabled(vlan.disable || false);
-      setMssClamping(vlan.mss_clamping || false);
-      setDisableLinkDetect(vlan.disable_link_detect || false);
       setRedirect(vlan.redirect || "");
       setEgressQos(vlan.egress_qos || "");
       setIngressQos(vlan.ingress_qos || "");
       setMirrorIngress(vlan.mirror?.ingress || "");
       setMirrorEgress(vlan.mirror?.egress || "");
-
-      // DHCP
+      setDisableLinkDetect(vlan.disable_link_detect || false);
       setDhcpClientId(vlan.dhcp_options?.client_id || "");
       setDhcpHostName(vlan.dhcp_options?.host_name || "");
       setDhcpDefaultRouteDistance(vlan.dhcp_options?.default_route_distance || "");
       setDhcpMtu(vlan.dhcp_options?.mtu || false);
       setDhcpNoDefaultRoute(vlan.dhcp_options?.no_default_route || false);
-      const rejectVal = vlan.dhcp_options?.reject;
-      setDhcpReject(Array.isArray(rejectVal) ? rejectVal.join(",") : rejectVal || "");
+      setDhcpReject(Array.isArray(vlan.dhcp_options?.reject) ? vlan.dhcp_options.reject.join(",") : vlan.dhcp_options?.reject || "");
       setDhcpUserClass(vlan.dhcp_options?.user_class || "");
       setDhcpVendorClassId(vlan.dhcp_options?.vendor_class_id || "");
-
-      // DHCPv6
       setDhcpv6Duid(vlan.dhcpv6_options?.duid || "");
       setDhcpv6NoRelease(vlan.dhcpv6_options?.no_release || false);
       setDhcpv6ParametersOnly(vlan.dhcpv6_options?.parameters_only || false);
@@ -153,8 +150,6 @@ export function ComprehensiveVLANModal({
       setDhcpv6Temporary(vlan.dhcpv6_options?.temporary || false);
       setDhcpv6NoRequestDns(vlan.dhcpv6_options?.no_request_dns || false);
       setDhcpv6NoRequestDomainName(vlan.dhcpv6_options?.no_request_domain_name || false);
-
-      // IP
       setIpAdjustMss(vlan.ip?.adjust_mss || "");
       setIpArpCacheTimeout(vlan.ip?.arp_cache_timeout || "");
       setIpDisableArpFilter(vlan.ip?.disable_arp_filter || false);
@@ -166,8 +161,6 @@ export function ComprehensiveVLANModal({
       setIpEnableProxyArp(vlan.ip?.enable_proxy_arp || false);
       setIpProxyArpPvlan(vlan.ip?.proxy_arp_pvlan || false);
       setIpSourceValidation(vlan.ip?.source_validation || "");
-
-      // IPv6
       setIpv6AcceptDad(vlan.ipv6?.accept_dad || "");
       setIpv6AdjustMss(vlan.ipv6?.adjust_mss || "");
       setIpv6BaseReachableTime(vlan.ipv6?.base_reachable_time || "");
@@ -183,7 +176,8 @@ export function ComprehensiveVLANModal({
 
   const resetForm = () => {
     setParentInterface("");
-    setVlanId("");
+    setSVlanId("");
+    setCVlanId("");
     setDescription("");
     setAddresses([]);
     setMtu("");
@@ -198,7 +192,6 @@ export function ComprehensiveVLANModal({
     setMirrorEgress("");
     setDhcpClientId("");
     setDhcpHostName("");
-    setMssClamping(false);
     setDhcpDefaultRouteDistance("");
     setDhcpMtu(false);
     setDhcpNoDefaultRoute(false);
@@ -236,217 +229,161 @@ export function ComprehensiveVLANModal({
     setError(null);
   };
 
-  const handleAddAddress = () => {
-    setAddresses([...addresses, ""]);
-  };
-
-  const handleRemoveAddress = (index: number) => {
-    setAddresses(addresses.filter((_, i) => i !== index));
-  };
-
+  const handleAddAddress = () => setAddresses([...addresses, ""]);
+  const handleRemoveAddress = (index: number) => setAddresses(addresses.filter((_, i) => i !== index));
   const handleAddressChange = (index: number, value: string) => {
     const newAddresses = [...addresses];
     newAddresses[index] = value;
     setAddresses(newAddresses);
   };
 
-  /** Helper: add a string field op with diff checking */
+  /** VIF-C value format: s_vlan,c_vlan,value */
   const addStringOp = (
-    ops: BatchOperation[],
-    vid: string,
-    setOp: string,
-    deleteOp: string,
-    newVal: string,
-    oldVal: string | undefined | null
+    ops: BatchOperation[], sv: string, cv: string, setOp: string, deleteOp: string,
+    newVal: string, oldVal: string | undefined | null
   ) => {
     const trimmed = newVal.trim();
     const old = oldVal || "";
     if (mode === "create" && trimmed) {
-      ops.push({ op: setOp, value: `${vid},${trimmed}` });
+      ops.push({ op: setOp, value: `${sv},${cv},${trimmed}` });
     } else if (mode === "edit" && trimmed !== old) {
-      if (trimmed) {
-        ops.push({ op: setOp, value: `${vid},${trimmed}` });
-      } else if (old) {
-        ops.push({ op: deleteOp, value: vid });
-      }
+      if (trimmed) ops.push({ op: setOp, value: `${sv},${cv},${trimmed}` });
+      else if (old) ops.push({ op: deleteOp, value: `${sv},${cv}` });
     }
   };
 
-  /** Helper: add a boolean flag op with diff checking */
+  /** VIF-C bool: value is always s_vlan,c_vlan */
   const addBoolOp = (
-    ops: BatchOperation[],
-    vid: string,
-    setOp: string,
-    deleteOp: string,
-    newVal: boolean,
-    oldVal: boolean | undefined | null
+    ops: BatchOperation[], sv: string, cv: string, setOp: string, deleteOp: string,
+    newVal: boolean, oldVal: boolean | undefined | null
   ) => {
     const old = oldVal || false;
     if (mode === "create" && newVal) {
-      ops.push({ op: setOp, value: vid });
+      ops.push({ op: setOp, value: `${sv},${cv}` });
     } else if (mode === "edit" && newVal !== old) {
-      ops.push({ op: newVal ? setOp : deleteOp, value: vid });
+      ops.push({ op: newVal ? setOp : deleteOp, value: `${sv},${cv}` });
     }
   };
 
   const buildOperations = (): BatchOperation[] => {
     const operations: BatchOperation[] = [];
-    const vid = vlanId;
+    const sv = sVlanId;
+    const cv = cVlanId;
     const feat = capabilities?.features.vlan;
 
-    // Create VLAN (VIF) if in create mode
     if (mode === "create") {
-      operations.push({ op: "set_vif", value: vid });
+      operations.push({ op: "set_vif_c", value: `${sv},${cv}` });
     }
 
-    // Basic fields
-    addStringOp(operations, vid, "set_vif_description", "delete_vif_description", description, vlan?.description);
+    addStringOp(operations, sv, cv, "set_vif_c_description", "delete_vif_c_description", description, vlan?.description);
 
     // Addresses
     const currentAddrs = new Set(vlan?.addresses || []);
     const newAddrs = new Set(addresses.filter((a) => a.trim() !== ""));
     for (const addr of newAddrs) {
-      if (!currentAddrs.has(addr)) {
-        operations.push({ op: "set_vif_address", value: `${vid},${addr}` });
-      }
+      if (!currentAddrs.has(addr)) operations.push({ op: "set_vif_c_address", value: `${sv},${cv},${addr}` });
     }
     if (mode === "edit") {
       for (const addr of currentAddrs) {
-        if (!newAddrs.has(addr)) {
-          operations.push({ op: "delete_vif_address", value: `${vid},${addr}` });
-        }
+        if (!newAddrs.has(addr)) operations.push({ op: "delete_vif_c_address", value: `${sv},${cv},${addr}` });
       }
     }
 
-    addStringOp(operations, vid, "set_vif_mtu", "delete_vif_mtu", mtu, vlan?.mtu);
-    addStringOp(operations, vid, "set_vif_mac", "delete_vif_mac", mac, vlan?.mac);
+    addStringOp(operations, sv, cv, "set_vif_c_mtu", "delete_vif_c_mtu", mtu, vlan?.mtu);
+    addStringOp(operations, sv, cv, "set_vif_c_mac", "delete_vif_c_mac", mac, vlan?.mac);
 
     // VRF
     if (mode === "create" && vrf.trim()) {
-      operations.push({ op: "set_vif_vrf", value: `${vid},${vrf.trim()}` });
+      operations.push({ op: "set_vif_c_vrf", value: `${sv},${cv},${vrf.trim()}` });
     } else if (mode === "edit" && vrf.trim() !== (vlan?.vrf || "")) {
-      if (vrf.trim()) {
-        operations.push({ op: "set_vif_vrf", value: `${vid},${vrf.trim()}` });
-      } else if (vlan?.vrf) {
-        operations.push({ op: "delete_vif_vrf", value: `${vid},${vlan.vrf}` });
-      }
+      if (vrf.trim()) operations.push({ op: "set_vif_c_vrf", value: `${sv},${cv},${vrf.trim()}` });
+      else if (vlan?.vrf) operations.push({ op: "delete_vif_c_vrf", value: `${sv},${cv},${vlan.vrf}` });
     }
 
-    addBoolOp(operations, vid, "set_vif_disable", "delete_vif_disable", disabled, vlan?.disable);
-    addBoolOp(operations, vid, "set_vif_disable_link_detect", "delete_vif_disable_link_detect", disableLinkDetect, vlan?.disable_link_detect);
+    addBoolOp(operations, sv, cv, "set_vif_c_disable", "delete_vif_c_disable", disabled, vlan?.disable);
+    addBoolOp(operations, sv, cv, "set_vif_c_disable_link_detect", "delete_vif_c_disable_link_detect", disableLinkDetect, vlan?.disable_link_detect);
 
     // Redirect
     if (feat?.vif_redirect) {
-      addStringOp(operations, vid, "set_vif_redirect", "delete_vif_redirect", redirect, vlan?.redirect);
+      addStringOp(operations, sv, cv, "set_vif_c_redirect", "delete_vif_c_redirect", redirect, vlan?.redirect);
     }
 
     // QoS
     if (feat?.vif_egress_qos) {
-      addStringOp(operations, vid, "set_vif_egress_qos", "delete_vif_egress_qos", egressQos, vlan?.egress_qos);
+      addStringOp(operations, sv, cv, "set_vif_c_egress_qos", "delete_vif_c_egress_qos", egressQos, vlan?.egress_qos);
     }
     if (feat?.vif_ingress_qos) {
-      addStringOp(operations, vid, "set_vif_ingress_qos", "delete_vif_ingress_qos", ingressQos, vlan?.ingress_qos);
+      addStringOp(operations, sv, cv, "set_vif_c_ingress_qos", "delete_vif_c_ingress_qos", ingressQos, vlan?.ingress_qos);
     }
 
     // Mirror
     if (feat?.vif_mirror) {
-      addStringOp(operations, vid, "set_vif_mirror_ingress", "delete_vif_mirror", mirrorIngress, vlan?.mirror?.ingress);
-      addStringOp(operations, vid, "set_vif_mirror_egress", "delete_vif_mirror", mirrorEgress, vlan?.mirror?.egress);
+      addStringOp(operations, sv, cv, "set_vif_c_mirror_ingress", "delete_vif_c_mirror", mirrorIngress, vlan?.mirror?.ingress);
+      addStringOp(operations, sv, cv, "set_vif_c_mirror_egress", "delete_vif_c_mirror", mirrorEgress, vlan?.mirror?.egress);
     }
 
     // DHCP Options
     if (feat?.vif_dhcp_options) {
-      addStringOp(operations, vid, "set_vif_dhcp_options_client_id", "delete_vif_dhcp_options", dhcpClientId, vlan?.dhcp_options?.client_id);
-      addStringOp(operations, vid, "set_vif_dhcp_options_host_name", "delete_vif_dhcp_options", dhcpHostName, vlan?.dhcp_options?.host_name);
-      addStringOp(operations, vid, "set_vif_dhcp_options_default_route_distance", "delete_vif_dhcp_options", dhcpDefaultRouteDistance, vlan?.dhcp_options?.default_route_distance);
-      addBoolOp(operations, vid, "set_vif_dhcp_options_mtu", "delete_vif_dhcp_options", dhcpMtu, vlan?.dhcp_options?.mtu);
-      addBoolOp(operations, vid, "set_vif_dhcp_options_no_default_route", "delete_vif_dhcp_options", dhcpNoDefaultRoute, vlan?.dhcp_options?.no_default_route);
-      addStringOp(operations, vid, "set_vif_dhcp_options_user_class", "delete_vif_dhcp_options", dhcpUserClass, vlan?.dhcp_options?.user_class);
-      addStringOp(operations, vid, "set_vif_dhcp_options_vendor_class_id", "delete_vif_dhcp_options", dhcpVendorClassId, vlan?.dhcp_options?.vendor_class_id);
-      // Reject addresses
+      addStringOp(operations, sv, cv, "set_vif_c_dhcp_options_client_id", "delete_vif_c_dhcp_options", dhcpClientId, vlan?.dhcp_options?.client_id);
+      addStringOp(operations, sv, cv, "set_vif_c_dhcp_options_host_name", "delete_vif_c_dhcp_options", dhcpHostName, vlan?.dhcp_options?.host_name);
+      addStringOp(operations, sv, cv, "set_vif_c_dhcp_options_default_route_distance", "delete_vif_c_dhcp_options", dhcpDefaultRouteDistance, vlan?.dhcp_options?.default_route_distance);
+      addBoolOp(operations, sv, cv, "set_vif_c_dhcp_options_mtu", "delete_vif_c_dhcp_options", dhcpMtu, vlan?.dhcp_options?.mtu);
+      addBoolOp(operations, sv, cv, "set_vif_c_dhcp_options_no_default_route", "delete_vif_c_dhcp_options", dhcpNoDefaultRoute, vlan?.dhcp_options?.no_default_route);
+      addStringOp(operations, sv, cv, "set_vif_c_dhcp_options_user_class", "delete_vif_c_dhcp_options", dhcpUserClass, vlan?.dhcp_options?.user_class);
+      addStringOp(operations, sv, cv, "set_vif_c_dhcp_options_vendor_class_id", "delete_vif_c_dhcp_options", dhcpVendorClassId, vlan?.dhcp_options?.vendor_class_id);
       if (dhcpReject.trim()) {
         const rejects = dhcpReject.split(",").map(r => r.trim()).filter(Boolean);
         for (const addr of rejects) {
-          operations.push({ op: "set_vif_dhcp_options_reject", value: `${vid},${addr}` });
-        }
-      }
-    }
-
-    // TCP MSS clamping
-    if (capabilities?.features.tcp_mss?.clamp_to_pmtu_ipv4 || capabilities?.features.tcp_mss?.clamp_to_pmtu_ipv6) {
-      const currentlyClamping = vlan?.mss_clamping || false;
-
-      if (mode === "create" && mssClamping) {
-        if (capabilities.features.tcp_mss.clamp_to_pmtu_ipv4) {
-          operations.push({ op: "set_vif_ip_adjust_mss_clamp_to_pmtu", value: vid });
-        }
-        if (capabilities.features.tcp_mss.clamp_to_pmtu_ipv6) {
-          operations.push({ op: "set_vif_ipv6_adjust_mss_clamp_to_pmtu", value: vid });
-        }
-      } else if (mode === "edit") {
-        if (mssClamping && !currentlyClamping) {
-          if (capabilities.features.tcp_mss.clamp_to_pmtu_ipv4) {
-            operations.push({ op: "set_vif_ip_adjust_mss_clamp_to_pmtu", value: vid });
-          }
-          if (capabilities.features.tcp_mss.clamp_to_pmtu_ipv6) {
-            operations.push({ op: "set_vif_ipv6_adjust_mss_clamp_to_pmtu", value: vid });
-          }
-        } else if (!mssClamping && currentlyClamping) {
-          if (capabilities.features.tcp_mss.ipv4_adjust || capabilities.features.tcp_mss.clamp_to_pmtu_ipv4) {
-            operations.push({ op: "delete_vif_ip_adjust_mss", value: vid });
-          }
-          if (capabilities.features.tcp_mss.ipv6_adjust || capabilities.features.tcp_mss.clamp_to_pmtu_ipv6) {
-            operations.push({ op: "delete_vif_ipv6_adjust_mss", value: vid });
-          }
+          operations.push({ op: "set_vif_c_dhcp_options_reject", value: `${sv},${cv},${addr}` });
         }
       }
     }
 
     // DHCPv6 Options
     if (feat?.vif_dhcpv6_options) {
-      addStringOp(operations, vid, "set_vif_dhcpv6_options_duid", "delete_vif_dhcpv6_options", dhcpv6Duid, vlan?.dhcpv6_options?.duid);
-      addBoolOp(operations, vid, "set_vif_dhcpv6_options_no_release", "delete_vif_dhcpv6_options", dhcpv6NoRelease, vlan?.dhcpv6_options?.no_release);
-      addBoolOp(operations, vid, "set_vif_dhcpv6_options_parameters_only", "delete_vif_dhcpv6_options", dhcpv6ParametersOnly, vlan?.dhcpv6_options?.parameters_only);
-      addBoolOp(operations, vid, "set_vif_dhcpv6_options_rapid_commit", "delete_vif_dhcpv6_options", dhcpv6RapidCommit, vlan?.dhcpv6_options?.rapid_commit);
-      addBoolOp(operations, vid, "set_vif_dhcpv6_options_temporary", "delete_vif_dhcpv6_options", dhcpv6Temporary, vlan?.dhcpv6_options?.temporary);
+      addStringOp(operations, sv, cv, "set_vif_c_dhcpv6_options_duid", "delete_vif_c_dhcpv6_options", dhcpv6Duid, vlan?.dhcpv6_options?.duid);
+      addBoolOp(operations, sv, cv, "set_vif_c_dhcpv6_options_no_release", "delete_vif_c_dhcpv6_options", dhcpv6NoRelease, vlan?.dhcpv6_options?.no_release);
+      addBoolOp(operations, sv, cv, "set_vif_c_dhcpv6_options_parameters_only", "delete_vif_c_dhcpv6_options", dhcpv6ParametersOnly, vlan?.dhcpv6_options?.parameters_only);
+      addBoolOp(operations, sv, cv, "set_vif_c_dhcpv6_options_rapid_commit", "delete_vif_c_dhcpv6_options", dhcpv6RapidCommit, vlan?.dhcpv6_options?.rapid_commit);
+      addBoolOp(operations, sv, cv, "set_vif_c_dhcpv6_options_temporary", "delete_vif_c_dhcpv6_options", dhcpv6Temporary, vlan?.dhcpv6_options?.temporary);
       if (feat?.vif_dhcpv6_options_no_request_dns) {
-        addBoolOp(operations, vid, "set_vif_dhcpv6_options_no_request_dns", "delete_vif_dhcpv6_options", dhcpv6NoRequestDns, vlan?.dhcpv6_options?.no_request_dns);
+        addBoolOp(operations, sv, cv, "set_vif_c_dhcpv6_options_no_request_dns", "delete_vif_c_dhcpv6_options", dhcpv6NoRequestDns, vlan?.dhcpv6_options?.no_request_dns);
       }
       if (feat?.vif_dhcpv6_options_no_request_domain_name) {
-        addBoolOp(operations, vid, "set_vif_dhcpv6_options_no_request_domain_name", "delete_vif_dhcpv6_options", dhcpv6NoRequestDomainName, vlan?.dhcpv6_options?.no_request_domain_name);
+        addBoolOp(operations, sv, cv, "set_vif_c_dhcpv6_options_no_request_domain_name", "delete_vif_c_dhcpv6_options", dhcpv6NoRequestDomainName, vlan?.dhcpv6_options?.no_request_domain_name);
       }
     }
 
     // IP Options
     if (feat?.vif_ip) {
-      addStringOp(operations, vid, "set_vif_ip_adjust_mss", "delete_vif_ip", ipAdjustMss, vlan?.ip?.adjust_mss);
-      addStringOp(operations, vid, "set_vif_ip_arp_cache_timeout", "delete_vif_ip", ipArpCacheTimeout, vlan?.ip?.arp_cache_timeout);
-      addBoolOp(operations, vid, "set_vif_ip_disable_arp_filter", "delete_vif_ip", ipDisableArpFilter, vlan?.ip?.disable_arp_filter);
-      addBoolOp(operations, vid, "set_vif_ip_disable_forwarding", "delete_vif_ip", ipDisableForwarding, vlan?.ip?.disable_forwarding);
-      addBoolOp(operations, vid, "set_vif_ip_enable_arp_accept", "delete_vif_ip", ipEnableArpAccept, vlan?.ip?.enable_arp_accept);
-      addBoolOp(operations, vid, "set_vif_ip_enable_arp_announce", "delete_vif_ip", ipEnableArpAnnounce, vlan?.ip?.enable_arp_announce);
-      addBoolOp(operations, vid, "set_vif_ip_enable_arp_ignore", "delete_vif_ip", ipEnableArpIgnore, vlan?.ip?.enable_arp_ignore);
+      addStringOp(operations, sv, cv, "set_vif_c_ip_adjust_mss", "delete_vif_c_ip", ipAdjustMss, vlan?.ip?.adjust_mss);
+      addStringOp(operations, sv, cv, "set_vif_c_ip_arp_cache_timeout", "delete_vif_c_ip", ipArpCacheTimeout, vlan?.ip?.arp_cache_timeout);
+      addBoolOp(operations, sv, cv, "set_vif_c_ip_disable_arp_filter", "delete_vif_c_ip", ipDisableArpFilter, vlan?.ip?.disable_arp_filter);
+      addBoolOp(operations, sv, cv, "set_vif_c_ip_disable_forwarding", "delete_vif_c_ip", ipDisableForwarding, vlan?.ip?.disable_forwarding);
+      addBoolOp(operations, sv, cv, "set_vif_c_ip_enable_arp_accept", "delete_vif_c_ip", ipEnableArpAccept, vlan?.ip?.enable_arp_accept);
+      addBoolOp(operations, sv, cv, "set_vif_c_ip_enable_arp_announce", "delete_vif_c_ip", ipEnableArpAnnounce, vlan?.ip?.enable_arp_announce);
+      addBoolOp(operations, sv, cv, "set_vif_c_ip_enable_arp_ignore", "delete_vif_c_ip", ipEnableArpIgnore, vlan?.ip?.enable_arp_ignore);
       if (feat?.vif_ip_enable_directed_broadcast) {
-        addBoolOp(operations, vid, "set_vif_ip_enable_directed_broadcast", "delete_vif_ip", ipEnableDirectedBroadcast, vlan?.ip?.enable_directed_broadcast);
+        addBoolOp(operations, sv, cv, "set_vif_c_ip_enable_directed_broadcast", "delete_vif_c_ip", ipEnableDirectedBroadcast, vlan?.ip?.enable_directed_broadcast);
       }
-      addBoolOp(operations, vid, "set_vif_ip_enable_proxy_arp", "delete_vif_ip", ipEnableProxyArp, vlan?.ip?.enable_proxy_arp);
-      addBoolOp(operations, vid, "set_vif_ip_proxy_arp_pvlan", "delete_vif_ip", ipProxyArpPvlan, vlan?.ip?.proxy_arp_pvlan);
-      addStringOp(operations, vid, "set_vif_ip_source_validation", "delete_vif_ip", ipSourceValidation, vlan?.ip?.source_validation);
+      addBoolOp(operations, sv, cv, "set_vif_c_ip_enable_proxy_arp", "delete_vif_c_ip", ipEnableProxyArp, vlan?.ip?.enable_proxy_arp);
+      addBoolOp(operations, sv, cv, "set_vif_c_ip_proxy_arp_pvlan", "delete_vif_c_ip", ipProxyArpPvlan, vlan?.ip?.proxy_arp_pvlan);
+      addStringOp(operations, sv, cv, "set_vif_c_ip_source_validation", "delete_vif_c_ip", ipSourceValidation, vlan?.ip?.source_validation);
     }
 
     // IPv6 Options
     if (feat?.vif_ipv6) {
-      addBoolOp(operations, vid, "set_vif_ipv6_address_autoconf", "delete_vif_ip", ipv6Autoconf, false);
-      addStringOp(operations, vid, "set_vif_ipv6_address_eui64", "delete_vif_ip", ipv6Eui64, "");
-      addStringOp(operations, vid, "set_vif_ipv6_accept_dad", "delete_vif_ip", ipv6AcceptDad, vlan?.ipv6?.accept_dad);
-      addStringOp(operations, vid, "set_vif_ipv6_adjust_mss", "delete_vif_ip", ipv6AdjustMss, vlan?.ipv6?.adjust_mss);
-      addStringOp(operations, vid, "set_vif_ipv6_base_reachable_time", "delete_vif_ip", ipv6BaseReachableTime, vlan?.ipv6?.base_reachable_time);
-      addBoolOp(operations, vid, "set_vif_ipv6_disable_forwarding", "delete_vif_ip", ipv6DisableForwarding, vlan?.ipv6?.disable_forwarding);
-      addStringOp(operations, vid, "set_vif_ipv6_dup_addr_detect_transmits", "delete_vif_ip", ipv6DupAddrDetectTransmits, vlan?.ipv6?.dup_addr_detect_transmits);
-      addStringOp(operations, vid, "set_vif_ipv6_source_validation", "delete_vif_ip", ipv6SourceValidation, vlan?.ipv6?.source_validation);
-      addBoolOp(operations, vid, "set_vif_ipv6_address_no_default_link_local", "delete_vif_ip", ipv6NoDefaultLinkLocal, vlan?.ipv6?.no_default_link_local);
+      addBoolOp(operations, sv, cv, "set_vif_c_ipv6_address_autoconf", "delete_vif_c_ip", ipv6Autoconf, false);
+      addStringOp(operations, sv, cv, "set_vif_c_ipv6_address_eui64", "delete_vif_c_ip", ipv6Eui64, "");
+      addStringOp(operations, sv, cv, "set_vif_c_ipv6_accept_dad", "delete_vif_c_ip", ipv6AcceptDad, vlan?.ipv6?.accept_dad);
+      addStringOp(operations, sv, cv, "set_vif_c_ipv6_adjust_mss", "delete_vif_c_ip", ipv6AdjustMss, vlan?.ipv6?.adjust_mss);
+      addStringOp(operations, sv, cv, "set_vif_c_ipv6_base_reachable_time", "delete_vif_c_ip", ipv6BaseReachableTime, vlan?.ipv6?.base_reachable_time);
+      addBoolOp(operations, sv, cv, "set_vif_c_ipv6_disable_forwarding", "delete_vif_c_ip", ipv6DisableForwarding, vlan?.ipv6?.disable_forwarding);
+      addStringOp(operations, sv, cv, "set_vif_c_ipv6_dup_addr_detect_transmits", "delete_vif_c_ip", ipv6DupAddrDetectTransmits, vlan?.ipv6?.dup_addr_detect_transmits);
+      addStringOp(operations, sv, cv, "set_vif_c_ipv6_source_validation", "delete_vif_c_ip", ipv6SourceValidation, vlan?.ipv6?.source_validation);
+      addBoolOp(operations, sv, cv, "set_vif_c_ipv6_address_no_default_link_local", "delete_vif_c_ip", ipv6NoDefaultLinkLocal, vlan?.ipv6?.no_default_link_local);
       if (feat?.vif_ipv6_address_interface_identifier) {
-        addStringOp(operations, vid, "set_vif_ipv6_address_interface_identifier", "delete_vif_ip", ipv6InterfaceIdentifier, "");
+        addStringOp(operations, sv, cv, "set_vif_c_ipv6_address_interface_identifier", "delete_vif_c_ip", ipv6InterfaceIdentifier, "");
       }
     }
 
@@ -460,45 +397,23 @@ export function ComprehensiveVLANModal({
 
     try {
       if (mode === "create") {
-        if (!parentInterface.trim()) {
-          throw new Error("Parent interface is required");
-        }
-        if (!vlanId.trim()) {
-          throw new Error("VLAN ID is required");
-        }
-
-        const vlanIdNum = parseInt(vlanId);
-        if (isNaN(vlanIdNum) || vlanIdNum < 1 || vlanIdNum > 4094) {
-          throw new Error("VLAN ID must be between 1 and 4094");
-        }
-
+        if (!parentInterface.trim()) throw new Error("Parent interface is required");
+        if (!sVlanId.trim()) throw new Error("Parent S-VLAN is required");
+        if (!cVlanId.trim()) throw new Error("Customer VLAN ID is required");
+        const cVidNum = parseInt(cVlanId);
+        if (isNaN(cVidNum) || cVidNum < 1 || cVidNum > 4094) throw new Error("Customer VLAN ID must be between 1 and 4094");
         const operations = buildOperations();
-
-        await ethernetService.batchConfigure({
-          interface: parentInterface,
-          operations,
-        });
+        await ethernetService.batchConfigure({ interface: parentInterface, operations });
       } else {
         const operations = buildOperations();
-
-        if (operations.length === 0) {
-          setError("No changes detected");
-          setLoading(false);
-          return;
-        }
-
-        await ethernetService.batchConfigure({
-          interface: vlan!.parentInterface,
-          operations,
-        });
+        if (operations.length === 0) { setError("No changes detected"); setLoading(false); return; }
+        await ethernetService.batchConfigure({ interface: vlan!.parentInterface, operations });
       }
-
       await ethernetService.refreshConfig();
-
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : `Failed to ${mode} VLAN`);
+      setError(err instanceof Error ? err.message : `Failed to ${mode} VIF-C`);
     } finally {
       setLoading(false);
     }
@@ -511,20 +426,18 @@ export function ComprehensiveVLANModal({
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {mode === "create" ? "Create VLAN" : `Edit VLAN: ${vlan?.fullName}`}
+            {mode === "create" ? "Create QinQ Customer VLAN (VIF-C)" : `Edit VIF-C: ${vlan?.fullName}`}
           </DialogTitle>
           <DialogDescription>
             {mode === "create"
-              ? "Configure a new 802.1Q VLAN sub-interface"
-              : "Modify the configuration of this VLAN"}
+              ? "Configure a new QinQ customer VLAN sub-interface under an existing service VLAN"
+              : "Modify the configuration of this QinQ customer VLAN"}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <div className="bg-destructive/10 text-destructive px-4 py-3 rounded-md text-sm">
-              {error}
-            </div>
+            <div className="bg-destructive/10 text-destructive px-4 py-3 rounded-md text-sm">{error}</div>
           )}
 
           <Tabs defaultValue="basic" className="w-full">
@@ -541,110 +454,72 @@ export function ComprehensiveVLANModal({
               {mode === "create" && (
                 <>
                   <div className="space-y-2">
-                    <Label htmlFor="parent-interface">
-                      Parent Interface <span className="text-destructive">*</span>
-                    </Label>
-                    <Select value={parentInterface || undefined} onValueChange={setParentInterface}>
-                      <SelectTrigger id="parent-interface">
-                        <SelectValue placeholder="Select parent interface" />
-                      </SelectTrigger>
+                    <Label htmlFor="parent-interface">Parent Interface <span className="text-destructive">*</span></Label>
+                    <Select value={parentInterface || undefined} onValueChange={(v) => { setParentInterface(v); setSVlanId(""); }}>
+                      <SelectTrigger id="parent-interface"><SelectValue placeholder="Select parent interface" /></SelectTrigger>
                       <SelectContent>
                         {interfaces.map((iface) => (
                           <SelectItem key={iface.name} value={iface.name}>
-                            {iface.name}
-                            {iface.description && ` - ${iface.description}`}
+                            {iface.name}{iface.description && ` - ${iface.description}`}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
-
                   <div className="space-y-2">
-                    <Label htmlFor="vlan-id">
-                      VLAN ID <span className="text-destructive">*</span>
-                    </Label>
-                    <Input
-                      id="vlan-id"
-                      type="number"
-                      min="1"
-                      max="4094"
-                      placeholder="100"
-                      value={vlanId}
-                      onChange={(e) => setVlanId(e.target.value)}
-                      required
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Valid range: 1-4094
-                    </p>
+                    <Label htmlFor="s-vlan">Parent S-VLAN <span className="text-destructive">*</span></Label>
+                    <Select value={sVlanId || undefined} onValueChange={setSVlanId} disabled={!parentInterface}>
+                      <SelectTrigger id="s-vlan"><SelectValue placeholder={parentInterface ? "Select S-VLAN" : "Select parent interface first"} /></SelectTrigger>
+                      <SelectContent>
+                        {availableSVlans.map((sv) => (
+                          <SelectItem key={sv.vlan_id} value={sv.vlan_id}>
+                            {parentInterface}.{sv.vlan_id}{sv.description && ` - ${sv.description}`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {parentInterface && availableSVlans.length === 0 && (
+                      <p className="text-xs text-muted-foreground text-amber-600">No VIF-S found on {parentInterface}. Create a service VLAN first.</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="c-vlan-id">Customer VLAN ID <span className="text-destructive">*</span></Label>
+                    <Input id="c-vlan-id" type="number" min="1" max="4094" placeholder="200" value={cVlanId} onChange={(e) => setCVlanId(e.target.value)} required />
+                    <p className="text-xs text-muted-foreground">Valid range: 1-4094</p>
                   </div>
                 </>
               )}
-
               {mode === "edit" && (
                 <div className="space-y-2">
-                  <Label>VLAN Interface</Label>
+                  <Label>VIF-C Interface</Label>
                   <Input value={vlan?.fullName} disabled className="font-mono" />
-                  <p className="text-xs text-muted-foreground">
-                    Parent: {vlan?.parentInterface} | VLAN ID: {vlan?.vlan_id}
-                  </p>
+                  <p className="text-xs text-muted-foreground">Parent: {vlan?.parentInterface} | S-VLAN: {vlan?.sVlanId} | C-VLAN: {vlan?.vlan_id}</p>
                 </div>
               )}
-
               {feat?.vif_description && (
                 <div className="space-y-2">
                   <Label htmlFor="description">Description</Label>
-                  <Input
-                    id="description"
-                    placeholder="Guest Network VLAN"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                  />
+                  <Input id="description" placeholder="Customer VLAN" value={description} onChange={(e) => setDescription(e.target.value)} />
                 </div>
               )}
-
               {feat?.vif_address && (
                 <div className="space-y-2">
                   <Label>IP Addresses</Label>
                   {addresses.map((address, index) => (
                     <div key={index} className="flex gap-2">
-                      <Input
-                        placeholder="10.0.0.1/24 or 2001:db8::1/64"
-                        value={address}
-                        onChange={(e) => handleAddressChange(index, e.target.value)}
-                      />
+                      <Input placeholder="10.0.0.1/24 or 2001:db8::1/64" value={address} onChange={(e) => handleAddressChange(index, e.target.value)} />
                       {addresses.length > 0 && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleRemoveAddress(index)}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
+                        <Button type="button" variant="outline" size="sm" onClick={() => handleRemoveAddress(index)}><X className="h-4 w-4" /></Button>
                       )}
                     </div>
                   ))}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleAddAddress}
-                  >
-                    Add Address
-                  </Button>
+                  <Button type="button" variant="outline" size="sm" onClick={handleAddAddress}>Add Address</Button>
                 </div>
               )}
-
               {feat?.vif_disable && (
                 <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="disable"
-                    checked={disabled}
-                    onCheckedChange={(checked) => setDisabled(checked as boolean)}
-                  />
-                  <Label htmlFor="disable" className="cursor-pointer">
-                    Administratively disable VLAN
-                  </Label>
+                  <Checkbox id="disable" checked={disabled} onCheckedChange={(checked) => setDisabled(checked as boolean)} />
+                  <Label htmlFor="disable" className="cursor-pointer">Administratively disable VIF-C</Label>
                 </div>
               )}
             </TabsContent>
@@ -655,113 +530,59 @@ export function ComprehensiveVLANModal({
                 {feat?.vif_mtu && (
                   <div className="space-y-2">
                     <Label htmlFor="mtu">MTU</Label>
-                    <Input
-                      id="mtu"
-                      type="number"
-                      placeholder="1500"
-                      value={mtu}
-                      onChange={(e) => setMtu(e.target.value)}
-                    />
+                    <Input id="mtu" type="number" placeholder="1500" value={mtu} onChange={(e) => setMtu(e.target.value)} />
                   </div>
                 )}
-
                 {feat?.vif_mac && (
                   <div className="space-y-2">
                     <Label htmlFor="mac">MAC Address</Label>
-                    <Input
-                      id="mac"
-                      placeholder="00:11:22:33:44:55"
-                      value={mac}
-                      onChange={(e) => setMac(e.target.value)}
-                    />
+                    <Input id="mac" placeholder="00:11:22:33:44:55" value={mac} onChange={(e) => setMac(e.target.value)} />
                   </div>
                 )}
-
                 {feat?.vif_vrf && (
                   <div className="space-y-2">
                     <Label htmlFor="vrf">VRF</Label>
-                    <Input
-                      id="vrf"
-                      placeholder="MGMT"
-                      value={vrf}
-                      onChange={(e) => setVrf(e.target.value)}
-                    />
+                    <Input id="vrf" placeholder="MGMT" value={vrf} onChange={(e) => setVrf(e.target.value)} />
                   </div>
                 )}
-
                 {feat?.vif_redirect && (
                   <div className="space-y-2">
                     <Label htmlFor="redirect">Redirect</Label>
-                    <Input
-                      id="redirect"
-                      placeholder="eth1"
-                      value={redirect}
-                      onChange={(e) => setRedirect(e.target.value)}
-                    />
+                    <Input id="redirect" placeholder="eth1" value={redirect} onChange={(e) => setRedirect(e.target.value)} />
                     <p className="text-xs text-muted-foreground">Redirect traffic to another interface</p>
                   </div>
                 )}
               </div>
-
               <div className="grid grid-cols-2 gap-4">
                 {feat?.vif_egress_qos && (
                   <div className="space-y-2">
                     <Label htmlFor="egress-qos">Egress QoS</Label>
-                    <Input
-                      id="egress-qos"
-                      placeholder="0:0 1:1 2:2"
-                      value={egressQos}
-                      onChange={(e) => setEgressQos(e.target.value)}
-                    />
+                    <Input id="egress-qos" placeholder="0:0 1:1 2:2" value={egressQos} onChange={(e) => setEgressQos(e.target.value)} />
                   </div>
                 )}
-
                 {feat?.vif_ingress_qos && (
                   <div className="space-y-2">
                     <Label htmlFor="ingress-qos">Ingress QoS</Label>
-                    <Input
-                      id="ingress-qos"
-                      placeholder="0:0 1:1 2:2"
-                      value={ingressQos}
-                      onChange={(e) => setIngressQos(e.target.value)}
-                    />
+                    <Input id="ingress-qos" placeholder="0:0 1:1 2:2" value={ingressQos} onChange={(e) => setIngressQos(e.target.value)} />
                   </div>
                 )}
               </div>
-
               {feat?.vif_mirror && (
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="mirror-ingress">Mirror Ingress</Label>
-                    <Input
-                      id="mirror-ingress"
-                      placeholder="eth1"
-                      value={mirrorIngress}
-                      onChange={(e) => setMirrorIngress(e.target.value)}
-                    />
+                    <Input id="mirror-ingress" placeholder="eth1" value={mirrorIngress} onChange={(e) => setMirrorIngress(e.target.value)} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="mirror-egress">Mirror Egress</Label>
-                    <Input
-                      id="mirror-egress"
-                      placeholder="eth1"
-                      value={mirrorEgress}
-                      onChange={(e) => setMirrorEgress(e.target.value)}
-                    />
+                    <Input id="mirror-egress" placeholder="eth1" value={mirrorEgress} onChange={(e) => setMirrorEgress(e.target.value)} />
                   </div>
                 </div>
               )}
-
               {feat?.vif_disable_link_detect && (
                 <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="disable-link-detect"
-                    checked={disableLinkDetect}
-                    onCheckedChange={(checked) => setDisableLinkDetect(checked as boolean)}
-                  />
-                  <Label htmlFor="disable-link-detect" className="cursor-pointer">
-                    Disable link detection
-                  </Label>
+                  <Checkbox id="disable-link-detect" checked={disableLinkDetect} onCheckedChange={(checked) => setDisableLinkDetect(checked as boolean)} />
+                  <Label htmlFor="disable-link-detect" className="cursor-pointer">Disable link detection</Label>
                 </div>
               )}
             </TabsContent>
@@ -775,35 +596,20 @@ export function ComprehensiveVLANModal({
                     {feat?.vif_ip_adjust_mss && (
                       <div className="space-y-2">
                         <Label htmlFor="ip-adjust-mss">Adjust MSS</Label>
-                        <Input
-                          id="ip-adjust-mss"
-                          placeholder="1400 or clamp-mss-to-pmtu"
-                          value={ipAdjustMss}
-                          onChange={(e) => setIpAdjustMss(e.target.value)}
-                        />
+                        <Input id="ip-adjust-mss" placeholder="1400 or clamp-mss-to-pmtu" value={ipAdjustMss} onChange={(e) => setIpAdjustMss(e.target.value)} />
                       </div>
                     )}
-
                     {feat?.vif_ip_arp_cache_timeout && (
                       <div className="space-y-2">
                         <Label htmlFor="ip-arp-cache-timeout">ARP Cache Timeout</Label>
-                        <Input
-                          id="ip-arp-cache-timeout"
-                          type="number"
-                          placeholder="30"
-                          value={ipArpCacheTimeout}
-                          onChange={(e) => setIpArpCacheTimeout(e.target.value)}
-                        />
+                        <Input id="ip-arp-cache-timeout" type="number" placeholder="30" value={ipArpCacheTimeout} onChange={(e) => setIpArpCacheTimeout(e.target.value)} />
                       </div>
                     )}
-
                     {feat?.vif_ip_source_validation && (
                       <div className="space-y-2">
                         <Label htmlFor="ip-source-validation">Source Validation</Label>
                         <Select value={ipSourceValidation || "__none__"} onValueChange={(v) => setIpSourceValidation(v === "__none__" ? "" : v)}>
-                          <SelectTrigger id="ip-source-validation">
-                            <SelectValue placeholder="Select mode" />
-                          </SelectTrigger>
+                          <SelectTrigger id="ip-source-validation"><SelectValue placeholder="Select mode" /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="__none__">None</SelectItem>
                             <SelectItem value="strict">Strict</SelectItem>
@@ -814,7 +620,6 @@ export function ComprehensiveVLANModal({
                       </div>
                     )}
                   </div>
-
                   <div className="space-y-3">
                     <h4 className="text-sm font-medium text-muted-foreground">ARP / Forwarding Flags</h4>
                     <div className="grid grid-cols-2 gap-3">
@@ -874,72 +679,37 @@ export function ComprehensiveVLANModal({
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="ipv6-eui64">EUI-64 Prefix</Label>
-                      <Input
-                        id="ipv6-eui64"
-                        placeholder="2001:db8::/64"
-                        value={ipv6Eui64}
-                        onChange={(e) => setIpv6Eui64(e.target.value)}
-                      />
+                      <Input id="ipv6-eui64" placeholder="2001:db8::/64" value={ipv6Eui64} onChange={(e) => setIpv6Eui64(e.target.value)} />
                     </div>
-
                     {feat?.vif_ipv6_adjust_mss && (
                       <div className="space-y-2">
                         <Label htmlFor="ipv6-adjust-mss">Adjust MSS</Label>
-                        <Input
-                          id="ipv6-adjust-mss"
-                          placeholder="1400 or clamp-mss-to-pmtu"
-                          value={ipv6AdjustMss}
-                          onChange={(e) => setIpv6AdjustMss(e.target.value)}
-                        />
+                        <Input id="ipv6-adjust-mss" placeholder="1400 or clamp-mss-to-pmtu" value={ipv6AdjustMss} onChange={(e) => setIpv6AdjustMss(e.target.value)} />
                       </div>
                     )}
-
                     {feat?.vif_ipv6_accept_dad && (
                       <div className="space-y-2">
                         <Label htmlFor="ipv6-accept-dad">Accept DAD</Label>
-                        <Input
-                          id="ipv6-accept-dad"
-                          type="number"
-                          placeholder="0-2"
-                          value={ipv6AcceptDad}
-                          onChange={(e) => setIpv6AcceptDad(e.target.value)}
-                        />
+                        <Input id="ipv6-accept-dad" type="number" placeholder="0-2" value={ipv6AcceptDad} onChange={(e) => setIpv6AcceptDad(e.target.value)} />
                       </div>
                     )}
-
                     {feat?.vif_ipv6_base_reachable_time && (
                       <div className="space-y-2">
                         <Label htmlFor="ipv6-base-reachable-time">Base Reachable Time</Label>
-                        <Input
-                          id="ipv6-base-reachable-time"
-                          type="number"
-                          placeholder="30"
-                          value={ipv6BaseReachableTime}
-                          onChange={(e) => setIpv6BaseReachableTime(e.target.value)}
-                        />
+                        <Input id="ipv6-base-reachable-time" type="number" placeholder="30" value={ipv6BaseReachableTime} onChange={(e) => setIpv6BaseReachableTime(e.target.value)} />
                       </div>
                     )}
-
                     {feat?.vif_ipv6_dup_addr_detect_transmits && (
                       <div className="space-y-2">
                         <Label htmlFor="ipv6-dad-transmits">DAD Transmits</Label>
-                        <Input
-                          id="ipv6-dad-transmits"
-                          type="number"
-                          placeholder="1"
-                          value={ipv6DupAddrDetectTransmits}
-                          onChange={(e) => setIpv6DupAddrDetectTransmits(e.target.value)}
-                        />
+                        <Input id="ipv6-dad-transmits" type="number" placeholder="1" value={ipv6DupAddrDetectTransmits} onChange={(e) => setIpv6DupAddrDetectTransmits(e.target.value)} />
                       </div>
                     )}
-
                     {feat?.vif_ipv6_source_validation && (
                       <div className="space-y-2">
                         <Label htmlFor="ipv6-source-validation">Source Validation</Label>
                         <Select value={ipv6SourceValidation || "__none__"} onValueChange={(v) => setIpv6SourceValidation(v === "__none__" ? "" : v)}>
-                          <SelectTrigger id="ipv6-source-validation">
-                            <SelectValue placeholder="Select mode" />
-                          </SelectTrigger>
+                          <SelectTrigger id="ipv6-source-validation"><SelectValue placeholder="Select mode" /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="__none__">None</SelectItem>
                             <SelectItem value="strict">Strict</SelectItem>
@@ -949,21 +719,14 @@ export function ComprehensiveVLANModal({
                         </Select>
                       </div>
                     )}
-
                     {feat?.vif_ipv6_address_interface_identifier && (
                       <div className="space-y-2">
                         <Label htmlFor="ipv6-interface-id">Interface Identifier</Label>
-                        <Input
-                          id="ipv6-interface-id"
-                          placeholder="::1"
-                          value={ipv6InterfaceIdentifier}
-                          onChange={(e) => setIpv6InterfaceIdentifier(e.target.value)}
-                        />
+                        <Input id="ipv6-interface-id" placeholder="::1" value={ipv6InterfaceIdentifier} onChange={(e) => setIpv6InterfaceIdentifier(e.target.value)} />
                         <p className="text-xs text-muted-foreground">VyOS 1.5+ only</p>
                       </div>
                     )}
                   </div>
-
                   <div className="space-y-3">
                     <h4 className="text-sm font-medium text-muted-foreground">IPv6 Flags</h4>
                     <div className="grid grid-cols-2 gap-3">
@@ -995,65 +758,34 @@ export function ComprehensiveVLANModal({
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="dhcp-client-id">Client ID</Label>
-                      <Input
-                        id="dhcp-client-id"
-                        placeholder="client-identifier"
-                        value={dhcpClientId}
-                        onChange={(e) => setDhcpClientId(e.target.value)}
-                      />
+                      <Input id="dhcp-client-id" placeholder="client-identifier" value={dhcpClientId} onChange={(e) => setDhcpClientId(e.target.value)} />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="dhcp-hostname">Host Name</Label>
-                      <Input
-                        id="dhcp-hostname"
-                        placeholder="my-host"
-                        value={dhcpHostName}
-                        onChange={(e) => setDhcpHostName(e.target.value)}
-                      />
+                      <Input id="dhcp-hostname" placeholder="my-host" value={dhcpHostName} onChange={(e) => setDhcpHostName(e.target.value)} />
                     </div>
                     {feat?.vif_dhcp_options_default_route_distance && (
                       <div className="space-y-2">
                         <Label htmlFor="dhcp-default-route-distance">Default Route Distance</Label>
-                        <Input
-                          id="dhcp-default-route-distance"
-                          type="number"
-                          placeholder="210"
-                          value={dhcpDefaultRouteDistance}
-                          onChange={(e) => setDhcpDefaultRouteDistance(e.target.value)}
-                        />
+                        <Input id="dhcp-default-route-distance" type="number" placeholder="210" value={dhcpDefaultRouteDistance} onChange={(e) => setDhcpDefaultRouteDistance(e.target.value)} />
                       </div>
                     )}
                     {feat?.vif_dhcp_options_vendor_class_id && (
                       <div className="space-y-2">
                         <Label htmlFor="dhcp-vendor-class-id">Vendor Class ID</Label>
-                        <Input
-                          id="dhcp-vendor-class-id"
-                          placeholder="vendor-class"
-                          value={dhcpVendorClassId}
-                          onChange={(e) => setDhcpVendorClassId(e.target.value)}
-                        />
+                        <Input id="dhcp-vendor-class-id" placeholder="vendor-class" value={dhcpVendorClassId} onChange={(e) => setDhcpVendorClassId(e.target.value)} />
                       </div>
                     )}
                     {feat?.vif_dhcp_options_user_class && (
                       <div className="space-y-2">
                         <Label htmlFor="dhcp-user-class">User Class</Label>
-                        <Input
-                          id="dhcp-user-class"
-                          placeholder="user-class"
-                          value={dhcpUserClass}
-                          onChange={(e) => setDhcpUserClass(e.target.value)}
-                        />
+                        <Input id="dhcp-user-class" placeholder="user-class" value={dhcpUserClass} onChange={(e) => setDhcpUserClass(e.target.value)} />
                       </div>
                     )}
                     {feat?.vif_dhcp_options_reject && (
                       <div className="space-y-2">
                         <Label htmlFor="dhcp-reject">Reject Addresses</Label>
-                        <Input
-                          id="dhcp-reject"
-                          placeholder="192.168.1.1,10.0.0.1"
-                          value={dhcpReject}
-                          onChange={(e) => setDhcpReject(e.target.value)}
-                        />
+                        <Input id="dhcp-reject" placeholder="192.168.1.1,10.0.0.1" value={dhcpReject} onChange={(e) => setDhcpReject(e.target.value)} />
                         <p className="text-xs text-muted-foreground">Comma-separated IP addresses to reject</p>
                       </div>
                     )}
@@ -1074,35 +806,13 @@ export function ComprehensiveVLANModal({
                   </div>
                 </div>
               )}
-
-              {(capabilities?.features.tcp_mss?.clamp_to_pmtu_ipv4 || capabilities?.features.tcp_mss?.clamp_to_pmtu_ipv6) && (
-                <div className="space-y-2">
-                  <h3 className="text-sm font-semibold">TCP MSS</h3>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="mss-clamping"
-                      checked={mssClamping}
-                      onCheckedChange={(checked) => setMssClamping(checked as boolean)}
-                    />
-                    <Label htmlFor="mss-clamping" className="cursor-pointer text-sm">
-                      Enable TCP MSS clamping to PMTU (IPv4+IPv6)
-                    </Label>
-                  </div>
-                </div>
-              )}
-
               {feat?.vif_dhcpv6_options && (
                 <div className="space-y-3">
                   <h3 className="text-sm font-semibold">DHCPv6 Options</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="dhcpv6-duid">DUID</Label>
-                      <Input
-                        id="dhcpv6-duid"
-                        placeholder="DUID string"
-                        value={dhcpv6Duid}
-                        onChange={(e) => setDhcpv6Duid(e.target.value)}
-                      />
+                      <Input id="dhcpv6-duid" placeholder="DUID string" value={dhcpv6Duid} onChange={(e) => setDhcpv6Duid(e.target.value)} />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
@@ -1141,17 +851,10 @@ export function ComprehensiveVLANModal({
           </Tabs>
 
           <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={loading}
-            >
-              Cancel
-            </Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
             <Button type="submit" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {mode === "create" ? "Create VLAN" : "Save Changes"}
+              {mode === "create" ? "Create VIF-C" : "Save Changes"}
             </Button>
           </DialogFooter>
         </form>

@@ -22,6 +22,8 @@ export interface DHCPv6OptionsConfig {
   no_release?: boolean | null;
   parameters_only?: boolean | null;
   temporary?: boolean | null;
+  no_request_dns?: boolean | null;
+  no_request_domain_name?: boolean | null;
 }
 
 export interface OffloadConfig {
@@ -74,10 +76,20 @@ export interface VIFConfig {
   vrf?: string | null;
   disable?: boolean | null;
   mss_clamping?: boolean | null;
+  disable_link_detect?: boolean | null;
+  dhcp_options?: DHCPOptionsConfig | null;
+  dhcpv6_options?: DHCPv6OptionsConfig | null;
+  ip?: IPConfig | null;
+  ipv6?: IPv6Config | null;
+  mirror?: MirrorConfig | null;
+  redirect?: string | null;
+  egress_qos?: string | null;
+  ingress_qos?: string | null;
 }
 
 export interface VIFSConfig extends VIFConfig {
   vif_c?: VIFConfig[] | null;
+  protocol?: string | null;
 }
 
 export interface MirrorConfig {
