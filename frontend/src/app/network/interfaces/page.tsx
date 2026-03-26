@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -19,20 +20,34 @@ import { Plus, RefreshCw, AlertCircle, Search, Cable, Pencil, Trash2, Network, C
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { ethernetService } from "@/lib/api/ethernet";
-import type { EthernetInterface, EthernetCapabilities, VIFConfig } from "@/lib/api/types/ethernet";
+import type { EthernetInterface, EthernetCapabilities, VIFConfig, VIFSConfig } from "@/lib/api/types/ethernet";
 import { wireguardService, type WireGuardInterface } from "@/lib/api/wireguard";
 import { ComprehensiveEthernetModal } from "@/components/network/ComprehensiveEthernetModal";
 import { ComprehensiveVLANModal } from "@/components/network/ComprehensiveVLANModal";
+import { ComprehensiveVIFSModal } from "@/components/network/ComprehensiveVIFSModal";
+import { ComprehensiveVIFCModal } from "@/components/network/ComprehensiveVIFCModal";
 import { DeleteEthernetModal } from "@/components/network/DeleteEthernetModal";
+import { DeleteVLANModal } from "@/components/network/DeleteVLANModal";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 
 type InterfaceType = "ethernet" | "vlan" | "wireguard";
+type VlanSubTab = "vif" | "vif-s" | "vif-c";
 
-// VLAN with parent interface info
 interface VLANWithParent extends VIFConfig {
   parentInterface: string;
+  fullName: string;
+}
+
+interface VIFSWithParent extends VIFSConfig {
+  parentInterface: string;
+  fullName: string;
+}
+
+interface VIFCWithParent extends VIFConfig {
+  parentInterface: string;
+  sVlanId: string;
   fullName: string;
 }
 
@@ -44,15 +59,25 @@ export default function InterfacesPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedType, setSelectedType] = useState<InterfaceType>("ethernet");
+  const [vlanSubTab, setVlanSubTab] = useState<VlanSubTab>("vif");
 
   // Ethernet Modal states
   const [isCreateInterfaceModalOpen, setIsCreateInterfaceModalOpen] = useState(false);
   const [editingInterface, setEditingInterface] = useState<EthernetInterface | null>(null);
   const [deletingInterface, setDeletingInterface] = useState<EthernetInterface | null>(null);
 
-  // VLAN Modal states
+  // VIF Modal states
   const [isCreateVLANModalOpen, setIsCreateVLANModalOpen] = useState(false);
   const [editingVLAN, setEditingVLAN] = useState<VLANWithParent | null>(null);
+  const [deletingVLAN, setDeletingVLAN] = useState<{ type: "vif" | "vif-s" | "vif-c"; parentInterface: string; vlanId: string; sVlanId?: string; description?: string | null; addresses?: string[] } | null>(null);
+
+  // VIF-S Modal states
+  const [isCreateVIFSModalOpen, setIsCreateVIFSModalOpen] = useState(false);
+  const [editingVIFS, setEditingVIFS] = useState<VIFSWithParent | null>(null);
+
+  // VIF-C Modal states
+  const [isCreateVIFCModalOpen, setIsCreateVIFCModalOpen] = useState(false);
+  const [editingVIFC, setEditingVIFC] = useState<VIFCWithParent | null>(null);
 
   const { canWrite } = usePermissions();
 
@@ -78,35 +103,38 @@ export default function InterfacesPage() {
     loadData();
   }, []);
 
-  // Extract all VLANs from interfaces
-  const allVlans: VLANWithParent[] = interfaces.flatMap((iface) => {
-    const vlans: VLANWithParent[] = [];
+  // Extract VIF (802.1Q) sub-interfaces
+  const allVifs: VLANWithParent[] = interfaces.flatMap((iface) =>
+    (iface.vif || []).map((vif) => ({
+      ...vif,
+      parentInterface: iface.name,
+      fullName: `${iface.name}.${vif.vlan_id}`,
+    }))
+  );
 
-    if (iface.vif) {
-      iface.vif.forEach((vif) => {
-        vlans.push({
-          ...vif,
-          parentInterface: iface.name,
-          fullName: `${iface.name}.${vif.vlan_id}`,
-        });
-      });
-    }
+  // Extract VIF-S (QinQ Service) sub-interfaces
+  const allVifS: VIFSWithParent[] = interfaces.flatMap((iface) =>
+    (iface.vif_s || []).map((vifs) => ({
+      ...vifs,
+      parentInterface: iface.name,
+      fullName: `${iface.name}.${vifs.vlan_id}`,
+    }))
+  );
 
-    if (iface.vif_s) {
-      iface.vif_s.forEach((vifs) => {
-        vlans.push({
-          ...vifs,
-          parentInterface: iface.name,
-          fullName: `${iface.name}.${vifs.vlan_id}`,
-        });
-      });
-    }
-
-    return vlans;
-  });
+  // Extract VIF-C (QinQ Customer) sub-interfaces from within VIF-S
+  const allVifC: VIFCWithParent[] = interfaces.flatMap((iface) =>
+    (iface.vif_s || []).flatMap((vifs) =>
+      (vifs.vif_c || []).map((vifc) => ({
+        ...vifc,
+        parentInterface: iface.name,
+        sVlanId: vifs.vlan_id,
+        fullName: `${iface.name}.${vifs.vlan_id}.${vifc.vlan_id}`,
+      }))
+    )
+  );
 
   const totalInterfaces = interfaces.length;
-  const totalVlans = allVlans.length;
+  const totalVlans = allVifs.length + allVifS.length + allVifC.length;
   const totalWireGuard = wireGuardInterfaces.length;
 
   // Filter interfaces based on search
@@ -122,18 +150,184 @@ export default function InterfacesPage() {
     );
   });
 
-  // Filter VLANs based on search
-  const filteredVlans = allVlans.filter((vlan) => {
-    if (searchQuery === "") return true;
+  // Generic VLAN filter helper
+  const filterVlan = <T extends { fullName: string; parentInterface: string; description?: string | null; addresses?: string[]; vrf?: string | null }>(
+    items: T[]
+  ): T[] => {
+    if (searchQuery === "") return items;
     const q = searchQuery.toLowerCase();
-    return (
-      vlan.fullName.toLowerCase().includes(q) ||
-      vlan.parentInterface.toLowerCase().includes(q) ||
-      vlan.description?.toLowerCase().includes(q) ||
-      vlan.addresses?.some((addr) => addr.toLowerCase().includes(q)) ||
-      vlan.vrf?.toLowerCase().includes(q)
+    return items.filter(
+      (v) =>
+        v.fullName.toLowerCase().includes(q) ||
+        v.parentInterface.toLowerCase().includes(q) ||
+        v.description?.toLowerCase().includes(q) ||
+        v.addresses?.some((addr) => addr.toLowerCase().includes(q)) ||
+        v.vrf?.toLowerCase().includes(q)
     );
-  });
+  };
+
+  const filteredVifs = filterVlan(allVifs);
+  const filteredVifS = filterVlan(allVifS);
+  const filteredVifC = filterVlan(allVifC);
+
+  const handleCreateVlan = () => {
+    if (vlanSubTab === "vif") setIsCreateVLANModalOpen(true);
+    else if (vlanSubTab === "vif-s") setIsCreateVIFSModalOpen(true);
+    else setIsCreateVIFCModalOpen(true);
+  };
+
+  const vlanSubTabLabel: Record<VlanSubTab, string> = {
+    vif: "VLAN",
+    "vif-s": "VIF-S",
+    "vif-c": "VIF-C",
+  };
+
+  // Shared VLAN table renderer
+  const renderVlanTable = <T extends { fullName: string; vlan_id: string; parentInterface: string; description?: string | null; addresses?: string[]; vrf?: string | null; disable?: boolean | null }>(
+    items: T[],
+    type: "vif" | "vif-s" | "vif-c",
+    extraColumns?: (item: T) => React.ReactNode,
+    onEdit?: (item: T) => void,
+  ) => {
+    if (items.length === 0) {
+      return (
+        <Card className="border-border">
+          <CardContent className="py-12">
+            <div className="flex flex-col items-center gap-2">
+              <Network className="h-12 w-12 text-muted-foreground/30" />
+              <p className="text-muted-foreground">
+                {searchQuery
+                  ? `No ${vlanSubTabLabel[type]}s matching your search`
+                  : `No ${vlanSubTabLabel[type]}s configured`}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    return (
+      <>
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>VLAN ID</TableHead>
+                <TableHead>Parent</TableHead>
+                {type === "vif-c" && <TableHead>S-VLAN</TableHead>}
+                <TableHead>Description</TableHead>
+                <TableHead>Addresses</TableHead>
+                <TableHead>VRF</TableHead>
+                <TableHead>Status</TableHead>
+                {extraColumns && <TableHead>Extra</TableHead>}
+                <TableHead className="w-[80px]"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {items.map((item) => (
+                <TableRow key={item.fullName}>
+                  <TableCell>
+                    <code className="font-semibold font-mono text-foreground">{item.fullName}</code>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="bg-purple-500/10 text-purple-500 border-purple-500/20 text-xs">
+                      {item.vlan_id}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <code className="text-xs font-mono text-muted-foreground">{item.parentInterface}</code>
+                  </TableCell>
+                  {type === "vif-c" && (
+                    <TableCell>
+                      <Badge variant="outline" className="text-xs">
+                        {(item as unknown as VIFCWithParent).sVlanId}
+                      </Badge>
+                    </TableCell>
+                  )}
+                  <TableCell className="text-muted-foreground max-w-[200px] truncate">
+                    {item.description || "—"}
+                  </TableCell>
+                  <TableCell>
+                    {item.addresses && item.addresses.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {item.addresses.slice(0, 2).map((addr, idx) => (
+                          <code key={idx} className="text-xs font-mono px-1.5 py-0.5 rounded bg-accent text-foreground">
+                            {addr}
+                          </code>
+                        ))}
+                        {item.addresses.length > 2 && (
+                          <Badge variant="secondary" className="text-xs px-1.5 py-0">
+                            +{item.addresses.length - 2}
+                          </Badge>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {item.vrf ? (
+                      <Badge variant="outline" className="bg-purple-500/10 text-purple-500 border-purple-500/20 text-xs">
+                        {item.vrf}
+                      </Badge>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {item.disable ? (
+                      <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">Disabled</Badge>
+                    ) : (
+                      <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">Enabled</Badge>
+                    )}
+                  </TableCell>
+                  {extraColumns && <TableCell>{extraColumns(item)}</TableCell>}
+                  <TableCell>
+                    <div className="flex gap-1 justify-end">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onEdit?.(item)}
+                        className="h-7 w-7 p-0"
+                        disabled={!canWrite(FeatureGroup.INTERFACES)}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          const base = {
+                            type,
+                            parentInterface: item.parentInterface,
+                            vlanId: item.vlan_id,
+                            description: item.description,
+                            addresses: item.addresses,
+                          } as typeof deletingVLAN;
+                          if (type === "vif-c") {
+                            base!.sVlanId = (item as unknown as VIFCWithParent).sVlanId;
+                          }
+                          setDeletingVLAN(base);
+                        }}
+                        className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                        disabled={!canWrite(FeatureGroup.INTERFACES)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+        <p className="text-sm text-muted-foreground text-center mt-3">
+          Showing {items.length} {vlanSubTabLabel[type]}{items.length !== 1 ? "s" : ""}
+        </p>
+      </>
+    );
+  };
 
   const filteredWireGuard = wireGuardInterfaces.filter((iface) => {
     if (searchQuery === "") return true;
@@ -209,9 +403,7 @@ export default function InterfacesPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2 mb-1">
-                        <span className="font-medium text-sm text-foreground">
-                          Ethernet
-                        </span>
+                        <span className="font-medium text-sm text-foreground">Ethernet</span>
                         {selectedType === "ethernet" && (
                           <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
                         )}
@@ -245,9 +437,7 @@ export default function InterfacesPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2 mb-1">
-                        <span className="font-medium text-sm text-foreground">
-                          VLAN
-                        </span>
+                        <span className="font-medium text-sm text-foreground">VLAN</span>
                         {selectedType === "vlan" && (
                           <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
                         )}
@@ -312,7 +502,7 @@ export default function InterfacesPage() {
                   {selectedType === "ethernet"
                     ? "Physical and virtual ethernet interface configurations"
                     : selectedType === "vlan"
-                      ? "802.1Q VLAN sub-interfaces"
+                      ? "802.1Q VLAN, QinQ Service (VIF-S), and QinQ Customer (VIF-C) sub-interfaces"
                       : "WireGuard tunnel interfaces and status"}
                 </p>
               </div>
@@ -320,7 +510,7 @@ export default function InterfacesPage() {
                 className="gap-2"
                 onClick={() => {
                   if (selectedType === "vlan") {
-                    setIsCreateVLANModalOpen(true);
+                    handleCreateVlan();
                   } else if (selectedType === "wireguard") {
                     window.location.href = "/vpn/wireguard";
                   } else {
@@ -330,9 +520,35 @@ export default function InterfacesPage() {
                 disabled={!canWrite(FeatureGroup.INTERFACES)}
               >
                 <Plus className="h-4 w-4" />
-                {selectedType === "ethernet" ? "Create Interface" : selectedType === "vlan" ? "Create VLAN" : "Manage WireGuard"}
+                {selectedType === "ethernet"
+                  ? "Create Interface"
+                  : selectedType === "vlan"
+                    ? `Create ${vlanSubTabLabel[vlanSubTab]}`
+                    : "Manage WireGuard"}
               </Button>
             </div>
+
+            {/* VLAN Sub-tabs */}
+            {selectedType === "vlan" && (
+              <div className="mb-4">
+                <Tabs value={vlanSubTab} onValueChange={(v) => setVlanSubTab(v as VlanSubTab)}>
+                  <TabsList>
+                    <TabsTrigger value="vif" className="gap-1.5">
+                      802.1Q VLAN
+                      <Badge variant="secondary" className="text-xs px-1.5 py-0 ml-1">{allVifs.length}</Badge>
+                    </TabsTrigger>
+                    <TabsTrigger value="vif-s" className="gap-1.5">
+                      VIF-S (QinQ Service)
+                      <Badge variant="secondary" className="text-xs px-1.5 py-0 ml-1">{allVifS.length}</Badge>
+                    </TabsTrigger>
+                    <TabsTrigger value="vif-c" className="gap-1.5">
+                      VIF-C (QinQ Customer)
+                      <Badge variant="secondary" className="text-xs px-1.5 py-0 ml-1">{allVifC.length}</Badge>
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </div>
+            )}
 
             {/* Search */}
             <div className="relative">
@@ -407,9 +623,7 @@ export default function InterfacesPage() {
                           return (
                             <TableRow key={iface.name}>
                               <TableCell>
-                                <code className="font-semibold font-mono text-foreground">
-                                  {iface.name}
-                                </code>
+                                <code className="font-semibold font-mono text-foreground">{iface.name}</code>
                               </TableCell>
                               <TableCell>
                                 <Badge variant={iface.disable ? "secondary" : "default"} className="text-xs">
@@ -423,10 +637,7 @@ export default function InterfacesPage() {
                                 {iface.addresses && iface.addresses.length > 0 ? (
                                   <div className="flex flex-wrap gap-1">
                                     {iface.addresses.slice(0, 2).map((addr, idx) => (
-                                      <code
-                                        key={idx}
-                                        className="text-xs font-mono px-1.5 py-0.5 rounded bg-accent text-foreground"
-                                      >
+                                      <code key={idx} className="text-xs font-mono px-1.5 py-0.5 rounded bg-accent text-foreground">
                                         {addr}
                                       </code>
                                     ))}
@@ -451,18 +662,14 @@ export default function InterfacesPage() {
                               </TableCell>
                               <TableCell>
                                 {iface.hw_id ? (
-                                  <code className="text-xs font-mono text-muted-foreground">
-                                    {iface.hw_id}
-                                  </code>
+                                  <code className="text-xs font-mono text-muted-foreground">{iface.hw_id}</code>
                                 ) : (
                                   <span className="text-muted-foreground">—</span>
                                 )}
                               </TableCell>
                               <TableCell>
                                 {vlanCount > 0 ? (
-                                  <Badge variant="secondary" className="text-xs">
-                                    {vlanCount}
-                                  </Badge>
+                                  <Badge variant="secondary" className="text-xs">{vlanCount}</Badge>
                                 ) : (
                                   <span className="text-muted-foreground">0</span>
                                 )}
@@ -501,132 +708,27 @@ export default function InterfacesPage() {
                 </>
               )
             ) : selectedType === "vlan" ? (
-              /* VLAN Table */
-              filteredVlans.length === 0 ? (
-                <Card className="border-border">
-                  <CardContent className="py-12">
-                    <div className="flex flex-col items-center gap-2">
-                      <Network className="h-12 w-12 text-muted-foreground/30" />
-                      <p className="text-muted-foreground">
-                        {searchQuery
-                          ? "No VLANs matching your search"
-                          : "No VLANs configured"}
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-              ) : (
-                <>
-                  <div className="rounded-md border">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Name</TableHead>
-                          <TableHead>VLAN ID</TableHead>
-                          <TableHead>Parent</TableHead>
-                          <TableHead>Description</TableHead>
-                          <TableHead>Addresses</TableHead>
-                          <TableHead>VRF</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead className="w-[80px]"></TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredVlans.map((vlan) => (
-                          <TableRow key={vlan.fullName}>
-                            <TableCell>
-                              <code className="font-semibold font-mono text-foreground">
-                                {vlan.fullName}
-                              </code>
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="outline" className="bg-purple-500/10 text-purple-500 border-purple-500/20 text-xs">
-                                {vlan.vlan_id}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <code className="text-xs font-mono text-muted-foreground">
-                                {vlan.parentInterface}
-                              </code>
-                            </TableCell>
-                            <TableCell className="text-muted-foreground max-w-[200px] truncate">
-                              {vlan.description || "—"}
-                            </TableCell>
-                            <TableCell>
-                              {vlan.addresses && vlan.addresses.length > 0 ? (
-                                <div className="flex flex-wrap gap-1">
-                                  {vlan.addresses.slice(0, 2).map((addr, idx) => (
-                                    <code
-                                      key={idx}
-                                      className="text-xs font-mono px-1.5 py-0.5 rounded bg-accent text-foreground"
-                                    >
-                                      {addr}
-                                    </code>
-                                  ))}
-                                  {vlan.addresses.length > 2 && (
-                                    <Badge variant="secondary" className="text-xs px-1.5 py-0">
-                                      +{vlan.addresses.length - 2}
-                                    </Badge>
-                                  )}
-                                </div>
-                              ) : (
-                                <span className="text-muted-foreground">—</span>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              {vlan.vrf ? (
-                                <Badge variant="outline" className="bg-purple-500/10 text-purple-500 border-purple-500/20 text-xs">
-                                  {vlan.vrf}
-                                </Badge>
-                              ) : (
-                                <span className="text-muted-foreground">—</span>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              {vlan.disable ? (
-                                <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">
-                                  Disabled
-                                </Badge>
-                              ) : (
-                                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">
-                                  Enabled
-                                </Badge>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex gap-1 justify-end">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => setEditingVLAN(vlan)}
-                                  className="h-7 w-7 p-0"
-                                  disabled={!canWrite(FeatureGroup.INTERFACES)}
-                                >
-                                  <Pencil className="h-3.5 w-3.5" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => {
-                                    // TODO: Implement VLAN delete
-                                  }}
-                                  className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                                  disabled={!canWrite(FeatureGroup.INTERFACES)}
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                  <p className="text-sm text-muted-foreground text-center mt-3">
-                    Showing {filteredVlans.length} of {totalVlans} VLAN{totalVlans !== 1 ? "s" : ""}
-                  </p>
-                </>
-              )
+              /* VLAN Tables - based on sub-tab */
+              <>
+                {vlanSubTab === "vif" && renderVlanTable(
+                  filteredVifs,
+                  "vif",
+                  undefined,
+                  (item) => setEditingVLAN(item),
+                )}
+                {vlanSubTab === "vif-s" && renderVlanTable(
+                  filteredVifS,
+                  "vif-s",
+                  undefined,
+                  (item) => setEditingVIFS(item),
+                )}
+                {vlanSubTab === "vif-c" && renderVlanTable(
+                  filteredVifC,
+                  "vif-c",
+                  undefined,
+                  (item) => setEditingVIFC(item),
+                )}
+              </>
             ) : filteredWireGuard.length === 0 ? (
               <Card className="border-border">
                 <CardContent className="py-12">
@@ -721,7 +823,7 @@ export default function InterfacesPage() {
         />
       )}
 
-      {/* VLAN Modals */}
+      {/* VIF (802.1Q) Modals */}
       <ComprehensiveVLANModal
         open={isCreateVLANModalOpen}
         onOpenChange={setIsCreateVLANModalOpen}
@@ -741,6 +843,74 @@ export default function InterfacesPage() {
           capabilities={capabilities}
           onSuccess={() => {
             setEditingVLAN(null);
+            loadData();
+          }}
+        />
+      )}
+
+      {/* VIF-S (QinQ Service) Modals */}
+      <ComprehensiveVIFSModal
+        open={isCreateVIFSModalOpen}
+        onOpenChange={setIsCreateVIFSModalOpen}
+        mode="create"
+        interfaces={interfaces}
+        capabilities={capabilities}
+        onSuccess={loadData}
+      />
+
+      {editingVIFS && (
+        <ComprehensiveVIFSModal
+          open={!!editingVIFS}
+          onOpenChange={(open) => !open && setEditingVIFS(null)}
+          mode="edit"
+          vlan={editingVIFS}
+          interfaces={interfaces}
+          capabilities={capabilities}
+          onSuccess={() => {
+            setEditingVIFS(null);
+            loadData();
+          }}
+        />
+      )}
+
+      {/* VIF-C (QinQ Customer) Modals */}
+      <ComprehensiveVIFCModal
+        open={isCreateVIFCModalOpen}
+        onOpenChange={setIsCreateVIFCModalOpen}
+        mode="create"
+        interfaces={interfaces}
+        capabilities={capabilities}
+        onSuccess={loadData}
+      />
+
+      {editingVIFC && (
+        <ComprehensiveVIFCModal
+          open={!!editingVIFC}
+          onOpenChange={(open) => !open && setEditingVIFC(null)}
+          mode="edit"
+          vlan={editingVIFC}
+          interfaces={interfaces}
+          capabilities={capabilities}
+          onSuccess={() => {
+            setEditingVIFC(null);
+            loadData();
+          }}
+        />
+      )}
+
+      {/* Delete VLAN Modal (shared for all types) */}
+      {deletingVLAN && (
+        <DeleteVLANModal
+          open={!!deletingVLAN}
+          onOpenChange={(open) => !open && setDeletingVLAN(null)}
+          vlanType={deletingVLAN.type}
+          parentInterface={deletingVLAN.parentInterface}
+          vlanId={deletingVLAN.vlanId}
+          sVlanId={deletingVLAN.sVlanId}
+          description={deletingVLAN.description}
+          addresses={deletingVLAN.addresses}
+          onSuccess={() => {
+            setDeletingVLAN(null);
             loadData();
           }}
         />

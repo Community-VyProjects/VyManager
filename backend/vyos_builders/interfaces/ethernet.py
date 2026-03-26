@@ -495,12 +495,26 @@ class EthernetInterfaceBuilderMixin:
         path = self.mappers[self.interface_mapper_key].get_vif_s(interface, vlan_id)
         return self.add_set(path)
 
+    def delete_vif_s(
+        self, interface: str, vlan_id: str
+    ) -> "EthernetInterfaceBuilderMixin":
+        """Delete QinQ service VLAN (vif-s)"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s(interface, vlan_id)
+        return self.add_delete(path)
+
     def set_vif_c(
         self, interface: str, s_vlan_id: str, c_vlan_id: str
     ) -> "EthernetInterfaceBuilderMixin":
         """Configure QinQ customer VLAN (vif-c)"""
         path = self.mappers[self.interface_mapper_key].get_vif_c(interface, s_vlan_id, c_vlan_id)
         return self.add_set(path)
+
+    def delete_vif_c(
+        self, interface: str, s_vlan_id: str, c_vlan_id: str
+    ) -> "EthernetInterfaceBuilderMixin":
+        """Delete QinQ customer VLAN (vif-c)"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c(interface, s_vlan_id, c_vlan_id)
+        return self.add_delete(path)
 
     # ========================================================================
     # VIF (802.1q VLAN) Sub-interface Configuration
@@ -1398,3 +1412,776 @@ class EthernetInterfaceBuilderMixin:
         """Set VIF IPv6 DAD transmits"""
         path = self.mappers[self.interface_mapper_key].get_vif_ipv6_dup_addr_detect_transmits(interface, vlan_id, count)
         return self.add_set(path)
+
+    # ========================================================================
+    # VIF DHCP Options (additional)
+    # ========================================================================
+
+    def set_vif_dhcp_options_default_route_distance(self, interface: str, vlan_id: str, distance: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF DHCP default route distance"""
+        path = self.mappers[self.interface_mapper_key].get_vif_dhcp_options_default_route_distance(interface, vlan_id, distance)
+        return self.add_set(path)
+
+    def set_vif_dhcp_options_mtu(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Enable VIF DHCP MTU option"""
+        path = self.mappers[self.interface_mapper_key].get_vif_dhcp_options_mtu(interface, vlan_id)
+        return self.add_set(path)
+
+    def set_vif_dhcp_options_no_default_route(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Reject VIF DHCP default route"""
+        path = self.mappers[self.interface_mapper_key].get_vif_dhcp_options_no_default_route(interface, vlan_id)
+        return self.add_set(path)
+
+    def set_vif_dhcp_options_reject(self, interface: str, vlan_id: str, address: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF DHCP reject server"""
+        path = self.mappers[self.interface_mapper_key].get_vif_dhcp_options_reject(interface, vlan_id, address)
+        return self.add_set(path)
+
+    def set_vif_dhcp_options_user_class(self, interface: str, vlan_id: str, user_class: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF DHCP user class"""
+        path = self.mappers[self.interface_mapper_key].get_vif_dhcp_options_user_class(interface, vlan_id, user_class)
+        return self.add_set(path)
+
+    def set_vif_dhcp_options_vendor_class_id(self, interface: str, vlan_id: str, vendor_class_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF DHCP vendor class ID"""
+        path = self.mappers[self.interface_mapper_key].get_vif_dhcp_options_vendor_class_id(interface, vlan_id, vendor_class_id)
+        return self.add_set(path)
+
+    def delete_vif_dhcp_options(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Delete all VIF DHCP options"""
+        path = self.mappers[self.interface_mapper_key].get_vif_dhcp_options_path(interface, vlan_id)
+        return self.add_delete(path)
+
+    # ========================================================================
+    # VIF DHCPv6 Options
+    # ========================================================================
+
+    def set_vif_dhcpv6_options_duid(self, interface: str, vlan_id: str, duid: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF DHCPv6 DUID"""
+        path = self.mappers[self.interface_mapper_key].get_vif_dhcpv6_options_duid(interface, vlan_id, duid)
+        return self.add_set(path)
+
+    def set_vif_dhcpv6_options_no_release(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Enable VIF DHCPv6 no-release"""
+        path = self.mappers[self.interface_mapper_key].get_vif_dhcpv6_options_no_release(interface, vlan_id)
+        return self.add_set(path)
+
+    def set_vif_dhcpv6_options_parameters_only(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Enable VIF DHCPv6 parameters-only"""
+        path = self.mappers[self.interface_mapper_key].get_vif_dhcpv6_options_parameters_only(interface, vlan_id)
+        return self.add_set(path)
+
+    def set_vif_dhcpv6_options_rapid_commit(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Enable VIF DHCPv6 rapid commit"""
+        path = self.mappers[self.interface_mapper_key].get_vif_dhcpv6_options_rapid_commit(interface, vlan_id)
+        return self.add_set(path)
+
+    def set_vif_dhcpv6_options_temporary(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Enable VIF DHCPv6 temporary address"""
+        path = self.mappers[self.interface_mapper_key].get_vif_dhcpv6_options_temporary(interface, vlan_id)
+        return self.add_set(path)
+
+    def set_vif_dhcpv6_options_pd(self, interface: str, vlan_id: str, pd_id: str, prefix: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF DHCPv6 prefix delegation"""
+        path = self.mappers[self.interface_mapper_key].get_vif_dhcpv6_options_pd(interface, vlan_id, pd_id, prefix)
+        return self.add_set(path)
+
+    def set_vif_dhcpv6_options_pd_length(self, interface: str, vlan_id: str, pd_id: str, length: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF DHCPv6 prefix delegation length"""
+        path = self.mappers[self.interface_mapper_key].get_vif_dhcpv6_options_pd_length(interface, vlan_id, pd_id, length)
+        return self.add_set(path)
+
+    def set_vif_dhcpv6_options_pd_interface(self, interface: str, vlan_id: str, pd_id: str, iface: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF DHCPv6 prefix delegation interface"""
+        path = self.mappers[self.interface_mapper_key].get_vif_dhcpv6_options_pd_interface(interface, vlan_id, pd_id, iface)
+        return self.add_set(path)
+
+    def set_vif_dhcpv6_options_pd_interface_address(self, interface: str, vlan_id: str, pd_id: str, iface: str, address: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF DHCPv6 prefix delegation interface address"""
+        path = self.mappers[self.interface_mapper_key].get_vif_dhcpv6_options_pd_interface_address(interface, vlan_id, pd_id, iface, address)
+        return self.add_set(path)
+
+    def set_vif_dhcpv6_options_pd_interface_sla_id(self, interface: str, vlan_id: str, pd_id: str, iface: str, sla_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF DHCPv6 prefix delegation interface SLA ID"""
+        path = self.mappers[self.interface_mapper_key].get_vif_dhcpv6_options_pd_interface_sla_id(interface, vlan_id, pd_id, iface, sla_id)
+        return self.add_set(path)
+
+    def set_vif_dhcpv6_options_no_request_dns(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Disable VIF DHCPv6 DNS request (1.5+ only)"""
+        path = self.mappers[self.interface_mapper_key].get_vif_dhcpv6_options_no_request_dns(interface, vlan_id)
+        return self.add_set(path)
+
+    def set_vif_dhcpv6_options_no_request_domain_name(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Disable VIF DHCPv6 domain name request (1.5+ only)"""
+        path = self.mappers[self.interface_mapper_key].get_vif_dhcpv6_options_no_request_domain_name(interface, vlan_id)
+        return self.add_set(path)
+
+    def delete_vif_dhcpv6_options(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Delete all VIF DHCPv6 options"""
+        path = self.mappers[self.interface_mapper_key].get_vif_dhcpv6_options_path(interface, vlan_id)
+        return self.add_delete(path)
+
+    # ========================================================================
+    # VIF IP Options (additional)
+    # ========================================================================
+
+    def set_vif_ip_disable_arp_filter(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Disable ARP filter on VIF"""
+        path = self.mappers[self.interface_mapper_key].get_vif_ip_disable_arp_filter(interface, vlan_id)
+        return self.add_set(path)
+
+    def set_vif_ip_enable_arp_accept(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Enable ARP accept on VIF"""
+        path = self.mappers[self.interface_mapper_key].get_vif_ip_enable_arp_accept(interface, vlan_id)
+        return self.add_set(path)
+
+    def set_vif_ip_enable_arp_announce(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Enable ARP announce on VIF"""
+        path = self.mappers[self.interface_mapper_key].get_vif_ip_enable_arp_announce(interface, vlan_id)
+        return self.add_set(path)
+
+    def set_vif_ip_enable_arp_ignore(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Enable ARP ignore on VIF"""
+        path = self.mappers[self.interface_mapper_key].get_vif_ip_enable_arp_ignore(interface, vlan_id)
+        return self.add_set(path)
+
+    def set_vif_ip_enable_directed_broadcast(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Enable directed broadcast on VIF"""
+        path = self.mappers[self.interface_mapper_key].get_vif_ip_enable_directed_broadcast(interface, vlan_id)
+        return self.add_set(path)
+
+    def set_vif_ip_proxy_arp_pvlan(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Enable private VLAN proxy ARP on VIF"""
+        path = self.mappers[self.interface_mapper_key].get_vif_ip_proxy_arp_pvlan(interface, vlan_id)
+        return self.add_set(path)
+
+    def delete_vif_ip(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Delete all VIF IP options"""
+        path = self.mappers[self.interface_mapper_key].get_vif_ip_path(interface, vlan_id)
+        return self.add_delete(path)
+
+    # ========================================================================
+    # VIF IPv6 Options (additional)
+    # ========================================================================
+
+    def set_vif_ipv6_address_interface_identifier(self, interface: str, vlan_id: str, identifier: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF IPv6 address interface identifier (1.5+ only)"""
+        path = self.mappers[self.interface_mapper_key].get_vif_ipv6_address_interface_identifier(interface, vlan_id, identifier)
+        return self.add_set(path)
+
+    def set_vif_ipv6_address_no_default_link_local(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Disable default link-local address on VIF"""
+        path = self.mappers[self.interface_mapper_key].get_vif_ipv6_address_no_default_link_local(interface, vlan_id)
+        return self.add_set(path)
+
+    def set_vif_ipv6_base_reachable_time(self, interface: str, vlan_id: str, time: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF IPv6 base reachable time"""
+        path = self.mappers[self.interface_mapper_key].get_vif_ipv6_base_reachable_time(interface, vlan_id, time)
+        return self.add_set(path)
+
+    def set_vif_ipv6_source_validation(self, interface: str, vlan_id: str, mode: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF IPv6 source validation mode"""
+        path = self.mappers[self.interface_mapper_key].get_vif_ipv6_source_validation(interface, vlan_id, mode)
+        return self.add_set(path)
+
+    # ========================================================================
+    # VIF Other (additional)
+    # ========================================================================
+
+    def set_vif_disable_link_detect(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Disable link detection on VIF"""
+        path = self.mappers[self.interface_mapper_key].get_vif_disable_link_detect(interface, vlan_id)
+        return self.add_set(path)
+
+    def delete_vif_disable_link_detect(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Enable link detection on VIF (remove disable flag)"""
+        path = self.mappers[self.interface_mapper_key].get_vif_disable_link_detect(interface, vlan_id)
+        return self.add_delete(path)
+
+    # ========================================================================
+    # VIF-S DHCP Options (additional)
+    # ========================================================================
+
+    def set_vif_s_dhcp_options_default_route_distance(self, interface: str, vlan_id: str, distance: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF-S DHCP default route distance"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_dhcp_options_default_route_distance(interface, vlan_id, distance)
+        return self.add_set(path)
+
+    def set_vif_s_dhcp_options_mtu(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Enable VIF-S DHCP MTU option"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_dhcp_options_mtu(interface, vlan_id)
+        return self.add_set(path)
+
+    def set_vif_s_dhcp_options_no_default_route(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Reject VIF-S DHCP default route"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_dhcp_options_no_default_route(interface, vlan_id)
+        return self.add_set(path)
+
+    def set_vif_s_dhcp_options_reject(self, interface: str, vlan_id: str, address: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF-S DHCP reject server"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_dhcp_options_reject(interface, vlan_id, address)
+        return self.add_set(path)
+
+    def set_vif_s_dhcp_options_user_class(self, interface: str, vlan_id: str, user_class: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF-S DHCP user class"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_dhcp_options_user_class(interface, vlan_id, user_class)
+        return self.add_set(path)
+
+    def set_vif_s_dhcp_options_vendor_class_id(self, interface: str, vlan_id: str, vendor_class_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF-S DHCP vendor class ID"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_dhcp_options_vendor_class_id(interface, vlan_id, vendor_class_id)
+        return self.add_set(path)
+
+    def delete_vif_s_dhcp_options(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Delete all VIF-S DHCP options"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_dhcp_options_path(interface, vlan_id)
+        return self.add_delete(path)
+
+    # ========================================================================
+    # VIF-S DHCPv6 Options
+    # ========================================================================
+
+    def set_vif_s_dhcpv6_options_duid(self, interface: str, vlan_id: str, duid: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF-S DHCPv6 DUID"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_dhcpv6_options_duid(interface, vlan_id, duid)
+        return self.add_set(path)
+
+    def set_vif_s_dhcpv6_options_no_release(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Enable VIF-S DHCPv6 no-release"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_dhcpv6_options_no_release(interface, vlan_id)
+        return self.add_set(path)
+
+    def set_vif_s_dhcpv6_options_parameters_only(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Enable VIF-S DHCPv6 parameters-only"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_dhcpv6_options_parameters_only(interface, vlan_id)
+        return self.add_set(path)
+
+    def set_vif_s_dhcpv6_options_rapid_commit(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Enable VIF-S DHCPv6 rapid commit"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_dhcpv6_options_rapid_commit(interface, vlan_id)
+        return self.add_set(path)
+
+    def set_vif_s_dhcpv6_options_temporary(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Enable VIF-S DHCPv6 temporary address"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_dhcpv6_options_temporary(interface, vlan_id)
+        return self.add_set(path)
+
+    def set_vif_s_dhcpv6_options_pd(self, interface: str, vlan_id: str, pd_id: str, prefix: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF-S DHCPv6 prefix delegation"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_dhcpv6_options_pd(interface, vlan_id, pd_id, prefix)
+        return self.add_set(path)
+
+    def set_vif_s_dhcpv6_options_pd_length(self, interface: str, vlan_id: str, pd_id: str, length: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF-S DHCPv6 prefix delegation length"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_dhcpv6_options_pd_length(interface, vlan_id, pd_id, length)
+        return self.add_set(path)
+
+    def set_vif_s_dhcpv6_options_pd_interface(self, interface: str, vlan_id: str, pd_id: str, iface: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF-S DHCPv6 prefix delegation interface"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_dhcpv6_options_pd_interface(interface, vlan_id, pd_id, iface)
+        return self.add_set(path)
+
+    def set_vif_s_dhcpv6_options_pd_interface_address(self, interface: str, vlan_id: str, pd_id: str, iface: str, address: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF-S DHCPv6 prefix delegation interface address"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_dhcpv6_options_pd_interface_address(interface, vlan_id, pd_id, iface, address)
+        return self.add_set(path)
+
+    def set_vif_s_dhcpv6_options_pd_interface_sla_id(self, interface: str, vlan_id: str, pd_id: str, iface: str, sla_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF-S DHCPv6 prefix delegation interface SLA ID"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_dhcpv6_options_pd_interface_sla_id(interface, vlan_id, pd_id, iface, sla_id)
+        return self.add_set(path)
+
+    def set_vif_s_dhcpv6_options_no_request_dns(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Disable VIF-S DHCPv6 DNS request (1.5+ only)"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_dhcpv6_options_no_request_dns(interface, vlan_id)
+        return self.add_set(path)
+
+    def set_vif_s_dhcpv6_options_no_request_domain_name(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Disable VIF-S DHCPv6 domain name request (1.5+ only)"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_dhcpv6_options_no_request_domain_name(interface, vlan_id)
+        return self.add_set(path)
+
+    def delete_vif_s_dhcpv6_options(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Delete all VIF-S DHCPv6 options"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_dhcpv6_options_path(interface, vlan_id)
+        return self.add_delete(path)
+
+    # ========================================================================
+    # VIF-S IP Options
+    # ========================================================================
+
+    def set_vif_s_ip_adjust_mss(self, interface: str, vlan_id: str, mss: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF-S IPv4 TCP MSS"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_ip_adjust_mss(interface, vlan_id, mss)
+        return self.add_set(path)
+
+    def set_vif_s_ip_disable_forwarding(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Disable IP forwarding on VIF-S"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_ip_disable_forwarding(interface, vlan_id)
+        return self.add_set(path)
+
+    def set_vif_s_ip_source_validation(self, interface: str, vlan_id: str, mode: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF-S IP source validation mode"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_ip_source_validation(interface, vlan_id, mode)
+        return self.add_set(path)
+
+    def set_vif_s_ip_enable_proxy_arp(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Enable proxy ARP on VIF-S"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_ip_enable_proxy_arp(interface, vlan_id)
+        return self.add_set(path)
+
+    def set_vif_s_ip_arp_cache_timeout(self, interface: str, vlan_id: str, timeout: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF-S ARP cache timeout"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_ip_arp_cache_timeout(interface, vlan_id, timeout)
+        return self.add_set(path)
+
+    def set_vif_s_ip_disable_arp_filter(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Disable ARP filter on VIF-S"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_ip_disable_arp_filter(interface, vlan_id)
+        return self.add_set(path)
+
+    def set_vif_s_ip_enable_arp_accept(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Enable ARP accept on VIF-S"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_ip_enable_arp_accept(interface, vlan_id)
+        return self.add_set(path)
+
+    def set_vif_s_ip_enable_arp_announce(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Enable ARP announce on VIF-S"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_ip_enable_arp_announce(interface, vlan_id)
+        return self.add_set(path)
+
+    def set_vif_s_ip_enable_arp_ignore(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Enable ARP ignore on VIF-S"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_ip_enable_arp_ignore(interface, vlan_id)
+        return self.add_set(path)
+
+    def set_vif_s_ip_enable_directed_broadcast(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Enable directed broadcast on VIF-S"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_ip_enable_directed_broadcast(interface, vlan_id)
+        return self.add_set(path)
+
+    def set_vif_s_ip_proxy_arp_pvlan(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Enable private VLAN proxy ARP on VIF-S"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_ip_proxy_arp_pvlan(interface, vlan_id)
+        return self.add_set(path)
+
+    def delete_vif_s_ip(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Delete all VIF-S IP options"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_ip_path(interface, vlan_id)
+        return self.add_delete(path)
+
+    # ========================================================================
+    # VIF-S IPv6 Options
+    # ========================================================================
+
+    def set_vif_s_ipv6_disable_forwarding(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Disable IPv6 forwarding on VIF-S"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_ipv6_disable_forwarding(interface, vlan_id)
+        return self.add_set(path)
+
+    def set_vif_s_ipv6_adjust_mss(self, interface: str, vlan_id: str, mss: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF-S IPv6 TCP MSS"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_ipv6_adjust_mss(interface, vlan_id, mss)
+        return self.add_set(path)
+
+    def set_vif_s_ipv6_accept_dad(self, interface: str, vlan_id: str, count: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF-S IPv6 accept DAD count"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_ipv6_accept_dad(interface, vlan_id, count)
+        return self.add_set(path)
+
+    def set_vif_s_ipv6_dup_addr_detect_transmits(self, interface: str, vlan_id: str, count: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF-S IPv6 DAD transmits"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_ipv6_dup_addr_detect_transmits(interface, vlan_id, count)
+        return self.add_set(path)
+
+    def set_vif_s_ipv6_address_interface_identifier(self, interface: str, vlan_id: str, identifier: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF-S IPv6 address interface identifier (1.5+ only)"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_ipv6_address_interface_identifier(interface, vlan_id, identifier)
+        return self.add_set(path)
+
+    def set_vif_s_ipv6_address_no_default_link_local(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Disable default link-local address on VIF-S"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_ipv6_address_no_default_link_local(interface, vlan_id)
+        return self.add_set(path)
+
+    def set_vif_s_ipv6_base_reachable_time(self, interface: str, vlan_id: str, time: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF-S IPv6 base reachable time"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_ipv6_base_reachable_time(interface, vlan_id, time)
+        return self.add_set(path)
+
+    def set_vif_s_ipv6_source_validation(self, interface: str, vlan_id: str, mode: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF-S IPv6 source validation mode"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_ipv6_source_validation(interface, vlan_id, mode)
+        return self.add_set(path)
+
+    # ========================================================================
+    # VIF-S Redirect Operations
+    # ========================================================================
+
+    def set_vif_s_redirect(self, interface: str, vlan_id: str, target: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF-S redirect target"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_redirect(interface, vlan_id, target)
+        return self.add_set(path)
+
+    def delete_vif_s_redirect(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Delete VIF-S redirect"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_redirect_path(interface, vlan_id)
+        return self.add_delete(path)
+
+    # ========================================================================
+    # VIF-S Mirror Operations
+    # ========================================================================
+
+    def set_vif_s_mirror_ingress(self, interface: str, vlan_id: str, target: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF-S ingress port mirroring"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_mirror_ingress(interface, vlan_id, target)
+        return self.add_set(path)
+
+    def set_vif_s_mirror_egress(self, interface: str, vlan_id: str, target: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF-S egress port mirroring"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_mirror_egress(interface, vlan_id, target)
+        return self.add_set(path)
+
+    def delete_vif_s_mirror(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Delete VIF-S port mirroring"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_mirror_path(interface, vlan_id)
+        return self.add_delete(path)
+
+    # ========================================================================
+    # VIF-S Protocol Operations
+    # ========================================================================
+
+    def set_vif_s_protocol(self, interface: str, vlan_id: str, protocol: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF-S protocol"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_protocol(interface, vlan_id, protocol)
+        return self.add_set(path)
+
+    def delete_vif_s_protocol(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Delete VIF-S protocol"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_protocol_path(interface, vlan_id)
+        return self.add_delete(path)
+
+    # ========================================================================
+    # VIF-S Other (additional)
+    # ========================================================================
+
+    def set_vif_s_disable_link_detect(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Disable link detection on VIF-S"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_disable_link_detect(interface, vlan_id)
+        return self.add_set(path)
+
+    def delete_vif_s_disable_link_detect(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Enable link detection on VIF-S (remove disable flag)"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_disable_link_detect(interface, vlan_id)
+        return self.add_delete(path)
+
+    # ========================================================================
+    # VIF-S QoS Operations
+    # ========================================================================
+
+    def set_vif_s_egress_qos(self, interface: str, vlan_id: str, value: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF-S egress QoS mapping"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_egress_qos(interface, vlan_id, value)
+        return self.add_set(path)
+
+    def delete_vif_s_egress_qos(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Delete VIF-S egress QoS mapping"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_egress_qos_path(interface, vlan_id)
+        return self.add_delete(path)
+
+    def set_vif_s_ingress_qos(self, interface: str, vlan_id: str, value: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF-S ingress QoS mapping"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_ingress_qos(interface, vlan_id, value)
+        return self.add_set(path)
+
+    def delete_vif_s_ingress_qos(self, interface: str, vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Delete VIF-S ingress QoS mapping"""
+        path = self.mappers[self.interface_mapper_key].get_vif_s_ingress_qos_path(interface, vlan_id)
+        return self.add_delete(path)
+
+    # ========================================================================
+    # VIF-C DHCP Options (additional)
+    # ========================================================================
+
+    def set_vif_c_dhcp_options_default_route_distance(self, interface: str, s_vlan_id: str, c_vlan_id: str, distance: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF-C DHCP default route distance"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c_dhcp_options_default_route_distance(interface, s_vlan_id, c_vlan_id, distance)
+        return self.add_set(path)
+
+    def set_vif_c_dhcp_options_mtu(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Enable VIF-C DHCP MTU option"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c_dhcp_options_mtu(interface, s_vlan_id, c_vlan_id)
+        return self.add_set(path)
+
+    def set_vif_c_dhcp_options_no_default_route(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Reject VIF-C DHCP default route"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c_dhcp_options_no_default_route(interface, s_vlan_id, c_vlan_id)
+        return self.add_set(path)
+
+    def set_vif_c_dhcp_options_reject(self, interface: str, s_vlan_id: str, c_vlan_id: str, address: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF-C DHCP reject server"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c_dhcp_options_reject(interface, s_vlan_id, c_vlan_id, address)
+        return self.add_set(path)
+
+    def set_vif_c_dhcp_options_user_class(self, interface: str, s_vlan_id: str, c_vlan_id: str, user_class: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF-C DHCP user class"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c_dhcp_options_user_class(interface, s_vlan_id, c_vlan_id, user_class)
+        return self.add_set(path)
+
+    def set_vif_c_dhcp_options_vendor_class_id(self, interface: str, s_vlan_id: str, c_vlan_id: str, vendor_class_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF-C DHCP vendor class ID"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c_dhcp_options_vendor_class_id(interface, s_vlan_id, c_vlan_id, vendor_class_id)
+        return self.add_set(path)
+
+    def delete_vif_c_dhcp_options(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Delete all VIF-C DHCP options"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c_dhcp_options_path(interface, s_vlan_id, c_vlan_id)
+        return self.add_delete(path)
+
+    # ========================================================================
+    # VIF-C DHCPv6 Options
+    # ========================================================================
+
+    def set_vif_c_dhcpv6_options_duid(self, interface: str, s_vlan_id: str, c_vlan_id: str, duid: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF-C DHCPv6 DUID"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c_dhcpv6_options_duid(interface, s_vlan_id, c_vlan_id, duid)
+        return self.add_set(path)
+
+    def set_vif_c_dhcpv6_options_no_release(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Enable VIF-C DHCPv6 no-release"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c_dhcpv6_options_no_release(interface, s_vlan_id, c_vlan_id)
+        return self.add_set(path)
+
+    def set_vif_c_dhcpv6_options_parameters_only(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Enable VIF-C DHCPv6 parameters-only"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c_dhcpv6_options_parameters_only(interface, s_vlan_id, c_vlan_id)
+        return self.add_set(path)
+
+    def set_vif_c_dhcpv6_options_rapid_commit(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Enable VIF-C DHCPv6 rapid commit"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c_dhcpv6_options_rapid_commit(interface, s_vlan_id, c_vlan_id)
+        return self.add_set(path)
+
+    def set_vif_c_dhcpv6_options_temporary(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Enable VIF-C DHCPv6 temporary address"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c_dhcpv6_options_temporary(interface, s_vlan_id, c_vlan_id)
+        return self.add_set(path)
+
+    def set_vif_c_dhcpv6_options_pd(self, interface: str, s_vlan_id: str, c_vlan_id: str, pd_id: str, prefix: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF-C DHCPv6 prefix delegation"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c_dhcpv6_options_pd(interface, s_vlan_id, c_vlan_id, pd_id, prefix)
+        return self.add_set(path)
+
+    def set_vif_c_dhcpv6_options_pd_length(self, interface: str, s_vlan_id: str, c_vlan_id: str, pd_id: str, length: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF-C DHCPv6 prefix delegation length"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c_dhcpv6_options_pd_length(interface, s_vlan_id, c_vlan_id, pd_id, length)
+        return self.add_set(path)
+
+    def set_vif_c_dhcpv6_options_pd_interface(self, interface: str, s_vlan_id: str, c_vlan_id: str, pd_id: str, iface: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF-C DHCPv6 prefix delegation interface"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c_dhcpv6_options_pd_interface(interface, s_vlan_id, c_vlan_id, pd_id, iface)
+        return self.add_set(path)
+
+    def set_vif_c_dhcpv6_options_pd_interface_address(self, interface: str, s_vlan_id: str, c_vlan_id: str, pd_id: str, iface: str, address: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF-C DHCPv6 prefix delegation interface address"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c_dhcpv6_options_pd_interface_address(interface, s_vlan_id, c_vlan_id, pd_id, iface, address)
+        return self.add_set(path)
+
+    def set_vif_c_dhcpv6_options_pd_interface_sla_id(self, interface: str, s_vlan_id: str, c_vlan_id: str, pd_id: str, iface: str, sla_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF-C DHCPv6 prefix delegation interface SLA ID"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c_dhcpv6_options_pd_interface_sla_id(interface, s_vlan_id, c_vlan_id, pd_id, iface, sla_id)
+        return self.add_set(path)
+
+    def set_vif_c_dhcpv6_options_no_request_dns(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Disable VIF-C DHCPv6 DNS request (1.5+ only)"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c_dhcpv6_options_no_request_dns(interface, s_vlan_id, c_vlan_id)
+        return self.add_set(path)
+
+    def set_vif_c_dhcpv6_options_no_request_domain_name(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Disable VIF-C DHCPv6 domain name request (1.5+ only)"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c_dhcpv6_options_no_request_domain_name(interface, s_vlan_id, c_vlan_id)
+        return self.add_set(path)
+
+    def delete_vif_c_dhcpv6_options(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Delete all VIF-C DHCPv6 options"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c_dhcpv6_options_path(interface, s_vlan_id, c_vlan_id)
+        return self.add_delete(path)
+
+    # ========================================================================
+    # VIF-C IP Options
+    # ========================================================================
+
+    def set_vif_c_ip_adjust_mss(self, interface: str, s_vlan_id: str, c_vlan_id: str, mss: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF-C IPv4 TCP MSS"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c_ip_adjust_mss(interface, s_vlan_id, c_vlan_id, mss)
+        return self.add_set(path)
+
+    def set_vif_c_ip_disable_forwarding(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Disable IP forwarding on VIF-C"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c_ip_disable_forwarding(interface, s_vlan_id, c_vlan_id)
+        return self.add_set(path)
+
+    def set_vif_c_ip_source_validation(self, interface: str, s_vlan_id: str, c_vlan_id: str, mode: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF-C IP source validation mode"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c_ip_source_validation(interface, s_vlan_id, c_vlan_id, mode)
+        return self.add_set(path)
+
+    def set_vif_c_ip_enable_proxy_arp(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Enable proxy ARP on VIF-C"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c_ip_enable_proxy_arp(interface, s_vlan_id, c_vlan_id)
+        return self.add_set(path)
+
+    def set_vif_c_ip_arp_cache_timeout(self, interface: str, s_vlan_id: str, c_vlan_id: str, timeout: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF-C ARP cache timeout"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c_ip_arp_cache_timeout(interface, s_vlan_id, c_vlan_id, timeout)
+        return self.add_set(path)
+
+    def set_vif_c_ip_disable_arp_filter(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Disable ARP filter on VIF-C"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c_ip_disable_arp_filter(interface, s_vlan_id, c_vlan_id)
+        return self.add_set(path)
+
+    def set_vif_c_ip_enable_arp_accept(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Enable ARP accept on VIF-C"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c_ip_enable_arp_accept(interface, s_vlan_id, c_vlan_id)
+        return self.add_set(path)
+
+    def set_vif_c_ip_enable_arp_announce(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Enable ARP announce on VIF-C"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c_ip_enable_arp_announce(interface, s_vlan_id, c_vlan_id)
+        return self.add_set(path)
+
+    def set_vif_c_ip_enable_arp_ignore(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Enable ARP ignore on VIF-C"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c_ip_enable_arp_ignore(interface, s_vlan_id, c_vlan_id)
+        return self.add_set(path)
+
+    def set_vif_c_ip_enable_directed_broadcast(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Enable directed broadcast on VIF-C"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c_ip_enable_directed_broadcast(interface, s_vlan_id, c_vlan_id)
+        return self.add_set(path)
+
+    def set_vif_c_ip_proxy_arp_pvlan(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Enable private VLAN proxy ARP on VIF-C"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c_ip_proxy_arp_pvlan(interface, s_vlan_id, c_vlan_id)
+        return self.add_set(path)
+
+    def delete_vif_c_ip(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Delete all VIF-C IP options"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c_ip_path(interface, s_vlan_id, c_vlan_id)
+        return self.add_delete(path)
+
+    # ========================================================================
+    # VIF-C IPv6 Options
+    # ========================================================================
+
+    def set_vif_c_ipv6_disable_forwarding(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Disable IPv6 forwarding on VIF-C"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c_ipv6_disable_forwarding(interface, s_vlan_id, c_vlan_id)
+        return self.add_set(path)
+
+    def set_vif_c_ipv6_adjust_mss(self, interface: str, s_vlan_id: str, c_vlan_id: str, mss: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF-C IPv6 TCP MSS"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c_ipv6_adjust_mss(interface, s_vlan_id, c_vlan_id, mss)
+        return self.add_set(path)
+
+    def set_vif_c_ipv6_accept_dad(self, interface: str, s_vlan_id: str, c_vlan_id: str, count: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF-C IPv6 accept DAD count"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c_ipv6_accept_dad(interface, s_vlan_id, c_vlan_id, count)
+        return self.add_set(path)
+
+    def set_vif_c_ipv6_dup_addr_detect_transmits(self, interface: str, s_vlan_id: str, c_vlan_id: str, count: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF-C IPv6 DAD transmits"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c_ipv6_dup_addr_detect_transmits(interface, s_vlan_id, c_vlan_id, count)
+        return self.add_set(path)
+
+    def set_vif_c_ipv6_address_interface_identifier(self, interface: str, s_vlan_id: str, c_vlan_id: str, identifier: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF-C IPv6 address interface identifier (1.5+ only)"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c_ipv6_address_interface_identifier(interface, s_vlan_id, c_vlan_id, identifier)
+        return self.add_set(path)
+
+    def set_vif_c_ipv6_address_no_default_link_local(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Disable default link-local address on VIF-C"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c_ipv6_address_no_default_link_local(interface, s_vlan_id, c_vlan_id)
+        return self.add_set(path)
+
+    def set_vif_c_ipv6_base_reachable_time(self, interface: str, s_vlan_id: str, c_vlan_id: str, time: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF-C IPv6 base reachable time"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c_ipv6_base_reachable_time(interface, s_vlan_id, c_vlan_id, time)
+        return self.add_set(path)
+
+    def set_vif_c_ipv6_source_validation(self, interface: str, s_vlan_id: str, c_vlan_id: str, mode: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF-C IPv6 source validation mode"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c_ipv6_source_validation(interface, s_vlan_id, c_vlan_id, mode)
+        return self.add_set(path)
+
+    # ========================================================================
+    # VIF-C Redirect Operations
+    # ========================================================================
+
+    def set_vif_c_redirect(self, interface: str, s_vlan_id: str, c_vlan_id: str, target: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF-C redirect target"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c_redirect(interface, s_vlan_id, c_vlan_id, target)
+        return self.add_set(path)
+
+    def delete_vif_c_redirect(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Delete VIF-C redirect"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c_redirect_path(interface, s_vlan_id, c_vlan_id)
+        return self.add_delete(path)
+
+    # ========================================================================
+    # VIF-C Mirror Operations
+    # ========================================================================
+
+    def set_vif_c_mirror_ingress(self, interface: str, s_vlan_id: str, c_vlan_id: str, target: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF-C ingress port mirroring"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c_mirror_ingress(interface, s_vlan_id, c_vlan_id, target)
+        return self.add_set(path)
+
+    def set_vif_c_mirror_egress(self, interface: str, s_vlan_id: str, c_vlan_id: str, target: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF-C egress port mirroring"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c_mirror_egress(interface, s_vlan_id, c_vlan_id, target)
+        return self.add_set(path)
+
+    def delete_vif_c_mirror(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Delete VIF-C port mirroring"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c_mirror_path(interface, s_vlan_id, c_vlan_id)
+        return self.add_delete(path)
+
+    # ========================================================================
+    # VIF-C Other (additional)
+    # ========================================================================
+
+    def set_vif_c_disable_link_detect(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Disable link detection on VIF-C"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c_disable_link_detect(interface, s_vlan_id, c_vlan_id)
+        return self.add_set(path)
+
+    def delete_vif_c_disable_link_detect(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Enable link detection on VIF-C (remove disable flag)"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c_disable_link_detect(interface, s_vlan_id, c_vlan_id)
+        return self.add_delete(path)
+
+    # ========================================================================
+    # VIF-C QoS Operations
+    # ========================================================================
+
+    def set_vif_c_egress_qos(self, interface: str, s_vlan_id: str, c_vlan_id: str, value: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF-C egress QoS mapping"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c_egress_qos(interface, s_vlan_id, c_vlan_id, value)
+        return self.add_set(path)
+
+    def delete_vif_c_egress_qos(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Delete VIF-C egress QoS mapping"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c_egress_qos_path(interface, s_vlan_id, c_vlan_id)
+        return self.add_delete(path)
+
+    def set_vif_c_ingress_qos(self, interface: str, s_vlan_id: str, c_vlan_id: str, value: str) -> "EthernetInterfaceBuilderMixin":
+        """Set VIF-C ingress QoS mapping"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c_ingress_qos(interface, s_vlan_id, c_vlan_id, value)
+        return self.add_set(path)
+
+    def delete_vif_c_ingress_qos(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "EthernetInterfaceBuilderMixin":
+        """Delete VIF-C ingress QoS mapping"""
+        path = self.mappers[self.interface_mapper_key].get_vif_c_ingress_qos_path(interface, s_vlan_id, c_vlan_id)
+        return self.add_delete(path)
