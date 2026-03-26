@@ -154,6 +154,7 @@ const FEATURE_ICONS: Record<FeatureGroup, any> = {
   [FeatureGroup.USER_MANAGEMENT]: UserCircle,
   [FeatureGroup.POWER]: Power,
   [FeatureGroup.HIGH_AVAILABILITY]: Shield,
+  [FeatureGroup.VXLAN]: Network,
 };
 
 // Feature display names
@@ -218,6 +219,7 @@ const FEATURE_NAMES: Record<FeatureGroup, string> = {
   [FeatureGroup.USER_MANAGEMENT]: "User Management",
   [FeatureGroup.POWER]: "Power",
   [FeatureGroup.HIGH_AVAILABILITY]: "High Availability",
+  [FeatureGroup.VXLAN]: "VXLAN",
 };
 
 // Role badge styles
@@ -276,6 +278,7 @@ const FEATURE_CATEGORIES: FeatureCategory[] = [
           { feature: FeatureGroup.NAT64 },
           { feature: FeatureGroup.NAT66 },
           { feature: FeatureGroup.HIGH_AVAILABILITY },
+          { feature: FeatureGroup.VXLAN },
         ],
       },
       {
