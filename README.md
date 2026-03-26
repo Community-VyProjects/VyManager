@@ -22,6 +22,8 @@ VyManager User Interface supports Light and Dark themes.
 <img width="3799" height="1849" alt="Screenshot 1" src="https://github.com/user-attachments/assets/898081db-678f-4645-909d-f147baed23e7" />
 <img width="3790" height="624" alt="Screenshot 2" src="https://github.com/user-attachments/assets/2bf95cc6-4ca8-4694-9822-d97bb90db1b8" />
 <img width="3799" height="1335" alt="Screenshot 3" src="https://github.com/user-attachments/assets/74ccf55e-2839-492f-ad0e-4e9db2df5774" />
+<img width="641" height="1824" alt="Screenshot 4" src="https://github.com/user-attachments/assets/7cef35d1-ae74-4e7d-bd88-c9cf1a353369" />
+<img width="3802" height="1850" alt="Screenshot 5" src="https://github.com/user-attachments/assets/76505a31-3e3b-4dcc-98e5-00d2e899064c" />
 
 ---
 
