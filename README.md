@@ -1,32 +1,32 @@
 # VyManager
 ## Enterprise-grade VyOS Router Management System
 
-Modern web interface to make configuring, deploying and monitoring VyOS routers easier
+Centralized management platform for configuring, deploying and monitoring multi-site VyOS routers via a modern web interface
 
 ## Open Beta Community Release
 
-Open beta release. Expect lower stability and bugs. This release provides a lot of structural improvements over the older legacy version.
-We now flexibly support all active VyOS versions, including rolling releases.
+Open beta release. We flexibly support all active VyOS versions, including rolling releases.
 
 ### [Skip to Quick Start](#quick-start)
 
 **[Join our Discord community to receive official updates](https://discord.gg/k9SSkK7wPQ)**
 
-**Give us a star to support us!**
+**Give us a ⭐ star to support us!**
 
 ---
 
 ### Screenshots
 
-<img width="1911" height="862" alt="image" src="https://github.com/user-attachments/assets/b23d2eb2-32bc-4e01-9d62-7eefc76e1526" />
-<img width="532" height="403" alt="image" src="https://github.com/user-attachments/assets/eb1070eb-4996-4669-a165-d555d191173c" />
-<img width="1919" height="933" alt="image" src="https://github.com/user-attachments/assets/caf5c99d-3b13-4ed8-a917-f64dda914911" />
-<img width="1919" height="933" alt="image" src="https://github.com/user-attachments/assets/2f883341-8d2c-4022-a33d-17f9a93e33a7" />
-<img width="1919" height="935" alt="image" src="https://github.com/user-attachments/assets/0ef645db-7c62-4f07-8b00-309f81773b3a" />
+VyManager User Interface supports Light and Dark themes.
+
+<img width="3799" height="1849" alt="Screenshot 1" src="https://github.com/user-attachments/assets/898081db-678f-4645-909d-f147baed23e7" />
+<img width="3790" height="624" alt="Screenshot 2" src="https://github.com/user-attachments/assets/2bf95cc6-4ca8-4694-9822-d97bb90db1b8" />
+<img width="3799" height="1335" alt="Screenshot 3" src="https://github.com/user-attachments/assets/74ccf55e-2839-492f-ad0e-4e9db2df5774" />
 
 ---
 
 ## Quick Start
+
 
 ### Prerequisites
 
