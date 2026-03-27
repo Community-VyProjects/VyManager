@@ -74,6 +74,8 @@ from .pki import PKIMapper
 from .pki.pki_versions import get_pki_mapper
 from .vxlan import VxlanMapper
 from .vxlan.vxlan_versions import get_vxlan_mapper
+from .nhrp import NhrpMapper
+from .nhrp.nhrp_versions import get_nhrp_mapper
 
 # Auto-register all mappers
 # Ethernet uses factory for version-specific mappers
@@ -164,6 +166,8 @@ CommandMapperRegistry.register_feature("l2tp", get_l2tp_mapper)
 CommandMapperRegistry.register_feature("pki", get_pki_mapper)
 # VXLAN uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("vxlan", get_vxlan_mapper)
+# NHRP uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("nhrp", get_nhrp_mapper)
 
 __all__ = [
     "BaseFeatureMapper",
@@ -214,4 +218,5 @@ __all__ = [
     "L2TPMapper",
     "PKIMapper",
     "VxlanMapper",
+    "NhrpMapper",
 ]
