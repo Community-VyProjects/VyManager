@@ -61,6 +61,7 @@ from routers.l2tp import l2tp as l2tp_router
 from routers.pki import pki as pki_router
 from routers.vxlan import vxlan as vxlan_router
 from routers.nhrp import nhrp as nhrp_router
+from routers.pim import pim as pim_router
 from routers import version as version_router
 
 # Global variables
@@ -310,6 +311,7 @@ app.include_router(l2tp_router.router)
 app.include_router(pki_router.router)
 app.include_router(vxlan_router.router)
 app.include_router(nhrp_router.router)
+app.include_router(pim_router.router)
 app.include_router(version_router.router)
 
 
