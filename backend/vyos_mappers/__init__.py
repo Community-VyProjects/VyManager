@@ -74,6 +74,8 @@ from .l2tp import L2TPMapper
 from .l2tp.l2tp_versions import get_l2tp_mapper
 from .pki import PKIMapper
 from .pki.pki_versions import get_pki_mapper
+from .tunnel import TunnelMapper
+from .tunnel.tunnel_versions import get_tunnel_mapper
 from .vxlan import VxlanMapper
 from .vxlan.vxlan_versions import get_vxlan_mapper
 from .nhrp import NhrpMapper
@@ -170,6 +172,8 @@ CommandMapperRegistry.register_feature("ipsec", get_ipsec_mapper)
 CommandMapperRegistry.register_feature("l2tp", get_l2tp_mapper)
 # PKI uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("pki", get_pki_mapper)
+# Tunnel uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("tunnel", get_tunnel_mapper)
 # VXLAN uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("vxlan", get_vxlan_mapper)
 # NHRP uses factory for version-specific mappers
@@ -226,6 +230,7 @@ __all__ = [
     "IPSecMapper",
     "L2TPMapper",
     "PKIMapper",
+    "TunnelMapper",
     "VxlanMapper",
     "NhrpMapper",
     "PimMapper",

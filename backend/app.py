@@ -59,6 +59,7 @@ from routers.mpls import mpls as mpls_router
 from routers.ipsec import ipsec as ipsec_router
 from routers.l2tp import l2tp as l2tp_router
 from routers.pki import pki as pki_router
+from routers.tunnel import tunnel as tunnel_router
 from routers.vxlan import vxlan as vxlan_router
 from routers.nhrp import nhrp as nhrp_router
 from routers.pim import pim as pim_router
@@ -309,6 +310,7 @@ app.include_router(mpls_router.router)
 app.include_router(ipsec_router.router)
 app.include_router(l2tp_router.router)
 app.include_router(pki_router.router)
+app.include_router(tunnel_router.router)
 app.include_router(vxlan_router.router)
 app.include_router(nhrp_router.router)
 app.include_router(pim_router.router)
