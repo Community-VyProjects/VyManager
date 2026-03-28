@@ -16,6 +16,7 @@ import commit_confirm_state
 from vyos_builders import (
     EthernetBatchBuilder,
     DummyBatchBuilder,
+    BondingBatchBuilder,
     FirewallGroupsBatchBuilder,
     NATBatchBuilder,
     DHCPBatchBuilder,
@@ -90,6 +91,14 @@ class VyOSService:
         The builder automatically uses correct command syntax based on version.
         """
         return DummyBatchBuilder(self.config.version)
+
+    def create_bonding_batch(self) -> BondingBatchBuilder:
+        """
+        Create a batch builder for bonding interfaces.
+
+        The builder automatically uses correct command syntax based on version.
+        """
+        return BondingBatchBuilder(self.config.version)
 
     def create_firewall_groups_batch(self) -> FirewallGroupsBatchBuilder:
         """
