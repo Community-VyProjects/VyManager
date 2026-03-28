@@ -43,6 +43,7 @@ export interface WireGuardCapabilities {
     wireguard: { supported: boolean; description: string };
     key_generation: { supported: boolean; description: string };
     per_client_thread: { supported: boolean; description: string };
+    peer_required_on_create: { supported: boolean; description: string };
   };
   version_notes: {
     full_support: boolean;
@@ -58,6 +59,11 @@ export interface VyOSResponse {
 export interface WireGuardBatchOperation {
   op: string;
   value?: string;
+}
+
+export interface PeerBatchGroup {
+  peer: string;
+  operations: WireGuardBatchOperation[];
 }
 
 export interface KeypairResult {
@@ -138,12 +144,17 @@ class WireGuardService {
    */
   async interfaceBatch(
     interfaceName: string,
-    operations: WireGuardBatchOperation[]
+    operations: WireGuardBatchOperation[],
+    peers?: PeerBatchGroup[]
   ): Promise<VyOSResponse> {
-    const result = await apiClient.post<VyOSResponse>("/vyos/vpn/wireguard/interface/batch", {
+    const payload: Record<string, unknown> = {
       interface: interfaceName,
       operations,
-    });
+    };
+    if (peers && peers.length > 0) {
+      payload.peers = peers;
+    }
+    const result = await apiClient.post<VyOSResponse>("/vyos/vpn/wireguard/interface/batch", payload);
     await this.refreshConfig();
     return result;
   }
@@ -160,6 +171,13 @@ class WireGuardService {
     mtu?: string;
     per_client_thread?: boolean;
     mss_clamping?: boolean;
+    initial_peers?: Array<{
+      name: string;
+      public_key: string;
+      allowed_ips: string[];
+      preshared_key?: string;
+      persistent_keepalive?: string;
+    }>;
   }): Promise<VyOSResponse> {
     const operations: WireGuardBatchOperation[] = [];
 
@@ -191,7 +209,28 @@ class WireGuardService {
       operations.push({ op: "set_interface_mss_clamping" });
     }
 
-    return this.interfaceBatch(config.name, operations);
+    // Build peer batch groups for atomic commit (required on VyOS 1.4)
+    let peerGroups: PeerBatchGroup[] | undefined;
+    if (config.initial_peers && config.initial_peers.length > 0) {
+      peerGroups = config.initial_peers.map((peer) => {
+        const peerOps: WireGuardBatchOperation[] = [
+          { op: "create_peer" },
+          { op: "set_peer_public_key", value: peer.public_key },
+        ];
+        for (const ip of peer.allowed_ips) {
+          peerOps.push({ op: "set_peer_allowed_ips", value: ip });
+        }
+        if (peer.preshared_key) {
+          peerOps.push({ op: "set_peer_preshared_key", value: peer.preshared_key });
+        }
+        if (peer.persistent_keepalive) {
+          peerOps.push({ op: "set_peer_persistent_keepalive", value: peer.persistent_keepalive });
+        }
+        return { peer: peer.name, operations: peerOps };
+      });
+    }
+
+    return this.interfaceBatch(config.name, operations, peerGroups);
   }
 
   /**

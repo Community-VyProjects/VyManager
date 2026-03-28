@@ -418,6 +418,16 @@ export function CreateInterfaceModal({
           </TabsContent>
         </Tabs>
 
+        {/* VyOS 1.4 peer requirement notice */}
+        {capabilities?.features.peer_required_on_create?.supported && (
+          <div className="flex items-start gap-2 rounded-lg bg-amber-500/10 border border-amber-500/20 p-3">
+            <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+            <p className="text-sm text-amber-700">
+              VyOS 1.4 requires at least one peer when creating an interface. Please use the <strong>Quick Setup Wizard</strong> instead, which creates an interface and peer together.
+            </p>
+          </div>
+        )}
+
         {/* Error Display */}
         {error && (
           <div className="flex items-start gap-2 rounded-lg bg-destructive/10 border border-destructive/20 p-3">
@@ -430,7 +440,10 @@ export function CreateInterfaceModal({
           <Button variant="outline" onClick={handleClose} disabled={loading}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={loading}>
+          <Button
+            onClick={handleSubmit}
+            disabled={loading || capabilities?.features.peer_required_on_create?.supported}
+          >
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

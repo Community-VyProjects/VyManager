@@ -127,7 +127,7 @@ export function UnsavedChangesBanner() {
       <>
       <div
         className={cn(
-          "fixed top-0 left-64 right-0 z-50",
+          "shrink-0 z-10",
           "shadow-lg border-b",
           isUrgent
             ? "bg-gradient-to-r from-red-600 to-orange-500 border-red-700/20"
@@ -171,9 +171,6 @@ export function UnsavedChangesBanner() {
           </div>
         </div>
       </div>
-
-      {/* Spacer so content isn't hidden under the fixed banner */}
-      <div className="h-16" />
     </>
   );
   }
@@ -191,7 +188,7 @@ export function UnsavedChangesBanner() {
     <>
       <div
         className={cn(
-          "fixed top-0 left-64 right-0 z-50 bg-gradient-to-r from-blue-600 to-cyan-500",
+          "shrink-0 z-10 bg-gradient-to-r from-blue-600 to-cyan-500",
           "shadow-lg border-b border-blue-700/20"
         )}
       >
@@ -245,9 +242,6 @@ export function UnsavedChangesBanner() {
           </div>
         </div>
       </div>
-
-      {/* Spacer to push content down when banner is visible */}
-      <div className="h-16" />
 
       <ConfigDiffModal
         open={showDiffModal}

@@ -18,6 +18,7 @@ import { useSessionStore } from "@/store/session-store";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 import { ThemeSelector } from "@/components/ui/theme-selector";
+import { SearchBar } from "@/components/ui/search-bar";
 
 import { navigation } from "@/lib/navigation";
 
@@ -230,6 +231,11 @@ export function Sidebar() {
             <p className="text-xs text-muted-foreground">VyOS Management</p>
           </div>
         </div>
+      </div>
+
+      {/* Search */}
+      <div className="px-3 pt-3 pb-1 shrink-0">
+        <SearchBar />
       </div>
 
       {/* Navigation */}

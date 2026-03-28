@@ -197,7 +197,9 @@ async def _fetch_graphql_fast(service) -> Optional[dict]:
 
 def _gql_result(gql: dict, key: str):
     """Safely extract ``data.result`` from a named GraphQL alias."""
-    return (gql.get(key) or {}).get("data", {}).get("result")
+    entry = gql.get(key) or {}
+    data = entry.get("data") or {}
+    return data.get("result")
 
 
 async def _fetch_gql_wg_status(service, iface_names: List[str]) -> dict:

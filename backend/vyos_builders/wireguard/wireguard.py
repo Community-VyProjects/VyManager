@@ -272,7 +272,7 @@ class WireGuardBatchBuilder:
 
     def get_capabilities(self) -> Dict[str, Any]:
         """Get capabilities for the current VyOS version."""
-        # WireGuard is fully supported on both 1.4 and 1.5
+        is_v14 = "1.4" in self.version and "1.5" not in self.version
         return {
             "version": self.version,
             "features": {
@@ -291,6 +291,10 @@ class WireGuardBatchBuilder:
                 "per_client_thread": {
                     "supported": True,
                     "description": "Per-client threading for performance",
+                },
+                "peer_required_on_create": {
+                    "supported": is_v14,
+                    "description": "VyOS 1.4 requires at least one peer when creating an interface",
                 },
             },
             "version_notes": {
