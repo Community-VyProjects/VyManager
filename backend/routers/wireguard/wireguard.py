@@ -35,10 +35,17 @@ class WireGuardBatchOperation(BaseModel):
     value: Optional[str] = Field(None, description="Operation value")
 
 
+class PeerBatchGroup(BaseModel):
+    """A group of operations for a single peer, used for atomic interface+peer creation."""
+    peer: str = Field(..., description="Peer name")
+    operations: List[WireGuardBatchOperation]
+
+
 class WireGuardInterfaceBatchRequest(BaseModel):
     """Model for interface batch configuration."""
     interface: str = Field(..., description="Interface name (e.g., wg0)")
     operations: List[WireGuardBatchOperation]
+    peers: Optional[List[PeerBatchGroup]] = Field(None, description="Optional peer operations to commit atomically with the interface")
 
 
 class WireGuardPeerBatchRequest(BaseModel):
@@ -206,6 +213,32 @@ async def wireguard_interface_batch(request: Request, body: WireGuardInterfaceBa
                 args.append(operation.value)
 
             method(*args)
+
+        # Process optional peer operations (for atomic interface+peer creation on VyOS 1.4)
+        if body.peers:
+            for peer_group in body.peers:
+                for operation in peer_group.operations:
+                    peer_method_name = operation.op
+                    peer_method = getattr(builder, peer_method_name, None)
+
+                    if peer_method is None:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Unknown peer operation: {peer_method_name}"
+                        )
+
+                    sig = inspect.signature(peer_method)
+                    params = list(sig.parameters.keys())
+
+                    args = []
+                    if "interface" in params:
+                        args.append(body.interface)
+                    if "peer" in params:
+                        args.append(peer_group.peer)
+                    if operation.value and len(params) > len(args):
+                        args.append(operation.value)
+
+                    peer_method(*args)
 
         # Execute batch
         response = service.execute_batch(builder)

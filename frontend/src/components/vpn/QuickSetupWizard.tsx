@@ -230,6 +230,8 @@ PersistentKeepalive = 25`;
   };
 
   // Run the setup
+  const peerRequiredOnCreate = capabilities?.features.peer_required_on_create?.supported ?? false;
+
   const runSetup = async () => {
     setLoading(true);
     setError(null);
@@ -241,13 +243,35 @@ PersistentKeepalive = 25`;
         throw new Error("Failed to generate server keypair");
       }
 
-      // Step 2: Create interface
-      const interfaceResult = await wireguardService.createInterface({
+      // Step 2: Generate client keypair upfront if creating a client
+      // (needed before interface creation on VyOS 1.4 for atomic commit)
+      let clientKeypair: { private_key?: string | null; public_key?: string | null } | null = null;
+      if (createClient) {
+        clientKeypair = await wireguardService.generateKeypair();
+        if (!clientKeypair.private_key || !clientKeypair.public_key) {
+          throw new Error("Failed to generate client keypair");
+        }
+      }
+
+      // Step 3: Create interface (with peer included for atomic commit on 1.4)
+      const interfaceConfig: Parameters<typeof wireguardService.createInterface>[0] = {
         name: interfaceName.trim(),
         private_key: serverKeypair.private_key,
         addresses: [serverAddress.trim()],
         port: listenPort.trim(),
-      });
+      };
+
+      // Include peer in the same atomic commit when creating a client
+      if (createClient && clientKeypair?.public_key) {
+        interfaceConfig.initial_peers = [{
+          name: clientName.trim(),
+          public_key: clientKeypair.public_key,
+          allowed_ips: [clientAddress.trim()],
+          persistent_keepalive: "25",
+        }];
+      }
+
+      const interfaceResult = await wireguardService.createInterface(interfaceConfig);
 
       if (!interfaceResult.success) {
         throw new Error(interfaceResult.error || "Failed to create interface");
@@ -261,45 +285,22 @@ PersistentKeepalive = 25`;
         serverPrivateKey: serverKeypair.private_key,
       };
 
-      // Step 3: Create client if requested
-      if (createClient) {
-        // Generate client keypair
-        const clientKeypair = await wireguardService.generateKeypair();
-        if (!clientKeypair.private_key || !clientKeypair.public_key) {
-          throw new Error("Failed to generate client keypair");
-        }
-
-        // Create peer on server
-        const peerResult = await wireguardService.createPeer(
-          interfaceName.trim(),
-          {
-            name: clientName.trim(),
-            public_key: clientKeypair.public_key,
-            allowed_ips: [clientAddress.trim()],
-            persistent_keepalive: "25",
-          }
+      // Step 4: Build client config display (peer was already created in the batch)
+      if (createClient && clientKeypair?.private_key && clientKeypair?.public_key) {
+        const clientConfig = buildClientConfig(
+          serverKeypair.public_key,
+          clientKeypair.private_key
         );
 
-        if (!peerResult.success) {
-          // Interface created but peer failed - still show result
-          console.error("Failed to create peer:", peerResult.error);
-        } else {
-          // Build client config
-          const clientConfig = buildClientConfig(
-            serverKeypair.public_key,
-            clientKeypair.private_key
-          );
+        setupResult.clientConfig = clientConfig;
+        setupResult.clientName = clientName.trim();
+        setupResult.clientPublicKey = clientKeypair.public_key;
 
-          setupResult.clientConfig = clientConfig;
-          setupResult.clientName = clientName.trim();
-          setupResult.clientPublicKey = clientKeypair.public_key;
-
-          // Generate QR code
-          const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(
-            clientConfig
-          )}`;
-          setQrDataUrl(qrUrl);
-        }
+        // Generate QR code
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(
+          clientConfig
+        )}`;
+        setQrDataUrl(qrUrl);
       }
 
       setResult(setupResult);
@@ -494,13 +495,16 @@ PersistentKeepalive = 25`;
                 id="wizard-create-client"
                 checked={createClient}
                 onCheckedChange={(checked) => setCreateClient(checked === true)}
+                disabled={peerRequiredOnCreate}
               />
               <div className="flex-1">
                 <Label htmlFor="wizard-create-client" className="cursor-pointer">
                   Create a client configuration
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  Generate a config file and QR code for your first device.
+                  {peerRequiredOnCreate
+                    ? "VyOS 1.4 requires at least one peer when creating an interface."
+                    : "Generate a config file and QR code for your first device."}
                 </p>
               </div>
             </div>
