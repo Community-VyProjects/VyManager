@@ -155,6 +155,7 @@ const FEATURE_ICONS: Record<FeatureGroup, any> = {
   [FeatureGroup.POWER]: Power,
   [FeatureGroup.HIGH_AVAILABILITY]: Shield,
   [FeatureGroup.VXLAN]: Network,
+  [FeatureGroup.TUNNEL]: Waypoints,
 };
 
 // Feature display names
@@ -220,6 +221,7 @@ const FEATURE_NAMES: Record<FeatureGroup, string> = {
   [FeatureGroup.POWER]: "Power",
   [FeatureGroup.HIGH_AVAILABILITY]: "High Availability",
   [FeatureGroup.VXLAN]: "VXLAN",
+  [FeatureGroup.TUNNEL]: "Tunnels",
 };
 
 // Role badge styles
@@ -279,6 +281,7 @@ const FEATURE_CATEGORIES: FeatureCategory[] = [
           { feature: FeatureGroup.NAT66 },
           { feature: FeatureGroup.HIGH_AVAILABILITY },
           { feature: FeatureGroup.VXLAN },
+          { feature: FeatureGroup.TUNNEL },
         ],
       },
       {

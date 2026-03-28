@@ -137,6 +137,9 @@ export enum FeatureGroup {
   // VXLAN
   VXLAN = "VXLAN",
 
+  // Tunnel
+  TUNNEL = "TUNNEL",
+
   // Routing features (three-level hierarchy)
   ROUTING = "ROUTING",
   UNICAST_PROTOCOLS = "UNICAST_PROTOCOLS",

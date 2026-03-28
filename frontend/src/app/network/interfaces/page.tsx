@@ -16,13 +16,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, RefreshCw, AlertCircle, Search, Cable, Pencil, Trash2, Network, ChevronRight, Shield, Boxes } from "lucide-react";
+import { Plus, RefreshCw, AlertCircle, Search, Cable, Pencil, Trash2, Network, ChevronRight, Shield, Boxes, Waypoints } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { ethernetService } from "@/lib/api/ethernet";
 import type { EthernetInterface, EthernetCapabilities, VIFConfig, VIFSConfig } from "@/lib/api/types/ethernet";
 import { wireguardService, type WireGuardInterface } from "@/lib/api/wireguard";
 import { vxlanService, type VxlanInterface, type VxlanCapabilities } from "@/lib/api/vxlan";
+import { tunnelService, type TunnelInterface, type TunnelCapabilities } from "@/lib/api/tunnel";
+import { CreateTunnelModal } from "@/components/tunnel/CreateTunnelModal";
+import { EditTunnelModal } from "@/components/tunnel/EditTunnelModal";
+import { DeleteTunnelModal } from "@/components/tunnel/DeleteTunnelModal";
 import { CreateVxlanModal } from "@/components/vxlan/CreateVxlanModal";
 import { EditVxlanModal } from "@/components/vxlan/EditVxlanModal";
 import { DeleteVxlanModal } from "@/components/vxlan/DeleteVxlanModal";
@@ -36,7 +40,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 
-type InterfaceType = "ethernet" | "vlan" | "wireguard" | "vxlan";
+type InterfaceType = "ethernet" | "vlan" | "wireguard" | "vxlan" | "tunnel";
 type VlanSubTab = "vif" | "vif-s" | "vif-c";
 
 interface VLANWithParent extends VIFConfig {
@@ -90,23 +94,36 @@ export default function InterfacesPage() {
   const [editingVxlan, setEditingVxlan] = useState<VxlanInterface | null>(null);
   const [deletingVxlan, setDeletingVxlan] = useState<VxlanInterface | null>(null);
 
+  // Tunnel state
+  const [tunnelInterfaces, setTunnelInterfaces] = useState<TunnelInterface[]>([]);
+  const [tunnelCapabilities, setTunnelCapabilities] = useState<TunnelCapabilities | null>(null);
+
+  // Tunnel Modal states
+  const [isCreateTunnelModalOpen, setIsCreateTunnelModalOpen] = useState(false);
+  const [editingTunnel, setEditingTunnel] = useState<TunnelInterface | null>(null);
+  const [deletingTunnel, setDeletingTunnel] = useState<TunnelInterface | null>(null);
+
   const { canWrite } = usePermissions();
 
   const loadData = async () => {
     try {
       setError(null);
-      const [configData, capabilitiesData, wgData, vxlanData, vxlanCapData] = await Promise.all([
+      const [configData, capabilitiesData, wgData, vxlanData, vxlanCapData, tunnelData, tunnelCapData] = await Promise.all([
         ethernetService.getConfig(),
         ethernetService.getCapabilities(),
         wireguardService.getConfig(),
         vxlanService.getConfig(),
         vxlanService.getCapabilities(),
+        tunnelService.getConfig(),
+        tunnelService.getCapabilities(),
       ]);
       setInterfaces(configData.interfaces);
       setCapabilities(capabilitiesData);
       setWireGuardInterfaces(wgData.interfaces);
       setVxlanInterfaces(vxlanData.interfaces);
       setVxlanCapabilities(vxlanCapData);
+      setTunnelInterfaces(tunnelData.interfaces);
+      setTunnelCapabilities(tunnelCapData);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load interface data");
     } finally {
@@ -152,6 +169,7 @@ export default function InterfacesPage() {
   const totalVlans = allVifs.length + allVifS.length + allVifC.length;
   const totalWireGuard = wireGuardInterfaces.length;
   const totalVxlan = vxlanInterfaces.length;
+  const totalTunnel = tunnelInterfaces.length;
 
   // Filter interfaces based on search
   const filteredInterfaces = interfaces.filter((iface) => {
@@ -345,6 +363,18 @@ export default function InterfacesPage() {
     );
   };
 
+  const filteredTunnel = tunnelInterfaces.filter((iface) => {
+    if (searchQuery === "") return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      iface.name.toLowerCase().includes(q) ||
+      (iface.description || "").toLowerCase().includes(q) ||
+      iface.addresses?.some((addr) => addr.toLowerCase().includes(q)) ||
+      (iface.encapsulation || "").toLowerCase().includes(q) ||
+      (iface.remote || "").toLowerCase().includes(q)
+    );
+  });
+
   const filteredWireGuard = wireGuardInterfaces.filter((iface) => {
     if (searchQuery === "") return true;
     const q = searchQuery.toLowerCase();
@@ -376,7 +406,7 @@ export default function InterfacesPage() {
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Interfaces</h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {totalInterfaces + totalVlans + totalWireGuard + totalVxlan} total
+                  {totalInterfaces + totalVlans + totalWireGuard + totalVxlan + totalTunnel} total
                 </p>
               </div>
               <Button
@@ -512,6 +542,40 @@ export default function InterfacesPage() {
                   </div>
                 </button>
 
+                {/* Tunnel */}
+                <button
+                  onClick={() => setSelectedType("tunnel")}
+                  className={cn(
+                    "w-full text-left rounded-lg px-3 py-3 transition-all",
+                    selectedType === "tunnel"
+                      ? "bg-accent text-accent-foreground shadow-sm"
+                      : "hover:bg-accent/50"
+                  )}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={cn(
+                      "mt-0.5 rounded-md p-1.5",
+                      selectedType === "tunnel" ? "bg-primary/10" : "bg-muted"
+                    )}>
+                      <Waypoints className={cn(
+                        "h-4 w-4",
+                        selectedType === "tunnel" ? "text-primary" : "text-muted-foreground"
+                      )} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="font-medium text-sm text-foreground">Tunnel</span>
+                        {selectedType === "tunnel" && (
+                          <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
+                        )}
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {totalTunnel} {totalTunnel === 1 ? "interface" : "interfaces"}
+                      </span>
+                    </div>
+                  </div>
+                </button>
+
                 {/* WireGuard */}
                 <button
                   onClick={() => setSelectedType("wireguard")}
@@ -559,7 +623,7 @@ export default function InterfacesPage() {
             <div className="flex items-start justify-between mb-4">
               <div className="flex-1">
                 <h1 className="text-2xl font-bold text-foreground">
-                  {selectedType === "ethernet" ? "Ethernet Interfaces" : selectedType === "vlan" ? "VLANs" : selectedType === "vxlan" ? "VXLAN Interfaces" : "WireGuard Interfaces"}
+                  {selectedType === "ethernet" ? "Ethernet Interfaces" : selectedType === "vlan" ? "VLANs" : selectedType === "vxlan" ? "VXLAN Interfaces" : selectedType === "tunnel" ? "Tunnel Interfaces" : "WireGuard Interfaces"}
                 </h1>
                 <p className="text-sm text-muted-foreground mt-2">
                   {selectedType === "ethernet"
@@ -568,7 +632,9 @@ export default function InterfacesPage() {
                       ? "802.1Q VLAN, QinQ Service (VIF-S), and QinQ Customer (VIF-C) sub-interfaces"
                       : selectedType === "vxlan"
                         ? "VXLAN tunnel interfaces for overlay networking"
-                        : "WireGuard tunnel interfaces and status"}
+                        : selectedType === "tunnel"
+                          ? "GRE, IPIP, SIT, ERSPAN and other tunnel interfaces"
+                          : "WireGuard tunnel interfaces and status"}
                 </p>
               </div>
               <Button
@@ -580,11 +646,13 @@ export default function InterfacesPage() {
                     window.location.href = "/vpn/wireguard";
                   } else if (selectedType === "vxlan") {
                     setIsCreateVxlanModalOpen(true);
+                  } else if (selectedType === "tunnel") {
+                    setIsCreateTunnelModalOpen(true);
                   } else {
                     setIsCreateInterfaceModalOpen(true);
                   }
                 }}
-                disabled={selectedType === "vxlan" ? !canWrite(FeatureGroup.VXLAN) : !canWrite(FeatureGroup.INTERFACES)}
+                disabled={selectedType === "vxlan" ? !canWrite(FeatureGroup.VXLAN) : selectedType === "tunnel" ? !canWrite(FeatureGroup.TUNNEL) && !canWrite(FeatureGroup.INTERFACES) : !canWrite(FeatureGroup.INTERFACES)}
               >
                 <Plus className="h-4 w-4" />
                 {selectedType === "ethernet"
@@ -593,7 +661,9 @@ export default function InterfacesPage() {
                     ? `Create ${vlanSubTabLabel[vlanSubTab]}`
                     : selectedType === "vxlan"
                       ? "Create VXLAN"
-                      : "Manage WireGuard"}
+                      : selectedType === "tunnel"
+                        ? "Create Tunnel"
+                        : "Manage WireGuard"}
               </Button>
             </div>
 
@@ -630,7 +700,9 @@ export default function InterfacesPage() {
                       ? "Search by name, parent, description, IP address, or VRF..."
                       : selectedType === "vxlan"
                         ? "Search by name, description, address, or VNI..."
-                        : "Search by name, description, address..."
+                        : selectedType === "tunnel"
+                          ? "Search by name, description, address, encapsulation, or remote..."
+                          : "Search by name, description, address..."
                 }
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -880,6 +952,86 @@ export default function InterfacesPage() {
                   </p>
                 </>
               )
+            ) : selectedType === "tunnel" ? (
+              /* Tunnel Table */
+              filteredTunnel.length === 0 ? (
+                <Card className="border-border">
+                  <CardContent className="py-12">
+                    <div className="flex flex-col items-center gap-2">
+                      <Waypoints className="h-12 w-12 text-muted-foreground/30" />
+                      <p className="text-muted-foreground">
+                        {searchQuery ? "No tunnel interfaces matching your search" : "No tunnel interfaces configured"}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <>
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Encapsulation</TableHead>
+                          <TableHead>Description</TableHead>
+                          <TableHead>Addresses</TableHead>
+                          <TableHead>Source</TableHead>
+                          <TableHead>Remote</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="w-[80px]"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredTunnel.map((tun) => (
+                          <TableRow key={tun.name} className="group">
+                            <TableCell><code className="font-semibold font-mono text-foreground">{tun.name}</code></TableCell>
+                            <TableCell>
+                              {tun.encapsulation ? (
+                                <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/20 text-xs">
+                                  {tun.encapsulation}
+                                </Badge>
+                              ) : <span className="text-muted-foreground">—</span>}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground max-w-[180px] truncate">{tun.description || "—"}</TableCell>
+                            <TableCell>
+                              {tun.addresses?.length ? (
+                                <div className="flex flex-wrap gap-1">
+                                  {tun.addresses.slice(0, 2).map((addr, idx) => <code key={idx} className="text-xs font-mono px-1.5 py-0.5 rounded bg-accent text-foreground">{addr}</code>)}
+                                  {tun.addresses.length > 2 && <Badge variant="secondary" className="text-xs px-1.5 py-0">+{tun.addresses.length - 2}</Badge>}
+                                </div>
+                              ) : <span className="text-muted-foreground">—</span>}
+                            </TableCell>
+                            <TableCell className="text-sm">{tun.source_address || tun.source_interface || "—"}</TableCell>
+                            <TableCell className="text-sm">{tun.remote || "—"}</TableCell>
+                            <TableCell>
+                              <Badge variant={tun.disabled ? "secondary" : "default"} className="text-xs">
+                                {tun.disabled ? "Disabled" : "Enabled"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                {(canWrite(FeatureGroup.TUNNEL) || canWrite(FeatureGroup.INTERFACES)) && (
+                                  <>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingTunnel(tun)}>
+                                      <Pencil className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeletingTunnel(tun)}>
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <p className="text-sm text-muted-foreground text-center mt-3">
+                    Showing {filteredTunnel.length} of {totalTunnel} interface{totalTunnel !== 1 ? "s" : ""}
+                  </p>
+                </>
+              )
             ) : filteredWireGuard.length === 0 ? (
               <Card className="border-border">
                 <CardContent className="py-12">
@@ -1093,6 +1245,33 @@ export default function InterfacesPage() {
           loadData();
         }}
         interfaceData={deletingVxlan}
+      />
+      {/* Tunnel Modals */}
+      <CreateTunnelModal
+        open={isCreateTunnelModalOpen}
+        onOpenChange={setIsCreateTunnelModalOpen}
+        onSuccess={loadData}
+        capabilities={tunnelCapabilities}
+        existingInterfaces={tunnelInterfaces.map((i) => i.name)}
+      />
+      <EditTunnelModal
+        open={!!editingTunnel}
+        onOpenChange={(open) => !open && setEditingTunnel(null)}
+        onSuccess={() => {
+          setEditingTunnel(null);
+          loadData();
+        }}
+        capabilities={tunnelCapabilities}
+        interfaceData={editingTunnel}
+      />
+      <DeleteTunnelModal
+        open={!!deletingTunnel}
+        onOpenChange={(open) => !open && setDeletingTunnel(null)}
+        onSuccess={() => {
+          setDeletingTunnel(null);
+          loadData();
+        }}
+        interfaceData={deletingTunnel}
       />
     </AppLayout>
   );
