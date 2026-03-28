@@ -16,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, RefreshCw, AlertCircle, Search, Cable, Pencil, Trash2, Network, ChevronRight, Shield, Boxes, Waypoints } from "lucide-react";
+import { Plus, RefreshCw, AlertCircle, Search, Cable, Pencil, Trash2, Network, ChevronRight, Shield, Boxes, Waypoints, Link2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { ethernetService } from "@/lib/api/ethernet";
@@ -27,6 +27,10 @@ import { tunnelService, type TunnelInterface, type TunnelCapabilities } from "@/
 import { CreateTunnelModal } from "@/components/tunnel/CreateTunnelModal";
 import { EditTunnelModal } from "@/components/tunnel/EditTunnelModal";
 import { DeleteTunnelModal } from "@/components/tunnel/DeleteTunnelModal";
+import { bondingService, type BondingInterface, type BondingCapabilities } from "@/lib/api/bonding";
+import { CreateBondingModal } from "@/components/bonding/CreateBondingModal";
+import { EditBondingModal } from "@/components/bonding/EditBondingModal";
+import { DeleteBondingModal } from "@/components/bonding/DeleteBondingModal";
 import { CreateVxlanModal } from "@/components/vxlan/CreateVxlanModal";
 import { EditVxlanModal } from "@/components/vxlan/EditVxlanModal";
 import { DeleteVxlanModal } from "@/components/vxlan/DeleteVxlanModal";
@@ -40,7 +44,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 
-type InterfaceType = "ethernet" | "vlan" | "wireguard" | "vxlan" | "tunnel";
+type InterfaceType = "ethernet" | "vlan" | "wireguard" | "vxlan" | "tunnel" | "bonding";
 type VlanSubTab = "vif" | "vif-s" | "vif-c";
 
 interface VLANWithParent extends VIFConfig {
@@ -103,12 +107,21 @@ export default function InterfacesPage() {
   const [editingTunnel, setEditingTunnel] = useState<TunnelInterface | null>(null);
   const [deletingTunnel, setDeletingTunnel] = useState<TunnelInterface | null>(null);
 
+  // Bonding state
+  const [bondingInterfaces, setBondingInterfaces] = useState<BondingInterface[]>([]);
+  const [bondingCapabilities, setBondingCapabilities] = useState<BondingCapabilities | null>(null);
+
+  // Bonding Modal states
+  const [isCreateBondingModalOpen, setIsCreateBondingModalOpen] = useState(false);
+  const [editingBonding, setEditingBonding] = useState<BondingInterface | null>(null);
+  const [deletingBonding, setDeletingBonding] = useState<BondingInterface | null>(null);
+
   const { canWrite } = usePermissions();
 
   const loadData = async () => {
     try {
       setError(null);
-      const [configData, capabilitiesData, wgData, vxlanData, vxlanCapData, tunnelData, tunnelCapData] = await Promise.all([
+      const [configData, capabilitiesData, wgData, vxlanData, vxlanCapData, tunnelData, tunnelCapData, bondingData, bondingCapData] = await Promise.all([
         ethernetService.getConfig(),
         ethernetService.getCapabilities(),
         wireguardService.getConfig(),
@@ -116,6 +129,8 @@ export default function InterfacesPage() {
         vxlanService.getCapabilities(),
         tunnelService.getConfig(),
         tunnelService.getCapabilities(),
+        bondingService.getConfig(),
+        bondingService.getCapabilities(),
       ]);
       setInterfaces(configData.interfaces);
       setCapabilities(capabilitiesData);
@@ -124,6 +139,8 @@ export default function InterfacesPage() {
       setVxlanCapabilities(vxlanCapData);
       setTunnelInterfaces(tunnelData.interfaces);
       setTunnelCapabilities(tunnelCapData);
+      setBondingInterfaces(bondingData.interfaces);
+      setBondingCapabilities(bondingCapData);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load interface data");
     } finally {
@@ -170,6 +187,7 @@ export default function InterfacesPage() {
   const totalWireGuard = wireGuardInterfaces.length;
   const totalVxlan = vxlanInterfaces.length;
   const totalTunnel = tunnelInterfaces.length;
+  const totalBonding = bondingInterfaces.length;
 
   // Filter interfaces based on search
   const filteredInterfaces = interfaces.filter((iface) => {
@@ -396,6 +414,18 @@ export default function InterfacesPage() {
     );
   });
 
+  const filteredBonding = bondingInterfaces.filter((iface) => {
+    if (searchQuery === "") return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      iface.name.toLowerCase().includes(q) ||
+      (iface.description || "").toLowerCase().includes(q) ||
+      iface.addresses?.some((addr) => addr.toLowerCase().includes(q)) ||
+      (iface.mode || "").toLowerCase().includes(q) ||
+      iface.members?.some((m) => m.toLowerCase().includes(q))
+    );
+  });
+
   return (
     <AppLayout>
       <div className="flex h-full">
@@ -406,7 +436,7 @@ export default function InterfacesPage() {
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Interfaces</h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {totalInterfaces + totalVlans + totalWireGuard + totalVxlan + totalTunnel} total
+                  {totalInterfaces + totalVlans + totalWireGuard + totalVxlan + totalTunnel + totalBonding} total
                 </p>
               </div>
               <Button
@@ -576,6 +606,40 @@ export default function InterfacesPage() {
                   </div>
                 </button>
 
+                {/* Bonding */}
+                <button
+                  onClick={() => setSelectedType("bonding")}
+                  className={cn(
+                    "w-full text-left rounded-lg px-3 py-3 transition-all",
+                    selectedType === "bonding"
+                      ? "bg-accent text-accent-foreground shadow-sm"
+                      : "hover:bg-accent/50"
+                  )}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={cn(
+                      "mt-0.5 rounded-md p-1.5",
+                      selectedType === "bonding" ? "bg-primary/10" : "bg-muted"
+                    )}>
+                      <Link2 className={cn(
+                        "h-4 w-4",
+                        selectedType === "bonding" ? "text-primary" : "text-muted-foreground"
+                      )} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="font-medium text-sm text-foreground">Bonding</span>
+                        {selectedType === "bonding" && (
+                          <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
+                        )}
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {totalBonding} {totalBonding === 1 ? "interface" : "interfaces"}
+                      </span>
+                    </div>
+                  </div>
+                </button>
+
                 {/* WireGuard */}
                 <button
                   onClick={() => setSelectedType("wireguard")}
@@ -623,7 +687,7 @@ export default function InterfacesPage() {
             <div className="flex items-start justify-between mb-4">
               <div className="flex-1">
                 <h1 className="text-2xl font-bold text-foreground">
-                  {selectedType === "ethernet" ? "Ethernet Interfaces" : selectedType === "vlan" ? "VLANs" : selectedType === "vxlan" ? "VXLAN Interfaces" : selectedType === "tunnel" ? "Tunnel Interfaces" : "WireGuard Interfaces"}
+                  {selectedType === "ethernet" ? "Ethernet Interfaces" : selectedType === "vlan" ? "VLANs" : selectedType === "vxlan" ? "VXLAN Interfaces" : selectedType === "tunnel" ? "Tunnel Interfaces" : selectedType === "bonding" ? "Bonding Interfaces" : "WireGuard Interfaces"}
                 </h1>
                 <p className="text-sm text-muted-foreground mt-2">
                   {selectedType === "ethernet"
@@ -634,7 +698,9 @@ export default function InterfacesPage() {
                         ? "VXLAN tunnel interfaces for overlay networking"
                         : selectedType === "tunnel"
                           ? "GRE, IPIP, SIT, ERSPAN and other tunnel interfaces"
-                          : "WireGuard tunnel interfaces and status"}
+                          : selectedType === "bonding"
+                            ? "Link aggregation (bonding) interfaces for high availability and throughput"
+                            : "WireGuard tunnel interfaces and status"}
                 </p>
               </div>
               <Button
@@ -648,6 +714,8 @@ export default function InterfacesPage() {
                     setIsCreateVxlanModalOpen(true);
                   } else if (selectedType === "tunnel") {
                     setIsCreateTunnelModalOpen(true);
+                  } else if (selectedType === "bonding") {
+                    setIsCreateBondingModalOpen(true);
                   } else {
                     setIsCreateInterfaceModalOpen(true);
                   }
@@ -663,7 +731,9 @@ export default function InterfacesPage() {
                       ? "Create VXLAN"
                       : selectedType === "tunnel"
                         ? "Create Tunnel"
-                        : "Manage WireGuard"}
+                        : selectedType === "bonding"
+                          ? "Create Bond"
+                          : "Manage WireGuard"}
               </Button>
             </div>
 
@@ -702,7 +772,9 @@ export default function InterfacesPage() {
                         ? "Search by name, description, address, or VNI..."
                         : selectedType === "tunnel"
                           ? "Search by name, description, address, encapsulation, or remote..."
-                          : "Search by name, description, address..."
+                          : selectedType === "bonding"
+                            ? "Search by name, description, address, mode, or member..."
+                            : "Search by name, description, address..."
                 }
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -1032,6 +1104,91 @@ export default function InterfacesPage() {
                   </p>
                 </>
               )
+            ) : selectedType === "bonding" ? (
+              /* Bonding Table */
+              filteredBonding.length === 0 ? (
+                <Card className="border-border">
+                  <CardContent className="py-12">
+                    <div className="flex flex-col items-center gap-2">
+                      <Link2 className="h-12 w-12 text-muted-foreground/30" />
+                      <p className="text-muted-foreground">
+                        {searchQuery ? "No bonding interfaces matching your search" : "No bonding interfaces configured"}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <>
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Mode</TableHead>
+                          <TableHead>Description</TableHead>
+                          <TableHead>Addresses</TableHead>
+                          <TableHead>Members</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="w-[80px]"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredBonding.map((bond) => (
+                          <TableRow key={bond.name} className="group">
+                            <TableCell><code className="font-semibold font-mono text-foreground">{bond.name}</code></TableCell>
+                            <TableCell>
+                              {bond.mode ? (
+                                <Badge variant="outline" className="bg-orange-500/10 text-orange-500 border-orange-500/20 text-xs">
+                                  {bond.mode}
+                                </Badge>
+                              ) : <span className="text-muted-foreground">—</span>}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground max-w-[180px] truncate">{bond.description || "—"}</TableCell>
+                            <TableCell>
+                              {bond.addresses?.length ? (
+                                <div className="flex flex-wrap gap-1">
+                                  {bond.addresses.slice(0, 2).map((addr, idx) => <code key={idx} className="text-xs font-mono px-1.5 py-0.5 rounded bg-accent text-foreground">{addr}</code>)}
+                                  {bond.addresses.length > 2 && <Badge variant="secondary" className="text-xs px-1.5 py-0">+{bond.addresses.length - 2}</Badge>}
+                                </div>
+                              ) : <span className="text-muted-foreground">—</span>}
+                            </TableCell>
+                            <TableCell>
+                              {bond.members?.length ? (
+                                <div className="flex flex-wrap gap-1">
+                                  {bond.members.slice(0, 3).map((m, idx) => <code key={idx} className="text-xs font-mono px-1.5 py-0.5 rounded bg-accent text-foreground">{m}</code>)}
+                                  {bond.members.length > 3 && <Badge variant="secondary" className="text-xs px-1.5 py-0">+{bond.members.length - 3}</Badge>}
+                                </div>
+                              ) : <span className="text-muted-foreground">—</span>}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={bond.disable ? "secondary" : "default"} className="text-xs">
+                                {bond.disable ? "Disabled" : "Enabled"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                {canWrite(FeatureGroup.INTERFACES) && (
+                                  <>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingBonding(bond)}>
+                                      <Pencil className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeletingBonding(bond)}>
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <p className="text-sm text-muted-foreground text-center mt-3">
+                    Showing {filteredBonding.length} of {totalBonding} interface{totalBonding !== 1 ? "s" : ""}
+                  </p>
+                </>
+              )
             ) : filteredWireGuard.length === 0 ? (
               <Card className="border-border">
                 <CardContent className="py-12">
@@ -1272,6 +1429,33 @@ export default function InterfacesPage() {
           loadData();
         }}
         interfaceData={deletingTunnel}
+      />
+      {/* Bonding Modals */}
+      <CreateBondingModal
+        open={isCreateBondingModalOpen}
+        onOpenChange={setIsCreateBondingModalOpen}
+        onSuccess={loadData}
+        capabilities={bondingCapabilities}
+        existingInterfaces={bondingInterfaces.map((i) => i.name)}
+      />
+      <EditBondingModal
+        open={!!editingBonding}
+        onOpenChange={(open) => !open && setEditingBonding(null)}
+        onSuccess={() => {
+          setEditingBonding(null);
+          loadData();
+        }}
+        capabilities={bondingCapabilities}
+        interfaceData={editingBonding}
+      />
+      <DeleteBondingModal
+        open={!!deletingBonding}
+        onOpenChange={(open) => !open && setDeletingBonding(null)}
+        onSuccess={() => {
+          setDeletingBonding(null);
+          loadData();
+        }}
+        interfaceData={deletingBonding}
       />
     </AppLayout>
   );
