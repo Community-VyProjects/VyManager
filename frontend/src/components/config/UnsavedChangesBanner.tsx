@@ -9,9 +9,14 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/useToast";
 import { ApiError } from "@/lib/types/api";
 
-export function UnsavedChangesBanner() {
+interface UnsavedChangesBannerProps {
+  configDiff: ConfigDiff | null;
+  commitConfirm: CommitConfirmStatus | null;
+}
+
+export function UnsavedChangesBanner({ configDiff, commitConfirm }: UnsavedChangesBannerProps) {
   const [diff, setDiff] = useState<ConfigDiff | null>(null);
-  const [commitConfirm, setCommitConfirm] = useState<CommitConfirmStatus | null>(null);
+  const [cc, setCc] = useState<CommitConfirmStatus | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showDiffModal, setShowDiffModal] = useState(false);
@@ -21,9 +26,18 @@ export function UnsavedChangesBanner() {
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const { toast } = useToast();
 
+  // Sync SSE-driven props into local state
+  useEffect(() => {
+    if (configDiff !== null) setDiff(configDiff);
+  }, [configDiff]);
+
+  useEffect(() => {
+    if (commitConfirm !== null) setCc(commitConfirm);
+  }, [commitConfirm]);
+
   // Manage the per-second tick for the countdown
   useEffect(() => {
-    if (commitConfirm?.active) {
+    if (cc?.active) {
       tickRef.current = setInterval(() => setTick((t) => t + 1), 1000);
     } else {
       if (tickRef.current) {
@@ -34,30 +48,7 @@ export function UnsavedChangesBanner() {
     return () => {
       if (tickRef.current) clearInterval(tickRef.current);
     };
-  }, [commitConfirm?.active]);
-
-  // Poll commit-confirm status every 5 s, config diff every 10 s
-  useEffect(() => {
-    const checkStatus = async () => {
-      try {
-        const [diffResult, ccStatus] = await Promise.all([
-          configService.getDiff(),
-          configService.getCommitConfirmStatus(),
-        ]);
-        setDiff(diffResult);
-        setCommitConfirm(ccStatus);
-        setError(null);
-      } catch (err) {
-        const msg = (err as ApiError).message || "Failed to check configuration status";
-        console.error("Banner status check failed:", msg);
-        setError(msg);
-      }
-    };
-
-    checkStatus();
-    const interval = setInterval(checkStatus, 5000);
-    return () => clearInterval(interval);
-  }, []);
+  }, [cc?.active]);
 
   const handleConfirm = async () => {
     setConfirming(true);
@@ -71,7 +62,8 @@ export function UnsavedChangesBanner() {
         return;
       }
       toast.success("Changes Confirmed", "Your changes are live. Save configuration when ready.");
-      setCommitConfirm({ active: false });
+      setCc({ active: false });
+      // SSE will push updated diff shortly; also fetch eagerly
       const newDiff = await configService.getDiff();
       setDiff(newDiff);
     } catch (err) {
@@ -95,6 +87,7 @@ export function UnsavedChangesBanner() {
         return;
       }
       toast.success("Configuration Saved", "Your changes have been written to disk successfully.");
+      // SSE will push updated diff shortly; also fetch eagerly
       const newDiff = await configService.getDiff();
       setDiff(newDiff);
       setError(null);
@@ -109,8 +102,8 @@ export function UnsavedChangesBanner() {
 
   // Calculate live seconds remaining from expires_at (more accurate than polled value)
   const secondsRemaining = (() => {
-    if (!commitConfirm?.active || !commitConfirm.expires_at) return 0;
-    const diff = new Date(commitConfirm.expires_at).getTime() - Date.now();
+    if (!cc?.active || !cc.expires_at) return 0;
+    const diff = new Date(cc.expires_at).getTime() - Date.now();
     return Math.max(0, Math.floor(diff / 1000));
   })();
 
@@ -121,7 +114,7 @@ export function UnsavedChangesBanner() {
   };
 
   // ── Commit-confirm active: show countdown banner (highest priority) ──
-  if (commitConfirm?.active) {
+  if (cc?.active) {
     const isUrgent = secondsRemaining <= 60;
     return (
       <>
@@ -143,11 +136,11 @@ export function UnsavedChangesBanner() {
                   Commit-Confirm Active — confirm before changes revert
                 </p>
                 <p className="text-xs text-white/80">
-                  Auto-{commitConfirm.action ?? "reload"} in{" "}
+                  Auto-{cc.action ?? "reload"} in{" "}
                   <span className={cn("font-mono font-bold", isUrgent && "text-white")}>
                     {formatCountdown(secondsRemaining)}
                   </span>
-                  {" "}· {commitConfirm.confirm_time_minutes} min window
+                  {" "}· {cc.confirm_time_minutes} min window
                 </p>
               </div>
             </div>

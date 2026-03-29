@@ -10,6 +10,7 @@ import { useSessionStore } from "@/store/session-store";
 import { Loader2 } from "lucide-react";
 import { UnifiedView } from "../ui/unified-view";
 import { useUnifiedView } from "@/contexts/UnifiedViewContext";
+import { useBannerEvents } from "@/hooks/useBannerEvents";
 
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
@@ -17,6 +18,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const { activeSession, loadSession } = useSessionStore();
   const [isChecking, setIsChecking] = useState(true);
   const { unifiedViewData, closeUnifiedView } = useUnifiedView();
+  const bannerEvents = useBannerEvents();
 
   useEffect(() => {
     const checkSession = async () => {
@@ -66,8 +68,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Main Content */}
         <main className="flex-1 flex flex-col overflow-hidden relative">
-          <PowerActionBanner />
-          <UnsavedChangesBanner />
+          <PowerActionBanner powerStatus={bannerEvents.data.powerStatus} />
+          <UnsavedChangesBanner configDiff={bannerEvents.data.configDiff} commitConfirm={bannerEvents.data.commitConfirm} />
           <div className="flex-1 min-h-0 overflow-y-auto">
             {children}
           </div>

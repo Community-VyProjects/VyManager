@@ -13,6 +13,7 @@ import requests as _requests
 from pyvyos import VyDevice
 from pyvyos.core.rest_client import ApiResponse
 import commit_confirm_state
+from events.event_manager import event_manager, EVENT_CONFIG_DIFF, EVENT_COMMIT_CONFIRM
 from vyos_builders import (
     EthernetBatchBuilder,
     DummyBatchBuilder,
@@ -148,7 +149,10 @@ class VyOSService:
             raise ValueError("Cannot execute empty batch")
 
         operations = batch.get_operations()
-        return self.device.configure_multiple_op(op_path=operations)
+        response = self.device.configure_multiple_op(op_path=operations)
+        if response.status == 200 and self.config.instance_id:
+            event_manager.emit(self.config.instance_id, EVENT_CONFIG_DIFF, None)
+        return response
 
     def execute_batch_with_confirm(
         self,
@@ -225,6 +229,8 @@ class VyOSService:
             body = resp.json()
             if body.get("success"):
                 commit_confirm_state.set_active(instance_id, confirm_time_minutes, action)
+                event_manager.emit(instance_id, EVENT_CONFIG_DIFF, None)
+                event_manager.emit(instance_id, EVENT_COMMIT_CONFIRM, None)
                 return ApiResponse(status=200, request={}, result=body.get("data") or {}, error=False)
             else:
                 error_msg = body.get("error", "Unknown error from VyOS API")
@@ -267,6 +273,8 @@ class VyOSService:
             body = resp.json()
             if body.get("success"):
                 commit_confirm_state.clear(instance_id)
+                event_manager.emit(instance_id, EVENT_COMMIT_CONFIRM, None)
+                event_manager.emit(instance_id, EVENT_CONFIG_DIFF, None)
                 return ApiResponse(status=200, request={}, result=body.get("data") or {}, error=False)
             else:
                 error_msg = body.get("error", "Unknown error from VyOS API")

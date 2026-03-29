@@ -64,10 +64,13 @@ from routers.vxlan import vxlan as vxlan_router
 from routers.nhrp import nhrp as nhrp_router
 from routers.pim import pim as pim_router
 from routers import version as version_router
+from routers import events as events_router
+from routers.events import start_poller, stop_poller
 
 # Global variables
 db_pool: Optional[asyncpg.Pool] = None
 cleanup_task: Optional[asyncio.Task] = None
+poller_task: Optional[asyncio.Task] = None
 
 # Configuration
 SESSION_INACTIVITY_TIMEOUT = int(os.getenv("SESSION_INACTIVITY_TIMEOUT", "30"))  # Minutes
@@ -145,7 +148,7 @@ async def lifespan(app: FastAPI):
     FastAPI lifespan event handler.
     Manages database connections and application startup/shutdown.
     """
-    global db_pool, cleanup_task
+    global db_pool, cleanup_task, poller_task
 
     # Startup
     print("\n" + "=" * 60)
@@ -182,6 +185,10 @@ async def lifespan(app: FastAPI):
     else:
         print("  ⚠ Session cleanup task not started (no database)")
 
+    # Start SSE banner poller
+    poller_task = start_poller(app.state)
+    print("  ✓ SSE banner poller started")
+
     print("\n" + "=" * 60)
     print("✓ API Ready")
     print("=" * 60)
@@ -193,6 +200,15 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     print("\n🛑 Shutting down VyManager API...")
+
+    # Stop SSE banner poller
+    stop_poller()
+    if poller_task and not poller_task.done():
+        try:
+            await poller_task
+        except asyncio.CancelledError:
+            pass
+        print("  ✓ SSE banner poller stopped")
 
     # Stop cleanup task
     if cleanup_task and not cleanup_task.done():
@@ -317,6 +333,7 @@ app.include_router(vxlan_router.router)
 app.include_router(nhrp_router.router)
 app.include_router(pim_router.router)
 app.include_router(version_router.router)
+app.include_router(events_router.router)
 
 
 # ============================================================================

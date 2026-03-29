@@ -48,6 +48,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         "/vyos/config/snapshots",
         "/session/current",
         "/vyos/power/status",  # Polls for scheduled reboot/poweroff status
+        "/vyos/events/banners",  # SSE stream - long-lived connection
     }
 
     def __init__(self, app):
