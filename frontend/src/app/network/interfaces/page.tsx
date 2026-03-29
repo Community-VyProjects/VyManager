@@ -301,7 +301,7 @@ export default function InterfacesPage() {
                     <code className="font-semibold font-mono text-foreground">{item.fullName}</code>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline" className="bg-purple-500/10 text-purple-500 border-purple-500/20 text-xs">
+                    <Badge variant="secondary" className="text-xs">
                       {item.vlan_id}
                     </Badge>
                   </TableCell>
@@ -912,9 +912,11 @@ export default function InterfacesPage() {
                                 <code className="font-semibold font-mono text-foreground">{iface.name}</code>
                               </TableCell>
                               <TableCell>
-                                <Badge variant={iface.disable ? "secondary" : "default"} className="text-xs">
-                                  {iface.disable ? "Disabled" : "Enabled"}
-                                </Badge>
+                                {iface.disable ? (
+                                  <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">Disabled</Badge>
+                                ) : (
+                                  <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">Enabled</Badge>
+                                )}
                               </TableCell>
                               <TableCell className="text-muted-foreground max-w-[200px] truncate">
                                 {iface.description || "—"}
@@ -1067,9 +1069,11 @@ export default function InterfacesPage() {
                               ) : <span className="text-muted-foreground">—</span>}
                             </TableCell>
                             <TableCell>
-                              <Badge variant={vx.disabled ? "secondary" : "default"} className="text-xs">
-                                {vx.disabled ? "Disabled" : "Enabled"}
-                              </Badge>
+                              {vx.disabled ? (
+                                <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">Disabled</Badge>
+                              ) : (
+                                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">Enabled</Badge>
+                              )}
                             </TableCell>
                             <TableCell>
                               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1147,9 +1151,11 @@ export default function InterfacesPage() {
                             <TableCell className="text-sm">{tun.source_address || tun.source_interface || "—"}</TableCell>
                             <TableCell className="text-sm">{tun.remote || "—"}</TableCell>
                             <TableCell>
-                              <Badge variant={tun.disabled ? "secondary" : "default"} className="text-xs">
-                                {tun.disabled ? "Disabled" : "Enabled"}
-                              </Badge>
+                              {tun.disabled ? (
+                                <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">Disabled</Badge>
+                              ) : (
+                                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">Enabled</Badge>
+                              )}
                             </TableCell>
                             <TableCell>
                               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1232,9 +1238,11 @@ export default function InterfacesPage() {
                               ) : <span className="text-muted-foreground">—</span>}
                             </TableCell>
                             <TableCell>
-                              <Badge variant={bond.disable ? "secondary" : "default"} className="text-xs">
-                                {bond.disable ? "Disabled" : "Enabled"}
-                              </Badge>
+                              {bond.disable ? (
+                                <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">Disabled</Badge>
+                              ) : (
+                                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">Enabled</Badge>
+                              )}
                             </TableCell>
                             <TableCell>
                               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1315,9 +1323,11 @@ export default function InterfacesPage() {
                               ) : <span className="text-muted-foreground">{"\u2014"}</span>}
                             </TableCell>
                             <TableCell>
-                              <Badge variant={br.disable ? "secondary" : "default"} className="text-xs">
-                                {br.disable ? "Disabled" : "Enabled"}
-                              </Badge>
+                              {br.disable ? (
+                                <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">Disabled</Badge>
+                              ) : (
+                                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">Enabled</Badge>
+                              )}
                             </TableCell>
                             <TableCell>
                               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1384,9 +1394,11 @@ export default function InterfacesPage() {
                           <TableCell>{wg.port || "Auto"}</TableCell>
                           <TableCell><Badge variant="secondary" className="text-xs">{wg.peer_count}</Badge></TableCell>
                           <TableCell>
-                            <Badge variant={wg.disabled ? "secondary" : "default"} className="text-xs">
-                              {wg.disabled ? "Disabled" : "Enabled"}
-                            </Badge>
+                            {wg.disabled ? (
+                              <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">Disabled</Badge>
+                            ) : (
+                              <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">Enabled</Badge>
+                            )}
                           </TableCell>
                         </TableRow>
                       ))}
