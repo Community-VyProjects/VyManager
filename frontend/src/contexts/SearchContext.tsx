@@ -2,7 +2,8 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useSessionStore } from "@/store/session-store";
-import { interfacesService, NetworkInterface } from "@/lib/api/interfaces";
+import { ethernetService } from "@/lib/api/ethernet";
+import type { EthernetInterface } from "@/lib/api/types/ethernet";
 import { dhcpService } from "@/lib/api/dhcp";
 import { wireguardService } from "@/lib/api/wireguard";
 import { firewallIPv4Service } from "@/lib/api/firewall-ipv4";
@@ -83,8 +84,8 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
     try {
       // Index interfaces
       try {
-        const interfaces = await interfacesService.getConfig();
-        interfaces.interfaces.forEach((iface: NetworkInterface) => {
+        const ethConfig = await ethernetService.getConfig();
+        ethConfig.interfaces.forEach((iface: EthernetInterface) => {
           dynamicResults.push({
             id: `interface-${iface.name}`,
             title: iface.name,
