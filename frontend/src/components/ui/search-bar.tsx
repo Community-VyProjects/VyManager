@@ -215,8 +215,8 @@ export function SearchBar() {
                           <Icon className="h-4 w-4 text-muted-foreground" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-sm font-medium truncate">
+                          <div className="flex flex-wrap items-center gap-2 mb-1">
+                            <span className="text-sm font-medium break-words">
                               {result.title}
                             </span>
                             <Badge
