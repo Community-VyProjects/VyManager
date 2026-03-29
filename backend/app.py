@@ -13,7 +13,7 @@ from fastapi_permissions import get_user_feature_permissions
 
 # Import routers
 from routers.session import session as session_router
-from routers.interfaces import ethernet, dummy, bonding
+from routers.interfaces import ethernet, dummy, bonding, bridge
 from routers.firewall import groups
 from routers.firewall import ipv4 as firewall_ipv4
 from routers.firewall import ipv6 as firewall_ipv6
@@ -266,6 +266,7 @@ app.include_router(session_router.router)
 app.include_router(ethernet.router)
 app.include_router(dummy.router)
 app.include_router(bonding.router)
+app.include_router(bridge.router)
 app.include_router(groups.router)
 app.include_router(firewall_ipv4.router)
 app.include_router(firewall_ipv6.router)

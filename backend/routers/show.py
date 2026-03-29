@@ -766,7 +766,8 @@ def _parse_wg_summary(output: str) -> dict:
 # Broadcaster: shared per-device SSE data pump
 # ========================================================================
 
-_SLOW_EVERY = 5          # emit system-info / WG every N fast cycles (= every 5 s)
+_FAST_INTERVAL = 3.0     # seconds between fast cycles (interface counters)
+_SLOW_EVERY = 5          # emit system-info / WG every N fast cycles (= every 15 s)
 _WG_MIN_INTERVAL = 15.0  # minimum seconds between WireGuard status queries
 
 
@@ -935,7 +936,7 @@ class DeviceDataBroadcaster:
                         self._push_to_all({"type": "error", "data": {"channel": "interface-counters", "message": "GraphQL fast fetch failed"}})
 
                 cycle += 1
-                await asyncio.sleep(1.0)
+                await asyncio.sleep(_FAST_INTERVAL)
         except asyncio.CancelledError:
             raise
         finally:

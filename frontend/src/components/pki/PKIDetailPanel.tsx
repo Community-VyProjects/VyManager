@@ -23,6 +23,38 @@ import type {
 } from "@/lib/api/pki";
 
 // ============================================================================
+// PEM formatting helper
+// ============================================================================
+
+const PEM_HEADERS: Record<string, { begin: string; end: string }> = {
+  certificate: { begin: "-----BEGIN CERTIFICATE-----", end: "-----END CERTIFICATE-----" },
+  private_key: { begin: "-----BEGIN PRIVATE KEY-----", end: "-----END PRIVATE KEY-----" },
+  public_key: { begin: "-----BEGIN PUBLIC KEY-----", end: "-----END PUBLIC KEY-----" },
+  parameters: { begin: "-----BEGIN DH PARAMETERS-----", end: "-----END DH PARAMETERS-----" },
+  crl: { begin: "-----BEGIN X509 CRL-----", end: "-----END X509 CRL-----" },
+  key: { begin: "-----BEGIN OpenVPN Static key V1-----", end: "-----END OpenVPN Static key V1-----" },
+  openssh_private_key: { begin: "-----BEGIN OPENSSH PRIVATE KEY-----", end: "-----END OPENSSH PRIVATE KEY-----" },
+};
+
+/**
+ * Wrap a raw base64 value with PEM header/footer if not already present.
+ * Inserts line breaks every 64 characters for standard PEM formatting.
+ */
+function formatPem(value: string, field: string): string {
+  const trimmed = value.trim();
+  // Already has PEM headers — return as-is
+  if (trimmed.startsWith("-----BEGIN ")) return trimmed;
+
+  const header = PEM_HEADERS[field];
+  if (!header) return trimmed;
+
+  // Remove any existing whitespace and wrap at 64 chars
+  const raw = trimmed.replace(/\s/g, "");
+  const lines = raw.match(/.{1,64}/g) || [raw];
+  return `${header.begin}\n${lines.join("\n")}\n${header.end}`;
+}
+
+// ============================================================================
 // Shared helpers
 // ============================================================================
 
@@ -62,12 +94,14 @@ function RevealableField({
   field,
   label,
   isMasked,
+  pemField,
 }: {
   itemType: string;
   itemName: string;
   field: string;
   label: string;
   isMasked: boolean;
+  pemField?: string;
 }) {
   const [revealed, setRevealed] = useState(false);
   const [value, setValue] = useState<string | null>(null);
@@ -97,7 +131,7 @@ function RevealableField({
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium">{label}</span>
         <div className="flex items-center gap-1">
-          {revealed && value && <CopyButton value={value} />}
+          {revealed && value && <CopyButton value={formatPem(value, pemField || field)} />}
           <Button variant="outline" size="sm" onClick={handleReveal} className="h-7 px-2 text-xs" disabled={loading}>
             {loading ? (
               <Loader2 className="h-3 w-3 animate-spin" />
@@ -111,24 +145,26 @@ function RevealableField({
       </div>
       {revealed && value && (
         <pre className="text-xs font-mono bg-muted rounded-md p-3 max-h-48 overflow-auto break-all whitespace-pre-wrap border">
-          {value}
+          {formatPem(value, pemField || field)}
         </pre>
       )}
     </div>
   );
 }
 
-function ValueField({ label, value }: { label: string; value: string | null | undefined }) {
+function ValueField({ label, value, pemField }: { label: string; value: string | null | undefined; pemField?: string }) {
   if (!value || value === "***") return null;
+
+  const formatted = pemField ? formatPem(value, pemField) : value;
 
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium">{label}</span>
-        <CopyButton value={value} />
+        <CopyButton value={formatted} />
       </div>
       <pre className="text-xs font-mono bg-muted rounded-md p-3 max-h-48 overflow-auto break-all whitespace-pre-wrap border">
-        {value}
+        {formatted}
       </pre>
     </div>
   );
@@ -160,23 +196,26 @@ function CADetail({ item }: { item: PKICA }) {
       </div>
       <Separator />
       {item.certificate && item.certificate !== "***" && (
-        <ValueField label="Certificate" value={item.certificate} />
+        <ValueField label="Certificate" value={item.certificate} pemField="certificate" />
       )}
       <RevealableField itemType="ca" itemName={item.name} field="private_key" label="Private Key" isMasked={!!item.private_key} />
       {item.crl?.length > 0 && (
         <div className="space-y-2">
           <span className="text-sm font-medium">CRL Entries ({item.crl.length})</span>
-          {item.crl.map((c, i) => (
+          {item.crl.map((c, i) => {
+            const formattedCrl = formatPem(c, "crl");
+            return (
             <div key={i} className="space-y-1">
               <div className="flex items-center justify-between">
                 <span className="text-xs text-muted-foreground">CRL #{i + 1}</span>
-                <CopyButton value={c} />
+                <CopyButton value={formattedCrl} />
               </div>
               <pre className="text-xs font-mono bg-muted rounded-md p-3 break-all whitespace-pre-wrap max-h-32 overflow-auto border">
-                {c}
+                {formattedCrl}
               </pre>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
@@ -198,7 +237,7 @@ function CertDetail({ item }: { item: PKICertificate }) {
       </div>
       <Separator />
       {item.certificate && item.certificate !== "***" && (
-        <ValueField label="Certificate" value={item.certificate} />
+        <ValueField label="Certificate" value={item.certificate} pemField="certificate" />
       )}
       <RevealableField itemType="certificate" itemName={item.name} field="private_key" label="Private Key" isMasked={!!item.private_key} />
       {item.acme && (
@@ -241,7 +280,7 @@ function KeyPairDetail({ item }: { item: PKIKeyPair }) {
         {item.password_protected && <Badge variant="outline">Password Protected</Badge>}
       </div>
       {item.public_key && item.public_key !== "***" && (
-        <ValueField label="Public Key" value={item.public_key} />
+        <ValueField label="Public Key" value={item.public_key} pemField="public_key" />
       )}
       <RevealableField itemType="key_pair" itemName={item.name} field="private_key" label="Private Key" isMasked={!!item.private_key} />
     </div>
@@ -266,7 +305,7 @@ function OpenSSHDetail({ item }: { item: PKIOpenSSH }) {
       {item.public_key && item.public_key !== "***" && (
         <ValueField label="Public Key" value={item.public_type ? `${item.public_type} ${item.public_key}` : item.public_key} />
       )}
-      <RevealableField itemType="openssh" itemName={item.name} field="private_key" label="Private Key" isMasked={!!item.private_key} />
+      <RevealableField itemType="openssh" itemName={item.name} field="private_key" label="Private Key" isMasked={!!item.private_key} pemField="openssh_private_key" />
     </div>
   );
 }

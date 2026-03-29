@@ -16,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, RefreshCw, AlertCircle, Search, Cable, Pencil, Trash2, Network, ChevronRight, Shield, Boxes, Waypoints, Link2 } from "lucide-react";
+import { Plus, RefreshCw, AlertCircle, Search, Cable, Pencil, Trash2, Network, ChevronRight, Shield, Boxes, Waypoints, Link2, GitMerge } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { ethernetService } from "@/lib/api/ethernet";
@@ -31,6 +31,10 @@ import { bondingService, type BondingInterface, type BondingCapabilities } from 
 import { CreateBondingModal } from "@/components/bonding/CreateBondingModal";
 import { EditBondingModal } from "@/components/bonding/EditBondingModal";
 import { DeleteBondingModal } from "@/components/bonding/DeleteBondingModal";
+import { bridgeService, type BridgeInterface, type BridgeCapabilities } from "@/lib/api/bridge";
+import { CreateBridgeModal } from "@/components/bridge/CreateBridgeModal";
+import { EditBridgeModal } from "@/components/bridge/EditBridgeModal";
+import { DeleteBridgeModal } from "@/components/bridge/DeleteBridgeModal";
 import { CreateVxlanModal } from "@/components/vxlan/CreateVxlanModal";
 import { EditVxlanModal } from "@/components/vxlan/EditVxlanModal";
 import { DeleteVxlanModal } from "@/components/vxlan/DeleteVxlanModal";
@@ -44,7 +48,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 
-type InterfaceType = "ethernet" | "vlan" | "wireguard" | "vxlan" | "tunnel" | "bonding";
+type InterfaceType = "ethernet" | "vlan" | "wireguard" | "vxlan" | "tunnel" | "bonding" | "bridge";
 type VlanSubTab = "vif" | "vif-s" | "vif-c";
 
 interface VLANWithParent extends VIFConfig {
@@ -116,12 +120,21 @@ export default function InterfacesPage() {
   const [editingBonding, setEditingBonding] = useState<BondingInterface | null>(null);
   const [deletingBonding, setDeletingBonding] = useState<BondingInterface | null>(null);
 
+  // Bridge state
+  const [bridgeInterfaces, setBridgeInterfaces] = useState<BridgeInterface[]>([]);
+  const [bridgeCapabilities, setBridgeCapabilities] = useState<BridgeCapabilities | null>(null);
+
+  // Bridge Modal states
+  const [isCreateBridgeModalOpen, setIsCreateBridgeModalOpen] = useState(false);
+  const [editingBridge, setEditingBridge] = useState<BridgeInterface | null>(null);
+  const [deletingBridge, setDeletingBridge] = useState<BridgeInterface | null>(null);
+
   const { canWrite } = usePermissions();
 
   const loadData = async () => {
     try {
       setError(null);
-      const [configData, capabilitiesData, wgData, vxlanData, vxlanCapData, tunnelData, tunnelCapData, bondingData, bondingCapData] = await Promise.all([
+      const [configData, capabilitiesData, wgData, vxlanData, vxlanCapData, tunnelData, tunnelCapData, bondingData, bondingCapData, bridgeData, bridgeCapData] = await Promise.all([
         ethernetService.getConfig(),
         ethernetService.getCapabilities(),
         wireguardService.getConfig(),
@@ -131,6 +144,8 @@ export default function InterfacesPage() {
         tunnelService.getCapabilities(),
         bondingService.getConfig(),
         bondingService.getCapabilities(),
+        bridgeService.getConfig(),
+        bridgeService.getCapabilities(),
       ]);
       setInterfaces(configData.interfaces);
       setCapabilities(capabilitiesData);
@@ -141,6 +156,8 @@ export default function InterfacesPage() {
       setTunnelCapabilities(tunnelCapData);
       setBondingInterfaces(bondingData.interfaces);
       setBondingCapabilities(bondingCapData);
+      setBridgeInterfaces(bridgeData.interfaces);
+      setBridgeCapabilities(bridgeCapData);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load interface data");
     } finally {
@@ -188,6 +205,7 @@ export default function InterfacesPage() {
   const totalVxlan = vxlanInterfaces.length;
   const totalTunnel = tunnelInterfaces.length;
   const totalBonding = bondingInterfaces.length;
+  const totalBridge = bridgeInterfaces.length;
 
   // Filter interfaces based on search
   const filteredInterfaces = interfaces.filter((iface) => {
@@ -283,7 +301,7 @@ export default function InterfacesPage() {
                     <code className="font-semibold font-mono text-foreground">{item.fullName}</code>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline" className="bg-purple-500/10 text-purple-500 border-purple-500/20 text-xs">
+                    <Badge variant="secondary" className="text-xs">
                       {item.vlan_id}
                     </Badge>
                   </TableCell>
@@ -426,6 +444,17 @@ export default function InterfacesPage() {
     );
   });
 
+  const filteredBridge = bridgeInterfaces.filter((iface) => {
+    if (searchQuery === "") return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      iface.name.toLowerCase().includes(q) ||
+      (iface.description || "").toLowerCase().includes(q) ||
+      iface.addresses?.some((addr) => addr.toLowerCase().includes(q)) ||
+      iface.members?.some((m) => m.name.toLowerCase().includes(q))
+    );
+  });
+
   return (
     <AppLayout>
       <div className="flex h-full">
@@ -436,7 +465,7 @@ export default function InterfacesPage() {
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Interfaces</h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {totalInterfaces + totalVlans + totalWireGuard + totalVxlan + totalTunnel + totalBonding} total
+                  {totalInterfaces + totalVlans + totalWireGuard + totalVxlan + totalTunnel + totalBonding + totalBridge} total
                 </p>
               </div>
               <Button
@@ -640,6 +669,40 @@ export default function InterfacesPage() {
                   </div>
                 </button>
 
+                {/* Bridge */}
+                <button
+                  onClick={() => setSelectedType("bridge")}
+                  className={cn(
+                    "w-full text-left rounded-lg px-3 py-3 transition-all",
+                    selectedType === "bridge"
+                      ? "bg-accent text-accent-foreground shadow-sm"
+                      : "hover:bg-accent/50"
+                  )}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={cn(
+                      "mt-0.5 rounded-md p-1.5",
+                      selectedType === "bridge" ? "bg-primary/10" : "bg-muted"
+                    )}>
+                      <GitMerge className={cn(
+                        "h-4 w-4",
+                        selectedType === "bridge" ? "text-primary" : "text-muted-foreground"
+                      )} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="font-medium text-sm text-foreground">Bridge</span>
+                        {selectedType === "bridge" && (
+                          <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
+                        )}
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {totalBridge} {totalBridge === 1 ? "interface" : "interfaces"}
+                      </span>
+                    </div>
+                  </div>
+                </button>
+
                 {/* WireGuard */}
                 <button
                   onClick={() => setSelectedType("wireguard")}
@@ -687,7 +750,7 @@ export default function InterfacesPage() {
             <div className="flex items-start justify-between mb-4">
               <div className="flex-1">
                 <h1 className="text-2xl font-bold text-foreground">
-                  {selectedType === "ethernet" ? "Ethernet Interfaces" : selectedType === "vlan" ? "VLANs" : selectedType === "vxlan" ? "VXLAN Interfaces" : selectedType === "tunnel" ? "Tunnel Interfaces" : selectedType === "bonding" ? "Bonding Interfaces" : "WireGuard Interfaces"}
+                  {selectedType === "ethernet" ? "Ethernet Interfaces" : selectedType === "vlan" ? "VLANs" : selectedType === "vxlan" ? "VXLAN Interfaces" : selectedType === "tunnel" ? "Tunnel Interfaces" : selectedType === "bonding" ? "Bonding Interfaces" : selectedType === "bridge" ? "Bridge Interfaces" : "WireGuard Interfaces"}
                 </h1>
                 <p className="text-sm text-muted-foreground mt-2">
                   {selectedType === "ethernet"
@@ -700,7 +763,9 @@ export default function InterfacesPage() {
                           ? "GRE, IPIP, SIT, ERSPAN and other tunnel interfaces"
                           : selectedType === "bonding"
                             ? "Link aggregation (bonding) interfaces for high availability and throughput"
-                            : "WireGuard tunnel interfaces and status"}
+                            : selectedType === "bridge"
+                              ? "Bridge interfaces for layer-2 network bridging"
+                              : "WireGuard tunnel interfaces and status"}
                 </p>
               </div>
               <Button
@@ -716,6 +781,8 @@ export default function InterfacesPage() {
                     setIsCreateTunnelModalOpen(true);
                   } else if (selectedType === "bonding") {
                     setIsCreateBondingModalOpen(true);
+                  } else if (selectedType === "bridge") {
+                    setIsCreateBridgeModalOpen(true);
                   } else {
                     setIsCreateInterfaceModalOpen(true);
                   }
@@ -733,7 +800,9 @@ export default function InterfacesPage() {
                         ? "Create Tunnel"
                         : selectedType === "bonding"
                           ? "Create Bond"
-                          : "Manage WireGuard"}
+                          : selectedType === "bridge"
+                            ? "Create Bridge"
+                            : "Manage WireGuard"}
               </Button>
             </div>
 
@@ -774,7 +843,9 @@ export default function InterfacesPage() {
                           ? "Search by name, description, address, encapsulation, or remote..."
                           : selectedType === "bonding"
                             ? "Search by name, description, address, mode, or member..."
-                            : "Search by name, description, address..."
+                            : selectedType === "bridge"
+                              ? "Search by name, description, address, or member..."
+                              : "Search by name, description, address..."
                 }
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -841,9 +912,11 @@ export default function InterfacesPage() {
                                 <code className="font-semibold font-mono text-foreground">{iface.name}</code>
                               </TableCell>
                               <TableCell>
-                                <Badge variant={iface.disable ? "secondary" : "default"} className="text-xs">
-                                  {iface.disable ? "Disabled" : "Enabled"}
-                                </Badge>
+                                {iface.disable ? (
+                                  <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">Disabled</Badge>
+                                ) : (
+                                  <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">Enabled</Badge>
+                                )}
                               </TableCell>
                               <TableCell className="text-muted-foreground max-w-[200px] truncate">
                                 {iface.description || "—"}
@@ -996,9 +1069,11 @@ export default function InterfacesPage() {
                               ) : <span className="text-muted-foreground">—</span>}
                             </TableCell>
                             <TableCell>
-                              <Badge variant={vx.disabled ? "secondary" : "default"} className="text-xs">
-                                {vx.disabled ? "Disabled" : "Enabled"}
-                              </Badge>
+                              {vx.disabled ? (
+                                <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">Disabled</Badge>
+                              ) : (
+                                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">Enabled</Badge>
+                              )}
                             </TableCell>
                             <TableCell>
                               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1076,9 +1151,11 @@ export default function InterfacesPage() {
                             <TableCell className="text-sm">{tun.source_address || tun.source_interface || "—"}</TableCell>
                             <TableCell className="text-sm">{tun.remote || "—"}</TableCell>
                             <TableCell>
-                              <Badge variant={tun.disabled ? "secondary" : "default"} className="text-xs">
-                                {tun.disabled ? "Disabled" : "Enabled"}
-                              </Badge>
+                              {tun.disabled ? (
+                                <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">Disabled</Badge>
+                              ) : (
+                                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">Enabled</Badge>
+                              )}
                             </TableCell>
                             <TableCell>
                               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1161,9 +1238,11 @@ export default function InterfacesPage() {
                               ) : <span className="text-muted-foreground">—</span>}
                             </TableCell>
                             <TableCell>
-                              <Badge variant={bond.disable ? "secondary" : "default"} className="text-xs">
-                                {bond.disable ? "Disabled" : "Enabled"}
-                              </Badge>
+                              {bond.disable ? (
+                                <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">Disabled</Badge>
+                              ) : (
+                                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">Enabled</Badge>
+                              )}
                             </TableCell>
                             <TableCell>
                               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1186,6 +1265,91 @@ export default function InterfacesPage() {
                   </div>
                   <p className="text-sm text-muted-foreground text-center mt-3">
                     Showing {filteredBonding.length} of {totalBonding} interface{totalBonding !== 1 ? "s" : ""}
+                  </p>
+                </>
+              )
+            ) : selectedType === "bridge" ? (
+              /* Bridge Table */
+              filteredBridge.length === 0 ? (
+                <Card className="border-border">
+                  <CardContent className="py-12">
+                    <div className="flex flex-col items-center gap-2">
+                      <GitMerge className="h-12 w-12 text-muted-foreground/30" />
+                      <p className="text-muted-foreground">
+                        {searchQuery ? "No bridge interfaces matching your search" : "No bridge interfaces configured"}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <>
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>STP</TableHead>
+                          <TableHead>Description</TableHead>
+                          <TableHead>Addresses</TableHead>
+                          <TableHead>Members</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="w-[80px]"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredBridge.map((br) => (
+                          <TableRow key={br.name} className="group">
+                            <TableCell><code className="font-semibold font-mono text-foreground">{br.name}</code></TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className={cn("text-xs", br.stp ? "bg-green-500/10 text-green-500 border-green-500/20" : "bg-muted text-muted-foreground")}>
+                                {br.stp ? "Enabled" : "Disabled"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-muted-foreground max-w-[180px] truncate">{br.description || "\u2014"}</TableCell>
+                            <TableCell>
+                              {br.addresses?.length ? (
+                                <div className="flex flex-wrap gap-1">
+                                  {br.addresses.slice(0, 2).map((addr, idx) => <code key={idx} className="text-xs font-mono px-1.5 py-0.5 rounded bg-accent text-foreground">{addr}</code>)}
+                                  {br.addresses.length > 2 && <Badge variant="secondary" className="text-xs px-1.5 py-0">+{br.addresses.length - 2}</Badge>}
+                                </div>
+                              ) : <span className="text-muted-foreground">{"\u2014"}</span>}
+                            </TableCell>
+                            <TableCell>
+                              {br.members?.length ? (
+                                <div className="flex flex-wrap gap-1">
+                                  {br.members.slice(0, 3).map((m, idx) => <code key={idx} className="text-xs font-mono px-1.5 py-0.5 rounded bg-accent text-foreground">{m.name}</code>)}
+                                  {br.members.length > 3 && <Badge variant="secondary" className="text-xs px-1.5 py-0">+{br.members.length - 3}</Badge>}
+                                </div>
+                              ) : <span className="text-muted-foreground">{"\u2014"}</span>}
+                            </TableCell>
+                            <TableCell>
+                              {br.disable ? (
+                                <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">Disabled</Badge>
+                              ) : (
+                                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">Enabled</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                {canWrite(FeatureGroup.INTERFACES) && (
+                                  <>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingBridge(br)}>
+                                      <Pencil className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeletingBridge(br)}>
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <p className="text-sm text-muted-foreground text-center mt-3">
+                    Showing {filteredBridge.length} of {totalBridge} interface{totalBridge !== 1 ? "s" : ""}
                   </p>
                 </>
               )
@@ -1230,9 +1394,11 @@ export default function InterfacesPage() {
                           <TableCell>{wg.port || "Auto"}</TableCell>
                           <TableCell><Badge variant="secondary" className="text-xs">{wg.peer_count}</Badge></TableCell>
                           <TableCell>
-                            <Badge variant={wg.disabled ? "secondary" : "default"} className="text-xs">
-                              {wg.disabled ? "Disabled" : "Enabled"}
-                            </Badge>
+                            {wg.disabled ? (
+                              <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">Disabled</Badge>
+                            ) : (
+                              <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">Enabled</Badge>
+                            )}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -1456,6 +1622,33 @@ export default function InterfacesPage() {
           loadData();
         }}
         interfaceData={deletingBonding}
+      />
+      {/* Bridge Modals */}
+      <CreateBridgeModal
+        open={isCreateBridgeModalOpen}
+        onOpenChange={setIsCreateBridgeModalOpen}
+        onSuccess={loadData}
+        capabilities={bridgeCapabilities}
+        existingInterfaces={bridgeInterfaces.map((i) => i.name)}
+      />
+      <EditBridgeModal
+        open={!!editingBridge}
+        onOpenChange={(open) => !open && setEditingBridge(null)}
+        onSuccess={() => {
+          setEditingBridge(null);
+          loadData();
+        }}
+        capabilities={bridgeCapabilities}
+        interfaceData={editingBridge}
+      />
+      <DeleteBridgeModal
+        open={!!deletingBridge}
+        onOpenChange={(open) => !open && setDeletingBridge(null)}
+        onSuccess={() => {
+          setDeletingBridge(null);
+          loadData();
+        }}
+        interfaceData={deletingBridge}
       />
     </AppLayout>
   );
