@@ -5,38 +5,31 @@ import { Button } from "@/components/ui/button";
 import { AlertTriangle, Power, PowerOff, X } from "lucide-react";
 import { powerService, PowerStatusResponse } from "@/lib/api/power";
 
-export function PowerActionBanner() {
+interface PowerActionBannerProps {
+  powerStatus: PowerStatusResponse | null;
+}
+
+export function PowerActionBanner({ powerStatus }: PowerActionBannerProps) {
   const [status, setStatus] = useState<PowerStatusResponse | null>(null);
   const [countdown, setCountdown] = useState<string>("");
   const [cancelling, setCancelling] = useState(false);
   const [showCancelledMessage, setShowCancelledMessage] = useState(false);
 
-  // Poll status every 5 seconds
+  // Sync SSE-driven props into local state
   useEffect(() => {
-    const checkStatus = async () => {
-      try {
-        const result = await powerService.getStatus();
-        setStatus(result);
+    if (powerStatus === null) return;
 
-        // If action was just cancelled, show message briefly
-        if (result.cancelled && !showCancelledMessage) {
-          setShowCancelledMessage(true);
-          setTimeout(() => {
-            setShowCancelledMessage(false);
-            setStatus(null);
-          }, 5000); // Show for 5 seconds
-        }
-      } catch (err) {
-        // Ignore errors (user might not have active session)
+    setStatus(powerStatus);
+
+    // If action was just cancelled, show message briefly
+    if (powerStatus.cancelled && !showCancelledMessage) {
+      setShowCancelledMessage(true);
+      setTimeout(() => {
+        setShowCancelledMessage(false);
         setStatus(null);
-      }
-    };
-
-    checkStatus();
-    const interval = setInterval(checkStatus, 5000); // Poll every 5 seconds
-
-    return () => clearInterval(interval);
-  }, [showCancelledMessage]);
+      }, 5000);
+    }
+  }, [powerStatus, showCancelledMessage]);
 
   // Update countdown every second
   useEffect(() => {
@@ -69,7 +62,7 @@ export function PowerActionBanner() {
     };
 
     updateCountdown();
-    const interval = setInterval(updateCountdown, 1000); // Update every second
+    const interval = setInterval(updateCountdown, 1000);
 
     return () => clearInterval(interval);
   }, [status]);
@@ -85,7 +78,7 @@ export function PowerActionBanner() {
         await powerService.poweroff({ action: "cancel" });
       }
 
-      // Immediately check status to show cancelled message
+      // SSE will push updated status shortly; also fetch eagerly
       const result = await powerService.getStatus();
       setStatus(result);
       setShowCancelledMessage(true);

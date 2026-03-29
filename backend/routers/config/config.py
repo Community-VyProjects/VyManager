@@ -15,6 +15,7 @@ from rbac_permissions import FeatureGroup
 import commit_confirm_state
 import json
 import logging
+from events.event_manager import event_manager, EVENT_CONFIG_DIFF, EVENT_COMMIT_CONFIRM
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/config", tags=["config"])
@@ -228,6 +229,9 @@ async def save_config(request: Request, file: Optional[str] = None):
         current_config = await run_in_threadpool(service.get_full_config, refresh=True)
         _saved_config_snapshots[instance_id] = current_config
 
+        # Notify SSE subscribers that diff has changed (now empty after save)
+        event_manager.emit(instance_id, EVENT_CONFIG_DIFF, None)
+
         return SaveConfigResponse(
             success=True,
             message="Configuration saved successfully to disk"
@@ -322,6 +326,10 @@ async def confirm_commit(request: Request):
         # Refresh the config cache so the unsaved-changes banner reflects
         # the new running config, prompting the user to save when ready.
         await run_in_threadpool(service.get_full_config, refresh=True)
+
+        # Notify SSE subscribers
+        event_manager.emit(instance_id, EVENT_COMMIT_CONFIRM, None)
+        event_manager.emit(instance_id, EVENT_CONFIG_DIFF, None)
 
         return SaveConfigResponse(
             success=True,

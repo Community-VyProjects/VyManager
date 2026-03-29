@@ -20,6 +20,7 @@ import uuid
 from session_vyos_service import get_session_vyos_service
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
+from events.event_manager import event_manager, EVENT_POWER_STATUS
 import logging
 logger = logging.getLogger(__name__)
 
@@ -288,6 +289,9 @@ async def reboot_system(request: Request, body: PowerActionRequest):
     if scheduled_time:
         scheduled_time_utc = scheduled_time.replace(tzinfo=ZoneInfo("UTC"))
 
+    # Notify SSE subscribers of power status change
+    event_manager.emit(instance_id, EVENT_POWER_STATUS, None)
+
     return PowerActionResponse(
         success=True, message=message, scheduled_time=scheduled_time_utc
     )
@@ -462,6 +466,9 @@ async def poweroff_system(request: Request, body: PowerActionRequest):
     scheduled_time_utc = None
     if scheduled_time:
         scheduled_time_utc = scheduled_time.replace(tzinfo=ZoneInfo("UTC"))
+
+    # Notify SSE subscribers of power status change
+    event_manager.emit(instance_id, EVENT_POWER_STATUS, None)
 
     return PowerActionResponse(
         success=True, message=message, scheduled_time=scheduled_time_utc
