@@ -202,42 +202,42 @@ export function EditBondingModal({
       setIpv6AddressInterfaceIdentifier(interfaceData.ipv6.address_interface_identifier || "");
 
       // ARP Monitor
-      setArpMonitorInterval(interfaceData.arp_monitor.interval || "");
-      setArpMonitorTargets(interfaceData.arp_monitor.targets.join(", "));
+      setArpMonitorInterval(interfaceData.arp_monitor?.interval || "");
+      setArpMonitorTargets(interfaceData.arp_monitor?.targets?.join(", ") || "");
 
       // EVPN
-      setEvpnEsDfPref(interfaceData.evpn.es_df_pref || "");
-      setEvpnEsId(interfaceData.evpn.es_id || "");
-      setEvpnEsSysMac(interfaceData.evpn.es_sys_mac || "");
-      setEvpnUplink(interfaceData.evpn.uplink);
+      setEvpnEsDfPref(interfaceData.evpn?.es_df_pref || "");
+      setEvpnEsId(interfaceData.evpn?.es_id || "");
+      setEvpnEsSysMac(interfaceData.evpn?.es_sys_mac || "");
+      setEvpnUplink(interfaceData.evpn?.uplink ?? false);
 
       // Mirror
-      setMirrorIngress(interfaceData.mirror.ingress || "");
-      setMirrorEgress(interfaceData.mirror.egress || "");
+      setMirrorIngress(interfaceData.mirror?.ingress || "");
+      setMirrorEgress(interfaceData.mirror?.egress || "");
 
       // EAPoL
-      setEapolCaCert(interfaceData.eapol.ca_certificate || "");
-      setEapolCert(interfaceData.eapol.certificate || "");
-      setEapolPassphrase(interfaceData.eapol.passphrase || "");
+      setEapolCaCert(interfaceData.eapol?.ca_certificate || "");
+      setEapolCert(interfaceData.eapol?.certificate || "");
+      setEapolPassphrase(interfaceData.eapol?.passphrase || "");
 
       // DHCP
-      setDhcpClientId(interfaceData.dhcp_options.client_id || "");
-      setDhcpDefaultRouteDistance(interfaceData.dhcp_options.default_route_distance || "");
-      setDhcpHostName(interfaceData.dhcp_options.host_name || "");
-      setDhcpUserClass(interfaceData.dhcp_options.user_class || "");
-      setDhcpVendorClassId(interfaceData.dhcp_options.vendor_class_id || "");
-      setDhcpMtu(interfaceData.dhcp_options.mtu);
-      setDhcpNoDefaultRoute(interfaceData.dhcp_options.no_default_route);
-      setDhcpReject(interfaceData.dhcp_options.reject.join(", "));
+      setDhcpClientId(interfaceData.dhcp_options?.client_id || "");
+      setDhcpDefaultRouteDistance(interfaceData.dhcp_options?.default_route_distance || "");
+      setDhcpHostName(interfaceData.dhcp_options?.host_name || "");
+      setDhcpUserClass(interfaceData.dhcp_options?.user_class || "");
+      setDhcpVendorClassId(interfaceData.dhcp_options?.vendor_class_id || "");
+      setDhcpMtu(interfaceData.dhcp_options?.mtu ?? false);
+      setDhcpNoDefaultRoute(interfaceData.dhcp_options?.no_default_route ?? false);
+      setDhcpReject(interfaceData.dhcp_options?.reject?.join(", ") || "");
 
       // DHCPv6
-      setDhcpv6Duid(interfaceData.dhcpv6_options.duid || "");
-      setDhcpv6NoRelease(interfaceData.dhcpv6_options.no_release);
-      setDhcpv6ParametersOnly(interfaceData.dhcpv6_options.parameters_only);
-      setDhcpv6RapidCommit(interfaceData.dhcpv6_options.rapid_commit);
-      setDhcpv6Temporary(interfaceData.dhcpv6_options.temporary);
-      setDhcpv6NoRequestDns(interfaceData.dhcpv6_options.no_request_dns);
-      setDhcpv6NoRequestDomainName(interfaceData.dhcpv6_options.no_request_domain_name);
+      setDhcpv6Duid(interfaceData.dhcpv6_options?.duid || "");
+      setDhcpv6NoRelease(interfaceData.dhcpv6_options?.no_release ?? false);
+      setDhcpv6ParametersOnly(interfaceData.dhcpv6_options?.parameters_only ?? false);
+      setDhcpv6RapidCommit(interfaceData.dhcpv6_options?.rapid_commit ?? false);
+      setDhcpv6Temporary(interfaceData.dhcpv6_options?.temporary ?? false);
+      setDhcpv6NoRequestDns(interfaceData.dhcpv6_options?.no_request_dns ?? false);
+      setDhcpv6NoRequestDomainName(interfaceData.dhcpv6_options?.no_request_domain_name ?? false);
 
       setError(null);
     }
@@ -308,8 +308,8 @@ export function EditBondingModal({
       // ARP Monitor
       const newArpInterval = arpMonitorInterval.trim() || null;
       const newArpTargets = arpMonitorTargets.split(/[,\n]/).map((a) => a.trim()).filter(Boolean);
-      const currentArpTargets = interfaceData.arp_monitor.targets;
-      if (newArpInterval !== (interfaceData.arp_monitor.interval || null) ||
+      const currentArpTargets = interfaceData.arp_monitor?.targets || [];
+      if (newArpInterval !== (interfaceData.arp_monitor?.interval || null) ||
           JSON.stringify(newArpTargets.sort()) !== JSON.stringify([...currentArpTargets].sort())) {
         updated.arp_monitor = {
           interval: newArpInterval,
@@ -321,10 +321,10 @@ export function EditBondingModal({
       const newEvpnDf = evpnEsDfPref.trim() || null;
       const newEvpnId = evpnEsId.trim() || null;
       const newEvpnSysMac = evpnEsSysMac.trim() || null;
-      if (newEvpnDf !== (interfaceData.evpn.es_df_pref || null) ||
-          newEvpnId !== (interfaceData.evpn.es_id || null) ||
-          newEvpnSysMac !== (interfaceData.evpn.es_sys_mac || null) ||
-          evpnUplink !== interfaceData.evpn.uplink) {
+      if (newEvpnDf !== (interfaceData.evpn?.es_df_pref || null) ||
+          newEvpnId !== (interfaceData.evpn?.es_id || null) ||
+          newEvpnSysMac !== (interfaceData.evpn?.es_sys_mac || null) ||
+          evpnUplink !== (interfaceData.evpn?.uplink ?? false)) {
         updated.evpn = {
           es_df_pref: newEvpnDf,
           es_id: newEvpnId,
@@ -336,8 +336,8 @@ export function EditBondingModal({
       // Mirror
       const newMirrorIn = mirrorIngress.trim() || null;
       const newMirrorOut = mirrorEgress.trim() || null;
-      if (newMirrorIn !== (interfaceData.mirror.ingress || null) ||
-          newMirrorOut !== (interfaceData.mirror.egress || null)) {
+      if (newMirrorIn !== (interfaceData.mirror?.ingress || null) ||
+          newMirrorOut !== (interfaceData.mirror?.egress || null)) {
         updated.mirror = {
           ingress: newMirrorIn,
           egress: newMirrorOut,
@@ -348,9 +348,9 @@ export function EditBondingModal({
       const newEapolCa = eapolCaCert.trim() || null;
       const newEapolCert = eapolCert.trim() || null;
       const newEapolPass = eapolPassphrase.trim() || null;
-      if (newEapolCa !== (interfaceData.eapol.ca_certificate || null) ||
-          newEapolCert !== (interfaceData.eapol.certificate || null) ||
-          newEapolPass !== (interfaceData.eapol.passphrase || null)) {
+      if (newEapolCa !== (interfaceData.eapol?.ca_certificate || null) ||
+          newEapolCert !== (interfaceData.eapol?.certificate || null) ||
+          newEapolPass !== (interfaceData.eapol?.passphrase || null)) {
         updated.eapol = {
           ca_certificate: newEapolCa,
           certificate: newEapolCert,
@@ -428,14 +428,14 @@ export function EditBondingModal({
         reject: dhcpRejectList,
       };
       const curDhcp = interfaceData.dhcp_options;
-      if (newDhcp.client_id !== (curDhcp.client_id || null) ||
-          newDhcp.default_route_distance !== (curDhcp.default_route_distance || null) ||
-          newDhcp.host_name !== (curDhcp.host_name || null) ||
-          newDhcp.user_class !== (curDhcp.user_class || null) ||
-          newDhcp.vendor_class_id !== (curDhcp.vendor_class_id || null) ||
-          newDhcp.mtu !== curDhcp.mtu ||
-          newDhcp.no_default_route !== curDhcp.no_default_route ||
-          JSON.stringify(dhcpRejectList.sort()) !== JSON.stringify([...curDhcp.reject].sort())) {
+      if (newDhcp.client_id !== (curDhcp?.client_id || null) ||
+          newDhcp.default_route_distance !== (curDhcp?.default_route_distance || null) ||
+          newDhcp.host_name !== (curDhcp?.host_name || null) ||
+          newDhcp.user_class !== (curDhcp?.user_class || null) ||
+          newDhcp.vendor_class_id !== (curDhcp?.vendor_class_id || null) ||
+          newDhcp.mtu !== (curDhcp?.mtu ?? false) ||
+          newDhcp.no_default_route !== (curDhcp?.no_default_route ?? false) ||
+          JSON.stringify(dhcpRejectList.sort()) !== JSON.stringify([...(curDhcp?.reject || [])].sort())) {
         updated.dhcp_options = newDhcp;
       }
 
@@ -450,13 +450,13 @@ export function EditBondingModal({
         no_request_domain_name: dhcpv6NoRequestDomainName,
       };
       const curDhcpv6 = interfaceData.dhcpv6_options;
-      if (newDhcpv6.duid !== (curDhcpv6.duid || null) ||
-          newDhcpv6.no_release !== curDhcpv6.no_release ||
-          newDhcpv6.parameters_only !== curDhcpv6.parameters_only ||
-          newDhcpv6.rapid_commit !== curDhcpv6.rapid_commit ||
-          newDhcpv6.temporary !== curDhcpv6.temporary ||
-          newDhcpv6.no_request_dns !== curDhcpv6.no_request_dns ||
-          newDhcpv6.no_request_domain_name !== curDhcpv6.no_request_domain_name) {
+      if (newDhcpv6.duid !== (curDhcpv6?.duid || null) ||
+          newDhcpv6.no_release !== (curDhcpv6?.no_release ?? false) ||
+          newDhcpv6.parameters_only !== (curDhcpv6?.parameters_only ?? false) ||
+          newDhcpv6.rapid_commit !== (curDhcpv6?.rapid_commit ?? false) ||
+          newDhcpv6.temporary !== (curDhcpv6?.temporary ?? false) ||
+          newDhcpv6.no_request_dns !== (curDhcpv6?.no_request_dns ?? false) ||
+          newDhcpv6.no_request_domain_name !== (curDhcpv6?.no_request_domain_name ?? false)) {
         updated.dhcpv6_options = newDhcpv6;
       }
 
