@@ -52,7 +52,8 @@ async function proxyRequest(
 
   try {
     // Get the session token from request cookies
-    const sessionToken = request.cookies.get("better-auth.session_token");
+    const sessionToken = request.cookies.get("better-auth.session_token")
+      || request.cookies.get("__Secure-better-auth.session_token");
 
     // Build the backend URL
     const backendPath = `/user-management/${path.join("/")}`;

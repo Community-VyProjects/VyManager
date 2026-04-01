@@ -162,6 +162,7 @@ generate_db_pass() {
 TOTAL_STEPS=5
 INSTALL_DIR="/opt/vymanager"
 REGISTRY="ghcr.io/community-vyprojects/vymanager"
+USE_TRAEFIK=false
 
 banner
 
@@ -182,9 +183,18 @@ step 2 "Configure VyManager"
 # ──────────────────────────────────────────────────────────────────────────────
 info "Answer the following to configure your deployment.\n"
 
-prompt       APP_URL       "Application URL (e.g. https://vymanager.example.com)" "http://localhost:3000"
-prompt       FRONTEND_PORT "Frontend port" "3000"
-prompt       BACKEND_PORT  "Backend port" "8000"
+if prompt_yn "Use Traefik reverse proxy with automatic HTTPS (Let's Encrypt)?" "n"; then
+  USE_TRAEFIK=true
+  prompt       DOMAIN        "Domain name (e.g. vymanager.example.com)"
+  prompt       ACME_EMAIL    "Email for Let's Encrypt certificates"
+  APP_URL="https://${DOMAIN}"
+  FRONTEND_PORT=""
+  BACKEND_PORT=""
+else
+  prompt       APP_URL       "Application URL (e.g. https://vymanager.example.com)" "http://localhost:3000"
+  prompt       FRONTEND_PORT "Frontend port" "3000"
+  prompt       BACKEND_PORT  "Backend port" "8000"
+fi
 
 divider
 
@@ -216,8 +226,103 @@ step 4 "Write configuration files"
 # ──────────────────────────────────────────────────────────────────────────────
 DB_URL="postgresql://${DB_USER}:${DB_PASS}@postgres:5432/vymanager"
 
-# -- docker-compose.yml --
-cat > "${INSTALL_DIR}/docker-compose.yml" <<YAML
+if [[ "$USE_TRAEFIK" == true ]]; then
+  # -- docker-compose.yml (Traefik) --
+  cat > "${INSTALL_DIR}/docker-compose.yml" <<YAML
+services:
+  traefik:
+    image: traefik:latest
+    container_name: vymanager-traefik
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge=true
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
+      - --certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}
+      - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - letsencrypt_data:/letsencrypt
+    networks:
+      - vymanager
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: vymanager-postgres
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASS}
+      POSTGRES_DB: vymanager
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - vymanager
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d vymanager"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  backend:
+    image: ${REGISTRY}-backend:beta
+    container_name: vymanager-backend
+    env_file:
+      - .env
+    networks:
+      - vymanager
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  frontend:
+    image: ${REGISTRY}-frontend:beta
+    container_name: vymanager-frontend
+    env_file:
+      - .env
+    networks:
+      - vymanager
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.vymanager.rule: "Host(\`${DOMAIN}\`)"
+      traefik.http.routers.vymanager.entrypoints: "websecure"
+      traefik.http.routers.vymanager.tls.certresolver: "letsencrypt"
+      traefik.http.services.vymanager.loadbalancer.server.port: "3000"
+
+networks:
+  vymanager:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  letsencrypt_data:
+YAML
+  success "docker-compose.yml (Traefik)"
+else
+  # -- docker-compose.yml (direct ports) --
+  cat > "${INSTALL_DIR}/docker-compose.yml" <<YAML
 services:
   postgres:
     image: postgres:16-alpine
@@ -282,10 +387,17 @@ volumes:
   postgres_data:
     driver: local
 YAML
-success "docker-compose.yml"
+  success "docker-compose.yml"
+fi
 
-# Build TRUSTED_ORIGINS (app URL + common local origins)
-TRUSTED_ORIGINS="${APP_URL},http://localhost:${FRONTEND_PORT}"
+# Build TRUSTED_ORIGINS
+if [[ "$USE_TRAEFIK" == true ]]; then
+  TRUSTED_ORIGINS="${APP_URL}"
+  SECURE_COOKIES="true"
+else
+  TRUSTED_ORIGINS="${APP_URL},http://localhost:${FRONTEND_PORT}"
+  SECURE_COOKIES="false"
+fi
 
 # -- .env --
 cat > "${INSTALL_DIR}/.env" <<EOF
@@ -301,6 +413,7 @@ NODE_ENV=production
 # Better Auth Configuration
 # ============================================================================
 BETTER_AUTH_SECRET=${AUTH_SECRET}
+BETTER_AUTH_SECURE_COOKIES=${SECURE_COOKIES}
 BETTER_AUTH_URL=${APP_URL}
 NEXT_PUBLIC_APP_URL=${APP_URL}
 
@@ -317,6 +430,8 @@ TRUSTED_ORIGINS=${TRUSTED_ORIGINS}
 # ============================================================================
 # Database
 # ============================================================================
+DB_USER=${DB_USER}
+DB_PASSWORD=${DB_PASS}
 DATABASE_URL=${DB_URL}
 EOF
 success ".env"

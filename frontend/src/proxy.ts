@@ -22,9 +22,22 @@ export default async function proxy(request: NextRequest) {
   }
 
   const auth = await getAuth();
-  const session = await auth.api.getSession({ headers: request.headers });
+  let session;
+  try {
+    session = await auth.api.getSession({ headers: request.headers });
+  } catch (err) {
+    console.error("[proxy] getSession error:", err);
+    session = null;
+  }
 
   if (!session) {
+    // For API routes, return 401 instead of redirect
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json(
+        { detail: "Authentication required. No session token provided." },
+        { status: 401 }
+      );
+    }
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("from", pathname);
     return NextResponse.redirect(loginUrl);
