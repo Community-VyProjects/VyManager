@@ -285,7 +285,7 @@ async def connect_to_instance(request: Request, body: ConnectRequest):
 
             # Site ADMIN users can access any instance
             # Other users need explicit instance-level permissions
-            if user_site_role == "ADMIN":
+            if user_site_role in ADMIN_ROLES:
                 # ADMIN can access any instance - no instance role check needed
                 instance = await conn.fetchrow(
                     """
