@@ -21,6 +21,7 @@ import { ThemeSelector } from "@/components/ui/theme-selector";
 import { SearchBar } from "@/components/ui/search-bar";
 
 import { navigation } from "@/lib/navigation";
+import { OrgSwitcher } from "@/components/layout/OrgSwitcher"; // DEMO: org switcher
 
 interface NavItem {
   title: string;
@@ -213,10 +214,10 @@ export function Sidebar() {
 
   return (
     <div className="flex h-screen w-64 flex-col border-r border-border bg-card">
-      {/* Header */}
+      {/* DEMO: Header with Org Switcher (replace with static header to remove - see DEMO.md) */}
       <div className="flex h-16 items-center border-b border-border px-6 shrink-0">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center">
+          <div className="flex h-10 w-10 items-center justify-center shrink-0">
             <Image
               src="/vy-icon.png"
               alt="VyOS Logo"
@@ -226,10 +227,7 @@ export function Sidebar() {
               loader={({ src }) => src}
             />
           </div>
-          <div>
-            <h1 className="text-lg font-semibold text-foreground">VyManager</h1>
-            <p className="text-xs text-muted-foreground">VyOS Management</p>
-          </div>
+          <OrgSwitcher />
         </div>
       </div>
 

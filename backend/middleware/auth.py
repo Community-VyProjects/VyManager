@@ -115,7 +115,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             async with db_pool.acquire() as conn:
                 session = await conn.fetchrow(
                     """
-                    SELECT s.id, s."userId", s."expiresAt", s.token, u.email, u.name
+                    SELECT s.id, s."userId", s."expiresAt", s.token, u.email, u.name, u.role, u."isDemo"  -- DEMO: u.role and u."isDemo" added for org resolution
                     FROM sessions s
                     JOIN users u ON s."userId" = u.id
                     WHERE s.token = $1
@@ -166,11 +166,47 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                 request.state.session_id = session["id"]
                 request.state.user_email = session["email"]
                 request.state.user_name = session["name"]
+                request.state.user_role = session["role"]  # DEMO: user_role added for org/demo
                 request.state.user = {
                     "id": session["userId"],
                     "email": session["email"],
-                    "name": session["name"]
+                    "name": session["name"],
+                    "role": session["role"],  # DEMO: role added for org/demo
                 }
+
+                # DEMO: Resolve current organization from X-Org-Id header (see DEMO.md for removal)
+                is_demo_user = session["isDemo"]
+                org_id = request.headers.get("X-Org-Id")
+
+                if is_demo_user:
+                    # Demo users are locked to their own org - ignore X-Org-Id header
+                    request.state.org_id = await conn.fetchval(
+                        'SELECT "orgId" FROM org_members WHERE "userId" = $1 LIMIT 1',
+                        session["userId"]
+                    )
+                elif org_id:
+                    # Verify user has access to this org
+                    if session["role"] == "ADMIN":
+                        # Site admins can access any org
+                        org_exists = await conn.fetchval(
+                            'SELECT EXISTS(SELECT 1 FROM organizations WHERE id = $1)',
+                            org_id
+                        )
+                        request.state.org_id = org_id if org_exists else None
+                    else:
+                        has_access = await conn.fetchval(
+                            'SELECT EXISTS(SELECT 1 FROM org_members WHERE "orgId" = $1 AND "userId" = $2)',
+                            org_id, session["userId"]
+                        )
+                        request.state.org_id = org_id if has_access else None
+                else:
+                    # Fall back to user's first org
+                    default_org = await conn.fetchval(
+                        'SELECT "orgId" FROM org_members WHERE "userId" = $1 ORDER BY "createdAt" LIMIT 1',
+                        session["userId"]
+                    )
+                    request.state.org_id = default_org
+                # DEMO: End org resolution block
 
         except HTTPException as e:
             # Pass through HTTPException (from get_db_pool)

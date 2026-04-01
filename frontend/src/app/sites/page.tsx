@@ -35,6 +35,7 @@ import {
   LayoutGrid,
   Table,
   KeyRound,
+  Beaker,
 } from "lucide-react";
 import { signOut, useSession } from "@/lib/auth-client";
 import { Site, sessionService } from "@/lib/api/session";
@@ -51,10 +52,14 @@ import { DeleteInstanceModal } from "@/components/sites/DeleteInstanceModal";
 import { ImportCSVModal } from "@/components/session/ImportCSVModal";
 import { UserManagement } from "@/components/user-management/UserManagement";
 import { AuthenticationSettings } from "@/components/authentication/AuthenticationSettings";
+// DEMO: Demo and org imports (see DEMO.md for removal)
+import { DemoManagement } from "@/components/demo/DemoManagement";
+import { OrgSwitcher } from "@/components/layout/OrgSwitcher";
+import { useOrgStore } from "@/store/org-store";
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/types/api";
 
-type NavSection = "sites" | "user-management" | "authentication";
+type NavSection = "sites" | "user-management" | "authentication" | "demos"; // DEMO: "demos" added
 
 export default function SitesPage() {
   const router = useRouter();
@@ -62,9 +67,12 @@ export default function SitesPage() {
   // Auth session
   const { data: session } = useSession();
 
-  // Zustand store
+  // Zustand stores
   const { activeSession, loadSession, connectToInstance, disconnectFromInstance } =
     useSessionStore();
+  const { currentOrg, orgs, userRole } = useOrgStore(); // DEMO: org store
+
+  const isSiteAdmin = userRole === "ADMIN"; // DEMO: admin check for demo section
 
   // Navigation state
   const [selectedSection, setSelectedSection] = useState<NavSection>("sites");
@@ -102,7 +110,7 @@ export default function SitesPage() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [currentOrg?.id]); // DEMO: reload on org switch
 
   // Auto-select first site when sites load
   useEffect(() => {
@@ -254,7 +262,7 @@ export default function SitesPage() {
       <div className="w-64 border-r border-border bg-card flex flex-col h-full">
           <div className="p-6 pb-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center">
+              <div className="flex h-10 w-10 items-center justify-center shrink-0">
                 <Image
                   src="/vy-icon.png"
                   alt="VyOS Logo"
@@ -264,10 +272,7 @@ export default function SitesPage() {
                   loader={({ src }) => src}
                 />
               </div>
-              <div>
-                <h2 className="text-lg font-semibold text-foreground">Site Manager</h2>
-                <p className="text-xs text-muted-foreground">Manage infrastructure</p>
-              </div>
+              <OrgSwitcher />{/* DEMO: replace with static header to remove */}
             </div>
           </div>
 
@@ -356,6 +361,36 @@ export default function SitesPage() {
                   )}
                 </div>
               </button>
+
+              {/* DEMO: Demos nav section - admin only (see DEMO.md for removal) */}
+              {isSiteAdmin && (
+                <button
+                  onClick={() => setSelectedSection("demos")}
+                  className={cn(
+                    "w-full text-left rounded-lg px-3 py-3 transition-all",
+                    selectedSection === "demos"
+                      ? "bg-accent text-accent-foreground shadow-sm"
+                      : "hover:bg-accent/50"
+                  )}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={cn(
+                      "rounded-md p-1.5",
+                      selectedSection === "demos" ? "bg-primary/10" : "bg-muted"
+                    )}>
+                      <Beaker className={cn(
+                        "h-4 w-4",
+                        selectedSection === "demos" ? "text-primary" : "text-muted-foreground"
+                      )} />
+                    </div>
+                    <span className="font-medium text-sm">Demos</span>
+                    {selectedSection === "demos" && (
+                      <ChevronRight className="h-4 w-4 text-primary ml-auto" />
+                    )}
+                  </div>
+                </button>
+              )}
+              {/* DEMO: End demos nav section */}
             </div>
           </ScrollArea>
 
@@ -701,6 +736,10 @@ export default function SitesPage() {
           ) : selectedSection === "authentication" ? (
             <div className="flex-1 overflow-auto p-6">
               <AuthenticationSettings />
+            </div>
+          ) : selectedSection === "demos" ? ( /* DEMO: Demo management panel (see DEMO.md for removal) */
+            <div className="flex-1 overflow-auto p-6">
+              <DemoManagement />
             </div>
           ) : (
             <div className="flex-1 flex items-center justify-center">

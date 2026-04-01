@@ -26,11 +26,15 @@ model User {
   // RBAC
   role Role @default(VIEWER)
 
+  // DEMO: Demo user flag (see DEMO.md for removal)
+  isDemo Boolean @default(false)
+
   // Relations
   sessions          Session[]
   accounts          Account[]
   activeSession     ActiveSession?
   userInstanceRoles UserInstanceRole[]
+  orgMembers        OrgMember[] // DEMO: org membership relation
 
   @@map("users")
 }
@@ -149,14 +153,18 @@ model AuditLog {
 // Site - Represents a customer/organization
 model Site {
   id          String   @id @default(cuid())
-  name        String   @unique
+  orgId       String   // DEMO: org foreign key (see DEMO.md for removal)
+  name        String
   description String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   // Relations
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade) // DEMO
   instances Instance[]
 
+  @@unique([orgId, name]) // DEMO: was @@unique on name alone
+  @@index([orgId]) // DEMO
   @@map("sites")
 }
 
@@ -285,6 +293,48 @@ model DashboardLayout {
   @@index([userId])
   @@index([instanceId])
   @@map("dashboard_layouts")
+}
+
+// ============================================================================
+// DEMO: Multi-Organization Support (see DEMO.md for removal)
+// ============================================================================
+
+model Organization {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  description String?
+  isDemo      Boolean   @default(false)
+  expiresAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  sites   Site[]
+  members OrgMember[]
+
+  @@index([isDemo, expiresAt])
+  @@map("organizations")
+}
+
+model OrgMember {
+  id        String   @id @default(cuid())
+  orgId     String
+  userId    String
+  role      OrgRole  @default(MEMBER)
+  createdAt DateTime @default(now())
+
+  org  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, userId])
+  @@index([userId])
+  @@map("org_members")
+}
+
+enum OrgRole {
+  OWNER
+  MEMBER
 }
 
 // ============================================================================

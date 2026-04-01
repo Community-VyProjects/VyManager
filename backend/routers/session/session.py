@@ -482,15 +482,29 @@ async def list_user_sites(request: Request):
                 user_id,
             )
 
+            # DEMO: Resolve org scoping (see DEMO.md for removal)
+            org_id = getattr(request.state, "org_id", None)
+
             if user_role == "ADMIN":
-                # Site ADMINs see ALL sites with ADMIN role
-                sites = await conn.fetch(
-                    """
-                    SELECT id, name, description, "createdAt", "updatedAt"
-                    FROM sites
-                    ORDER BY name
-                    """,
-                )
+                # DEMO: Site ADMINs see ALL sites, scoped to current org
+                if org_id:
+                    sites = await conn.fetch(
+                        """
+                        SELECT id, name, description, "createdAt", "updatedAt"
+                        FROM sites
+                        WHERE "orgId" = $1
+                        ORDER BY name
+                        """,
+                        org_id,
+                    )
+                else:
+                    sites = await conn.fetch(
+                        """
+                        SELECT id, name, description, "createdAt", "updatedAt"
+                        FROM sites
+                        ORDER BY name
+                        """,
+                    )
 
                 return [
                     SiteResponse(
@@ -504,10 +518,12 @@ async def list_user_sites(request: Request):
                     for site in sites
                 ]
             else:
-                # Regular users see only sites where they have instance access
-                # Role shown is the highest role the user has across all instances in that site
+                # DEMO: Regular users scoped to current org
+                org_filter = 'AND s."orgId" = $2' if org_id else ""
+                params = [user_id, org_id] if org_id else [user_id]
+
                 sites = await conn.fetch(
-                    """
+                    f"""
                     SELECT DISTINCT s.id, s.name, s.description, s."createdAt", s."updatedAt",
                            MAX(
                                CASE uir.role
@@ -527,10 +543,11 @@ async def list_user_sites(request: Request):
                     FROM sites s
                     JOIN instances i ON s.id = i."siteId"
                     JOIN user_instance_roles uir ON i.id = uir."instanceId" AND uir."userId" = $1
+                    WHERE 1=1 {org_filter}
                     GROUP BY s.id, s.name, s.description, s."createdAt", s."updatedAt"
                     ORDER BY s.name
                     """,
-                    user_id,
+                    *params,
                 )
 
                 return [
@@ -698,14 +715,26 @@ async def create_site(request: Request, body: SiteCreateRequest):
             alphabet = string.ascii_letters + string.digits
             site_id = ''.join(secrets.choice(alphabet) for _ in range(32))
 
+            # DEMO: Resolve org for the new site (see DEMO.md for removal)
+            org_id = getattr(request.state, "org_id", None)
+            if not org_id:
+                # Fall back to default org
+                org_id = await conn.fetchval(
+                    "SELECT id FROM organizations WHERE slug = 'default' LIMIT 1"
+                )
+            if not org_id:
+                raise HTTPException(status_code=400, detail="No organization context available")
+            # DEMO: End org resolution for create_site
+
             # Create site
             site = await conn.fetchrow(
                 """
-                INSERT INTO sites (id, name, description, "createdAt", "updatedAt")
-                VALUES ($1, $2, $3, NOW(), NOW())
+                INSERT INTO sites (id, "orgId", name, description, "createdAt", "updatedAt")
+                VALUES ($1, $2, $3, $4, NOW(), NOW())
                 RETURNING id, name, description, "createdAt", "updatedAt"
                 """,
                 site_id,
+                org_id,  # DEMO: orgId column
                 body.name,
                 body.description,
             )
@@ -1746,3 +1775,5 @@ async def revoke_auth_session(request: Request, body: RevokeSessionRequest):
     except Exception as e:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
+
+# DEMO: Organization endpoints are in routers/org.py (see DEMO.md)

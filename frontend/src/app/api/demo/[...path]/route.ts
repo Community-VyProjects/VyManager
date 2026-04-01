@@ -1,14 +1,11 @@
 /**
- * Dashboard API Proxy Route
+ * Demo API Proxy Route
  *
- * Forwards all /api/dashboard/* requests to the backend.
- * Uses BACKEND_URL environment variable (runtime configurable).
+ * Forwards all /api/demo/* requests to the backend with proper cookie and org header handling.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 
-// Runtime environment variable - NOT NEXT_PUBLIC_ so it's read at runtime
-// This allows users to configure the backend URL without rebuilding
 const getBackendUrl = () => process.env.BACKEND_URL || "http://backend:8000";
 
 export async function GET(
@@ -27,6 +24,14 @@ export async function POST(
   return proxyRequest(request, path, "POST");
 }
 
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ path: string[] }> }
+) {
+  const { path } = await params;
+  return proxyRequest(request, path, "DELETE");
+}
+
 async function proxyRequest(
   request: NextRequest,
   path: string[],
@@ -35,73 +40,55 @@ async function proxyRequest(
   const BACKEND_URL = getBackendUrl();
 
   try {
-    // Get the session token from request cookies (check both secure and non-secure names)
     const sessionToken = request.cookies.get("better-auth.session_token")
       || request.cookies.get("__Secure-better-auth.session_token");
-
-    // Build the backend URL
-    const backendPath = `/dashboard/${path.join("/")}`;
+    const backendPath = `/demo/${path.join("/")}`;
     const backendUrl = `${BACKEND_URL}${backendPath}`;
 
-    // Copy search params
     const url = new URL(backendUrl);
     request.nextUrl.searchParams.forEach((value, key) => {
       url.searchParams.append(key, value);
     });
 
-    // Prepare headers
     const headers: HeadersInit = {};
 
-    // Add the session token cookie if it exists
     if (sessionToken) {
       headers["Cookie"] = `better-auth.session_token=${sessionToken.value}`;
     }
 
-    // DEMO: Forward org header for multi-org scoping (see DEMO.md for removal)
+    // Forward org header
     const orgId = request.headers.get("X-Org-Id");
     if (orgId) {
       headers["X-Org-Id"] = orgId;
     }
 
-    // Handle request body
     let body: BodyInit | undefined;
-
-    if (method === "POST") {
+    if (["POST", "PUT", "PATCH"].includes(method)) {
       headers["Content-Type"] = "application/json";
       try {
         const json = await request.json();
         body = JSON.stringify(json);
       } catch {
-        // No body or invalid JSON
+        // No body
       }
     }
 
-    // Forward the request to the backend
-    const response = await fetch(url.toString(), {
-      method,
-      headers,
-      body,
-    });
-
-    // Parse response
+    const response = await fetch(url.toString(), { method, headers, body });
     const responseText = await response.text();
 
     try {
       const data = JSON.parse(responseText);
       return NextResponse.json(data, { status: response.status });
     } catch {
-      return new NextResponse(responseText, {
-        status: response.status,
-        headers: { "Content-Type": response.headers.get("Content-Type") || "text/plain" },
-      });
+      return NextResponse.json(
+        { error: "Backend returned invalid JSON", details: responseText.substring(0, 200) },
+        { status: 500 }
+      );
     }
   } catch (error) {
-    console.error("[DashboardProxy] Error:", error);
+    console.error("Demo proxy error:", error);
     return NextResponse.json(
-      {
-        error: "Failed to proxy request to backend",
-        details: error instanceof Error ? error.message : String(error),
-      },
+      { error: "Failed to proxy request to backend", details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }

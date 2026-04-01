@@ -19,6 +19,16 @@ function resolveBackendUrl(): string {
 
 import { VyOSResponse, ApiError } from "../types/api";
 
+// DEMO: Org ID accessor - set by org store, read by API client (see DEMO.md for removal)
+let _currentOrgId: string | null = null;
+export function setCurrentOrgId(orgId: string | null) {
+  _currentOrgId = orgId;
+}
+export function getCurrentOrgId(): string | null {
+  return _currentOrgId;
+}
+// DEMO: End org ID accessor
+
 export class ApiClient {
   private readonly _baseUrl?: string;
 
@@ -37,11 +47,13 @@ export class ApiClient {
     const url = `${this.baseUrl}${endpoint}`;
 
     try {
+      const orgId = getCurrentOrgId(); // DEMO: org scoping
       const response = await fetch(url, {
         ...options,
         credentials: "include", // Send cookies (including session token) with every request
         headers: {
           "Content-Type": "application/json",
+          ...(orgId ? { "X-Org-Id": orgId } : {}), // DEMO: org header
           ...options?.headers,
         },
       });

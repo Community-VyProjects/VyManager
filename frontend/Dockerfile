@@ -1,6 +1,10 @@
 # ---- Build Stage ----
 FROM node:24-alpine AS builder
 
+# DEMO: Demo base domain build arg (see DEMO.md for removal)
+ARG DEMO_BASE_DOMAIN=
+ENV NEXT_PUBLIC_DEMO_BASE_DOMAIN=${DEMO_BASE_DOMAIN}
+
 WORKDIR /app
 
 # Install required system packages

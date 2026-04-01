@@ -7,6 +7,7 @@ import { UnsavedChangesBanner } from "../config/UnsavedChangesBanner";
 import { PowerActionBanner } from "../system/PowerActionBanner";
 import { Toaster } from "../ui/toaster";
 import { useSessionStore } from "@/store/session-store";
+import { useOrgStore } from "@/store/org-store"; // DEMO: org store
 import { Loader2 } from "lucide-react";
 import { UnifiedView } from "../ui/unified-view";
 import { useUnifiedView } from "@/contexts/UnifiedViewContext";
@@ -16,19 +17,20 @@ import { useBannerEvents } from "@/hooks/useBannerEvents";
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { activeSession, loadSession } = useSessionStore();
+  const { loadOrgs } = useOrgStore(); // DEMO: org loading
   const [isChecking, setIsChecking] = useState(true);
   const { unifiedViewData, closeUnifiedView } = useUnifiedView();
   const bannerEvents = useBannerEvents();
 
   useEffect(() => {
     const checkSession = async () => {
-      // Load the current session
+      await loadOrgs(); // DEMO: load org context
       await loadSession();
       setIsChecking(false);
     };
 
     checkSession();
-  }, [loadSession]);
+  }, [loadSession, loadOrgs]);
 
   // Redirect to sites page if no active instance
   useEffect(() => {
