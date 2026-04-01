@@ -25,6 +25,7 @@ import { AlertCircle, Loader2, Server } from "lucide-react";
 import { sessionService, Instance, Site } from "@/lib/api/session";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SSHKeySetup } from "@/components/monitoring/SSHKeySetup";
+import { isAdminRole } from "@/lib/roles";
 
 interface EditInstanceModalProps {
   open: boolean;
@@ -169,7 +170,7 @@ export function EditInstanceModal({
   if (!instance) return null;
 
   const canMoveSite = sites.length > 1;
-  const isAdmin = sites.find((s) => s.id === instance.site_id)?.role === "ADMIN";
+  const isAdmin = isAdminRole(sites.find((s) => s.id === instance.site_id)?.role);
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -243,7 +244,7 @@ export function EditInstanceModal({
                     </SelectTrigger>
                     <SelectContent>
                       {sites
-                        .filter((s) => s.role === "ADMIN")
+                        .filter((s) => isAdminRole(s.role))
                         .map((site) => (
                           <SelectItem key={site.id} value={site.id}>
                             {site.name}

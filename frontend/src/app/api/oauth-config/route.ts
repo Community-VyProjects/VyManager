@@ -13,7 +13,7 @@ async function getAdminUser(request: NextRequest) {
   if (!session?.user) return null;
 
   const user = await prisma.user.findUnique({ where: { id: session.user.id } });
-  if (!user || user.role !== "ADMIN") return null;
+  if (!user || !["PROJECT_ADMIN", "ORG_ADMIN", "ADMIN"].includes(user.role)) return null;
   return user;
 }
 

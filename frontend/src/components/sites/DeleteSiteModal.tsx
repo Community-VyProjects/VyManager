@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { AlertCircle, Loader2, AlertTriangle } from "lucide-react";
 import { sessionService, Site } from "@/lib/api/session";
 import { ApiError } from "@/lib/types/api";
+import { isAdminRole, roleLabel } from "@/lib/roles";
 
 interface DeleteSiteModalProps {
   open: boolean;
@@ -104,10 +105,10 @@ export function DeleteSiteModal({
           </div>
 
           {/* Permission Note */}
-          {site.role !== "ADMIN" && (
+          {!isAdminRole(site.role) && (
             <div className="rounded-lg border border-warning/30 bg-warning/5 p-3">
               <p className="text-sm text-warning">
-                Only site ADMIN can delete sites. Your role: {site.role}
+                Only admins can delete sites. Your role: {roleLabel(site.role)}
               </p>
             </div>
           )}
@@ -125,7 +126,7 @@ export function DeleteSiteModal({
           <Button
             variant="destructive"
             onClick={handleDelete}
-            disabled={loading || site.role !== "ADMIN"}
+            disabled={loading || !isAdminRole(site.role)}
           >
             {loading ? (
               <>

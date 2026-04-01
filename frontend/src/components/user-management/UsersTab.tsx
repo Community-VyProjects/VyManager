@@ -35,6 +35,7 @@ import { EditUserModal } from "./EditUserModal";
 import { DeleteUserModal } from "./DeleteUserModal";
 import { ManageUserAccessPanel } from "./ManageUserAccessPanel";
 import { ApiError } from "@/lib/types/api";
+import { isAdminRole, roleLabel } from "@/lib/roles";
 
 export function UsersTab() {
   const [users, setUsers] = useState<UserListItem[]>([]);
@@ -217,13 +218,13 @@ export function UsersTab() {
                       <div className="flex flex-wrap gap-1.5">
                         <span
                           className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium ${
-                            user.site_role === 'ADMIN'
+                            isAdminRole(user.site_role)
                               ? 'bg-primary/10 text-primary'
                               : 'bg-muted text-muted-foreground'
                           }`}
                         >
                           <Shield className="h-3 w-3" />
-                          {user.site_role}
+                          {roleLabel(user.site_role)}
                         </span>
                       </div>
                     </TableCell>

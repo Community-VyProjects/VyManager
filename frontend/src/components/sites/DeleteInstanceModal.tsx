@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { AlertCircle, Loader2, AlertTriangle } from "lucide-react";
 import { sessionService, Instance } from "@/lib/api/session";
 import { ApiError } from "@/lib/types/api";
+import { isAdminRole } from "@/lib/roles";
 
 interface DeleteInstanceModalProps {
   open: boolean;
@@ -56,7 +57,7 @@ export function DeleteInstanceModal({
 
   if (!instance) return null;
 
-  const canDelete = userRole === "ADMIN";
+  const canDelete = isAdminRole(userRole);
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -101,7 +102,7 @@ export function DeleteInstanceModal({
           {!canDelete && (
             <div className="rounded-lg border border-warning/30 bg-warning/5 p-3">
               <p className="text-sm text-warning">
-                Only ADMIN can delete instances. Your role: {userRole}
+                Only admins can delete instances. Your role: {userRole}
               </p>
             </div>
           )}

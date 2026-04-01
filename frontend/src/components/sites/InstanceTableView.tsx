@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { MoreVertical, Power, PowerOff, Pencil, Trash2, MoveRight } from "lucide-react";
+import { isAdminRole } from "@/lib/roles";
 
 interface Instance {
   id: string;
@@ -141,7 +142,7 @@ export function InstanceTableView({
                       )}
 
                       {/* Actions Dropdown */}
-                      {userRole === "ADMIN" && (
+                      {isAdminRole(userRole) && (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="sm" className="h-8 w-8 p-0">

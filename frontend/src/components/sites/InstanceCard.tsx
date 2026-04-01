@@ -13,6 +13,7 @@ import {
 import { Server, Power, PowerOff, Loader2, MoreVertical, Pencil, Trash2, MoveRight } from "lucide-react";
 import { Instance } from "@/lib/api/session";
 import { ApiError } from "@/lib/types/api";
+import { isAdminRole } from "@/lib/roles";
 
 interface InstanceCardProps {
   instance: Instance;
@@ -38,7 +39,7 @@ export function InstanceCard({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const canManage = userRole === "ADMIN";
+  const canManage = isAdminRole(userRole);
 
   const handleConnect = async () => {
     setLoading(true);

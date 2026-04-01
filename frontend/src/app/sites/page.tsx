@@ -56,6 +56,7 @@ import { AuthenticationSettings } from "@/components/authentication/Authenticati
 import { DemoManagement } from "@/components/demo/DemoManagement";
 import { OrgSwitcher } from "@/components/layout/OrgSwitcher";
 import { useOrgStore } from "@/store/org-store";
+import { isAdminRole } from "@/lib/roles"; // DEMO: role helper
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/types/api";
 
@@ -552,7 +553,7 @@ export default function SitesPage() {
                       </button>
 
                       {/* Site Management Dropdown */}
-                      {site.role === "ADMIN" && (
+                      {isAdminRole(site.role) && (
                         <div className="absolute top-2 right-2">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
@@ -615,7 +616,7 @@ export default function SitesPage() {
                     )}
                   </div>
                   <div className="flex items-center gap-2">
-                    {selectedSite.role === "ADMIN" && (
+                    {isAdminRole(selectedSite.role) && (
                       <Button
                         className="gap-2"
                         onClick={() => setCreateInstanceOpen(true)}
@@ -680,7 +681,7 @@ export default function SitesPage() {
                       <p className="text-sm text-muted-foreground mb-6">
                         No instances configured for this site yet.
                       </p>
-                      {selectedSite.role === "ADMIN" && (
+                      {isAdminRole(selectedSite.role) && (
                         <Button onClick={() => setCreateInstanceOpen(true)}>
                           <Plus className="h-4 w-4 mr-2" />
                           Add First Instance

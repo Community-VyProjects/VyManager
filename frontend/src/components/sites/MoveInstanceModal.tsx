@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { AlertCircle, MoveRight, Loader2 } from "lucide-react";
 import { sessionService, Site } from "@/lib/api/session";
+import { isAdminRole } from "@/lib/roles";
 
 interface MoveInstanceModalProps {
   open: boolean;
@@ -85,7 +86,7 @@ export function MoveInstanceModal({
   const availableSites = allSites.filter(
     (site) =>
       site.id !== currentSite?.id &&
-      site.role === "ADMIN"
+      isAdminRole(site.role)
   );
 
   if (!instance || !currentSite) return null;

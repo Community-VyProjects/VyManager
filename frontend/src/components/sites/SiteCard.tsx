@@ -19,6 +19,7 @@ import { EditInstanceModal } from "./EditInstanceModal";
 import { MoveInstanceModal } from "./MoveInstanceModal";
 import { DeleteInstanceModal } from "./DeleteInstanceModal";
 import { ApiError } from "@/lib/types/api";
+import { isAdminRole } from "@/lib/roles";
 
 interface SiteCardProps {
   site: Site;
@@ -152,7 +153,7 @@ export function SiteCard({
                     e.stopPropagation();
                     setCreateInstanceOpen(true);
                   }}
-                  disabled={site.role !== "ADMIN"}
+                  disabled={!isAdminRole(site.role)}
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Add Instance
@@ -163,7 +164,7 @@ export function SiteCard({
                     e.stopPropagation();
                     onEditSite(site);
                   }}
-                  disabled={site.role !== "ADMIN"}
+                  disabled={!isAdminRole(site.role)}
                 >
                   <Pencil className="h-4 w-4 mr-2" />
                   Edit Site
@@ -173,7 +174,7 @@ export function SiteCard({
                     e.stopPropagation();
                     onDeleteSite(site);
                   }}
-                  disabled={site.role !== "ADMIN"}
+                  disabled={!isAdminRole(site.role)}
                   className="text-destructive focus:text-destructive"
                 >
                   <Trash2 className="h-4 w-4 mr-2" />

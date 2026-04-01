@@ -13,6 +13,7 @@ import {
 import { Loader2, AlertCircle, AlertTriangle } from "lucide-react";
 import { userManagementService, UserListItem } from "@/lib/api/user-management";
 import { ApiError } from "@/lib/types/api";
+import { roleLabel } from "@/lib/roles";
 
 interface DeleteUserModalProps {
   open: boolean;
@@ -66,7 +67,7 @@ export function DeleteUserModal({ open, onOpenChange, user, onSuccess }: DeleteU
               </p>
               <ul className="list-disc list-inside mt-2 space-y-1 text-muted-foreground">
                 <li>All instance access ({user.instance_count} {user.instance_count === 1 ? "instance" : "instances"})</li>
-                <li>Site role: {user.site_role}</li>
+                <li>Site role: {roleLabel(user.site_role)}</li>
                 <li>User authentication and account data</li>
               </ul>
             </div>

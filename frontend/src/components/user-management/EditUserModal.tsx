@@ -152,10 +152,16 @@ export function EditUserModal({ open, onOpenChange, user, onSuccess }: EditUserM
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={SiteRole.ADMIN}>
+                <SelectItem value={SiteRole.PROJECT_ADMIN}>
                   <div className="flex flex-col">
-                    <span className="font-medium">Admin</span>
-                    <span className="text-xs text-muted-foreground">Can manage sites, instances, and users</span>
+                    <span className="font-medium">Project Admin</span>
+                    <span className="text-xs text-muted-foreground">Full access across all organizations</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value={SiteRole.ORG_ADMIN}>
+                  <div className="flex flex-col">
+                    <span className="font-medium">Org Admin</span>
+                    <span className="text-xs text-muted-foreground">Full admin within own organization</span>
                   </div>
                 </SelectItem>
                 <SelectItem value={SiteRole.VIEWER}>
