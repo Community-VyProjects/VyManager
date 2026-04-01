@@ -114,7 +114,7 @@ class SessionMiddleware(BaseHTTPMiddleware):
 
                 # Look up active session with instance and site details
                 # Site ADMINs don't need user_instance_roles entries - they get ADMIN role automatically
-                if user_site_role == "ADMIN":
+                if user_site_role in ("PROJECT_ADMIN", "ORG_ADMIN", "ADMIN"):
                     session = await conn.fetchrow(
                         """
                         SELECT

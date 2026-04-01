@@ -97,14 +97,14 @@ def _generate_password(length: int = 16) -> str:
     return "".join(secrets.choice(alphabet) for _ in range(length))
 
 
-async def _require_admin(request: Request):
-    """Verify the current user is a site ADMIN."""
+async def _require_project_admin(request: Request):
+    """Verify the current user is a PROJECT_ADMIN."""
     if not hasattr(request.state, "user") or not request.state.user:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
     user_role = getattr(request.state, "user_role", None)
-    if user_role != "ADMIN":
-        raise HTTPException(status_code=403, detail="Only site ADMINs can manage demos")
+    if user_role not in ("PROJECT_ADMIN", "ADMIN"):
+        raise HTTPException(status_code=403, detail="Only Project Admins can manage demos")
 
 
 # ============================================================================
@@ -125,7 +125,7 @@ async def create_demo(request: Request):
 
     Returns the login credentials for the demo user.
     """
-    await _require_admin(request)
+    await _require_project_admin(request)
 
     db_pool: asyncpg.Pool = request.app.state.db_pool
     if not db_pool:
@@ -182,10 +182,10 @@ async def create_demo(request: Request):
                 result = response.json()
                 user_id = result["user"]["id"]
 
-            # 3. Mark user as demo (keep VIEWER site role - they only access their own org)
+            # 3. Mark user as demo and give ORG_ADMIN role (full admin within their org)
             await conn.execute(
                 """
-                UPDATE users SET "isDemo" = true WHERE id = $1
+                UPDATE users SET "isDemo" = true, "role" = 'ORG_ADMIN' WHERE id = $1
                 """,
                 user_id,
             )
@@ -260,7 +260,7 @@ async def list_demos(request: Request):
 
     Only accessible by site ADMIN users.
     """
-    await _require_admin(request)
+    await _require_project_admin(request)
 
     db_pool: asyncpg.Pool = request.app.state.db_pool
     if not db_pool:
@@ -316,7 +316,7 @@ async def delete_demo(request: Request, org_id: str):
     Cascades to delete all sites, instances, users, and sessions.
     Only accessible by site ADMIN users.
     """
-    await _require_admin(request)
+    await _require_project_admin(request)
 
     db_pool: asyncpg.Pool = request.app.state.db_pool
     if not db_pool:

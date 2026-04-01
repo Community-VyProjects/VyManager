@@ -88,8 +88,8 @@ async def list_organizations(request: Request):
             user_role = row["role"] if row else "VIEWER"
             is_demo_user = row["isDemo"] if row else False
 
-            if user_role == "ADMIN" and not is_demo_user:
-                # Real admins see all orgs
+            if user_role in ("PROJECT_ADMIN", "ADMIN") and not is_demo_user:
+                # Project admins see all orgs
                 orgs = await conn.fetch(
                     """
                     SELECT id, name, slug, description, "isDemo", "expiresAt", "createdAt", "updatedAt"
@@ -171,7 +171,7 @@ async def switch_organization(request: Request, body: SwitchOrgRequest):
             user_role = await conn.fetchval(
                 "SELECT role FROM users WHERE id = $1", user_id
             )
-            if user_role != "ADMIN":
+            if user_role not in ("PROJECT_ADMIN", "ADMIN"):
                 has_access = await conn.fetchval(
                     'SELECT EXISTS(SELECT 1 FROM org_members WHERE "orgId" = $1 AND "userId" = $2)',
                     body.org_id, user_id,

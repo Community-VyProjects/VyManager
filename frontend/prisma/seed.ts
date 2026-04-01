@@ -93,7 +93,7 @@ async function main() {
     for (const user of users) {
       // First user becomes site ADMIN, rest become site VIEWER
       const isFirstUser = user === users[0];
-      const siteRole = isFirstUser ? "ADMIN" : "VIEWER";
+      const siteRole = isFirstUser ? "PROJECT_ADMIN" : "VIEWER";
 
       // Update user's site role
       await prisma.user.update({

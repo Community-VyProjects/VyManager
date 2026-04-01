@@ -72,7 +72,8 @@ export default function SitesPage() {
     useSessionStore();
   const { currentOrg, orgs, userRole } = useOrgStore(); // DEMO: org store
 
-  const isSiteAdmin = userRole === "ADMIN"; // DEMO: admin check for demo section
+  const isProjectAdmin = userRole === "PROJECT_ADMIN" || userRole === "ADMIN"; // DEMO: project admin check for demo section
+  const isSiteAdmin = isProjectAdmin || userRole === "ORG_ADMIN"; // DEMO: any admin role
 
   // Navigation state
   const [selectedSection, setSelectedSection] = useState<NavSection>("sites");
@@ -362,8 +363,8 @@ export default function SitesPage() {
                 </div>
               </button>
 
-              {/* DEMO: Demos nav section - admin only (see DEMO.md for removal) */}
-              {isSiteAdmin && (
+              {/* DEMO: Demos nav section - project admin only (see DEMO.md for removal) */}
+              {isProjectAdmin && (
                 <button
                   onClick={() => setSelectedSection("demos")}
                   className={cn(

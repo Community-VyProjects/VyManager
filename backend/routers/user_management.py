@@ -317,8 +317,8 @@ async def create_user(request: Request, body: CreateUserRequest):
     db_pool: asyncpg.Pool = request.app.state.db_pool
 
     # Validate site_role
-    if body.site_role not in ["ADMIN", "VIEWER"]:
-        raise HTTPException(status_code=400, detail="site_role must be ADMIN or VIEWER")
+    if body.site_role not in ["PROJECT_ADMIN", "ORG_ADMIN", "ADMIN", "VIEWER"]:
+        raise HTTPException(status_code=400, detail="site_role must be PROJECT_ADMIN, ORG_ADMIN, or VIEWER")
 
     # Call Better Auth's internal user creation endpoint
     frontend_url = "http://frontend:3000"
@@ -408,8 +408,8 @@ async def update_user(request: Request, user_id: str, body: UpdateUserRequest):
             raise HTTPException(status_code=404, detail="User not found")
 
         # Validate site_role if provided
-        if body.site_role is not None and body.site_role not in ["ADMIN", "VIEWER"]:
-            raise HTTPException(status_code=400, detail="site_role must be ADMIN or VIEWER")
+        if body.site_role is not None and body.site_role not in ["PROJECT_ADMIN", "ORG_ADMIN", "ADMIN", "VIEWER"]:
+            raise HTTPException(status_code=400, detail="site_role must be PROJECT_ADMIN, ORG_ADMIN, or VIEWER")
 
         # Update user
         updates = []

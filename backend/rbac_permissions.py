@@ -364,8 +364,8 @@ async def get_user_permissions(
             user_id
         )
 
-        # Site ADMINs have full access to everything
-        if site_role == "ADMIN":
+        # Site ADMINs (PROJECT_ADMIN or ORG_ADMIN) have full access to everything
+        if site_role in ("PROJECT_ADMIN", "ORG_ADMIN", "ADMIN"):
             all_features = [
                 FeatureGroup.FIREWALL,
                 FeatureGroup.FIREWALL_GROUPS,
@@ -580,16 +580,10 @@ async def check_permission(
 
 async def is_admin(db_pool: asyncpg.Pool, user_id: str) -> bool:
     """
-    Check if a user is an ADMIN (has role='ADMIN' in users table).
+    Check if a user has admin-level access (PROJECT_ADMIN or ORG_ADMIN).
 
-    ADMINs have full access to user management, sites, and all instances.
-
-    Args:
-        db_pool: Database connection pool
-        user_id: User ID
-
-    Returns:
-        True if user has ADMIN role, False otherwise
+    Admins have full access to user management, sites, and all instances
+    within their scope (PROJECT_ADMIN: all orgs, ORG_ADMIN: own org).
     """
     async with db_pool.acquire() as conn:
         result = await conn.fetchval(
@@ -598,7 +592,7 @@ async def is_admin(db_pool: asyncpg.Pool, user_id: str) -> bool:
             """,
             user_id
         )
-        return result == "ADMIN" if result else False
+        return result in ("PROJECT_ADMIN", "ORG_ADMIN", "ADMIN") if result else False
 
 
 # Deprecated: Kept for backwards compatibility

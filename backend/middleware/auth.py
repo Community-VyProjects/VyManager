@@ -186,8 +186,8 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                     )
                 elif org_id:
                     # Verify user has access to this org
-                    if session["role"] == "ADMIN":
-                        # Site admins can access any org
+                    if session["role"] == "PROJECT_ADMIN":
+                        # Project admins can access any org
                         org_exists = await conn.fetchval(
                             'SELECT EXISTS(SELECT 1 FROM organizations WHERE id = $1)',
                             org_id

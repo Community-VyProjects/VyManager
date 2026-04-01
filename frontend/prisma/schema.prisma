@@ -24,7 +24,7 @@ model User {
   updatedAt     DateTime @updatedAt
 
   // RBAC
-  role Role @default(VIEWER)
+  role Role @default(VIEWER) // DEMO: was only ADMIN/VIEWER, now includes PROJECT_ADMIN/ORG_ADMIN
 
   // DEMO: Demo user flag (see DEMO.md for removal)
   isDemo Boolean @default(false)
@@ -95,8 +95,10 @@ model Verification {
 
 // Site-level roles (platform-wide permissions)
 enum Role {
-  ADMIN // Can create/edit/delete sites and instances, access user management
-  VIEWER // Read-only access to assigned sites and instances
+  PROJECT_ADMIN // Full access across ALL organizations, demo management
+  ORG_ADMIN     // Full admin within own organization(s)
+  ADMIN         // @deprecated - use PROJECT_ADMIN or ORG_ADMIN
+  VIEWER        // Read-only access to assigned sites and instances
 }
 
 // Instance-level roles (per-instance permissions)

@@ -20,6 +20,9 @@ from session_cookie import verify_session_cookie
 import logging
 logger = logging.getLogger(__name__)
 
+# Admin role check helper - accepts both PROJECT_ADMIN and ORG_ADMIN (and legacy ADMIN)
+ADMIN_ROLES = {"PROJECT_ADMIN", "ORG_ADMIN", "ADMIN"}
+
 router = APIRouter(prefix="/session", tags=["session"])
 
 
@@ -485,7 +488,7 @@ async def list_user_sites(request: Request):
             # DEMO: Resolve org scoping (see DEMO.md for removal)
             org_id = getattr(request.state, "org_id", None)
 
-            if user_role == "ADMIN":
+            if user_role in ADMIN_ROLES:
                 # DEMO: Site ADMINs see ALL sites, scoped to current org
                 if org_id:
                     sites = await conn.fetch(
@@ -511,7 +514,7 @@ async def list_user_sites(request: Request):
                         id=site["id"],
                         name=site["name"],
                         description=site["description"],
-                        role="ADMIN",  # Site ADMINs have ADMIN role on all sites
+                        role=user_role,  # Return actual admin role (PROJECT_ADMIN or ORG_ADMIN)
                         created_at=site["createdAt"],
                         updated_at=site["updatedAt"],
                     )
@@ -603,7 +606,7 @@ async def list_site_instances(request: Request, site_id: str):
                 user_id,
             )
 
-            if user_role == "ADMIN":
+            if user_role in ADMIN_ROLES:
                 # Site ADMINs see ALL instances in the site
                 instances = await conn.fetch(
                     """
@@ -703,7 +706,7 @@ async def create_site(request: Request, body: SiteCreateRequest):
                     "SELECT role FROM users WHERE id = $1",
                     user_id
                 )
-                if user_role != "ADMIN":
+                if user_role not in ADMIN_ROLES:
                     raise HTTPException(
                         status_code=403,
                         detail="Only site ADMIN users can create sites"
@@ -743,7 +746,7 @@ async def create_site(request: Request, body: SiteCreateRequest):
                 id=site["id"],
                 name=site["name"],
                 description=site["description"],
-                role="ADMIN",  # Site ADMINs have ADMIN role on all sites
+                role=user_role,  # Return actual admin role (PROJECT_ADMIN or ORG_ADMIN)
                 created_at=site["createdAt"],
                 updated_at=site["updatedAt"],
             )
@@ -780,7 +783,7 @@ async def update_site(request: Request, site_id: str, body: SiteUpdateRequest):
                 user_id
             )
 
-            if user_role != "ADMIN":
+            if user_role not in ADMIN_ROLES:
                 raise HTTPException(
                     status_code=403,
                     detail="Only site ADMIN users can update sites"
@@ -830,7 +833,7 @@ async def update_site(request: Request, site_id: str, body: SiteUpdateRequest):
                 id=site["id"],
                 name=site["name"],
                 description=site["description"],
-                role="ADMIN",  # Site ADMINs have ADMIN role on all sites
+                role=user_role,  # Return actual admin role (PROJECT_ADMIN or ORG_ADMIN)
                 created_at=site["createdAt"],
                 updated_at=site["updatedAt"],
             )
@@ -868,7 +871,7 @@ async def delete_site(request: Request, site_id: str):
                 user_id
             )
 
-            if user_role != "ADMIN":
+            if user_role not in ADMIN_ROLES:
                 raise HTTPException(
                     status_code=403,
                     detail="Only site ADMIN users can delete sites"
@@ -937,7 +940,7 @@ async def create_instance(request: Request, body: InstanceCreateRequest):
                 user_id
             )
 
-            if user_role != "ADMIN":
+            if user_role not in ADMIN_ROLES:
                 raise HTTPException(
                     status_code=403,
                     detail="Only site ADMIN users can create instances"
@@ -1051,7 +1054,7 @@ async def update_instance(request: Request, instance_id: str, body: InstanceUpda
                 user_id
             )
 
-            if user_role != "ADMIN":
+            if user_role not in ADMIN_ROLES:
                 raise HTTPException(
                     status_code=403,
                     detail="Only site ADMIN users can update instances"
@@ -1247,7 +1250,7 @@ async def delete_instance(request: Request, instance_id: str):
                 user_id
             )
 
-            if user_role != "ADMIN":
+            if user_role not in ADMIN_ROLES:
                 raise HTTPException(
                     status_code=403,
                     detail="Only site ADMIN users can delete instances"
@@ -1320,7 +1323,7 @@ async def export_sites_and_instances_csv(request: Request):
                 user_id
             )
 
-            if user_role != "ADMIN":
+            if user_role not in ADMIN_ROLES:
                 raise HTTPException(
                     status_code=403,
                     detail="Only site ADMIN users can export data"
@@ -1433,7 +1436,7 @@ async def import_sites_and_instances_csv(
                 user_id
             )
 
-            if user_role != "ADMIN":
+            if user_role not in ADMIN_ROLES:
                 raise HTTPException(
                     status_code=403,
                     detail="Only site ADMIN users can import data"

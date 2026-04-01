@@ -84,8 +84,10 @@ export interface MyPermissionsResponse {
 
 // Site-level roles (platform-wide)
 export enum SiteRole {
-  ADMIN = "ADMIN",   // Can manage sites, instances, and users
-  VIEWER = "VIEWER",  // Read-only access
+  PROJECT_ADMIN = "PROJECT_ADMIN", // Full access across ALL organizations, demo management
+  ORG_ADMIN = "ORG_ADMIN",        // Full admin within own organization(s)
+  ADMIN = "ADMIN",                 // @deprecated - use PROJECT_ADMIN or ORG_ADMIN
+  VIEWER = "VIEWER",               // Read-only access
 }
 
 // Instance-level roles
