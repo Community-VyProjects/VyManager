@@ -11,6 +11,8 @@ Open beta release. We flexibly support all active VyOS versions, including rolli
 
 **[Join our Discord community to receive official updates](https://discord.gg/k9SSkK7wPQ)**
 
+**[Live Demo](https://vyprojects.org/)**
+
 **Give us a ⭐ star to support us!**
 
 ---
