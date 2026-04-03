@@ -136,14 +136,15 @@ export default function OnboardingPage() {
     setStep(3);
   };
 
-  const handleStep3 = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const completeSetup = async (skipInstance: boolean) => {
     setError("");
 
-    // Validate instance data
-    if (!instanceData.name.trim() || !instanceData.host.trim() || !instanceData.apiKey.trim()) {
-      setError("Instance name, host, and API key are required");
-      return;
+    // Validate instance data if not skipping
+    if (!skipInstance) {
+      if (!instanceData.name.trim() || !instanceData.host.trim() || !instanceData.apiKey.trim()) {
+        setError("Instance name, host, and API key are required");
+        return;
+      }
     }
 
     setLoading(true);
@@ -226,22 +227,27 @@ export default function OnboardingPage() {
 
       console.log("[Onboarding] ✓ Site created");
 
-      // Step 3: Create instance
-      console.log("[Onboarding] Step 3/3: Creating VyOS instance...");
-      const createdInstance = await sessionService.createInstance({
-        site_id: createdSite.id,
-        name: instanceData.name,
-        description: instanceData.description || undefined,
-        host: instanceData.host,
-        port: instanceData.port,
-        api_key: instanceData.apiKey,
-        vyos_version: instanceData.vyosVersion,
-        protocol: instanceData.protocol,
-        verify_ssl: instanceData.verifySsl,
-        is_active: true,
-      });
+      // Step 3: Create instance (optional)
+      if (!skipInstance) {
+        console.log("[Onboarding] Step 3/3: Creating VyOS instance...");
+        await sessionService.createInstance({
+          site_id: createdSite.id,
+          name: instanceData.name,
+          description: instanceData.description || undefined,
+          host: instanceData.host,
+          port: instanceData.port,
+          api_key: instanceData.apiKey,
+          vyos_version: instanceData.vyosVersion,
+          protocol: instanceData.protocol,
+          verify_ssl: instanceData.verifySsl,
+          is_active: true,
+        });
 
-      console.log("[Onboarding] ✓ Instance created");
+        console.log("[Onboarding] ✓ Instance created");
+      } else {
+        console.log("[Onboarding] Step 3/3: Skipped (no instance)");
+      }
+
       console.log("[Onboarding] Setup complete! Redirecting to sites...");
 
       // Note: Site ADMIN users (which the first user is) automatically have access
@@ -257,6 +263,15 @@ export default function OnboardingPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleStep3 = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await completeSetup(false);
+  };
+
+  const handleSkipInstance = async () => {
+    await completeSetup(true);
   };
 
   // Show loading state while checking if onboarding is allowed
@@ -454,9 +469,9 @@ export default function OnboardingPage() {
           {step === 3 && (
             <form onSubmit={handleStep3} className="space-y-4">
               <div className="text-center mb-6">
-                <h3 className="text-xl font-semibold mb-2">Step 3: Add Your First VyOS Instance</h3>
+                <h3 className="text-xl font-semibold mb-2">Step 3: Add a VyOS Instance</h3>
                 <p className="text-sm text-muted-foreground">
-                  Connect to your VyOS router
+                  Connect to your VyOS router, or skip this and add one later
                 </p>
               </div>
 
@@ -474,7 +489,6 @@ export default function OnboardingPage() {
                       value={instanceData.name}
                       onChange={(e) => setInstanceData({ ...instanceData, name: e.target.value })}
                       placeholder="vyos-router-01"
-                      required
                     />
                   </div>
 
@@ -514,7 +528,6 @@ export default function OnboardingPage() {
                       value={instanceData.host}
                       onChange={(e) => setInstanceData({ ...instanceData, host: e.target.value })}
                       placeholder="192.168.1.1"
-                      required
                     />
                   </div>
 
@@ -555,7 +568,6 @@ export default function OnboardingPage() {
                       value={instanceData.apiKey}
                       onChange={(e) => setInstanceData({ ...instanceData, apiKey: e.target.value })}
                       placeholder="Your VyOS API key"
-                      required
                     />
                     <p className="text-xs text-muted-foreground">
                       Set in VyOS with: set service https api keys id KEY key VALUE
@@ -573,6 +585,22 @@ export default function OnboardingPage() {
                   disabled={isSubmitting}
                 >
                   Back
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={handleSkipInstance}
+                  className="flex-1"
+                  disabled={loading || isSubmitting}
+                >
+                  {loading && isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Completing...
+                    </>
+                  ) : (
+                    "Skip for now"
+                  )}
                 </Button>
                 <Button type="submit" className="flex-1" disabled={loading || isSubmitting}>
                   {loading ? (

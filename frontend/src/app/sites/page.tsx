@@ -51,13 +51,14 @@ import { DeleteInstanceModal } from "@/components/sites/DeleteInstanceModal";
 import { ImportCSVModal } from "@/components/session/ImportCSVModal";
 import { UserManagement } from "@/components/user-management/UserManagement";
 import { AuthenticationSettings } from "@/components/authentication/AuthenticationSettings";
+import { OrgAdministration } from "@/components/organizations/OrgAdministration";
 import { OrgSwitcher } from "@/components/layout/OrgSwitcher";
 import { useOrgStore } from "@/store/org-store";
 import { isAdminRole } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/types/api";
 
-type NavSection = "sites" | "user-management" | "authentication";
+type NavSection = "sites" | "user-management" | "organizations" | "authentication";
 
 export default function SitesPage() {
   const router = useRouter();
@@ -307,59 +308,92 @@ export default function SitesPage() {
                 </div>
               </button>
 
-              {/* User Management */}
-              <button
-                onClick={() => setSelectedSection("user-management")}
-                className={cn(
-                  "w-full text-left rounded-lg px-3 py-3 transition-all",
-                  selectedSection === "user-management"
-                    ? "bg-accent text-accent-foreground shadow-sm"
-                    : "hover:bg-accent/50"
-                )}
-              >
-                <div className="flex items-center gap-3">
-                  <div className={cn(
-                    "rounded-md p-1.5",
-                    selectedSection === "user-management" ? "bg-primary/10" : "bg-muted"
-                  )}>
-                    <Users className={cn(
-                      "h-4 w-4",
-                      selectedSection === "user-management" ? "text-primary" : "text-muted-foreground"
-                    )} />
-                  </div>
-                  <span className="font-medium text-sm">User Management</span>
-                  {selectedSection === "user-management" && (
-                    <ChevronRight className="h-4 w-4 text-primary ml-auto" />
+              {/* User Management — only for admin roles */}
+              {isSiteAdmin && (
+                <button
+                  onClick={() => setSelectedSection("user-management")}
+                  className={cn(
+                    "w-full text-left rounded-lg px-3 py-3 transition-all",
+                    selectedSection === "user-management"
+                      ? "bg-accent text-accent-foreground shadow-sm"
+                      : "hover:bg-accent/50"
                   )}
-                </div>
-              </button>
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={cn(
+                      "rounded-md p-1.5",
+                      selectedSection === "user-management" ? "bg-primary/10" : "bg-muted"
+                    )}>
+                      <Users className={cn(
+                        "h-4 w-4",
+                        selectedSection === "user-management" ? "text-primary" : "text-muted-foreground"
+                      )} />
+                    </div>
+                    <span className="font-medium text-sm">User Management</span>
+                    {selectedSection === "user-management" && (
+                      <ChevronRight className="h-4 w-4 text-primary ml-auto" />
+                    )}
+                  </div>
+                </button>
+              )}
 
-              {/* Authentication */}
-              <button
-                onClick={() => setSelectedSection("authentication")}
-                className={cn(
-                  "w-full text-left rounded-lg px-3 py-3 transition-all",
-                  selectedSection === "authentication"
-                    ? "bg-accent text-accent-foreground shadow-sm"
-                    : "hover:bg-accent/50"
-                )}
-              >
-                <div className="flex items-center gap-3">
-                  <div className={cn(
-                    "rounded-md p-1.5",
-                    selectedSection === "authentication" ? "bg-primary/10" : "bg-muted"
-                  )}>
-                    <KeyRound className={cn(
-                      "h-4 w-4",
-                      selectedSection === "authentication" ? "text-primary" : "text-muted-foreground"
-                    )} />
-                  </div>
-                  <span className="font-medium text-sm">Authentication</span>
-                  {selectedSection === "authentication" && (
-                    <ChevronRight className="h-4 w-4 text-primary ml-auto" />
+              {/* Organizations — only for admin roles */}
+              {isSiteAdmin && (
+                <button
+                  onClick={() => setSelectedSection("organizations")}
+                  className={cn(
+                    "w-full text-left rounded-lg px-3 py-3 transition-all",
+                    selectedSection === "organizations"
+                      ? "bg-accent text-accent-foreground shadow-sm"
+                      : "hover:bg-accent/50"
                   )}
-                </div>
-              </button>
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={cn(
+                      "rounded-md p-1.5",
+                      selectedSection === "organizations" ? "bg-primary/10" : "bg-muted"
+                    )}>
+                      <Building2 className={cn(
+                        "h-4 w-4",
+                        selectedSection === "organizations" ? "text-primary" : "text-muted-foreground"
+                      )} />
+                    </div>
+                    <span className="font-medium text-sm">Organizations</span>
+                    {selectedSection === "organizations" && (
+                      <ChevronRight className="h-4 w-4 text-primary ml-auto" />
+                    )}
+                  </div>
+                </button>
+              )}
+
+              {/* Authentication — only for project admins */}
+              {isProjectAdmin && (
+                <button
+                  onClick={() => setSelectedSection("authentication")}
+                  className={cn(
+                    "w-full text-left rounded-lg px-3 py-3 transition-all",
+                    selectedSection === "authentication"
+                      ? "bg-accent text-accent-foreground shadow-sm"
+                      : "hover:bg-accent/50"
+                  )}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={cn(
+                      "rounded-md p-1.5",
+                      selectedSection === "authentication" ? "bg-primary/10" : "bg-muted"
+                    )}>
+                      <KeyRound className={cn(
+                        "h-4 w-4",
+                        selectedSection === "authentication" ? "text-primary" : "text-muted-foreground"
+                      )} />
+                    </div>
+                    <span className="font-medium text-sm">Authentication</span>
+                    {selectedSection === "authentication" && (
+                      <ChevronRight className="h-4 w-4 text-primary ml-auto" />
+                    )}
+                  </div>
+                </button>
+              )}
 
             </div>
           </ScrollArea>
@@ -423,36 +457,40 @@ export default function SitesPage() {
                 />
               </div>
 
-              {/* Add Site Button */}
-              <Button
-                className="w-full mt-3 gap-2"
-                onClick={() => setCreateSiteOpen(true)}
-              >
-                <Plus className="h-4 w-4" />
-                Add Site
-              </Button>
+              {/* Add Site Button — admin only */}
+              {isSiteAdmin && (
+                <Button
+                  className="w-full mt-3 gap-2"
+                  onClick={() => setCreateSiteOpen(true)}
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Site
+                </Button>
+              )}
 
-              {/* Import/Export Buttons */}
-              <div className="grid grid-cols-2 gap-2 mt-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-2"
-                  onClick={() => setImportCSVOpen(true)}
-                >
-                  <Upload className="h-3 w-3" />
-                  Import
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-2"
-                  onClick={handleExportCSV}
-                >
-                  <Download className="h-3 w-3" />
-                  Export
-                </Button>
-              </div>
+              {/* Import/Export Buttons — admin only */}
+              {isSiteAdmin && (
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => setImportCSVOpen(true)}
+                  >
+                    <Upload className="h-3 w-3" />
+                    Import
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    onClick={handleExportCSV}
+                  >
+                    <Download className="h-3 w-3" />
+                    Export
+                  </Button>
+                </div>
+              )}
             </div>
 
             <Separator />
@@ -702,6 +740,10 @@ export default function SitesPage() {
           ) : selectedSection === "user-management" ? (
             <div className="flex-1 overflow-auto p-6">
               <UserManagement />
+            </div>
+          ) : selectedSection === "organizations" ? (
+            <div className="flex-1 overflow-auto p-6">
+              <OrgAdministration />
             </div>
           ) : selectedSection === "authentication" ? (
             <div className="flex-1 overflow-auto p-6">

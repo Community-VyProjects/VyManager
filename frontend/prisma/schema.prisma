@@ -104,7 +104,6 @@ enum Role {
 // Instance-level roles (per-instance permissions)
 enum InstanceRole {
   ADMIN    // Full access to all features on this instance
-  EDITOR   // DEPRECATED - Use OPERATOR instead (kept for database compatibility)
   OPERATOR // Can edit specific features (defined in FeaturePermission)
   VIEWER   // Can view specific features (defined in FeaturePermission)
 }
@@ -343,14 +342,91 @@ enum OrgRole {
 // New RBAC System - Fine-Grained Per-Instance Permissions
 // ============================================================================
 
-// Feature Groups - Logical groupings of VyOS features
-// Stage 1: Core features (expandable later)
+// Feature Groups - Logical groupings of VyOS features for granular RBAC
 enum FeatureGroup {
-  FIREWALL // Firewall rules and groups
-  INTERFACES // Network interfaces
-  DHCP // DHCP server
-  NAT // NAT rules
-  MONITORING // SSH monitoring / live traffic
+  // Core / Legacy
+  FIREWALL
+  INTERFACES
+  DHCP
+  NAT
+  MONITORING
+
+  // Firewall sub-features
+  FIREWALL_GROUPS
+  FIREWALL_POLICIES
+  FIREWALL_ZONES
+  FIREWALL_GLOBAL_OPTIONS
+  FIREWALL_BRIDGE
+  FIREWALL_FLOWTABLES
+
+  // Network
+  NETWORK
+  TUNNEL
+  VXLAN
+  VRF
+  LOAD_BALANCING
+
+  // NAT variants
+  NAT64
+  NAT66
+
+  // VPN
+  VPN
+  IPSEC
+  WIREGUARD
+  L2TP
+
+  // PKI
+  PKI
+
+  // Routing hierarchy
+  ROUTING
+  UNICAST_PROTOCOLS
+  BGP
+  OSPF
+  OSPFV3
+  ISIS
+  OPENFABRIC
+  RIP
+  RIPNG
+  BABEL
+  STATIC_ROUTES
+  FAILOVER
+
+  // Routing Infrastructure
+  ROUTING_INFRASTRUCTURE
+  BFD
+  MPLS
+  SEGMENT_ROUTING
+  NHRP
+  RPKI
+
+  // Routing Policies
+  ROUTING_POLICIES
+  ACCESS_LIST
+  PREFIX_LIST
+  ROUTE_POLICY
+  ROUTE_MAP
+  LOCAL_ROUTE
+  BGP_AS_PATH
+  BGP_COMMUNITY
+  BGP_EXTENDED_COMMUNITY
+  BGP_LARGE_COMMUNITY
+
+  // Multicast
+  MULTICAST
+  IGMP_PROXY
+  PIM
+  PIM6
+
+  // System & Platform
+  HIGH_AVAILABILITY
+  SYSTEM
+  POWER
+  CONFIGURATION
+  DASHBOARD
+  SITES_INSTANCES
+  USER_MANAGEMENT
 }
 
 // Note: CustomRole and FeaturePermission models removed in favor of simplified

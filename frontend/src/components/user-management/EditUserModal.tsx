@@ -16,6 +16,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, AlertCircle } from "lucide-react";
 import { userManagementService, UserListItem, SiteRole } from "@/lib/api/user-management";
 import { ApiError } from "@/lib/types/api";
+import { useOrgStore } from "@/store/org-store";
+import { isProjectAdmin } from "@/lib/roles";
 
 interface EditUserModalProps {
   open: boolean;
@@ -27,6 +29,8 @@ interface EditUserModalProps {
 export function EditUserModal({ open, onOpenChange, user, onSuccess }: EditUserModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { userRole } = useOrgStore();
+  const canAssignProjectAdmin = isProjectAdmin(userRole);
 
   // Form fields
   const [name, setName] = useState("");
@@ -142,36 +146,43 @@ export function EditUserModal({ open, onOpenChange, user, onSuccess }: EditUserM
 
           {/* Site Role */}
           <div className="space-y-2">
-            <Label htmlFor="siteRole">Site Role</Label>
+            <Label htmlFor="siteRole">Role</Label>
             <Select
               value={siteRole}
               onValueChange={(value) => setSiteRole(value as SiteRole)}
-              disabled={loading}
+              disabled={loading || (!canAssignProjectAdmin && user.site_role === SiteRole.PROJECT_ADMIN)}
             >
               <SelectTrigger id="siteRole">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={SiteRole.PROJECT_ADMIN}>
-                  <div className="flex flex-col">
-                    <span className="font-medium">Project Admin</span>
-                    <span className="text-xs text-muted-foreground">Full access across all organizations</span>
-                  </div>
-                </SelectItem>
+                {canAssignProjectAdmin && (
+                  <SelectItem value={SiteRole.PROJECT_ADMIN}>
+                    <div className="flex flex-col">
+                      <span className="font-medium">Project Admin</span>
+                      <span className="text-xs text-muted-foreground">Full access across all organizations</span>
+                    </div>
+                  </SelectItem>
+                )}
                 <SelectItem value={SiteRole.ORG_ADMIN}>
                   <div className="flex flex-col">
                     <span className="font-medium">Org Admin</span>
-                    <span className="text-xs text-muted-foreground">Full admin within own organization</span>
+                    <span className="text-xs text-muted-foreground">Full admin within this organization</span>
                   </div>
                 </SelectItem>
                 <SelectItem value={SiteRole.VIEWER}>
                   <div className="flex flex-col">
                     <span className="font-medium">Viewer</span>
-                    <span className="text-xs text-muted-foreground">Read-only access to assigned sites and instances</span>
+                    <span className="text-xs text-muted-foreground">Read-only access to assigned instances</span>
                   </div>
                 </SelectItem>
               </SelectContent>
             </Select>
+            {!canAssignProjectAdmin && user.site_role === SiteRole.PROJECT_ADMIN && (
+              <p className="text-xs text-muted-foreground">
+                Only Project Admins can change another Project Admin's role
+              </p>
+            )}
           </div>
 
           {/* Password (optional for update) */}

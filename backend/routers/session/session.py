@@ -277,16 +277,28 @@ async def connect_to_instance(request: Request, body: ConnectRequest):
         async with db_pool.acquire() as conn:
             # Check if user is site-level ADMIN
             user_site_role = await conn.fetchval(
-                """
-                SELECT role FROM users WHERE id = $1
-                """,
-                user_id
+                "SELECT role FROM users WHERE id = $1", user_id
             )
 
-            # Site ADMIN users can access any instance
-            # Other users need explicit instance-level permissions
+            # Site ADMIN users can access instances in their org scope
             if user_site_role in ADMIN_ROLES:
-                # ADMIN can access any instance - no instance role check needed
+                # ORG_ADMIN: verify instance belongs to their org
+                if user_site_role == "ORG_ADMIN":
+                    instance_org_id = await conn.fetchval(
+                        """
+                        SELECT s."orgId" FROM instances i
+                        JOIN sites s ON i."siteId" = s.id WHERE i.id = $1
+                        """,
+                        instance_id,
+                    )
+                    if instance_org_id:
+                        has_access = await conn.fetchval(
+                            'SELECT EXISTS(SELECT 1 FROM org_members WHERE "orgId" = $1 AND "userId" = $2)',
+                            instance_org_id, user_id,
+                        )
+                        if not has_access:
+                            raise HTTPException(status_code=403, detail="Instance not in your organization")
+
                 instance = await conn.fetchrow(
                     """
                     SELECT i.id, i.name, i.host, i.port, i."siteId", i."isActive",
@@ -457,85 +469,90 @@ async def disconnect_from_instance(request: Request):
 @router.get("/sites", response_model=List[SiteResponse])
 async def list_user_sites(request: Request):
     """
-    Get all sites the user has access to.
+    Get all sites the user has access to, scoped by organization.
 
-    Site ADMIN users (role='ADMIN' in users table) see ALL sites.
-    Other users see only sites where they have instance access.
-    Uses new RBAC system (user_instance_roles and users.role).
+    PROJECT_ADMIN: sees sites in selected org (or all if no org selected).
+    ORG_ADMIN: sees sites only in their own org(s).
+    VIEWER: sees sites where they have explicit instance-level access.
     """
-    # Get user from request state
     if not hasattr(request.state, "user") or not request.state.user:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
     user = request.state.user
     user_id = user["id"]
 
-    # Get database pool
     db_pool: asyncpg.Pool = request.app.state.db_pool
     if not db_pool:
         raise HTTPException(status_code=503, detail="Database not available")
 
     try:
         async with db_pool.acquire() as conn:
-            # First, check if user is a site ADMIN
             user_role = await conn.fetchval(
-                """
-                SELECT role FROM users WHERE id = $1
-                """,
-                user_id,
+                "SELECT role FROM users WHERE id = $1", user_id
             )
-
-
             org_id = getattr(request.state, "org_id", None)
 
-            if user_role in ADMIN_ROLES:
-
+            if user_role in ("PROJECT_ADMIN", "ADMIN"):
+                # PROJECT_ADMIN: use org_id from header, or show all
                 if org_id:
                     sites = await conn.fetch(
                         """
                         SELECT id, name, description, "createdAt", "updatedAt"
-                        FROM sites
-                        WHERE "orgId" = $1
-                        ORDER BY name
+                        FROM sites WHERE "orgId" = $1 ORDER BY name
                         """,
                         org_id,
                     )
                 else:
                     sites = await conn.fetch(
-                        """
-                        SELECT id, name, description, "createdAt", "updatedAt"
-                        FROM sites
-                        ORDER BY name
-                        """,
+                        'SELECT id, name, description, "createdAt", "updatedAt" FROM sites ORDER BY name'
                     )
-
                 return [
                     SiteResponse(
-                        id=site["id"],
-                        name=site["name"],
-                        description=site["description"],
-                        role=user_role,  # Return actual admin role (PROJECT_ADMIN or ORG_ADMIN)
-                        created_at=site["createdAt"],
-                        updated_at=site["updatedAt"],
-                    )
-                    for site in sites
+                        id=s["id"], name=s["name"], description=s["description"],
+                        role=user_role, created_at=s["createdAt"], updated_at=s["updatedAt"],
+                    ) for s in sites
                 ]
-            else:
 
+            elif user_role == "ORG_ADMIN":
+                # ORG_ADMIN: strictly scoped to their own org memberships
+                if org_id:
+                    # Verify they actually belong to this org
+                    has_access = await conn.fetchval(
+                        'SELECT EXISTS(SELECT 1 FROM org_members WHERE "orgId" = $1 AND "userId" = $2)',
+                        org_id, user_id,
+                    )
+                    filter_org_ids = [org_id] if has_access else []
+                else:
+                    rows = await conn.fetch(
+                        'SELECT "orgId" FROM org_members WHERE "userId" = $1', user_id
+                    )
+                    filter_org_ids = [r["orgId"] for r in rows]
+
+                if not filter_org_ids:
+                    return []
+
+                sites = await conn.fetch(
+                    """
+                    SELECT id, name, description, "createdAt", "updatedAt"
+                    FROM sites WHERE "orgId" = ANY($1) ORDER BY name
+                    """,
+                    filter_org_ids,
+                )
+                return [
+                    SiteResponse(
+                        id=s["id"], name=s["name"], description=s["description"],
+                        role="ORG_ADMIN", created_at=s["createdAt"], updated_at=s["updatedAt"],
+                    ) for s in sites
+                ]
+
+            else:
+                # VIEWER: only sites where they have explicit instance access
                 org_filter = 'AND s."orgId" = $2' if org_id else ""
                 params = [user_id, org_id] if org_id else [user_id]
 
                 sites = await conn.fetch(
                     f"""
                     SELECT DISTINCT s.id, s.name, s.description, s."createdAt", s."updatedAt",
-                           MAX(
-                               CASE uir.role
-                                   WHEN 'ADMIN' THEN 3
-                                   WHEN 'OPERATOR' THEN 2
-                                   WHEN 'VIEWER' THEN 1
-                                   ELSE 0
-                               END
-                           ) as role_rank,
                            (ARRAY_AGG(uir.role ORDER BY
                                CASE uir.role
                                    WHEN 'ADMIN' THEN 3
@@ -552,17 +569,11 @@ async def list_user_sites(request: Request):
                     """,
                     *params,
                 )
-
                 return [
                     SiteResponse(
-                        id=site["id"],
-                        name=site["name"],
-                        description=site["description"],
-                        role=site["role"],
-                        created_at=site["createdAt"],
-                        updated_at=site["updatedAt"],
-                    )
-                    for site in sites
+                        id=s["id"], name=s["name"], description=s["description"],
+                        role=s["role"], created_at=s["createdAt"], updated_at=s["updatedAt"],
+                    ) for s in sites
                 ]
 
     except Exception as e:
@@ -580,48 +591,51 @@ async def list_site_instances(request: Request, site_id: str):
     """
     Get all instances for a specific site that the user has access to.
 
-    Site ADMIN users (role='ADMIN' in users table) see ALL instances in the site.
-    Other users see only instances they have explicit permission to access.
-    Uses new RBAC system (user_instance_roles and users.role).
+    PROJECT_ADMIN: sees all instances in any site.
+    ORG_ADMIN: sees all instances in site, but only if site belongs to their org.
+    VIEWER: sees only instances they have explicit instance-level access to.
     """
-    # Get user from request state
     if not hasattr(request.state, "user") or not request.state.user:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
     user = request.state.user
     user_id = user["id"]
 
-    # Get database pool
     db_pool: asyncpg.Pool = request.app.state.db_pool
     if not db_pool:
         raise HTTPException(status_code=503, detail="Database not available")
 
     try:
         async with db_pool.acquire() as conn:
-            # First, check if user is a site ADMIN
             user_role = await conn.fetchval(
-                """
-                SELECT role FROM users WHERE id = $1
-                """,
-                user_id,
+                "SELECT role FROM users WHERE id = $1", user_id
             )
 
+            # ORG_ADMIN: verify the site belongs to their org
+            if user_role == "ORG_ADMIN":
+                site_org_id = await conn.fetchval(
+                    'SELECT "orgId" FROM sites WHERE id = $1', site_id
+                )
+                if site_org_id:
+                    has_access = await conn.fetchval(
+                        'SELECT EXISTS(SELECT 1 FROM org_members WHERE "orgId" = $1 AND "userId" = $2)',
+                        site_org_id, user_id,
+                    )
+                    if not has_access:
+                        raise HTTPException(status_code=403, detail="Site not in your organization")
+
             if user_role in ADMIN_ROLES:
-                # Site ADMINs see ALL instances in the site
                 instances = await conn.fetch(
                     """
                     SELECT id, "siteId", name, description, host, port, protocol, "verifySsl", "isActive",
                            "vyosVersion", "sshPort", "sshUsername", "sshKeyConfigured",
                            "commitConfirmEnabled", "commitConfirmMinutes", timeout,
                            "createdAt", "updatedAt"
-                    FROM instances
-                    WHERE "siteId" = $1
-                    ORDER BY name
+                    FROM instances WHERE "siteId" = $1 ORDER BY name
                     """,
                     site_id,
                 )
             else:
-                # Regular users see only instances they have explicit access to
                 instances = await conn.fetch(
                     """
                     SELECT DISTINCT i.id, i."siteId", i.name, i.description, i.host, i.port, i.protocol, i."verifySsl", i."isActive",
@@ -633,8 +647,7 @@ async def list_site_instances(request: Request, site_id: str):
                     WHERE i."siteId" = $1 AND uir."userId" = $2
                     ORDER BY i.name
                     """,
-                    site_id,
-                    user_id,
+                    site_id, user_id,
                 )
 
             # If no instances found, return empty list (don't throw 404)
@@ -700,12 +713,13 @@ async def create_site(request: Request, body: SiteCreateRequest):
             site_count = await conn.fetchval("SELECT COUNT(*) FROM sites")
             is_first_site = site_count == 0
 
+            user_role = await conn.fetchval(
+                "SELECT role FROM users WHERE id = $1",
+                user_id
+            )
+
             # If not first site, verify user is site ADMIN
             if not is_first_site:
-                user_role = await conn.fetchval(
-                    "SELECT role FROM users WHERE id = $1",
-                    user_id
-                )
                 if user_role not in ADMIN_ROLES:
                     raise HTTPException(
                         status_code=403,

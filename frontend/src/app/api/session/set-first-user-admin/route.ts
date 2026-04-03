@@ -31,13 +31,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Update their role to ADMIN
+    // Update their role to PROJECT_ADMIN
     await prisma.user.update({
       where: { id: user.id },
-      data: { role: "ADMIN" },
+      data: { role: "PROJECT_ADMIN" },
     });
 
-    console.log(`[Onboarding] Set first user ${user.email} as ADMIN`);
+    // Add the user to the default organization as OWNER
+    const defaultOrg = await prisma.organization.findFirst({
+      where: { slug: "default" },
+    });
+
+    if (defaultOrg) {
+      await prisma.orgMember.upsert({
+        where: {
+          orgId_userId: {
+            orgId: defaultOrg.id,
+            userId: user.id,
+          },
+        },
+        update: {},
+        create: {
+          orgId: defaultOrg.id,
+          userId: user.id,
+          role: "OWNER",
+        },
+      });
+    }
+
+    console.log(`[Onboarding] Set first user ${user.email} as PROJECT_ADMIN`);
 
     return NextResponse.json({ success: true });
   } catch (error) {

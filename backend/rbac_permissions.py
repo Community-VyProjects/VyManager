@@ -612,34 +612,39 @@ async def get_user_accessible_instances(
 ) -> List[str]:
     """
     Get list of instance IDs that a user has access to.
-
-    Args:
-        db_pool: Database connection pool
-        user_id: User ID
-
-    Returns:
-        List of instance IDs
+    PROJECT_ADMIN: all active instances.
+    ORG_ADMIN: active instances in their org(s).
+    Others: explicitly assigned instances.
     """
     async with db_pool.acquire() as conn:
-        # Check if user is ADMIN
-        user_is_admin = await is_admin(db_pool, user_id)
+        row = await conn.fetchrow(
+            'SELECT role, "isDemo" FROM users WHERE id = $1', user_id
+        )
+        if not row:
+            return []
 
-        if user_is_admin:
-            # ADMIN has access to all instances
+        user_role = row["role"]
+        is_demo = row["isDemo"]
+
+        if user_role in ("PROJECT_ADMIN", "ADMIN") and not is_demo:
+            instances = await conn.fetch(
+                'SELECT id FROM instances WHERE "isActive" = true'
+            )
+        elif user_role == "ORG_ADMIN" and not is_demo:
+            # ORG_ADMIN: instances in their orgs only
             instances = await conn.fetch(
                 """
-                SELECT id FROM instances WHERE "isActive" = true
-                """
+                SELECT i.id FROM instances i
+                JOIN sites s ON i."siteId" = s.id
+                JOIN org_members om ON s."orgId" = om."orgId"
+                WHERE om."userId" = $1 AND i."isActive" = true
+                """,
+                user_id,
             )
         else:
-            # Get instances user has explicit access to
             instances = await conn.fetch(
-                """
-                SELECT DISTINCT "instanceId" as id
-                FROM user_instance_roles
-                WHERE "userId" = $1
-                """,
-                user_id
+                'SELECT DISTINCT "instanceId" as id FROM user_instance_roles WHERE "userId" = $1',
+                user_id,
             )
 
         return [inst["id"] for inst in instances]
@@ -695,7 +700,7 @@ def _apply_parent_child_permissions(permissions: Dict[FeatureGroup, PermissionLe
     firewall_perm = permissions.get(FeatureGroup.FIREWALL, PermissionLevel.NONE)
     if firewall_perm != PermissionLevel.NONE:
         # Grant parent permission to children if they don't have a higher permission
-        for child in [FeatureGroup.FIREWALL_GROUPS, FeatureGroup.FIREWALL_POLICIES, FeatureGroup.FIREWALL_ZONES, FeatureGroup.FIREWALL_GLOBAL_OPTIONS]:
+        for child in [FeatureGroup.FIREWALL_GROUPS, FeatureGroup.FIREWALL_POLICIES, FeatureGroup.FIREWALL_ZONES, FeatureGroup.FIREWALL_GLOBAL_OPTIONS, FeatureGroup.FIREWALL_BRIDGE, FeatureGroup.FIREWALL_FLOWTABLES]:
             current = permissions.get(child, PermissionLevel.NONE)
             # Only upgrade permission, never downgrade
             if firewall_perm == PermissionLevel.WRITE:

@@ -7,6 +7,7 @@ export default async function proxy(request: NextRequest) {
   const publicRoutes = [
     "/login",
     "/onboarding",
+    "/set-password",
     "/api/auth",
     "/api/session/onboarding-status",
     "/api/internal",

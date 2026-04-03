@@ -11,7 +11,8 @@ export interface UserListItem {
   email: string;
   email_verified: boolean;
   created_at: string;
-  site_role: SiteRole; // ADMIN or VIEWER
+  site_role: SiteRole;
+  org_role: string | null;
   instance_count: number;
 }
 

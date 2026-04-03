@@ -76,7 +76,3 @@ ALTER TABLE "org_members" ADD CONSTRAINT "org_members_userId_fkey" FOREIGN KEY (
 -- Add new Role enum values: PROJECT_ADMIN and ORG_ADMIN
 ALTER TYPE "Role" ADD VALUE IF NOT EXISTS 'PROJECT_ADMIN';
 ALTER TYPE "Role" ADD VALUE IF NOT EXISTS 'ORG_ADMIN';
-
--- Migrate existing ADMIN users to PROJECT_ADMIN
--- Note: Postgres enums don't support direct rename, so we update the column value
-UPDATE "users" SET "role" = 'PROJECT_ADMIN' WHERE "role" = 'ADMIN';
