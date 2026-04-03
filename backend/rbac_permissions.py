@@ -584,15 +584,20 @@ async def is_admin(db_pool: asyncpg.Pool, user_id: str) -> bool:
 
     Admins have full access to user management, sites, and all instances
     within their scope (PROJECT_ADMIN: all orgs, ORG_ADMIN: own org).
+    Demo users are excluded even if they hold an admin role.
     """
     async with db_pool.acquire() as conn:
-        result = await conn.fetchval(
+        row = await conn.fetchrow(
             """
-            SELECT role FROM users WHERE id = $1
+            SELECT role, "isDemo" FROM users WHERE id = $1
             """,
             user_id
         )
-        return result in ("PROJECT_ADMIN", "ORG_ADMIN", "ADMIN") if result else False
+        if not row:
+            return False
+        if row["isDemo"]:
+            return False
+        return row["role"] in ("PROJECT_ADMIN", "ORG_ADMIN", "ADMIN")
 
 
 # Deprecated: Kept for backwards compatibility

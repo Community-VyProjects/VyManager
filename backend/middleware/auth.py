@@ -115,7 +115,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             async with db_pool.acquire() as conn:
                 session = await conn.fetchrow(
                     """
-                    SELECT s.id, s."userId", s."expiresAt", s.token, u.email, u.name, u.role, u."isDemo"  -- DEMO: u.role and u."isDemo" added for org resolution
+                    SELECT s.id, s."userId", s."expiresAt", s.token, u.email, u.name, u.role, u."isDemo"
                     FROM sessions s
                     JOIN users u ON s."userId" = u.id
                     WHERE s.token = $1
@@ -166,15 +166,15 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                 request.state.session_id = session["id"]
                 request.state.user_email = session["email"]
                 request.state.user_name = session["name"]
-                request.state.user_role = session["role"]  # DEMO: user_role added for org/demo
+                request.state.user_role = session["role"]
                 request.state.user = {
                     "id": session["userId"],
                     "email": session["email"],
                     "name": session["name"],
-                    "role": session["role"],  # DEMO: role added for org/demo
+                    "role": session["role"],
                 }
 
-                # DEMO: Resolve current organization from X-Org-Id header (see DEMO.md for removal)
+
                 is_demo_user = session["isDemo"]
                 org_id = request.headers.get("X-Org-Id")
 
@@ -206,7 +206,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                         session["userId"]
                     )
                     request.state.org_id = default_org
-                # DEMO: End org resolution block
+
 
         except HTTPException as e:
             # Pass through HTTPException (from get_db_pool)

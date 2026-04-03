@@ -10,15 +10,6 @@ import { Organization, orgService } from "@/lib/api/org";
 import { setCurrentOrgId } from "@/lib/api/client";
 import { ApiError } from "@/lib/types/api";
 
-function getDemoSlugFromHostname(): string | null {
-  if (typeof window === "undefined") return null;
-  const hostname = window.location.hostname;
-  const baseDomain = process.env.NEXT_PUBLIC_DEMO_BASE_DOMAIN || "";
-  if (!baseDomain || !hostname.endsWith(`.${baseDomain}`)) return null;
-  const subdomain = hostname.replace(`.${baseDomain}`, "");
-  return subdomain && subdomain !== hostname ? subdomain : null;
-}
-
 interface OrgState {
   currentOrg: Organization | null;
   orgs: Organization[];
@@ -46,15 +37,10 @@ export const useOrgStore = create<OrgState>((set, get) => ({
       const orgs = response.orgs;
       const current = get().currentOrg;
 
-      // If no org selected yet, pick based on subdomain or default
+      // If no org selected yet, pick the first non-demo org or fallback
       let selectedOrg = current;
       if (!selectedOrg && orgs.length > 0) {
-        const demoSlug = getDemoSlugFromHostname();
-        if (demoSlug) {
-          selectedOrg = orgs.find((o) => o.slug === demoSlug) || orgs[0];
-        } else {
-          selectedOrg = orgs.find((o) => !o.is_demo) || orgs[0];
-        }
+        selectedOrg = orgs.find((o) => !o.is_demo) || orgs[0];
         setCurrentOrgId(selectedOrg.id);
       }
 

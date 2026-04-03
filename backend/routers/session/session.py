@@ -485,11 +485,11 @@ async def list_user_sites(request: Request):
                 user_id,
             )
 
-            # DEMO: Resolve org scoping (see DEMO.md for removal)
+
             org_id = getattr(request.state, "org_id", None)
 
             if user_role in ADMIN_ROLES:
-                # DEMO: Site ADMINs see ALL sites, scoped to current org
+
                 if org_id:
                     sites = await conn.fetch(
                         """
@@ -521,7 +521,7 @@ async def list_user_sites(request: Request):
                     for site in sites
                 ]
             else:
-                # DEMO: Regular users scoped to current org
+
                 org_filter = 'AND s."orgId" = $2' if org_id else ""
                 params = [user_id, org_id] if org_id else [user_id]
 
@@ -718,7 +718,7 @@ async def create_site(request: Request, body: SiteCreateRequest):
             alphabet = string.ascii_letters + string.digits
             site_id = ''.join(secrets.choice(alphabet) for _ in range(32))
 
-            # DEMO: Resolve org for the new site (see DEMO.md for removal)
+
             org_id = getattr(request.state, "org_id", None)
             if not org_id:
                 # Fall back to default org
@@ -727,7 +727,7 @@ async def create_site(request: Request, body: SiteCreateRequest):
                 )
             if not org_id:
                 raise HTTPException(status_code=400, detail="No organization context available")
-            # DEMO: End org resolution for create_site
+
 
             # Create site
             site = await conn.fetchrow(
@@ -737,7 +737,7 @@ async def create_site(request: Request, body: SiteCreateRequest):
                 RETURNING id, name, description, "createdAt", "updatedAt"
                 """,
                 site_id,
-                org_id,  # DEMO: orgId column
+                org_id,
                 body.name,
                 body.description,
             )
@@ -1779,4 +1779,4 @@ async def revoke_auth_session(request: Request, body: RevokeSessionRequest):
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-# DEMO: Organization endpoints are in routers/org.py (see DEMO.md)
+

@@ -1,9 +1,7 @@
 """
-DEMO: Organization Management Router
+Organization Management Router
 
 API endpoints for listing and switching between organizations.
-This file is part of the demo/multi-org system and can be removed
-to revert to single-org mode. See DEMO.md for details.
 """
 
 from fastapi import APIRouter, HTTPException, Request

@@ -11,14 +11,6 @@ const trustedOrigins = process.env.TRUSTED_ORIGINS
   ? process.env.TRUSTED_ORIGINS.split(",").filter(Boolean)
   : ["http://localhost:3000"];
 
-// DEMO: Add demo subdomain wildcard to trusted origins (see DEMO.md for removal)
-const demoBaseDomain = process.env.DEMO_BASE_DOMAIN || "";
-if (demoBaseDomain) {
-  const protocol = process.env.BETTER_AUTH_SECURE_COOKIES === "true" ? "https" : "http";
-  trustedOrigins.push(`${protocol}://*.${demoBaseDomain}`);
-}
-// DEMO: End demo subdomain block
-
 const authSecret = process.env.BETTER_AUTH_SECRET || (isProd ? "" : "dev-secret");
 if (!authSecret) {
   throw new Error("BETTER_AUTH_SECRET must be set in production");

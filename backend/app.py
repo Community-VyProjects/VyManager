@@ -66,10 +66,7 @@ from routers.pim import pim as pim_router
 from routers import version as version_router
 from routers import events as events_router
 from routers.events import start_poller, stop_poller
-# DEMO: Demo and org routers (see DEMO.md for removal)
-from routers import demo as demo_router
 from routers import org as org_router
-from routers.demo import cleanup_expired_demos
 
 # Global variables
 db_pool: Optional[asyncpg.Pool] = None
@@ -138,8 +135,6 @@ async def cleanup_inactive_sessions():
                         inactive_duration = datetime.utcnow() - row["lastActivityAt"]
                         print(f"  - Auth: User {row['userId']} (inactive for {inactive_duration}) - LOGGED OUT")
 
-                # DEMO: Clean up expired demo organizations (see DEMO.md)
-                await cleanup_expired_demos(conn)
 
         except asyncio.CancelledError:
             print("[SessionCleanup] Cleanup task cancelled")
@@ -341,8 +336,6 @@ app.include_router(nhrp_router.router)
 app.include_router(pim_router.router)
 app.include_router(version_router.router)
 app.include_router(events_router.router)
-# DEMO: Demo and org routers (see DEMO.md for removal)
-app.include_router(demo_router.router)
 app.include_router(org_router.router)
 
 

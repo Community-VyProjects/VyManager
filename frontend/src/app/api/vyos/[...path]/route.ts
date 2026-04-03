@@ -81,7 +81,7 @@ async function proxyRequest(
       headers["Cookie"] = `better-auth.session_token=${sessionToken.value}`;
     }
 
-    // DEMO: Forward org header for multi-org scoping (see DEMO.md for removal)
+
     const orgId = request.headers.get("X-Org-Id");
     if (orgId) {
       headers["X-Org-Id"] = orgId;

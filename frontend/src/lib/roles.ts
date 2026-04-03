@@ -1,6 +1,5 @@
 /**
- * DEMO: Role utility helpers for the PROJECT_ADMIN / ORG_ADMIN / VIEWER system.
- * See DEMO.md for removal instructions.
+ * Role utility helpers for the PROJECT_ADMIN / ORG_ADMIN / VIEWER system.
  */
 
 /** Platform-level admin roles */
@@ -11,7 +10,7 @@ export function isAdminRole(role: string | null | undefined): boolean {
   return !!role && ADMIN_ROLES.has(role);
 }
 
-/** Check if a role has project-wide admin access (can manage demos, access all orgs) */
+/** Check if a role has project-wide admin access (access all orgs) */
 export function isProjectAdmin(role: string | null | undefined): boolean {
   return role === "PROJECT_ADMIN" || role === "ADMIN";
 }

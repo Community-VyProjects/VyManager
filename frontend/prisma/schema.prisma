@@ -24,9 +24,9 @@ model User {
   updatedAt     DateTime @updatedAt
 
   // RBAC
-  role Role @default(VIEWER) // DEMO: was only ADMIN/VIEWER, now includes PROJECT_ADMIN/ORG_ADMIN
+  role Role @default(VIEWER)
 
-  // DEMO: Demo user flag (see DEMO.md for removal)
+
   isDemo Boolean @default(false)
 
   // Relations
@@ -34,7 +34,7 @@ model User {
   accounts          Account[]
   activeSession     ActiveSession?
   userInstanceRoles UserInstanceRole[]
-  orgMembers        OrgMember[] // DEMO: org membership relation
+  orgMembers        OrgMember[]
 
   @@map("users")
 }
@@ -95,7 +95,7 @@ model Verification {
 
 // Site-level roles (platform-wide permissions)
 enum Role {
-  PROJECT_ADMIN // Full access across ALL organizations, demo management
+  PROJECT_ADMIN // Full access across ALL organizations
   ORG_ADMIN     // Full admin within own organization(s)
   ADMIN         // @deprecated - use PROJECT_ADMIN or ORG_ADMIN
   VIEWER        // Read-only access to assigned sites and instances
@@ -155,18 +155,18 @@ model AuditLog {
 // Site - Represents a customer/organization
 model Site {
   id          String   @id @default(cuid())
-  orgId       String   // DEMO: org foreign key (see DEMO.md for removal)
+  orgId       String
   name        String
   description String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   // Relations
-  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade) // DEMO
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
   instances Instance[]
 
-  @@unique([orgId, name]) // DEMO: was @@unique on name alone
-  @@index([orgId]) // DEMO
+  @@unique([orgId, name])
+  @@index([orgId])
   @@map("sites")
 }
 
@@ -298,7 +298,7 @@ model DashboardLayout {
 }
 
 // ============================================================================
-// DEMO: Multi-Organization Support (see DEMO.md for removal)
+
 // ============================================================================
 
 model Organization {

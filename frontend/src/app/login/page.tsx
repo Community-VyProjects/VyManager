@@ -14,23 +14,10 @@ import { OAuthProviderConfig } from "@/lib/api/oauth";
 import { ProviderIcon } from "@/components/authentication/ProviderIcon";
 import { WELL_KNOWN_PROVIDERS } from "@/lib/api/oauth";
 
-// DEMO: Demo subdomain detection (see DEMO.md for removal)
-function getDemoSlug(): string | null {
-  if (typeof window === "undefined") return null;
-  const hostname = window.location.hostname;
-  const baseDomain = process.env.NEXT_PUBLIC_DEMO_BASE_DOMAIN || "";
-  if (!baseDomain || !hostname.endsWith(`.${baseDomain}`)) return null;
-  const subdomain = hostname.replace(`.${baseDomain}`, "");
-  if (subdomain && subdomain !== hostname) return subdomain;
-  return null;
-}
-// DEMO: End getDemoSlug
-
 export default function LoginPage() {
   const router = useRouter();
   const [from, setFrom] = useState<string>("/sites");
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
-  const [demoSlug] = useState<string | null>(getDemoSlug); // DEMO: demo slug state
 
   // Check if onboarding is needed first
   useEffect(() => {
@@ -231,22 +218,9 @@ export default function LoginPage() {
               VyManager
             </h1>
             <p className="text-sm text-muted-foreground mt-2">
-              {demoSlug ? "Demo Environment" : "Professional VyOS Management"}{/* DEMO: conditional text */}
+              Professional VyOS Management
             </p>
           </div>
-
-          {/* DEMO: Demo banner (see DEMO.md for removal) */}
-          {demoSlug && (
-            <div className="mb-6 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-center">
-              <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
-                Demo: {demoSlug}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Log in with your demo credentials
-              </p>
-            </div>
-          )}
-          {/* DEMO: End demo banner */}
 
           {/* Error message */}
           {error && (

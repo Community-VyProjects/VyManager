@@ -14,7 +14,7 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("🌱 Starting database seed...");
 
-  // DEMO: Ensure Default Organization exists (see DEMO.md for removal)
+
 
   console.log("🏢 Ensuring default organization...");
 
@@ -28,7 +28,7 @@ async function main() {
       description: "Default organization",
     },
   });
-  // DEMO: End default org block
+
 
   // ========================================================================
   // 1. Create Default Site
@@ -37,12 +37,12 @@ async function main() {
   console.log("📍 Creating default site...");
 
   const site = await prisma.site.upsert({
-    where: { orgId_name: { orgId: org.id, name: "Default Site" } }, // DEMO: was { name: "Default Site" }
+    where: { orgId_name: { orgId: org.id, name: "Default Site" } },
     update: {},
     create: {
       name: "Default Site",
       description: "Default site for existing VyOS instance",
-      orgId: org.id, // DEMO: org reference
+      orgId: org.id,
     },
   });
 
