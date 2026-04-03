@@ -86,9 +86,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Hash password with bcryptjs (same algorithm Better Auth uses)
-    const bcrypt = await import("bcryptjs");
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // Hash password with Better Auth's native hasher (scrypt)
+    const { hashPassword } = await import("better-auth/crypto");
+    const hashedPassword = await hashPassword(password);
 
     await prisma.account.update({
       where: { id: account.id },

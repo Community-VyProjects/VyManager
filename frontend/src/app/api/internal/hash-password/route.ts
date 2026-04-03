@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
+import { hashPassword } from "better-auth/crypto";
 
 /**
- * Internal API endpoint for generating bcryptjs-compatible password hashes.
+ * Internal API endpoint for generating Better Auth compatible password hashes.
  * Used by the backend user management system to create Better Auth compatible users.
  *
  * This endpoint should only be accessible from the backend container (not public).
@@ -26,8 +26,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate hash with 10 rounds (same as Better Auth default)
-    const hash = await bcrypt.hash(password, 10);
+    // Generate hash using Better Auth's native scrypt hasher
+    const hash = await hashPassword(password);
 
     return NextResponse.json({ hash });
   } catch (error) {
