@@ -33,6 +33,7 @@ import { DeleteUserModal } from "./DeleteUserModal";
 import { ManageUserAccessPanel } from "./ManageUserAccessPanel";
 import { ApiError } from "@/lib/types/api";
 import { isAdminRole, isProjectAdmin as isProjectAdminRole, roleLabel } from "@/lib/roles";
+import { useOrgStore } from "@/store/org-store";
 
 const ROLE_COLORS: Record<string, string> = {
   PROJECT_ADMIN: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-800",
@@ -47,6 +48,7 @@ export function UsersTab() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const { currentOrg } = useOrgStore();
 
   // Modal states
   const [createUserOpen, setCreateUserOpen] = useState(false);
@@ -57,7 +59,7 @@ export function UsersTab() {
 
   useEffect(() => {
     loadUsers();
-  }, []);
+  }, [currentOrg?.id]);
 
   useEffect(() => {
     if (!searchQuery.trim()) {

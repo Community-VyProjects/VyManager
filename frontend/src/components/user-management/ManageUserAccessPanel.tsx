@@ -997,28 +997,40 @@ export function ManageUserAccessPanel({
                     </Button>
                   </div>
                   <div className="border rounded-lg">
-                    <ScrollArea className="max-h-40">
-                      <div className="p-2 space-y-1">
-                        {filteredInstances.map((instance) => (
-                          <div
-                            key={instance.id}
-                            className="flex items-center gap-2 p-2 rounded hover:bg-muted/50"
-                          >
-                            <Checkbox
-                              id={`grant-instance-${instance.id}`}
-                              checked={selectedInstanceIds.includes(instance.id)}
-                              onCheckedChange={() => handleInstanceToggle(instance.id)}
-                            />
-                            <label
-                              htmlFor={`grant-instance-${instance.id}`}
-                              className="flex-1 cursor-pointer text-sm"
-                            >
-                              {instance.name}
-                            </label>
-                          </div>
-                        ))}
+                    {filteredInstances.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-6 px-4 text-center">
+                        <Server className="h-8 w-8 text-muted-foreground mb-2" />
+                        <p className="text-sm text-muted-foreground">
+                          No instances in this site yet.
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Add instances to this site first, then assign user access.
+                        </p>
                       </div>
-                    </ScrollArea>
+                    ) : (
+                      <ScrollArea className="max-h-40">
+                        <div className="p-2 space-y-1">
+                          {filteredInstances.map((instance) => (
+                            <div
+                              key={instance.id}
+                              className="flex items-center gap-2 p-2 rounded hover:bg-muted/50"
+                            >
+                              <Checkbox
+                                id={`grant-instance-${instance.id}`}
+                                checked={selectedInstanceIds.includes(instance.id)}
+                                onCheckedChange={() => handleInstanceToggle(instance.id)}
+                              />
+                              <label
+                                htmlFor={`grant-instance-${instance.id}`}
+                                className="flex-1 cursor-pointer text-sm"
+                              >
+                                {instance.name}
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    )}
                   </div>
                   {selectedInstanceIds.length > 0 && (
                     <p className="text-xs text-muted-foreground">
