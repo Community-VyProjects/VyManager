@@ -5,23 +5,24 @@ All dummy (virtual) interface endpoints for VyOS configuration.
 Dummy interfaces do not support physical properties like speed/duplex.
 """
 
-from fastapi import APIRouter, HTTPException, Request
-from starlette.concurrency import run_in_threadpool
-from pydantic import BaseModel, Field, ConfigDict
-from typing import Dict, List, Optional
+import inspect
+import logging
+from typing import Dict, List, Optional, Any
 
-from session_vyos_service import get_session_vyos_service
+from fastapi import APIRouter, HTTPException, Request
+from pydantic import BaseModel, Field, ConfigDict
+from starlette.concurrency import run_in_threadpool
+
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
-import logging
+from session_vyos_service import get_session_vyos_service
+
 logger = logging.getLogger(__name__)
 
-# Router for dummy interface endpoints
 router = APIRouter(prefix="/vyos/dummy", tags=["dummy-interface"])
 
 
 # Stub functions for backwards compatibility with app.py
-# These are no longer used since we use session-based services
 def set_device_registry(registry):
     """Legacy function - no longer used."""
     pass
@@ -33,311 +34,177 @@ def set_configured_device_name(name):
 
 
 # ============================================================================
-# Request Models (for WRITE operations)
+# Request / Response Models
 # ============================================================================
 
 
-class InterfaceDescription(BaseModel):
-    """Model for setting interface description."""
+class BatchOperation(BaseModel):
+    op: str = Field(..., description="Operation name")
+    value: Optional[str] = Field(None, description="Operation value (if required)")
 
+
+class BatchRequest(BaseModel):
     interface: str = Field(..., description="Interface name (e.g., dum0)")
-    description: str = Field(..., description="Interface description")
-
-
-class InterfaceDelete(BaseModel):
-    """Model for deleting an interface."""
-
-    interface: str = Field(..., description="Interface name (e.g., dum0)")
-
-
-class InterfaceAddress(BaseModel):
-    """Model for interface address operations."""
-
-    interface: str = Field(..., description="Interface name (e.g., dum0)")
-    address: str = Field(..., description="IP address in CIDR notation (e.g., 10.0.0.1/32)")
-
-
-class InterfaceMTU(BaseModel):
-    """Model for setting interface MTU."""
-
-    interface: str = Field(..., description="Interface name (e.g., dum0)")
-    mtu: str = Field(..., description="MTU value (e.g., 1500)")
-
-
-class InterfaceVRF(BaseModel):
-    """Model for VRF assignment."""
-
-    interface: str = Field(..., description="Interface name (e.g., dum0)")
-    vrf: str = Field(..., description="VRF name")
-
-
-class InterfaceDisable(BaseModel):
-    """Model for disabling an interface."""
-
-    interface: str = Field(..., description="Interface name (e.g., dum0)")
-
-
-class InterfaceBatchRequest(BaseModel):
-    """Model for batch interface configuration."""
-
-    interface: str = Field(..., description="Interface name (e.g., dum0)")
-    operations: List[Dict[str, str]] = Field(
-        ...,
-        description="List of interface operations",
-        json_schema_extra={
-            "example": [
-                {"op": "set_description", "value": "Loopback Interface"},
-                {"op": "set_address", "value": "10.0.0.1/32"},
-                {"op": "set_mtu", "value": "1500"}
-            ]
-        }
-    )
+    operations: List[BatchOperation]
 
 
 class VyOSResponse(BaseModel):
-    """Standard response from VyOS operations."""
-
     success: bool
-    data: Optional[Dict] = None
+    data: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
 
 
-# ============================================================================
-# Response Models (for READ operations)
-# ============================================================================
-
-
-class DummyInterfaceConfigResponse(BaseModel):
-    """Dummy interface configuration from VyOS (read operation)"""
-
-    name: str = Field(..., description="Interface name (e.g., dum0)")
-    type: str = Field(..., description="Interface type (dummy)")
-    addresses: List[str] = Field(default_factory=list, description="IP addresses with CIDR notation")
-    description: Optional[str] = Field(None, description="Interface description")
-    vrf: Optional[str] = Field(None, description="VRF assignment")
-    mtu: Optional[str] = Field(None, description="MTU value")
-
-    # Administrative state
-    disable: Optional[bool] = Field(None, description="Whether interface is administratively disabled")
+class DummyInterfaceConfig(BaseModel):
+    name: str
+    type: str
+    addresses: List[str] = Field(default_factory=list)
+    description: Optional[str] = None
+    vrf: Optional[str] = None
+    mtu: Optional[str] = None
+    disable: Optional[bool] = None
+    ip_disable_forwarding: Optional[bool] = None
+    ip_source_validation: Optional[str] = None
+    ipv6_disable_forwarding: Optional[bool] = None
+    ipv6_address_eui64: List[str] = Field(default_factory=list)
+    ipv6_address_no_default_link_local: Optional[bool] = None
+    mirror_ingress: Optional[str] = None
+    mirror_egress: Optional[str] = None
+    redirect: Optional[str] = None
+    # VyOS 1.5+ only
+    mac: Optional[str] = None
+    netns: Optional[str] = None
 
     model_config = ConfigDict(populate_by_name=True)
 
 
 class DummyInterfacesConfigResponse(BaseModel):
-    """Response containing all dummy interface configurations"""
-
-    interfaces: List[DummyInterfaceConfigResponse] = Field(
-        default_factory=list,
-        description="List of all dummy interfaces"
-    )
-    total: int = Field(0, description="Total number of dummy interfaces")
-
-    # Statistics
-    by_type: Dict[str, int] = Field(
-        default_factory=dict,
-        description="Count of interfaces by type (should be 'dummy': N)"
-    )
-    by_vrf: Dict[str, int] = Field(
-        default_factory=dict,
-        description="Count of interfaces by VRF"
-    )
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "interfaces": [
-                    {
-                        "name": "dum0",
-                        "type": "dummy",
-                        "addresses": ["10.0.0.1/32"],
-                        "description": "Loopback Interface"
-                    }
-                ],
-                "total": 1,
-                "by_type": {"dummy": 1},
-                "by_vrf": {}
-            }
-        }
-    )
+    interfaces: List[DummyInterfaceConfig] = Field(default_factory=list)
+    total: int = 0
+    by_type: Dict[str, int] = Field(default_factory=dict)
+    by_vrf: Dict[str, int] = Field(default_factory=dict)
 
 
 # ============================================================================
-# READ Operations (GET)
+# Endpoints
 # ============================================================================
+
+
+@router.get("/capabilities")
+async def get_capabilities(request: Request) -> Dict[str, Any]:
+    """Return version-aware feature capabilities for dummy interfaces."""
+    await require_read_permission(request, FeatureGroup.INTERFACES)
+    service = get_session_vyos_service(request)
+    from vyos_builders.interfaces.dummy import DummyInterfaceBuilderMixin
+    builder = DummyInterfaceBuilderMixin(version=service.get_version())
+    return builder.get_capabilities()
 
 
 @router.get("/config", response_model=DummyInterfacesConfigResponse)
-async def get_dummy_config(http_request: Request) -> DummyInterfacesConfigResponse:
-    """
-    Get all dummy interface configurations from VyOS.
-
-    Returns configuration details including addresses, description, VRF, MTU, etc.
-    Note: Dummy interfaces do not have physical properties like speed/duplex/hw-id.
-    """
-    # Check RBAC permission
+async def get_config(http_request: Request, refresh: bool = False) -> DummyInterfacesConfigResponse:
+    """Get all dummy interface configurations from VyOS."""
     await require_read_permission(http_request, FeatureGroup.INTERFACES)
-
-    from vyos_mappers.interfaces import DummyInterfaceMapper
-
     try:
-        # Get service and retrieve raw config from cache
         service = get_session_vyos_service(http_request)
-        full_config = await run_in_threadpool(service.get_full_config)
+        full_config = await run_in_threadpool(service.get_full_config, refresh)
         raw_config = full_config.get("interfaces", {}).get("dummy", {})
 
-        # Use mapper to parse config
-        mapper = DummyInterfaceMapper(service.get_version())
-        parsed_data = mapper.parse_interfaces_of_type(raw_config)
-
-        # Return as Pydantic model
-        return DummyInterfacesConfigResponse(**parsed_data)
-    except KeyError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        logger.exception("Unhandled error")
+        from vyos_mappers.interfaces.dummy_versions import get_dummy_mapper
+        mapper = get_dummy_mapper(service.get_version())
+        parsed = mapper.parse_interfaces_of_type(raw_config)
+        return DummyInterfacesConfigResponse(**parsed)
+    except Exception:
+        logger.exception("Unhandled error in get_config")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-# ============================================================================
-# Dummy Interface Batch Endpoint
-# ============================================================================
-
-
-@router.post("/batch")
-async def configure_interface_batch(http_request: Request, request: InterfaceBatchRequest) -> VyOSResponse:
+@router.post("/batch", response_model=VyOSResponse)
+async def batch_configure(http_request: Request, request: BatchRequest) -> VyOSResponse:
     """
-    Configure dummy interface using batch operations.
+    Configure a dummy interface using batch operations.
 
-    This is the main endpoint for configuring dummy (virtual) interfaces. All operations
-    are version-aware and sent to VyOS in a single batch for efficiency.
+    **Supported operations (all versions):**
+    | Operation | Value | Description |
+    |-----------|-------|-------------|
+    | `set_interface_description` | Yes | Set description |
+    | `delete_interface_description` | No | Remove description |
+    | `set_interface_address` | Yes | Add IP address (CIDR) |
+    | `delete_interface_address` | Yes | Remove IP address |
+    | `set_interface_mtu` | Yes | Set MTU (68-16000) |
+    | `delete_interface_mtu` | No | Reset MTU to default |
+    | `set_interface_disable` | No | Administratively disable |
+    | `delete_interface_disable` | No | Re-enable interface |
+    | `set_interface_vrf` | Yes | Assign to VRF |
+    | `delete_interface_vrf` | No | Remove VRF assignment |
+    | `set_ip_disable_forwarding` | No | Disable IPv4 forwarding |
+    | `delete_ip_disable_forwarding` | No | Enable IPv4 forwarding |
+    | `set_ip_source_validation` | Yes | Source validation (strict/loose/disable) |
+    | `delete_ip_source_validation` | No | Remove source validation |
+    | `set_ipv6_disable_forwarding` | No | Disable IPv6 forwarding |
+    | `delete_ipv6_disable_forwarding` | No | Enable IPv6 forwarding |
+    | `set_ipv6_address_eui64` | Yes | Add EUI-64 prefix |
+    | `delete_ipv6_address_eui64` | Yes | Remove EUI-64 prefix |
+    | `set_ipv6_address_no_default_link_local` | No | Remove default link-local |
+    | `delete_ipv6_address_no_default_link_local` | No | Restore default link-local |
+    | `set_mirror_ingress` | Yes | Mirror ingress to interface |
+    | `delete_mirror_ingress` | No | Remove ingress mirror |
+    | `set_mirror_egress` | Yes | Mirror egress to interface |
+    | `delete_mirror_egress` | No | Remove egress mirror |
+    | `set_redirect` | Yes | Redirect incoming packets |
+    | `delete_redirect` | No | Remove redirect |
+    | `delete_interface` | No | Delete entire interface |
 
-    **Note:** Dummy interfaces do NOT support physical properties like speed/duplex.
-
-    **Supported Operations:**
-
-    | Operation | Value Required | Description |
-    |-----------|----------------|-------------|
-    | `set_description` | Yes | Set interface description |
-    | `delete_description` | No | Remove interface description |
-    | `set_address` | Yes | Add IP address (CIDR notation) |
-    | `delete_address` | Yes | Remove IP address |
-    | `set_mtu` | Yes | Set MTU value |
-    | `delete_mtu` | No | Remove MTU (reset to default) |
-    | `set_vrf` | Yes | Assign interface to VRF |
-    | `delete_vrf` | Yes | Remove interface from VRF |
-    | `disable` | No | Administratively disable interface |
-    | `enable` | No | Enable interface (remove disable flag) |
-    | `delete_interface` | No | Delete entire interface configuration |
-
-    **Example Request:**
-    ```json
-    {
-        "interface": "dum0",
-        "operations": [
-            {"op": "set_description", "value": "Loopback Interface"},
-            {"op": "set_address", "value": "10.0.0.1/32"},
-            {"op": "set_address", "value": "2001:db8::1/128"},
-            {"op": "delete_address", "value": "192.168.1.1/32"},
-            {"op": "set_mtu", "value": "1500"},
-            {"op": "set_vrf", "value": "MGMT"},
-            {"op": "enable"}
-        ]
-    }
-    ```
-
-    **Example with Delete Operations:**
-    ```json
-    {
-        "interface": "dum1",
-        "operations": [
-            {"op": "delete_description"},
-            {"op": "delete_mtu"}
-        ]
-    }
-    ```
+    **VyOS 1.5+ only:**
+    | `set_mac` | Yes | Set MAC address |
+    | `delete_mac` | No | Remove MAC address |
+    | `set_netns` | Yes | Assign to network namespace |
+    | `delete_netns` | No | Remove network namespace |
     """
-    # Check RBAC permission
     await require_write_permission(http_request, FeatureGroup.INTERFACES)
 
     try:
         service = get_session_vyos_service(http_request)
         batch = service.create_dummy_batch()
 
-        # Process each operation
-        for operation in request.operations:
-            op_type = operation.get("op")
-            value = operation.get("value")
-
-            if not op_type:
+        for op in request.operations:
+            if op.op in batch._INTERNAL_BUILDER_METHODS:
                 raise HTTPException(
                     status_code=400,
-                    detail=f"Invalid operation: {operation}. Must have 'op' key"
+                    detail=f"Operation '{op.op}' is not a valid interface operation",
                 )
 
-            # Map operation to batch method
-            if op_type == "set_description":
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_interface_description(request.interface, value)
-            elif op_type == "delete_description":
-                # Delete description - no value needed
-                batch.delete_interface_description(request.interface)
-            elif op_type == "set_address":
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_interface_address(request.interface, value)
-            elif op_type == "delete_address":
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.delete_interface_address(request.interface, value)
-            elif op_type == "set_mtu":
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_interface_mtu(request.interface, value)
-            elif op_type == "delete_mtu":
-                # Delete MTU - no value needed
-                batch.delete_interface_mtu(request.interface)
-            elif op_type == "set_vrf":
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.set_interface_vrf(request.interface, value)
-            elif op_type == "delete_vrf":
-                if not value:
-                    raise HTTPException(status_code=400, detail=f"{op_type} requires a value")
-                batch.delete_interface_vrf(request.interface, value)
-            elif op_type == "disable":
-                # Disable interface - no value needed
-                batch.set_interface_disable(request.interface)
-            elif op_type == "enable":
-                # Enable interface - no value needed
-                batch.delete_interface_disable(request.interface)
-            elif op_type == "delete_interface":
-                # Delete entire interface - no value needed
-                batch.delete_interface(request.interface)
-            elif op_type in ["set_duplex", "set_speed", "delete_duplex", "delete_speed"]:
-                # Reject ethernet-only operations
+            method = getattr(batch, op.op, None)
+            if method is None:
                 raise HTTPException(
                     status_code=400,
-                    detail=f"Operation '{op_type}' is not supported on dummy interfaces"
+                    detail=f"Unsupported operation: {op.op}",
                 )
+
+            sig = inspect.signature(method)
+            params = [p for p in sig.parameters.keys() if p != "self"]
+
+            if len(params) == 1:
+                method(request.interface)
+            elif len(params) == 2:
+                if op.value is None:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Operation '{op.op}' requires a value",
+                    )
+                method(request.interface, op.value)
             else:
                 raise HTTPException(
                     status_code=400,
-                    detail=f"Unsupported operation: {op_type}"
+                    detail=f"Operation '{op.op}' has unexpected signature",
                 )
 
-        # Execute the batch
         response = service.execute_batch(batch)
-
         return VyOSResponse(
             success=response.status == 200,
             data=response.result,
-            error=response.error if response.error else None
+            error=response.error if response.error else None,
         )
-    except KeyError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        logger.exception("Unhandled error")
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Unhandled error in batch_configure")
         raise HTTPException(status_code=500, detail="Internal server error")
