@@ -16,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, RefreshCw, AlertCircle, Search, Cable, Pencil, Trash2, Network, ChevronRight, Shield, Boxes, Waypoints, Link2, GitMerge, Box } from "lucide-react";
+import { Plus, RefreshCw, AlertCircle, Search, Cable, Pencil, Trash2, Network, ChevronRight, Shield, Boxes, Waypoints, Link2, GitMerge, Box, Layers } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { ethernetService } from "@/lib/api/ethernet";
@@ -35,6 +35,10 @@ import { dummyService, type DummyInterface, type DummyCapabilities } from "@/lib
 import { CreateDummyModal } from "@/components/dummy/CreateDummyModal";
 import { EditDummyModal } from "@/components/dummy/EditDummyModal";
 import { DeleteDummyModal } from "@/components/dummy/DeleteDummyModal";
+import { geneveService, type GeneveInterface, type GeneveCapabilities } from "@/lib/api/geneve";
+import { CreateGeneveModal } from "@/components/geneve/CreateGeneveModal";
+import { EditGeneveModal } from "@/components/geneve/EditGeneveModal";
+import { DeleteGeneveModal } from "@/components/geneve/DeleteGeneveModal";
 import { bridgeService, type BridgeInterface, type BridgeCapabilities } from "@/lib/api/bridge";
 import { CreateBridgeModal } from "@/components/bridge/CreateBridgeModal";
 import { EditBridgeModal } from "@/components/bridge/EditBridgeModal";
@@ -52,7 +56,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 
-type InterfaceType = "ethernet" | "vlan" | "wireguard" | "vxlan" | "tunnel" | "bonding" | "bridge" | "dummy";
+type InterfaceType = "ethernet" | "vlan" | "wireguard" | "vxlan" | "tunnel" | "bonding" | "bridge" | "dummy" | "geneve";
 type VlanSubTab = "vif" | "vif-s" | "vif-c";
 
 interface VLANWithParent extends VIFConfig {
@@ -124,6 +128,15 @@ export default function InterfacesPage() {
   const [editingDummy, setEditingDummy] = useState<DummyInterface | null>(null);
   const [deletingDummy, setDeletingDummy] = useState<DummyInterface | null>(null);
 
+  // GENEVE state
+  const [geneveInterfaces, setGeneveInterfaces] = useState<GeneveInterface[]>([]);
+  const [geneveCapabilities, setGeneveCapabilities] = useState<GeneveCapabilities | null>(null);
+
+  // GENEVE Modal states
+  const [isCreateGeneveModalOpen, setIsCreateGeneveModalOpen] = useState(false);
+  const [editingGeneve, setEditingGeneve] = useState<GeneveInterface | null>(null);
+  const [deletingGeneve, setDeletingGeneve] = useState<GeneveInterface | null>(null);
+
   // Bonding state
   const [bondingInterfaces, setBondingInterfaces] = useState<BondingInterface[]>([]);
   const [bondingCapabilities, setBondingCapabilities] = useState<BondingCapabilities | null>(null);
@@ -147,7 +160,7 @@ export default function InterfacesPage() {
   const loadData = async () => {
     try {
       setError(null);
-      const [configData, capabilitiesData, wgData, vxlanData, vxlanCapData, tunnelData, tunnelCapData, dummyData, dummyCapData, bondingData, bondingCapData, bridgeData, bridgeCapData] = await Promise.all([
+      const [configData, capabilitiesData, wgData, vxlanData, vxlanCapData, tunnelData, tunnelCapData, dummyData, dummyCapData, geneveData, geneveCapData, bondingData, bondingCapData, bridgeData, bridgeCapData] = await Promise.all([
         ethernetService.getConfig(),
         ethernetService.getCapabilities(),
         wireguardService.getConfig(),
@@ -157,6 +170,8 @@ export default function InterfacesPage() {
         tunnelService.getCapabilities(),
         dummyService.getConfig(),
         dummyService.getCapabilities(),
+        geneveService.getConfig(),
+        geneveService.getCapabilities(),
         bondingService.getConfig(),
         bondingService.getCapabilities(),
         bridgeService.getConfig(),
@@ -171,6 +186,8 @@ export default function InterfacesPage() {
       setTunnelCapabilities(tunnelCapData);
       setDummyInterfaces(dummyData.interfaces);
       setDummyCapabilities(dummyCapData);
+      setGeneveInterfaces(geneveData.interfaces);
+      setGeneveCapabilities(geneveCapData);
       setBondingInterfaces(bondingData.interfaces);
       setBondingCapabilities(bondingCapData);
       setBridgeInterfaces(bridgeData.interfaces);
@@ -222,6 +239,7 @@ export default function InterfacesPage() {
   const totalVxlan = vxlanInterfaces.length;
   const totalTunnel = tunnelInterfaces.length;
   const totalDummy = dummyInterfaces.length;
+  const totalGeneve = geneveInterfaces.length;
   const totalBonding = bondingInterfaces.length;
   const totalBridge = bridgeInterfaces.length;
 
@@ -461,6 +479,18 @@ export default function InterfacesPage() {
     );
   });
 
+  const filteredGeneve = geneveInterfaces.filter((iface) => {
+    if (searchQuery === "") return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      iface.name.toLowerCase().includes(q) ||
+      (iface.description || "").toLowerCase().includes(q) ||
+      iface.addresses?.some((addr) => addr.toLowerCase().includes(q)) ||
+      (iface.remote || "").toLowerCase().includes(q) ||
+      (iface.vni || "").includes(q)
+    );
+  });
+
   const filteredBonding = bondingInterfaces.filter((iface) => {
     if (searchQuery === "") return true;
     const q = searchQuery.toLowerCase();
@@ -494,7 +524,7 @@ export default function InterfacesPage() {
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Interfaces</h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {totalInterfaces + totalVlans + totalWireGuard + totalVxlan + totalTunnel + totalDummy + totalBonding + totalBridge} total
+                  {totalInterfaces + totalVlans + totalWireGuard + totalVxlan + totalTunnel + totalDummy + totalGeneve + totalBonding + totalBridge} total
                 </p>
               </div>
               <Button
@@ -698,6 +728,40 @@ export default function InterfacesPage() {
                   </div>
                 </button>
 
+                {/* GENEVE */}
+                <button
+                  onClick={() => setSelectedType("geneve")}
+                  className={cn(
+                    "w-full text-left rounded-lg px-3 py-3 transition-all",
+                    selectedType === "geneve"
+                      ? "bg-accent text-accent-foreground shadow-sm"
+                      : "hover:bg-accent/50"
+                  )}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={cn(
+                      "mt-0.5 rounded-md p-1.5",
+                      selectedType === "geneve" ? "bg-primary/10" : "bg-muted"
+                    )}>
+                      <Layers className={cn(
+                        "h-4 w-4",
+                        selectedType === "geneve" ? "text-primary" : "text-muted-foreground"
+                      )} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="font-medium text-sm text-foreground">GENEVE</span>
+                        {selectedType === "geneve" && (
+                          <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
+                        )}
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {totalGeneve} {totalGeneve === 1 ? "interface" : "interfaces"}
+                      </span>
+                    </div>
+                  </div>
+                </button>
+
                 {/* Bonding */}
                 <button
                   onClick={() => setSelectedType("bonding")}
@@ -813,7 +877,7 @@ export default function InterfacesPage() {
             <div className="flex items-start justify-between mb-4">
               <div className="flex-1">
                 <h1 className="text-2xl font-bold text-foreground">
-                  {selectedType === "ethernet" ? "Ethernet Interfaces" : selectedType === "vlan" ? "VLANs" : selectedType === "vxlan" ? "VXLAN Interfaces" : selectedType === "tunnel" ? "Tunnel Interfaces" : selectedType === "dummy" ? "Dummy Interfaces" : selectedType === "bonding" ? "Bonding Interfaces" : selectedType === "bridge" ? "Bridge Interfaces" : "WireGuard Interfaces"}
+                  {selectedType === "ethernet" ? "Ethernet Interfaces" : selectedType === "vlan" ? "VLANs" : selectedType === "vxlan" ? "VXLAN Interfaces" : selectedType === "tunnel" ? "Tunnel Interfaces" : selectedType === "dummy" ? "Dummy Interfaces" : selectedType === "geneve" ? "GENEVE Interfaces" : selectedType === "bonding" ? "Bonding Interfaces" : selectedType === "bridge" ? "Bridge Interfaces" : "WireGuard Interfaces"}
                 </h1>
                 <p className="text-sm text-muted-foreground mt-2">
                   {selectedType === "ethernet"
@@ -826,7 +890,9 @@ export default function InterfacesPage() {
                           ? "GRE, IPIP, SIT, ERSPAN and other tunnel interfaces"
                           : selectedType === "dummy"
                             ? "Software-only dummy interfaces for testing and routing"
-                            : selectedType === "bonding"
+                            : selectedType === "geneve"
+                              ? "GENEVE tunnel interfaces for network virtualization encapsulation"
+                              : selectedType === "bonding"
                               ? "Link aggregation (bonding) interfaces for high availability and throughput"
                               : selectedType === "bridge"
                                 ? "Bridge interfaces for layer-2 network bridging"
@@ -846,6 +912,8 @@ export default function InterfacesPage() {
                     setIsCreateTunnelModalOpen(true);
                   } else if (selectedType === "dummy") {
                     setIsCreateDummyModalOpen(true);
+                  } else if (selectedType === "geneve") {
+                    setIsCreateGeneveModalOpen(true);
                   } else if (selectedType === "bonding") {
                     setIsCreateBondingModalOpen(true);
                   } else if (selectedType === "bridge") {
@@ -867,7 +935,9 @@ export default function InterfacesPage() {
                         ? "Create Tunnel"
                         : selectedType === "dummy"
                           ? "Create Dummy"
-                          : selectedType === "bonding"
+                          : selectedType === "geneve"
+                            ? "Create GENEVE"
+                            : selectedType === "bonding"
                             ? "Create Bond"
                             : selectedType === "bridge"
                               ? "Create Bridge"
@@ -912,7 +982,9 @@ export default function InterfacesPage() {
                           ? "Search by name, description, address, encapsulation, or remote..."
                           : selectedType === "dummy"
                             ? "Search by name, description, address, or VRF..."
-                            : selectedType === "bonding"
+                            : selectedType === "geneve"
+                              ? "Search by name, description, address, remote, or VNI..."
+                              : selectedType === "bonding"
                               ? "Search by name, description, address, mode, or member..."
                               : selectedType === "bridge"
                                 ? "Search by name, description, address, or member..."
@@ -1329,6 +1401,80 @@ export default function InterfacesPage() {
                   </div>
                   <p className="text-sm text-muted-foreground text-center mt-3">
                     Showing {filteredDummy.length} of {totalDummy} interface{totalDummy !== 1 ? "s" : ""}
+                  </p>
+                </>
+              )
+            ) : selectedType === "geneve" ? (
+              /* GENEVE Table */
+              filteredGeneve.length === 0 ? (
+                <Card className="border-border">
+                  <CardContent className="py-12">
+                    <div className="flex flex-col items-center gap-2">
+                      <Layers className="h-12 w-12 text-muted-foreground/30" />
+                      <p className="text-muted-foreground">
+                        {searchQuery ? "No GENEVE interfaces matching your search" : "No GENEVE interfaces configured"}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <>
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Remote</TableHead>
+                          <TableHead>VNI</TableHead>
+                          <TableHead>Description</TableHead>
+                          <TableHead>Addresses</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="w-[80px]"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredGeneve.map((gnv) => (
+                          <TableRow key={gnv.name} className="group">
+                            <TableCell><code className="font-semibold font-mono text-foreground">{gnv.name}</code></TableCell>
+                            <TableCell className="text-sm">{gnv.remote || "—"}</TableCell>
+                            <TableCell className="font-mono text-sm">{gnv.vni || "—"}</TableCell>
+                            <TableCell className="text-muted-foreground max-w-[180px] truncate">{gnv.description || "—"}</TableCell>
+                            <TableCell>
+                              {gnv.addresses?.length ? (
+                                <div className="flex flex-wrap gap-1">
+                                  {gnv.addresses.slice(0, 2).map((addr, idx) => <code key={idx} className="text-xs font-mono px-1.5 py-0.5 rounded bg-accent text-foreground">{addr}</code>)}
+                                  {gnv.addresses.length > 2 && <Badge variant="secondary" className="text-xs px-1.5 py-0">+{gnv.addresses.length - 2}</Badge>}
+                                </div>
+                              ) : <span className="text-muted-foreground">—</span>}
+                            </TableCell>
+                            <TableCell>
+                              {gnv.disable ? (
+                                <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">Disabled</Badge>
+                              ) : (
+                                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">Enabled</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                {canWrite(FeatureGroup.INTERFACES) && (
+                                  <>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingGeneve(gnv)}>
+                                      <Pencil className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeletingGeneve(gnv)}>
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <p className="text-sm text-muted-foreground text-center mt-3">
+                    Showing {filteredGeneve.length} of {totalGeneve} interface{totalGeneve !== 1 ? "s" : ""}
                   </p>
                 </>
               )
@@ -1773,6 +1919,33 @@ export default function InterfacesPage() {
           loadData();
         }}
         interfaceData={deletingDummy}
+      />
+      {/* GENEVE Modals */}
+      <CreateGeneveModal
+        open={isCreateGeneveModalOpen}
+        onOpenChange={setIsCreateGeneveModalOpen}
+        onSuccess={loadData}
+        capabilities={geneveCapabilities}
+        existingInterfaces={geneveInterfaces.map((i) => i.name)}
+      />
+      <EditGeneveModal
+        open={!!editingGeneve}
+        onOpenChange={(open) => !open && setEditingGeneve(null)}
+        onSuccess={() => {
+          setEditingGeneve(null);
+          loadData();
+        }}
+        capabilities={geneveCapabilities}
+        interfaceData={editingGeneve}
+      />
+      <DeleteGeneveModal
+        open={!!deletingGeneve}
+        onOpenChange={(open) => !open && setDeletingGeneve(null)}
+        onSuccess={() => {
+          setDeletingGeneve(null);
+          loadData();
+        }}
+        interfaceData={deletingGeneve}
       />
       {/* Bonding Modals */}
       <CreateBondingModal
