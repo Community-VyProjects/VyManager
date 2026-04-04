@@ -18,6 +18,7 @@ from vyos_builders import (
     EthernetBatchBuilder,
     DummyBatchBuilder,
     BondingBatchBuilder,
+    GeneveBatchBuilder,
     FirewallGroupsBatchBuilder,
     NATBatchBuilder,
     DHCPBatchBuilder,
@@ -92,6 +93,14 @@ class VyOSService:
         The builder automatically uses correct command syntax based on version.
         """
         return DummyBatchBuilder(self.config.version)
+
+    def create_geneve_batch(self) -> GeneveBatchBuilder:
+        """
+        Create a batch builder for geneve interfaces.
+
+        The builder automatically uses correct command syntax based on version.
+        """
+        return GeneveBatchBuilder(self.config.version)
 
     def create_bonding_batch(self) -> BondingBatchBuilder:
         """
