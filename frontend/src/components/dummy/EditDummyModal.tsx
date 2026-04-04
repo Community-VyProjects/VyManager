@@ -24,6 +24,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Box, Loader2 } from "lucide-react";
 import { dummyService, type DummyInterface, type DummyCapabilities } from "@/lib/api/dummy";
+import { showService, type InterfaceName } from "@/lib/api/show";
 import { ApiError } from "@/lib/types/api";
 
 interface EditDummyModalProps {
@@ -62,12 +63,16 @@ export function EditDummyModal({
   const [mac, setMac] = useState("");
   const [netns, setNetns] = useState("");
 
+  // Available interfaces for dropdowns
+  const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceName[]>([]);
+
   // UI state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (interfaceData) {
+      showService.getAllInterfaces().then((res) => setAvailableInterfaces(res.interfaces)).catch(() => {});
       setDescription(interfaceData.description ?? "");
       setMtu(interfaceData.mtu ?? "");
       setVrf(interfaceData.vrf ?? "");
@@ -293,31 +298,40 @@ export function EditDummyModal({
             <div className="space-y-3">
               <h4 className="text-sm font-medium text-foreground">Traffic Mirroring</h4>
               <div className="space-y-2">
-                <Label htmlFor="edit-mirrorIngress">Mirror Ingress →</Label>
-                <Input
-                  id="edit-mirrorIngress"
-                  value={mirrorIngress}
-                  onChange={(e) => setMirrorIngress(e.target.value)}
-                  placeholder="Destination interface (e.g. eth0)"
-                />
+                <Label>Mirror Ingress →</Label>
+                <Select value={mirrorIngress || "none"} onValueChange={(v) => setMirrorIngress(v === "none" ? "" : v)}>
+                  <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {availableInterfaces.map((iface) => (
+                      <SelectItem key={iface.name} value={iface.name}>{iface.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-mirrorEgress">Mirror Egress →</Label>
-                <Input
-                  id="edit-mirrorEgress"
-                  value={mirrorEgress}
-                  onChange={(e) => setMirrorEgress(e.target.value)}
-                  placeholder="Destination interface (e.g. eth0)"
-                />
+                <Label>Mirror Egress →</Label>
+                <Select value={mirrorEgress || "none"} onValueChange={(v) => setMirrorEgress(v === "none" ? "" : v)}>
+                  <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {availableInterfaces.map((iface) => (
+                      <SelectItem key={iface.name} value={iface.name}>{iface.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-redirect">Redirect To</Label>
-                <Input
-                  id="edit-redirect"
-                  value={redirect}
-                  onChange={(e) => setRedirect(e.target.value)}
-                  placeholder="Destination interface (e.g. eth0)"
-                />
+                <Label>Redirect To</Label>
+                <Select value={redirect || "none"} onValueChange={(v) => setRedirect(v === "none" ? "" : v)}>
+                  <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {availableInterfaces.map((iface) => (
+                      <SelectItem key={iface.name} value={iface.name}>{iface.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
