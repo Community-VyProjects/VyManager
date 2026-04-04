@@ -16,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, RefreshCw, AlertCircle, Search, Cable, Pencil, Trash2, Network, ChevronRight, Shield, Boxes, Waypoints, Link2, GitMerge, Box, Layers } from "lucide-react";
+import { Plus, RefreshCw, AlertCircle, Search, Cable, Pencil, Trash2, Network, ChevronRight, Shield, Boxes, Waypoints, Link2, GitMerge, Box, Layers, ArrowDownToLine } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { ethernetService } from "@/lib/api/ethernet";
@@ -39,6 +39,10 @@ import { geneveService, type GeneveInterface, type GeneveCapabilities } from "@/
 import { CreateGeneveModal } from "@/components/geneve/CreateGeneveModal";
 import { EditGeneveModal } from "@/components/geneve/EditGeneveModal";
 import { DeleteGeneveModal } from "@/components/geneve/DeleteGeneveModal";
+import { inputService, type InputInterface, type InputCapabilities } from "@/lib/api/input";
+import { CreateInputModal } from "@/components/input/CreateInputModal";
+import { EditInputModal } from "@/components/input/EditInputModal";
+import { DeleteInputModal } from "@/components/input/DeleteInputModal";
 import { bridgeService, type BridgeInterface, type BridgeCapabilities } from "@/lib/api/bridge";
 import { CreateBridgeModal } from "@/components/bridge/CreateBridgeModal";
 import { EditBridgeModal } from "@/components/bridge/EditBridgeModal";
@@ -56,7 +60,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 
-type InterfaceType = "ethernet" | "vlan" | "wireguard" | "vxlan" | "tunnel" | "bonding" | "bridge" | "dummy" | "geneve";
+type InterfaceType = "ethernet" | "vlan" | "wireguard" | "vxlan" | "tunnel" | "bonding" | "bridge" | "dummy" | "geneve" | "input";
 type VlanSubTab = "vif" | "vif-s" | "vif-c";
 
 interface VLANWithParent extends VIFConfig {
@@ -137,6 +141,15 @@ export default function InterfacesPage() {
   const [editingGeneve, setEditingGeneve] = useState<GeneveInterface | null>(null);
   const [deletingGeneve, setDeletingGeneve] = useState<GeneveInterface | null>(null);
 
+  // Input state
+  const [inputInterfaces, setInputInterfaces] = useState<InputInterface[]>([]);
+  const [inputCapabilities, setInputCapabilities] = useState<InputCapabilities | null>(null);
+
+  // Input Modal states
+  const [isCreateInputModalOpen, setIsCreateInputModalOpen] = useState(false);
+  const [editingInput, setEditingInput] = useState<InputInterface | null>(null);
+  const [deletingInput, setDeletingInput] = useState<InputInterface | null>(null);
+
   // Bonding state
   const [bondingInterfaces, setBondingInterfaces] = useState<BondingInterface[]>([]);
   const [bondingCapabilities, setBondingCapabilities] = useState<BondingCapabilities | null>(null);
@@ -160,7 +173,7 @@ export default function InterfacesPage() {
   const loadData = async () => {
     try {
       setError(null);
-      const [configData, capabilitiesData, wgData, vxlanData, vxlanCapData, tunnelData, tunnelCapData, dummyData, dummyCapData, geneveData, geneveCapData, bondingData, bondingCapData, bridgeData, bridgeCapData] = await Promise.all([
+      const [configData, capabilitiesData, wgData, vxlanData, vxlanCapData, tunnelData, tunnelCapData, dummyData, dummyCapData, geneveData, geneveCapData, inputData, inputCapData, bondingData, bondingCapData, bridgeData, bridgeCapData] = await Promise.all([
         ethernetService.getConfig(),
         ethernetService.getCapabilities(),
         wireguardService.getConfig(),
@@ -172,6 +185,8 @@ export default function InterfacesPage() {
         dummyService.getCapabilities(),
         geneveService.getConfig(),
         geneveService.getCapabilities(),
+        inputService.getConfig(),
+        inputService.getCapabilities(),
         bondingService.getConfig(),
         bondingService.getCapabilities(),
         bridgeService.getConfig(),
@@ -188,6 +203,8 @@ export default function InterfacesPage() {
       setDummyCapabilities(dummyCapData);
       setGeneveInterfaces(geneveData.interfaces);
       setGeneveCapabilities(geneveCapData);
+      setInputInterfaces(inputData.interfaces);
+      setInputCapabilities(inputCapData);
       setBondingInterfaces(bondingData.interfaces);
       setBondingCapabilities(bondingCapData);
       setBridgeInterfaces(bridgeData.interfaces);
@@ -240,6 +257,7 @@ export default function InterfacesPage() {
   const totalTunnel = tunnelInterfaces.length;
   const totalDummy = dummyInterfaces.length;
   const totalGeneve = geneveInterfaces.length;
+  const totalInput = inputInterfaces.length;
   const totalBonding = bondingInterfaces.length;
   const totalBridge = bridgeInterfaces.length;
 
@@ -491,6 +509,16 @@ export default function InterfacesPage() {
     );
   });
 
+  const filteredInput = inputInterfaces.filter((iface) => {
+    if (searchQuery === "") return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      iface.name.toLowerCase().includes(q) ||
+      (iface.description || "").toLowerCase().includes(q) ||
+      (iface.redirect || "").toLowerCase().includes(q)
+    );
+  });
+
   const filteredBonding = bondingInterfaces.filter((iface) => {
     if (searchQuery === "") return true;
     const q = searchQuery.toLowerCase();
@@ -524,7 +552,7 @@ export default function InterfacesPage() {
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Interfaces</h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {totalInterfaces + totalVlans + totalWireGuard + totalVxlan + totalTunnel + totalDummy + totalGeneve + totalBonding + totalBridge} total
+                  {totalInterfaces + totalVlans + totalWireGuard + totalVxlan + totalTunnel + totalDummy + totalGeneve + totalInput + totalBonding + totalBridge} total
                 </p>
               </div>
               <Button
@@ -762,6 +790,40 @@ export default function InterfacesPage() {
                   </div>
                 </button>
 
+                {/* Input */}
+                <button
+                  onClick={() => setSelectedType("input")}
+                  className={cn(
+                    "w-full text-left rounded-lg px-3 py-3 transition-all",
+                    selectedType === "input"
+                      ? "bg-accent text-accent-foreground shadow-sm"
+                      : "hover:bg-accent/50"
+                  )}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={cn(
+                      "mt-0.5 rounded-md p-1.5",
+                      selectedType === "input" ? "bg-primary/10" : "bg-muted"
+                    )}>
+                      <ArrowDownToLine className={cn(
+                        "h-4 w-4",
+                        selectedType === "input" ? "text-primary" : "text-muted-foreground"
+                      )} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="font-medium text-sm text-foreground">Input</span>
+                        {selectedType === "input" && (
+                          <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
+                        )}
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {totalInput} {totalInput === 1 ? "interface" : "interfaces"}
+                      </span>
+                    </div>
+                  </div>
+                </button>
+
                 {/* Bonding */}
                 <button
                   onClick={() => setSelectedType("bonding")}
@@ -877,7 +939,7 @@ export default function InterfacesPage() {
             <div className="flex items-start justify-between mb-4">
               <div className="flex-1">
                 <h1 className="text-2xl font-bold text-foreground">
-                  {selectedType === "ethernet" ? "Ethernet Interfaces" : selectedType === "vlan" ? "VLANs" : selectedType === "vxlan" ? "VXLAN Interfaces" : selectedType === "tunnel" ? "Tunnel Interfaces" : selectedType === "dummy" ? "Dummy Interfaces" : selectedType === "geneve" ? "GENEVE Interfaces" : selectedType === "bonding" ? "Bonding Interfaces" : selectedType === "bridge" ? "Bridge Interfaces" : "WireGuard Interfaces"}
+                  {selectedType === "ethernet" ? "Ethernet Interfaces" : selectedType === "vlan" ? "VLANs" : selectedType === "vxlan" ? "VXLAN Interfaces" : selectedType === "tunnel" ? "Tunnel Interfaces" : selectedType === "dummy" ? "Dummy Interfaces" : selectedType === "geneve" ? "GENEVE Interfaces" : selectedType === "input" ? "Input Interfaces" : selectedType === "bonding" ? "Bonding Interfaces" : selectedType === "bridge" ? "Bridge Interfaces" : "WireGuard Interfaces"}
                 </h1>
                 <p className="text-sm text-muted-foreground mt-2">
                   {selectedType === "ethernet"
@@ -892,6 +954,8 @@ export default function InterfacesPage() {
                             ? "Software-only dummy interfaces for testing and routing"
                             : selectedType === "geneve"
                               ? "GENEVE tunnel interfaces for network virtualization encapsulation"
+                              : selectedType === "input"
+                              ? "Input Functional Block (IFB) interfaces for traffic redirection and shaping"
                               : selectedType === "bonding"
                               ? "Link aggregation (bonding) interfaces for high availability and throughput"
                               : selectedType === "bridge"
@@ -914,6 +978,8 @@ export default function InterfacesPage() {
                     setIsCreateDummyModalOpen(true);
                   } else if (selectedType === "geneve") {
                     setIsCreateGeneveModalOpen(true);
+                  } else if (selectedType === "input") {
+                    setIsCreateInputModalOpen(true);
                   } else if (selectedType === "bonding") {
                     setIsCreateBondingModalOpen(true);
                   } else if (selectedType === "bridge") {
@@ -937,6 +1003,8 @@ export default function InterfacesPage() {
                           ? "Create Dummy"
                           : selectedType === "geneve"
                             ? "Create GENEVE"
+                            : selectedType === "input"
+                            ? "Create Input"
                             : selectedType === "bonding"
                             ? "Create Bond"
                             : selectedType === "bridge"
@@ -984,6 +1052,8 @@ export default function InterfacesPage() {
                             ? "Search by name, description, address, or VRF..."
                             : selectedType === "geneve"
                               ? "Search by name, description, address, remote, or VNI..."
+                              : selectedType === "input"
+                              ? "Search by name, description, or redirect..."
                               : selectedType === "bonding"
                               ? "Search by name, description, address, mode, or member..."
                               : selectedType === "bridge"
@@ -1478,6 +1548,73 @@ export default function InterfacesPage() {
                   </p>
                 </>
               )
+            ) : selectedType === "input" ? (
+              /* Input Table */
+              filteredInput.length === 0 ? (
+                <Card className="border-border">
+                  <CardContent className="py-12">
+                    <div className="flex flex-col items-center gap-2">
+                      <ArrowDownToLine className="h-12 w-12 text-muted-foreground/30" />
+                      <p className="text-muted-foreground">
+                        {searchQuery ? "No input interfaces matching your search" : "No input interfaces configured"}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <>
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Description</TableHead>
+                          <TableHead>Redirect</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="w-[80px]"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredInput.map((ifb) => (
+                          <TableRow key={ifb.name} className="group">
+                            <TableCell><code className="font-semibold font-mono text-foreground">{ifb.name}</code></TableCell>
+                            <TableCell className="text-muted-foreground max-w-[200px] truncate">{ifb.description || "—"}</TableCell>
+                            <TableCell>
+                              {ifb.redirect ? (
+                                <code className="text-xs font-mono px-1.5 py-0.5 rounded bg-accent text-foreground">{ifb.redirect}</code>
+                              ) : <span className="text-muted-foreground">—</span>}
+                            </TableCell>
+                            <TableCell>
+                              {ifb.disable ? (
+                                <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">Disabled</Badge>
+                              ) : (
+                                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">Enabled</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                {canWrite(FeatureGroup.INTERFACES) && (
+                                  <>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingInput(ifb)}>
+                                      <Pencil className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeletingInput(ifb)}>
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <p className="text-sm text-muted-foreground text-center mt-3">
+                    Showing {filteredInput.length} of {totalInput} interface{totalInput !== 1 ? "s" : ""}
+                  </p>
+                </>
+              )
             ) : selectedType === "bonding" ? (
               /* Bonding Table */
               filteredBonding.length === 0 ? (
@@ -1946,6 +2083,33 @@ export default function InterfacesPage() {
           loadData();
         }}
         interfaceData={deletingGeneve}
+      />
+      {/* Input Modals */}
+      <CreateInputModal
+        open={isCreateInputModalOpen}
+        onOpenChange={setIsCreateInputModalOpen}
+        onSuccess={loadData}
+        capabilities={inputCapabilities}
+        existingInterfaces={inputInterfaces.map((i) => i.name)}
+      />
+      <EditInputModal
+        open={!!editingInput}
+        onOpenChange={(open) => !open && setEditingInput(null)}
+        onSuccess={() => {
+          setEditingInput(null);
+          loadData();
+        }}
+        capabilities={inputCapabilities}
+        interfaceData={editingInput}
+      />
+      <DeleteInputModal
+        open={!!deletingInput}
+        onOpenChange={(open) => !open && setDeletingInput(null)}
+        onSuccess={() => {
+          setDeletingInput(null);
+          loadData();
+        }}
+        interfaceData={deletingInput}
       />
       {/* Bonding Modals */}
       <CreateBondingModal
