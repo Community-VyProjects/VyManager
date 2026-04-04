@@ -16,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, RefreshCw, AlertCircle, Search, Cable, Pencil, Trash2, Network, ChevronRight, Shield, Boxes, Waypoints, Link2, GitMerge } from "lucide-react";
+import { Plus, RefreshCw, AlertCircle, Search, Cable, Pencil, Trash2, Network, ChevronRight, Shield, Boxes, Waypoints, Link2, GitMerge, Box } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { ethernetService } from "@/lib/api/ethernet";
@@ -31,6 +31,10 @@ import { bondingService, type BondingInterface, type BondingCapabilities } from 
 import { CreateBondingModal } from "@/components/bonding/CreateBondingModal";
 import { EditBondingModal } from "@/components/bonding/EditBondingModal";
 import { DeleteBondingModal } from "@/components/bonding/DeleteBondingModal";
+import { dummyService, type DummyInterface, type DummyCapabilities } from "@/lib/api/dummy";
+import { CreateDummyModal } from "@/components/dummy/CreateDummyModal";
+import { EditDummyModal } from "@/components/dummy/EditDummyModal";
+import { DeleteDummyModal } from "@/components/dummy/DeleteDummyModal";
 import { bridgeService, type BridgeInterface, type BridgeCapabilities } from "@/lib/api/bridge";
 import { CreateBridgeModal } from "@/components/bridge/CreateBridgeModal";
 import { EditBridgeModal } from "@/components/bridge/EditBridgeModal";
@@ -48,7 +52,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 
-type InterfaceType = "ethernet" | "vlan" | "wireguard" | "vxlan" | "tunnel" | "bonding" | "bridge";
+type InterfaceType = "ethernet" | "vlan" | "wireguard" | "vxlan" | "tunnel" | "bonding" | "bridge" | "dummy";
 type VlanSubTab = "vif" | "vif-s" | "vif-c";
 
 interface VLANWithParent extends VIFConfig {
@@ -111,6 +115,15 @@ export default function InterfacesPage() {
   const [editingTunnel, setEditingTunnel] = useState<TunnelInterface | null>(null);
   const [deletingTunnel, setDeletingTunnel] = useState<TunnelInterface | null>(null);
 
+  // Dummy state
+  const [dummyInterfaces, setDummyInterfaces] = useState<DummyInterface[]>([]);
+  const [dummyCapabilities, setDummyCapabilities] = useState<DummyCapabilities | null>(null);
+
+  // Dummy Modal states
+  const [isCreateDummyModalOpen, setIsCreateDummyModalOpen] = useState(false);
+  const [editingDummy, setEditingDummy] = useState<DummyInterface | null>(null);
+  const [deletingDummy, setDeletingDummy] = useState<DummyInterface | null>(null);
+
   // Bonding state
   const [bondingInterfaces, setBondingInterfaces] = useState<BondingInterface[]>([]);
   const [bondingCapabilities, setBondingCapabilities] = useState<BondingCapabilities | null>(null);
@@ -134,7 +147,7 @@ export default function InterfacesPage() {
   const loadData = async () => {
     try {
       setError(null);
-      const [configData, capabilitiesData, wgData, vxlanData, vxlanCapData, tunnelData, tunnelCapData, bondingData, bondingCapData, bridgeData, bridgeCapData] = await Promise.all([
+      const [configData, capabilitiesData, wgData, vxlanData, vxlanCapData, tunnelData, tunnelCapData, dummyData, dummyCapData, bondingData, bondingCapData, bridgeData, bridgeCapData] = await Promise.all([
         ethernetService.getConfig(),
         ethernetService.getCapabilities(),
         wireguardService.getConfig(),
@@ -142,6 +155,8 @@ export default function InterfacesPage() {
         vxlanService.getCapabilities(),
         tunnelService.getConfig(),
         tunnelService.getCapabilities(),
+        dummyService.getConfig(),
+        dummyService.getCapabilities(),
         bondingService.getConfig(),
         bondingService.getCapabilities(),
         bridgeService.getConfig(),
@@ -154,6 +169,8 @@ export default function InterfacesPage() {
       setVxlanCapabilities(vxlanCapData);
       setTunnelInterfaces(tunnelData.interfaces);
       setTunnelCapabilities(tunnelCapData);
+      setDummyInterfaces(dummyData.interfaces);
+      setDummyCapabilities(dummyCapData);
       setBondingInterfaces(bondingData.interfaces);
       setBondingCapabilities(bondingCapData);
       setBridgeInterfaces(bridgeData.interfaces);
@@ -204,6 +221,7 @@ export default function InterfacesPage() {
   const totalWireGuard = wireGuardInterfaces.length;
   const totalVxlan = vxlanInterfaces.length;
   const totalTunnel = tunnelInterfaces.length;
+  const totalDummy = dummyInterfaces.length;
   const totalBonding = bondingInterfaces.length;
   const totalBridge = bridgeInterfaces.length;
 
@@ -432,6 +450,17 @@ export default function InterfacesPage() {
     );
   });
 
+  const filteredDummy = dummyInterfaces.filter((iface) => {
+    if (searchQuery === "") return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      iface.name.toLowerCase().includes(q) ||
+      (iface.description || "").toLowerCase().includes(q) ||
+      iface.addresses?.some((addr) => addr.toLowerCase().includes(q)) ||
+      (iface.vrf || "").toLowerCase().includes(q)
+    );
+  });
+
   const filteredBonding = bondingInterfaces.filter((iface) => {
     if (searchQuery === "") return true;
     const q = searchQuery.toLowerCase();
@@ -465,7 +494,7 @@ export default function InterfacesPage() {
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Interfaces</h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {totalInterfaces + totalVlans + totalWireGuard + totalVxlan + totalTunnel + totalBonding + totalBridge} total
+                  {totalInterfaces + totalVlans + totalWireGuard + totalVxlan + totalTunnel + totalDummy + totalBonding + totalBridge} total
                 </p>
               </div>
               <Button
@@ -635,6 +664,40 @@ export default function InterfacesPage() {
                   </div>
                 </button>
 
+                {/* Dummy */}
+                <button
+                  onClick={() => setSelectedType("dummy")}
+                  className={cn(
+                    "w-full text-left rounded-lg px-3 py-3 transition-all",
+                    selectedType === "dummy"
+                      ? "bg-accent text-accent-foreground shadow-sm"
+                      : "hover:bg-accent/50"
+                  )}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={cn(
+                      "mt-0.5 rounded-md p-1.5",
+                      selectedType === "dummy" ? "bg-primary/10" : "bg-muted"
+                    )}>
+                      <Box className={cn(
+                        "h-4 w-4",
+                        selectedType === "dummy" ? "text-primary" : "text-muted-foreground"
+                      )} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="font-medium text-sm text-foreground">Dummy</span>
+                        {selectedType === "dummy" && (
+                          <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
+                        )}
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {totalDummy} {totalDummy === 1 ? "interface" : "interfaces"}
+                      </span>
+                    </div>
+                  </div>
+                </button>
+
                 {/* Bonding */}
                 <button
                   onClick={() => setSelectedType("bonding")}
@@ -750,7 +813,7 @@ export default function InterfacesPage() {
             <div className="flex items-start justify-between mb-4">
               <div className="flex-1">
                 <h1 className="text-2xl font-bold text-foreground">
-                  {selectedType === "ethernet" ? "Ethernet Interfaces" : selectedType === "vlan" ? "VLANs" : selectedType === "vxlan" ? "VXLAN Interfaces" : selectedType === "tunnel" ? "Tunnel Interfaces" : selectedType === "bonding" ? "Bonding Interfaces" : selectedType === "bridge" ? "Bridge Interfaces" : "WireGuard Interfaces"}
+                  {selectedType === "ethernet" ? "Ethernet Interfaces" : selectedType === "vlan" ? "VLANs" : selectedType === "vxlan" ? "VXLAN Interfaces" : selectedType === "tunnel" ? "Tunnel Interfaces" : selectedType === "dummy" ? "Dummy Interfaces" : selectedType === "bonding" ? "Bonding Interfaces" : selectedType === "bridge" ? "Bridge Interfaces" : "WireGuard Interfaces"}
                 </h1>
                 <p className="text-sm text-muted-foreground mt-2">
                   {selectedType === "ethernet"
@@ -761,11 +824,13 @@ export default function InterfacesPage() {
                         ? "VXLAN tunnel interfaces for overlay networking"
                         : selectedType === "tunnel"
                           ? "GRE, IPIP, SIT, ERSPAN and other tunnel interfaces"
-                          : selectedType === "bonding"
-                            ? "Link aggregation (bonding) interfaces for high availability and throughput"
-                            : selectedType === "bridge"
-                              ? "Bridge interfaces for layer-2 network bridging"
-                              : "WireGuard tunnel interfaces and status"}
+                          : selectedType === "dummy"
+                            ? "Software-only dummy interfaces for testing and routing"
+                            : selectedType === "bonding"
+                              ? "Link aggregation (bonding) interfaces for high availability and throughput"
+                              : selectedType === "bridge"
+                                ? "Bridge interfaces for layer-2 network bridging"
+                                : "WireGuard tunnel interfaces and status"}
                 </p>
               </div>
               <Button
@@ -779,6 +844,8 @@ export default function InterfacesPage() {
                     setIsCreateVxlanModalOpen(true);
                   } else if (selectedType === "tunnel") {
                     setIsCreateTunnelModalOpen(true);
+                  } else if (selectedType === "dummy") {
+                    setIsCreateDummyModalOpen(true);
                   } else if (selectedType === "bonding") {
                     setIsCreateBondingModalOpen(true);
                   } else if (selectedType === "bridge") {
@@ -798,11 +865,13 @@ export default function InterfacesPage() {
                       ? "Create VXLAN"
                       : selectedType === "tunnel"
                         ? "Create Tunnel"
-                        : selectedType === "bonding"
-                          ? "Create Bond"
-                          : selectedType === "bridge"
-                            ? "Create Bridge"
-                            : "Manage WireGuard"}
+                        : selectedType === "dummy"
+                          ? "Create Dummy"
+                          : selectedType === "bonding"
+                            ? "Create Bond"
+                            : selectedType === "bridge"
+                              ? "Create Bridge"
+                              : "Manage WireGuard"}
               </Button>
             </div>
 
@@ -841,11 +910,13 @@ export default function InterfacesPage() {
                         ? "Search by name, description, address, or VNI..."
                         : selectedType === "tunnel"
                           ? "Search by name, description, address, encapsulation, or remote..."
-                          : selectedType === "bonding"
-                            ? "Search by name, description, address, mode, or member..."
-                            : selectedType === "bridge"
-                              ? "Search by name, description, address, or member..."
-                              : "Search by name, description, address..."
+                          : selectedType === "dummy"
+                            ? "Search by name, description, address, or VRF..."
+                            : selectedType === "bonding"
+                              ? "Search by name, description, address, mode, or member..."
+                              : selectedType === "bridge"
+                                ? "Search by name, description, address, or member..."
+                                : "Search by name, description, address..."
                 }
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -1178,6 +1249,86 @@ export default function InterfacesPage() {
                   </div>
                   <p className="text-sm text-muted-foreground text-center mt-3">
                     Showing {filteredTunnel.length} of {totalTunnel} interface{totalTunnel !== 1 ? "s" : ""}
+                  </p>
+                </>
+              )
+            ) : selectedType === "dummy" ? (
+              /* Dummy Table */
+              filteredDummy.length === 0 ? (
+                <Card className="border-border">
+                  <CardContent className="py-12">
+                    <div className="flex flex-col items-center gap-2">
+                      <Box className="h-12 w-12 text-muted-foreground/30" />
+                      <p className="text-muted-foreground">
+                        {searchQuery ? "No dummy interfaces matching your search" : "No dummy interfaces configured"}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <>
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Description</TableHead>
+                          <TableHead>Addresses</TableHead>
+                          <TableHead>MTU</TableHead>
+                          <TableHead>VRF</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="w-[80px]"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredDummy.map((dum) => (
+                          <TableRow key={dum.name} className="group">
+                            <TableCell><code className="font-semibold font-mono text-foreground">{dum.name}</code></TableCell>
+                            <TableCell className="text-muted-foreground max-w-[180px] truncate">{dum.description || "—"}</TableCell>
+                            <TableCell>
+                              {dum.addresses?.length ? (
+                                <div className="flex flex-wrap gap-1">
+                                  {dum.addresses.slice(0, 2).map((addr, idx) => <code key={idx} className="text-xs font-mono px-1.5 py-0.5 rounded bg-accent text-foreground">{addr}</code>)}
+                                  {dum.addresses.length > 2 && <Badge variant="secondary" className="text-xs px-1.5 py-0">+{dum.addresses.length - 2}</Badge>}
+                                </div>
+                              ) : <span className="text-muted-foreground">—</span>}
+                            </TableCell>
+                            <TableCell className="text-sm">{dum.mtu || "—"}</TableCell>
+                            <TableCell>
+                              {dum.vrf ? (
+                                <Badge variant="outline" className="bg-purple-500/10 text-purple-500 border-purple-500/20 text-xs">
+                                  {dum.vrf}
+                                </Badge>
+                              ) : <span className="text-muted-foreground">—</span>}
+                            </TableCell>
+                            <TableCell>
+                              {dum.disable ? (
+                                <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">Disabled</Badge>
+                              ) : (
+                                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">Enabled</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                {canWrite(FeatureGroup.INTERFACES) && (
+                                  <>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingDummy(dum)}>
+                                      <Pencil className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeletingDummy(dum)}>
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <p className="text-sm text-muted-foreground text-center mt-3">
+                    Showing {filteredDummy.length} of {totalDummy} interface{totalDummy !== 1 ? "s" : ""}
                   </p>
                 </>
               )
@@ -1595,6 +1746,33 @@ export default function InterfacesPage() {
           loadData();
         }}
         interfaceData={deletingTunnel}
+      />
+      {/* Dummy Modals */}
+      <CreateDummyModal
+        open={isCreateDummyModalOpen}
+        onOpenChange={setIsCreateDummyModalOpen}
+        onSuccess={loadData}
+        capabilities={dummyCapabilities}
+        existingInterfaces={dummyInterfaces.map((i) => i.name)}
+      />
+      <EditDummyModal
+        open={!!editingDummy}
+        onOpenChange={(open) => !open && setEditingDummy(null)}
+        onSuccess={() => {
+          setEditingDummy(null);
+          loadData();
+        }}
+        capabilities={dummyCapabilities}
+        interfaceData={editingDummy}
+      />
+      <DeleteDummyModal
+        open={!!deletingDummy}
+        onOpenChange={(open) => !open && setDeletingDummy(null)}
+        onSuccess={() => {
+          setDeletingDummy(null);
+          loadData();
+        }}
+        interfaceData={deletingDummy}
       />
       {/* Bonding Modals */}
       <CreateBondingModal
