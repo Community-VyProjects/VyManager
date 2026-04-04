@@ -5,7 +5,7 @@ Self-contained batch builders for different features.
 Each builder includes all necessary operations for its feature type.
 """
 
-from .interfaces import EthernetInterfaceBuilderMixin, DummyInterfaceBuilderMixin, BondingInterfaceBuilderMixin, GeneveInterfaceBuilderMixin
+from .interfaces import EthernetInterfaceBuilderMixin, DummyInterfaceBuilderMixin, BondingInterfaceBuilderMixin, GeneveInterfaceBuilderMixin, InputInterfaceBuilderMixin
 from .firewall import FirewallGroupsBatchBuilder, FirewallIPv4BatchBuilder, FirewallIPv6BatchBuilder, BridgeFirewallBatchBuilder, FirewallZonesBatchBuilder
 from .nat import NATBatchBuilder
 from .nat64 import NAT64BatchBuilder
@@ -43,6 +43,7 @@ EthernetBatchBuilder = EthernetInterfaceBuilderMixin
 DummyBatchBuilder = DummyInterfaceBuilderMixin
 BondingBatchBuilder = BondingInterfaceBuilderMixin
 GeneveBatchBuilder = GeneveInterfaceBuilderMixin
+InputBatchBuilder = InputInterfaceBuilderMixin
 
 __all__ = [
     "EthernetBatchBuilder",
@@ -85,4 +86,5 @@ __all__ = [
     "TunnelBatchBuilder",
     "BondingBatchBuilder",
     "GeneveBatchBuilder",
+    "InputBatchBuilder",
 ]

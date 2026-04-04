@@ -9,6 +9,7 @@ from .dummy import DummyInterfaceMapper
 from .bonding import BondingInterfaceMapper
 from .bridge import BridgeInterfaceMapper
 from .geneve import GeneveInterfaceMapper
+from .input import InputInterfaceMapper
 
 __all__ = [
     "EthernetInterfaceMapper",
@@ -16,4 +17,5 @@ __all__ = [
     "BondingInterfaceMapper",
     "BridgeInterfaceMapper",
     "GeneveInterfaceMapper",
+    "InputInterfaceMapper",
 ]

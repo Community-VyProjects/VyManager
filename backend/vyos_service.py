@@ -19,6 +19,7 @@ from vyos_builders import (
     DummyBatchBuilder,
     BondingBatchBuilder,
     GeneveBatchBuilder,
+    InputBatchBuilder,
     FirewallGroupsBatchBuilder,
     NATBatchBuilder,
     DHCPBatchBuilder,
@@ -94,6 +95,14 @@ class VyOSService:
         """
         return DummyBatchBuilder(self.config.version)
 
+    def create_input_batch(self) -> InputBatchBuilder:
+        """
+        Create a batch builder for input (IFB) interfaces.
+
+        The builder automatically uses correct command syntax based on version.
+        """
+        return InputBatchBuilder(self.config.version)
+
     def create_geneve_batch(self) -> GeneveBatchBuilder:
         """
         Create a batch builder for geneve interfaces.
@@ -138,6 +147,7 @@ class VyOSService:
         batch: Union[
             EthernetBatchBuilder,
             DummyBatchBuilder,
+            InputBatchBuilder,
             FirewallGroupsBatchBuilder,
             NATBatchBuilder,
             DHCPBatchBuilder,
