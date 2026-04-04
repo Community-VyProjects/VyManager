@@ -9,6 +9,7 @@ from .dummy import DummyInterfaceBuilderMixin
 from .bonding import BondingInterfaceBuilderMixin
 from .bridge import BridgeInterfaceBuilderMixin
 from .geneve import GeneveInterfaceBuilderMixin
+from .input import InputInterfaceBuilderMixin
 
 __all__ = [
     "EthernetInterfaceBuilderMixin",
@@ -16,4 +17,5 @@ __all__ = [
     "BondingInterfaceBuilderMixin",
     "BridgeInterfaceBuilderMixin",
     "GeneveInterfaceBuilderMixin",
+    "InputInterfaceBuilderMixin",
 ]
