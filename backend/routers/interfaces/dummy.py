@@ -200,7 +200,7 @@ async def batch_configure(http_request: Request, request: BatchRequest) -> VyOSR
         response = service.execute_batch(batch)
         return VyOSResponse(
             success=response.status == 200,
-            data=response.result,
+            data=response.result if isinstance(response.result, dict) else None,
             error=response.error if response.error else None,
         )
     except HTTPException:
