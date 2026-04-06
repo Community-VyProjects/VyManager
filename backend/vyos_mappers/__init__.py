@@ -6,13 +6,14 @@ This keeps the codebase organized and maintainable as it grows.
 """
 
 from .base import BaseFeatureMapper, CommandMapperRegistry
-from .interfaces import EthernetInterfaceMapper, DummyInterfaceMapper, BondingInterfaceMapper, BridgeInterfaceMapper, GeneveInterfaceMapper, InputInterfaceMapper
+from .interfaces import EthernetInterfaceMapper, DummyInterfaceMapper, BondingInterfaceMapper, BridgeInterfaceMapper, GeneveInterfaceMapper, InputInterfaceMapper, L2TPv3InterfaceMapper
 from .interfaces.ethernet_versions import get_ethernet_mapper
 from .interfaces.dummy_versions import get_dummy_mapper
 from .interfaces.bonding_versions import get_bonding_mapper
 from .interfaces.bridge_versions import get_bridge_mapper
 from .interfaces.geneve_versions import get_geneve_mapper
 from .interfaces.input_versions import get_input_mapper
+from .interfaces.l2tpv3_versions import get_l2tpv3_mapper
 from .firewall import FirewallGroupsMapper, FirewallIPv4Mapper, FirewallIPv6Mapper, BridgeFirewallMapper, FlowtablesMapper, FirewallZonesMapper
 from .firewall.groups_versions import get_firewall_groups_mapper
 from .firewall.ipv4_versions import get_firewall_ipv4_mapper
@@ -101,6 +102,8 @@ CommandMapperRegistry.register_feature("interface_bridge", get_bridge_mapper)
 CommandMapperRegistry.register_feature("interface_geneve", get_geneve_mapper)
 # Input (IFB) uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("interface_input", get_input_mapper)
+# L2TPv3 uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("interface_l2tpv3", get_l2tpv3_mapper)
 # Firewall groups uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("firewall_groups", get_firewall_groups_mapper)
 # Firewall IPv4 uses factory for version-specific mappers
@@ -251,4 +254,5 @@ __all__ = [
     "BridgeInterfaceMapper",
     "GeneveInterfaceMapper",
     "InputInterfaceMapper",
+    "L2TPv3InterfaceMapper",
 ]

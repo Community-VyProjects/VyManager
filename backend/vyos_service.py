@@ -20,6 +20,7 @@ from vyos_builders import (
     BondingBatchBuilder,
     GeneveBatchBuilder,
     InputBatchBuilder,
+    L2TPv3BatchBuilder,
     FirewallGroupsBatchBuilder,
     NATBatchBuilder,
     DHCPBatchBuilder,
@@ -110,6 +111,14 @@ class VyOSService:
         The builder automatically uses correct command syntax based on version.
         """
         return GeneveBatchBuilder(self.config.version)
+
+    def create_l2tpv3_batch(self) -> L2TPv3BatchBuilder:
+        """
+        Create a batch builder for L2TPv3 interfaces.
+
+        The builder automatically uses correct command syntax based on version.
+        """
+        return L2TPv3BatchBuilder(self.config.version)
 
     def create_bonding_batch(self) -> BondingBatchBuilder:
         """
