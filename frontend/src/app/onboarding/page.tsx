@@ -513,7 +513,7 @@ export default function OnboardingPage() {
                       id="host"
                       value={instanceData.host}
                       onChange={(e) => setInstanceData({ ...instanceData, host: e.target.value })}
-                      placeholder="192.168.1.1"
+                      placeholder="192.168.1.1, 2001:db8::1, or vyos.example.com"
                       required
                     />
                   </div>

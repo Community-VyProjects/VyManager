@@ -291,12 +291,12 @@ export function CreateInstanceModal({
                   id="host"
                   value={host}
                   onChange={(e) => setHost(e.target.value)}
-                  placeholder="192.168.1.1 or vyos.example.com"
+                  placeholder="192.168.1.1, 2001:db8::1, or vyos.example.com"
                   disabled={loading}
                   required
                 />
                 <p className="text-xs text-muted-foreground">
-                  IP address or hostname of the VyOS device
+                  IP address (IPv4 or IPv6) or hostname of the VyOS device
                 </p>
               </div>
 

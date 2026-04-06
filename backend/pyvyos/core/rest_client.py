@@ -6,6 +6,7 @@ import warnings
 from abc import ABC
 from dataclasses import dataclass
 from typing import Tuple, List, Union, Dict, Any, Optional
+import ipaddress
 
 import requests
 import urllib3
@@ -72,12 +73,25 @@ class RestClient(ABC):
             timeout: Request timeout in seconds
         """
         super().__init__()
-        self.hostname = hostname
+        self.hostname = self._format_hostname(hostname)
         self.apikey = apikey
         self.protocol = protocol
         self.port = port
         self.verify = verify
         self.timeout = timeout
+
+    def _format_hostname(self, hostname: str) -> str:
+        """
+        Format hostname for URL construction.
+        Wrap IPv6 addresses in brackets.
+        """
+        try:
+            # Try to parse as IPv6 address
+            ipaddress.IPv6Address(hostname)
+            return f"[{hostname}]"
+        except ipaddress.AddressValueError:
+            # Not a valid IPv6 address, return as is
+            return hostname
 
     def _get_url(self, command):
         """
