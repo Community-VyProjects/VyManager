@@ -43,6 +43,10 @@ import { inputService, type InputInterface, type InputCapabilities } from "@/lib
 import { CreateInputModal } from "@/components/input/CreateInputModal";
 import { EditInputModal } from "@/components/input/EditInputModal";
 import { DeleteInputModal } from "@/components/input/DeleteInputModal";
+import { l2tpv3Service, type L2TPv3Interface, type L2TPv3Capabilities } from "@/lib/api/l2tpv3";
+import { CreateL2TPv3Modal } from "@/components/l2tpv3/CreateL2TPv3Modal";
+import { EditL2TPv3Modal } from "@/components/l2tpv3/EditL2TPv3Modal";
+import { DeleteL2TPv3Modal } from "@/components/l2tpv3/DeleteL2TPv3Modal";
 import { bridgeService, type BridgeInterface, type BridgeCapabilities } from "@/lib/api/bridge";
 import { CreateBridgeModal } from "@/components/bridge/CreateBridgeModal";
 import { EditBridgeModal } from "@/components/bridge/EditBridgeModal";
@@ -60,7 +64,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 
-type InterfaceType = "ethernet" | "vlan" | "wireguard" | "vxlan" | "tunnel" | "bonding" | "bridge" | "dummy" | "geneve" | "input";
+type InterfaceType = "ethernet" | "vlan" | "wireguard" | "vxlan" | "tunnel" | "bonding" | "bridge" | "dummy" | "geneve" | "input" | "l2tpv3";
 type VlanSubTab = "vif" | "vif-s" | "vif-c";
 
 interface VLANWithParent extends VIFConfig {
@@ -150,6 +154,15 @@ export default function InterfacesPage() {
   const [editingInput, setEditingInput] = useState<InputInterface | null>(null);
   const [deletingInput, setDeletingInput] = useState<InputInterface | null>(null);
 
+  // L2TPv3 state
+  const [l2tpv3Interfaces, setL2tpv3Interfaces] = useState<L2TPv3Interface[]>([]);
+  const [l2tpv3Capabilities, setL2tpv3Capabilities] = useState<L2TPv3Capabilities | null>(null);
+
+  // L2TPv3 Modal states
+  const [editingL2tpv3, setEditingL2tpv3] = useState<L2TPv3Interface | null>(null);
+  const [deletingL2tpv3, setDeletingL2tpv3] = useState<L2TPv3Interface | null>(null);
+  const [isCreateL2tpv3ModalOpen, setIsCreateL2tpv3ModalOpen] = useState(false);
+
   // Bonding state
   const [bondingInterfaces, setBondingInterfaces] = useState<BondingInterface[]>([]);
   const [bondingCapabilities, setBondingCapabilities] = useState<BondingCapabilities | null>(null);
@@ -173,7 +186,7 @@ export default function InterfacesPage() {
   const loadData = async () => {
     try {
       setError(null);
-      const [configData, capabilitiesData, wgData, vxlanData, vxlanCapData, tunnelData, tunnelCapData, dummyData, dummyCapData, geneveData, geneveCapData, inputData, inputCapData, bondingData, bondingCapData, bridgeData, bridgeCapData] = await Promise.all([
+      const [configData, capabilitiesData, wgData, vxlanData, vxlanCapData, tunnelData, tunnelCapData, dummyData, dummyCapData, geneveData, geneveCapData, inputData, inputCapData, l2tpv3Data, l2tpv3CapData, bondingData, bondingCapData, bridgeData, bridgeCapData] = await Promise.all([
         ethernetService.getConfig(),
         ethernetService.getCapabilities(),
         wireguardService.getConfig(),
@@ -187,6 +200,8 @@ export default function InterfacesPage() {
         geneveService.getCapabilities(),
         inputService.getConfig(),
         inputService.getCapabilities(),
+        l2tpv3Service.getConfig(),
+        l2tpv3Service.getCapabilities(),
         bondingService.getConfig(),
         bondingService.getCapabilities(),
         bridgeService.getConfig(),
@@ -205,6 +220,8 @@ export default function InterfacesPage() {
       setGeneveCapabilities(geneveCapData);
       setInputInterfaces(inputData.interfaces);
       setInputCapabilities(inputCapData);
+      setL2tpv3Interfaces(l2tpv3Data.interfaces);
+      setL2tpv3Capabilities(l2tpv3CapData);
       setBondingInterfaces(bondingData.interfaces);
       setBondingCapabilities(bondingCapData);
       setBridgeInterfaces(bridgeData.interfaces);
@@ -258,6 +275,7 @@ export default function InterfacesPage() {
   const totalDummy = dummyInterfaces.length;
   const totalGeneve = geneveInterfaces.length;
   const totalInput = inputInterfaces.length;
+  const totalL2tpv3 = l2tpv3Interfaces.length;
   const totalBonding = bondingInterfaces.length;
   const totalBridge = bridgeInterfaces.length;
 
@@ -519,6 +537,17 @@ export default function InterfacesPage() {
     );
   });
 
+  const filteredL2tpv3 = l2tpv3Interfaces.filter((iface) => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      iface.name.toLowerCase().includes(q) ||
+      (iface.description?.toLowerCase().includes(q) ?? false) ||
+      (iface.remote?.toLowerCase().includes(q) ?? false) ||
+      iface.addresses.some((a) => a.toLowerCase().includes(q))
+    );
+  });
+
   const filteredBonding = bondingInterfaces.filter((iface) => {
     if (searchQuery === "") return true;
     const q = searchQuery.toLowerCase();
@@ -544,9 +573,9 @@ export default function InterfacesPage() {
 
   return (
     <AppLayout>
-      <div className="flex h-full">
+      <div className="flex h-full overflow-hidden">
         {/* Left Sidebar - Interface Type Selector */}
-        <div className="w-80 border-r border-border bg-card flex flex-col h-full">
+        <div className="w-80 border-r border-border bg-card flex flex-col h-full min-h-0">
           <div className="p-6 pb-4">
             <div className="flex items-center justify-between mb-4">
               <div>
@@ -570,7 +599,7 @@ export default function InterfacesPage() {
           <Separator />
 
           {/* Interface Type List */}
-          <ScrollArea className="flex-1 px-3">
+          <ScrollArea className="flex-1 min-h-0 overflow-hidden px-3">
             {loading ? (
               <div className="flex items-center justify-center py-12">
                 <LoadingSpinner message="" size="sm" />
@@ -824,6 +853,40 @@ export default function InterfacesPage() {
                   </div>
                 </button>
 
+                {/* L2TPv3 */}
+                <button
+                  onClick={() => setSelectedType("l2tpv3")}
+                  className={cn(
+                    "w-full text-left rounded-lg px-3 py-3 transition-all",
+                    selectedType === "l2tpv3"
+                      ? "bg-accent text-accent-foreground shadow-sm"
+                      : "hover:bg-accent/50"
+                  )}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={cn(
+                      "mt-0.5 rounded-md p-1.5",
+                      selectedType === "l2tpv3" ? "bg-primary/10" : "bg-muted"
+                    )}>
+                      <Cable className={cn(
+                        "h-4 w-4",
+                        selectedType === "l2tpv3" ? "text-primary" : "text-muted-foreground"
+                      )} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="font-medium text-sm text-foreground">L2TPv3</span>
+                        {selectedType === "l2tpv3" && (
+                          <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
+                        )}
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {totalL2tpv3} {totalL2tpv3 === 1 ? "interface" : "interfaces"}
+                      </span>
+                    </div>
+                  </div>
+                </button>
+
                 {/* Bonding */}
                 <button
                   onClick={() => setSelectedType("bonding")}
@@ -939,7 +1002,7 @@ export default function InterfacesPage() {
             <div className="flex items-start justify-between mb-4">
               <div className="flex-1">
                 <h1 className="text-2xl font-bold text-foreground">
-                  {selectedType === "ethernet" ? "Ethernet Interfaces" : selectedType === "vlan" ? "VLANs" : selectedType === "vxlan" ? "VXLAN Interfaces" : selectedType === "tunnel" ? "Tunnel Interfaces" : selectedType === "dummy" ? "Dummy Interfaces" : selectedType === "geneve" ? "GENEVE Interfaces" : selectedType === "input" ? "Input Interfaces" : selectedType === "bonding" ? "Bonding Interfaces" : selectedType === "bridge" ? "Bridge Interfaces" : "WireGuard Interfaces"}
+                  {selectedType === "ethernet" ? "Ethernet Interfaces" : selectedType === "vlan" ? "VLANs" : selectedType === "vxlan" ? "VXLAN Interfaces" : selectedType === "tunnel" ? "Tunnel Interfaces" : selectedType === "l2tpv3" ? "L2TPv3 Interfaces" : selectedType === "dummy" ? "Dummy Interfaces" : selectedType === "geneve" ? "GENEVE Interfaces" : selectedType === "input" ? "Input Interfaces" : selectedType === "bonding" ? "Bonding Interfaces" : selectedType === "bridge" ? "Bridge Interfaces" : "WireGuard Interfaces"}
                 </h1>
                 <p className="text-sm text-muted-foreground mt-2">
                   {selectedType === "ethernet"
@@ -950,8 +1013,10 @@ export default function InterfacesPage() {
                         ? "VXLAN tunnel interfaces for overlay networking"
                         : selectedType === "tunnel"
                           ? "GRE, IPIP, SIT, ERSPAN and other tunnel interfaces"
-                          : selectedType === "dummy"
-                            ? "Software-only dummy interfaces for testing and routing"
+                          : selectedType === "l2tpv3"
+                            ? "Layer 2 Tunnel Protocol Version 3 tunnel interfaces"
+                            : selectedType === "dummy"
+                              ? "Software-only dummy interfaces for testing and routing"
                             : selectedType === "geneve"
                               ? "GENEVE tunnel interfaces for network virtualization encapsulation"
                               : selectedType === "input"
@@ -980,6 +1045,8 @@ export default function InterfacesPage() {
                     setIsCreateGeneveModalOpen(true);
                   } else if (selectedType === "input") {
                     setIsCreateInputModalOpen(true);
+                  } else if (selectedType === "l2tpv3") {
+                    setIsCreateL2tpv3ModalOpen(true);
                   } else if (selectedType === "bonding") {
                     setIsCreateBondingModalOpen(true);
                   } else if (selectedType === "bridge") {
@@ -1005,6 +1072,8 @@ export default function InterfacesPage() {
                             ? "Create GENEVE"
                             : selectedType === "input"
                             ? "Create Input"
+                            : selectedType === "l2tpv3"
+                            ? "Create L2TPv3"
                             : selectedType === "bonding"
                             ? "Create Bond"
                             : selectedType === "bridge"
@@ -1054,6 +1123,8 @@ export default function InterfacesPage() {
                               ? "Search by name, description, address, remote, or VNI..."
                               : selectedType === "input"
                               ? "Search by name, description, or redirect..."
+                              : selectedType === "l2tpv3"
+                              ? "Search by name, description, remote, or address..."
                               : selectedType === "bonding"
                               ? "Search by name, description, address, mode, or member..."
                               : selectedType === "bridge"
@@ -1545,6 +1616,77 @@ export default function InterfacesPage() {
                   </div>
                   <p className="text-sm text-muted-foreground text-center mt-3">
                     Showing {filteredGeneve.length} of {totalGeneve} interface{totalGeneve !== 1 ? "s" : ""}
+                  </p>
+                </>
+              )
+            ) : selectedType === "l2tpv3" ? (
+              /* L2TPv3 Table */
+              filteredL2tpv3.length === 0 ? (
+                <Card className="border-border">
+                  <CardContent className="py-12">
+                    <div className="flex flex-col items-center gap-2">
+                      <Cable className="h-12 w-12 text-muted-foreground/30" />
+                      <p className="text-muted-foreground">
+                        {searchQuery ? "No L2TPv3 interfaces matching your search" : "No L2TPv3 interfaces configured"}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <>
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Remote</TableHead>
+                          <TableHead>Tunnel ID</TableHead>
+                          <TableHead>Session ID</TableHead>
+                          <TableHead>Encapsulation</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="w-[80px]"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredL2tpv3.map((iface) => (
+                          <TableRow key={iface.name} className="group">
+                            <TableCell><code className="font-semibold font-mono text-foreground">{iface.name}</code></TableCell>
+                            <TableCell className="text-muted-foreground">{iface.remote || "—"}</TableCell>
+                            <TableCell className="text-muted-foreground">{iface.tunnel_id || "—"}</TableCell>
+                            <TableCell className="text-muted-foreground">{iface.session_id || "—"}</TableCell>
+                            <TableCell>
+                              {iface.encapsulation ? (
+                                <code className="text-xs font-mono px-1.5 py-0.5 rounded bg-accent text-foreground">{iface.encapsulation}</code>
+                              ) : <span className="text-muted-foreground">udp</span>}
+                            </TableCell>
+                            <TableCell>
+                              {iface.disable ? (
+                                <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">Disabled</Badge>
+                              ) : (
+                                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">Enabled</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                {canWrite(FeatureGroup.INTERFACES) && (
+                                  <>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingL2tpv3(iface)}>
+                                      <Pencil className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeletingL2tpv3(iface)}>
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <p className="text-sm text-muted-foreground text-center mt-3">
+                    Showing {filteredL2tpv3.length} of {totalL2tpv3} interface{totalL2tpv3 !== 1 ? "s" : ""}
                   </p>
                 </>
               )
@@ -2110,6 +2252,33 @@ export default function InterfacesPage() {
           loadData();
         }}
         interfaceData={deletingInput}
+      />
+      {/* L2TPv3 Modals */}
+      <CreateL2TPv3Modal
+        open={isCreateL2tpv3ModalOpen}
+        onOpenChange={setIsCreateL2tpv3ModalOpen}
+        onSuccess={loadData}
+        capabilities={l2tpv3Capabilities}
+        existingInterfaces={l2tpv3Interfaces.map((i) => i.name)}
+      />
+      <EditL2TPv3Modal
+        open={!!editingL2tpv3}
+        onOpenChange={(open) => !open && setEditingL2tpv3(null)}
+        onSuccess={() => {
+          setEditingL2tpv3(null);
+          loadData();
+        }}
+        capabilities={l2tpv3Capabilities}
+        interfaceData={editingL2tpv3}
+      />
+      <DeleteL2TPv3Modal
+        open={!!deletingL2tpv3}
+        onOpenChange={(open) => !open && setDeletingL2tpv3(null)}
+        onSuccess={() => {
+          setDeletingL2tpv3(null);
+          loadData();
+        }}
+        interfaceData={deletingL2tpv3}
       />
       {/* Bonding Modals */}
       <CreateBondingModal
