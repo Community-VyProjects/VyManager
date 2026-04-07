@@ -78,6 +78,92 @@ class FirewallRulePacketMods(BaseModel):
     ttl: Optional[str] = None
 
 
+class FirewallRuleConnectionStatus(BaseModel):
+    """Connection status configuration."""
+    nat: Optional[str] = None  # destination, source
+
+
+class FirewallRuleFragment(BaseModel):
+    """Fragment matching configuration."""
+    match_frag: Optional[bool] = None
+    match_non_frag: Optional[bool] = None
+
+
+class FirewallRuleIPsec(BaseModel):
+    """IPsec matching configuration."""
+    # VyOS 1.4
+    match_ipsec: Optional[bool] = None
+    match_none: Optional[bool] = None
+    # VyOS 1.5
+    match_ipsec_in: Optional[bool] = None
+    match_ipsec_out: Optional[bool] = None
+    match_none_in: Optional[bool] = None
+    match_none_out: Optional[bool] = None
+
+
+class FirewallRuleLimit(BaseModel):
+    """Rate limit configuration."""
+    rate: Optional[str] = None
+    burst: Optional[str] = None
+
+
+class FirewallRuleLogOptions(BaseModel):
+    """Log options configuration."""
+    group: Optional[str] = None
+    level: Optional[str] = None
+    queue_threshold: Optional[str] = None
+    snapshot_length: Optional[str] = None
+
+
+class FirewallRuleRecent(BaseModel):
+    """Recent matching configuration."""
+    count: Optional[str] = None
+    time: Optional[str] = None
+
+
+class FirewallRuleTime(BaseModel):
+    """Time-based matching configuration."""
+    startdate: Optional[str] = None
+    starttime: Optional[str] = None
+    stopdate: Optional[str] = None
+    stoptime: Optional[str] = None
+    weekdays: Optional[str] = None
+
+
+class FirewallRuleTTLMatch(BaseModel):
+    """TTL matching configuration."""
+    eq: Optional[str] = None
+    gt: Optional[str] = None
+    lt: Optional[str] = None
+
+
+class FirewallRuleGRE(BaseModel):
+    """GRE matching configuration (VyOS 1.5 only)."""
+    key: Optional[str] = None
+    version: Optional[str] = None
+    inner_proto: Optional[str] = None
+    flags_checksum: Optional[bool] = None
+    flags_checksum_unset: Optional[bool] = None
+    flags_key: Optional[bool] = None
+    flags_key_unset: Optional[bool] = None
+    flags_sequence: Optional[bool] = None
+    flags_sequence_unset: Optional[bool] = None
+
+
+class FirewallRuleSynproxy(BaseModel):
+    """Synproxy configuration."""
+    tcp_mss: Optional[str] = None
+    tcp_window_scale: Optional[str] = None
+
+
+class FirewallRuleAddAddressToGroup(BaseModel):
+    """Add address to group configuration."""
+    source_address_group: Optional[str] = None
+    source_timeout: Optional[str] = None
+    destination_address_group: Optional[str] = None
+    destination_timeout: Optional[str] = None
+
+
 class FirewallRule(BaseModel):
     """Complete firewall rule configuration."""
     rule_number: int
@@ -95,6 +181,38 @@ class FirewallRule(BaseModel):
     icmp_type_name: Optional[str] = None
     jump_target: Optional[str] = None
     offload_target: Optional[str] = None
+    # New matching fields
+    connection_mark: Optional[str] = None
+    connection_status: Optional[FirewallRuleConnectionStatus] = None
+    conntrack_helper: Optional[str] = None
+    dscp_match: Optional[str] = None  # match dscp (vs set dscp)
+    dscp_exclude: Optional[str] = None
+    fragment: Optional[FirewallRuleFragment] = None
+    gre: Optional[FirewallRuleGRE] = None
+    ipsec: Optional[FirewallRuleIPsec] = None
+    limit: Optional[FirewallRuleLimit] = None
+    log_options: Optional[FirewallRuleLogOptions] = None
+    mark_match: Optional[str] = None  # match mark (vs set mark)
+    packet_length: Optional[str] = None
+    packet_length_exclude: Optional[str] = None
+    packet_type: Optional[str] = None
+    queue_number: Optional[str] = None
+    queue_options: Optional[str] = None
+    recent: Optional[FirewallRuleRecent] = None
+    synproxy_config: Optional[FirewallRuleSynproxy] = None
+    tcp_mss: Optional[str] = None  # match tcp mss
+    time: Optional[FirewallRuleTime] = None
+    ttl_match: Optional[FirewallRuleTTLMatch] = None
+    add_address_to_group: Optional[FirewallRuleAddAddressToGroup] = None
+    # Additional source/destination fields
+    source_fqdn: Optional[str] = None
+    source_address_mask: Optional[str] = None
+    destination_fqdn: Optional[str] = None
+    destination_address_mask: Optional[str] = None
+    destination_mac_address: Optional[str] = None
+    # Set/modify additions
+    set_connection_mark: Optional[str] = None
+    set_tcp_mss: Optional[str] = None
     disable: bool = False
     log: bool = False
 
@@ -104,6 +222,8 @@ class CustomChain(BaseModel):
     name: str
     description: Optional[str] = None
     default_action: Optional[str] = None
+    default_log: Optional[bool] = None
+    default_jump_target: Optional[str] = None
     rules: List[FirewallRule] = []
 
 
@@ -138,6 +258,17 @@ class ReorderFirewallRequest(BaseModel):
 class BaseChainConfig(BaseModel):
     """Base chain configuration with default action."""
     default_action: Optional[str] = None
+    description: Optional[str] = None
+    default_log: Optional[bool] = None
+    rules: List[FirewallRule] = []
+
+
+class PreroutingRawConfig(BaseModel):
+    """Prerouting raw chain configuration (VyOS 1.5 only)."""
+    default_action: Optional[str] = None
+    description: Optional[str] = None
+    default_log: Optional[bool] = None
+    default_jump_target: Optional[str] = None
     rules: List[FirewallRule] = []
 
 
@@ -151,6 +282,7 @@ class FirewallConfigResponse(BaseModel):
     input_rules: List[FirewallRule] = []
     output_rules: List[FirewallRule] = []
     custom_chains: List[CustomChain] = []
+    prerouting_raw: Optional[PreroutingRawConfig] = None
     total_rules: int = 0
 
 
@@ -365,6 +497,171 @@ async def get_firewall_ipv4_config(http_request: Request, refresh: bool = False)
             if icmp_data:
                 icmp_type_name = icmp_data.get("type-name")
 
+            # Parse connection mark
+            connection_mark = rule_data.get("connection-mark")
+
+            # Parse connection status
+            connection_status = None
+            conn_status_data = rule_data.get("connection-status", {})
+            if conn_status_data:
+                connection_status = FirewallRuleConnectionStatus(
+                    nat=conn_status_data.get("nat")
+                )
+
+            # Parse conntrack helper
+            conntrack_helper = rule_data.get("conntrack-helper")
+
+            # Parse DSCP match
+            dscp_match = rule_data.get("dscp")
+            dscp_exclude = rule_data.get("dscp-exclude")
+
+            # Parse fragment
+            fragment = None
+            fragment_data = rule_data.get("fragment", {})
+            if fragment_data:
+                fragment = FirewallRuleFragment(
+                    match_frag="match-frag" in fragment_data or fragment_data.get("match-frag") == "",
+                    match_non_frag="match-non-frag" in fragment_data or fragment_data.get("match-non-frag") == ""
+                )
+
+            # Parse GRE (VyOS 1.5 only)
+            gre = None
+            gre_data = rule_data.get("gre", {})
+            if gre_data:
+                flags_data = gre_data.get("flags", {})
+                gre = FirewallRuleGRE(
+                    key=gre_data.get("key"),
+                    version=gre_data.get("version"),
+                    inner_proto=gre_data.get("inner-proto"),
+                    flags_checksum="checksum" in flags_data and "unset" not in flags_data.get("checksum", {}),
+                    flags_checksum_unset="checksum" in flags_data and "unset" in flags_data.get("checksum", {}),
+                    flags_key="key" in flags_data and "unset" not in flags_data.get("key", {}),
+                    flags_key_unset="key" in flags_data and "unset" in flags_data.get("key", {}),
+                    flags_sequence="sequence" in flags_data and "unset" not in flags_data.get("sequence", {}),
+                    flags_sequence_unset="sequence" in flags_data and "unset" in flags_data.get("sequence", {}),
+                )
+
+            # Parse IPsec
+            ipsec = None
+            ipsec_data = rule_data.get("ipsec", {})
+            if ipsec_data:
+                ipsec = FirewallRuleIPsec(
+                    # VyOS 1.4
+                    match_ipsec="match-ipsec" in ipsec_data or ipsec_data.get("match-ipsec") == "",
+                    match_none="match-none" in ipsec_data or ipsec_data.get("match-none") == "",
+                    # VyOS 1.5
+                    match_ipsec_in="match-ipsec-in" in ipsec_data or ipsec_data.get("match-ipsec-in") == "",
+                    match_ipsec_out="match-ipsec-out" in ipsec_data or ipsec_data.get("match-ipsec-out") == "",
+                    match_none_in="match-none-in" in ipsec_data or ipsec_data.get("match-none-in") == "",
+                    match_none_out="match-none-out" in ipsec_data or ipsec_data.get("match-none-out") == "",
+                )
+
+            # Parse limit
+            limit = None
+            limit_data = rule_data.get("limit", {})
+            if limit_data:
+                limit = FirewallRuleLimit(
+                    rate=limit_data.get("rate"),
+                    burst=limit_data.get("burst")
+                )
+
+            # Parse log options
+            log_options = None
+            log_options_data = rule_data.get("log-options", {})
+            if log_options_data:
+                log_options = FirewallRuleLogOptions(
+                    group=log_options_data.get("group"),
+                    level=log_options_data.get("level"),
+                    queue_threshold=log_options_data.get("queue-threshold"),
+                    snapshot_length=log_options_data.get("snapshot-length")
+                )
+
+            # Parse mark (match)
+            mark_match = rule_data.get("mark")
+
+            # Parse packet length
+            packet_length = rule_data.get("packet-length")
+            packet_length_exclude = rule_data.get("packet-length-exclude")
+
+            # Parse packet type
+            packet_type = rule_data.get("packet-type")
+
+            # Parse queue
+            queue_number = rule_data.get("queue")
+            queue_options_val = rule_data.get("queue-options")
+
+            # Parse recent
+            recent = None
+            recent_data = rule_data.get("recent", {})
+            if recent_data:
+                recent = FirewallRuleRecent(
+                    count=recent_data.get("count"),
+                    time=recent_data.get("time")
+                )
+
+            # Parse synproxy
+            synproxy_config = None
+            synproxy_data = rule_data.get("synproxy", {})
+            if synproxy_data:
+                tcp_synproxy = synproxy_data.get("tcp", {})
+                synproxy_config = FirewallRuleSynproxy(
+                    tcp_mss=tcp_synproxy.get("mss"),
+                    tcp_window_scale=tcp_synproxy.get("window-scale")
+                )
+
+            # Parse TCP MSS (match)
+            tcp_mss_match = None
+            if tcp_data:
+                tcp_mss_match = tcp_data.get("mss")
+
+            # Parse time
+            time_config = None
+            time_data = rule_data.get("time", {})
+            if time_data:
+                time_config = FirewallRuleTime(
+                    startdate=time_data.get("startdate"),
+                    starttime=time_data.get("starttime"),
+                    stopdate=time_data.get("stopdate"),
+                    stoptime=time_data.get("stoptime"),
+                    weekdays=time_data.get("weekdays")
+                )
+
+            # Parse TTL match
+            ttl_match = None
+            ttl_data = rule_data.get("ttl", {})
+            if ttl_data:
+                ttl_match = FirewallRuleTTLMatch(
+                    eq=ttl_data.get("eq"),
+                    gt=ttl_data.get("gt"),
+                    lt=ttl_data.get("lt")
+                )
+
+            # Parse add-address-to-group
+            add_address_to_group = None
+            aatg_data = rule_data.get("add-address-to-group", {})
+            if aatg_data:
+                src_aatg = aatg_data.get("source-address", {})
+                dst_aatg = aatg_data.get("destination-address", {})
+                add_address_to_group = FirewallRuleAddAddressToGroup(
+                    source_address_group=src_aatg.get("address-group") if src_aatg else None,
+                    source_timeout=src_aatg.get("timeout") if src_aatg else None,
+                    destination_address_group=dst_aatg.get("address-group") if dst_aatg else None,
+                    destination_timeout=dst_aatg.get("timeout") if dst_aatg else None,
+                )
+
+            # Parse additional source fields
+            source_fqdn = source_data.get("fqdn") if source_data else None
+            source_address_mask = source_data.get("address-mask") if source_data else None
+
+            # Parse additional destination fields
+            destination_fqdn = dest_data.get("fqdn") if dest_data else None
+            destination_address_mask = dest_data.get("address-mask") if dest_data else None
+            destination_mac_address = dest_data.get("mac-address") if dest_data else None
+
+            # Parse set additions
+            set_connection_mark_val = set_data.get("connection-mark") if set_data else None
+            set_tcp_mss_val = set_data.get("tcp-mss") if set_data else None
+
             return FirewallRule(
                 rule_number=int(rule_num),
                 chain=chain,
@@ -381,6 +678,35 @@ async def get_firewall_ipv4_config(http_request: Request, refresh: bool = False)
                 icmp_type_name=icmp_type_name,
                 jump_target=rule_data.get("jump-target"),
                 offload_target=rule_data.get("offload-target"),
+                connection_mark=connection_mark,
+                connection_status=connection_status,
+                conntrack_helper=conntrack_helper,
+                dscp_match=dscp_match,
+                dscp_exclude=dscp_exclude,
+                fragment=fragment,
+                gre=gre,
+                ipsec=ipsec,
+                limit=limit,
+                log_options=log_options,
+                mark_match=mark_match,
+                packet_length=packet_length,
+                packet_length_exclude=packet_length_exclude,
+                packet_type=packet_type,
+                queue_number=queue_number,
+                queue_options=queue_options_val,
+                recent=recent,
+                synproxy_config=synproxy_config,
+                tcp_mss=tcp_mss_match,
+                time=time_config,
+                ttl_match=ttl_match,
+                add_address_to_group=add_address_to_group,
+                source_fqdn=source_fqdn,
+                source_address_mask=source_address_mask,
+                destination_fqdn=destination_fqdn,
+                destination_address_mask=destination_address_mask,
+                destination_mac_address=destination_mac_address,
+                set_connection_mark=set_connection_mark_val,
+                set_tcp_mss=set_tcp_mss_val,
                 disable="disable" in rule_data or rule_data.get("disable") == "",
                 log="log" in rule_data or rule_data.get("log") == ""
             )
@@ -389,6 +715,12 @@ async def get_firewall_ipv4_config(http_request: Request, refresh: bool = False)
         forward_default_action = None
         input_default_action = None
         output_default_action = None
+        forward_description = None
+        input_description = None
+        output_description = None
+        forward_default_log = None
+        input_default_log = None
+        output_default_log = None
 
         for chain_name in ["forward", "input", "output"]:
             if chain_name in firewall_config:
@@ -398,12 +730,20 @@ async def get_firewall_ipv4_config(http_request: Request, refresh: bool = False)
 
                 # Get default action for this chain
                 default_action = filter_data.get("default-action")
+                default_log = "default-log" in filter_data or filter_data.get("default-log") == ""
+                chain_description = filter_data.get("description")
                 if chain_name == "forward":
                     forward_default_action = default_action
+                    forward_description = chain_description
+                    forward_default_log = default_log if default_log else None
                 elif chain_name == "input":
                     input_default_action = default_action
+                    input_description = chain_description
+                    input_default_log = default_log if default_log else None
                 elif chain_name == "output":
                     output_default_action = default_action
+                    output_description = chain_description
+                    output_default_log = default_log if default_log else None
 
                 if isinstance(rules_data, dict):
                     for rule_num, rule_data in rules_data.items():
@@ -427,10 +767,15 @@ async def get_firewall_ipv4_config(http_request: Request, refresh: bool = False)
                         rule = parse_rule(rule_num, rule_data, chain_name, is_custom=True)
                         rules.append(rule)
 
+                default_log = "default-log" in chain_config or chain_config.get("default-log") == ""
+                default_jump_target = chain_config.get("default-jump-target")
+
                 custom_chain = CustomChain(
                     name=chain_name,
                     description=chain_config.get("description"),
                     default_action=chain_config.get("default-action"),
+                    default_log=default_log if default_log else None,
+                    default_jump_target=default_jump_target,
                     rules=sorted(rules, key=lambda r: r.rule_number)
                 )
                 custom_chains.append(custom_chain)
@@ -441,19 +786,44 @@ async def get_firewall_ipv4_config(http_request: Request, refresh: bool = False)
         output_rules.sort(key=lambda r: r.rule_number)
         custom_chains.sort(key=lambda c: c.name)
 
+        # Parse prerouting raw chain (VyOS 1.5 only)
+        prerouting_raw = None
+        prerouting_data = firewall_config.get("prerouting", {})
+        if prerouting_data:
+            raw_data = prerouting_data.get("raw", {})
+            if raw_data:
+                prerouting_rules = []
+                prerouting_rules_data = raw_data.get("rule", {})
+                if isinstance(prerouting_rules_data, dict):
+                    for rule_num, rule_data in prerouting_rules_data.items():
+                        rule = parse_rule(rule_num, rule_data, "prerouting", is_custom=False)
+                        prerouting_rules.append(rule)
+                prerouting_rules.sort(key=lambda r: r.rule_number)
+
+                prerouting_raw = PreroutingRawConfig(
+                    default_action=raw_data.get("default-action"),
+                    description=raw_data.get("description"),
+                    default_log="default-log" in raw_data or raw_data.get("default-log") == "" or None,
+                    default_jump_target=raw_data.get("default-jump-target"),
+                    rules=prerouting_rules,
+                )
+
         total_rules = len(forward_rules) + len(input_rules) + len(output_rules)
         for chain in custom_chains:
             total_rules += len(chain.rules)
+        if prerouting_raw:
+            total_rules += len(prerouting_raw.rules)
 
         return FirewallConfigResponse(
-            forward=BaseChainConfig(default_action=forward_default_action, rules=forward_rules),
-            input=BaseChainConfig(default_action=input_default_action, rules=input_rules),
-            output=BaseChainConfig(default_action=output_default_action, rules=output_rules),
+            forward=BaseChainConfig(default_action=forward_default_action, description=forward_description, default_log=forward_default_log, rules=forward_rules),
+            input=BaseChainConfig(default_action=input_default_action, description=input_description, default_log=input_default_log, rules=input_rules),
+            output=BaseChainConfig(default_action=output_default_action, description=output_description, default_log=output_default_log, rules=output_rules),
             # Legacy fields for backward compatibility
             forward_rules=forward_rules,
             input_rules=input_rules,
             output_rules=output_rules,
             custom_chains=custom_chains,
+            prerouting_raw=prerouting_raw,
             total_rules=total_rules
         )
     except Exception as e:
@@ -509,7 +879,7 @@ async def firewall_ipv4_batch_configure(http_request: Request, request: Firewall
             # Add value parameter BEFORE is_custom if both are expected
             # This matches the typical signature: (chain, rule_number, value, is_custom)
             # Also check for group_name which is used in group operations
-            if operation.value and any(p in params for p in ["value", "description", "address", "port", "protocol", "action", "interface", "interface_name", "dscp", "mark", "ttl", "icmp_type", "target", "flag", "group_name", "mac_address", "country_code"]):
+            if operation.value and any(p in params for p in ["value", "description", "address", "port", "protocol", "action", "interface", "interface_name", "dscp", "mark", "ttl", "icmp_type", "target", "flag", "group_name", "mac_address", "country_code", "mac", "rate", "burst", "level", "count"]):
                 args.append(operation.value)
 
             # Add is_custom parameter if method expects it
@@ -696,6 +1066,194 @@ async def firewall_ipv4_reorder_rules(http_request: Request, request: ReorderFir
 
             if rule_data.get("log"):
                 builder.set_rule_log(request.chain, new_number, request.is_custom_chain)
+
+            # Connection mark
+            if rule_data.get("connection_mark"):
+                builder.set_rule_connection_mark(request.chain, new_number, rule_data["connection_mark"], request.is_custom_chain)
+
+            # Connection status
+            if rule_data.get("connection_status"):
+                cs = rule_data["connection_status"]
+                if cs.get("nat"):
+                    builder.set_rule_connection_status_nat(request.chain, new_number, cs["nat"], request.is_custom_chain)
+
+            # Conntrack helper
+            if rule_data.get("conntrack_helper"):
+                builder.set_rule_conntrack_helper(request.chain, new_number, rule_data["conntrack_helper"], request.is_custom_chain)
+
+            # DSCP match
+            if rule_data.get("dscp_match"):
+                builder.set_rule_dscp(request.chain, new_number, rule_data["dscp_match"], request.is_custom_chain)
+            if rule_data.get("dscp_exclude"):
+                builder.set_rule_dscp_exclude(request.chain, new_number, rule_data["dscp_exclude"], request.is_custom_chain)
+
+            # Fragment
+            if rule_data.get("fragment"):
+                frag = rule_data["fragment"]
+                if frag.get("match_frag"):
+                    builder.set_rule_fragment_match_frag(request.chain, new_number, request.is_custom_chain)
+                if frag.get("match_non_frag"):
+                    builder.set_rule_fragment_match_non_frag(request.chain, new_number, request.is_custom_chain)
+
+            # GRE
+            if rule_data.get("gre"):
+                gre = rule_data["gre"]
+                if gre.get("key"):
+                    builder.set_rule_gre_key(request.chain, new_number, gre["key"], request.is_custom_chain)
+                if gre.get("version"):
+                    builder.set_rule_gre_version(request.chain, new_number, gre["version"], request.is_custom_chain)
+                if gre.get("inner_proto"):
+                    builder.set_rule_gre_inner_proto(request.chain, new_number, gre["inner_proto"], request.is_custom_chain)
+                if gre.get("flags_checksum"):
+                    builder.set_rule_gre_flags_checksum(request.chain, new_number, request.is_custom_chain)
+                if gre.get("flags_checksum_unset"):
+                    builder.set_rule_gre_flags_checksum_unset(request.chain, new_number, request.is_custom_chain)
+                if gre.get("flags_key"):
+                    builder.set_rule_gre_flags_key(request.chain, new_number, request.is_custom_chain)
+                if gre.get("flags_key_unset"):
+                    builder.set_rule_gre_flags_key_unset(request.chain, new_number, request.is_custom_chain)
+                if gre.get("flags_sequence"):
+                    builder.set_rule_gre_flags_sequence(request.chain, new_number, request.is_custom_chain)
+                if gre.get("flags_sequence_unset"):
+                    builder.set_rule_gre_flags_sequence_unset(request.chain, new_number, request.is_custom_chain)
+
+            # IPsec
+            if rule_data.get("ipsec"):
+                ipsec = rule_data["ipsec"]
+                if ipsec.get("match_ipsec"):
+                    builder.set_rule_ipsec_match_ipsec(request.chain, new_number, request.is_custom_chain)
+                if ipsec.get("match_none"):
+                    builder.set_rule_ipsec_match_none(request.chain, new_number, request.is_custom_chain)
+                if ipsec.get("match_ipsec_in"):
+                    builder.set_rule_ipsec_match_ipsec_in(request.chain, new_number, request.is_custom_chain)
+                if ipsec.get("match_ipsec_out"):
+                    builder.set_rule_ipsec_match_ipsec_out(request.chain, new_number, request.is_custom_chain)
+                if ipsec.get("match_none_in"):
+                    builder.set_rule_ipsec_match_none_in(request.chain, new_number, request.is_custom_chain)
+                if ipsec.get("match_none_out"):
+                    builder.set_rule_ipsec_match_none_out(request.chain, new_number, request.is_custom_chain)
+
+            # Limit
+            if rule_data.get("limit"):
+                lim = rule_data["limit"]
+                if lim.get("rate"):
+                    builder.set_rule_limit_rate(request.chain, new_number, lim["rate"], request.is_custom_chain)
+                if lim.get("burst"):
+                    builder.set_rule_limit_burst(request.chain, new_number, lim["burst"], request.is_custom_chain)
+
+            # Log options
+            if rule_data.get("log_options"):
+                lo = rule_data["log_options"]
+                if lo.get("group"):
+                    builder.set_rule_log_options_group(request.chain, new_number, lo["group"], request.is_custom_chain)
+                if lo.get("level"):
+                    builder.set_rule_log_options_level(request.chain, new_number, lo["level"], request.is_custom_chain)
+                if lo.get("queue_threshold"):
+                    builder.set_rule_log_options_queue_threshold(request.chain, new_number, lo["queue_threshold"], request.is_custom_chain)
+                if lo.get("snapshot_length"):
+                    builder.set_rule_log_options_snapshot_length(request.chain, new_number, lo["snapshot_length"], request.is_custom_chain)
+
+            # Mark match
+            if rule_data.get("mark_match"):
+                builder.set_rule_mark(request.chain, new_number, rule_data["mark_match"], request.is_custom_chain)
+
+            # Packet length
+            if rule_data.get("packet_length"):
+                builder.set_rule_packet_length(request.chain, new_number, rule_data["packet_length"], request.is_custom_chain)
+            if rule_data.get("packet_length_exclude"):
+                builder.set_rule_packet_length_exclude(request.chain, new_number, rule_data["packet_length_exclude"], request.is_custom_chain)
+
+            # Packet type
+            if rule_data.get("packet_type"):
+                builder.set_rule_packet_type(request.chain, new_number, rule_data["packet_type"], request.is_custom_chain)
+
+            # Queue
+            if rule_data.get("queue_number"):
+                builder.set_rule_queue(request.chain, new_number, rule_data["queue_number"], request.is_custom_chain)
+            if rule_data.get("queue_options"):
+                builder.set_rule_queue_options(request.chain, new_number, rule_data["queue_options"], request.is_custom_chain)
+
+            # Recent
+            if rule_data.get("recent"):
+                rec = rule_data["recent"]
+                if rec.get("count"):
+                    builder.set_rule_recent_count(request.chain, new_number, rec["count"], request.is_custom_chain)
+                if rec.get("time"):
+                    builder.set_rule_recent_time(request.chain, new_number, rec["time"], request.is_custom_chain)
+
+            # Synproxy
+            if rule_data.get("synproxy_config"):
+                sp = rule_data["synproxy_config"]
+                if sp.get("tcp_mss"):
+                    builder.set_rule_synproxy_tcp_mss(request.chain, new_number, sp["tcp_mss"], request.is_custom_chain)
+                if sp.get("tcp_window_scale"):
+                    builder.set_rule_synproxy_tcp_window_scale(request.chain, new_number, sp["tcp_window_scale"], request.is_custom_chain)
+
+            # TCP MSS match
+            if rule_data.get("tcp_mss"):
+                builder.set_rule_tcp_mss(request.chain, new_number, rule_data["tcp_mss"], request.is_custom_chain)
+
+            # Time
+            if rule_data.get("time"):
+                t = rule_data["time"]
+                if t.get("startdate"):
+                    builder.set_rule_time_startdate(request.chain, new_number, t["startdate"], request.is_custom_chain)
+                if t.get("starttime"):
+                    builder.set_rule_time_starttime(request.chain, new_number, t["starttime"], request.is_custom_chain)
+                if t.get("stopdate"):
+                    builder.set_rule_time_stopdate(request.chain, new_number, t["stopdate"], request.is_custom_chain)
+                if t.get("stoptime"):
+                    builder.set_rule_time_stoptime(request.chain, new_number, t["stoptime"], request.is_custom_chain)
+                if t.get("weekdays"):
+                    builder.set_rule_time_weekdays(request.chain, new_number, t["weekdays"], request.is_custom_chain)
+
+            # TTL match
+            if rule_data.get("ttl_match"):
+                ttl = rule_data["ttl_match"]
+                if ttl.get("eq"):
+                    builder.set_rule_ttl_eq(request.chain, new_number, ttl["eq"], request.is_custom_chain)
+                if ttl.get("gt"):
+                    builder.set_rule_ttl_gt(request.chain, new_number, ttl["gt"], request.is_custom_chain)
+                if ttl.get("lt"):
+                    builder.set_rule_ttl_lt(request.chain, new_number, ttl["lt"], request.is_custom_chain)
+
+            # Add address to group
+            if rule_data.get("add_address_to_group"):
+                aatg = rule_data["add_address_to_group"]
+                if aatg.get("source_address_group"):
+                    builder.set_rule_add_address_to_group_src_group(request.chain, new_number, aatg["source_address_group"], request.is_custom_chain)
+                if aatg.get("source_timeout"):
+                    builder.set_rule_add_address_to_group_src_timeout(request.chain, new_number, aatg["source_timeout"], request.is_custom_chain)
+                if aatg.get("destination_address_group"):
+                    builder.set_rule_add_address_to_group_dst_group(request.chain, new_number, aatg["destination_address_group"], request.is_custom_chain)
+                if aatg.get("destination_timeout"):
+                    builder.set_rule_add_address_to_group_dst_timeout(request.chain, new_number, aatg["destination_timeout"], request.is_custom_chain)
+
+            # Source FQDN & address mask
+            if rule_data.get("source_fqdn"):
+                builder.set_rule_source_fqdn(request.chain, new_number, rule_data["source_fqdn"], request.is_custom_chain)
+            if rule_data.get("source_address_mask"):
+                builder.set_rule_source_address_mask(request.chain, new_number, rule_data["source_address_mask"], request.is_custom_chain)
+
+            # Destination FQDN, address mask, MAC
+            if rule_data.get("destination_fqdn"):
+                builder.set_rule_destination_fqdn(request.chain, new_number, rule_data["destination_fqdn"], request.is_custom_chain)
+            if rule_data.get("destination_address_mask"):
+                builder.set_rule_destination_address_mask(request.chain, new_number, rule_data["destination_address_mask"], request.is_custom_chain)
+            if rule_data.get("destination_mac_address"):
+                builder.set_rule_destination_mac_address(request.chain, new_number, rule_data["destination_mac_address"], request.is_custom_chain)
+
+            # Set connection mark & TCP MSS
+            if rule_data.get("set_connection_mark"):
+                builder.set_rule_set_connection_mark(request.chain, new_number, rule_data["set_connection_mark"], request.is_custom_chain)
+            if rule_data.get("set_tcp_mss"):
+                builder.set_rule_set_tcp_mss(request.chain, new_number, rule_data["set_tcp_mss"], request.is_custom_chain)
+
+            # ICMP code and type (numeric)
+            if rule_data.get("icmp_code"):
+                builder.set_rule_icmp_code(request.chain, new_number, rule_data["icmp_code"], request.is_custom_chain)
+            if rule_data.get("icmp_type"):
+                builder.set_rule_icmp_type(request.chain, new_number, rule_data["icmp_type"], request.is_custom_chain)
 
         # Execute batch
         response = service.execute_batch(builder)

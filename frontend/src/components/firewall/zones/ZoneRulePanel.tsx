@@ -23,7 +23,12 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { AlertCircle, ArrowRight, RefreshCw, Trash2 } from "lucide-react";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { AlertCircle, ArrowRight, ChevronDown, RefreshCw, Trash2 } from "lucide-react";
 import {
   firewallIPv4Service,
   type FirewallRule,
@@ -66,8 +71,8 @@ interface ZoneRulePanelProps {
   canEdit: boolean;
 }
 
-type SrcMode = "any" | "address" | "group" | "geoip" | "mac";
-type DstMode = "any" | "address" | "group" | "geoip";
+type SrcMode = "any" | "address" | "group" | "geoip" | "mac" | "fqdn";
+type DstMode = "any" | "address" | "group" | "geoip" | "fqdn" | "mac";
 type PortMode = "any" | "port" | "group";
 
 const TCP_FLAGS = ["syn", "ack", "fin", "rst", "psh", "urg", "ecn", "cwr"] as const;
@@ -196,6 +201,69 @@ export function ZoneRulePanel({
   const [mark, setMark] = useState("");
   const [ttl, setTtl] = useState("");
 
+  // ── Source/Dest extras ───────────────────────────────────────────────────
+  const [srcFqdn, setSrcFqdn] = useState("");
+  const [srcAddressMask, setSrcAddressMask] = useState("");
+  const [dstFqdn, setDstFqdn] = useState("");
+  const [dstAddressMask, setDstAddressMask] = useState("");
+  const [dstMacAddress, setDstMacAddress] = useState("");
+
+  // ── Matching ─────────────────────────────────────────────────────────────
+  const [connectionMark, setConnectionMark] = useState("");
+  const [connectionStatusNat, setConnectionStatusNat] = useState("");
+  const [conntrackHelper, setConntrackHelper] = useState("");
+  const [dscpMatch, setDscpMatch] = useState("");
+  const [dscpExclude, setDscpExclude] = useState("");
+  const [fragmentMatchFrag, setFragmentMatchFrag] = useState(false);
+  const [fragmentMatchNonFrag, setFragmentMatchNonFrag] = useState(false);
+  const [greKey, setGreKey] = useState("");
+  const [greVersion, setGreVersion] = useState("");
+  const [greInnerProto, setGreInnerProto] = useState("");
+  const [greFlags, setGreFlags] = useState<Record<string, boolean>>({});
+  const [ipsecMode, setIpsecMode] = useState<"none" | "match-ipsec" | "match-none">("none");
+  const [ipsecInbound, setIpsecInbound] = useState<"none" | "match-ipsec" | "match-none">("none");
+  const [ipsecOutbound, setIpsecOutbound] = useState<"none" | "match-ipsec" | "match-none">("none");
+  const [markMatch, setMarkMatch] = useState("");
+  const [packetLength, setPacketLength] = useState("");
+  const [packetLengthExclude, setPacketLengthExclude] = useState("");
+  const [packetType, setPacketType] = useState("");
+  const [tcpMssMatch, setTcpMssMatch] = useState("");
+  const [ttlEq, setTtlEq] = useState("");
+  const [ttlGt, setTtlGt] = useState("");
+  const [ttlLt, setTtlLt] = useState("");
+
+  // ── Limits & Time ────────────────────────────────────────────────────────
+  const [limitRate, setLimitRate] = useState("");
+  const [limitBurst, setLimitBurst] = useState("");
+  const [recentCount, setRecentCount] = useState("");
+  const [recentTime, setRecentTime] = useState("");
+  const [timeStartdate, setTimeStartdate] = useState("");
+  const [timeStarttime, setTimeStarttime] = useState("");
+  const [timeStopdate, setTimeStopdate] = useState("");
+  const [timeStoptime, setTimeStoptime] = useState("");
+  const [timeWeekdays, setTimeWeekdays] = useState("");
+
+  // ── Actions & Modifications ──────────────────────────────────────────────
+  const [logOptionsGroup, setLogOptionsGroup] = useState("");
+  const [logOptionsLevel, setLogOptionsLevel] = useState("");
+  const [logOptionsQueueThreshold, setLogOptionsQueueThreshold] = useState("");
+  const [logOptionsSnapshotLength, setLogOptionsSnapshotLength] = useState("");
+  const [queueNumber, setQueueNumber] = useState("");
+  const [queueOptions, setQueueOptions] = useState("");
+  const [synproxyTcpMss, setSynproxyTcpMss] = useState("");
+  const [synproxyTcpWindowScale, setSynproxyTcpWindowScale] = useState("");
+  const [modSetConnectionMark, setModSetConnectionMark] = useState("");
+  const [modSetTcpMss, setModSetTcpMss] = useState("");
+  const [addAddrToGroupSrcGroup, setAddAddrToGroupSrcGroup] = useState("");
+  const [addAddrToGroupSrcTimeout, setAddAddrToGroupSrcTimeout] = useState("");
+  const [addAddrToGroupDstGroup, setAddAddrToGroupDstGroup] = useState("");
+  const [addAddrToGroupDstTimeout, setAddAddrToGroupDstTimeout] = useState("");
+
+  // ── Collapsible section state ────────────────────────────────────────────
+  const [matchingOpen, setMatchingOpen] = useState(false);
+  const [limitsOpen, setLimitsOpen] = useState(false);
+  const [actionsOpen, setActionsOpen] = useState(false);
+
   // ── Auxiliary data ────────────────────────────────────────────────────────
   const [groups, setGroups] = useState<FirewallGroup[]>([]);
   const [customChains, setCustomChains] = useState<string[]>([]);
@@ -263,6 +331,64 @@ export function ZoneRulePanel({
     setDscp("");
     setMark("");
     setTtl("");
+    // Source/Dest extras
+    setSrcFqdn("");
+    setSrcAddressMask("");
+    setDstFqdn("");
+    setDstAddressMask("");
+    setDstMacAddress("");
+    // Matching
+    setConnectionMark("");
+    setConnectionStatusNat("");
+    setConntrackHelper("");
+    setDscpMatch("");
+    setDscpExclude("");
+    setFragmentMatchFrag(false);
+    setFragmentMatchNonFrag(false);
+    setGreKey("");
+    setGreVersion("");
+    setGreInnerProto("");
+    setGreFlags({});
+    setIpsecMode("none");
+    setIpsecInbound("none");
+    setIpsecOutbound("none");
+    setMarkMatch("");
+    setPacketLength("");
+    setPacketLengthExclude("");
+    setPacketType("");
+    setTcpMssMatch("");
+    setTtlEq("");
+    setTtlGt("");
+    setTtlLt("");
+    // Limits & Time
+    setLimitRate("");
+    setLimitBurst("");
+    setRecentCount("");
+    setRecentTime("");
+    setTimeStartdate("");
+    setTimeStarttime("");
+    setTimeStopdate("");
+    setTimeStoptime("");
+    setTimeWeekdays("");
+    // Actions
+    setLogOptionsGroup("");
+    setLogOptionsLevel("");
+    setLogOptionsQueueThreshold("");
+    setLogOptionsSnapshotLength("");
+    setQueueNumber("");
+    setQueueOptions("");
+    setSynproxyTcpMss("");
+    setSynproxyTcpWindowScale("");
+    setModSetConnectionMark("");
+    setModSetTcpMss("");
+    setAddAddrToGroupSrcGroup("");
+    setAddAddrToGroupSrcTimeout("");
+    setAddAddrToGroupDstGroup("");
+    setAddAddrToGroupDstTimeout("");
+    // Collapsibles
+    setMatchingOpen(false);
+    setLimitsOpen(false);
+    setActionsOpen(false);
     setError(null);
     setConfirmingDelete(false);
   }, []);
@@ -290,7 +416,10 @@ export function ZoneRulePanel({
     const srcNonPortGroup = src?.group
       ? Object.entries(src.group).filter(([k]) => k !== "port-group")
       : [];
-    if (!src || (!src.address && srcNonPortGroup.length === 0 && !src.geoip && !src.mac_address)) {
+    if (r.source_fqdn) {
+      setSrcMode("fqdn");
+      setSrcFqdn(r.source_fqdn);
+    } else if (!src || (!src.address && srcNonPortGroup.length === 0 && !src.geoip && !src.mac_address)) {
       setSrcMode("any");
     } else if (src.mac_address) {
       setSrcMode("mac");
@@ -337,6 +466,9 @@ export function ZoneRulePanel({
     } else {
       setSrcPortMode("any");
     }
+    if (r.source_address_mask) {
+      setSrcAddressMask(r.source_address_mask);
+    }
 
     // Destination
     const dst = r.destination;
@@ -344,7 +476,13 @@ export function ZoneRulePanel({
     const dstNonPortGroup = dst?.group
       ? Object.entries(dst.group).filter(([k]) => k !== "port-group")
       : [];
-    if (!dst || (!dst.address && dstNonPortGroup.length === 0 && !dst.geoip)) {
+    if (r.destination_fqdn) {
+      setDstMode("fqdn");
+      setDstFqdn(r.destination_fqdn);
+    } else if (r.destination_mac_address) {
+      setDstMode("mac");
+      setDstMacAddress(r.destination_mac_address);
+    } else if (!dst || (!dst.address && dstNonPortGroup.length === 0 && !dst.geoip)) {
       setDstMode("any");
     } else if (dst.geoip) {
       setDstMode("geoip");
@@ -388,6 +526,9 @@ export function ZoneRulePanel({
     } else {
       setDstPortMode("any");
     }
+    if (r.destination_address_mask) {
+      setDstAddressMask(r.destination_address_mask);
+    }
 
     // State
     setStateEstablished(r.state?.established ?? false);
@@ -403,6 +544,69 @@ export function ZoneRulePanel({
     setDscp(r.packet_mods?.dscp ?? "");
     setMark(r.packet_mods?.mark ?? "");
     setTtl(r.packet_mods?.ttl ?? "");
+
+    // Matching
+    setConnectionMark(r.connection_mark || "");
+    setConnectionStatusNat(r.connection_status?.nat || "");
+    setConntrackHelper(r.conntrack_helper || "");
+    setDscpMatch(r.dscp_match || "");
+    setDscpExclude(r.dscp_exclude || "");
+    setFragmentMatchFrag(r.fragment?.match_frag || false);
+    setFragmentMatchNonFrag(r.fragment?.match_non_frag || false);
+    setGreKey(r.gre?.key || "");
+    setGreVersion(r.gre?.version || "");
+    setGreInnerProto(r.gre?.inner_proto || "");
+    const newGreFlags: Record<string, boolean> = {};
+    if (r.gre?.flags_checksum) newGreFlags.checksum = true;
+    if (r.gre?.flags_checksum_unset) newGreFlags.checksum_unset = true;
+    if (r.gre?.flags_key) newGreFlags.key = true;
+    if (r.gre?.flags_key_unset) newGreFlags.key_unset = true;
+    if (r.gre?.flags_sequence) newGreFlags.sequence = true;
+    if (r.gre?.flags_sequence_unset) newGreFlags.sequence_unset = true;
+    setGreFlags(newGreFlags);
+    if (r.ipsec) {
+      if (r.ipsec.match_ipsec_in) setIpsecInbound("match-ipsec");
+      else if (r.ipsec.match_none_in) setIpsecInbound("match-none");
+      if (r.ipsec.match_ipsec_out) setIpsecOutbound("match-ipsec");
+      else if (r.ipsec.match_none_out) setIpsecOutbound("match-none");
+      if (r.ipsec.match_ipsec) setIpsecMode("match-ipsec");
+      else if (r.ipsec.match_none) setIpsecMode("match-none");
+    }
+    setMarkMatch(r.mark_match || "");
+    setPacketLength(r.packet_length || "");
+    setPacketLengthExclude(r.packet_length_exclude || "");
+    setPacketType(r.packet_type || "");
+    setTcpMssMatch(r.tcp_mss || "");
+    setTtlEq(r.ttl_match?.eq || "");
+    setTtlGt(r.ttl_match?.gt || "");
+    setTtlLt(r.ttl_match?.lt || "");
+
+    // Limits & Time
+    setLimitRate(r.limit?.rate || "");
+    setLimitBurst(r.limit?.burst || "");
+    setRecentCount(r.recent?.count || "");
+    setRecentTime(r.recent?.time || "");
+    setTimeStartdate(r.time?.startdate || "");
+    setTimeStarttime(r.time?.starttime || "");
+    setTimeStopdate(r.time?.stopdate || "");
+    setTimeStoptime(r.time?.stoptime || "");
+    setTimeWeekdays(r.time?.weekdays || "");
+
+    // Actions
+    setLogOptionsGroup(r.log_options?.group || "");
+    setLogOptionsLevel(r.log_options?.level || "");
+    setLogOptionsQueueThreshold(r.log_options?.queue_threshold || "");
+    setLogOptionsSnapshotLength(r.log_options?.snapshot_length || "");
+    setQueueNumber(r.queue_number || "");
+    setQueueOptions(r.queue_options || "");
+    setSynproxyTcpMss(r.synproxy_config?.tcp_mss || "");
+    setSynproxyTcpWindowScale(r.synproxy_config?.tcp_window_scale || "");
+    setModSetConnectionMark(r.set_connection_mark || "");
+    setModSetTcpMss(r.set_tcp_mss || "");
+    setAddAddrToGroupSrcGroup(r.add_address_to_group?.source_address_group || "");
+    setAddAddrToGroupSrcTimeout(r.add_address_to_group?.source_timeout || "");
+    setAddAddrToGroupDstGroup(r.add_address_to_group?.destination_address_group || "");
+    setAddAddrToGroupDstTimeout(r.add_address_to_group?.destination_timeout || "");
   }, []);
 
   useEffect(() => {
@@ -540,6 +744,13 @@ export function ZoneRulePanel({
       if (action === "jump" && jumpTarget) config.jump_target = jumpTarget;
       if (action === "offload" && offloadTarget) config.offload_target = offloadTarget;
 
+      // Source FQDN (set at top level)
+      if (srcMode === "fqdn" && srcFqdn.trim()) {
+        config.source_fqdn = srcFqdn.trim();
+      } else if (mode === "edit" && rule?.source_fqdn) {
+        config.source_fqdn = null;
+      }
+
       // Source — always set (empty object = "any", triggers delete in updateRule)
       const hasSrc = srcMode !== "any" || srcPortMode !== "any";
       config.source = {};
@@ -559,8 +770,25 @@ export function ZoneRulePanel({
           config.source = { ...config.source, group: { ...(config.source.group ?? {}), "port-group": srcPortGroupInvert ? `!${srcPortGroup}` : srcPortGroup } };
         }
       }
+      if (srcMode === "address" && srcAddressMask.trim()) {
+        config.source_address_mask = srcAddressMask.trim();
+      } else if (mode === "edit" && rule?.source_address_mask) {
+        config.source_address_mask = null;
+      }
 
-      // Destination
+      // Destination FQDN (set at top level)
+      if (dstMode === "fqdn" && dstFqdn.trim()) {
+        config.destination_fqdn = dstFqdn.trim();
+      } else if (mode === "edit" && rule?.destination_fqdn) {
+        config.destination_fqdn = null;
+      }
+      // Destination MAC address (set at top level)
+      if (dstMode === "mac" && dstMacAddress.trim()) {
+        config.destination_mac_address = dstMacAddress.trim();
+      } else if (mode === "edit" && rule?.destination_mac_address) {
+        config.destination_mac_address = null;
+      }
+
       // Destination — always set (empty object = "any", triggers delete in updateRule)
       const hasDst = dstMode !== "any" || dstPortMode !== "any";
       config.destination = {};
@@ -578,6 +806,11 @@ export function ZoneRulePanel({
           config.destination = { ...config.destination, group: { ...(config.destination.group ?? {}), "port-group": dstPortGroupInvert ? `!${dstPortGroup}` : dstPortGroup } };
         }
       }
+      if (dstMode === "address" && dstAddressMask.trim()) {
+        config.destination_address_mask = dstAddressMask.trim();
+      } else if (mode === "edit" && rule?.destination_address_mask) {
+        config.destination_address_mask = null;
+      }
 
       // State
       if (stateEstablished || stateNew || stateRelated || stateInvalid) {
@@ -588,7 +821,6 @@ export function ZoneRulePanel({
           invalid: stateInvalid || undefined,
         };
       }
-
 
       // Packet mods
       if (dscp || mark || ttl) {
@@ -605,6 +837,97 @@ export function ZoneRulePanel({
       if (Object.keys(activeTcpFlags).length > 0) config.tcp_flags = activeTcpFlags;
 
       if (icmpTypeName && icmpTypeName !== "any") config.icmp_type_name = icmpTypeName;
+
+      // Matching fields
+      if (connectionMark.trim()) config.connection_mark = connectionMark.trim();
+      if (connectionStatusNat) config.connection_status = { nat: connectionStatusNat };
+      if (conntrackHelper.trim()) config.conntrack_helper = conntrackHelper.trim();
+      if (dscpMatch.trim()) config.dscp_match = dscpMatch.trim();
+      if (dscpExclude.trim()) config.dscp_exclude = dscpExclude.trim();
+      if (fragmentMatchFrag || fragmentMatchNonFrag) {
+        config.fragment = {
+          match_frag: fragmentMatchFrag || undefined,
+          match_non_frag: fragmentMatchNonFrag || undefined,
+        };
+      }
+      if (greKey || greVersion || greInnerProto || Object.values(greFlags).some(Boolean)) {
+        config.gre = {};
+        if (greKey) config.gre.key = greKey;
+        if (greVersion) config.gre.version = greVersion;
+        if (greInnerProto) config.gre.inner_proto = greInnerProto;
+        if (greFlags.checksum) config.gre.flags_checksum = true;
+        if (greFlags.checksum_unset) config.gre.flags_checksum_unset = true;
+        if (greFlags.key) config.gre.flags_key = true;
+        if (greFlags.key_unset) config.gre.flags_key_unset = true;
+        if (greFlags.sequence) config.gre.flags_sequence = true;
+        if (greFlags.sequence_unset) config.gre.flags_sequence_unset = true;
+      }
+      const hasIpsec = ipsecMode !== "none" || ipsecInbound !== "none" || ipsecOutbound !== "none";
+      if (hasIpsec) {
+        config.ipsec = {};
+        if (ipsecMode === "match-ipsec") config.ipsec.match_ipsec = true;
+        if (ipsecMode === "match-none") config.ipsec.match_none = true;
+        if (ipsecInbound === "match-ipsec") config.ipsec.match_ipsec_in = true;
+        if (ipsecInbound === "match-none") config.ipsec.match_none_in = true;
+        if (ipsecOutbound === "match-ipsec") config.ipsec.match_ipsec_out = true;
+        if (ipsecOutbound === "match-none") config.ipsec.match_none_out = true;
+      }
+      if (markMatch.trim()) config.mark_match = markMatch.trim();
+      if (packetLength.trim()) config.packet_length = packetLength.trim();
+      if (packetLengthExclude.trim()) config.packet_length_exclude = packetLengthExclude.trim();
+      if (packetType) config.packet_type = packetType;
+      if (tcpMssMatch.trim()) config.tcp_mss = tcpMssMatch.trim();
+      if (ttlEq || ttlGt || ttlLt) {
+        config.ttl_match = {};
+        if (ttlEq) config.ttl_match.eq = ttlEq;
+        if (ttlGt) config.ttl_match.gt = ttlGt;
+        if (ttlLt) config.ttl_match.lt = ttlLt;
+      }
+
+      // Limits & Time
+      if (limitRate || limitBurst) {
+        config.limit = {};
+        if (limitRate) config.limit.rate = limitRate;
+        if (limitBurst) config.limit.burst = limitBurst;
+      }
+      if (recentCount || recentTime) {
+        config.recent = {};
+        if (recentCount) config.recent.count = recentCount;
+        if (recentTime) config.recent.time = recentTime;
+      }
+      if (timeStartdate || timeStarttime || timeStopdate || timeStoptime || timeWeekdays) {
+        config.time = {};
+        if (timeStartdate) config.time.startdate = timeStartdate;
+        if (timeStarttime) config.time.starttime = timeStarttime;
+        if (timeStopdate) config.time.stopdate = timeStopdate;
+        if (timeStoptime) config.time.stoptime = timeStoptime;
+        if (timeWeekdays) config.time.weekdays = timeWeekdays;
+      }
+
+      // Actions / modifications
+      if (logOptionsGroup || logOptionsLevel || logOptionsQueueThreshold || logOptionsSnapshotLength) {
+        config.log_options = {};
+        if (logOptionsGroup) config.log_options.group = logOptionsGroup;
+        if (logOptionsLevel) config.log_options.level = logOptionsLevel;
+        if (logOptionsQueueThreshold) config.log_options.queue_threshold = logOptionsQueueThreshold;
+        if (logOptionsSnapshotLength) config.log_options.snapshot_length = logOptionsSnapshotLength;
+      }
+      if (queueNumber) config.queue_number = queueNumber;
+      if (queueOptions) config.queue_options = queueOptions;
+      if (synproxyTcpMss || synproxyTcpWindowScale) {
+        config.synproxy_config = {};
+        if (synproxyTcpMss) config.synproxy_config.tcp_mss = synproxyTcpMss;
+        if (synproxyTcpWindowScale) config.synproxy_config.tcp_window_scale = synproxyTcpWindowScale;
+      }
+      if (modSetConnectionMark) config.set_connection_mark = modSetConnectionMark;
+      if (modSetTcpMss) config.set_tcp_mss = modSetTcpMss;
+      if (addAddrToGroupSrcGroup || addAddrToGroupDstGroup) {
+        config.add_address_to_group = {};
+        if (addAddrToGroupSrcGroup) config.add_address_to_group.source_address_group = addAddrToGroupSrcGroup;
+        if (addAddrToGroupSrcTimeout) config.add_address_to_group.source_timeout = addAddrToGroupSrcTimeout;
+        if (addAddrToGroupDstGroup) config.add_address_to_group.destination_address_group = addAddrToGroupDstGroup;
+        if (addAddrToGroupDstTimeout) config.add_address_to_group.destination_timeout = addAddrToGroupDstTimeout;
+      }
 
       if (mode === "create") {
         const nextNum = getNextRuleNumber(chainRules);
@@ -666,12 +989,14 @@ export function ZoneRulePanel({
 
   // ── Address group type options ────────────────────────────────────────────
   const supportsRemoteGroup = capabilities?.features.remote_group?.supported ?? false;
+  const supportsDynamicAddressGroup = capabilities?.features.dynamic_address_group?.supported ?? false;
   const addrGroupTypeOptions = isV6
     ? [
         { value: "ipv6-address-group", label: "IPv6 Address Group" },
         { value: "ipv6-network-group", label: "IPv6 Network Group" },
         { value: "domain-group", label: "Domain Group" },
         ...(supportsRemoteGroup ? [{ value: "remote-group", label: "Remote Group" }] : []),
+        ...(supportsDynamicAddressGroup ? [{ value: "dynamic-address-group", label: "Dynamic Address Group" }] : []),
       ]
     : [
         { value: "address-group", label: "Address Group" },
@@ -679,6 +1004,7 @@ export function ZoneRulePanel({
         { value: "domain-group", label: "Domain Group" },
         { value: "mac-group", label: "MAC Group" },
         ...(supportsRemoteGroup ? [{ value: "remote-group", label: "Remote Group" }] : []),
+        ...(supportsDynamicAddressGroup ? [{ value: "dynamic-address-group", label: "Dynamic Address Group" }] : []),
       ];
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -868,10 +1194,10 @@ export function ZoneRulePanel({
                     className="flex flex-wrap gap-x-4 gap-y-1"
                     disabled={!canEdit}
                   >
-                    {(["any", "address", "group", "geoip", "mac"] as SrcMode[]).map((m) => (
+                    {(["any", "address", "fqdn", "group", "geoip", "mac"] as SrcMode[]).map((m) => (
                       <label key={m} className="flex items-center gap-1.5 text-xs cursor-pointer">
                         <RadioGroupItem value={m} className="h-3.5 w-3.5" />
-                        {m.charAt(0).toUpperCase() + m.slice(1)}
+                        {m === "fqdn" ? "FQDN" : m.charAt(0).toUpperCase() + m.slice(1)}
                       </label>
                     ))}
                   </RadioGroup>
@@ -892,7 +1218,24 @@ export function ZoneRulePanel({
                         </label>
                       </div>
                       {srcAddressError && <p className="text-xs text-destructive">{srcAddressError}</p>}
+                      <Input
+                        value={srcAddressMask}
+                        onChange={(e) => setSrcAddressMask(e.target.value)}
+                        placeholder="Address mask (optional)"
+                        className="h-8 text-xs"
+                        disabled={!canEdit}
+                      />
                     </div>
+                  )}
+
+                  {srcMode === "fqdn" && (
+                    <Input
+                      value={srcFqdn}
+                      onChange={(e) => setSrcFqdn(e.target.value)}
+                      placeholder="example.com"
+                      className="h-8 text-xs"
+                      disabled={!canEdit}
+                    />
                   )}
 
                   {srcMode === "group" && (
@@ -908,16 +1251,26 @@ export function ZoneRulePanel({
                             ))}
                           </SelectContent>
                         </Select>
-                        <Select value={srcGroupName} onValueChange={setSrcGroupName} disabled={!canEdit}>
-                          <SelectTrigger className="h-8 text-xs flex-1">
-                            <SelectValue placeholder="Select group" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {groupsByType(srcGroupType).map((g) => (
-                              <SelectItem key={g.name} value={g.name} className="text-xs font-mono">{g.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        {srcGroupType === "dynamic-address-group" ? (
+                          <Input
+                            value={srcGroupName}
+                            onChange={(e) => setSrcGroupName(e.target.value)}
+                            placeholder="Dynamic group name"
+                            className="h-8 text-xs flex-1"
+                            disabled={!canEdit}
+                          />
+                        ) : (
+                          <Select value={srcGroupName} onValueChange={setSrcGroupName} disabled={!canEdit}>
+                            <SelectTrigger className="h-8 text-xs flex-1">
+                              <SelectValue placeholder="Select group" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {groupsByType(srcGroupType).map((g) => (
+                                <SelectItem key={g.name} value={g.name} className="text-xs font-mono">{g.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
                       </div>
                       <label className="flex items-center gap-1 text-xs whitespace-nowrap cursor-pointer">
                         <Checkbox checked={srcGroupInvert} onCheckedChange={(c) => setSrcGroupInvert(!!c)} disabled={!canEdit} className="h-3.5 w-3.5" />
@@ -998,10 +1351,10 @@ export function ZoneRulePanel({
                 <div className="space-y-2">
                   <Label className="text-xs">Destination Match</Label>
                   <RadioGroup value={dstMode} onValueChange={(v) => setDstMode(v as DstMode)} className="flex flex-wrap gap-x-4 gap-y-1" disabled={!canEdit}>
-                    {(["any", "address", "group", "geoip"] as DstMode[]).map((m) => (
+                    {(["any", "address", "fqdn", "group", "geoip", "mac"] as DstMode[]).map((m) => (
                       <label key={m} className="flex items-center gap-1.5 text-xs cursor-pointer">
                         <RadioGroupItem value={m} className="h-3.5 w-3.5" />
-                        {m.charAt(0).toUpperCase() + m.slice(1)}
+                        {m === "fqdn" ? "FQDN" : m === "mac" ? "MAC" : m.charAt(0).toUpperCase() + m.slice(1)}
                       </label>
                     ))}
                   </RadioGroup>
@@ -1022,7 +1375,34 @@ export function ZoneRulePanel({
                         </label>
                       </div>
                       {dstAddressError && <p className="text-xs text-destructive">{dstAddressError}</p>}
+                      <Input
+                        value={dstAddressMask}
+                        onChange={(e) => setDstAddressMask(e.target.value)}
+                        placeholder="Address mask (optional)"
+                        className="h-8 text-xs"
+                        disabled={!canEdit}
+                      />
                     </div>
+                  )}
+
+                  {dstMode === "fqdn" && (
+                    <Input
+                      value={dstFqdn}
+                      onChange={(e) => setDstFqdn(e.target.value)}
+                      placeholder="example.com"
+                      className="h-8 text-xs"
+                      disabled={!canEdit}
+                    />
+                  )}
+
+                  {dstMode === "mac" && (
+                    <Input
+                      value={dstMacAddress}
+                      onChange={(e) => setDstMacAddress(e.target.value)}
+                      placeholder="aa:bb:cc:dd:ee:ff"
+                      className="h-8 text-xs"
+                      disabled={!canEdit}
+                    />
                   )}
 
                   {dstMode === "group" && (
@@ -1038,16 +1418,26 @@ export function ZoneRulePanel({
                             ))}
                           </SelectContent>
                         </Select>
-                        <Select value={dstGroupName} onValueChange={setDstGroupName} disabled={!canEdit}>
-                          <SelectTrigger className="h-8 text-xs flex-1">
-                            <SelectValue placeholder="Select group" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {groupsByType(dstGroupType).map((g) => (
-                              <SelectItem key={g.name} value={g.name} className="text-xs font-mono">{g.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        {dstGroupType === "dynamic-address-group" ? (
+                          <Input
+                            value={dstGroupName}
+                            onChange={(e) => setDstGroupName(e.target.value)}
+                            placeholder="Dynamic group name"
+                            className="h-8 text-xs flex-1"
+                            disabled={!canEdit}
+                          />
+                        ) : (
+                          <Select value={dstGroupName} onValueChange={setDstGroupName} disabled={!canEdit}>
+                            <SelectTrigger className="h-8 text-xs flex-1">
+                              <SelectValue placeholder="Select group" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {groupsByType(dstGroupType).map((g) => (
+                                <SelectItem key={g.name} value={g.name} className="text-xs font-mono">{g.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
                       </div>
                       <label className="flex items-center gap-1 text-xs whitespace-nowrap cursor-pointer">
                         <Checkbox checked={dstGroupInvert} onCheckedChange={(c) => setDstGroupInvert(!!c)} disabled={!canEdit} className="h-3.5 w-3.5" />
@@ -1128,6 +1518,52 @@ export function ZoneRulePanel({
                     ))}
                   </div>
                 </div>
+
+                {/* IPsec Matching */}
+                {capabilities?.features.ipsec_matching?.supported && (
+                  <div className="space-y-2">
+                    <Label className="text-xs">IPsec</Label>
+                    {capabilities?.features.ipsec_directional?.supported ? (
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <Label className="text-[11px] text-muted-foreground">Inbound</Label>
+                          <Select value={ipsecInbound} onValueChange={(v: "none" | "match-ipsec" | "match-none") => setIpsecInbound(v)} disabled={!canEdit}>
+                            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none" className="text-xs">No match</SelectItem>
+                              <SelectItem value="match-ipsec" className="text-xs">Match IPsec</SelectItem>
+                              <SelectItem value="match-none" className="text-xs">Match non-IPsec</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[11px] text-muted-foreground">Outbound</Label>
+                          <Select value={ipsecOutbound} onValueChange={(v: "none" | "match-ipsec" | "match-none") => setIpsecOutbound(v)} disabled={!canEdit}>
+                            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none" className="text-xs">No match</SelectItem>
+                              <SelectItem value="match-ipsec" className="text-xs">Match IPsec</SelectItem>
+                              <SelectItem value="match-none" className="text-xs">Match non-IPsec</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    ) : (
+                      <RadioGroup value={ipsecMode} onValueChange={(v: "none" | "match-ipsec" | "match-none") => setIpsecMode(v)} className="flex gap-4" disabled={!canEdit}>
+                        {([
+                          { value: "none", label: "None" },
+                          { value: "match-ipsec", label: "Match IPsec" },
+                          { value: "match-none", label: "Match non-IPsec" },
+                        ] as const).map((o) => (
+                          <label key={o.value} className="flex items-center gap-1.5 text-xs cursor-pointer">
+                            <RadioGroupItem value={o.value} className="h-3.5 w-3.5" />
+                            {o.label}
+                          </label>
+                        ))}
+                      </RadioGroup>
+                    )}
+                  </div>
+                )}
 
               </div>
 
@@ -1216,6 +1652,401 @@ export function ZoneRulePanel({
                   </div>
                 </div>
               </div>
+
+              {/* ── MATCHING OPTIONS (Collapsible) ───────────────────────── */}
+              <Collapsible open={matchingOpen} onOpenChange={setMatchingOpen}>
+                <CollapsibleTrigger className="flex items-center gap-3 w-full group">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Matching Options</p>
+                  {(connectionMark || connectionStatusNat || conntrackHelper || dscpMatch || dscpExclude || fragmentMatchFrag || fragmentMatchNonFrag || greKey || greVersion || greInnerProto || markMatch || packetLength || packetLengthExclude || packetType || tcpMssMatch || ttlEq || ttlGt || ttlLt) && (
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
+                  )}
+                  <div className="flex-1 h-px bg-border" />
+                  <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform", matchingOpen && "rotate-180")} />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-4 pt-3">
+                  {/* Connection Mark / Status */}
+                  <div className="space-y-2">
+                    <Label className="text-xs">Connection Mark / Status</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-[11px] text-muted-foreground">Connection Mark</Label>
+                        <Input value={connectionMark} onChange={(e) => setConnectionMark(e.target.value)} placeholder="e.g. 100" className="h-8 text-xs" disabled={!canEdit} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[11px] text-muted-foreground">Connection Status NAT</Label>
+                        <Select value={connectionStatusNat || "__none__"} onValueChange={(v) => setConnectionStatusNat(v === "__none__" ? "" : v)} disabled={!canEdit}>
+                          <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Any" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__" className="text-xs">Any</SelectItem>
+                            <SelectItem value="destination" className="text-xs">Destination NAT</SelectItem>
+                            <SelectItem value="source" className="text-xs">Source NAT</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[11px] text-muted-foreground">Conntrack Helper</Label>
+                      <Input value={conntrackHelper} onChange={(e) => setConntrackHelper(e.target.value)} placeholder="e.g. ftp, h323, pptp, sip, tftp" className="h-8 text-xs" disabled={!canEdit} />
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* DSCP Matching */}
+                  <div className="space-y-2">
+                    <Label className="text-xs">DSCP Matching</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-[11px] text-muted-foreground">DSCP Match</Label>
+                        <Input value={dscpMatch} onChange={(e) => setDscpMatch(e.target.value)} placeholder="0-63 or CS0-CS7, AF11-AF43, EF" className="h-8 text-xs" disabled={!canEdit} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[11px] text-muted-foreground">DSCP Exclude</Label>
+                        <Input value={dscpExclude} onChange={(e) => setDscpExclude(e.target.value)} placeholder="0-63 or CS0-CS7, AF11-AF43, EF" className="h-8 text-xs" disabled={!canEdit} />
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Fragment Matching */}
+                  <div className="space-y-2">
+                    <Label className="text-xs">Fragment Matching</Label>
+                    <div className="flex gap-4">
+                      <label className="flex items-center gap-2 text-xs cursor-pointer">
+                        <Checkbox checked={fragmentMatchFrag} onCheckedChange={(c) => setFragmentMatchFrag(!!c)} disabled={!canEdit} className="h-3.5 w-3.5" />
+                        Match fragmented
+                      </label>
+                      <label className="flex items-center gap-2 text-xs cursor-pointer">
+                        <Checkbox checked={fragmentMatchNonFrag} onCheckedChange={(c) => setFragmentMatchNonFrag(!!c)} disabled={!canEdit} className="h-3.5 w-3.5" />
+                        Match non-fragmented
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* GRE Matching (capability-gated) */}
+                  {capabilities?.features.gre_matching?.supported && (
+                    <>
+                      <Separator />
+                      <div className="space-y-2">
+                        <Label className="text-xs">GRE Matching (1.5+)</Label>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="space-y-1">
+                            <Label className="text-[11px] text-muted-foreground">GRE Key</Label>
+                            <Input value={greKey} onChange={(e) => setGreKey(e.target.value)} placeholder="Key value" className="h-8 text-xs" disabled={!canEdit} />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[11px] text-muted-foreground">GRE Version</Label>
+                            <Select value={greVersion || "__none__"} onValueChange={(v) => setGreVersion(v === "__none__" ? "" : v)} disabled={!canEdit}>
+                              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Any" /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__none__" className="text-xs">Any</SelectItem>
+                                <SelectItem value="0" className="text-xs">GREv0</SelectItem>
+                                <SelectItem value="1" className="text-xs">GREv1</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[11px] text-muted-foreground">Inner Protocol</Label>
+                            <Input value={greInnerProto} onChange={(e) => setGreInnerProto(e.target.value)} placeholder="Protocol number" className="h-8 text-xs" disabled={!canEdit} />
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[11px] text-muted-foreground">GRE Flags</Label>
+                          <div className="grid grid-cols-3 gap-2">
+                            {["checksum", "key", "sequence"].map((flag) => (
+                              <div key={flag} className="space-y-1">
+                                <label className="flex items-center gap-1.5 text-xs cursor-pointer">
+                                  <Checkbox checked={!!greFlags[flag]} onCheckedChange={(c) => setGreFlags(prev => ({ ...prev, [flag]: !!c, [`${flag}_unset`]: false }))} disabled={!canEdit} className="h-3.5 w-3.5" />
+                                  <span className="capitalize">{flag} set</span>
+                                </label>
+                                <label className="flex items-center gap-1.5 text-xs cursor-pointer">
+                                  <Checkbox checked={!!greFlags[`${flag}_unset`]} onCheckedChange={(c) => setGreFlags(prev => ({ ...prev, [`${flag}_unset`]: !!c, [flag]: false }))} disabled={!canEdit} className="h-3.5 w-3.5" />
+                                  <span className="capitalize">{flag} unset</span>
+                                </label>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  <Separator />
+
+                  {/* Mark / Packet Length / Type */}
+                  <div className="space-y-2">
+                    <Label className="text-xs">Mark / Packet Length / Type</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-[11px] text-muted-foreground">Mark Match</Label>
+                        <Input value={markMatch} onChange={(e) => setMarkMatch(e.target.value)} placeholder="e.g. 100" className="h-8 text-xs" disabled={!canEdit} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[11px] text-muted-foreground">Packet Type</Label>
+                        <Select value={packetType || "__none__"} onValueChange={(v) => setPacketType(v === "__none__" ? "" : v)} disabled={!canEdit}>
+                          <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Any" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__" className="text-xs">Any</SelectItem>
+                            <SelectItem value="broadcast" className="text-xs">Broadcast</SelectItem>
+                            <SelectItem value="host" className="text-xs">Host</SelectItem>
+                            <SelectItem value="multicast" className="text-xs">Multicast</SelectItem>
+                            <SelectItem value="other" className="text-xs">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-[11px] text-muted-foreground">Packet Length</Label>
+                        <Input value={packetLength} onChange={(e) => setPacketLength(e.target.value)} placeholder="e.g. 128 or 64-1500" className="h-8 text-xs" disabled={!canEdit} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[11px] text-muted-foreground">Packet Length Exclude</Label>
+                        <Input value={packetLengthExclude} onChange={(e) => setPacketLengthExclude(e.target.value)} placeholder="e.g. 1500" className="h-8 text-xs" disabled={!canEdit} />
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* TCP MSS / TTL Match */}
+                  <div className="space-y-2">
+                    <Label className="text-xs">TCP MSS / TTL Match</Label>
+                    <div className="space-y-1">
+                      <Label className="text-[11px] text-muted-foreground">TCP MSS Match</Label>
+                      <Input value={tcpMssMatch} onChange={(e) => setTcpMssMatch(e.target.value)} placeholder="e.g. 500-1460" className="h-8 text-xs" disabled={!canEdit} />
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-[11px] text-muted-foreground">TTL Equal</Label>
+                        <Input value={ttlEq} onChange={(e) => setTtlEq(e.target.value)} placeholder="0-255" className="h-8 text-xs" disabled={!canEdit} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[11px] text-muted-foreground">TTL Greater Than</Label>
+                        <Input value={ttlGt} onChange={(e) => setTtlGt(e.target.value)} placeholder="0-255" className="h-8 text-xs" disabled={!canEdit} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[11px] text-muted-foreground">TTL Less Than</Label>
+                        <Input value={ttlLt} onChange={(e) => setTtlLt(e.target.value)} placeholder="0-255" className="h-8 text-xs" disabled={!canEdit} />
+                      </div>
+                    </div>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+
+              {/* ── RATE LIMITS & TIME (Collapsible) ─────────────────────── */}
+              <Collapsible open={limitsOpen} onOpenChange={setLimitsOpen}>
+                <CollapsibleTrigger className="flex items-center gap-3 w-full group">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Rate Limits & Time</p>
+                  {(limitRate || limitBurst || recentCount || recentTime || timeStartdate || timeStarttime || timeStopdate || timeStoptime || timeWeekdays) && (
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
+                  )}
+                  <div className="flex-1 h-px bg-border" />
+                  <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform", limitsOpen && "rotate-180")} />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-4 pt-3">
+                  {/* Rate Limiting */}
+                  <div className="space-y-2">
+                    <Label className="text-xs">Rate Limiting</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-[11px] text-muted-foreground">Rate</Label>
+                        <Input value={limitRate} onChange={(e) => setLimitRate(e.target.value)} placeholder="e.g. 10/second" className="h-8 text-xs" disabled={!canEdit} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[11px] text-muted-foreground">Burst</Label>
+                        <Input value={limitBurst} onChange={(e) => setLimitBurst(e.target.value)} placeholder="e.g. 20" className="h-8 text-xs" disabled={!canEdit} />
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Recent Connection Tracking */}
+                  <div className="space-y-2">
+                    <Label className="text-xs">Recent Connection Tracking</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-[11px] text-muted-foreground">Count</Label>
+                        <Input value={recentCount} onChange={(e) => setRecentCount(e.target.value)} placeholder="e.g. 5" className="h-8 text-xs" disabled={!canEdit} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[11px] text-muted-foreground">Time (seconds)</Label>
+                        <Input value={recentTime} onChange={(e) => setRecentTime(e.target.value)} placeholder="e.g. 60" className="h-8 text-xs" disabled={!canEdit} />
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Time-Based Rules */}
+                  <div className="space-y-2">
+                    <Label className="text-xs">Time-Based Rules</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-[11px] text-muted-foreground">Start Date</Label>
+                        <Input type="date" value={timeStartdate} onChange={(e) => setTimeStartdate(e.target.value)} className="h-8 text-xs" disabled={!canEdit} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[11px] text-muted-foreground">Stop Date</Label>
+                        <Input type="date" value={timeStopdate} onChange={(e) => setTimeStopdate(e.target.value)} className="h-8 text-xs" disabled={!canEdit} />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-[11px] text-muted-foreground">Start Time</Label>
+                        <Input type="time" value={timeStarttime} onChange={(e) => setTimeStarttime(e.target.value)} className="h-8 text-xs" disabled={!canEdit} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[11px] text-muted-foreground">Stop Time</Label>
+                        <Input type="time" value={timeStoptime} onChange={(e) => setTimeStoptime(e.target.value)} className="h-8 text-xs" disabled={!canEdit} />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[11px] text-muted-foreground">Weekdays</Label>
+                      <Input value={timeWeekdays} onChange={(e) => setTimeWeekdays(e.target.value)} placeholder="Monday,Tuesday,Wednesday" className="h-8 text-xs" disabled={!canEdit} />
+                    </div>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+
+              {/* ── ACTIONS & MODIFICATIONS (Collapsible) ────────────────── */}
+              <Collapsible open={actionsOpen} onOpenChange={setActionsOpen}>
+                <CollapsibleTrigger className="flex items-center gap-3 w-full group">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Actions & Modifications</p>
+                  {(logOptionsGroup || logOptionsLevel || logOptionsQueueThreshold || logOptionsSnapshotLength || queueNumber || queueOptions || synproxyTcpMss || synproxyTcpWindowScale || modSetConnectionMark || modSetTcpMss || addAddrToGroupSrcGroup || addAddrToGroupDstGroup) && (
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
+                  )}
+                  <div className="flex-1 h-px bg-border" />
+                  <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform", actionsOpen && "rotate-180")} />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-4 pt-3">
+                  {/* Log Options (when log is enabled) */}
+                  {log && (
+                    <div className="space-y-2">
+                      <Label className="text-xs">Log Options</Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <Label className="text-[11px] text-muted-foreground">Log Group</Label>
+                          <Input value={logOptionsGroup} onChange={(e) => setLogOptionsGroup(e.target.value)} placeholder="Group number" className="h-8 text-xs" disabled={!canEdit} />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[11px] text-muted-foreground">Log Level</Label>
+                          <Select value={logOptionsLevel || "__none__"} onValueChange={(v) => setLogOptionsLevel(v === "__none__" ? "" : v)} disabled={!canEdit}>
+                            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Default" /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__none__" className="text-xs">Default</SelectItem>
+                              <SelectItem value="emerg" className="text-xs">Emergency</SelectItem>
+                              <SelectItem value="alert" className="text-xs">Alert</SelectItem>
+                              <SelectItem value="crit" className="text-xs">Critical</SelectItem>
+                              <SelectItem value="err" className="text-xs">Error</SelectItem>
+                              <SelectItem value="warn" className="text-xs">Warning</SelectItem>
+                              <SelectItem value="notice" className="text-xs">Notice</SelectItem>
+                              <SelectItem value="info" className="text-xs">Info</SelectItem>
+                              <SelectItem value="debug" className="text-xs">Debug</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <Label className="text-[11px] text-muted-foreground">Queue Threshold</Label>
+                          <Input value={logOptionsQueueThreshold} onChange={(e) => setLogOptionsQueueThreshold(e.target.value)} placeholder="Threshold" className="h-8 text-xs" disabled={!canEdit} />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[11px] text-muted-foreground">Snapshot Length</Label>
+                          <Input value={logOptionsSnapshotLength} onChange={(e) => setLogOptionsSnapshotLength(e.target.value)} placeholder="Length" className="h-8 text-xs" disabled={!canEdit} />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Queue Config (when action is queue) */}
+                  {action === "queue" && (
+                    <div className="space-y-2">
+                      <Label className="text-xs">Queue Configuration</Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <Label className="text-[11px] text-muted-foreground">Queue Number</Label>
+                          <Input value={queueNumber} onChange={(e) => setQueueNumber(e.target.value)} placeholder="0-65535" className="h-8 text-xs" disabled={!canEdit} />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[11px] text-muted-foreground">Queue Options</Label>
+                          <Select value={queueOptions || "__none__"} onValueChange={(v) => setQueueOptions(v === "__none__" ? "" : v)} disabled={!canEdit}>
+                            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="None" /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__none__" className="text-xs">None</SelectItem>
+                              <SelectItem value="bypass" className="text-xs">Bypass</SelectItem>
+                              <SelectItem value="fanout" className="text-xs">Fanout</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Synproxy Config (when action is synproxy) */}
+                  {action === "synproxy" && (
+                    <div className="space-y-2">
+                      <Label className="text-xs">Synproxy Configuration</Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <Label className="text-[11px] text-muted-foreground">TCP MSS</Label>
+                          <Input value={synproxyTcpMss} onChange={(e) => setSynproxyTcpMss(e.target.value)} placeholder="MSS value" className="h-8 text-xs" disabled={!canEdit} />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[11px] text-muted-foreground">TCP Window Scale</Label>
+                          <Input value={synproxyTcpWindowScale} onChange={(e) => setSynproxyTcpWindowScale(e.target.value)} placeholder="Window scale" className="h-8 text-xs" disabled={!canEdit} />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Set Connection Mark / TCP MSS */}
+                  <div className="space-y-2">
+                    <Label className="text-xs">Packet Modifications</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-[11px] text-muted-foreground">Set Connection Mark</Label>
+                        <Input value={modSetConnectionMark} onChange={(e) => setModSetConnectionMark(e.target.value)} placeholder="Mark value" className="h-8 text-xs" disabled={!canEdit} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[11px] text-muted-foreground">Set TCP MSS</Label>
+                        <Input value={modSetTcpMss} onChange={(e) => setModSetTcpMss(e.target.value)} placeholder="MSS value" className="h-8 text-xs" disabled={!canEdit} />
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Add Address to Group */}
+                  <div className="space-y-2">
+                    <Label className="text-xs">Add Address to Group</Label>
+                    <p className="text-[11px] text-muted-foreground">Dynamically add source/destination addresses to firewall groups</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-[11px] text-muted-foreground">Source Address Group</Label>
+                        <Input value={addAddrToGroupSrcGroup} onChange={(e) => setAddAddrToGroupSrcGroup(e.target.value)} placeholder="Group name" className="h-8 text-xs" disabled={!canEdit} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[11px] text-muted-foreground">Source Timeout</Label>
+                        <Input value={addAddrToGroupSrcTimeout} onChange={(e) => setAddAddrToGroupSrcTimeout(e.target.value)} placeholder="e.g. 300" className="h-8 text-xs" disabled={!canEdit} />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-[11px] text-muted-foreground">Dest Address Group</Label>
+                        <Input value={addAddrToGroupDstGroup} onChange={(e) => setAddAddrToGroupDstGroup(e.target.value)} placeholder="Group name" className="h-8 text-xs" disabled={!canEdit} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[11px] text-muted-foreground">Dest Timeout</Label>
+                        <Input value={addAddrToGroupDstTimeout} onChange={(e) => setAddAddrToGroupDstTimeout(e.target.value)} placeholder="e.g. 300" className="h-8 text-xs" disabled={!canEdit} />
+                      </div>
+                    </div>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             </div>
           </div>
         </ScrollArea>

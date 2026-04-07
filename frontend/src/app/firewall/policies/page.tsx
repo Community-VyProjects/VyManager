@@ -30,8 +30,16 @@ import {
   AlertCircle,
   Shield,
   ChevronRight,
+  ChevronDown,
   Trash2,
 } from "lucide-react";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { useEffect, useState } from "react";
 import { DndContext, closestCenter, DragOverlay, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
@@ -54,7 +62,7 @@ import { DeleteCustomChainModal } from "@/components/firewall/DeleteCustomChainM
 import { FirewallRuleRow } from "@/components/firewall/FirewallRuleRow";
 import { FirewallReorderBanner } from "@/components/firewall/FirewallReorderBanner";
 
-type ChainType = "forward" | "input" | "output";
+type ChainType = "forward" | "input" | "output" | "prerouting_raw";
 
 export default function FirewallPoliciesPage() {
   // Protocol selection state
@@ -87,6 +95,13 @@ export default function FirewallPoliciesPage() {
 
   // Default action change state
   const [savingDefaultAction, setSavingDefaultAction] = useState(false);
+
+  // Chain settings state
+  const [chainDescription, setChainDescription] = useState("");
+  const [chainDefaultLog, setChainDefaultLog] = useState(false);
+  const [chainDefaultJumpTarget, setChainDefaultJumpTarget] = useState("");
+  const [savingChainSettings, setSavingChainSettings] = useState(false);
+  const [chainSettingsOpen, setChainSettingsOpen] = useState(false);
 
   // IPv4 Drag and drop states
   const [reorderedRules, setReorderedRules] = useState<FirewallRule[]>([]);
@@ -196,6 +211,8 @@ export default function FirewallPoliciesPage() {
       if (protocol === "ipv4") {
         if (isCustom) {
           await firewallIPv4Service.setCustomChainDefaultAction(chain, action);
+        } else if (chain === "prerouting_raw") {
+          await firewallIPv4Service.setPreroutingRawDefaultAction(action);
         } else {
           await firewallIPv4Service.setBaseChainDefaultAction(chain, action);
         }
@@ -226,6 +243,7 @@ export default function FirewallPoliciesPage() {
         if (chain === "forward") return config?.forward?.default_action || null;
         if (chain === "input") return config?.input?.default_action || null;
         if (chain === "output") return config?.output?.default_action || null;
+        if (chain === "prerouting_raw") return config?.prerouting_raw?.default_action || null;
       }
     } else {
       if (isCustom) {
@@ -272,6 +290,9 @@ export default function FirewallPoliciesPage() {
   const outputRulesIPv6 = configIPv6 ? configIPv6.output_rules : [];
   const customChainsIPv6 = configIPv6 ? configIPv6.custom_chains : [];
 
+  // Prerouting raw rules
+  const preroutingRawRules = config?.prerouting_raw?.rules ?? [];
+
   // Get rules for the selected chain (protocol-aware)
   const getCurrentRules = (): FirewallRule[] => {
     if (selectedProtocol === "ipv4") {
@@ -282,6 +303,7 @@ export default function FirewallPoliciesPage() {
         if (selectedChain === "forward") return forwardRules;
         if (selectedChain === "input") return inputRules;
         if (selectedChain === "output") return outputRules;
+        if (selectedChain === "prerouting_raw") return preroutingRawRules;
         return [];
       }
     } else {
@@ -315,6 +337,34 @@ export default function FirewallPoliciesPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedChain, isCustomChain, config, hasChanges, selectedChainIPv6, isCustomChainIPv6, configIPv6, hasChangesIPv6, selectedProtocol]);
+
+  // Load chain settings when selected chain changes
+  useEffect(() => {
+    if (selectedProtocol !== "ipv4" || !config) return;
+
+    const currentChainName = selectedChain;
+    const isCustom = isCustomChain;
+
+    if (isCustom) {
+      const chain = customChains.find((c) => c.name === currentChainName);
+      setChainDescription(chain?.description || "");
+      setChainDefaultLog(chain?.default_log || false);
+      setChainDefaultJumpTarget(chain?.default_jump_target || "");
+    } else if (currentChainName === "prerouting_raw") {
+      setChainDescription(config.prerouting_raw?.description || "");
+      setChainDefaultLog(config.prerouting_raw?.default_log || false);
+      setChainDefaultJumpTarget(config.prerouting_raw?.default_jump_target || "");
+    } else {
+      // Base chain (forward/input/output)
+      const baseConfig = currentChainName === "forward" ? config.forward
+        : currentChainName === "input" ? config.input
+        : config.output;
+      setChainDescription(baseConfig?.description || "");
+      setChainDefaultLog(baseConfig?.default_log || false);
+      setChainDefaultJumpTarget("");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedChain, isCustomChain, config, selectedProtocol]);
 
   const currentRules = selectedProtocol === "ipv4"
     ? (hasChanges ? reorderedRules : getCurrentRules())
@@ -486,6 +536,102 @@ export default function FirewallPoliciesPage() {
     }
   };
 
+  // Chain settings handlers
+  const handleChainDescriptionBlur = async () => {
+    if (selectedProtocol !== "ipv4") return;
+    setSavingChainSettings(true);
+    try {
+      const chain = selectedChain;
+      if (isCustomChain) {
+        if (chainDescription) {
+          await firewallIPv4Service.setCustomChainDescription(chain, chainDescription);
+        } else {
+          await firewallIPv4Service.deleteCustomChainDescription(chain);
+        }
+      } else if (chain === "prerouting_raw") {
+        if (chainDescription) {
+          await firewallIPv4Service.setPreroutingRawDescription(chainDescription);
+        } else {
+          await firewallIPv4Service.deletePreroutingRawDescription();
+        }
+      } else {
+        if (chainDescription) {
+          await firewallIPv4Service.setBaseChainDescription(chain, chainDescription);
+        } else {
+          await firewallIPv4Service.deleteBaseChainDescription(chain);
+        }
+      }
+      await fetchConfig(true);
+    } catch (err) {
+      console.error("Error saving chain description:", err);
+      setError(err instanceof Error ? err.message : "Failed to save chain description");
+    } finally {
+      setSavingChainSettings(false);
+    }
+  };
+
+  const handleChainDefaultLogChange = async (checked: boolean) => {
+    if (selectedProtocol !== "ipv4") return;
+    setChainDefaultLog(checked);
+    setSavingChainSettings(true);
+    try {
+      const chain = selectedChain;
+      if (isCustomChain) {
+        if (checked) {
+          await firewallIPv4Service.setCustomChainDefaultLog(chain);
+        } else {
+          await firewallIPv4Service.deleteCustomChainDefaultLog(chain);
+        }
+      } else if (chain === "prerouting_raw") {
+        if (checked) {
+          await firewallIPv4Service.setPreroutingRawDefaultLog();
+        } else {
+          await firewallIPv4Service.deletePreroutingRawDefaultLog();
+        }
+      } else {
+        if (checked) {
+          await firewallIPv4Service.setBaseChainDefaultLog(chain);
+        } else {
+          await firewallIPv4Service.deleteBaseChainDefaultLog(chain);
+        }
+      }
+      await fetchConfig(true);
+    } catch (err) {
+      console.error("Error saving chain default log:", err);
+      setError(err instanceof Error ? err.message : "Failed to save chain default log");
+    } finally {
+      setSavingChainSettings(false);
+    }
+  };
+
+  const handleChainDefaultJumpTargetChange = async (value: string) => {
+    if (selectedProtocol !== "ipv4") return;
+    setChainDefaultJumpTarget(value);
+    setSavingChainSettings(true);
+    try {
+      const chain = selectedChain;
+      if (isCustomChain) {
+        if (value && value !== "__none__") {
+          await firewallIPv4Service.setCustomChainDefaultJumpTarget(chain, value);
+        } else {
+          await firewallIPv4Service.deleteCustomChainDefaultJumpTarget(chain);
+        }
+      } else if (chain === "prerouting_raw") {
+        if (value && value !== "__none__") {
+          await firewallIPv4Service.setPreroutingRawDefaultJumpTarget(value);
+        } else {
+          await firewallIPv4Service.deletePreroutingRawDefaultJumpTarget();
+        }
+      }
+      await fetchConfig(true);
+    } catch (err) {
+      console.error("Error saving chain default jump target:", err);
+      setError(err instanceof Error ? err.message : "Failed to save chain default jump target");
+    } finally {
+      setSavingChainSettings(false);
+    }
+  };
+
   // Filter rules based on search
   const filteredRules = currentRules.filter((rule) => {
     if (!searchQuery) return true;
@@ -631,6 +777,33 @@ export default function FirewallPoliciesPage() {
                         </Badge>
                       </div>
                     </button>
+
+                    {capabilities?.features.prerouting_raw?.supported && (
+                      <button
+                        onClick={() => handleChainSelect("prerouting_raw", false)}
+                        className={cn(
+                          "w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all",
+                          selectedChain === "prerouting_raw" && !isCustomChain
+                            ? "bg-accent text-accent-foreground shadow-sm"
+                            : "hover:bg-accent/50 text-foreground"
+                        )}
+                      >
+                        <span className="font-medium">Prerouting Raw</span>
+                        <div className="flex items-center gap-1.5">
+                          {getDefaultAction("prerouting_raw", false, "ipv4") && (
+                            <Badge
+                              variant="outline"
+                              className={cn("uppercase text-xs", getDefaultActionBadgeClass(getDefaultAction("prerouting_raw", false, "ipv4")))}
+                            >
+                              {getDefaultAction("prerouting_raw", false, "ipv4")}
+                            </Badge>
+                          )}
+                          <Badge variant="secondary">
+                            {preroutingRawRules.length}
+                          </Badge>
+                        </div>
+                      </button>
+                    )}
 
                     <Separator className="my-4" />
                     <div className="flex items-center justify-between px-2 py-1 mb-2">
@@ -957,6 +1130,75 @@ export default function FirewallPoliciesPage() {
                 </Select>
               </div>
             </div>
+
+            {/* Chain Settings (IPv4 only) */}
+            {selectedProtocol === "ipv4" && (
+              <Collapsible open={chainSettingsOpen} onOpenChange={setChainSettingsOpen} className="mt-4">
+                <CollapsibleTrigger className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+                  <ChevronDown className={cn("h-4 w-4 transition-transform", chainSettingsOpen && "rotate-180")} />
+                  <span className="font-medium">Chain Settings</span>
+                  {savingChainSettings && <RefreshCw className="h-3 w-3 animate-spin" />}
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-3">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-lg border border-border bg-muted/30">
+                    {/* Description */}
+                    <div className="space-y-2">
+                      <Label htmlFor="chain-description" className="text-sm font-medium">Description</Label>
+                      <Input
+                        id="chain-description"
+                        placeholder="Chain description..."
+                        value={chainDescription}
+                        onChange={(e) => setChainDescription(e.target.value)}
+                        onBlur={handleChainDescriptionBlur}
+                        disabled={savingChainSettings}
+                      />
+                    </div>
+
+                    {/* Default Log */}
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Default Log</Label>
+                      <div className="flex items-center gap-2 pt-1">
+                        <Checkbox
+                          id="chain-default-log"
+                          checked={chainDefaultLog}
+                          onCheckedChange={(checked) => handleChainDefaultLogChange(checked === true)}
+                          disabled={savingChainSettings}
+                        />
+                        <Label htmlFor="chain-default-log" className="text-sm text-muted-foreground cursor-pointer">
+                          Log packets matching default action
+                        </Label>
+                      </div>
+                    </div>
+
+                    {/* Default Jump Target (custom chains and prerouting_raw only) */}
+                    {(isCustomChain || selectedChain === "prerouting_raw") && (
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">Default Jump Target</Label>
+                        <Select
+                          value={chainDefaultJumpTarget || "__none__"}
+                          onValueChange={handleChainDefaultJumpTargetChange}
+                          disabled={savingChainSettings}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="None" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">None</SelectItem>
+                            {customChains
+                              .filter((c) => c.name !== selectedChain)
+                              .map((c) => (
+                                <SelectItem key={c.name} value={c.name}>
+                                  {c.name}
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            )}
           </div>
 
           {/* Rules Table */}

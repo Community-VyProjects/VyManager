@@ -93,56 +93,7 @@ export interface FirewallConfigResponse {
 
 export interface FirewallCapabilitiesResponse {
   version: string;
-  features: {
-    base_chains: {
-      supported: boolean;
-      description: string;
-    };
-    custom_chains: {
-      supported: boolean;
-      description: string;
-    };
-    basic_matching: {
-      supported: boolean;
-      description: string;
-    };
-    firewall_groups: {
-      supported: boolean;
-      description: string;
-    };
-    remote_group: {
-      supported: boolean;
-      description: string;
-    };
-    connection_state: {
-      supported: boolean;
-      description: string;
-    };
-    tcp_flags: {
-      supported: boolean;
-      description: string;
-    };
-    packet_modifications: {
-      supported: boolean;
-      description: string;
-    };
-    icmp_matching: {
-      supported: boolean;
-      description: string;
-    };
-    interface_matching: {
-      supported: boolean;
-      description: string;
-    };
-    mac_matching: {
-      supported: boolean;
-      description: string;
-    };
-    jump_action: {
-      supported: boolean;
-      description: string;
-    };
-  };
+  features: Record<string, { supported: boolean; description: string }>;
   actions: string[];
   states: string[];
   tcp_flags: string[];
