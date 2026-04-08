@@ -435,33 +435,11 @@ export default function FirewallPoliciesPage() {
           .sort((a, b) => a - b);
 
         // Build the reorder request
-        const reorderItems = reorderedRules.map((rule, i) => {
-          const oldNumber = rule.rule_number;
-          const newNumber = sortedRuleNumbers[i];
-
-          const ruleData: any = {
-            action: rule.action,
-            description: rule.description,
-            protocol: rule.protocol,
-            source: rule.source,
-            destination: rule.destination,
-            state: rule.state,
-            interface: rule.interface,
-            packet_mods: rule.packet_mods,
-            tcp_flags: rule.tcp_flags,
-            icmp_type_name: rule.icmp_type_name,
-            jump_target: rule.jump_target,
-            offload_target: rule.offload_target,
-            disable: rule.disable,
-            log: rule.log,
-          };
-
-          return {
-            old_number: oldNumber,
-            new_number: newNumber,
-            rule_data: ruleData,
-          };
-        });
+        const reorderItems = reorderedRules.map((rule, i) => ({
+          old_number: rule.rule_number,
+          new_number: sortedRuleNumbers[i],
+          rule_data: rule,
+        }));
 
         // Call the reorder endpoint
         await firewallIPv4Service.reorderRules({
@@ -490,33 +468,11 @@ export default function FirewallPoliciesPage() {
           .sort((a, b) => a - b);
 
         // Build the reorder request
-        const reorderItems = reorderedRulesIPv6.map((rule, i) => {
-          const oldNumber = rule.rule_number;
-          const newNumber = sortedRuleNumbers[i];
-
-          const ruleData: any = {
-            action: rule.action,
-            description: rule.description,
-            protocol: rule.protocol,
-            source: rule.source,
-            destination: rule.destination,
-            state: rule.state,
-            interface: rule.interface,
-            packet_mods: rule.packet_mods,
-            tcp_flags: rule.tcp_flags,
-            icmp_type_name: rule.icmp_type_name,
-            jump_target: rule.jump_target,
-            offload_target: rule.offload_target,
-            disable: rule.disable,
-            log: rule.log,
-          };
-
-          return {
-            old_number: oldNumber,
-            new_number: newNumber,
-            rule_data: ruleData,
-          };
-        });
+        const reorderItems = reorderedRulesIPv6.map((rule, i) => ({
+          old_number: rule.rule_number,
+          new_number: sortedRuleNumbers[i],
+          rule_data: rule,
+        }));
 
         // Call the reorder endpoint
         await firewallIPv6Service.reorderRules({
