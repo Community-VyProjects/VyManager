@@ -23,6 +23,12 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { firewallIPv4Service, type FirewallRule, type FirewallCapabilitiesResponse } from "@/lib/api/firewall-ipv4";
 import { firewallIPv6Service } from "@/lib/api/firewall-ipv6";
@@ -71,7 +77,7 @@ export function CreateFirewallRuleModal({
   const [protocolInvert, setProtocolInvert] = useState(false);
 
   // Source fields
-  const [sourceMode, setSourceMode] = useState<"any" | "address" | "group" | "geoip" | "mac">("any");
+  const [sourceMode, setSourceMode] = useState<"any" | "address" | "group" | "geoip" | "mac" | "fqdn">("any");
   const [sourceAddress, setSourceAddress] = useState("");
   const [sourceAddressInvert, setSourceAddressInvert] = useState(false);
   const [sourcePortMode, setSourcePortMode] = useState<"any" | "port" | "group">("any");
@@ -83,9 +89,11 @@ export function CreateFirewallRuleModal({
   const [sourceGroupType, setSourceGroupType] = useState("");
   const [sourceGroupName, setSourceGroupName] = useState("");
   const [sourceGroupInvert, setSourceGroupInvert] = useState(false);
+  const [sourceFqdn, setSourceFqdn] = useState("");
+  const [sourceAddressMask, setSourceAddressMask] = useState("");
 
   // Destination fields
-  const [destMode, setDestMode] = useState<"any" | "address" | "group" | "geoip">("any");
+  const [destMode, setDestMode] = useState<"any" | "address" | "group" | "geoip" | "fqdn" | "mac">("any");
   const [destAddress, setDestAddress] = useState("");
   const [destAddressInvert, setDestAddressInvert] = useState(false);
   const [destPortMode, setDestPortMode] = useState<"any" | "port" | "group">("any");
@@ -107,6 +115,9 @@ export function CreateFirewallRuleModal({
   const [destGroupType, setDestGroupType] = useState("");
   const [destGroupName, setDestGroupName] = useState("");
   const [destGroupInvert, setDestGroupInvert] = useState(false);
+  const [destFqdn, setDestFqdn] = useState("");
+  const [destAddressMask, setDestAddressMask] = useState("");
+  const [destMacAddress, setDestMacAddress] = useState("");
   const [sourcePortGroupInvert, setSourcePortGroupInvert] = useState(false);
   const [destPortGroupInvert, setDestPortGroupInvert] = useState(false);
 
@@ -137,6 +148,57 @@ export function CreateFirewallRuleModal({
   const [dscp, setDscp] = useState("");
   const [mark, setMark] = useState("");
   const [ttl, setTtl] = useState("");
+
+  // Matching fields
+  const [connectionMark, setConnectionMark] = useState("");
+  const [connectionStatusNat, setConnectionStatusNat] = useState("");
+  const [conntrackHelper, setConntrackHelper] = useState("");
+  const [dscpMatch, setDscpMatch] = useState("");
+  const [dscpExclude, setDscpExclude] = useState("");
+  const [fragmentMatchFrag, setFragmentMatchFrag] = useState(false);
+  const [fragmentMatchNonFrag, setFragmentMatchNonFrag] = useState(false);
+  const [greKey, setGreKey] = useState("");
+  const [greVersion, setGreVersion] = useState("");
+  const [greInnerProto, setGreInnerProto] = useState("");
+  const [greFlags, setGreFlags] = useState<Record<string, boolean>>({});
+  const [ipsecMode, setIpsecMode] = useState<"none" | "match-ipsec" | "match-none">("none");
+  const [ipsecInbound, setIpsecInbound] = useState<"none" | "match-ipsec" | "match-none">("none");
+  const [ipsecOutbound, setIpsecOutbound] = useState<"none" | "match-ipsec" | "match-none">("none");
+  const [markMatch, setMarkMatch] = useState("");
+  const [packetLength, setPacketLength] = useState("");
+  const [packetLengthExclude, setPacketLengthExclude] = useState("");
+  const [packetType, setPacketType] = useState("");
+  const [tcpMssMatch, setTcpMssMatch] = useState("");
+  const [ttlEq, setTtlEq] = useState("");
+  const [ttlGt, setTtlGt] = useState("");
+  const [ttlLt, setTtlLt] = useState("");
+
+  // Limits & Time fields
+  const [limitRate, setLimitRate] = useState("");
+  const [limitBurst, setLimitBurst] = useState("");
+  const [recentCount, setRecentCount] = useState("");
+  const [recentTime, setRecentTime] = useState("");
+  const [timeStartdate, setTimeStartdate] = useState("");
+  const [timeStarttime, setTimeStarttime] = useState("");
+  const [timeStopdate, setTimeStopdate] = useState("");
+  const [timeStoptime, setTimeStoptime] = useState("");
+  const [timeWeekdays, setTimeWeekdays] = useState("");
+
+  // Actions fields
+  const [logOptionsGroup, setLogOptionsGroup] = useState("");
+  const [logOptionsLevel, setLogOptionsLevel] = useState("");
+  const [logOptionsQueueThreshold, setLogOptionsQueueThreshold] = useState("");
+  const [logOptionsSnapshotLength, setLogOptionsSnapshotLength] = useState("");
+  const [queueNumber, setQueueNumber] = useState("");
+  const [queueOptions, setQueueOptions] = useState("");
+  const [synproxyTcpMss, setSynproxyTcpMss] = useState("");
+  const [synproxyTcpWindowScale, setSynproxyTcpWindowScale] = useState("");
+  const [modSetConnectionMark, setModSetConnectionMark] = useState("");
+  const [modSetTcpMss, setModSetTcpMss] = useState("");
+  const [addAddrToGroupSrcGroup, setAddAddrToGroupSrcGroup] = useState("");
+  const [addAddrToGroupSrcTimeout, setAddAddrToGroupSrcTimeout] = useState("");
+  const [addAddrToGroupDstGroup, setAddAddrToGroupDstGroup] = useState("");
+  const [addAddrToGroupDstTimeout, setAddAddrToGroupDstTimeout] = useState("");
 
   // Flags
   const [disable, setDisable] = useState(false);
@@ -299,6 +361,8 @@ export function CreateFirewallRuleModal({
     setSourceGroupType("");
     setSourceGroupName("");
     setSourceGroupInvert(false);
+    setSourceFqdn("");
+    setSourceAddressMask("");
     setSourcePortGroupInvert(false);
     setDestMode("any");
     setDestAddress("");
@@ -312,6 +376,9 @@ export function CreateFirewallRuleModal({
     setDestGroupType("");
     setDestGroupName("");
     setDestGroupInvert(false);
+    setDestFqdn("");
+    setDestAddressMask("");
+    setDestMacAddress("");
     setStateEstablished(false);
     setStateNew(false);
     setStateRelated(false);
@@ -334,6 +401,54 @@ export function CreateFirewallRuleModal({
     setDscp("");
     setMark("");
     setTtl("");
+    // Matching fields
+    setConnectionMark("");
+    setConnectionStatusNat("");
+    setConntrackHelper("");
+    setDscpMatch("");
+    setDscpExclude("");
+    setFragmentMatchFrag(false);
+    setFragmentMatchNonFrag(false);
+    setGreKey("");
+    setGreVersion("");
+    setGreInnerProto("");
+    setGreFlags({});
+    setIpsecMode("none");
+    setIpsecInbound("none");
+    setIpsecOutbound("none");
+    setMarkMatch("");
+    setPacketLength("");
+    setPacketLengthExclude("");
+    setPacketType("");
+    setTcpMssMatch("");
+    setTtlEq("");
+    setTtlGt("");
+    setTtlLt("");
+    // Limits & Time
+    setLimitRate("");
+    setLimitBurst("");
+    setRecentCount("");
+    setRecentTime("");
+    setTimeStartdate("");
+    setTimeStarttime("");
+    setTimeStopdate("");
+    setTimeStoptime("");
+    setTimeWeekdays("");
+    // Actions
+    setLogOptionsGroup("");
+    setLogOptionsLevel("");
+    setLogOptionsQueueThreshold("");
+    setLogOptionsSnapshotLength("");
+    setQueueNumber("");
+    setQueueOptions("");
+    setSynproxyTcpMss("");
+    setSynproxyTcpWindowScale("");
+    setModSetConnectionMark("");
+    setModSetTcpMss("");
+    setAddAddrToGroupSrcGroup("");
+    setAddAddrToGroupSrcTimeout("");
+    setAddAddrToGroupDstGroup("");
+    setAddAddrToGroupDstTimeout("");
     setDisable(false);
     setLog(false);
     setError(null);
@@ -423,8 +538,14 @@ export function CreateFirewallRuleModal({
         (sourceMode === "group" && sourceGroupType && sourceGroupName) ||
         (sourceMode === "geoip" && sourceGeoipCountry.length > 0) ||
         (sourceMode === "mac" && sourceMac.trim()) ||
+        (sourceMode === "fqdn" && sourceFqdn.trim()) ||
         (sourcePortMode === "port" && sourcePort.trim()) ||
         (sourcePortMode === "group" && sourcePortGroup.trim());
+
+      // Source FQDN (set at top level, not inside source object)
+      if (sourceMode === "fqdn" && sourceFqdn.trim()) {
+        config.source_fqdn = sourceFqdn.trim();
+      }
 
       if (hasSource) {
         config.source = {};
@@ -447,6 +568,10 @@ export function CreateFirewallRuleModal({
           config.source.mac_address = sourceMac.trim();
         }
 
+        if (sourceMode === "address" && sourceAddressMask.trim()) {
+          config.source_address_mask = sourceAddressMask.trim();
+        }
+
         // Handle port - either direct port or port group (separate from address/group/geoip/mac)
         if (sourcePortMode === "port" && sourcePort.trim()) {
           config.source.port = sourcePort.trim();
@@ -459,11 +584,22 @@ export function CreateFirewallRuleModal({
         }
       }
 
+      // Destination FQDN (set at top level)
+      if (destMode === "fqdn" && destFqdn.trim()) {
+        config.destination_fqdn = destFqdn.trim();
+      }
+      // Destination MAC address (set at top level)
+      if (destMode === "mac" && destMacAddress.trim()) {
+        config.destination_mac_address = destMacAddress.trim();
+      }
+
       // Destination
       const hasDest =
         (destMode === "address" && destAddress.trim()) ||
         (destMode === "group" && destGroupType && destGroupName) ||
         (destMode === "geoip" && destGeoipCountry.length > 0) ||
+        (destMode === "fqdn" && destFqdn.trim()) ||
+        (destMode === "mac" && destMacAddress.trim()) ||
         (destPortMode === "port" && destPort.trim()) ||
         (destPortMode === "group" && destPortGroup.trim());
 
@@ -483,6 +619,10 @@ export function CreateFirewallRuleModal({
             country_code: destGeoipCountry,
             inverse_match: destGeoipInverse || undefined,
           };
+        }
+
+        if (destMode === "address" && destAddressMask.trim()) {
+          config.destination_address_mask = destAddressMask.trim();
         }
 
         // Handle port - either direct port or port group (separate from address/group/geoip)
@@ -541,6 +681,128 @@ export function CreateFirewallRuleModal({
 
       if (offloadTarget) {
         config.offload_target = offloadTarget;
+      }
+
+      // Matching fields
+      if (connectionMark.trim()) {
+        config.connection_mark = connectionMark.trim();
+      }
+      if (connectionStatusNat) {
+        config.connection_status = { nat: connectionStatusNat };
+      }
+      if (conntrackHelper.trim()) {
+        config.conntrack_helper = conntrackHelper.trim();
+      }
+      if (dscpMatch.trim()) {
+        config.dscp_match = dscpMatch.trim();
+      }
+      if (dscpExclude.trim()) {
+        config.dscp_exclude = dscpExclude.trim();
+      }
+      if (fragmentMatchFrag || fragmentMatchNonFrag) {
+        config.fragment = {
+          match_frag: fragmentMatchFrag || undefined,
+          match_non_frag: fragmentMatchNonFrag || undefined,
+        };
+      }
+      if (greKey || greVersion || greInnerProto || Object.values(greFlags).some(Boolean)) {
+        config.gre = {};
+        if (greKey) config.gre.key = greKey;
+        if (greVersion) config.gre.version = greVersion;
+        if (greInnerProto) config.gre.inner_proto = greInnerProto;
+        if (greFlags.checksum) config.gre.flags_checksum = true;
+        if (greFlags.checksum_unset) config.gre.flags_checksum_unset = true;
+        if (greFlags.key) config.gre.flags_key = true;
+        if (greFlags.key_unset) config.gre.flags_key_unset = true;
+        if (greFlags.sequence) config.gre.flags_sequence = true;
+        if (greFlags.sequence_unset) config.gre.flags_sequence_unset = true;
+      }
+
+      // IPsec
+      const hasIpsec = ipsecMode !== "none" || ipsecInbound !== "none" || ipsecOutbound !== "none";
+      if (hasIpsec) {
+        config.ipsec = {};
+        if (ipsecMode === "match-ipsec") config.ipsec.match_ipsec = true;
+        if (ipsecMode === "match-none") config.ipsec.match_none = true;
+        if (ipsecInbound === "match-ipsec") config.ipsec.match_ipsec_in = true;
+        if (ipsecInbound === "match-none") config.ipsec.match_none_in = true;
+        if (ipsecOutbound === "match-ipsec") config.ipsec.match_ipsec_out = true;
+        if (ipsecOutbound === "match-none") config.ipsec.match_none_out = true;
+      }
+
+      if (markMatch.trim()) {
+        config.mark_match = markMatch.trim();
+      }
+      if (packetLength.trim()) {
+        config.packet_length = packetLength.trim();
+      }
+      if (packetLengthExclude.trim()) {
+        config.packet_length_exclude = packetLengthExclude.trim();
+      }
+      if (packetType) {
+        config.packet_type = packetType;
+      }
+      if (tcpMssMatch.trim()) {
+        config.tcp_mss = tcpMssMatch.trim();
+      }
+      if (ttlEq || ttlGt || ttlLt) {
+        config.ttl_match = {};
+        if (ttlEq) config.ttl_match.eq = ttlEq;
+        if (ttlGt) config.ttl_match.gt = ttlGt;
+        if (ttlLt) config.ttl_match.lt = ttlLt;
+      }
+
+      // Limits & Time
+      if (limitRate || limitBurst) {
+        config.limit = {};
+        if (limitRate) config.limit.rate = limitRate;
+        if (limitBurst) config.limit.burst = limitBurst;
+      }
+      if (recentCount || recentTime) {
+        config.recent = {};
+        if (recentCount) config.recent.count = recentCount;
+        if (recentTime) config.recent.time = recentTime;
+      }
+      if (timeStartdate || timeStarttime || timeStopdate || timeStoptime || timeWeekdays) {
+        config.time = {};
+        if (timeStartdate) config.time.startdate = timeStartdate;
+        if (timeStarttime) config.time.starttime = timeStarttime;
+        if (timeStopdate) config.time.stopdate = timeStopdate;
+        if (timeStoptime) config.time.stoptime = timeStoptime;
+        if (timeWeekdays) config.time.weekdays = timeWeekdays;
+      }
+
+      // Actions / modifications
+      if (logOptionsGroup || logOptionsLevel || logOptionsQueueThreshold || logOptionsSnapshotLength) {
+        config.log_options = {};
+        if (logOptionsGroup) config.log_options.group = logOptionsGroup;
+        if (logOptionsLevel) config.log_options.level = logOptionsLevel;
+        if (logOptionsQueueThreshold) config.log_options.queue_threshold = logOptionsQueueThreshold;
+        if (logOptionsSnapshotLength) config.log_options.snapshot_length = logOptionsSnapshotLength;
+      }
+      if (queueNumber) {
+        config.queue_number = queueNumber;
+      }
+      if (queueOptions) {
+        config.queue_options = queueOptions;
+      }
+      if (synproxyTcpMss || synproxyTcpWindowScale) {
+        config.synproxy_config = {};
+        if (synproxyTcpMss) config.synproxy_config.tcp_mss = synproxyTcpMss;
+        if (synproxyTcpWindowScale) config.synproxy_config.tcp_window_scale = synproxyTcpWindowScale;
+      }
+      if (modSetConnectionMark) {
+        config.set_connection_mark = modSetConnectionMark;
+      }
+      if (modSetTcpMss) {
+        config.set_tcp_mss = modSetTcpMss;
+      }
+      if (addAddrToGroupSrcGroup || addAddrToGroupDstGroup) {
+        config.add_address_to_group = {};
+        if (addAddrToGroupSrcGroup) config.add_address_to_group.source_address_group = addAddrToGroupSrcGroup;
+        if (addAddrToGroupSrcTimeout) config.add_address_to_group.source_timeout = addAddrToGroupSrcTimeout;
+        if (addAddrToGroupDstGroup) config.add_address_to_group.destination_address_group = addAddrToGroupDstGroup;
+        if (addAddrToGroupDstTimeout) config.add_address_to_group.destination_timeout = addAddrToGroupDstTimeout;
       }
 
       config.disable = disable;
@@ -614,12 +876,14 @@ export function CreateFirewallRuleModal({
         )}
 
         <Tabs defaultValue="basic" className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="basic">Basic</TabsTrigger>
             <TabsTrigger value="source">Source</TabsTrigger>
-            <TabsTrigger value="destination">Destination</TabsTrigger>
+            <TabsTrigger value="destination">Dest</TabsTrigger>
             <TabsTrigger value="state">State</TabsTrigger>
-            <TabsTrigger value="advanced">Advanced</TabsTrigger>
+            <TabsTrigger value="matching">Matching</TabsTrigger>
+            <TabsTrigger value="limits">Limits</TabsTrigger>
+            <TabsTrigger value="actions">Actions</TabsTrigger>
           </TabsList>
 
           {/* Basic Tab */}
@@ -835,7 +1099,7 @@ export function CreateFirewallRuleModal({
             {/* Mode Selection */}
             <div className="space-y-3">
               <Label>Source Match Type</Label>
-              <RadioGroup value={sourceMode} onValueChange={(value: "any" | "address" | "group" | "geoip" | "mac") => setSourceMode(value)}>
+              <RadioGroup value={sourceMode} onValueChange={(value: "any" | "address" | "group" | "geoip" | "mac" | "fqdn") => setSourceMode(value)}>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="any" id="source-any-mode" />
                   <Label htmlFor="source-any-mode" className="cursor-pointer font-normal">
@@ -846,6 +1110,12 @@ export function CreateFirewallRuleModal({
                   <RadioGroupItem value="address" id="source-address-mode" />
                   <Label htmlFor="source-address-mode" className="cursor-pointer font-normal">
                     Address (IP, CIDR, or range)
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="fqdn" id="source-fqdn-mode" />
+                  <Label htmlFor="source-fqdn-mode" className="cursor-pointer font-normal">
+                    FQDN (domain name)
                   </Label>
                 </div>
                 <div className="flex items-center space-x-2">
@@ -909,6 +1179,37 @@ export function CreateFirewallRuleModal({
                     Invert match (match everything except this address)
                   </Label>
                 </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="sourceAddressMask">Address Mask (optional)</Label>
+                  <Input
+                    id="sourceAddressMask"
+                    value={sourceAddressMask}
+                    onChange={(e) => setSourceAddressMask(e.target.value)}
+                    placeholder={protocol === "ipv4" ? "255.255.255.0" : ""}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Optional netmask for address matching
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* FQDN Mode */}
+            {sourceMode === "fqdn" && (
+              <div className="space-y-4 pl-6 border-l-2 border-primary/20">
+                <div className="space-y-2">
+                  <Label htmlFor="sourceFqdn">Source FQDN</Label>
+                  <Input
+                    id="sourceFqdn"
+                    value={sourceFqdn}
+                    onChange={(e) => setSourceFqdn(e.target.value)}
+                    placeholder="example.com"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Fully qualified domain name to match
+                  </p>
+                </div>
               </div>
             )}
 
@@ -930,12 +1231,23 @@ export function CreateFirewallRuleModal({
                         {capabilities?.features.remote_group?.supported && (
                           <SelectItem value="remote-group">Remote Group</SelectItem>
                         )}
+                        {capabilities?.features.dynamic_address_group?.supported && (
+                          <SelectItem value="dynamic-address-group">Dynamic Address Group</SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="sourceGroupName">Group Name</Label>
+                    {sourceGroupType === "dynamic-address-group" ? (
+                      <Input
+                        id="sourceGroupName"
+                        value={sourceGroupName}
+                        onChange={(e) => setSourceGroupName(e.target.value)}
+                        placeholder="Dynamic group name"
+                      />
+                    ) : (
                     <Select
                       value={sourceGroupName}
                       onValueChange={setSourceGroupName}
@@ -977,6 +1289,7 @@ export function CreateFirewallRuleModal({
                           ))}
                       </SelectContent>
                     </Select>
+                    )}
                   </div>
                   <div className="flex items-center space-x-2">
                     <Checkbox id="sourceGroupInvert" checked={sourceGroupInvert} onCheckedChange={(c) => setSourceGroupInvert(!!c)} />
@@ -1124,7 +1437,7 @@ export function CreateFirewallRuleModal({
             {/* Mode Selection */}
             <div className="space-y-3">
               <Label>Destination Match Type</Label>
-              <RadioGroup value={destMode} onValueChange={(value: "any" | "address" | "group" | "geoip") => setDestMode(value)}>
+              <RadioGroup value={destMode} onValueChange={(value: "any" | "address" | "group" | "geoip" | "fqdn" | "mac") => setDestMode(value)}>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="any" id="dest-any-mode" />
                   <Label htmlFor="dest-any-mode" className="cursor-pointer font-normal">
@@ -1138,6 +1451,12 @@ export function CreateFirewallRuleModal({
                   </Label>
                 </div>
                 <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="fqdn" id="dest-fqdn-mode" />
+                  <Label htmlFor="dest-fqdn-mode" className="cursor-pointer font-normal">
+                    FQDN (domain name)
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
                   <RadioGroupItem value="group" id="dest-group-mode" />
                   <Label htmlFor="dest-group-mode" className="cursor-pointer font-normal">
                     Firewall Group
@@ -1147,6 +1466,12 @@ export function CreateFirewallRuleModal({
                   <RadioGroupItem value="geoip" id="dest-geoip-mode" />
                   <Label htmlFor="dest-geoip-mode" className="cursor-pointer font-normal">
                     GeoIP (country codes)
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="mac" id="dest-mac-mode" />
+                  <Label htmlFor="dest-mac-mode" className="cursor-pointer font-normal">
+                    MAC Address
                   </Label>
                 </div>
               </RadioGroup>
@@ -1192,6 +1517,37 @@ export function CreateFirewallRuleModal({
                     Invert match (match everything except this address)
                   </Label>
                 </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="destAddressMask">Address Mask (optional)</Label>
+                  <Input
+                    id="destAddressMask"
+                    value={destAddressMask}
+                    onChange={(e) => setDestAddressMask(e.target.value)}
+                    placeholder={protocol === "ipv4" ? "255.255.255.0" : ""}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Optional netmask for address matching
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* FQDN Mode */}
+            {destMode === "fqdn" && (
+              <div className="space-y-4 pl-6 border-l-2 border-primary/20">
+                <div className="space-y-2">
+                  <Label htmlFor="destFqdn">Destination FQDN</Label>
+                  <Input
+                    id="destFqdn"
+                    value={destFqdn}
+                    onChange={(e) => setDestFqdn(e.target.value)}
+                    placeholder="example.com"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Fully qualified domain name to match
+                  </p>
+                </div>
               </div>
             )}
 
@@ -1213,12 +1569,23 @@ export function CreateFirewallRuleModal({
                         {capabilities?.features.remote_group?.supported && (
                           <SelectItem value="remote-group">Remote Group</SelectItem>
                         )}
+                        {capabilities?.features.dynamic_address_group?.supported && (
+                          <SelectItem value="dynamic-address-group">Dynamic Address Group</SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="destGroupName">Group Name</Label>
+                    {destGroupType === "dynamic-address-group" ? (
+                      <Input
+                        id="destGroupName"
+                        value={destGroupName}
+                        onChange={(e) => setDestGroupName(e.target.value)}
+                        placeholder="Dynamic group name"
+                      />
+                    ) : (
                     <Select
                       value={destGroupName}
                       onValueChange={setDestGroupName}
@@ -1260,6 +1627,7 @@ export function CreateFirewallRuleModal({
                           ))}
                       </SelectContent>
                     </Select>
+                    )}
                   </div>
                   <div className="flex items-center space-x-2">
                     <Checkbox id="destGroupInvert" checked={destGroupInvert} onCheckedChange={(c) => setDestGroupInvert(!!c)} />
@@ -1289,6 +1657,24 @@ export function CreateFirewallRuleModal({
                   <Label htmlFor="destGeoipInverse" className="text-sm font-normal cursor-pointer">
                     Exclude countries (inverse match)
                   </Label>
+                </div>
+              </div>
+            )}
+
+            {/* MAC Address Mode */}
+            {destMode === "mac" && (
+              <div className="space-y-4 pl-6 border-l-2 border-primary/20">
+                <div className="space-y-2">
+                  <Label htmlFor="destMacAddress">Destination MAC Address</Label>
+                  <Input
+                    id="destMacAddress"
+                    value={destMacAddress}
+                    onChange={(e) => setDestMacAddress(e.target.value)}
+                    placeholder="aa:bb:cc:dd:ee:ff"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Format: aa:bb:cc:dd:ee:ff
+                  </p>
                 </div>
               </div>
             )}
@@ -1461,10 +1847,314 @@ export function CreateFirewallRuleModal({
                 </SelectContent>
               </Select>
             </div>
+
+            {/* IPsec Matching */}
+            {capabilities?.features.ipsec_matching?.supported && (
+              <div className="space-y-4 pt-4 border-t">
+                <Label className="text-base font-semibold">IPsec Matching</Label>
+                {capabilities?.features.ipsec_directional?.supported ? (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="ipsecInbound">Inbound</Label>
+                      <Select value={ipsecInbound} onValueChange={(v: "none" | "match-ipsec" | "match-none") => setIpsecInbound(v)}>
+                        <SelectTrigger id="ipsecInbound">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">No match</SelectItem>
+                          <SelectItem value="match-ipsec">Match IPsec</SelectItem>
+                          <SelectItem value="match-none">Match non-IPsec</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="ipsecOutbound">Outbound</Label>
+                      <Select value={ipsecOutbound} onValueChange={(v: "none" | "match-ipsec" | "match-none") => setIpsecOutbound(v)}>
+                        <SelectTrigger id="ipsecOutbound">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">No match</SelectItem>
+                          <SelectItem value="match-ipsec">Match IPsec</SelectItem>
+                          <SelectItem value="match-none">Match non-IPsec</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <RadioGroup value={ipsecMode} onValueChange={(v: "none" | "match-ipsec" | "match-none") => setIpsecMode(v)}>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="none" id="ipsec-none" />
+                        <Label htmlFor="ipsec-none" className="cursor-pointer font-normal">No IPsec match</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="match-ipsec" id="ipsec-match" />
+                        <Label htmlFor="ipsec-match" className="cursor-pointer font-normal">Match IPsec traffic</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="match-none" id="ipsec-match-none" />
+                        <Label htmlFor="ipsec-match-none" className="cursor-pointer font-normal">Match non-IPsec traffic</Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+                )}
+              </div>
+            )}
           </TabsContent>
 
-          {/* Advanced Tab */}
-          <TabsContent value="advanced" className="space-y-4">
+          {/* Matching Tab */}
+          <TabsContent value="matching" className="space-y-4">
+            <Accordion type="multiple" className="w-full">
+              <AccordionItem value="connection">
+                <AccordionTrigger>
+                  Connection Mark / Status
+                  {(connectionMark || connectionStatusNat || conntrackHelper) && <Badge variant="secondary" className="ml-2">Set</Badge>}
+                </AccordionTrigger>
+                <AccordionContent className="space-y-4 pt-2">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="connectionMark">Connection Mark</Label>
+                      <Input id="connectionMark" value={connectionMark} onChange={(e) => setConnectionMark(e.target.value)} placeholder="e.g. 100" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="connectionStatusNat">Connection Status NAT</Label>
+                      <Select value={connectionStatusNat || "__none__"} onValueChange={(v) => setConnectionStatusNat(v === "__none__" ? "" : v)}>
+                        <SelectTrigger id="connectionStatusNat"><SelectValue placeholder="Any" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">Any</SelectItem>
+                          <SelectItem value="destination">Destination NAT</SelectItem>
+                          <SelectItem value="source">Source NAT</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="conntrackHelper">Conntrack Helper</Label>
+                    <Input id="conntrackHelper" value={conntrackHelper} onChange={(e) => setConntrackHelper(e.target.value)} placeholder="e.g. ftp, h323, pptp, sip, tftp" />
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="dscp">
+                <AccordionTrigger>
+                  DSCP Matching
+                  {(dscpMatch || dscpExclude) && <Badge variant="secondary" className="ml-2">Set</Badge>}
+                </AccordionTrigger>
+                <AccordionContent className="space-y-4 pt-2">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="dscpMatch">DSCP Match</Label>
+                      <Input id="dscpMatch" value={dscpMatch} onChange={(e) => setDscpMatch(e.target.value)} placeholder="0-63 or CS0-CS7, AF11-AF43, EF" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="dscpExclude">DSCP Exclude</Label>
+                      <Input id="dscpExclude" value={dscpExclude} onChange={(e) => setDscpExclude(e.target.value)} placeholder="0-63 or CS0-CS7, AF11-AF43, EF" />
+                    </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="fragment">
+                <AccordionTrigger>
+                  Fragment Matching
+                  {(fragmentMatchFrag || fragmentMatchNonFrag) && <Badge variant="secondary" className="ml-2">Set</Badge>}
+                </AccordionTrigger>
+                <AccordionContent className="space-y-3 pt-2">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox id="fragmentMatchFrag" checked={fragmentMatchFrag} onCheckedChange={(c) => setFragmentMatchFrag(!!c)} />
+                    <Label htmlFor="fragmentMatchFrag" className="cursor-pointer font-normal">Match fragmented packets</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox id="fragmentMatchNonFrag" checked={fragmentMatchNonFrag} onCheckedChange={(c) => setFragmentMatchNonFrag(!!c)} />
+                    <Label htmlFor="fragmentMatchNonFrag" className="cursor-pointer font-normal">Match non-fragmented packets</Label>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+
+              {capabilities?.features.gre_matching?.supported && (
+                <AccordionItem value="gre">
+                  <AccordionTrigger>
+                    GRE Matching (1.5+)
+                    {(greKey || greVersion || greInnerProto) && <Badge variant="secondary" className="ml-2">Set</Badge>}
+                  </AccordionTrigger>
+                  <AccordionContent className="space-y-4 pt-2">
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="greKey">GRE Key</Label>
+                        <Input id="greKey" value={greKey} onChange={(e) => setGreKey(e.target.value)} placeholder="Key value" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="greVersion">GRE Version</Label>
+                        <Select value={greVersion || "__none__"} onValueChange={(v) => setGreVersion(v === "__none__" ? "" : v)}>
+                          <SelectTrigger id="greVersion"><SelectValue placeholder="Any" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">Any</SelectItem>
+                            <SelectItem value="0">GREv0</SelectItem>
+                            <SelectItem value="1">GREv1</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="greInnerProto">Inner Protocol</Label>
+                        <Input id="greInnerProto" value={greInnerProto} onChange={(e) => setGreInnerProto(e.target.value)} placeholder="Protocol number" />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>GRE Flags</Label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {["checksum", "key", "sequence"].map((flag) => (
+                          <div key={flag} className="space-y-1">
+                            <div className="flex items-center space-x-2">
+                              <Checkbox id={`gre-flag-${flag}`} checked={!!greFlags[flag]} onCheckedChange={(c) => setGreFlags(prev => ({ ...prev, [flag]: !!c, [`${flag}_unset`]: false }))} />
+                              <Label htmlFor={`gre-flag-${flag}`} className="cursor-pointer font-normal capitalize">{flag} set</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Checkbox id={`gre-flag-${flag}-unset`} checked={!!greFlags[`${flag}_unset`]} onCheckedChange={(c) => setGreFlags(prev => ({ ...prev, [`${flag}_unset`]: !!c, [flag]: false }))} />
+                              <Label htmlFor={`gre-flag-${flag}-unset`} className="cursor-pointer font-normal capitalize">{flag} unset</Label>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              )}
+
+              <AccordionItem value="mark-packet">
+                <AccordionTrigger>
+                  Mark / Packet Length / Type
+                  {(markMatch || packetLength || packetLengthExclude || packetType) && <Badge variant="secondary" className="ml-2">Set</Badge>}
+                </AccordionTrigger>
+                <AccordionContent className="space-y-4 pt-2">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="markMatch">Mark Match</Label>
+                      <Input id="markMatch" value={markMatch} onChange={(e) => setMarkMatch(e.target.value)} placeholder="e.g. 100" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="packetType">Packet Type</Label>
+                      <Select value={packetType || "__none__"} onValueChange={(v) => setPacketType(v === "__none__" ? "" : v)}>
+                        <SelectTrigger id="packetType"><SelectValue placeholder="Any" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">Any</SelectItem>
+                          <SelectItem value="broadcast">Broadcast</SelectItem>
+                          <SelectItem value="host">Host</SelectItem>
+                          <SelectItem value="multicast">Multicast</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="packetLength">Packet Length</Label>
+                      <Input id="packetLength" value={packetLength} onChange={(e) => setPacketLength(e.target.value)} placeholder="e.g. 128 or 64-1500" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="packetLengthExclude">Packet Length Exclude</Label>
+                      <Input id="packetLengthExclude" value={packetLengthExclude} onChange={(e) => setPacketLengthExclude(e.target.value)} placeholder="e.g. 1500" />
+                    </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="tcp-ttl">
+                <AccordionTrigger>
+                  TCP MSS / TTL Match
+                  {(tcpMssMatch || ttlEq || ttlGt || ttlLt) && <Badge variant="secondary" className="ml-2">Set</Badge>}
+                </AccordionTrigger>
+                <AccordionContent className="space-y-4 pt-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="tcpMssMatch">TCP MSS Match</Label>
+                    <Input id="tcpMssMatch" value={tcpMssMatch} onChange={(e) => setTcpMssMatch(e.target.value)} placeholder="e.g. 500-1460" />
+                    <p className="text-xs text-muted-foreground">Match TCP MSS value or range</p>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="ttlEq">TTL Equal</Label>
+                      <Input id="ttlEq" value={ttlEq} onChange={(e) => setTtlEq(e.target.value)} placeholder="0-255" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="ttlGt">TTL Greater Than</Label>
+                      <Input id="ttlGt" value={ttlGt} onChange={(e) => setTtlGt(e.target.value)} placeholder="0-255" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="ttlLt">TTL Less Than</Label>
+                      <Input id="ttlLt" value={ttlLt} onChange={(e) => setTtlLt(e.target.value)} placeholder="0-255" />
+                    </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </TabsContent>
+
+          {/* Limits & Time Tab */}
+          <TabsContent value="limits" className="space-y-4">
+            <div className="space-y-4">
+              <Label className="text-base font-semibold">Rate Limiting</Label>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="limitRate">Rate</Label>
+                  <Input id="limitRate" value={limitRate} onChange={(e) => setLimitRate(e.target.value)} placeholder="e.g. 10/second, 100/minute" />
+                  <p className="text-xs text-muted-foreground">Format: number/unit (second, minute, hour, day)</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="limitBurst">Burst</Label>
+                  <Input id="limitBurst" value={limitBurst} onChange={(e) => setLimitBurst(e.target.value)} placeholder="e.g. 20" />
+                  <p className="text-xs text-muted-foreground">Maximum burst before rate limiting kicks in</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4 pt-4 border-t">
+              <Label className="text-base font-semibold">Recent Connection Tracking</Label>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="recentCount">Count</Label>
+                  <Input id="recentCount" value={recentCount} onChange={(e) => setRecentCount(e.target.value)} placeholder="e.g. 5" />
+                  <p className="text-xs text-muted-foreground">Number of recent connections to match</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="recentTime">Time (seconds)</Label>
+                  <Input id="recentTime" value={recentTime} onChange={(e) => setRecentTime(e.target.value)} placeholder="e.g. 60" />
+                  <p className="text-xs text-muted-foreground">Time window in seconds</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4 pt-4 border-t">
+              <Label className="text-base font-semibold">Time-Based Rules</Label>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="timeStartdate">Start Date</Label>
+                  <Input id="timeStartdate" type="date" value={timeStartdate} onChange={(e) => setTimeStartdate(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="timeStopdate">Stop Date</Label>
+                  <Input id="timeStopdate" type="date" value={timeStopdate} onChange={(e) => setTimeStopdate(e.target.value)} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="timeStarttime">Start Time</Label>
+                  <Input id="timeStarttime" type="time" value={timeStarttime} onChange={(e) => setTimeStarttime(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="timeStoptime">Stop Time</Label>
+                  <Input id="timeStoptime" type="time" value={timeStoptime} onChange={(e) => setTimeStoptime(e.target.value)} />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="timeWeekdays">Weekdays</Label>
+                <Input id="timeWeekdays" value={timeWeekdays} onChange={(e) => setTimeWeekdays(e.target.value)} placeholder="Monday,Tuesday,Wednesday" />
+                <p className="text-xs text-muted-foreground">Comma-separated days: Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday</p>
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* Actions Tab */}
+          <TabsContent value="actions" className="space-y-4">
             <div className="space-y-4">
               <div>
                 <Label className="text-base font-semibold">TCP Flags</Label>
@@ -1599,6 +2289,124 @@ export function CreateFirewallRuleModal({
                     onChange={(e) => setTtl(e.target.value)}
                     placeholder="0-255"
                   />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 pt-2">
+                <div className="space-y-2">
+                  <Label htmlFor="modSetConnectionMark">Set Connection Mark</Label>
+                  <Input id="modSetConnectionMark" value={modSetConnectionMark} onChange={(e) => setModSetConnectionMark(e.target.value)} placeholder="Mark value" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="modSetTcpMss">Set TCP MSS</Label>
+                  <Input id="modSetTcpMss" value={modSetTcpMss} onChange={(e) => setModSetTcpMss(e.target.value)} placeholder="MSS value" />
+                </div>
+              </div>
+            </div>
+
+            {/* Log Options (shown when log is enabled) */}
+            {log && (
+              <div className="space-y-4 pt-4 border-t">
+                <Label className="text-base font-semibold">Log Options</Label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="logOptionsGroup">Log Group</Label>
+                    <Input id="logOptionsGroup" value={logOptionsGroup} onChange={(e) => setLogOptionsGroup(e.target.value)} placeholder="Group number" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="logOptionsLevel">Log Level</Label>
+                    <Select value={logOptionsLevel || "__none__"} onValueChange={(v) => setLogOptionsLevel(v === "__none__" ? "" : v)}>
+                      <SelectTrigger id="logOptionsLevel"><SelectValue placeholder="Default" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">Default</SelectItem>
+                        <SelectItem value="emerg">Emergency</SelectItem>
+                        <SelectItem value="alert">Alert</SelectItem>
+                        <SelectItem value="crit">Critical</SelectItem>
+                        <SelectItem value="err">Error</SelectItem>
+                        <SelectItem value="warn">Warning</SelectItem>
+                        <SelectItem value="notice">Notice</SelectItem>
+                        <SelectItem value="info">Info</SelectItem>
+                        <SelectItem value="debug">Debug</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="logOptionsQueueThreshold">Queue Threshold</Label>
+                    <Input id="logOptionsQueueThreshold" value={logOptionsQueueThreshold} onChange={(e) => setLogOptionsQueueThreshold(e.target.value)} placeholder="Threshold" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="logOptionsSnapshotLength">Snapshot Length</Label>
+                    <Input id="logOptionsSnapshotLength" value={logOptionsSnapshotLength} onChange={(e) => setLogOptionsSnapshotLength(e.target.value)} placeholder="Length" />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Queue Config (shown when action is queue) */}
+            {action === "queue" && (
+              <div className="space-y-4 pt-4 border-t">
+                <Label className="text-base font-semibold">Queue Configuration</Label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="queueNumber">Queue Number</Label>
+                    <Input id="queueNumber" value={queueNumber} onChange={(e) => setQueueNumber(e.target.value)} placeholder="0-65535" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="queueOptions">Queue Options</Label>
+                    <Select value={queueOptions || "__none__"} onValueChange={(v) => setQueueOptions(v === "__none__" ? "" : v)}>
+                      <SelectTrigger id="queueOptions"><SelectValue placeholder="None" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">None</SelectItem>
+                        <SelectItem value="bypass">Bypass</SelectItem>
+                        <SelectItem value="fanout">Fanout</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Synproxy Config (shown when action is synproxy) */}
+            {action === "synproxy" && (
+              <div className="space-y-4 pt-4 border-t">
+                <Label className="text-base font-semibold">Synproxy Configuration</Label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="synproxyTcpMss">TCP MSS</Label>
+                    <Input id="synproxyTcpMss" value={synproxyTcpMss} onChange={(e) => setSynproxyTcpMss(e.target.value)} placeholder="MSS value" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="synproxyTcpWindowScale">TCP Window Scale</Label>
+                    <Input id="synproxyTcpWindowScale" value={synproxyTcpWindowScale} onChange={(e) => setSynproxyTcpWindowScale(e.target.value)} placeholder="Window scale" />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Add Address to Group */}
+            <div className="space-y-4 pt-4 border-t">
+              <Label className="text-base font-semibold">Add Address to Group</Label>
+              <p className="text-xs text-muted-foreground">Dynamically add source/destination addresses to firewall groups</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="addAddrToGroupSrcGroup">Source Address Group</Label>
+                  <Input id="addAddrToGroupSrcGroup" value={addAddrToGroupSrcGroup} onChange={(e) => setAddAddrToGroupSrcGroup(e.target.value)} placeholder="Group name" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="addAddrToGroupSrcTimeout">Source Timeout</Label>
+                  <Input id="addAddrToGroupSrcTimeout" value={addAddrToGroupSrcTimeout} onChange={(e) => setAddAddrToGroupSrcTimeout(e.target.value)} placeholder="e.g. 300" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="addAddrToGroupDstGroup">Destination Address Group</Label>
+                  <Input id="addAddrToGroupDstGroup" value={addAddrToGroupDstGroup} onChange={(e) => setAddAddrToGroupDstGroup(e.target.value)} placeholder="Group name" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="addAddrToGroupDstTimeout">Destination Timeout</Label>
+                  <Input id="addAddrToGroupDstTimeout" value={addAddrToGroupDstTimeout} onChange={(e) => setAddAddrToGroupDstTimeout(e.target.value)} placeholder="e.g. 300" />
                 </div>
               </div>
             </div>
