@@ -16,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, RefreshCw, AlertCircle, Search, Cable, Pencil, Trash2, Network, ChevronRight, Shield, Boxes, Waypoints, Link2, GitMerge, Box, Layers, ArrowDownToLine } from "lucide-react";
+import { Plus, RefreshCw, AlertCircle, Search, Cable, Pencil, Trash2, Network, ChevronRight, Shield, Boxes, Waypoints, Link2, GitMerge, Box, Layers, ArrowDownToLine, Repeat } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { ethernetService } from "@/lib/api/ethernet";
@@ -47,6 +47,10 @@ import { l2tpv3Service, type L2TPv3Interface, type L2TPv3Capabilities } from "@/
 import { CreateL2TPv3Modal } from "@/components/l2tpv3/CreateL2TPv3Modal";
 import { EditL2TPv3Modal } from "@/components/l2tpv3/EditL2TPv3Modal";
 import { DeleteL2TPv3Modal } from "@/components/l2tpv3/DeleteL2TPv3Modal";
+import { loopbackService, type LoopbackInterface, type LoopbackCapabilities } from "@/lib/api/loopback";
+import { CreateLoopbackModal } from "@/components/loopback/CreateLoopbackModal";
+import { EditLoopbackModal } from "@/components/loopback/EditLoopbackModal";
+import { DeleteLoopbackModal } from "@/components/loopback/DeleteLoopbackModal";
 import { bridgeService, type BridgeInterface, type BridgeCapabilities } from "@/lib/api/bridge";
 import { CreateBridgeModal } from "@/components/bridge/CreateBridgeModal";
 import { EditBridgeModal } from "@/components/bridge/EditBridgeModal";
@@ -64,7 +68,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 
-type InterfaceType = "ethernet" | "vlan" | "wireguard" | "vxlan" | "tunnel" | "bonding" | "bridge" | "dummy" | "geneve" | "input" | "l2tpv3";
+type InterfaceType = "ethernet" | "vlan" | "wireguard" | "vxlan" | "tunnel" | "bonding" | "bridge" | "dummy" | "geneve" | "input" | "l2tpv3" | "loopback";
 type VlanSubTab = "vif" | "vif-s" | "vif-c";
 
 interface VLANWithParent extends VIFConfig {
@@ -163,6 +167,15 @@ export default function InterfacesPage() {
   const [deletingL2tpv3, setDeletingL2tpv3] = useState<L2TPv3Interface | null>(null);
   const [isCreateL2tpv3ModalOpen, setIsCreateL2tpv3ModalOpen] = useState(false);
 
+  // Loopback state
+  const [loopbackInterfaces, setLoopbackInterfaces] = useState<LoopbackInterface[]>([]);
+  const [loopbackCapabilities, setLoopbackCapabilities] = useState<LoopbackCapabilities | null>(null);
+
+  // Loopback Modal states
+  const [isCreateLoopbackModalOpen, setIsCreateLoopbackModalOpen] = useState(false);
+  const [editingLoopback, setEditingLoopback] = useState<LoopbackInterface | null>(null);
+  const [deletingLoopback, setDeletingLoopback] = useState<LoopbackInterface | null>(null);
+
   // Bonding state
   const [bondingInterfaces, setBondingInterfaces] = useState<BondingInterface[]>([]);
   const [bondingCapabilities, setBondingCapabilities] = useState<BondingCapabilities | null>(null);
@@ -186,7 +199,7 @@ export default function InterfacesPage() {
   const loadData = async () => {
     try {
       setError(null);
-      const [configData, capabilitiesData, wgData, vxlanData, vxlanCapData, tunnelData, tunnelCapData, dummyData, dummyCapData, geneveData, geneveCapData, inputData, inputCapData, l2tpv3Data, l2tpv3CapData, bondingData, bondingCapData, bridgeData, bridgeCapData] = await Promise.all([
+      const [configData, capabilitiesData, wgData, vxlanData, vxlanCapData, tunnelData, tunnelCapData, dummyData, dummyCapData, geneveData, geneveCapData, inputData, inputCapData, l2tpv3Data, l2tpv3CapData, loopbackData, loopbackCapData, bondingData, bondingCapData, bridgeData, bridgeCapData] = await Promise.all([
         ethernetService.getConfig(),
         ethernetService.getCapabilities(),
         wireguardService.getConfig(),
@@ -202,6 +215,8 @@ export default function InterfacesPage() {
         inputService.getCapabilities(),
         l2tpv3Service.getConfig(),
         l2tpv3Service.getCapabilities(),
+        loopbackService.getConfig(),
+        loopbackService.getCapabilities(),
         bondingService.getConfig(),
         bondingService.getCapabilities(),
         bridgeService.getConfig(),
@@ -222,6 +237,8 @@ export default function InterfacesPage() {
       setInputCapabilities(inputCapData);
       setL2tpv3Interfaces(l2tpv3Data.interfaces);
       setL2tpv3Capabilities(l2tpv3CapData);
+      setLoopbackInterfaces(loopbackData.interfaces);
+      setLoopbackCapabilities(loopbackCapData);
       setBondingInterfaces(bondingData.interfaces);
       setBondingCapabilities(bondingCapData);
       setBridgeInterfaces(bridgeData.interfaces);
@@ -276,6 +293,7 @@ export default function InterfacesPage() {
   const totalGeneve = geneveInterfaces.length;
   const totalInput = inputInterfaces.length;
   const totalL2tpv3 = l2tpv3Interfaces.length;
+  const totalLoopback = loopbackInterfaces.length;
   const totalBonding = bondingInterfaces.length;
   const totalBridge = bridgeInterfaces.length;
 
@@ -548,6 +566,16 @@ export default function InterfacesPage() {
     );
   });
 
+  const filteredLoopback = loopbackInterfaces.filter((iface) => {
+    if (searchQuery === "") return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      iface.name.toLowerCase().includes(q) ||
+      (iface.description || "").toLowerCase().includes(q) ||
+      iface.addresses?.some((addr) => addr.toLowerCase().includes(q))
+    );
+  });
+
   const filteredBonding = bondingInterfaces.filter((iface) => {
     if (searchQuery === "") return true;
     const q = searchQuery.toLowerCase();
@@ -581,7 +609,7 @@ export default function InterfacesPage() {
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Interfaces</h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {totalInterfaces + totalVlans + totalWireGuard + totalVxlan + totalTunnel + totalDummy + totalGeneve + totalInput + totalBonding + totalBridge} total
+                  {totalInterfaces + totalVlans + totalWireGuard + totalVxlan + totalTunnel + totalDummy + totalGeneve + totalInput + totalLoopback + totalBonding + totalBridge} total
                 </p>
               </div>
               <Button
@@ -887,6 +915,40 @@ export default function InterfacesPage() {
                   </div>
                 </button>
 
+                {/* Loopback */}
+                <button
+                  onClick={() => setSelectedType("loopback")}
+                  className={cn(
+                    "w-full text-left rounded-lg px-3 py-3 transition-all",
+                    selectedType === "loopback"
+                      ? "bg-accent text-accent-foreground shadow-sm"
+                      : "hover:bg-accent/50"
+                  )}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={cn(
+                      "mt-0.5 rounded-md p-1.5",
+                      selectedType === "loopback" ? "bg-primary/10" : "bg-muted"
+                    )}>
+                      <Repeat className={cn(
+                        "h-4 w-4",
+                        selectedType === "loopback" ? "text-primary" : "text-muted-foreground"
+                      )} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="font-medium text-sm text-foreground">Loopback</span>
+                        {selectedType === "loopback" && (
+                          <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
+                        )}
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {totalLoopback} {totalLoopback === 1 ? "interface" : "interfaces"}
+                      </span>
+                    </div>
+                  </div>
+                </button>
+
                 {/* Bonding */}
                 <button
                   onClick={() => setSelectedType("bonding")}
@@ -1002,7 +1064,7 @@ export default function InterfacesPage() {
             <div className="flex items-start justify-between mb-4">
               <div className="flex-1">
                 <h1 className="text-2xl font-bold text-foreground">
-                  {selectedType === "ethernet" ? "Ethernet Interfaces" : selectedType === "vlan" ? "VLANs" : selectedType === "vxlan" ? "VXLAN Interfaces" : selectedType === "tunnel" ? "Tunnel Interfaces" : selectedType === "l2tpv3" ? "L2TPv3 Interfaces" : selectedType === "dummy" ? "Dummy Interfaces" : selectedType === "geneve" ? "GENEVE Interfaces" : selectedType === "input" ? "Input Interfaces" : selectedType === "bonding" ? "Bonding Interfaces" : selectedType === "bridge" ? "Bridge Interfaces" : "WireGuard Interfaces"}
+                  {selectedType === "ethernet" ? "Ethernet Interfaces" : selectedType === "vlan" ? "VLANs" : selectedType === "vxlan" ? "VXLAN Interfaces" : selectedType === "tunnel" ? "Tunnel Interfaces" : selectedType === "l2tpv3" ? "L2TPv3 Interfaces" : selectedType === "dummy" ? "Dummy Interfaces" : selectedType === "geneve" ? "GENEVE Interfaces" : selectedType === "input" ? "Input Interfaces" : selectedType === "loopback" ? "Loopback Interface" : selectedType === "bonding" ? "Bonding Interfaces" : selectedType === "bridge" ? "Bridge Interfaces" : "WireGuard Interfaces"}
                 </h1>
                 <p className="text-sm text-muted-foreground mt-2">
                   {selectedType === "ethernet"
@@ -1021,6 +1083,8 @@ export default function InterfacesPage() {
                               ? "GENEVE tunnel interfaces for network virtualization encapsulation"
                               : selectedType === "input"
                               ? "Input Functional Block (IFB) interfaces for traffic redirection and shaping"
+                              : selectedType === "loopback"
+                              ? "Loopback interface for local address assignment and routing"
                               : selectedType === "bonding"
                               ? "Link aggregation (bonding) interfaces for high availability and throughput"
                               : selectedType === "bridge"
@@ -1047,6 +1111,13 @@ export default function InterfacesPage() {
                     setIsCreateInputModalOpen(true);
                   } else if (selectedType === "l2tpv3") {
                     setIsCreateL2tpv3ModalOpen(true);
+                  } else if (selectedType === "loopback") {
+                    const existingLo = loopbackInterfaces.find((i) => i.name === "lo");
+                    if (existingLo) {
+                      setEditingLoopback(existingLo);
+                    } else {
+                      setIsCreateLoopbackModalOpen(true);
+                    }
                   } else if (selectedType === "bonding") {
                     setIsCreateBondingModalOpen(true);
                   } else if (selectedType === "bridge") {
@@ -1074,6 +1145,8 @@ export default function InterfacesPage() {
                             ? "Create Input"
                             : selectedType === "l2tpv3"
                             ? "Create L2TPv3"
+                            : selectedType === "loopback"
+                            ? "Configure Loopback"
                             : selectedType === "bonding"
                             ? "Create Bond"
                             : selectedType === "bridge"
@@ -1125,6 +1198,8 @@ export default function InterfacesPage() {
                               ? "Search by name, description, or redirect..."
                               : selectedType === "l2tpv3"
                               ? "Search by name, description, remote, or address..."
+                              : selectedType === "loopback"
+                              ? "Search by name, description, or address..."
                               : selectedType === "bonding"
                               ? "Search by name, description, address, mode, or member..."
                               : selectedType === "bridge"
@@ -1757,6 +1832,74 @@ export default function InterfacesPage() {
                   </p>
                 </>
               )
+            ) : selectedType === "loopback" ? (
+              /* Loopback Table */
+              filteredLoopback.length === 0 ? (
+                <Card className="border-border">
+                  <CardContent className="py-12">
+                    <div className="flex flex-col items-center gap-2">
+                      <Repeat className="h-12 w-12 text-muted-foreground/30" />
+                      <p className="text-muted-foreground">
+                        {searchQuery ? "No loopback interfaces matching your search" : "No loopback interface configured"}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <>
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Description</TableHead>
+                          <TableHead>Addresses</TableHead>
+                          <TableHead>Source Validation</TableHead>
+                          <TableHead className="w-[80px]"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredLoopback.map((lo) => (
+                          <TableRow key={lo.name} className="group">
+                            <TableCell><code className="font-semibold font-mono text-foreground">{lo.name}</code></TableCell>
+                            <TableCell className="text-muted-foreground max-w-[180px] truncate">{lo.description || "\u2014"}</TableCell>
+                            <TableCell>
+                              {lo.addresses?.length ? (
+                                <div className="flex flex-wrap gap-1">
+                                  {lo.addresses.slice(0, 2).map((addr, idx) => <code key={idx} className="text-xs font-mono px-1.5 py-0.5 rounded bg-accent text-foreground">{addr}</code>)}
+                                  {lo.addresses.length > 2 && <Badge variant="secondary" className="text-xs px-1.5 py-0">+{lo.addresses.length - 2}</Badge>}
+                                </div>
+                              ) : <span className="text-muted-foreground">{"\u2014"}</span>}
+                            </TableCell>
+                            <TableCell>
+                              {lo.ip_source_validation ? (
+                                <Badge variant="outline" className="text-xs">{lo.ip_source_validation}</Badge>
+                              ) : <span className="text-muted-foreground">{"\u2014"}</span>}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                {canWrite(FeatureGroup.INTERFACES) && (
+                                  <>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingLoopback(lo)}>
+                                      <Pencil className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeletingLoopback(lo)}>
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <p className="text-sm text-muted-foreground text-center mt-3">
+                    Showing {filteredLoopback.length} of {totalLoopback} interface{totalLoopback !== 1 ? "s" : ""}
+                  </p>
+                </>
+              )
             ) : selectedType === "bonding" ? (
               /* Bonding Table */
               filteredBonding.length === 0 ? (
@@ -2279,6 +2422,32 @@ export default function InterfacesPage() {
           loadData();
         }}
         interfaceData={deletingL2tpv3}
+      />
+      {/* Loopback Modals */}
+      <CreateLoopbackModal
+        open={isCreateLoopbackModalOpen}
+        onOpenChange={setIsCreateLoopbackModalOpen}
+        onSuccess={loadData}
+        capabilities={loopbackCapabilities}
+      />
+      <EditLoopbackModal
+        open={!!editingLoopback}
+        onOpenChange={(open) => !open && setEditingLoopback(null)}
+        onSuccess={() => {
+          setEditingLoopback(null);
+          loadData();
+        }}
+        capabilities={loopbackCapabilities}
+        interfaceData={editingLoopback}
+      />
+      <DeleteLoopbackModal
+        open={!!deletingLoopback}
+        onOpenChange={(open) => !open && setDeletingLoopback(null)}
+        onSuccess={() => {
+          setDeletingLoopback(null);
+          loadData();
+        }}
+        interfaceData={deletingLoopback}
       />
       {/* Bonding Modals */}
       <CreateBondingModal

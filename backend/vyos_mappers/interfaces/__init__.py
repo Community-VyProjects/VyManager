@@ -11,6 +11,7 @@ from .bridge import BridgeInterfaceMapper
 from .geneve import GeneveInterfaceMapper
 from .input import InputInterfaceMapper
 from .l2tpv3 import L2TPv3InterfaceMapper
+from .loopback import LoopbackInterfaceMapper
 
 __all__ = [
     "EthernetInterfaceMapper",
@@ -20,4 +21,5 @@ __all__ = [
     "GeneveInterfaceMapper",
     "InputInterfaceMapper",
     "L2TPv3InterfaceMapper",
+    "LoopbackInterfaceMapper",
 ]
