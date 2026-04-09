@@ -21,6 +21,7 @@ from vyos_builders import (
     GeneveBatchBuilder,
     InputBatchBuilder,
     L2TPv3BatchBuilder,
+    LoopbackBatchBuilder,
     FirewallGroupsBatchBuilder,
     NATBatchBuilder,
     DHCPBatchBuilder,
@@ -119,6 +120,14 @@ class VyOSService:
         The builder automatically uses correct command syntax based on version.
         """
         return L2TPv3BatchBuilder(self.config.version)
+
+    def create_loopback_batch(self) -> LoopbackBatchBuilder:
+        """
+        Create a batch builder for loopback interfaces.
+
+        The builder automatically uses correct command syntax based on version.
+        """
+        return LoopbackBatchBuilder(self.config.version)
 
     def create_bonding_batch(self) -> BondingBatchBuilder:
         """
