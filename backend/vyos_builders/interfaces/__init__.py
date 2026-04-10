@@ -12,6 +12,7 @@ from .geneve import GeneveInterfaceBuilderMixin
 from .input import InputInterfaceBuilderMixin
 from .l2tpv3 import L2TPv3InterfaceBuilderMixin
 from .loopback import LoopbackInterfaceBuilderMixin
+from .macsec import MacsecInterfaceBuilderMixin
 
 __all__ = [
     "EthernetInterfaceBuilderMixin",
@@ -22,4 +23,5 @@ __all__ = [
     "InputInterfaceBuilderMixin",
     "L2TPv3InterfaceBuilderMixin",
     "LoopbackInterfaceBuilderMixin",
+    "MacsecInterfaceBuilderMixin",
 ]

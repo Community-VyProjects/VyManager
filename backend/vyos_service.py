@@ -22,6 +22,7 @@ from vyos_builders import (
     InputBatchBuilder,
     L2TPv3BatchBuilder,
     LoopbackBatchBuilder,
+    MacsecBatchBuilder,
     FirewallGroupsBatchBuilder,
     NATBatchBuilder,
     DHCPBatchBuilder,
@@ -128,6 +129,14 @@ class VyOSService:
         The builder automatically uses correct command syntax based on version.
         """
         return LoopbackBatchBuilder(self.config.version)
+
+    def create_macsec_batch(self) -> MacsecBatchBuilder:
+        """
+        Create a batch builder for MACsec interfaces.
+
+        The builder automatically uses correct command syntax based on version.
+        """
+        return MacsecBatchBuilder(self.config.version)
 
     def create_bonding_batch(self) -> BondingBatchBuilder:
         """
