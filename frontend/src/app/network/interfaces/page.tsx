@@ -16,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, RefreshCw, AlertCircle, Search, Cable, Pencil, Trash2, Network, ChevronRight, Shield, Boxes, Waypoints, Link2, GitMerge, Box, Layers, ArrowDownToLine, Repeat } from "lucide-react";
+import { Plus, RefreshCw, AlertCircle, Search, Cable, Pencil, Trash2, Network, ChevronRight, Shield, Boxes, Waypoints, Link2, GitMerge, Box, Layers, ArrowDownToLine, Repeat, Lock } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { ethernetService } from "@/lib/api/ethernet";
@@ -51,6 +51,10 @@ import { loopbackService, type LoopbackInterface, type LoopbackCapabilities } fr
 import { CreateLoopbackModal } from "@/components/loopback/CreateLoopbackModal";
 import { EditLoopbackModal } from "@/components/loopback/EditLoopbackModal";
 import { DeleteLoopbackModal } from "@/components/loopback/DeleteLoopbackModal";
+import { macsecService, type MacsecInterface, type MacsecCapabilities } from "@/lib/api/macsec";
+import { CreateMacsecModal } from "@/components/macsec/CreateMacsecModal";
+import { EditMacsecModal } from "@/components/macsec/EditMacsecModal";
+import { DeleteMacsecModal } from "@/components/macsec/DeleteMacsecModal";
 import { bridgeService, type BridgeInterface, type BridgeCapabilities } from "@/lib/api/bridge";
 import { CreateBridgeModal } from "@/components/bridge/CreateBridgeModal";
 import { EditBridgeModal } from "@/components/bridge/EditBridgeModal";
@@ -68,7 +72,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 
-type InterfaceType = "ethernet" | "vlan" | "wireguard" | "vxlan" | "tunnel" | "bonding" | "bridge" | "dummy" | "geneve" | "input" | "l2tpv3" | "loopback";
+type InterfaceType = "ethernet" | "vlan" | "wireguard" | "vxlan" | "tunnel" | "bonding" | "bridge" | "dummy" | "geneve" | "input" | "l2tpv3" | "loopback" | "macsec";
 type VlanSubTab = "vif" | "vif-s" | "vif-c";
 
 interface VLANWithParent extends VIFConfig {
@@ -176,6 +180,15 @@ export default function InterfacesPage() {
   const [editingLoopback, setEditingLoopback] = useState<LoopbackInterface | null>(null);
   const [deletingLoopback, setDeletingLoopback] = useState<LoopbackInterface | null>(null);
 
+  // MACsec state
+  const [macsecInterfaces, setMacsecInterfaces] = useState<MacsecInterface[]>([]);
+  const [macsecCapabilities, setMacsecCapabilities] = useState<MacsecCapabilities | null>(null);
+
+  // MACsec Modal states
+  const [isCreateMacsecModalOpen, setIsCreateMacsecModalOpen] = useState(false);
+  const [editingMacsec, setEditingMacsec] = useState<MacsecInterface | null>(null);
+  const [deletingMacsec, setDeletingMacsec] = useState<MacsecInterface | null>(null);
+
   // Bonding state
   const [bondingInterfaces, setBondingInterfaces] = useState<BondingInterface[]>([]);
   const [bondingCapabilities, setBondingCapabilities] = useState<BondingCapabilities | null>(null);
@@ -199,7 +212,7 @@ export default function InterfacesPage() {
   const loadData = async () => {
     try {
       setError(null);
-      const [configData, capabilitiesData, wgData, vxlanData, vxlanCapData, tunnelData, tunnelCapData, dummyData, dummyCapData, geneveData, geneveCapData, inputData, inputCapData, l2tpv3Data, l2tpv3CapData, loopbackData, loopbackCapData, bondingData, bondingCapData, bridgeData, bridgeCapData] = await Promise.all([
+      const [configData, capabilitiesData, wgData, vxlanData, vxlanCapData, tunnelData, tunnelCapData, dummyData, dummyCapData, geneveData, geneveCapData, inputData, inputCapData, l2tpv3Data, l2tpv3CapData, loopbackData, loopbackCapData, macsecData, macsecCapData, bondingData, bondingCapData, bridgeData, bridgeCapData] = await Promise.all([
         ethernetService.getConfig(),
         ethernetService.getCapabilities(),
         wireguardService.getConfig(),
@@ -217,6 +230,8 @@ export default function InterfacesPage() {
         l2tpv3Service.getCapabilities(),
         loopbackService.getConfig(),
         loopbackService.getCapabilities(),
+        macsecService.getConfig(),
+        macsecService.getCapabilities(),
         bondingService.getConfig(),
         bondingService.getCapabilities(),
         bridgeService.getConfig(),
@@ -239,6 +254,8 @@ export default function InterfacesPage() {
       setL2tpv3Capabilities(l2tpv3CapData);
       setLoopbackInterfaces(loopbackData.interfaces);
       setLoopbackCapabilities(loopbackCapData);
+      setMacsecInterfaces(macsecData.interfaces);
+      setMacsecCapabilities(macsecCapData);
       setBondingInterfaces(bondingData.interfaces);
       setBondingCapabilities(bondingCapData);
       setBridgeInterfaces(bridgeData.interfaces);
@@ -294,6 +311,7 @@ export default function InterfacesPage() {
   const totalInput = inputInterfaces.length;
   const totalL2tpv3 = l2tpv3Interfaces.length;
   const totalLoopback = loopbackInterfaces.length;
+  const totalMacsec = macsecInterfaces.length;
   const totalBonding = bondingInterfaces.length;
   const totalBridge = bridgeInterfaces.length;
 
@@ -576,6 +594,18 @@ export default function InterfacesPage() {
     );
   });
 
+  const filteredMacsec = macsecInterfaces.filter((iface) => {
+    if (searchQuery === "") return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      iface.name.toLowerCase().includes(q) ||
+      (iface.description || "").toLowerCase().includes(q) ||
+      iface.addresses?.some((addr) => addr.toLowerCase().includes(q)) ||
+      (iface.source_interface || "").toLowerCase().includes(q) ||
+      (iface.security?.cipher || "").toLowerCase().includes(q)
+    );
+  });
+
   const filteredBonding = bondingInterfaces.filter((iface) => {
     if (searchQuery === "") return true;
     const q = searchQuery.toLowerCase();
@@ -609,7 +639,7 @@ export default function InterfacesPage() {
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Interfaces</h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {totalInterfaces + totalVlans + totalWireGuard + totalVxlan + totalTunnel + totalDummy + totalGeneve + totalInput + totalLoopback + totalBonding + totalBridge} total
+                  {totalInterfaces + totalVlans + totalWireGuard + totalVxlan + totalTunnel + totalDummy + totalGeneve + totalInput + totalLoopback + totalMacsec + totalBonding + totalBridge} total
                 </p>
               </div>
               <Button
@@ -949,6 +979,40 @@ export default function InterfacesPage() {
                   </div>
                 </button>
 
+                {/* MACsec */}
+                <button
+                  onClick={() => setSelectedType("macsec")}
+                  className={cn(
+                    "w-full text-left rounded-lg px-3 py-3 transition-all",
+                    selectedType === "macsec"
+                      ? "bg-accent text-accent-foreground shadow-sm"
+                      : "hover:bg-accent/50"
+                  )}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={cn(
+                      "mt-0.5 rounded-md p-1.5",
+                      selectedType === "macsec" ? "bg-primary/10" : "bg-muted"
+                    )}>
+                      <Lock className={cn(
+                        "h-4 w-4",
+                        selectedType === "macsec" ? "text-primary" : "text-muted-foreground"
+                      )} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="font-medium text-sm text-foreground">MACsec</span>
+                        {selectedType === "macsec" && (
+                          <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
+                        )}
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {totalMacsec} {totalMacsec === 1 ? "interface" : "interfaces"}
+                      </span>
+                    </div>
+                  </div>
+                </button>
+
                 {/* Bonding */}
                 <button
                   onClick={() => setSelectedType("bonding")}
@@ -1064,7 +1128,7 @@ export default function InterfacesPage() {
             <div className="flex items-start justify-between mb-4">
               <div className="flex-1">
                 <h1 className="text-2xl font-bold text-foreground">
-                  {selectedType === "ethernet" ? "Ethernet Interfaces" : selectedType === "vlan" ? "VLANs" : selectedType === "vxlan" ? "VXLAN Interfaces" : selectedType === "tunnel" ? "Tunnel Interfaces" : selectedType === "l2tpv3" ? "L2TPv3 Interfaces" : selectedType === "dummy" ? "Dummy Interfaces" : selectedType === "geneve" ? "GENEVE Interfaces" : selectedType === "input" ? "Input Interfaces" : selectedType === "loopback" ? "Loopback Interface" : selectedType === "bonding" ? "Bonding Interfaces" : selectedType === "bridge" ? "Bridge Interfaces" : "WireGuard Interfaces"}
+                  {selectedType === "ethernet" ? "Ethernet Interfaces" : selectedType === "vlan" ? "VLANs" : selectedType === "vxlan" ? "VXLAN Interfaces" : selectedType === "tunnel" ? "Tunnel Interfaces" : selectedType === "l2tpv3" ? "L2TPv3 Interfaces" : selectedType === "dummy" ? "Dummy Interfaces" : selectedType === "geneve" ? "GENEVE Interfaces" : selectedType === "input" ? "Input Interfaces" : selectedType === "loopback" ? "Loopback Interface" : selectedType === "macsec" ? "MACsec Interfaces" : selectedType === "bonding" ? "Bonding Interfaces" : selectedType === "bridge" ? "Bridge Interfaces" : "WireGuard Interfaces"}
                 </h1>
                 <p className="text-sm text-muted-foreground mt-2">
                   {selectedType === "ethernet"
@@ -1085,6 +1149,8 @@ export default function InterfacesPage() {
                               ? "Input Functional Block (IFB) interfaces for traffic redirection and shaping"
                               : selectedType === "loopback"
                               ? "Loopback interface for local address assignment and routing"
+                              : selectedType === "macsec"
+                              ? "IEEE 802.1AE MACsec interfaces for layer-2 encryption"
                               : selectedType === "bonding"
                               ? "Link aggregation (bonding) interfaces for high availability and throughput"
                               : selectedType === "bridge"
@@ -1118,6 +1184,8 @@ export default function InterfacesPage() {
                     } else {
                       setIsCreateLoopbackModalOpen(true);
                     }
+                  } else if (selectedType === "macsec") {
+                    setIsCreateMacsecModalOpen(true);
                   } else if (selectedType === "bonding") {
                     setIsCreateBondingModalOpen(true);
                   } else if (selectedType === "bridge") {
@@ -1147,6 +1215,8 @@ export default function InterfacesPage() {
                             ? "Create L2TPv3"
                             : selectedType === "loopback"
                             ? "Configure Loopback"
+                            : selectedType === "macsec"
+                            ? "Create MACsec"
                             : selectedType === "bonding"
                             ? "Create Bond"
                             : selectedType === "bridge"
@@ -1900,6 +1970,99 @@ export default function InterfacesPage() {
                   </p>
                 </>
               )
+            ) : selectedType === "macsec" ? (
+              /* MACsec Table */
+              filteredMacsec.length === 0 ? (
+                <Card className="border-border">
+                  <CardContent className="py-12">
+                    <div className="flex flex-col items-center gap-2">
+                      <Lock className="h-12 w-12 text-muted-foreground/30" />
+                      <p className="text-muted-foreground">
+                        {searchQuery ? "No MACsec interfaces matching your search" : "No MACsec interfaces configured"}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <>
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Source</TableHead>
+                          <TableHead>Cipher</TableHead>
+                          <TableHead>Addresses</TableHead>
+                          <TableHead>Security Mode</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="w-[80px]"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredMacsec.map((iface) => {
+                          const securityMode = iface.security?.mka?.cak ? "MKA" : iface.security?.static?.key ? "Static" : null;
+                          return (
+                            <TableRow key={iface.name} className="group">
+                              <TableCell><code className="font-semibold font-mono text-foreground">{iface.name}</code></TableCell>
+                              <TableCell>
+                                {iface.source_interface ? (
+                                  <code className="text-xs font-mono px-1.5 py-0.5 rounded bg-accent text-foreground">{iface.source_interface}</code>
+                                ) : <span className="text-muted-foreground">—</span>}
+                              </TableCell>
+                              <TableCell>
+                                {iface.security?.cipher ? (
+                                  <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/20 text-xs">
+                                    {iface.security.cipher}
+                                  </Badge>
+                                ) : <span className="text-muted-foreground">—</span>}
+                              </TableCell>
+                              <TableCell>
+                                {iface.addresses?.length ? (
+                                  <div className="flex flex-wrap gap-1">
+                                    {iface.addresses.slice(0, 2).map((addr, idx) => <code key={idx} className="text-xs font-mono px-1.5 py-0.5 rounded bg-accent text-foreground">{addr}</code>)}
+                                    {iface.addresses.length > 2 && <Badge variant="secondary" className="text-xs px-1.5 py-0">+{iface.addresses.length - 2}</Badge>}
+                                  </div>
+                                ) : <span className="text-muted-foreground">—</span>}
+                              </TableCell>
+                              <TableCell>
+                                {securityMode ? (
+                                  <Badge variant="outline" className={securityMode === "MKA" ? "bg-purple-500/10 text-purple-500 border-purple-500/20 text-xs" : "bg-orange-500/10 text-orange-500 border-orange-500/20 text-xs"}>
+                                    {securityMode}
+                                  </Badge>
+                                ) : <span className="text-muted-foreground">—</span>}
+                              </TableCell>
+                              <TableCell>
+                                {iface.disabled ? (
+                                  <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">Disabled</Badge>
+                                ) : (
+                                  <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">Enabled</Badge>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  {canWrite(FeatureGroup.INTERFACES) && (
+                                    <>
+                                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingMacsec(iface)}>
+                                        <Pencil className="h-3.5 w-3.5" />
+                                      </Button>
+                                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeletingMacsec(iface)}>
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </>
+                                  )}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <p className="text-sm text-muted-foreground text-center mt-3">
+                    Showing {filteredMacsec.length} of {totalMacsec} interface{totalMacsec !== 1 ? "s" : ""}
+                  </p>
+                </>
+              )
             ) : selectedType === "bonding" ? (
               /* Bonding Table */
               filteredBonding.length === 0 ? (
@@ -2448,6 +2611,33 @@ export default function InterfacesPage() {
           loadData();
         }}
         interfaceData={deletingLoopback}
+      />
+      {/* MACsec Modals */}
+      <CreateMacsecModal
+        open={isCreateMacsecModalOpen}
+        onOpenChange={setIsCreateMacsecModalOpen}
+        onSuccess={loadData}
+        capabilities={macsecCapabilities}
+        existingInterfaces={macsecInterfaces.map((i) => i.name)}
+      />
+      <EditMacsecModal
+        open={!!editingMacsec}
+        onOpenChange={(open) => !open && setEditingMacsec(null)}
+        onSuccess={() => {
+          setEditingMacsec(null);
+          loadData();
+        }}
+        capabilities={macsecCapabilities}
+        interfaceData={editingMacsec}
+      />
+      <DeleteMacsecModal
+        open={!!deletingMacsec}
+        onOpenChange={(open) => !open && setDeletingMacsec(null)}
+        onSuccess={() => {
+          setDeletingMacsec(null);
+          loadData();
+        }}
+        interfaceData={deletingMacsec}
       />
       {/* Bonding Modals */}
       <CreateBondingModal
