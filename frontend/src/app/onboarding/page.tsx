@@ -15,7 +15,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, AlertCircle, CheckCircle2, Building2, Server, User } from "lucide-react";
 import { signUp, signIn } from "@/lib/auth-client";
 import { sessionService } from "@/lib/api/session";
@@ -270,75 +269,92 @@ export default function OnboardingPage() {
   // Show loading state while checking if onboarding is allowed
   if (isCheckingAccess) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex items-center justify-center p-4">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">Verifying access...</p>
-        </div>
+      <div className="min-h-screen w-full flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex items-center justify-center p-4">
-      <Card className="w-full max-w-2xl">
-        <CardHeader className="text-center">
-          <div className="flex justify-center mb-4">
-            <div className="flex h-16 w-16 items-center justify-center">
-              <Image
-                src="/vy-icon.png"
-                alt="VyOS Logo"
-                width={64}
-                height={64}
-                className="object-contain"
-                loader={({ src }) => src}
-              />
-            </div>
-          </div>
-          <CardTitle className="text-3xl">Welcome to VyManager</CardTitle>
-          <CardDescription>
-            Let's set up your VyOS management system
-          </CardDescription>
-        </CardHeader>
+  const steps = [
+    { label: "Account", icon: User },
+    { label: "Site", icon: Building2 },
+    { label: "Instance", icon: Server },
+  ];
 
-        <CardContent>
-          {/* Progress Indicator */}
-          <div className="flex items-center justify-center mb-8">
-            <div className="flex items-center gap-2">
-              <div className={`flex items-center justify-center h-10 w-10 rounded-full ${step >= 1 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
-                {step > 1 ? <CheckCircle2 className="h-5 w-5" /> : <User className="h-5 w-5" />}
-              </div>
-              <div className={`h-1 w-16 ${step >= 2 ? "bg-primary" : "bg-muted"}`} />
-              <div className={`flex items-center justify-center h-10 w-10 rounded-full ${step >= 2 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
-                {step > 2 ? <CheckCircle2 className="h-5 w-5" /> : <Building2 className="h-5 w-5" />}
-              </div>
-              <div className={`h-1 w-16 ${step >= 3 ? "bg-primary" : "bg-muted"}`} />
-              <div className={`flex items-center justify-center h-10 w-10 rounded-full ${step >= 3 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
-                <Server className="h-5 w-5" />
+  return (
+    <div className="min-h-screen w-full flex items-center justify-center bg-background relative overflow-hidden">
+      {/* Animated gradient background - matches login page */}
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-background to-cyan-400/20 opacity-50" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,_var(--tw-gradient-stops))] from-cyan-400/30 via-transparent to-transparent opacity-40" />
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />
+
+      <div className="relative z-10 w-full max-w-lg mx-4">
+        <div className="backdrop-blur-xl bg-card/50 border border-border/50 rounded-2xl shadow-2xl p-6 sm:p-8">
+          {/* Logo and title */}
+          <div className="flex flex-col items-center mb-6">
+            <div className="relative w-16 h-16 mb-3">
+              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 blur-xl" />
+              <div className="relative w-16 h-16 rounded-2xl overflow-hidden shadow-lg shadow-primary/10">
+                <Image
+                  src="/vy-icon.png"
+                  alt="VyOS Logo"
+                  width={64}
+                  height={64}
+                  className="object-contain"
+                  loader={({ src }) => src}
+                />
               </div>
             </div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Welcome to VyManager</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Let's set up your management system
+            </p>
+          </div>
+
+          {/* Progress Indicator with labels */}
+          <div className="flex items-center justify-center mb-6">
+            {steps.map((s, i) => {
+              const Icon = s.icon;
+              const stepNum = i + 1;
+              const isCompleted = step > stepNum;
+              const isCurrent = step === stepNum;
+              return (
+                <div key={s.label} className="flex items-center">
+                  <div className="flex flex-col items-center">
+                    <div className={`flex items-center justify-center h-9 w-9 rounded-full transition-colors ${
+                      isCompleted || isCurrent
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground"
+                    }`}>
+                      {isCompleted ? <CheckCircle2 className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
+                    </div>
+                    <span className={`text-xs mt-1.5 font-medium ${
+                      isCurrent ? "text-primary" : isCompleted ? "text-foreground" : "text-muted-foreground"
+                    }`}>
+                      {s.label}
+                    </span>
+                  </div>
+                  {i < steps.length - 1 && (
+                    <div className={`h-0.5 w-10 sm:w-14 mx-2 mb-5 transition-colors ${
+                      step > stepNum ? "bg-primary" : "bg-muted"
+                    }`} />
+                  )}
+                </div>
+              );
+            })}
           </div>
 
           {/* Error Display */}
           {error && (
-            <div className="mb-6 rounded-lg border border-destructive/20 bg-destructive/10 p-3">
-              <div className="flex items-start gap-2">
-                <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-destructive">{error}</p>
-              </div>
+            <div className="mb-5 p-3 rounded-lg bg-destructive/10 border border-destructive/50 flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-destructive mt-0.5 flex-shrink-0" />
+              <p className="text-sm text-destructive">{error}</p>
             </div>
           )}
 
           {/* Step 1: Create Admin Account */}
           {step === 1 && (
             <form onSubmit={handleStep1} className="space-y-4">
-              <div className="text-center mb-6">
-                <h3 className="text-xl font-semibold mb-2">Step 1: Create Admin Account</h3>
-                <p className="text-sm text-muted-foreground">
-                  You'll be the owner with full access to everything
-                </p>
-              </div>
-
               <div className="space-y-2">
                 <Label htmlFor="name">Full Name</Label>
                 <Input
@@ -346,6 +362,7 @@ export default function OnboardingPage() {
                   value={adminData.name}
                   onChange={(e) => setAdminData({ ...adminData, name: e.target.value })}
                   placeholder="John Doe"
+                  className="h-11 bg-background/50 border-border/50 focus:border-primary"
                   required
                 />
               </div>
@@ -358,46 +375,41 @@ export default function OnboardingPage() {
                   value={adminData.email}
                   onChange={(e) => setAdminData({ ...adminData, email: e.target.value })}
                   placeholder="admin@example.com"
+                  className="h-11 bg-background/50 border-border/50 focus:border-primary"
                   required
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={adminData.password}
-                  onChange={(e) => setAdminData({ ...adminData, password: e.target.value })}
-                  placeholder="••••••••"
-                  required
-                />
-                <p className="text-xs text-muted-foreground">
-                  Must be at least 8 characters
-                </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={adminData.password}
+                    onChange={(e) => setAdminData({ ...adminData, password: e.target.value })}
+                    placeholder="Min 8 characters"
+                    className="h-11 bg-background/50 border-border/50 focus:border-primary"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Confirm Password</Label>
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    value={adminData.confirmPassword}
+                    onChange={(e) => setAdminData({ ...adminData, confirmPassword: e.target.value })}
+                    placeholder="Repeat password"
+                    className="h-11 bg-background/50 border-border/50 focus:border-primary"
+                    required
+                  />
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm Password</Label>
-                <Input
-                  id="confirmPassword"
-                  type="password"
-                  value={adminData.confirmPassword}
-                  onChange={(e) => setAdminData({ ...adminData, confirmPassword: e.target.value })}
-                  placeholder="••••••••"
-                  required
-                />
-              </div>
-
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Creating Account...
-                  </>
-                ) : (
-                  "Continue"
-                )}
+              <Button type="submit" className="w-full h-11 mt-2" disabled={loading}>
+                Continue
               </Button>
             </form>
           )}
@@ -405,13 +417,6 @@ export default function OnboardingPage() {
           {/* Step 2: Create Site */}
           {step === 2 && (
             <form onSubmit={handleStep2} className="space-y-4">
-              <div className="text-center mb-6">
-                <h3 className="text-xl font-semibold mb-2">Step 2: Create Your First Site</h3>
-                <p className="text-sm text-muted-foreground">
-                  A site is a logical grouping of VyOS instances
-                </p>
-              </div>
-
               <div className="space-y-2">
                 <Label htmlFor="siteName">Site Name</Label>
                 <Input
@@ -419,6 +424,7 @@ export default function OnboardingPage() {
                   value={siteData.name}
                   onChange={(e) => setSiteData({ ...siteData, name: e.target.value })}
                   placeholder="Headquarters"
+                  className="h-11 bg-background/50 border-border/50 focus:border-primary"
                   required
                 />
               </div>
@@ -430,29 +436,23 @@ export default function OnboardingPage() {
                   value={siteData.description}
                   onChange={(e) => setSiteData({ ...siteData, description: e.target.value })}
                   placeholder="Main datacenter location"
+                  className="bg-background/50 border-border/50 focus:border-primary"
                   rows={3}
                 />
               </div>
 
-              <div className="flex gap-3 mt-6">
+              <div className="flex gap-3 mt-2">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => setStep(1)}
-                  className="flex-1"
+                  className="flex-1 h-11"
                   disabled={isSubmitting}
                 >
                   Back
                 </Button>
-                <Button type="submit" className="flex-1" disabled={loading || isSubmitting}>
-                  {loading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Creating Site...
-                    </>
-                  ) : (
-                    "Continue"
-                  )}
+                <Button type="submit" className="flex-1 h-11" disabled={loading || isSubmitting}>
+                  Continue
                 </Button>
               </div>
             </form>
@@ -461,13 +461,6 @@ export default function OnboardingPage() {
           {/* Step 3: Add Instance */}
           {step === 3 && (
             <form onSubmit={handleStep3} className="space-y-4">
-              <div className="text-center mb-6">
-                <h3 className="text-xl font-semibold mb-2">Step 3: Add Your First VyOS Instance</h3>
-                <p className="text-sm text-muted-foreground">
-                  Connect to your VyOS router, or skip this step and add one later from the Sites page
-                </p>
-              </div>
-
               <Tabs defaultValue="basic">
                 <TabsList className="grid w-full grid-cols-2">
                   <TabsTrigger value="basic">Basic Info</TabsTrigger>
@@ -482,6 +475,7 @@ export default function OnboardingPage() {
                       value={instanceData.name}
                       onChange={(e) => setInstanceData({ ...instanceData, name: e.target.value })}
                       placeholder="vyos-router-01"
+                      className="h-11 bg-background/50 border-border/50 focus:border-primary"
                       required
                     />
                   </div>
@@ -493,6 +487,7 @@ export default function OnboardingPage() {
                       value={instanceData.description}
                       onChange={(e) => setInstanceData({ ...instanceData, description: e.target.value })}
                       placeholder="Main gateway router"
+                      className="bg-background/50 border-border/50 focus:border-primary"
                       rows={2}
                     />
                   </div>
@@ -503,7 +498,7 @@ export default function OnboardingPage() {
                       value={instanceData.vyosVersion}
                       onValueChange={(value) => setInstanceData({ ...instanceData, vyosVersion: value })}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="h-11 bg-background/50 border-border/50">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -521,7 +516,8 @@ export default function OnboardingPage() {
                       id="host"
                       value={instanceData.host}
                       onChange={(e) => setInstanceData({ ...instanceData, host: e.target.value })}
-                      placeholder="192.168.1.1, 2001:db8::1, or vyos.example.com"
+                      placeholder="192.168.1.1 or vyos.example.com"
+                      className="h-11 bg-background/50 border-border/50 focus:border-primary"
                       required
                     />
                   </div>
@@ -533,7 +529,7 @@ export default function OnboardingPage() {
                         value={instanceData.protocol}
                         onValueChange={(value) => setInstanceData({ ...instanceData, protocol: value })}
                       >
-                        <SelectTrigger>
+                        <SelectTrigger className="h-11 bg-background/50 border-border/50">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -551,6 +547,7 @@ export default function OnboardingPage() {
                         value={instanceData.port}
                         onChange={(e) => setInstanceData({ ...instanceData, port: parseInt(e.target.value) })}
                         placeholder="443"
+                        className="h-11 bg-background/50 border-border/50 focus:border-primary"
                       />
                     </div>
                   </div>
@@ -563,21 +560,22 @@ export default function OnboardingPage() {
                       value={instanceData.apiKey}
                       onChange={(e) => setInstanceData({ ...instanceData, apiKey: e.target.value })}
                       placeholder="Your VyOS API key"
+                      className="h-11 bg-background/50 border-border/50 focus:border-primary"
                       required
                     />
                     <p className="text-xs text-muted-foreground">
-                      Set in VyOS with: set service https api keys id KEY key VALUE
+                      Set in VyOS: <code className="text-xs bg-muted px-1 py-0.5 rounded">set service https api keys id KEY key VALUE</code>
                     </p>
                   </div>
                 </TabsContent>
               </Tabs>
 
-              <div className="flex gap-3 mt-6">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mt-2">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => setStep(2)}
-                  className="flex-1"
+                  className="h-11 sm:flex-1 order-3 sm:order-1"
                   disabled={isSubmitting}
                 >
                   Back
@@ -586,23 +584,28 @@ export default function OnboardingPage() {
                   type="button"
                   variant="secondary"
                   onClick={() => completeSetup(true)}
-                  className="flex-1"
+                  className="h-11 sm:flex-1 order-2"
                   disabled={loading || isSubmitting}
                 >
                   {loading && isSubmitting ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Completing Setup...
+                      Setting up...
                     </>
                   ) : (
-                    "Skip"
+                    "Skip, add later"
                   )}
                 </Button>
-                <Button type="submit" className="flex-1" disabled={loading || isSubmitting}>
-                  {loading ? (
+                <Button type="submit" className="h-11 sm:flex-1 order-1 sm:order-3" disabled={loading || isSubmitting}>
+                  {loading && !isSubmitting ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Completing Setup...
+                      Setting up...
+                    </>
+                  ) : loading && isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Setting up...
                     </>
                   ) : (
                     "Complete Setup"
@@ -611,8 +614,8 @@ export default function OnboardingPage() {
               </div>
             </form>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }
