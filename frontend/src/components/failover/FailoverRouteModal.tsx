@@ -545,7 +545,7 @@ export function FailoverRouteModal({
         </div>
         {entry.targets.map((target, tIndex) => (
           <div key={tIndex} className="flex items-start gap-2">
-            <div className={`grid ${showTargetProps ? "grid-cols-3" : "grid-cols-1"} gap-2 flex-1`}>
+            <div className={`grid ${showTargetProps ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-1"} gap-2 flex-1`}>
               <Input
                 className="h-8 text-xs"
                 value={target.address}

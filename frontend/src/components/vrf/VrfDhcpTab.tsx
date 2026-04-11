@@ -61,7 +61,7 @@ export function VrfDhcpTab({ vrf, capabilities, canWrite, onRefresh }: VrfDhcpTa
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <Card className="border-0 shadow-none bg-muted/50">
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground mb-1">Status</p>

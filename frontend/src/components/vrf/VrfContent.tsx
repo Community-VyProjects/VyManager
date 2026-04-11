@@ -113,7 +113,7 @@ export function VrfContent({
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <Card className="border-0 shadow-none bg-muted/50">
             <CardContent className="p-3">
               <div className="flex items-center gap-2">

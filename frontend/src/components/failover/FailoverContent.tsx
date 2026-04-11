@@ -168,7 +168,7 @@ export function FailoverContent() {
           )}
 
           {/* Stats */}
-          <div className={`grid ${showDhcp ? "grid-cols-4" : "grid-cols-3"} gap-4`}>
+          <div className={`grid ${showDhcp ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-1 sm:grid-cols-3"} gap-4`}>
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">

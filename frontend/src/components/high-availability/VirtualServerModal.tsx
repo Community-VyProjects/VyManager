@@ -201,7 +201,7 @@ export function VirtualServerModal({
             </div>
 
             {/* Address & Port */}
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="col-span-2 space-y-1.5">
                 <Label>Virtual IP Address</Label>
                 <Input
@@ -225,7 +225,7 @@ export function VirtualServerModal({
             </div>
 
             {/* Protocol, Algorithm, Forward Method */}
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-1.5">
                 <Label>Protocol</Label>
                 <Select value={form.protocol} onValueChange={(v) => set("protocol")(v === "none" ? "" : v)}>
@@ -273,7 +273,7 @@ export function VirtualServerModal({
             </div>
 
             {/* Delay Loop, Persistence, FWMark */}
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-1.5">
                 <Label>Delay Loop (s)</Label>
                 <Input

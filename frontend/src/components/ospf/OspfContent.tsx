@@ -455,7 +455,7 @@ export function OspfContent() {
           )}
 
           {/* Stats */}
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
@@ -709,7 +709,7 @@ export function OspfContent() {
                         )
                       )}
                     </div>
-                    <div className="grid grid-cols-5 gap-4 items-end">
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 items-end">
                       <div className="flex items-center gap-3">
                         <Checkbox
                           id="di-enabled"
@@ -1354,7 +1354,7 @@ export function OspfContent() {
                 <Card className="col-span-2">
                   <CardContent className="p-6">
                     <h3 className="font-semibold mb-4">Miscellaneous</h3>
-                    <div className="grid grid-cols-4 gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                       <div>
                         <Label className="text-sm">LDP Sync Holddown</Label>
                         <Input

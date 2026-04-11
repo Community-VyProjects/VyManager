@@ -327,7 +327,7 @@ export function CreateVxlanModal({
               <p className="text-xs text-muted-foreground">Comma-separated with CIDR notation</p>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="mtu">MTU</Label>
                 <Input id="mtu" value={mtu} onChange={(e) => setMtu(e.target.value)} placeholder="1500" />
@@ -394,7 +394,7 @@ export function CreateVxlanModal({
 
             <div className="space-y-3">
               <Label className="text-sm font-medium">IP Parameters</Label>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="ipDf" className="text-xs">Don&apos;t Fragment</Label>
                   <Select value={ipDf} onValueChange={setIpDf}>

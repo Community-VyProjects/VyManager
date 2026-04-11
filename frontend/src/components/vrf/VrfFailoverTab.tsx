@@ -55,7 +55,7 @@ export function VrfFailoverTab({ vrf, capabilities, canWrite, onRefresh }: VrfFa
   return (
     <div className="space-y-6">
       {/* Summary */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card className="border-0 shadow-none bg-muted/50">
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground mb-1">Failover Routes</p>

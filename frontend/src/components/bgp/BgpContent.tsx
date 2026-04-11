@@ -434,7 +434,7 @@ export function BgpContent() {
           )}
 
           {/* Stats */}
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
@@ -1396,7 +1396,7 @@ export function BgpContent() {
                 <Card>
                   <CardContent className="p-6">
                     <h3 className="text-sm font-medium mb-4">Administrative Distance</h3>
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       {([
                         { key: "external" as const, label: "External", placeholder: "20" },
                         { key: "internal" as const, label: "Internal", placeholder: "200" },

@@ -329,7 +329,7 @@ export default function NAT64Page() {
                 </div>
 
                 {/* Rule Info Cards */}
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <Card>
                     <CardContent className="pt-6">
                       <p className="text-xs text-muted-foreground mb-1">Source Prefix</p>

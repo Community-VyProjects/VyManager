@@ -847,7 +847,7 @@ export function BgpNeighborModal({
             {/* ============================================================ */}
             <div className="space-y-3">
               <h4 className="text-sm font-medium">Timers</h4>
-              <div className="grid grid-cols-3 gap-4 rounded-lg border p-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 rounded-lg border p-3">
                 {/* Connect Timer */}
                 <div className="space-y-2">
                   <Label htmlFor="bgp-neighbor-timer-connect">
@@ -1380,7 +1380,7 @@ export function BgpNeighborModal({
                           </div>
 
                           {/* Numeric fields */}
-                          <div className="grid grid-cols-3 gap-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             {/* Maximum Prefix */}
                             <div className="space-y-2">
                               <Label htmlFor={`bgp-af-${afi}-max-prefix`}>

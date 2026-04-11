@@ -411,7 +411,7 @@ export function EditTunnelModal({
               <Input id="edit-addresses" value={addresses} onChange={(e) => setAddresses(e.target.value)} placeholder="Comma-separated, e.g., 192.168.1.1/24, 10.0.0.1/30" />
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="edit-mtu">MTU</Label>
                 <Input id="edit-mtu" value={mtu} onChange={(e) => setMtu(e.target.value)} placeholder="68-16000" />
@@ -441,7 +441,7 @@ export function EditTunnelModal({
           <TabsContent value="advanced" className="space-y-6 mt-4">
             <div>
               <h4 className="text-sm font-medium mb-3">Interface Options</h4>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="flex items-center gap-2">
                   <Checkbox checked={disabled} onCheckedChange={(c) => setDisabled(c === true)} />
                   <Label>Disabled</Label>
@@ -558,7 +558,7 @@ export function EditTunnelModal({
 
             <div>
               <h4 className="text-sm font-medium mb-3">Mirror / Redirect</h4>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>Mirror Ingress</Label>
                   <Select value={mirrorIngress || "__none__"} onValueChange={(v) => setMirrorIngress(v === "__none__" ? "" : v)}>

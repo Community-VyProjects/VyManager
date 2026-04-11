@@ -151,7 +151,7 @@ export function RadiusSettingsModal({
 
           <Separator />
           <h4 className="text-sm font-medium">Accounting</h4>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label>Interim Interval</Label>
               <Input value={acctInterval} onChange={(e) => setAcctInterval(e.target.value)} placeholder="60" />
@@ -190,7 +190,7 @@ export function RadiusSettingsModal({
             <Label htmlFor="rate-limit-enable" className="cursor-pointer">Enable Rate Limiting</Label>
           </div>
           {rateLimitEnable && (
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>Attribute</Label>
                 <Input value={rateLimitAttribute} onChange={(e) => setRateLimitAttribute(e.target.value)} placeholder="Filter-Id" />
