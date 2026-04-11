@@ -24,6 +24,7 @@ import {
   Plus,
   Search,
   ChevronRight,
+  ChevronLeft,
   Server,
   MoreVertical,
   Pencil,
@@ -248,10 +249,65 @@ export default function SitesPage() {
     );
   });
 
+  // On mobile, track whether we're viewing site list or a site's instances
+  const [mobileShowInstances, setMobileShowInstances] = useState(false);
+
+  const handleSelectSiteMobile = (site: Site) => {
+    setSelectedSite(site);
+    setMobileShowInstances(true);
+  };
+
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      {/* Left Navigation */}
-      <div className="w-64 border-r border-border bg-card flex flex-col h-full">
+    <div className="flex flex-col lg:flex-row h-screen overflow-hidden bg-background">
+      {/* Mobile Header with tabs */}
+      <div className="lg:hidden border-b border-border bg-card shrink-0">
+        <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-3">
+            <Image
+              src="/vy-icon.png"
+              alt="VyOS Logo"
+              width={28}
+              height={28}
+              className="object-contain"
+              loader={({ src }) => src}
+            />
+            <h2 className="text-base font-semibold text-foreground">Site Manager</h2>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground truncate max-w-[120px]">
+              {session?.user?.name || session?.user?.email}
+            </span>
+            <Button onClick={handleLogout} variant="ghost" size="sm" className="h-8 w-8 p-0">
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+        {/* Section tabs */}
+        <div className="flex border-t border-border">
+          {([
+            { key: "sites" as NavSection, label: "Sites", icon: Building2 },
+            { key: "user-management" as NavSection, label: "Users", icon: Users },
+            { key: "authentication" as NavSection, label: "Auth", icon: KeyRound },
+          ]).map(({ key, label, icon: Icon }) => (
+            <button
+              key={key}
+              onClick={() => { setSelectedSection(key); setMobileShowInstances(false); }}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-medium transition-colors",
+                selectedSection === key
+                  ? "border-b-2 border-primary text-primary"
+                  : "text-muted-foreground"
+              )}
+            >
+              <Icon className="h-4 w-4" />
+              <span>{label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Desktop Left Navigation - hidden on mobile */}
+      <div className="hidden lg:flex w-64 border-r border-border bg-card flex-col h-full">
           <div className="p-6 pb-4">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center">
@@ -385,9 +441,9 @@ export default function SitesPage() {
           </div>
         </div>
 
-        {/* Middle Submenu - Site List */}
+        {/* Desktop Site List (middle pane) - hidden on mobile */}
         {selectedSection === "sites" && (
-          <div className="w-80 border-r border-border bg-card flex flex-col h-full">
+          <div className="hidden lg:flex w-80 border-r border-border bg-card flex-col h-full">
             <div className="p-6 pb-4">
               <div className="flex items-center justify-between mb-4">
                 <div>
@@ -561,8 +617,170 @@ export default function SitesPage() {
           </div>
         )}
 
-        {/* Right Main Content - Instances */}
-        <div className="flex-1 flex flex-col">
+        {/* Mobile Sites Section - site list or instances depending on drill-down state */}
+        {selectedSection === "sites" && (
+          <div className="flex-1 flex flex-col lg:hidden overflow-hidden">
+            {!mobileShowInstances ? (
+              /* Mobile: Site list view */
+              <div className="flex-1 flex flex-col overflow-hidden">
+                <div className="p-4 space-y-3 shrink-0">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-muted-foreground">
+                      {sites.length} {sites.length === 1 ? "site" : "sites"}
+                    </p>
+                    <Button variant="outline" size="icon" onClick={loadData} disabled={loading} className="h-8 w-8">
+                      <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+                    </Button>
+                  </div>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input placeholder="Search sites..." className="pl-9" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                  </div>
+                  <Button className="w-full gap-2" onClick={() => setCreateSiteOpen(true)}>
+                    <Plus className="h-4 w-4" />
+                    Add Site
+                  </Button>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button variant="outline" size="sm" className="gap-2" onClick={() => setImportCSVOpen(true)}>
+                      <Upload className="h-3 w-3" /> Import
+                    </Button>
+                    <Button variant="outline" size="sm" className="gap-2" onClick={handleExportCSV}>
+                      <Download className="h-3 w-3" /> Export
+                    </Button>
+                  </div>
+                </div>
+                <Separator />
+                <ScrollArea className="flex-1">
+                  <div className="p-3 space-y-1">
+                    {loading ? (
+                      <div className="flex items-center justify-center py-12">
+                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                      </div>
+                    ) : filteredSites.length === 0 ? (
+                      <div className="p-4 text-center">
+                        <p className="text-sm text-muted-foreground">{searchQuery ? "No sites found" : "No sites yet"}</p>
+                      </div>
+                    ) : (
+                      filteredSites.map((site) => (
+                        <div key={site.id} className="w-full rounded-lg transition-all relative group hover:bg-accent/50">
+                          <button onClick={() => handleSelectSiteMobile(site)} className="w-full text-left px-3 py-3 pr-10">
+                            <div className="flex items-center gap-3">
+                              <div className="rounded-md p-1.5 bg-muted">
+                                <Building2 className="h-4 w-4 text-muted-foreground" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <span className="font-medium text-sm truncate block">{site.name}</span>
+                                {site.description && <p className="text-xs text-muted-foreground truncate">{site.description}</p>}
+                              </div>
+                              <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                            </div>
+                          </button>
+                          {site.role === "ADMIN" && (
+                            <div className="absolute top-2 right-2">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <MoreVertical className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEditSite(site); }}>
+                                    <Pencil className="h-4 w-4 mr-2" /> Edit Site
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDeleteSite(site); }} className="text-destructive focus:text-destructive">
+                                    <Trash2 className="h-4 w-4 mr-2" /> Delete Site
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </ScrollArea>
+              </div>
+            ) : selectedSite ? (
+              /* Mobile: Instance view for selected site */
+              <div className="flex-1 flex flex-col overflow-hidden">
+                {/* Back bar */}
+                <div className="flex items-center gap-2 px-4 py-3 border-b border-border shrink-0">
+                  <Button variant="ghost" size="sm" className="gap-1 -ml-2" onClick={() => setMobileShowInstances(false)}>
+                    <ChevronLeft className="h-4 w-4" />
+                    Sites
+                  </Button>
+                  <Separator orientation="vertical" className="h-5" />
+                  <h2 className="text-sm font-semibold truncate flex-1">{selectedSite.name}</h2>
+                  {selectedSite.role === "ADMIN" && (
+                    <Button size="sm" className="gap-1" onClick={() => setCreateInstanceOpen(true)}>
+                      <Plus className="h-3 w-3" /> Add
+                    </Button>
+                  )}
+                </div>
+                <div className="flex-1 overflow-auto p-4">
+                  {instancesLoading ? (
+                    <div className="flex items-center justify-center py-12">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                  ) : instances.length === 0 ? (
+                    <div className="flex items-center justify-center py-12">
+                      <div className="text-center">
+                        <Server className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                        <h3 className="text-base font-semibold mb-1">No Instances</h3>
+                        <p className="text-sm text-muted-foreground mb-4">No instances configured yet.</p>
+                        {selectedSite.role === "ADMIN" && (
+                          <Button onClick={() => setCreateInstanceOpen(true)}>
+                            <Plus className="h-4 w-4 mr-2" /> Add First Instance
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {instances.length > 3 && (
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                          <Input placeholder="Search instances..." className="pl-9" value={instanceSearchQuery} onChange={(e) => setInstanceSearchQuery(e.target.value)} />
+                        </div>
+                      )}
+                      <div className="grid grid-cols-1 gap-3">
+                        {filteredInstances.map((instance) => (
+                          <InstanceCard
+                            key={instance.id}
+                            instance={instance}
+                            isActive={activeSession?.instance_id === instance.id}
+                            userRole={selectedSite.role}
+                            onConnect={handleConnect}
+                            onDisconnect={handleDisconnect}
+                            onEdit={handleEditInstance}
+                            onMove={handleMoveInstance}
+                            onDelete={handleDeleteInstance}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        )}
+
+        {/* Mobile: User Management / Authentication sections */}
+        {selectedSection === "user-management" && (
+          <div className="flex-1 overflow-auto p-4 lg:hidden">
+            <UserManagement />
+          </div>
+        )}
+        {selectedSection === "authentication" && (
+          <div className="flex-1 overflow-auto p-4 lg:hidden">
+            <AuthenticationSettings />
+          </div>
+        )}
+
+        {/* Desktop Right Main Content - Instances */}
+        <div className="hidden lg:flex flex-1 flex-col">
           {selectedSection === "sites" && selectedSite ? (
             <>
               {/* Header */}
