@@ -318,9 +318,23 @@ export default function RoutePage() {
 
   return (
     <AppLayout>
-      <div className="flex h-full">
+      <div className="flex flex-col lg:flex-row h-full">
+        {/* Mobile navigation */}
+        <div className="lg:hidden border-b border-border p-3">
+          <Select value={selectedPolicyName || ""} onValueChange={handlePolicySelect}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select policy..." />
+            </SelectTrigger>
+            <SelectContent>
+              {policies.map((p) => (
+                <SelectItem key={p.name} value={p.name}>{p.name} ({p.rules.length} rules)</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
         {/* Left Sidebar - Policy List */}
-        <div className="w-80 border-r border-border bg-card/50 flex flex-col">
+        <div className="w-80 border-r border-border bg-card/50 hidden lg:flex flex-col">
           <div className="p-4 sm:p-6 pb-4 shrink-0">
             <div className="flex items-center gap-3 mb-6">
               <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">

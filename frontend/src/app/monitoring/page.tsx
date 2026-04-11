@@ -250,7 +250,7 @@ export default function MonitoringPage() {
                       }}
                       disabled={isRunning}
                     >
-                      <SelectTrigger className="w-[320px]">
+                      <SelectTrigger className="w-full sm:w-[320px]">
                         <SelectValue placeholder="Select command…" />
                       </SelectTrigger>
                       <SelectContent>
@@ -326,7 +326,7 @@ export default function MonitoringPage() {
                       />
                       <span>{statusLabel}</span>
                       {statusMessage && (
-                        <span className="text-muted-foreground/70 truncate max-w-[200px]">
+                        <span className="text-muted-foreground/70 truncate max-w-[120px] sm:max-w-[200px]">
                           — {statusMessage}
                         </span>
                       )}
@@ -377,7 +377,7 @@ export default function MonitoringPage() {
                     </div>
 
                     {/* Filter bar */}
-                    <div className="flex-1 min-w-[200px] space-y-1.5">
+                    <div className="flex-1 min-w-0 sm:min-w-[200px] space-y-1.5">
                       <Label className="text-xs text-muted-foreground">
                         Filter Expression
                         <span className="ml-1 text-muted-foreground/60 font-normal">

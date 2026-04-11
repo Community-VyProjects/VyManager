@@ -30,6 +30,7 @@ import { CreateLargeCommunityListRuleModal } from "@/components/policies/CreateL
 import { EditLargeCommunityListRuleModal } from "@/components/policies/EditLargeCommunityListRuleModal";
 import { DeleteLargeCommunityListRuleModal } from "@/components/policies/DeleteLargeCommunityListRuleModal";
 import { LargeCommunityListReorderBanner } from "@/components/policies/LargeCommunityListReorderBanner";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
@@ -314,9 +315,23 @@ export default function BGPLargeCommunityPage() {
 
   return (
     <AppLayout>
-      <div className="flex h-full">
+      <div className="flex flex-col lg:flex-row h-full">
+        {/* Mobile navigation */}
+        <div className="lg:hidden border-b border-border p-3">
+          <Select value={selectedLargeCommunityList || ""} onValueChange={handleLargeCommunityListSelect}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select list..." />
+            </SelectTrigger>
+            <SelectContent>
+              {largeCommunityLists.map((cl) => (
+                <SelectItem key={cl.name} value={cl.name}>{cl.name} ({cl.rules.length} rules)</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
         {/* Left Sidebar - Large Community Lists */}
-        <div className="w-80 border-r border-border bg-card/50 flex flex-col">
+        <div className="w-80 border-r border-border bg-card/50 hidden lg:flex flex-col">
           <div className="p-4 sm:p-6 pb-4 shrink-0">
             <div className="flex items-center gap-3 mb-6">
               <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">

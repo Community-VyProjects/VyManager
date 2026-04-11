@@ -35,6 +35,7 @@ import {
   type PrefixListRule,
   type PrefixListCapabilitiesResponse,
 } from "@/lib/api/prefix-list";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { CreatePrefixListModal } from "@/components/policies/CreatePrefixListModal";
@@ -289,9 +290,23 @@ export default function PrefixListPage() {
 
   return (
     <AppLayout>
-      <div className="flex h-full">
+      <div className="flex flex-col lg:flex-row h-full">
+        {/* Mobile navigation */}
+        <div className="lg:hidden border-b border-border p-3">
+          <Select value={selectedList || ""} onValueChange={handleListSelect}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select prefix list..." />
+            </SelectTrigger>
+            <SelectContent>
+              {currentLists.map((list) => (
+                <SelectItem key={list.name} value={list.name}>{list.name} ({list.rules.length} rules)</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
         {/* Left Sidebar - Prefix List List */}
-        <div className="w-80 border-r border-border bg-card/50 flex flex-col">
+        <div className="w-80 border-r border-border bg-card/50 hidden lg:flex flex-col">
           <div className="p-4 sm:p-6 pb-4 shrink-0">
             <div className="flex items-center gap-3 mb-6">
               <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">

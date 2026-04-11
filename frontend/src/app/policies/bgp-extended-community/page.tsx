@@ -30,6 +30,7 @@ import { CreateExtCommunityListRuleModal } from "@/components/policies/CreateExt
 import { EditExtCommunityListRuleModal } from "@/components/policies/EditExtCommunityListRuleModal";
 import { DeleteExtCommunityListRuleModal } from "@/components/policies/DeleteExtCommunityListRuleModal";
 import { ExtCommunityListReorderBanner } from "@/components/policies/ExtCommunityListReorderBanner";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
@@ -362,9 +363,23 @@ export default function BGPExtCommunityPage() {
 
   return (
     <AppLayout>
-      <div className="flex h-full">
+      <div className="flex flex-col lg:flex-row h-full">
+        {/* Mobile navigation */}
+        <div className="lg:hidden border-b border-border p-3">
+          <Select value={selectedExtCommunityList || ""} onValueChange={handleExtCommunityListSelect}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select list..." />
+            </SelectTrigger>
+            <SelectContent>
+              {extcommunityLists.map((cl) => (
+                <SelectItem key={cl.name} value={cl.name}>{cl.name} ({cl.rules.length} rules)</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
         {/* Left Sidebar - ExtCommunity Lists */}
-        <div className="w-80 border-r border-border bg-card/50 flex flex-col">
+        <div className="w-80 border-r border-border bg-card/50 hidden lg:flex flex-col">
           <div className="p-4 sm:p-6 pb-4 shrink-0">
             <div className="flex items-center gap-3 mb-6">
               <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">

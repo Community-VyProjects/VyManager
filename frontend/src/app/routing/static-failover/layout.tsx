@@ -6,6 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { MapPin, ChevronRight, Route, Activity } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
@@ -44,9 +45,26 @@ export default function StaticFailoverLayout({
 
   return (
     <AppLayout>
-      <div className="flex h-full">
+      <div className="flex flex-col lg:flex-row h-full">
+        {/* Mobile navigation */}
+        <div className="lg:hidden border-b border-border p-3">
+          <Select value={routes.find(r => isActive(r.href))?.id || ""} onValueChange={(v) => {
+            const route = routes.find(r => r.id === v);
+            if (route) router.push(route.href);
+          }}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select section..." />
+            </SelectTrigger>
+            <SelectContent>
+              {routes.map((route) => (
+                <SelectItem key={route.id} value={route.id}>{route.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
         {/* Left Sidebar - Route Type Selector */}
-        <div className="w-80 border-r border-border bg-card flex flex-col h-full">
+        <div className="w-80 border-r border-border bg-card hidden lg:flex flex-col h-full">
           <div className="p-6 pb-4">
             <div className="flex items-center gap-3 mb-2">
               <MapPin className="h-6 w-6 text-primary" />

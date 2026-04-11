@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/table";
 import { Plus, RefreshCw, AlertCircle, Search, Cable, Pencil, Trash2, Network, ChevronRight, Shield, Boxes, Waypoints, Link2, GitMerge, Box, Layers, ArrowDownToLine, Repeat, Lock } from "lucide-react";
 import { useState, useEffect } from "react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { ethernetService } from "@/lib/api/ethernet";
 import type { EthernetInterface, EthernetCapabilities, VIFConfig, VIFSConfig } from "@/lib/api/types/ethernet";
@@ -631,9 +632,33 @@ export default function InterfacesPage() {
 
   return (
     <AppLayout>
-      <div className="flex h-full overflow-hidden">
+      <div className="flex flex-col lg:flex-row h-full overflow-hidden">
+        {/* Mobile navigation */}
+        <div className="lg:hidden border-b border-border p-3">
+          <Select value={selectedType} onValueChange={(v) => setSelectedType(v as InterfaceType)}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select interface type..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ethernet">Ethernet</SelectItem>
+              <SelectItem value="vlan">VLAN</SelectItem>
+              <SelectItem value="vxlan">VXLAN</SelectItem>
+              <SelectItem value="tunnel">Tunnel</SelectItem>
+              <SelectItem value="dummy">Dummy</SelectItem>
+              <SelectItem value="geneve">GENEVE</SelectItem>
+              <SelectItem value="input">Input</SelectItem>
+              <SelectItem value="l2tpv3">L2TPv3</SelectItem>
+              <SelectItem value="loopback">Loopback</SelectItem>
+              <SelectItem value="macsec">MACsec</SelectItem>
+              <SelectItem value="bonding">Bonding</SelectItem>
+              <SelectItem value="bridge">Bridge</SelectItem>
+              <SelectItem value="wireguard">WireGuard</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
         {/* Left Sidebar - Interface Type Selector */}
-        <div className="w-80 border-r border-border bg-card flex flex-col h-full min-h-0">
+        <div className="w-80 border-r border-border bg-card hidden lg:flex flex-col h-full min-h-0">
           <div className="p-4 sm:p-6 pb-4">
             <div className="flex items-center justify-between mb-4">
               <div>

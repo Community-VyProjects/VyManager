@@ -33,6 +33,7 @@ import { useEffect, useState } from "react";
 import { DndContext, closestCenter, DragOverlay, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { natService, type NATConfigResponse, type NATCapabilities, type SourceNATRule, type DestinationNATRule, type StaticNATRule } from "@/lib/api/nat";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { CreateSourceNATModal } from "@/components/network/CreateSourceNATModal";
@@ -312,9 +313,24 @@ export default function NATPage() {
 
   return (
     <AppLayout>
-      <div className="flex h-full">
+      <div className="flex flex-col lg:flex-row h-full">
+        {/* Mobile navigation */}
+        <div className="lg:hidden border-b border-border p-3">
+          <Select value={selectedType} onValueChange={(v) => setSelectedType(v as RuleType)}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select NAT type..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="source">Source NAT</SelectItem>
+              <SelectItem value="destination">Destination NAT</SelectItem>
+              <SelectItem value="static">Static NAT</SelectItem>
+              {cgnatSupported && <SelectItem value="cgnat">CGNAT</SelectItem>}
+            </SelectContent>
+          </Select>
+        </div>
+
         {/* Left Sidebar - Rule Type Selector */}
-        <div className="w-80 border-r border-border bg-card flex flex-col h-full">
+        <div className="w-80 border-r border-border bg-card hidden lg:flex flex-col h-full">
           <div className="p-4 sm:p-6 pb-4">
             <div className="flex items-center justify-between mb-4">
               <div>

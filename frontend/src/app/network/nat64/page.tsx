@@ -32,6 +32,7 @@ import {
   type NAT64SourceRule,
   type NAT64TranslationPool,
 } from "@/lib/api/nat64";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { NAT64RuleDialog } from "@/components/network/NAT64RuleDialog";
@@ -124,9 +125,28 @@ export default function NAT64Page() {
 
   return (
     <AppLayout>
-      <div className="flex h-full">
+      <div className="flex flex-col lg:flex-row h-full">
+        {/* Mobile navigation */}
+        <div className="lg:hidden border-b border-border p-3">
+          <Select value={selectedRule?.rule_number?.toString() || ""} onValueChange={(v) => {
+            const rule = rules.find(r => r.rule_number.toString() === v);
+            if (rule) setSelectedRule(rule);
+          }}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select rule..." />
+            </SelectTrigger>
+            <SelectContent>
+              {rules.map((rule) => (
+                <SelectItem key={rule.rule_number} value={rule.rule_number.toString()}>
+                  Rule {rule.rule_number}{rule.description ? ` - ${rule.description}` : ""}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
         {/* Left Sidebar - Rule List */}
-        <div className="w-80 border-r border-border bg-card flex flex-col h-full">
+        <div className="w-80 border-r border-border bg-card hidden lg:flex flex-col h-full">
           <div className="p-4 sm:p-6 pb-4">
             <div className="flex items-center justify-between mb-4">
               <div>

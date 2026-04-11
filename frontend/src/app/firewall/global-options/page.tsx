@@ -376,7 +376,7 @@ export default function FirewallGlobalOptionsPage() {
         {description && <p className="text-xs text-muted-foreground mt-0.5">{description}</p>}
       </div>
       <Select value={value} onValueChange={onChange}>
-        <SelectTrigger className="w-[160px] h-8 text-xs">
+        <SelectTrigger className="w-full sm:w-[160px] h-8 text-xs">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>

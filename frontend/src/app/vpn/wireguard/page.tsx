@@ -558,7 +558,7 @@ export default function WireGuardPage() {
                             </div>
                           ) : publicKey ? (
                             <div className="flex items-center gap-2">
-                              <code className="text-sm font-mono bg-muted px-2 py-1 rounded max-w-[500px] truncate">
+                              <code className="text-sm font-mono bg-muted px-2 py-1 rounded max-w-full sm:max-w-[500px] truncate block">
                                 {publicKey}
                               </code>
                               <button
