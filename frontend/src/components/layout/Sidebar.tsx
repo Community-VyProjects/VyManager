@@ -36,7 +36,11 @@ interface NavItem {
 
 
 
-export function Sidebar() {
+interface SidebarProps {
+  onNavigate?: () => void;
+}
+
+export function Sidebar({ onNavigate }: SidebarProps = {}) {
   const pathname = usePathname();
   const router = useRouter();
   const [openItems, setOpenItems] = useState<string[]>([]);
@@ -278,6 +282,7 @@ export function Sidebar() {
                         <Link
                           key={child.href}
                           href={child.href}
+                          onClick={onNavigate}
                           className={cn(
                             "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
                             isChildActive
@@ -302,6 +307,7 @@ export function Sidebar() {
               <Link
                 key={item.title}
                 href={item.href!}
+                onClick={onNavigate}
                 className={cn(
                   "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                   isActive
