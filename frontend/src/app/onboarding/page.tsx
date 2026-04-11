@@ -244,9 +244,8 @@ export default function OnboardingPage() {
       // Note: Site ADMIN users (which the first user is) automatically have access
       // to all instances without needing explicit instance-level role assignments
 
-      // Setup complete! Redirect to sites page
-      router.push("/sites");
-      router.refresh();
+      // Full page redirect so the session cookie is picked up cleanly
+      window.location.href = "/sites";
     } catch (err) {
       console.error("[Onboarding] Error:", err);
       setError((err as ApiError).message || "Failed to complete setup. Please try again.");
