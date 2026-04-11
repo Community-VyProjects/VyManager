@@ -607,7 +607,7 @@ export default function FirewallGlobalOptionsPage() {
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className="text-xs font-medium">Established</Badge>
                   </div>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                     <div>
                       <Label className="text-xs text-muted-foreground">Action</Label>
                       <Select value={establishedAction} onValueChange={setEstablishedAction}>
@@ -652,7 +652,7 @@ export default function FirewallGlobalOptionsPage() {
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className="text-xs font-medium">Invalid</Badge>
                   </div>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                     <div>
                       <Label className="text-xs text-muted-foreground">Action</Label>
                       <Select value={invalidAction} onValueChange={setInvalidAction}>
@@ -697,7 +697,7 @@ export default function FirewallGlobalOptionsPage() {
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className="text-xs font-medium">Related</Badge>
                   </div>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                     <div>
                       <Label className="text-xs text-muted-foreground">Action</Label>
                       <Select value={relatedAction} onValueChange={setRelatedAction}>
@@ -798,7 +798,7 @@ export default function FirewallGlobalOptionsPage() {
                   {/* TCP */}
                   <div className="pt-2 border-t border-border/50">
                     <Label className="text-xs font-medium text-muted-foreground mb-2 block">TCP</Label>
-                    <div className="grid grid-cols-4 gap-2">
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
                       <div>
                         <Label className="text-[10px] text-muted-foreground">Established</Label>
                         <Input type="number" placeholder="432000" value={timeoutTcpEstablished} onChange={(e) => setTimeoutTcpEstablished(e.target.value)} className="h-7 text-xs mt-0.5" />

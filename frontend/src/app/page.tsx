@@ -656,7 +656,7 @@ export default function Home() {
             {/* Wrapper for grid and overlays */}
             <div className="relative">
               {/* Main grid with explicit card placement */}
-              <div className="grid grid-cols-3 gap-6 auto-rows-min relative z-0">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 auto-rows-min relative z-0">
                 <SortableContext
                   items={cards.map((c) => c.id)}
                   strategy={verticalListSortingStrategy}
@@ -686,7 +686,7 @@ export default function Home() {
 
               {/* Droppable column overlays (always visible in edit mode) */}
               {editMode && (
-                <div className={`absolute inset-0 grid grid-cols-3 gap-6 z-20 ${activeId ? 'pointer-events-auto' : 'pointer-events-none'}`}>
+                <div className={`absolute inset-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 z-20 ${activeId ? 'pointer-events-auto' : 'pointer-events-none'}`}>
                   <DroppableColumnOverlay
                     columnId="column-0"
                     editMode={editMode}

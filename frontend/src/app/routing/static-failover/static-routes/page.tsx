@@ -184,7 +184,7 @@ export default function StaticRoutesPage() {
           </div>
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
             <Card className="bg-card/50">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">

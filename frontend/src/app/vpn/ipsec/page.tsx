@@ -170,7 +170,7 @@ export default function IPSecPage() {
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-6 gap-3 mt-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mt-4">
             <Card className="p-3">
               <div className="flex items-center gap-2">
                 <Network className="h-4 w-4 text-blue-500" />
