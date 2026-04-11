@@ -221,7 +221,7 @@ export default function OnboardingPage() {
       // Step 3: Optionally create instance
       if (!skipInstance) {
         console.log("[Onboarding] Step 3: Creating VyOS instance...");
-        const createdInstance = await sessionService.createInstance({
+        await sessionService.createInstance({
           site_id: createdSite.id,
           name: instanceData.name,
           description: instanceData.description || undefined,
