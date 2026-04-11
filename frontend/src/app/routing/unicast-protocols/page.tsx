@@ -49,9 +49,33 @@ export default function UnicastProtocolsPage() {
 
   return (
     <AppLayout>
-      <div className="flex h-full">
+      <div className="flex flex-col lg:flex-row h-full">
+        {/* Mobile Protocol Selector */}
+        <div className="lg:hidden border-b border-border bg-card px-4 py-3">
+          <div className="flex items-center gap-2 mb-2">
+            <Network className="h-5 w-5 text-primary" />
+            <h2 className="text-sm font-semibold text-foreground">Unicast Protocols</h2>
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {protocols.map((protocol) => (
+              <button
+                key={protocol.id}
+                onClick={() => setSelectedProtocol(protocol.id)}
+                className={cn(
+                  "flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all",
+                  selectedProtocol === protocol.id
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground hover:bg-accent"
+                )}
+              >
+                {protocol.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Left Sidebar - Protocol Selector */}
-        <div className="w-80 border-r border-border bg-card flex flex-col h-full">
+        <div className="w-80 border-r border-border bg-card hidden lg:flex flex-col h-full">
           <div className="p-6 pb-4">
             <div className="flex items-center gap-3 mb-2">
               <Network className="h-6 w-6 text-primary" />

@@ -144,9 +144,53 @@ export default function VRFPage() {
 
   return (
     <AppLayout>
-      <div className="flex h-full">
+      <div className="flex flex-col lg:flex-row h-full">
+        {/* Mobile VRF Selector */}
+        <div className="lg:hidden border-b border-border bg-card px-4 py-3">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Network className="h-5 w-5 text-primary" />
+              <h2 className="text-sm font-semibold text-foreground">VRF Instances</h2>
+            </div>
+            <div className="flex items-center gap-2">
+              {canWrite(FeatureGroup.VRF) && (
+                <Button
+                  onClick={() => setCreateModalOpen(true)}
+                  size="sm"
+                  variant="outline"
+                  className="h-7 px-2"
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1" />
+                  New
+                </Button>
+              )}
+            </div>
+          </div>
+          {config && config.instances.length > 0 ? (
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {config.instances.map((vrf) => (
+                <button
+                  key={vrf.name}
+                  onClick={() => setSelectedVrf(vrf.name)}
+                  className={cn(
+                    "flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all",
+                    selectedVrf === vrf.name
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground hover:bg-accent"
+                  )}
+                >
+                  {vrf.name}
+                  {vrf.disabled && " (off)"}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">No VRF instances configured</p>
+          )}
+        </div>
+
         {/* Left Sidebar - VRF Instance Selector */}
-        <div className="w-80 border-r border-border bg-card flex flex-col h-full">
+        <div className="w-80 border-r border-border bg-card hidden lg:flex flex-col h-full">
           <div className="p-6 pb-4">
             <div className="flex items-center gap-3 mb-2">
               <Network className="h-6 w-6 text-primary" />
