@@ -210,7 +210,7 @@ export default function NAT66Page() {
     <AppLayout>
       <div className="flex-1 flex flex-col h-full">
         {/* Header */}
-        <div className="p-6 pb-4 border-b border-border">
+        <div className="p-4 sm:p-6 pb-4 border-b border-border">
           <div className="flex items-start justify-between mb-4">
             <div className="flex-1">
               <h1 className="text-2xl font-bold text-foreground">NAT66</h1>
@@ -327,7 +327,7 @@ export default function NAT66Page() {
               </Card>
             </div>
           ) : (
-            <div className="p-6 pt-4">
+            <div className="p-4 sm:p-6 pt-4">
               <TooltipProvider delayDuration={200}>
               <div className="rounded-lg border border-border bg-card">
                 <Table>

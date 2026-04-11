@@ -150,7 +150,7 @@ export default function IPSecPage() {
     <AppLayout>
       <div className="flex flex-col h-full overflow-hidden">
         {/* Header */}
-        <div className="p-6 border-b bg-background">
+        <div className="p-4 sm:p-6 border-b bg-background">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="p-3 rounded-xl bg-primary/10">
@@ -244,7 +244,7 @@ export default function IPSecPage() {
             </div>
 
             <ScrollArea className="flex-1">
-              <div className="p-6">
+              <div className="p-4 sm:p-6">
                 {/* Site-to-Site Tab */}
                 <TabsContent value="s2s" className="mt-0">
                   <div className="flex items-center justify-between mb-4">

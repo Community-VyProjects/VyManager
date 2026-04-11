@@ -165,7 +165,7 @@ export default function PKIPage() {
     <AppLayout>
       <div className="flex flex-col h-full overflow-hidden">
         {/* Header */}
-        <div className="p-6 border-b bg-background">
+        <div className="p-4 sm:p-6 border-b bg-background">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="p-3 rounded-xl bg-primary/10">

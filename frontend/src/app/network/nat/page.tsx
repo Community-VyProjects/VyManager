@@ -315,7 +315,7 @@ export default function NATPage() {
       <div className="flex h-full">
         {/* Left Sidebar - Rule Type Selector */}
         <div className="w-80 border-r border-border bg-card flex flex-col h-full">
-          <div className="p-6 pb-4">
+          <div className="p-4 sm:p-6 pb-4">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="text-lg font-semibold text-foreground">NAT Rules</h2>
@@ -531,7 +531,7 @@ export default function NATPage() {
         <div className="flex-1 flex flex-col">
           {selectedType === "cgnat" ? (
             <div className="flex-1 flex flex-col">
-              <div className="p-6 pb-4 border-b border-border">
+              <div className="p-4 sm:p-6 pb-4 border-b border-border">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1">
                     <h1 className="text-2xl font-bold text-foreground">
@@ -553,7 +553,7 @@ export default function NATPage() {
                   </Button>
                 </div>
               </div>
-              <div className="p-6 flex-1 overflow-auto">
+              <div className="p-4 sm:p-6 flex-1 overflow-auto">
                 <CGNATView
                   config={config?.cgnat}
                   onRefresh={() => fetchConfig(true)}
@@ -565,7 +565,7 @@ export default function NATPage() {
           ) : (
           <>
           {/* Header */}
-          <div className="p-6 pb-4 border-b border-border">
+          <div className="p-4 sm:p-6 pb-4 border-b border-border">
             <div className="flex items-start justify-between mb-4">
               <div className="flex-1">
                 <h1 className="text-2xl font-bold text-foreground">
@@ -698,7 +698,7 @@ export default function NATPage() {
                 </Card>
               </div>
             ) : (
-              <div className="p-6 pt-0">
+              <div className="p-4 sm:p-6 pt-0">
                 <div className="rounded-lg border border-border bg-card">
                   <DndContext
                     sensors={sensors}

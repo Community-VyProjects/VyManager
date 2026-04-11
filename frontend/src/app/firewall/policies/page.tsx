@@ -627,7 +627,7 @@ export default function FirewallPoliciesPage() {
       <div className="flex h-full">
         {/* Sidebar */}
         <div className="w-72 border-r border-border bg-card/50 flex flex-col h-full">
-          <div className="p-6 pb-4">
+          <div className="p-4 sm:p-6 pb-4">
             <div className="flex items-center gap-3 mb-6">
               <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
                 <Shield className="h-5 w-5 text-primary" />
@@ -1182,7 +1182,7 @@ export default function FirewallPoliciesPage() {
                 </Card>
               </div>
             ) : (
-              <div className="p-6 pt-0">
+              <div className="p-4 sm:p-6 pt-0">
                 <div className="rounded-lg border border-border bg-card">
                   <DndContext
                     sensors={sensors}

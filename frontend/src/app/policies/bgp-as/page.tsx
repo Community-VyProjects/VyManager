@@ -314,7 +314,7 @@ export default function BGPASPage() {
       <div className="flex h-full">
         {/* Left Sidebar - AS Path List */}
         <div className="w-80 border-r border-border bg-card/50 flex flex-col">
-          <div className="p-6 pb-4 shrink-0">
+          <div className="p-4 sm:p-6 pb-4 shrink-0">
             <div className="flex items-center gap-3 mb-6">
               <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
                 <ListFilter className="h-5 w-5 text-primary" />
@@ -423,7 +423,7 @@ export default function BGPASPage() {
           {selectedAsPathListData ? (
             <>
               {/* Header */}
-              <div className="p-6 pb-4 border-b border-border">
+              <div className="p-4 sm:p-6 pb-4 border-b border-border">
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <div className="flex items-center gap-3">

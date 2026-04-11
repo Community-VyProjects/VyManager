@@ -127,7 +127,7 @@ export default function NAT64Page() {
       <div className="flex h-full">
         {/* Left Sidebar - Rule List */}
         <div className="w-80 border-r border-border bg-card flex flex-col h-full">
-          <div className="p-6 pb-4">
+          <div className="p-4 sm:p-6 pb-4">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="text-lg font-semibold text-foreground">NAT64</h2>
@@ -255,7 +255,7 @@ export default function NAT64Page() {
           {selectedRule ? (
             <div className="flex-1 flex flex-col">
               {/* Rule Header */}
-              <div className="p-6 pb-4 border-b border-border">
+              <div className="p-4 sm:p-6 pb-4 border-b border-border">
                 <div className="flex items-start justify-between mb-4">
                   <div>
                     <div className="flex items-center gap-3 mb-2">
@@ -360,7 +360,7 @@ export default function NAT64Page() {
               </div>
 
               {/* Translation Pools Table */}
-              <div className="p-6">
+              <div className="p-4 sm:p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-base font-semibold">Translation Pools</h3>
                   {hasWriteAccess && (

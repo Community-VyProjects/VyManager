@@ -423,7 +423,7 @@ export default function WireGuardPage() {
           ) : (
             <>
               {/* Interface Header */}
-              <div className="p-6 border-b bg-background">
+              <div className="p-4 sm:p-6 border-b bg-background">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-4">
                     <div className={cn(

@@ -167,7 +167,7 @@ export default function StaticRoutesPage() {
     <>
       <div className="flex flex-col h-full">
         {/* Header */}
-        <div className="p-6 pb-4 border-b border-border">
+        <div className="p-4 sm:p-6 pb-4 border-b border-border">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h1 className="text-3xl font-bold text-foreground">Static Routes</h1>

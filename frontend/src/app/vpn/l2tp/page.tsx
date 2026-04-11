@@ -155,7 +155,7 @@ export default function L2TPPage() {
     <AppLayout>
       <div className="flex flex-col h-full overflow-hidden">
         {/* Header */}
-        <div className="p-6 border-b bg-background">
+        <div className="p-4 sm:p-6 border-b bg-background">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="p-3 rounded-xl bg-primary/10">
@@ -250,7 +250,7 @@ export default function L2TPPage() {
             </div>
 
             <div className="flex-1 overflow-auto">
-              <div className="p-6">
+              <div className="p-4 sm:p-6">
                 {/* Overview Tab */}
                 <TabsContent value="overview" className="mt-0">
                   <div className="grid grid-cols-2 gap-6">

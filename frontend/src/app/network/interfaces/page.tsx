@@ -634,7 +634,7 @@ export default function InterfacesPage() {
       <div className="flex h-full overflow-hidden">
         {/* Left Sidebar - Interface Type Selector */}
         <div className="w-80 border-r border-border bg-card flex flex-col h-full min-h-0">
-          <div className="p-6 pb-4">
+          <div className="p-4 sm:p-6 pb-4">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Interfaces</h2>
@@ -1124,7 +1124,7 @@ export default function InterfacesPage() {
         {/* Main Content */}
         <div className="flex-1 flex flex-col">
           {/* Header */}
-          <div className="p-6 pb-4 border-b border-border">
+          <div className="p-4 sm:p-6 pb-4 border-b border-border">
             <div className="flex items-start justify-between mb-4">
               <div className="flex-1">
                 <h1 className="text-2xl font-bold text-foreground">
