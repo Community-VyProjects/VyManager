@@ -36,7 +36,10 @@ async function proxyRequest(
 
   try {
     // Get the session token from request cookies
-    const sessionToken = request.cookies.get("better-auth.session_token");
+    // When BETTER_AUTH_SECURE_COOKIES=true (HTTPS), cookies are prefixed with __Secure-
+    const sessionToken =
+      request.cookies.get("__Secure-better-auth.session_token") ||
+      request.cookies.get("better-auth.session_token");
 
     // Build the backend URL
     const backendPath = `/dashboard/${path.join("/")}`;
@@ -51,7 +54,7 @@ async function proxyRequest(
     // Prepare headers
     const headers: HeadersInit = {};
 
-    // Add the session token cookie if it exists
+    // Always forward as the non-prefixed name since the backend expects that
     if (sessionToken) {
       headers["Cookie"] = `better-auth.session_token=${sessionToken.value}`;
     }
