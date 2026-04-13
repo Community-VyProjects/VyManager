@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, useMemo } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import Image from "next/image";
 import { Sidebar } from "./Sidebar";
 import { UnsavedChangesBanner } from "../config/UnsavedChangesBanner";
 import { PowerActionBanner } from "../system/PowerActionBanner";
 import { Toaster } from "../ui/toaster";
 import { useSessionStore } from "@/store/session-store";
-import { Loader2, Menu } from "lucide-react";
+import { Loader2, Menu, ChevronRight } from "lucide-react";
 import { UnifiedView } from "../ui/unified-view";
 import { useUnifiedView } from "@/contexts/UnifiedViewContext";
 import { useBannerEvents } from "@/hooks/useBannerEvents";
@@ -18,7 +18,39 @@ import {
   SheetContent,
   SheetTitle,
 } from "../ui/sheet";
+import { navigation } from "@/lib/navigation";
 
+function useBreadcrumbs() {
+  const pathname = usePathname();
+
+  return useMemo(() => {
+    // Dashboard
+    if (pathname === "/") return [{ label: "Dashboard" }];
+
+    // Try matching against nav config
+    for (const item of navigation) {
+      if (item.href === pathname) {
+        return [{ label: item.title }];
+      }
+      if (item.children) {
+        for (const child of item.children) {
+          if (pathname === child.href || pathname.startsWith(child.href + "/")) {
+            return [{ label: item.title }, { label: child.title }];
+          }
+        }
+      }
+    }
+
+    // Fallback: derive from path segments
+    const segments = pathname.split("/").filter(Boolean);
+    return segments.map((seg) => ({
+      label: seg
+        .split("-")
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(" "),
+    }));
+  }, [pathname]);
+}
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -27,10 +59,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const { unifiedViewData, closeUnifiedView } = useUnifiedView();
   const bannerEvents = useBannerEvents();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const breadcrumbs = useBreadcrumbs();
 
   useEffect(() => {
     const checkSession = async () => {
-      // Load the current session
       await loadSession();
       setIsChecking(false);
     };
@@ -38,14 +70,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     checkSession();
   }, [loadSession]);
 
-  // Redirect to sites page if no active instance
   useEffect(() => {
     if (!isChecking && !activeSession) {
       router.push("/sites");
     }
   }, [isChecking, activeSession, router]);
 
-  // Show loading while checking session
   if (isChecking) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
@@ -57,7 +87,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Show nothing while redirecting (when no active session)
   if (!activeSession) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
@@ -69,15 +98,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Render the layout only if user has an active session
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      {/* Desktop sidebar - hidden on mobile */}
+      {/* Desktop sidebar */}
       <div className="hidden lg:block">
         <Sidebar />
       </div>
 
-      {/* Mobile top bar + sheet drawer */}
+      {/* Mobile sheet drawer */}
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <SheetContent side="left" className="w-72 p-0">
           <SheetTitle className="sr-only">Navigation</SheetTitle>
@@ -87,10 +115,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Mobile header */}
-        <div className="flex lg:hidden items-center h-14 border-b border-border px-4 shrink-0 bg-card">
+        <div className="flex lg:hidden items-center h-12 border-b border-border px-4 shrink-0 bg-card">
           <Button
             variant="ghost"
-            size="icon"
+            size="icon-sm"
             onClick={() => setMobileOpen(true)}
             aria-label="Open menu"
           >
@@ -100,13 +128,27 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <Image
               src="/vy-icon.png"
               alt="VyOS Logo"
-              width={28}
-              height={28}
+              width={24}
+              height={24}
               className="object-contain"
               loader={({ src }) => src}
             />
-            <span className="font-semibold text-foreground">VyManager</span>
+            <span className="text-sm font-semibold text-foreground">VyManager</span>
           </div>
+        </div>
+
+        {/* Desktop top bar with breadcrumbs */}
+        <div className="hidden lg:flex items-center h-10 border-b border-border px-4 shrink-0 bg-card/50">
+          <nav className="flex items-center text-sm text-muted-foreground">
+            {breadcrumbs.map((crumb, i) => (
+              <span key={i} className="flex items-center">
+                {i > 0 && <ChevronRight className="h-3.5 w-3.5 mx-1.5 text-muted-foreground/50" />}
+                <span className={i === breadcrumbs.length - 1 ? "text-foreground font-medium" : ""}>
+                  {crumb.label}
+                </span>
+              </span>
+            ))}
+          </nav>
         </div>
 
         {/* Main Content */}
@@ -120,7 +162,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       </div>
       <Toaster />
 
-      {/* Unified View Dialog */}
       {unifiedViewData && (
         <UnifiedView
           isOpen={!!unifiedViewData}
