@@ -191,8 +191,10 @@ export function Sidebar({ onNavigate, forceMobile }: SidebarProps) {
     <TooltipProvider delayDuration={0}>
       <div
         className={cn(
-          "flex h-screen flex-col border-r border-border bg-card transition-[width] duration-200 ease-in-out",
-          isCollapsed ? "w-16" : "w-64"
+          "flex h-screen flex-col bg-card",
+          forceMobile
+            ? "w-full"
+            : cn("border-r border-border transition-[width] duration-200 ease-in-out", isCollapsed ? "w-16" : "w-64")
         )}
       >
         {/* Header */}
