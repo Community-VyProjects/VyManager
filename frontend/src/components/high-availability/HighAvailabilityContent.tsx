@@ -56,6 +56,9 @@ import {
   Trash2,
 } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { PageHeader } from "@/components/ui/page-header";
+import { LoadingState } from "@/components/ui/loading-state";
+import { ErrorState } from "@/components/ui/error-state";
 import { cn } from "@/lib/utils";
 import {
   haService,
@@ -438,19 +441,16 @@ export function HighAvailabilityContent() {
 
   // ---- Render states ----
   if (loading && !config) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <LoadingSpinner />
-      </div>
-    );
+    return <LoadingState fullPage />;
   }
 
   if (error && !config) {
     return (
-      <div className="flex flex-col items-center justify-center h-full gap-4">
-        <p className="text-destructive">{error}</p>
-        <Button variant="outline" onClick={() => loadData()}>Retry</Button>
-      </div>
+      <ErrorState
+        title="Error Loading Configuration"
+        message={error}
+        onRetry={() => loadData()}
+      />
     );
   }
 
@@ -459,33 +459,32 @@ export function HighAvailabilityContent() {
       <div className="flex flex-col h-full">
         {/* Header */}
         <div className="p-6 pb-4 border-b border-border">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">High Availability</h1>
-              <p className="text-sm text-muted-foreground mt-1">
-                VRRP redundancy and load balancing with keepalived
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              {canEdit && (
-                <div className="flex items-center gap-2 rounded-lg border px-3 py-2">
-                  <Checkbox
-                    id="ha-enabled"
-                    checked={!haDisabled}
-                    onCheckedChange={() => handleToggleHA()}
-                    disabled={togglingHA}
-                  />
-                  <label htmlFor="ha-enabled" className="text-sm font-medium cursor-pointer">
-                    HA Enabled
-                  </label>
-                </div>
-              )}
-              <Button variant="outline" size="sm" onClick={() => loadData(true)} disabled={loading}>
-                <RefreshCw className={cn("h-4 w-4 mr-2", loading && "animate-spin")} />
-                Refresh
-              </Button>
-            </div>
-          </div>
+          <PageHeader
+            title="High Availability"
+            subtitle="VRRP redundancy and load balancing with keepalived"
+            actions={
+              <>
+                {canEdit && (
+                  <div className="flex items-center gap-2 rounded-lg border px-3 py-2">
+                    <Checkbox
+                      id="ha-enabled"
+                      checked={!haDisabled}
+                      onCheckedChange={() => handleToggleHA()}
+                      disabled={togglingHA}
+                    />
+                    <label htmlFor="ha-enabled" className="text-sm font-medium cursor-pointer">
+                      HA Enabled
+                    </label>
+                  </div>
+                )}
+                <Button variant="outline" size="sm" onClick={() => loadData(true)} disabled={loading}>
+                  <RefreshCw className={cn("h-4 w-4 mr-2", loading && "animate-spin")} />
+                  Refresh
+                </Button>
+              </>
+            }
+            className="mb-4"
+          />
 
           {error && (
             <div className="mb-4 p-3 rounded-md bg-destructive/10 text-destructive text-sm">

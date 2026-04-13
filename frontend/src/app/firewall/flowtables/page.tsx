@@ -23,7 +23,6 @@ import {
   Plus,
   Search,
   RefreshCw,
-  AlertCircle,
   Zap,
   MoreHorizontal,
   Pencil,
@@ -40,7 +39,9 @@ import {
   type FlowtablesCapabilities,
 } from "@/lib/api/firewall-flowtables";
 import { cn } from "@/lib/utils";
-import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { PageHeader } from "@/components/ui/page-header";
+import { LoadingState } from "@/components/ui/loading-state";
+import { ErrorState } from "@/components/ui/error-state";
 import { CreateFlowtableModal } from "@/components/firewall/CreateFlowtableModal";
 import { EditFlowtableModal } from "@/components/firewall/EditFlowtableModal";
 import { DeleteFlowtableModal } from "@/components/firewall/DeleteFlowtableModal";
@@ -119,33 +120,27 @@ export default function FlowtablesPage() {
       <div className="flex flex-col h-full">
         {/* Header */}
         <div className="border-b border-border bg-card/50 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Zap className="h-5 w-5 text-primary" />
+          <PageHeader
+            title="Flowtables"
+            subtitle="Manage fast-path packet offloading for established connections"
+            icon={<Zap className="h-5 w-5 text-primary" />}
+            actions={
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => fetchConfig(true)}
+                  disabled={loading}
+                >
+                  <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+                </Button>
+                <Button onClick={() => setCreateModalOpen(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Flowtable
+                </Button>
               </div>
-              <div>
-                <h1 className="text-2xl font-bold text-foreground">Flowtables</h1>
-                <p className="text-sm text-muted-foreground">
-                  Manage fast-path packet offloading for established connections
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => fetchConfig(true)}
-                disabled={loading}
-              >
-                <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
-              </Button>
-              <Button onClick={() => setCreateModalOpen(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Create Flowtable
-              </Button>
-            </div>
-          </div>
+            }
+          />
 
           {/* Search and Stats */}
           <div className="flex items-center gap-4 mt-4">
@@ -181,22 +176,13 @@ export default function FlowtablesPage() {
         {/* Content */}
         <div className="flex-1 overflow-auto p-6">
           {loading ? (
-            <LoadingSpinner message="Loading flowtables configuration..." />
+            <LoadingState message="Loading flowtables configuration..." />
           ) : error ? (
-            <div className="flex items-center justify-center h-full">
-              <Card className="border-destructive max-w-md">
-                <CardContent className="flex items-center gap-4 py-8">
-                  <AlertCircle className="h-8 w-8 text-destructive" />
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-destructive">Error Loading Configuration</h3>
-                    <p className="text-sm text-muted-foreground mt-1">{error}</p>
-                  </div>
-                  <Button onClick={() => fetchConfig(true)} variant="outline">
-                    Try Again
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
+            <ErrorState
+              title="Error Loading Configuration"
+              message={error}
+              onRetry={() => fetchConfig(true)}
+            />
           ) : filteredFlowtables.length === 0 ? (
             <div className="flex items-center justify-center h-full">
               <Card className="max-w-md">

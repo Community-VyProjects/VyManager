@@ -23,6 +23,9 @@ import {
   Settings,
 } from "lucide-react";
 import { useState, useEffect } from "react";
+import { PageContainer } from "@/components/ui/page-container";
+import { PageHeader } from "@/components/ui/page-header";
+import { LoadingState } from "@/components/ui/loading-state";
 import {
   firewallGlobalOptionsService,
   type FirewallGlobalOptionsConfig,
@@ -349,9 +352,7 @@ export default function FirewallGlobalOptionsPage() {
   if (loading) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center h-96">
-          <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
+        <LoadingState message="Loading global options..." />
       </AppLayout>
     );
   }
@@ -424,40 +425,34 @@ export default function FirewallGlobalOptionsPage() {
 
   return (
     <AppLayout>
-      <div className="space-y-4 p-6">
+      <PageContainer className="space-y-4">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-              <Settings className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">Global Options</h1>
-              <p className="text-sm text-muted-foreground">
-                Configure global firewall settings
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => loadData()} disabled={saving}>
-              <RefreshCw className={cn("h-4 w-4 mr-1.5", loading && "animate-spin")} />
-              Refresh
-            </Button>
-            {hasChanges && (
-              <Button variant="outline" size="sm" onClick={handleReset} disabled={saving}>
-                Reset
+        <PageHeader
+          title="Global Options"
+          subtitle="Configure global firewall settings"
+          icon={<Settings className="h-5 w-5 text-primary" />}
+          actions={
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => loadData()} disabled={saving}>
+                <RefreshCw className={cn("h-4 w-4 mr-1.5", loading && "animate-spin")} />
+                Refresh
               </Button>
-            )}
-            <Button size="sm" onClick={handleSave} disabled={saving || !hasChanges}>
-              {saving ? (
-                <RefreshCw className="h-4 w-4 mr-1.5 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4 mr-1.5" />
+              {hasChanges && (
+                <Button variant="outline" size="sm" onClick={handleReset} disabled={saving}>
+                  Reset
+                </Button>
               )}
-              {saving ? "Saving..." : "Save Changes"}
-            </Button>
-          </div>
-        </div>
+              <Button size="sm" onClick={handleSave} disabled={saving || !hasChanges}>
+                {saving ? (
+                  <RefreshCw className="h-4 w-4 mr-1.5 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4 mr-1.5" />
+                )}
+                {saving ? "Saving..." : "Save Changes"}
+              </Button>
+            </div>
+          }
+        />
 
         {/* Alerts */}
         {successMessage && (
@@ -853,7 +848,7 @@ export default function FirewallGlobalOptionsPage() {
             )}
           </div>
         </div>
-      </div>
+      </PageContainer>
     </AppLayout>
   );
 }

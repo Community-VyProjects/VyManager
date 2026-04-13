@@ -2,7 +2,7 @@
 
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -20,7 +20,6 @@ import {
   Plus,
   Search,
   RefreshCw,
-  AlertCircle,
   ListFilter,
   Trash2,
   Pencil,
@@ -37,7 +36,9 @@ import {
 } from "@/lib/api/prefix-list";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { LoadingState } from "@/components/ui/loading-state";
+import { ErrorState } from "@/components/ui/error-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { CreatePrefixListModal } from "@/components/policies/CreatePrefixListModal";
 import { EditPrefixListModal } from "@/components/policies/EditPrefixListModal";
 import { DeletePrefixListModal } from "@/components/policies/DeletePrefixListModal";
@@ -263,9 +264,7 @@ export default function PrefixListPage() {
   if (loading) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center h-full">
-          <LoadingSpinner />
-        </div>
+        <LoadingState message="Loading prefix lists..." className="h-full" />
       </AppLayout>
     );
   }
@@ -273,17 +272,12 @@ export default function PrefixListPage() {
   if (error) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center h-full">
-          <div className="text-center space-y-4">
-            <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
-            <h2 className="text-xl font-semibold text-foreground">Error Loading Prefix Lists</h2>
-            <p className="text-muted-foreground max-w-md">{error}</p>
-            <Button onClick={() => fetchConfig(true)} variant="outline">
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Retry
-            </Button>
-          </div>
-        </div>
+        <ErrorState
+          title="Error Loading Prefix Lists"
+          message={error}
+          onRetry={() => fetchConfig(true)}
+          className="h-full"
+        />
       </AppLayout>
     );
   }
@@ -308,17 +302,12 @@ export default function PrefixListPage() {
         {/* Left Sidebar - Prefix List List */}
         <div className="w-80 border-r border-border bg-card/50 hidden lg:flex flex-col">
           <div className="p-4 sm:p-6 pb-4 shrink-0">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <ListFilter className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <h1 className="text-lg font-semibold text-foreground">Prefix Lists</h1>
-                <p className="text-xs text-muted-foreground">
-                  {config?.total_ipv4 || 0} IPv4 · {config?.total_ipv6 || 0} IPv6
-                </p>
-              </div>
-            </div>
+            <PageHeader
+              title="Prefix Lists"
+              subtitle={`${config?.total_ipv4 || 0} IPv4 · ${config?.total_ipv6 || 0} IPv6`}
+              icon={<ListFilter className="h-5 w-5 text-primary" />}
+              className="mb-6"
+            />
 
             {/* Tabs for IPv4/IPv6 */}
             <Tabs value={selectedListType} onValueChange={handleTabChange} className="mb-4">

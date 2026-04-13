@@ -40,6 +40,9 @@ import { EditZoneModal } from "@/components/firewall/zones/EditZoneModal";
 import { ZoneRulePanel } from "@/components/firewall/zones/ZoneRulePanel";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
+import { PageContainer } from "@/components/ui/page-container";
+import { PageHeader } from "@/components/ui/page-header";
+import { LoadingState } from "@/components/ui/loading-state";
 import { cn } from "@/lib/utils";
 import {
   DndContext,
@@ -594,9 +597,7 @@ export default function FirewallZonesPage() {
   if (loading) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center h-64">
-          <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
+        <LoadingState message="Loading firewall zones..." />
       </AppLayout>
     );
   }
@@ -606,18 +607,19 @@ export default function FirewallZonesPage() {
   return (
     <AppLayout>
       <TooltipProvider>
-        <div className="space-y-6 p-6">
+        <PageContainer>
           {/* Header */}
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-semibold">Firewall Zones</h1>
-              <p className="text-sm text-muted-foreground mt-1">Manage zone-based firewall policies</p>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => loadData(true)} className="gap-2">
-              <RefreshCw className="h-4 w-4" />
-              Refresh
-            </Button>
-          </div>
+          <PageHeader
+            title="Firewall Zones"
+            subtitle="Manage zone-based firewall policies"
+            icon={<Globe className="h-5 w-5 text-primary" />}
+            actions={
+              <Button variant="outline" size="sm" onClick={() => loadData(true)} className="gap-2">
+                <RefreshCw className="h-4 w-4" />
+                Refresh
+              </Button>
+            }
+          />
 
           {/* Read-only banner */}
           {!canEdit && (
@@ -1041,7 +1043,7 @@ export default function FirewallZonesPage() {
               )}
             </CardContent>
           </Card>
-        </div>
+        </PageContainer>
 
         {/* ================================================================
             Modals & Panels

@@ -54,6 +54,8 @@ import {
   type DHCPRange,
 } from "@/lib/api/dhcp";
 import { cn } from "@/lib/utils";
+import { LoadingState } from "@/components/ui/loading-state";
+import { ErrorState } from "@/components/ui/error-state";
 import { ClickableSubnet } from "@/components/ui/clickable-items";
 import { CreateDHCPServerModal } from "@/components/services/CreateDHCPServerModal";
 import { EditDHCPServerModal } from "@/components/services/EditDHCPServerModal";
@@ -301,12 +303,7 @@ export default function DHCPPage() {
   if (loading) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center h-full">
-          <div className="text-center space-y-4">
-            <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
-            <p className="text-muted-foreground">Loading DHCP configuration...</p>
-          </div>
-        </div>
+        <LoadingState message="Loading DHCP configuration..." fullPage />
       </AppLayout>
     );
   }
@@ -314,17 +311,11 @@ export default function DHCPPage() {
   if (error) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center h-full">
-          <div className="text-center space-y-4">
-            <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
-            <h2 className="text-xl font-semibold text-foreground">Error Loading DHCP</h2>
-            <p className="text-muted-foreground max-w-md">{error}</p>
-            <Button onClick={() => fetchConfig(true)} variant="outline">
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Retry
-            </Button>
-          </div>
-        </div>
+        <ErrorState
+          title="Error Loading DHCP"
+          message={error}
+          onRetry={() => fetchConfig(true)}
+        />
       </AppLayout>
     );
   }

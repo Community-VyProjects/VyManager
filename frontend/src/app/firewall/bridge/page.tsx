@@ -57,6 +57,7 @@ import {
   type BridgeChain,
 } from "@/lib/api/firewall-bridge";
 import { cn } from "@/lib/utils";
+import { LoadingState } from "@/components/ui/loading-state";
 import { CreateBridgeRuleModal } from "@/components/firewall/CreateBridgeRuleModal";
 import { EditBridgeRuleModal } from "@/components/firewall/EditBridgeRuleModal";
 import { DeleteBridgeRuleModal } from "@/components/firewall/DeleteBridgeRuleModal";
@@ -331,9 +332,7 @@ export default function BridgeFirewallPage() {
   if (loading && !config) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center h-96">
-          <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
+        <LoadingState message="Loading bridge firewall configuration..." />
       </AppLayout>
     );
   }

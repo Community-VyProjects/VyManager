@@ -18,7 +18,6 @@ import {
   Plus,
   Search,
   RefreshCw,
-  AlertCircle,
   Route,
   Pencil,
   Trash2,
@@ -41,7 +40,9 @@ import {
   type NeighborProxyNd,
 } from "@/lib/api/static-routes";
 import { cn } from "@/lib/utils";
-import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { LoadingState } from "@/components/ui/loading-state";
+import { ErrorState } from "@/components/ui/error-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { CreateStaticRouteModal } from "@/components/routing/CreateStaticRouteModal";
 import { EditStaticRouteModal } from "@/components/routing/EditStaticRouteModal";
 import { DeleteStaticRouteModal } from "@/components/routing/DeleteStaticRouteModal";
@@ -140,26 +141,16 @@ export default function StaticRoutesPage() {
   const totalNeighborProxies = (config?.neighbor_proxy?.arp_entries?.length || 0) + (config?.neighbor_proxy?.nd_entries?.length || 0);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <LoadingSpinner />
-      </div>
-    );
+    return <LoadingState message="Loading static routes configuration..." />;
   }
 
   if (error) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center space-y-4">
-          <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
-          <h2 className="text-xl font-semibold text-foreground">Error Loading Static Routes</h2>
-          <p className="text-muted-foreground max-w-md">{error}</p>
-          <Button onClick={() => fetchConfig(true)} variant="outline">
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Retry
-          </Button>
-        </div>
-      </div>
+      <ErrorState
+        title="Error Loading Static Routes"
+        message={error}
+        onRetry={() => fetchConfig(true)}
+      />
     );
   }
 
@@ -168,20 +159,18 @@ export default function StaticRoutesPage() {
       <div className="flex flex-col h-full">
         {/* Header */}
         <div className="p-4 sm:p-6 pb-4 border-b border-border">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="text-3xl font-bold text-foreground">Static Routes</h1>
-              <p className="text-muted-foreground mt-2">
-                Manage static routes, ARP entries, multicast routes, and neighbor proxies
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
+          <PageHeader
+            title="Static Routes"
+            subtitle="Manage static routes, ARP entries, multicast routes, and neighbor proxies"
+            icon={<Route className="h-5 w-5 text-primary" />}
+            actions={
               <Button onClick={() => fetchConfig(true)} variant="outline" size="sm">
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Refresh
               </Button>
-            </div>
-          </div>
+            }
+            className="mb-6"
+          />
 
           {/* Stats Cards */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">

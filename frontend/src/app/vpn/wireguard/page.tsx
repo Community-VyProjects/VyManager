@@ -22,7 +22,6 @@ import {
   Plus,
   RefreshCw,
   Loader2,
-  AlertCircle,
   Network,
   Key,
   Users,
@@ -67,6 +66,9 @@ function formatHandshakeTime(seconds: number): string {
     return `${hours}h ${minutes}m ago`;
   }
 }
+
+import { LoadingState } from "@/components/ui/loading-state";
+import { ErrorState } from "@/components/ui/error-state";
 
 // Import modals
 import { CreateInterfaceModal } from "@/components/vpn/CreateInterfaceModal";
@@ -230,12 +232,7 @@ export default function WireGuardPage() {
   if (loading && !config) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center h-[calc(100vh-200px)]">
-          <div className="text-center space-y-4">
-            <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
-            <p className="text-muted-foreground">Loading WireGuard configuration...</p>
-          </div>
-        </div>
+        <LoadingState message="Loading WireGuard configuration..." />
       </AppLayout>
     );
   }
@@ -244,17 +241,11 @@ export default function WireGuardPage() {
   if (error && !config) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center h-[calc(100vh-200px)]">
-          <div className="text-center space-y-4">
-            <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
-            <p className="text-destructive font-medium">Failed to load configuration</p>
-            <p className="text-sm text-muted-foreground">{error}</p>
-            <Button onClick={() => fetchConfig(true)}>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Retry
-            </Button>
-          </div>
-        </div>
+        <ErrorState
+          title="Failed to load configuration"
+          message={error}
+          onRetry={() => fetchConfig(true)}
+        />
       </AppLayout>
     );
   }

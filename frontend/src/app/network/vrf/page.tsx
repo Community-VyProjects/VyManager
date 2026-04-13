@@ -17,6 +17,8 @@ import {
 } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
+import { LoadingState } from "@/components/ui/loading-state";
+import { ErrorState } from "@/components/ui/error-state";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 import {
@@ -92,9 +94,7 @@ export default function VRFPage() {
   if (permissionsLoading) {
     return (
       <AppLayout>
-        <div className="flex h-full items-center justify-center">
-          <LoadingSpinner />
-        </div>
+        <LoadingState fullPage />
       </AppLayout>
     );
   }
@@ -102,15 +102,10 @@ export default function VRFPage() {
   if (!canRead(FeatureGroup.VRF)) {
     return (
       <AppLayout>
-        <div className="flex h-full items-center justify-center">
-          <div className="text-center max-w-md">
-            <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
-            <p className="text-muted-foreground">
-              You do not have permission to view VRF configuration.
-            </p>
-          </div>
-        </div>
+        <ErrorState
+          title="Access Denied"
+          message="You do not have permission to view VRF configuration."
+        />
       </AppLayout>
     );
   }
@@ -118,9 +113,7 @@ export default function VRFPage() {
   if (loading && !config) {
     return (
       <AppLayout>
-        <div className="flex h-full items-center justify-center">
-          <LoadingSpinner />
-        </div>
+        <LoadingState fullPage />
       </AppLayout>
     );
   }
@@ -128,14 +121,11 @@ export default function VRFPage() {
   if (error && !config) {
     return (
       <AppLayout>
-        <div className="flex h-full items-center justify-center">
-          <div className="text-center max-w-md">
-            <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Error Loading Configuration</h2>
-            <p className="text-muted-foreground mb-4">{error}</p>
-            <Button onClick={() => loadData(true)}>Retry</Button>
-          </div>
-        </div>
+        <ErrorState
+          title="Error Loading Configuration"
+          message={error}
+          onRetry={() => loadData(true)}
+        />
       </AppLayout>
     );
   }

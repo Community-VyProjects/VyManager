@@ -4,6 +4,10 @@ import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Server, Users, FileText, Shield, Map, Settings2 } from "lucide-react";
+import { PageContainer } from "@/components/ui/page-container";
+import { PageHeader } from "@/components/ui/page-header";
+import { LoadingState } from "@/components/ui/loading-state";
+import { ErrorState } from "@/components/ui/error-state";
 import {
   systemSettingsService,
   type SystemConfig,
@@ -50,31 +54,22 @@ export default function SystemSettingsPage() {
 
   return (
     <AppLayout>
-      <div className="p-8 space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Server className="h-8 w-8" />
-            System Settings
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            Manage VyOS system configuration — hostname, users, syslog, conntrack, and more.
+      <PageContainer>
+        <PageHeader
+          title="System Settings"
+          subtitle="Manage VyOS system configuration — hostname, users, syslog, conntrack, and more."
+          icon={<Server className="h-5 w-5 text-primary" />}
+        />
+        {isReadOnly && (
+          <p className="text-sm text-amber-600 dark:text-amber-400 mt-1">
+            You have read-only access to system settings.
           </p>
-          {isReadOnly && (
-            <p className="text-sm text-amber-600 dark:text-amber-400 mt-1">
-              You have read-only access to system settings.
-            </p>
-          )}
-        </div>
-
-        {loading && (
-          <p className="text-sm text-muted-foreground">Loading system configuration…</p>
         )}
 
+        {loading && <LoadingState message="Loading system configuration..." />}
+
         {error && !loading && (
-          <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
-            {error}
-          </div>
+          <ErrorState message={error} onRetry={() => load(true)} />
         )}
 
         {!loading && config && capabilities && (
@@ -160,7 +155,7 @@ export default function SystemSettingsPage() {
             </TabsContent>
           </Tabs>
         )}
-      </div>
+      </PageContainer>
     </AppLayout>
   );
 }

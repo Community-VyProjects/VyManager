@@ -20,6 +20,7 @@ import {
   VrfInstance,
   VrfCapabilities,
 } from "@/lib/api/vrf";
+import { PageHeader } from "@/components/ui/page-header";
 import { VrfSettingsTab } from "./VrfSettingsTab";
 import { VrfStaticRoutesTab } from "./VrfStaticRoutesTab";
 import { VrfOspfTab } from "./VrfOspfTab";
@@ -69,48 +70,41 @@ export function VrfContent({
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="border-b border-border bg-card px-6 py-4">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <Network className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-semibold">{vrf.name}</h1>
-                {vrf.disabled && (
-                  <Badge variant="outline" className="text-xs">
-                    Disabled
-                  </Badge>
-                )}
-              </div>
-              {vrf.description && (
-                <p className="text-sm text-muted-foreground">{vrf.description}</p>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRefresh}
-              disabled={refreshing}
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
-              Refresh
-            </Button>
-            {canWrite && (
+        <PageHeader
+          title={vrf.name}
+          subtitle={vrf.description || undefined}
+          icon={<Network className="h-5 w-5 text-primary" />}
+          badge={vrf.disabled ? (
+            <Badge variant="outline" className="text-xs">
+              Disabled
+            </Badge>
+          ) : undefined}
+          actions={
+            <>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setDeleteModalOpen(true)}
-                className="text-destructive hover:text-destructive"
+                onClick={handleRefresh}
+                disabled={refreshing}
               >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete
+                <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
+                Refresh
               </Button>
-            )}
-          </div>
-        </div>
+              {canWrite && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setDeleteModalOpen(true)}
+                  className="text-destructive hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </Button>
+              )}
+            </>
+          }
+          className="mb-3"
+        />
 
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

@@ -35,6 +35,9 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { PageHeader } from "@/components/ui/page-header";
+import { LoadingState } from "@/components/ui/loading-state";
+import { ErrorState } from "@/components/ui/error-state";
 import { NAT64RuleDialog } from "@/components/network/NAT64RuleDialog";
 import { NAT64PoolDialog } from "@/components/network/NAT64PoolDialog";
 import { NAT64DeleteDialog } from "@/components/network/NAT64DeleteDialog";
@@ -100,9 +103,7 @@ export default function NAT64Page() {
   if (permissionsLoading) {
     return (
       <AppLayout>
-        <div className="flex h-full items-center justify-center">
-          <LoadingSpinner />
-        </div>
+        <LoadingState fullPage />
       </AppLayout>
     );
   }
@@ -110,15 +111,10 @@ export default function NAT64Page() {
   if (!canRead(FeatureGroup.NAT64)) {
     return (
       <AppLayout>
-        <div className="flex h-full items-center justify-center">
-          <div className="text-center max-w-md">
-            <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
-            <p className="text-muted-foreground">
-              You do not have permission to view NAT64 configurations. Please contact your administrator for access.
-            </p>
-          </div>
-        </div>
+        <ErrorState
+          title="Access Denied"
+          message="You do not have permission to view NAT64 configurations. Please contact your administrator for access."
+        />
       </AppLayout>
     );
   }
@@ -276,29 +272,19 @@ export default function NAT64Page() {
             <div className="flex-1 flex flex-col">
               {/* Rule Header */}
               <div className="p-4 sm:p-6 pb-4 border-b border-border">
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <div className="flex items-center gap-3 mb-2">
-                      <h1 className="text-2xl font-bold text-foreground">
-                        Rule {selectedRule.rule_number}
-                      </h1>
-                      {selectedRule.disable && (
-                        <Badge
-                          variant="outline"
-                          className="bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20"
-                        >
-                          Disabled
-                        </Badge>
-                      )}
-                    </div>
-                    {selectedRule.description && (
-                      <p className="text-sm text-muted-foreground">
-                        {selectedRule.description}
-                      </p>
-                    )}
-                  </div>
-                  {hasWriteAccess && (
-                    <div className="flex items-center gap-2">
+                <PageHeader
+                  title={`Rule ${selectedRule.rule_number}`}
+                  subtitle={selectedRule.description || undefined}
+                  badge={selectedRule.disable ? (
+                    <Badge
+                      variant="outline"
+                      className="bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20"
+                    >
+                      Disabled
+                    </Badge>
+                  ) : undefined}
+                  actions={hasWriteAccess ? (
+                    <>
                       <Button
                         variant="outline"
                         size="sm"
@@ -344,9 +330,10 @@ export default function NAT64Page() {
                         <Trash2 className="h-4 w-4" />
                         Delete
                       </Button>
-                    </div>
-                  )}
-                </div>
+                    </>
+                  ) : undefined}
+                  className="mb-4"
+                />
 
                 {/* Rule Info Cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

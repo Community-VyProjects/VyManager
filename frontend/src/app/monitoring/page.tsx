@@ -18,7 +18,6 @@ import {
   Activity,
   AlertCircle,
   ExternalLink,
-  Loader2,
   Play,
   SlidersHorizontal,
   Square,
@@ -34,6 +33,10 @@ import { LogTable } from "@/components/monitoring/LogTable";
 import { ConntrackTable } from "@/components/monitoring/ConntrackTable";
 import { FilterBuilderModal } from "@/components/monitoring/FilterBuilderModal";
 import { cn } from "@/lib/utils";
+import { PageContainer } from "@/components/ui/page-container";
+import { PageHeader } from "@/components/ui/page-header";
+import { LoadingState } from "@/components/ui/loading-state";
+import { ErrorState } from "@/components/ui/error-state";
 
 // Commands that use the parsed table views
 const TABLE_COMMANDS = {
@@ -170,40 +173,23 @@ export default function MonitoringPage() {
 
   return (
     <AppLayout>
-      <div className="p-6 space-y-4">
-        {/* Page Header */}
-        <div className="flex items-center gap-3">
-          <div className="rounded-lg bg-primary/10 p-2">
-            <Activity className="h-6 w-6 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold">Monitoring</h1>
-            <p className="text-sm text-muted-foreground">
-              Real-time monitoring via SSH
-            </p>
-          </div>
-          {session && (
+      <PageContainer>
+        <PageHeader
+          title="Monitoring"
+          subtitle="Real-time monitoring via SSH"
+          icon={<Activity className="h-5 w-5 text-primary" />}
+          badge={session ? (
             <Badge variant="outline" className="ml-auto text-xs">
               {session.instance_name}
             </Badge>
-          )}
-        </div>
+          ) : undefined}
+        />
 
         {/* Loading / Error / No Session states */}
         {loading ? (
-          <div className="flex items-center justify-center h-64">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
+          <LoadingState message="Loading monitoring data..." />
         ) : loadError ? (
-          <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-4">
-            <div className="flex items-start gap-2">
-              <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium text-destructive">Error</p>
-                <p className="text-sm text-destructive/80">{loadError}</p>
-              </div>
-            </div>
-          </div>
+          <ErrorState message={loadError} />
         ) : !session ? (
           <Card>
             <CardContent className="py-12 text-center space-y-2">
@@ -467,7 +453,7 @@ export default function MonitoringPage() {
             )}
           </>
         )}
-      </div>
+      </PageContainer>
 
       {/* Filter Builder Modal */}
       <FilterBuilderModal

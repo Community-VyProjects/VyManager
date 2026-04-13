@@ -18,8 +18,6 @@ import {
 import {
   Building2,
   Users,
-  Loader2,
-  AlertCircle,
   RefreshCw,
   Plus,
   Search,
@@ -37,6 +35,8 @@ import {
   Table,
   KeyRound,
 } from "lucide-react";
+import { LoadingState } from "@/components/ui/loading-state";
+import { ErrorState } from "@/components/ui/error-state";
 import { signOut, useSession } from "@/lib/auth-client";
 import { Site, sessionService } from "@/lib/api/session";
 import { useSessionStore } from "@/store/session-store";
@@ -511,16 +511,9 @@ export default function SitesPage() {
             {/* Site List */}
             <ScrollArea className="flex-1 px-3">
               {loading ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                </div>
+                <LoadingState message="Loading sites..." className="h-48" />
               ) : error ? (
-                <div className="p-4">
-                  <div className="flex items-center gap-2 text-destructive text-sm">
-                    <AlertCircle className="h-4 w-4" />
-                    <span>Failed to load sites</span>
-                  </div>
-                </div>
+                <ErrorState message={error} onRetry={loadData} className="h-48" />
               ) : filteredSites.length === 0 ? (
                 <div className="p-4 text-center">
                   <p className="text-sm text-muted-foreground">
@@ -653,9 +646,7 @@ export default function SitesPage() {
                 <ScrollArea className="flex-1">
                   <div className="p-3 space-y-1">
                     {loading ? (
-                      <div className="flex items-center justify-center py-12">
-                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                      </div>
+                      <LoadingState message="Loading sites..." className="h-48" />
                     ) : filteredSites.length === 0 ? (
                       <div className="p-4 text-center">
                         <p className="text-sm text-muted-foreground">{searchQuery ? "No sites found" : "No sites yet"}</p>
@@ -720,9 +711,7 @@ export default function SitesPage() {
                 </div>
                 <div className="flex-1 overflow-auto p-4">
                   {instancesLoading ? (
-                    <div className="flex items-center justify-center py-12">
-                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    </div>
+                    <LoadingState message="Loading instances..." className="h-48" />
                   ) : instances.length === 0 ? (
                     <div className="flex items-center justify-center py-12">
                       <div className="text-center">
@@ -849,9 +838,7 @@ export default function SitesPage() {
               {/* Instances Grid/Table */}
               <div className="flex-1 overflow-auto p-6">
                 {instancesLoading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  </div>
+                  <LoadingState message="Loading instances..." />
                 ) : instances.length === 0 ? (
                   <div className="flex items-center justify-center py-12">
                     <div className="text-center">

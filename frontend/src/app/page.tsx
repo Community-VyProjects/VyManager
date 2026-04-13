@@ -2,9 +2,12 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Plus, Save, Edit3, X } from "lucide-react";
+import { LayoutDashboard, Plus, Save, Edit3, X } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
+import { PageContainer } from "@/components/ui/page-container";
+import { PageHeader } from "@/components/ui/page-header";
+import { LoadingState } from "@/components/ui/loading-state";
 import { Github, Globe, MessageCircle, Sparkles, ArrowUpCircle, Tag } from "lucide-react";
 import { useSession } from "@/lib/auth-client";
 import { useSessionStore } from "@/store/session-store";
@@ -217,9 +220,7 @@ export default function Home() {
 
   if (isPending || isChecking) {
     return (
-      <div className="min-h-screen w-full flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
+      <LoadingState fullPage message="Loading dashboard..." />
     );
   }
 
@@ -506,17 +507,14 @@ export default function Home() {
 
   return (
     <AppLayout>
-      <div className="p-8">
+      <PageContainer>
         <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-              <p className="text-muted-foreground mt-2">
-                Welcome to VyManager - Professional VyOS Management Interface
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              {canEditDashboard && (
+          <PageHeader
+            title="Dashboard"
+            subtitle="Welcome to VyManager - Professional VyOS Management Interface"
+            icon={<LayoutDashboard className="h-5 w-5 text-primary" />}
+            actions={
+              canEditDashboard ? (
                 <>
                   {hasUnsavedChanges && (
                     <>
@@ -553,9 +551,9 @@ export default function Home() {
                     )}
                   </Button>
                 </>
-              )}
-            </div>
-          </div>
+              ) : undefined
+            }
+          />
 
           {/* Beta Information Card */}
           <div className="mt-6 relative overflow-hidden rounded-lg border border-primary/20 bg-gradient-to-br from-primary/5 via-purple-500/5 to-cyan-500/5 backdrop-blur-sm">
@@ -727,7 +725,7 @@ export default function Home() {
           onAddCard={handleAddCard}
         />
         </DashboardDataProvider>
-      </div>
+      </PageContainer>
     </AppLayout>
   );
 }

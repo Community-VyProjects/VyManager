@@ -8,6 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Plus, RefreshCw, AlertCircle, Search, Shield, Pencil, Trash2, Link2 } from "lucide-react";
 import { useState, useEffect } from "react";
+import { PageContainer } from "@/components/ui/page-container";
+import { PageHeader } from "@/components/ui/page-header";
+import { LoadingState } from "@/components/ui/loading-state";
 import { firewallGroupsService } from "@/lib/api/firewall-groups";
 import type { FirewallGroup, GroupsConfigResponse, FirewallGroupsCapabilities, GroupType } from "@/lib/api/types/firewall-groups";
 import { CreateGroupModal } from "@/components/firewall/CreateGroupModal";
@@ -124,9 +127,7 @@ export default function FirewallGroupsPage() {
   if (loading) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center h-96">
-          <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
+        <LoadingState message="Loading firewall groups..." />
       </AppLayout>
     );
   }
@@ -134,16 +135,13 @@ export default function FirewallGroupsPage() {
   return (
     <AppLayout>
       <TooltipProvider>
-      <div className="space-y-6 p-6">
+      <PageContainer>
         {/* Header */}
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Firewall Groups</h1>
-            <p className="text-muted-foreground mt-1">
-              Manage firewall groups for use in firewall rules
-            </p>
-          </div>
-        </div>
+        <PageHeader
+          title="Firewall Groups"
+          subtitle="Manage firewall groups for use in firewall rules"
+          icon={<Shield className="h-5 w-5 text-primary" />}
+        />
 
         {/* Stats Dashboard */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -460,7 +458,7 @@ export default function FirewallGroupsPage() {
             )}
           </div>
         )}
-      </div>
+      </PageContainer>
       </TooltipProvider>
 
       {/* Modals */}

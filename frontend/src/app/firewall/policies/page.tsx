@@ -1,7 +1,6 @@
 "use client";
 
 import { AppLayout } from "@/components/layout/AppLayout";
-import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
@@ -53,7 +52,8 @@ import {
 import { firewallIPv6Service } from "@/lib/api/firewall-ipv6";
 import { firewallGroupsService, type FirewallGroup } from "@/lib/api/firewall-groups";
 import { cn } from "@/lib/utils";
-import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { LoadingState } from "@/components/ui/loading-state";
+import { ErrorState } from "@/components/ui/error-state";
 import { CreateFirewallRuleModal } from "@/components/firewall/CreateFirewallRuleModal";
 import { EditFirewallRuleModal } from "@/components/firewall/EditFirewallRuleModal";
 import { DeleteFirewallRuleModal } from "@/components/firewall/DeleteFirewallRuleModal";
@@ -1160,27 +1160,13 @@ export default function FirewallPoliciesPage() {
           {/* Rules Table */}
           <div className="flex-1 overflow-auto">
             {(selectedProtocol === "ipv4" ? loading : loadingIPv6) ? (
-              <LoadingSpinner message={`Loading ${selectedProtocol === "ipv4" ? "IPv4" : "IPv6"} firewall rules...`} />
+              <LoadingState message={`Loading ${selectedProtocol === "ipv4" ? "IPv4" : "IPv6"} firewall rules...`} />
             ) : (selectedProtocol === "ipv4" ? error : errorIPv6) ? (
-              <div className="flex items-center justify-center h-full">
-                <Card className="border-destructive max-w-md">
-                  <CardContent className="flex items-center gap-4 py-8">
-                    <AlertCircle className="h-8 w-8 text-destructive" />
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-destructive">Error Loading Configuration</h3>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {selectedProtocol === "ipv4" ? error : errorIPv6}
-                      </p>
-                    </div>
-                    <Button
-                      onClick={() => selectedProtocol === "ipv4" ? fetchConfig(true) : fetchConfigIPv6(true)}
-                      variant="outline"
-                    >
-                      Try Again
-                    </Button>
-                  </CardContent>
-                </Card>
-              </div>
+              <ErrorState
+                title="Error Loading Configuration"
+                message={(selectedProtocol === "ipv4" ? error : errorIPv6) || "Unknown error"}
+                onRetry={() => selectedProtocol === "ipv4" ? fetchConfig(true) : fetchConfigIPv6(true)}
+              />
             ) : (
               <div className="p-4 sm:p-6 pt-0">
                 <div className="rounded-lg border border-border bg-card">

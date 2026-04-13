@@ -19,15 +19,12 @@ import {
   Plus,
   Search,
   RefreshCw,
-  AlertCircle,
   Map,
   Trash2,
   Pencil,
-  CheckCircle2,
-  XCircle,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { DndContext, closestCenter, DragOverlay, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import {
   routeMapService,
@@ -37,7 +34,9 @@ import {
 } from "@/lib/api/route-map";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { LoadingState } from "@/components/ui/loading-state";
+import { ErrorState } from "@/components/ui/error-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { CreateRouteMapModal } from "@/components/policies/CreateRouteMapModal";
 import { EditRouteMapModal } from "@/components/policies/EditRouteMapModal";
 import { DeleteRouteMapModal } from "@/components/policies/DeleteRouteMapModal";
@@ -227,9 +226,7 @@ export default function RouteMapPage() {
   if (loading) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center h-full">
-          <LoadingSpinner />
-        </div>
+        <LoadingState message="Loading route maps..." className="h-full" />
       </AppLayout>
     );
   }
@@ -237,17 +234,12 @@ export default function RouteMapPage() {
   if (error) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center h-full">
-          <div className="text-center space-y-4">
-            <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
-            <h2 className="text-xl font-semibold text-foreground">Error Loading Route Maps</h2>
-            <p className="text-muted-foreground max-w-md">{error}</p>
-            <Button onClick={() => fetchConfig(true)} variant="outline">
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Retry
-            </Button>
-          </div>
-        </div>
+        <ErrorState
+          title="Error Loading Route Maps"
+          message={error}
+          onRetry={() => fetchConfig(true)}
+          className="h-full"
+        />
       </AppLayout>
     );
   }
@@ -272,17 +264,12 @@ export default function RouteMapPage() {
         {/* Left Sidebar - Route Map List */}
         <div className="w-80 border-r border-border bg-card/50 hidden lg:flex flex-col">
           <div className="p-4 sm:p-6 pb-4 shrink-0">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Map className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <h1 className="text-lg font-semibold text-foreground">Route Maps</h1>
-                <p className="text-xs text-muted-foreground">
-                  {routeMaps.length} map{routeMaps.length !== 1 ? "s" : ""} · {totalRules} rule{totalRules !== 1 ? "s" : ""}
-                </p>
-              </div>
-            </div>
+            <PageHeader
+              title="Route Maps"
+              subtitle={`${routeMaps.length} map${routeMaps.length !== 1 ? "s" : ""} · ${totalRules} rule${totalRules !== 1 ? "s" : ""}`}
+              icon={<Map className="h-5 w-5 text-primary" />}
+              className="mb-6"
+            />
 
             {/* Search Route Maps */}
             <div className="relative mb-4">

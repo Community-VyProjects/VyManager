@@ -13,7 +13,6 @@ import {
   Plus,
   Search,
   RefreshCw,
-  AlertCircle,
   ListFilter,
   Trash2,
   Pencil,
@@ -32,7 +31,9 @@ import { DeleteCommunityListRuleModal } from "@/components/policies/DeleteCommun
 import { ReorderBanner } from "@/components/ui/reorder-banner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { LoadingState } from "@/components/ui/loading-state";
+import { ErrorState } from "@/components/ui/error-state";
+import { PageHeader } from "@/components/ui/page-header";
 
 // Sortable row component
 function CommunityListRuleRow({ rule, onEdit, onDelete }: any) {
@@ -288,9 +289,7 @@ export default function BGPCommunityPage() {
   if (loading) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center h-full">
-          <LoadingSpinner />
-        </div>
+        <LoadingState message="Loading community lists..." className="h-full" />
       </AppLayout>
     );
   }
@@ -298,17 +297,12 @@ export default function BGPCommunityPage() {
   if (error) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center h-full">
-          <div className="text-center space-y-4">
-            <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
-            <h2 className="text-xl font-semibold text-foreground">Error Loading Community Lists</h2>
-            <p className="text-muted-foreground max-w-md">{error}</p>
-            <Button onClick={() => fetchData(true)} variant="outline">
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Retry
-            </Button>
-          </div>
-        </div>
+        <ErrorState
+          title="Error Loading Community Lists"
+          message={error}
+          onRetry={() => fetchData(true)}
+          className="h-full"
+        />
       </AppLayout>
     );
   }
@@ -333,17 +327,12 @@ export default function BGPCommunityPage() {
         {/* Left Sidebar - Community Lists */}
         <div className="w-80 border-r border-border bg-card/50 hidden lg:flex flex-col">
           <div className="p-4 sm:p-6 pb-4 shrink-0">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <ListFilter className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <h1 className="text-lg font-semibold text-foreground">BGP Community</h1>
-                <p className="text-xs text-muted-foreground">
-                  {communityLists.length} {communityLists.length !== 1 ? "lists" : "list"} · {totalRules} rule{totalRules !== 1 ? "s" : ""}
-                </p>
-              </div>
-            </div>
+            <PageHeader
+              title="BGP Community"
+              subtitle={`${communityLists.length} ${communityLists.length !== 1 ? "lists" : "list"} · ${totalRules} rule${totalRules !== 1 ? "s" : ""}`}
+              icon={<ListFilter className="h-5 w-5 text-primary" />}
+              className="mb-6"
+            />
 
             {/* Search Community Lists */}
             <div className="relative mb-4">

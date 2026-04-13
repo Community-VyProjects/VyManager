@@ -18,8 +18,6 @@ import {
   ShieldCheck,
   Plus,
   RefreshCw,
-  Loader2,
-  AlertCircle,
   Pencil,
   Trash2,
   FileText,
@@ -55,6 +53,9 @@ import {
   PKIDetailSheet,
   type PKIViewingItem,
 } from "@/components/pki";
+import { PageHeader } from "@/components/ui/page-header";
+import { LoadingState } from "@/components/ui/loading-state";
+import { ErrorState } from "@/components/ui/error-state";
 
 export default function PKIPage() {
   const { canRead, canWrite } = usePermissions();
@@ -131,12 +132,7 @@ export default function PKIPage() {
   if (loading && !config) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center h-[calc(100vh-200px)]">
-          <div className="text-center space-y-4">
-            <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
-            <p className="text-muted-foreground">Loading PKI configuration...</p>
-          </div>
-        </div>
+        <LoadingState message="Loading PKI configuration..." />
       </AppLayout>
     );
   }
@@ -145,16 +141,11 @@ export default function PKIPage() {
   if (error && !config) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center h-[calc(100vh-200px)]">
-          <div className="text-center space-y-4">
-            <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
-            <p className="text-destructive font-medium">Failed to load configuration</p>
-            <p className="text-sm text-muted-foreground">{error}</p>
-            <Button onClick={() => fetchConfig(true)}>
-              <RefreshCw className="h-4 w-4 mr-2" /> Retry
-            </Button>
-          </div>
-        </div>
+        <ErrorState
+          title="Failed to load configuration"
+          message={error}
+          onRetry={() => fetchConfig(true)}
+        />
       </AppLayout>
     );
   }
@@ -166,30 +157,24 @@ export default function PKIPage() {
       <div className="flex flex-col h-full overflow-hidden">
         {/* Header */}
         <div className="p-4 sm:p-6 border-b bg-background">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="p-3 rounded-xl bg-primary/10">
-                <ShieldCheck className="h-8 w-8 text-primary" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h1 className="text-2xl font-bold">PKI Management</h1>
-                  {config?.configured ? (
-                    <Badge variant="secondary" className="bg-green-500/10 text-green-600">Configured</Badge>
-                  ) : (
-                    <Badge variant="secondary">Not Configured</Badge>
-                  )}
-                </div>
-                <p className="text-muted-foreground">
-                  Manage certificates, keys, and PKI infrastructure
-                </p>
-              </div>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => fetchConfig(true)} disabled={loading}>
-              <RefreshCw className={cn("h-4 w-4 mr-2", loading && "animate-spin")} />
-              Refresh
-            </Button>
-          </div>
+          <PageHeader
+            title="PKI Management"
+            subtitle="Manage certificates, keys, and PKI infrastructure"
+            icon={<ShieldCheck className="h-5 w-5 text-primary" />}
+            badge={
+              config?.configured ? (
+                <Badge variant="secondary" className="bg-green-500/10 text-green-600">Configured</Badge>
+              ) : (
+                <Badge variant="secondary">Not Configured</Badge>
+              )
+            }
+            actions={
+              <Button variant="outline" size="sm" onClick={() => fetchConfig(true)} disabled={loading}>
+                <RefreshCw className={cn("h-4 w-4 mr-2", loading && "animate-spin")} />
+                Refresh
+              </Button>
+            }
+          />
 
           {/* Stats */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mt-4">

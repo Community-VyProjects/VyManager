@@ -9,16 +9,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Plus,
   Search,
   RefreshCw,
-  AlertCircle,
   Route as RouteIcon,
   Trash2,
   Pencil,
-  X,
   Network,
 } from "lucide-react";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
@@ -34,8 +32,9 @@ import { RouteRuleRow } from "@/components/policies/RouteRuleRow";
 import { ReorderBanner } from "@/components/ui/reorder-banner";
 import { ManagePolicyInterfacesModal } from "@/components/policies/ManagePolicyInterfacesModal";
 import { cn } from "@/lib/utils";
-import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { apiClient } from "@/lib/api/client";
+import { LoadingState } from "@/components/ui/loading-state";
+import { ErrorState } from "@/components/ui/error-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function RoutePage() {
@@ -291,9 +290,7 @@ export default function RoutePage() {
   if (loading) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center h-full">
-          <LoadingSpinner />
-        </div>
+        <LoadingState message="Loading route policies..." className="h-full" />
       </AppLayout>
     );
   }
@@ -301,17 +298,12 @@ export default function RoutePage() {
   if (error) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center h-full">
-          <div className="text-center space-y-4">
-            <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
-            <h2 className="text-xl font-semibold text-foreground">Error Loading Route Policies</h2>
-            <p className="text-muted-foreground max-w-md">{error}</p>
-            <Button onClick={() => fetchData(true)} variant="outline">
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Retry
-            </Button>
-          </div>
-        </div>
+        <ErrorState
+          title="Error Loading Route Policies"
+          message={error}
+          onRetry={() => fetchData(true)}
+          className="h-full"
+        />
       </AppLayout>
     );
   }
@@ -336,17 +328,12 @@ export default function RoutePage() {
         {/* Left Sidebar - Policy List */}
         <div className="w-80 border-r border-border bg-card/50 hidden lg:flex flex-col">
           <div className="p-4 sm:p-6 pb-4 shrink-0">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <RouteIcon className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <h1 className="text-lg font-semibold text-foreground">Policy Route</h1>
-                <p className="text-xs text-muted-foreground">
-                  {policies.length} {policies.length !== 1 ? "policies" : "policy"} · {totalRules} rule{totalRules !== 1 ? "s" : ""}
-                </p>
-              </div>
-            </div>
+            <PageHeader
+              title="Policy Route"
+              subtitle={`${policies.length} ${policies.length !== 1 ? "policies" : "policy"} · ${totalRules} rule${totalRules !== 1 ? "s" : ""}`}
+              icon={<RouteIcon className="h-5 w-5 text-primary" />}
+              className="mb-6"
+            />
 
             {/* IPv4/IPv6 Tabs */}
             <Tabs value={selectedPolicyType} onValueChange={(v) => handlePolicyTypeChange(v as "route" | "route6")} className="mb-4">

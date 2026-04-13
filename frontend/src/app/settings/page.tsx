@@ -7,6 +7,8 @@ import { PoweroffModal } from "@/components/system/PoweroffModal";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Power, PowerOff, Settings as SettingsIcon } from "lucide-react";
+import { PageContainer } from "@/components/ui/page-container";
+import { PageHeader } from "@/components/ui/page-header";
 
 export default function SettingsPage() {
   const [rebootModalOpen, setRebootModalOpen] = useState(false);
@@ -24,17 +26,12 @@ export default function SettingsPage() {
 
   return (
     <AppLayout>
-      <div className="p-8 space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <SettingsIcon className="h-8 w-8" />
-            Settings
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            Manage system power and configuration settings
-          </p>
-        </div>
+      <PageContainer>
+        <PageHeader
+          title="Settings"
+          subtitle="Manage system power and configuration settings"
+          icon={<SettingsIcon className="h-5 w-5 text-primary" />}
+        />
 
         {/* Power Management Section */}
         <div>
@@ -87,7 +84,7 @@ export default function SettingsPage() {
             </Card>
           </div>
         </div>
-      </div>
+      </PageContainer>
 
       {/* Modals */}
       <RebootModal

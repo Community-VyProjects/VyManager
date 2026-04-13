@@ -34,6 +34,9 @@ import {
 import { firewallGroupsService } from "@/lib/api/firewall-groups";
 import type { GroupsConfigResponse } from "@/lib/api/types/firewall-groups";
 import { cn } from "@/lib/utils";
+import { PageHeader } from "@/components/ui/page-header";
+import { LoadingState } from "@/components/ui/loading-state";
+import { ErrorState } from "@/components/ui/error-state";
 import {
   Tooltip,
   TooltipTrigger,
@@ -183,9 +186,7 @@ export default function NAT66Page() {
   if (permissionsLoading) {
     return (
       <AppLayout>
-        <div className="flex h-full items-center justify-center">
-          <LoadingSpinner />
-        </div>
+        <LoadingState fullPage />
       </AppLayout>
     );
   }
@@ -193,15 +194,10 @@ export default function NAT66Page() {
   if (!canRead(FeatureGroup.NAT66)) {
     return (
       <AppLayout>
-        <div className="flex h-full items-center justify-center">
-          <div className="text-center max-w-md">
-            <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
-            <p className="text-muted-foreground">
-              You do not have permission to view NAT66 configurations. Please contact your administrator for access.
-            </p>
-          </div>
-        </div>
+        <ErrorState
+          title="Access Denied"
+          message="You do not have permission to view NAT66 configurations. Please contact your administrator for access."
+        />
       </AppLayout>
     );
   }
@@ -211,39 +207,37 @@ export default function NAT66Page() {
       <div className="flex-1 flex flex-col h-full">
         {/* Header */}
         <div className="p-4 sm:p-6 pb-4 border-b border-border">
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold text-foreground">NAT66</h1>
-              <p className="text-sm text-muted-foreground mt-1">
-                IPv6-to-IPv6 Network Address Translation
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => fetchConfig(true)}
-                disabled={loading}
-                className="gap-2"
-              >
-                <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
-                Refresh
-              </Button>
-              {hasWriteAccess && (
+          <PageHeader
+            title="NAT66"
+            subtitle="IPv6-to-IPv6 Network Address Translation"
+            actions={
+              <>
                 <Button
+                  variant="outline"
                   size="sm"
+                  onClick={() => fetchConfig(true)}
+                  disabled={loading}
                   className="gap-2"
-                  onClick={() => {
-                    setEditingRule(null);
-                    setRuleDialogOpen(true);
-                  }}
                 >
-                  <Plus className="h-4 w-4" />
-                  Add Rule
+                  <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+                  Refresh
                 </Button>
-              )}
-            </div>
-          </div>
+                {hasWriteAccess && (
+                  <Button
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => {
+                      setEditingRule(null);
+                      setRuleDialogOpen(true);
+                    }}
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add Rule
+                  </Button>
+                )}
+              </>
+            }
+          />
 
           {/* Tabs */}
           <div className="flex items-center gap-1 mb-4">
@@ -310,22 +304,13 @@ export default function NAT66Page() {
         {/* Table */}
         <div className="flex-1 overflow-auto">
           {loading ? (
-            <LoadingSpinner message="Loading NAT66 rules..." />
+            <LoadingState message="Loading NAT66 rules..." />
           ) : error ? (
-            <div className="flex items-center justify-center h-full">
-              <Card className="border-destructive max-w-md">
-                <CardContent className="flex items-center gap-4 py-8">
-                  <AlertCircle className="h-8 w-8 text-destructive" />
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-destructive">Error Loading Configuration</h3>
-                    <p className="text-sm text-muted-foreground mt-1">{error}</p>
-                  </div>
-                  <Button onClick={() => fetchConfig(true)} variant="outline">
-                    Try Again
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
+            <ErrorState
+              title="Error Loading Configuration"
+              message={error}
+              onRetry={() => fetchConfig(true)}
+            />
           ) : (
             <div className="p-4 sm:p-6 pt-4">
               <TooltipProvider delayDuration={200}>

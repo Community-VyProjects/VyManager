@@ -20,6 +20,7 @@ import { Plus, RefreshCw, AlertCircle, Search, Cable, Pencil, Trash2, Network, C
 import { useState, useEffect } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { PageHeader } from "@/components/ui/page-header";
 import { ethernetService } from "@/lib/api/ethernet";
 import type { EthernetInterface, EthernetCapabilities, VIFConfig, VIFSConfig } from "@/lib/api/types/ethernet";
 import { wireguardService, type WireGuardInterface } from "@/lib/api/wireguard";
@@ -1150,40 +1151,35 @@ export default function InterfacesPage() {
         <div className="flex-1 flex flex-col">
           {/* Header */}
           <div className="p-4 sm:p-6 pb-4 border-b border-border">
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex-1">
-                <h1 className="text-2xl font-bold text-foreground">
-                  {selectedType === "ethernet" ? "Ethernet Interfaces" : selectedType === "vlan" ? "VLANs" : selectedType === "vxlan" ? "VXLAN Interfaces" : selectedType === "tunnel" ? "Tunnel Interfaces" : selectedType === "l2tpv3" ? "L2TPv3 Interfaces" : selectedType === "dummy" ? "Dummy Interfaces" : selectedType === "geneve" ? "GENEVE Interfaces" : selectedType === "input" ? "Input Interfaces" : selectedType === "loopback" ? "Loopback Interface" : selectedType === "macsec" ? "MACsec Interfaces" : selectedType === "bonding" ? "Bonding Interfaces" : selectedType === "bridge" ? "Bridge Interfaces" : "WireGuard Interfaces"}
-                </h1>
-                <p className="text-sm text-muted-foreground mt-2">
-                  {selectedType === "ethernet"
-                    ? "Physical and virtual ethernet interface configurations"
-                    : selectedType === "vlan"
-                      ? "802.1Q VLAN, QinQ Service (VIF-S), and QinQ Customer (VIF-C) sub-interfaces"
-                      : selectedType === "vxlan"
-                        ? "VXLAN tunnel interfaces for overlay networking"
-                        : selectedType === "tunnel"
-                          ? "GRE, IPIP, SIT, ERSPAN and other tunnel interfaces"
-                          : selectedType === "l2tpv3"
-                            ? "Layer 2 Tunnel Protocol Version 3 tunnel interfaces"
-                            : selectedType === "dummy"
-                              ? "Software-only dummy interfaces for testing and routing"
-                            : selectedType === "geneve"
-                              ? "GENEVE tunnel interfaces for network virtualization encapsulation"
-                              : selectedType === "input"
-                              ? "Input Functional Block (IFB) interfaces for traffic redirection and shaping"
-                              : selectedType === "loopback"
-                              ? "Loopback interface for local address assignment and routing"
-                              : selectedType === "macsec"
-                              ? "IEEE 802.1AE MACsec interfaces for layer-2 encryption"
-                              : selectedType === "bonding"
-                              ? "Link aggregation (bonding) interfaces for high availability and throughput"
-                              : selectedType === "bridge"
-                                ? "Bridge interfaces for layer-2 network bridging"
-                                : "WireGuard tunnel interfaces and status"}
-                </p>
-              </div>
-              <Button
+            <PageHeader
+              title={selectedType === "ethernet" ? "Ethernet Interfaces" : selectedType === "vlan" ? "VLANs" : selectedType === "vxlan" ? "VXLAN Interfaces" : selectedType === "tunnel" ? "Tunnel Interfaces" : selectedType === "l2tpv3" ? "L2TPv3 Interfaces" : selectedType === "dummy" ? "Dummy Interfaces" : selectedType === "geneve" ? "GENEVE Interfaces" : selectedType === "input" ? "Input Interfaces" : selectedType === "loopback" ? "Loopback Interface" : selectedType === "macsec" ? "MACsec Interfaces" : selectedType === "bonding" ? "Bonding Interfaces" : selectedType === "bridge" ? "Bridge Interfaces" : "WireGuard Interfaces"}
+              subtitle={selectedType === "ethernet"
+                ? "Physical and virtual ethernet interface configurations"
+                : selectedType === "vlan"
+                  ? "802.1Q VLAN, QinQ Service (VIF-S), and QinQ Customer (VIF-C) sub-interfaces"
+                  : selectedType === "vxlan"
+                    ? "VXLAN tunnel interfaces for overlay networking"
+                    : selectedType === "tunnel"
+                      ? "GRE, IPIP, SIT, ERSPAN and other tunnel interfaces"
+                      : selectedType === "l2tpv3"
+                        ? "Layer 2 Tunnel Protocol Version 3 tunnel interfaces"
+                        : selectedType === "dummy"
+                          ? "Software-only dummy interfaces for testing and routing"
+                        : selectedType === "geneve"
+                          ? "GENEVE tunnel interfaces for network virtualization encapsulation"
+                          : selectedType === "input"
+                          ? "Input Functional Block (IFB) interfaces for traffic redirection and shaping"
+                          : selectedType === "loopback"
+                          ? "Loopback interface for local address assignment and routing"
+                          : selectedType === "macsec"
+                          ? "IEEE 802.1AE MACsec interfaces for layer-2 encryption"
+                          : selectedType === "bonding"
+                          ? "Link aggregation (bonding) interfaces for high availability and throughput"
+                          : selectedType === "bridge"
+                            ? "Bridge interfaces for layer-2 network bridging"
+                            : "WireGuard tunnel interfaces and status"}
+              actions={
+                <Button
                 className="gap-2"
                 onClick={() => {
                   if (selectedType === "vlan") {
@@ -1248,7 +1244,9 @@ export default function InterfacesPage() {
                               ? "Create Bridge"
                               : "Manage WireGuard"}
               </Button>
-            </div>
+              }
+              className="mb-4"
+            />
 
             {/* VLAN Sub-tabs */}
             {selectedType === "vlan" && (

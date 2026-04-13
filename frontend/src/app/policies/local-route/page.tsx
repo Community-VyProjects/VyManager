@@ -21,9 +21,10 @@ import {
   Route,
   Pencil,
   Trash2,
-  AlertCircle,
 } from "lucide-react";
-import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { LoadingState } from "@/components/ui/loading-state";
+import { ErrorState } from "@/components/ui/error-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { localRouteService, type LocalRouteRule, type LocalRouteConfigResponse, type LocalRouteCapabilitiesResponse } from "@/lib/api/local-route";
 import { CreateLocalRouteModal } from "@/components/policies/CreateLocalRouteModal";
 import { EditLocalRouteModal } from "@/components/policies/EditLocalRouteModal";
@@ -188,9 +189,7 @@ export default function LocalRoutePage() {
   if (loading) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center h-full">
-          <LoadingSpinner />
-        </div>
+        <LoadingState message="Loading local route rules..." className="h-full" />
       </AppLayout>
     );
   }
@@ -198,17 +197,12 @@ export default function LocalRoutePage() {
   if (error && !config) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center h-full">
-          <div className="text-center space-y-4">
-            <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
-            <h2 className="text-xl font-semibold text-foreground">Error Loading Local Route Rules</h2>
-            <p className="text-muted-foreground max-w-md">{error}</p>
-            <Button onClick={() => fetchConfig(true)} variant="outline">
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Retry
-            </Button>
-          </div>
-        </div>
+        <ErrorState
+          title="Error Loading Local Route Rules"
+          message={error}
+          onRetry={() => fetchConfig(true)}
+          className="h-full"
+        />
       </AppLayout>
     );
   }
@@ -218,29 +212,24 @@ export default function LocalRoutePage() {
       <div className="flex flex-col h-full">
         {/* Header */}
         <div className="p-6 pb-4 border-b border-border bg-card/30 shrink-0">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Route className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-foreground">Local Route</h1>
-                <p className="text-sm text-muted-foreground">
-                  Policy-based routing for IPv4 and IPv6 traffic
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <Button onClick={() => fetchConfig(true)} variant="outline" size="sm">
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh
-              </Button>
-              <Button onClick={() => setCreateModalOpen(true)} size="sm">
-                <Plus className="h-4 w-4 mr-2" />
-                Create Rule
-              </Button>
-            </div>
-          </div>
+          <PageHeader
+            title="Local Route"
+            subtitle="Policy-based routing for IPv4 and IPv6 traffic"
+            icon={<Route className="h-5 w-5 text-primary" />}
+            actions={
+              <>
+                <Button onClick={() => fetchConfig(true)} variant="outline" size="sm">
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Refresh
+                </Button>
+                <Button onClick={() => setCreateModalOpen(true)} size="sm">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Rule
+                </Button>
+              </>
+            }
+            className="mb-4"
+          />
 
           <Tabs value={selectedTab} onValueChange={handleTabChange}>
             <TabsList>
@@ -276,15 +265,8 @@ export default function LocalRoutePage() {
 
         {/* Error Alert */}
         {error && (
-          <div className="mx-6 mt-4 bg-destructive/10 border border-destructive/20 rounded-lg p-4 flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <p className="text-sm font-medium text-destructive">Error</p>
-              <p className="text-sm text-muted-foreground mt-1">{error}</p>
-            </div>
-            <Button variant="ghost" size="sm" onClick={() => setError(null)}>
-              Dismiss
-            </Button>
+          <div className="mx-6 mt-4">
+            <ErrorState message={error} onRetry={() => setError(null)} className="h-auto py-4" />
           </div>
         )}
 

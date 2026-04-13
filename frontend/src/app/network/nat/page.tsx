@@ -36,6 +36,9 @@ import { natService, type NATConfigResponse, type NATCapabilities, type SourceNA
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { PageHeader } from "@/components/ui/page-header";
+import { LoadingState } from "@/components/ui/loading-state";
+import { ErrorState } from "@/components/ui/error-state";
 import { CreateSourceNATModal } from "@/components/network/CreateSourceNATModal";
 import { CreateDestinationNATModal } from "@/components/network/CreateDestinationNATModal";
 import { CreateStaticNATModal } from "@/components/network/CreateStaticNATModal";
@@ -288,9 +291,7 @@ export default function NATPage() {
   if (permissionsLoading) {
     return (
       <AppLayout>
-        <div className="flex h-full items-center justify-center">
-          <LoadingSpinner />
-        </div>
+        <LoadingState fullPage />
       </AppLayout>
     );
   }
@@ -298,15 +299,10 @@ export default function NATPage() {
   if (!canRead(FeatureGroup.NAT)) {
     return (
       <AppLayout>
-        <div className="flex h-full items-center justify-center">
-          <div className="text-center max-w-md">
-            <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
-            <p className="text-muted-foreground">
-              You do not have permission to view NAT configurations. Please contact your administrator for access.
-            </p>
-          </div>
-        </div>
+        <ErrorState
+          title="Access Denied"
+          message="You do not have permission to view NAT configurations. Please contact your administrator for access."
+        />
       </AppLayout>
     );
   }
@@ -548,26 +544,22 @@ export default function NATPage() {
           {selectedType === "cgnat" ? (
             <div className="flex-1 flex flex-col">
               <div className="p-4 sm:p-6 pb-4 border-b border-border">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <h1 className="text-2xl font-bold text-foreground">
-                      CGNAT Rules
-                    </h1>
-                    <p className="text-sm text-muted-foreground mt-2">
-                      Carrier-grade NAT for large-scale address translation
-                    </p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => fetchConfig(true)}
-                    disabled={loading}
-                    className="gap-2"
-                  >
-                    <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
-                    Refresh
-                  </Button>
-                </div>
+                <PageHeader
+                  title="CGNAT Rules"
+                  subtitle="Carrier-grade NAT for large-scale address translation"
+                  actions={
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => fetchConfig(true)}
+                      disabled={loading}
+                      className="gap-2"
+                    >
+                      <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+                      Refresh
+                    </Button>
+                  }
+                />
               </div>
               <div className="p-4 sm:p-6 flex-1 overflow-auto">
                 <CGNATView
@@ -582,32 +574,29 @@ export default function NATPage() {
           <>
           {/* Header */}
           <div className="p-4 sm:p-6 pb-4 border-b border-border">
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex-1">
-                <h1 className="text-2xl font-bold text-foreground">
-                  {selectedType === "source" ? "Source NAT Rules" : selectedType === "destination" ? "Destination NAT Rules" : "Static NAT Rules"}
-                </h1>
-                <p className="text-sm text-muted-foreground mt-2">
-                  {selectedType === "source"
-                    ? "Outbound traffic translation (SNAT, Masquerade)"
-                    : selectedType === "destination"
-                    ? "Inbound traffic translation (DNAT, Port Forwarding)"
-                    : "One-to-one IP address mapping"}
-                </p>
-              </div>
-              <Button
-                className="gap-2"
-                onClick={() => {
-                  if (selectedType === "source") setCreateSourceOpen(true);
-                  else if (selectedType === "destination") setCreateDestOpen(true);
-                  else setCreateStaticOpen(true);
-                }}
-                disabled={!canWrite(FeatureGroup.NAT)}
-              >
-                <Plus className="h-4 w-4" />
-                Add Rule
-              </Button>
-            </div>
+            <PageHeader
+              title={selectedType === "source" ? "Source NAT Rules" : selectedType === "destination" ? "Destination NAT Rules" : "Static NAT Rules"}
+              subtitle={selectedType === "source"
+                ? "Outbound traffic translation (SNAT, Masquerade)"
+                : selectedType === "destination"
+                ? "Inbound traffic translation (DNAT, Port Forwarding)"
+                : "One-to-one IP address mapping"}
+              actions={
+                <Button
+                  className="gap-2"
+                  onClick={() => {
+                    if (selectedType === "source") setCreateSourceOpen(true);
+                    else if (selectedType === "destination") setCreateDestOpen(true);
+                    else setCreateStaticOpen(true);
+                  }}
+                  disabled={!canWrite(FeatureGroup.NAT)}
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Rule
+                </Button>
+              }
+              className="mb-4"
+            />
 
             {/* Stats Cards */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-4">
