@@ -28,7 +28,7 @@ import { localRouteService, type LocalRouteRule, type LocalRouteConfigResponse, 
 import { CreateLocalRouteModal } from "@/components/policies/CreateLocalRouteModal";
 import { EditLocalRouteModal } from "@/components/policies/EditLocalRouteModal";
 import { DeleteLocalRouteModal } from "@/components/policies/DeleteLocalRouteModal";
-import { LocalRouteReorderBanner } from "@/components/policies/LocalRouteReorderBanner";
+import { ReorderBanner } from "@/components/ui/reorder-banner";
 import { LocalRouteRuleRow } from "@/components/policies/LocalRouteRuleRow";
 import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors, closestCenter } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
@@ -266,8 +266,8 @@ export default function LocalRoutePage() {
 
         {/* Reorder Banner */}
         {hasChanges && (
-          <LocalRouteReorderBanner
-            ruleCount={reorderedRules.length}
+          <ReorderBanner
+            count={reorderedRules.length}
             onSave={handleSaveReorder}
             onCancel={handleCancelReorder}
             saving={savingReorder}

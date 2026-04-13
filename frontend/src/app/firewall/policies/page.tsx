@@ -60,7 +60,7 @@ import { DeleteFirewallRuleModal } from "@/components/firewall/DeleteFirewallRul
 import { CreateCustomChainModal } from "@/components/firewall/CreateCustomChainModal";
 import { DeleteCustomChainModal } from "@/components/firewall/DeleteCustomChainModal";
 import { FirewallRuleRow } from "@/components/firewall/FirewallRuleRow";
-import { FirewallReorderBanner } from "@/components/firewall/FirewallReorderBanner";
+import { ReorderBanner } from "@/components/ui/reorder-banner";
 
 type ChainType = "forward" | "input" | "output" | "prerouting_raw";
 
@@ -1295,11 +1295,12 @@ export default function FirewallPoliciesPage() {
 
       {/* Reorder Banner */}
       {(selectedProtocol === "ipv4" ? hasChanges : hasChangesIPv6) && (
-        <FirewallReorderBanner
-          changesCount={selectedProtocol === "ipv4" ? reorderedRules.length : reorderedRulesIPv6.length}
+        <ReorderBanner
+          count={selectedProtocol === "ipv4" ? reorderedRules.length : reorderedRulesIPv6.length}
           onSave={handleSaveReorder}
           onCancel={handleCancelReorder}
           saving={selectedProtocol === "ipv4" ? savingReorder : savingReorderIPv6}
+          variant="floating"
         />
       )}
 

@@ -29,7 +29,7 @@ import { DeleteCommunityListModal } from "@/components/policies/DeleteCommunityL
 import { CreateCommunityListRuleModal } from "@/components/policies/CreateCommunityListRuleModal";
 import { EditCommunityListRuleModal } from "@/components/policies/EditCommunityListRuleModal";
 import { DeleteCommunityListRuleModal } from "@/components/policies/DeleteCommunityListRuleModal";
-import { CommunityListReorderBanner } from "@/components/policies/CommunityListReorderBanner";
+import { ReorderBanner } from "@/components/ui/reorder-banner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
@@ -491,7 +491,7 @@ export default function BGPCommunityPage() {
 
               {/* Reorder Banner */}
               {hasChanges && (
-                <CommunityListReorderBanner
+                <ReorderBanner
                   onSave={handleSaveReorder}
                   onCancel={handleCancelReorder}
                   saving={savingReorder}

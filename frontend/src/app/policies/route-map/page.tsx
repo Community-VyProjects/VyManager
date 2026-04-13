@@ -45,7 +45,7 @@ import { AddRouteMapRuleModal } from "@/components/policies/AddRouteMapRuleModal
 import { EditRouteMapRuleModal } from "@/components/policies/EditRouteMapRuleModal";
 import { DeleteRouteMapRuleModal } from "@/components/policies/DeleteRouteMapRuleModal";
 import { RouteMapRuleRow } from "@/components/policies/RouteMapRuleRow";
-import { RouteMapReorderBanner } from "@/components/policies/RouteMapReorderBanner";
+import { ReorderBanner } from "@/components/ui/reorder-banner";
 
 export default function RouteMapPage() {
   const [config, setConfig] = useState<RouteMapConfig | null>(null);
@@ -427,7 +427,7 @@ export default function RouteMapPage() {
 
               {/* Reorder Banner */}
               {hasChanges && (
-                <RouteMapReorderBanner
+                <ReorderBanner
                   onSave={handleSaveReorder}
                   onCancel={handleCancelReorder}
                   saving={savingReorder}

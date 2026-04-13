@@ -45,7 +45,7 @@ import { AddPrefixListRuleModal } from "@/components/policies/AddPrefixListRuleM
 import { EditPrefixListRuleModal } from "@/components/policies/EditPrefixListRuleModal";
 import { DeletePrefixListRuleModal } from "@/components/policies/DeletePrefixListRuleModal";
 import { PrefixListRuleRow } from "@/components/policies/PrefixListRuleRow";
-import { PrefixListReorderBanner } from "@/components/policies/PrefixListReorderBanner";
+import { ReorderBanner } from "@/components/ui/reorder-banner";
 
 export default function PrefixListPage() {
   const [config, setConfig] = useState<PrefixListConfigResponse | null>(null);
@@ -474,7 +474,7 @@ export default function PrefixListPage() {
 
               {/* Reorder Banner */}
               {hasChanges && (
-                <PrefixListReorderBanner
+                <ReorderBanner
                   onSave={handleSaveReorder}
                   onCancel={handleCancelReorder}
                   saving={savingReorder}

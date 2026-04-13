@@ -44,7 +44,7 @@ import { EditDestinationNATModal } from "@/components/network/EditDestinationNAT
 import { EditStaticNATModal } from "@/components/network/EditStaticNATModal";
 import { DeleteNATModal } from "@/components/network/DeleteNATModal";
 import { NATRuleRow } from "@/components/network/NATRuleRow";
-import { NATReorderBanner } from "@/components/network/NATReorderBanner";
+import { ReorderBanner } from "@/components/ui/reorder-banner";
 import { CGNATView } from "@/components/network/CGNATView";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
@@ -915,11 +915,12 @@ export default function NATPage() {
 
       {/* Reorder Banner */}
       {hasChanges && canWrite(FeatureGroup.NAT) && (
-        <NATReorderBanner
-          changesCount={reorderedRules.length}
+        <ReorderBanner
+          count={reorderedRules.length}
           onSave={handleSaveReorder}
           onCancel={handleCancelReorder}
           saving={savingReorder}
+          variant="floating"
         />
       )}
 

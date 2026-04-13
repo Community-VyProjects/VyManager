@@ -29,7 +29,7 @@ import { DeleteAsPathListModal } from "@/components/policies/DeleteAsPathListMod
 import { CreateAsPathListRuleModal } from "@/components/policies/CreateAsPathListRuleModal";
 import { EditAsPathListRuleModal } from "@/components/policies/EditAsPathListRuleModal";
 import { DeleteAsPathListRuleModal } from "@/components/policies/DeleteAsPathListRuleModal";
-import { AsPathListReorderBanner } from "@/components/policies/AsPathListReorderBanner";
+import { ReorderBanner } from "@/components/ui/reorder-banner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
@@ -488,7 +488,7 @@ export default function BGPASPage() {
 
               {/* Reorder Banner */}
               {hasChanges && (
-                <AsPathListReorderBanner
+                <ReorderBanner
                   onSave={handleSaveReorder}
                   onCancel={handleCancelReorder}
                   saving={savingReorder}

@@ -29,7 +29,7 @@ import { DeleteLargeCommunityListModal } from "@/components/policies/DeleteLarge
 import { CreateLargeCommunityListRuleModal } from "@/components/policies/CreateLargeCommunityListRuleModal";
 import { EditLargeCommunityListRuleModal } from "@/components/policies/EditLargeCommunityListRuleModal";
 import { DeleteLargeCommunityListRuleModal } from "@/components/policies/DeleteLargeCommunityListRuleModal";
-import { LargeCommunityListReorderBanner } from "@/components/policies/LargeCommunityListReorderBanner";
+import { ReorderBanner } from "@/components/ui/reorder-banner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
@@ -491,7 +491,7 @@ export default function BGPLargeCommunityPage() {
 
               {/* Reorder Banner */}
               {hasChanges && (
-                <LargeCommunityListReorderBanner
+                <ReorderBanner
                   onSave={handleSaveReorder}
                   onCancel={handleCancelReorder}
                   saving={savingReorder}

@@ -29,7 +29,7 @@ import { DeleteExtCommunityListModal } from "@/components/policies/DeleteExtComm
 import { CreateExtCommunityListRuleModal } from "@/components/policies/CreateExtCommunityListRuleModal";
 import { EditExtCommunityListRuleModal } from "@/components/policies/EditExtCommunityListRuleModal";
 import { DeleteExtCommunityListRuleModal } from "@/components/policies/DeleteExtCommunityListRuleModal";
-import { ExtCommunityListReorderBanner } from "@/components/policies/ExtCommunityListReorderBanner";
+import { ReorderBanner } from "@/components/ui/reorder-banner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
@@ -539,7 +539,7 @@ export default function BGPExtCommunityPage() {
 
               {/* Reorder Banner */}
               {hasChanges && (
-                <ExtCommunityListReorderBanner
+                <ReorderBanner
                   onSave={handleSaveReorder}
                   onCancel={handleCancelReorder}
                   saving={savingReorder}

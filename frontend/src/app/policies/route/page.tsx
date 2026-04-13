@@ -31,7 +31,7 @@ import { CreateRouteRuleModal } from "@/components/policies/CreateRouteRuleModal
 import { EditRouteRuleModal } from "@/components/policies/EditRouteRuleModal";
 import { DeleteRouteRuleModal } from "@/components/policies/DeleteRouteRuleModal";
 import { RouteRuleRow } from "@/components/policies/RouteRuleRow";
-import { RouteReorderBanner } from "@/components/policies/RouteReorderBanner";
+import { ReorderBanner } from "@/components/ui/reorder-banner";
 import { ManagePolicyInterfacesModal } from "@/components/policies/ManagePolicyInterfacesModal";
 import { cn } from "@/lib/utils";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
@@ -550,7 +550,7 @@ export default function RoutePage() {
 
               {/* Reorder Banner */}
               {hasChanges && (
-                <RouteReorderBanner
+                <ReorderBanner
                   onSave={handleSaveReorder}
                   onCancel={handleCancelReorder}
                   saving={savingReorder}

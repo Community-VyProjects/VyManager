@@ -63,7 +63,7 @@ import { DeleteBridgeRuleModal } from "@/components/firewall/DeleteBridgeRuleMod
 import { CreateCustomBridgeChainModal } from "@/components/firewall/CreateCustomBridgeChainModal";
 import { DeleteCustomBridgeChainModal } from "@/components/firewall/DeleteCustomBridgeChainModal";
 import { BridgeRuleRow } from "@/components/firewall/BridgeRuleRow";
-import { BridgeReorderBanner } from "@/components/firewall/BridgeReorderBanner";
+import { ReorderBanner } from "@/components/ui/reorder-banner";
 
 export default function BridgeFirewallPage() {
   const [config, setConfig] = useState<BridgeConfigResponse | null>(null);
@@ -571,7 +571,7 @@ export default function BridgeFirewallPage() {
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Reorder Banner */}
           {hasChanges && (
-            <BridgeReorderBanner
+            <ReorderBanner
               onSave={handleSaveReorder}
               onCancel={handleCancelReorder}
               saving={savingReorder}

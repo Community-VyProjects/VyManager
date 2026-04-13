@@ -45,7 +45,7 @@ import { AddAccessListRuleModal } from "@/components/policies/AddAccessListRuleM
 import { EditAccessListRuleModal } from "@/components/policies/EditAccessListRuleModal";
 import { DeleteAccessListRuleModal } from "@/components/policies/DeleteAccessListRuleModal";
 import { AccessListRuleRow } from "@/components/policies/AccessListRuleRow";
-import { AccessListReorderBanner } from "@/components/policies/AccessListReorderBanner";
+import { ReorderBanner } from "@/components/ui/reorder-banner";
 
 export default function AccessListPage() {
   const [config, setConfig] = useState<AccessListConfigResponse | null>(null);
@@ -480,7 +480,7 @@ export default function AccessListPage() {
 
               {/* Reorder Banner */}
               {hasChanges && (
-                <AccessListReorderBanner
+                <ReorderBanner
                   onSave={handleSaveReorder}
                   onCancel={handleCancelReorder}
                   saving={savingReorder}
