@@ -156,7 +156,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           <PowerActionBanner powerStatus={bannerEvents.data.powerStatus} />
           <UnsavedChangesBanner configDiff={bannerEvents.data.configDiff} commitConfirm={bannerEvents.data.commitConfirm} />
           <div className="flex-1 min-h-0 overflow-y-auto">
-            {children}
+            <div className="animate-page-enter">
+              {children}
+            </div>
           </div>
         </main>
       </div>
