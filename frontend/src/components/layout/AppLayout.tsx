@@ -81,7 +81,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <SheetContent side="left" className="w-72 p-0">
           <SheetTitle className="sr-only">Navigation</SheetTitle>
-          <Sidebar onNavigate={() => setMobileOpen(false)} />
+          <Sidebar onNavigate={() => setMobileOpen(false)} forceMobile />
         </SheetContent>
       </Sheet>
 

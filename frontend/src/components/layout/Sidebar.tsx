@@ -10,43 +10,41 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { Activity, ChevronDown, HeartPulse, Shield, ShieldCheck, Network, Server, Settings, LayoutDashboard, Route, Lock, LogOut, User, FileText, Building2, Power, PowerOff, Scale } from "lucide-react";
+import { ChevronDown, LogOut, User, Building2, Power, PowerOff, PanelLeftClose, PanelLeft } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useSession, signOut } from "@/lib/auth-client";
 import { useSessionStore } from "@/store/session-store";
+import { useSidebarStore } from "@/store/sidebar-store";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 import { ThemeSelector } from "@/components/ui/theme-selector";
 import { SearchBar } from "@/components/ui/search-bar";
 
-import { navigation } from "@/lib/navigation";
-
-interface NavItem {
-  title: string;
-  href?: string;
-  icon: React.ComponentType<{ className?: string }>;
-  requiredPermission?: FeatureGroup;
-  children?: {
-    title: string;
-    href: string;
-    requiredPermission?: FeatureGroup;
-  }[];
-}
-
-
+import { navigation, NavItem } from "@/lib/navigation";
 
 interface SidebarProps {
   onNavigate?: () => void;
+  forceMobile?: boolean;
 }
 
-export function Sidebar({ onNavigate }: SidebarProps = {}) {
+export function Sidebar({ onNavigate, forceMobile }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [openItems, setOpenItems] = useState<string[]>([]);
   const { data: session } = useSession();
   const { activeSession, loadSession, disconnectFromInstance } = useSessionStore();
+  const { collapsed, toggle } = useSidebarStore();
   const { canRead } = usePermissions();
+
+  // In mobile sheet, always show expanded
+  const isCollapsed = forceMobile ? false : collapsed;
 
   // Load active session on mount
   useEffect(() => {
@@ -54,12 +52,10 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
   }, [loadSession]);
 
   const handleLogout = async () => {
-    // Disconnect from instance before logging out to clean up active_sessions
     if (activeSession) {
       try {
         await disconnectFromInstance();
       } catch (err) {
-        // Continue with logout even if disconnect fails
         console.error("Failed to disconnect from instance:", err);
       }
     }
@@ -89,23 +85,12 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
     );
   };
 
-  /**
-   * Filter navigation items based on user permissions.
-   * Only shows items if:
-   * 1. No permission required, OR
-   * 2. User has READ access to the required feature
-   * 3. Special case: Unicast Protocols shows if user has any routing protocol permission
-   */
   const filterNavigation = (items: NavItem[]): NavItem[] => {
     return items.map((item) => {
-      // Filter children first
       if (item.children) {
         const visibleChildren = item.children.filter((child) => {
-          // If no permission required, always show
           if (!child.requiredPermission) return true;
 
-          // Special case for Unicast Protocols: show if user has UNICAST_PROTOCOLS
-          // OR any individual routing protocol permission
           if (child.requiredPermission === FeatureGroup.UNICAST_PROTOCOLS) {
             return canRead(FeatureGroup.UNICAST_PROTOCOLS) ||
                    canRead(FeatureGroup.BGP) ||
@@ -118,13 +103,10 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
                    canRead(FeatureGroup.BABEL);
           }
 
-          // Special case for Static & Failover: show if user has STATIC_ROUTES OR FAILOVER
           if (child.requiredPermission === FeatureGroup.STATIC_ROUTES) {
             return canRead(FeatureGroup.STATIC_ROUTES) || canRead(FeatureGroup.FAILOVER);
           }
 
-          // Special case for Routing Infrastructure: show if user has ROUTING_INFRASTRUCTURE
-          // OR any individual infrastructure component permission
           if (child.requiredPermission === FeatureGroup.ROUTING_INFRASTRUCTURE) {
             return canRead(FeatureGroup.ROUTING_INFRASTRUCTURE) ||
                    canRead(FeatureGroup.BFD) ||
@@ -134,8 +116,6 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
                    canRead(FeatureGroup.RPKI);
           }
 
-          // Special case for Multicast: show if user has MULTICAST
-          // OR any individual multicast protocol permission
           if (child.requiredPermission === FeatureGroup.MULTICAST) {
             return canRead(FeatureGroup.MULTICAST) ||
                    canRead(FeatureGroup.IGMP_PROXY) ||
@@ -143,7 +123,6 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
                    canRead(FeatureGroup.PIM6);
           }
 
-          // Special cases for Firewall sub-features: show if user has FIREWALL OR the specific permission
           if (child.requiredPermission === FeatureGroup.FIREWALL_POLICIES) {
             return canRead(FeatureGroup.FIREWALL) || canRead(FeatureGroup.FIREWALL_POLICIES);
           }
@@ -163,7 +142,6 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
             return canRead(FeatureGroup.FIREWALL) || canRead(FeatureGroup.FIREWALL_FLOWTABLES);
           }
 
-          // Special cases for Routing Policies: show if user has ROUTING_POLICIES OR the specific permission
           if (child.requiredPermission === FeatureGroup.ACCESS_LIST) {
             return canRead(FeatureGroup.ROUTING_POLICIES) || canRead(FeatureGroup.ACCESS_LIST);
           }
@@ -192,19 +170,13 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
             return canRead(FeatureGroup.ROUTING_POLICIES) || canRead(FeatureGroup.BGP_LARGE_COMMUNITY);
           }
 
-          // If permission required, check if user has READ access
           return canRead(child.requiredPermission);
         });
 
-        // If all children are filtered out, hide the parent
-        if (visibleChildren.length === 0) {
-          return null;
-        }
-
+        if (visibleChildren.length === 0) return null;
         return { ...item, children: visibleChildren };
       }
 
-      // For items without children, check permission requirement
       if (item.requiredPermission && !canRead(item.requiredPermission)) {
         return null;
       }
@@ -216,214 +188,339 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
   const visibleNavigation = filterNavigation(navigation);
 
   return (
-    <div className="flex h-screen w-64 flex-col border-r border-border bg-card">
-      {/* Header */}
-      <div className="flex h-16 items-center border-b border-border px-6 shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center">
-            <Image
-              src="/vy-icon.png"
-              alt="VyOS Logo"
-              width={40}
-              height={40}
-              className="object-contain"
-              loader={({ src }) => src}
-            />
-          </div>
-          <div>
-            <h1 className="text-lg font-semibold text-foreground">VyManager</h1>
-            <p className="text-xs text-muted-foreground">VyOS Management</p>
+    <TooltipProvider delayDuration={0}>
+      <div
+        className={cn(
+          "flex h-screen flex-col border-r border-border bg-card transition-[width] duration-200 ease-in-out",
+          isCollapsed ? "w-16" : "w-64"
+        )}
+      >
+        {/* Header */}
+        <div className={cn(
+          "flex h-14 items-center border-b border-border shrink-0",
+          isCollapsed ? "justify-center px-2" : "px-4"
+        )}>
+          <div className="flex items-center gap-3">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center">
+              <Image
+                src="/vy-icon.png"
+                alt="VyOS Logo"
+                width={32}
+                height={32}
+                className="object-contain"
+                loader={({ src }) => src}
+              />
+            </div>
+            {!isCollapsed && (
+              <div>
+                <h1 className="text-sm font-semibold text-foreground">VyManager</h1>
+              </div>
+            )}
           </div>
         </div>
-      </div>
 
-      {/* Search */}
-      <div className="px-3 pt-3 pb-1 shrink-0">
-        <SearchBar />
-      </div>
-
-      {/* Navigation */}
-      <ScrollArea className="flex-1 px-3 py-4 min-h-0">
-        <nav className="space-y-1">
-          {visibleNavigation.map((item) => {
-            const Icon = item.icon;
-            const isActive = pathname === item.href ||
-              item.children?.some(child => pathname === child.href);
-
-            if (item.children) {
-              const isOpen = openItems.includes(item.title);
-              return (
-                <Collapsible
-                  key={item.title}
-                  open={isOpen}
-                  onOpenChange={() => toggleItem(item.title)}
-                >
-                  <CollapsibleTrigger className="group flex w-full items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground">
-                    <div className="flex items-center gap-3">
-                      <Icon className={cn(
-                        "h-4 w-4",
-                        isActive ? "text-primary" : "text-muted-foreground"
-                      )} />
-                      <span className={cn(
-                        isActive ? "text-foreground" : "text-muted-foreground"
-                      )}>{item.title}</span>
-                    </div>
-                    <ChevronDown
-                      className={cn(
-                        "h-4 w-4 text-muted-foreground transition-transform",
-                        isOpen && "rotate-180"
-                      )}
-                    />
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="mt-1 space-y-1 pl-4">
-                    {item.children.map((child) => {
-                      const isChildActive = pathname === child.href;
-                      return (
-                        <Link
-                          key={child.href}
-                          href={child.href}
-                          onClick={onNavigate}
-                          className={cn(
-                            "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
-                            isChildActive
-                              ? "bg-accent text-accent-foreground font-medium"
-                              : "text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground"
-                          )}
-                        >
-                          <span className={cn(
-                            "h-1.5 w-1.5 rounded-full",
-                            isChildActive ? "bg-primary" : "bg-muted-foreground/40"
-                          )} />
-                          {child.title}
-                        </Link>
-                      );
-                    })}
-                  </CollapsibleContent>
-                </Collapsible>
-              );
-            }
-
-            return (
-              <Link
-                key={item.title}
-                href={item.href!}
-                onClick={onNavigate}
-                className={cn(
-                  "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                  isActive
-                    ? "bg-accent text-accent-foreground"
-                    : "text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground"
-                )}
-              >
-                <Icon className={cn(
-                  "h-4 w-4",
-                  isActive ? "text-primary" : "text-muted-foreground"
-                )} />
-                {item.title}
-              </Link>
-            );
-          })}
-        </nav>
-      </ScrollArea>
-
-      {/* Footer */}
-      <div className="border-t border-border p-4 space-y-3 shrink-0">
-        {/* Theme Selector */}
-        <div className="space-y-2">
-          <ThemeSelector />
-        </div>
-
-        {/* Active Instance Indicator */}
-        {activeSession ? (
-          <div className="space-y-2">
-            <div className="rounded-lg bg-primary/10 border border-primary/20 p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20">
-                  <Building2 className="h-4 w-4 text-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-primary truncate">
-                    {activeSession.instance_name}
-                  </p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {activeSession.site_name}
-                  </p>
-                </div>
-                <div
-                  className="h-2 w-2 rounded-full bg-green-500 animate-pulse"
-                  title="Connected"
-                />
-              </div>
-              <Button
-                onClick={async () => {
-                  await disconnectFromInstance();
-                  router.push("/sites");
-                }}
-                variant="outline"
-                size="sm"
-                className="w-full justify-center gap-2 text-xs"
-              >
-                <PowerOff className="h-3 w-3" />
-                Disconnect Instance
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            <div className="rounded-lg bg-muted/50 border border-border p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
-                  <Building2 className="h-4 w-4 text-muted-foreground" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-muted-foreground">
-                    No Instance
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Not connected
-                  </p>
-                </div>
-                <div
-                  className="h-2 w-2 rounded-full bg-gray-500"
-                  title="Disconnected"
-                />
-              </div>
-              <Button
-                onClick={() => router.push("/sites")}
-                variant="default"
-                size="sm"
-                className="w-full justify-center gap-2 text-xs"
-              >
-                <Power className="h-3 w-3" />
-                Connect to Instance
-              </Button>
-            </div>
+        {/* Search — hidden when collapsed */}
+        {!isCollapsed && (
+          <div className="px-3 pt-3 pb-1 shrink-0">
+            <SearchBar />
           </div>
         )}
 
-        {/* User Info & Logout */}
-        <div className="rounded-lg bg-muted/50 p-3">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
-              <User className="h-4 w-4 text-primary" />
+        {/* Navigation */}
+        <ScrollArea className="flex-1 px-2 py-3 min-h-0">
+          <nav className="space-y-1">
+            {visibleNavigation.map((item) => {
+              const Icon = item.icon;
+              const isActive = pathname === item.href ||
+                item.children?.some(child => pathname === child.href);
+
+              if (item.children) {
+                const isOpen = openItems.includes(item.title);
+
+                if (isCollapsed) {
+                  // Collapsed: show parent icon with tooltip, link to first child
+                  const firstChild = item.children[0];
+                  return (
+                    <Tooltip key={item.title}>
+                      <TooltipTrigger asChild>
+                        <Link
+                          href={firstChild?.href || "#"}
+                          onClick={onNavigate}
+                          className={cn(
+                            "flex h-9 w-full items-center justify-center rounded-md transition-colors",
+                            isActive
+                              ? "bg-primary/10 text-primary"
+                              : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                          )}
+                        >
+                          <Icon className="h-4 w-4 shrink-0" />
+                        </Link>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" sideOffset={8}>
+                        {item.title}
+                      </TooltipContent>
+                    </Tooltip>
+                  );
+                }
+
+                return (
+                  <Collapsible
+                    key={item.title}
+                    open={isOpen}
+                    onOpenChange={() => toggleItem(item.title)}
+                  >
+                    <CollapsibleTrigger className="group flex w-full items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground">
+                      <div className="flex items-center gap-3">
+                        <Icon className={cn(
+                          "h-4 w-4 shrink-0",
+                          isActive ? "text-primary" : "text-muted-foreground"
+                        )} />
+                        <span className={cn(
+                          isActive ? "text-foreground" : "text-muted-foreground"
+                        )}>{item.title}</span>
+                      </div>
+                      <ChevronDown
+                        className={cn(
+                          "h-4 w-4 text-muted-foreground transition-transform duration-200",
+                          isOpen && "rotate-180"
+                        )}
+                      />
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="mt-1 space-y-1 pl-4">
+                      {item.children.map((child) => {
+                        const isChildActive = pathname === child.href;
+                        return (
+                          <Link
+                            key={child.href}
+                            href={child.href}
+                            onClick={onNavigate}
+                            className={cn(
+                              "flex items-center gap-3 rounded-md px-3 py-1.5 text-sm transition-colors",
+                              isChildActive
+                                ? "bg-primary/10 text-primary font-medium"
+                                : "text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground"
+                            )}
+                          >
+                            <span className={cn(
+                              "h-1.5 w-1.5 rounded-full shrink-0",
+                              isChildActive ? "bg-primary" : "bg-muted-foreground/40"
+                            )} />
+                            {child.title}
+                          </Link>
+                        );
+                      })}
+                    </CollapsibleContent>
+                  </Collapsible>
+                );
+              }
+
+              // Single nav item (no children)
+              if (isCollapsed) {
+                return (
+                  <Tooltip key={item.title}>
+                    <TooltipTrigger asChild>
+                      <Link
+                        href={item.href!}
+                        onClick={onNavigate}
+                        className={cn(
+                          "flex h-9 w-full items-center justify-center rounded-md transition-colors",
+                          isActive
+                            ? "bg-primary/10 text-primary"
+                            : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                        )}
+                      >
+                        <Icon className="h-4 w-4 shrink-0" />
+                      </Link>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" sideOffset={8}>
+                      {item.title}
+                    </TooltipContent>
+                  </Tooltip>
+                );
+              }
+
+              return (
+                <Link
+                  key={item.title}
+                  href={item.href!}
+                  onClick={onNavigate}
+                  className={cn(
+                    "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                    isActive
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground"
+                  )}
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                  {item.title}
+                </Link>
+              );
+            })}
+          </nav>
+        </ScrollArea>
+
+        {/* Footer */}
+        <div className={cn(
+          "border-t border-border shrink-0",
+          isCollapsed ? "p-2 space-y-2" : "p-3 space-y-2"
+        )}>
+          {/* Theme Selector — hidden when collapsed */}
+          {!isCollapsed && (
+            <ThemeSelector />
+          )}
+
+          {/* Active Instance Indicator */}
+          {activeSession ? (
+            isCollapsed ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex h-9 items-center justify-center">
+                    <div className="relative">
+                      <Building2 className="h-4 w-4 text-primary" />
+                      <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-green-500" />
+                    </div>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="right" sideOffset={8}>
+                  <div>
+                    <p className="font-medium">{activeSession.instance_name}</p>
+                    <p className="text-xs text-muted-foreground">{activeSession.site_name}</p>
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            ) : (
+              <div className="rounded-lg bg-primary/5 border border-primary/10 p-2.5">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                    <Building2 className="h-3.5 w-3.5 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-foreground truncate">
+                      {activeSession.instance_name}
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {activeSession.site_name}
+                    </p>
+                  </div>
+                  <span className="h-2 w-2 shrink-0 rounded-full bg-green-500" title="Connected" />
+                </div>
+                <Button
+                  onClick={async () => {
+                    await disconnectFromInstance();
+                    router.push("/sites");
+                  }}
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-center gap-1.5 text-xs h-7"
+                >
+                  <PowerOff className="h-3 w-3" />
+                  Disconnect
+                </Button>
+              </div>
+            )
+          ) : (
+            isCollapsed ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => router.push("/sites")}
+                    className="flex h-9 w-full items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+                  >
+                    <Building2 className="h-4 w-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right" sideOffset={8}>
+                  Connect to Instance
+                </TooltipContent>
+              </Tooltip>
+            ) : (
+              <div className="rounded-lg bg-muted/50 border border-border p-2.5">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted">
+                    <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-muted-foreground">No Instance</p>
+                  </div>
+                  <span className="h-2 w-2 shrink-0 rounded-full bg-muted-foreground/40" title="Disconnected" />
+                </div>
+                <Button
+                  onClick={() => router.push("/sites")}
+                  variant="default"
+                  size="sm"
+                  className="w-full justify-center gap-1.5 text-xs h-7"
+                >
+                  <Power className="h-3 w-3" />
+                  Connect
+                </Button>
+              </div>
+            )
+          )}
+
+          {/* User Info & Logout */}
+          {isCollapsed ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={handleLogout}
+                  className="flex h-9 w-full items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+                >
+                  <User className="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right" sideOffset={8}>
+                <div>
+                  <p className="font-medium">{session?.user?.name || session?.user?.email || "User"}</p>
+                  <p className="text-xs text-muted-foreground">Click to log out</p>
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            <div className="rounded-lg bg-muted/50 p-2.5">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                  <User className="h-3.5 w-3.5 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-foreground truncate">
+                    {session?.user?.name || session?.user?.email || "User"}
+                  </p>
+                </div>
+              </div>
+              <Button
+                onClick={handleLogout}
+                variant="outline"
+                size="sm"
+                className="w-full justify-center gap-1.5 text-xs h-7"
+              >
+                <LogOut className="h-3 w-3" />
+                Logout
+              </Button>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-foreground truncate">
-                {session?.user?.name || session?.user?.email || "User"}
-              </p>
-            </div>
-          </div>
-          <Button
-            onClick={handleLogout}
-            variant="outline"
-            className="w-full justify-center gap-2 text-xs"
-            size="sm"
-          >
-            <LogOut className="h-3 w-3" />
-            Logout
-          </Button>
+          )}
+
+          {/* Collapse toggle — only on desktop */}
+          {!forceMobile && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={toggle}
+                  className="flex h-8 w-full items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+                >
+                  {isCollapsed ? (
+                    <PanelLeft className="h-4 w-4" />
+                  ) : (
+                    <PanelLeftClose className="h-4 w-4" />
+                  )}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right" sideOffset={8}>
+                {isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              </TooltipContent>
+            </Tooltip>
+          )}
         </div>
       </div>
-    </div>
+    </TooltipProvider>
   );
 }
