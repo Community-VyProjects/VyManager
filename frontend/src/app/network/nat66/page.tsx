@@ -43,7 +43,6 @@ import {
   TooltipContent,
   TooltipProvider,
 } from "@/components/ui/tooltip";
-import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { NAT66RuleDialog } from "@/components/network/NAT66RuleDialog";
 import { NAT66DeleteDialog } from "@/components/network/NAT66DeleteDialog";
 import { usePermissions } from "@/hooks/usePermissions";
