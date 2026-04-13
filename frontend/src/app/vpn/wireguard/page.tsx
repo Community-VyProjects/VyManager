@@ -252,9 +252,9 @@ export default function WireGuardPage() {
 
   return (
     <AppLayout>
-      <div className="flex h-full overflow-hidden">
-        {/* Left Sidebar - Interface List */}
-        <div className="w-72 border-r border-border bg-card/50 flex flex-col">
+      <div className="flex flex-col lg:flex-row h-full overflow-hidden">
+        {/* Left Sidebar - Interface List (hidden on mobile) */}
+        <div className="hidden lg:flex w-72 border-r border-border bg-card/50 flex-col">
           {/* Header */}
           <div className="p-4 border-b border-border">
             <div className="flex items-center justify-between mb-3">
@@ -385,6 +385,78 @@ export default function WireGuardPage() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Mobile Selector Strip */}
+        <div className="lg:hidden border-b border-border bg-card px-4 py-3">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Shield className="h-5 w-5 text-primary" />
+              <h2 className="text-sm font-semibold text-foreground">WireGuard</h2>
+            </div>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setShowQuickSetup(true)}
+                title="Quick Setup Wizard"
+              >
+                <Wand2 className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setShowCreateInterface(true)}
+                title="New Tunnel"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => fetchConfig(true)}
+                disabled={loading}
+                title="Refresh"
+              >
+                <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+              </Button>
+            </div>
+          </div>
+          {config?.interfaces.length ? (
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {config.interfaces.map((iface) => {
+                const isSelected = selectedInterface === iface.name;
+                return (
+                  <button
+                    key={iface.name}
+                    className={cn(
+                      "flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all",
+                      isSelected
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground hover:bg-accent",
+                      iface.disabled && "opacity-60"
+                    )}
+                    onClick={() => setSelectedInterface(iface.name)}
+                  >
+                    {iface.name}
+                    {iface.peer_count > 0 && (
+                      <span className={cn(
+                        "ml-1.5",
+                        isSelected ? "text-primary-foreground/70" : "text-muted-foreground/70"
+                      )}>
+                        ({iface.peer_count})
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">No tunnels configured</p>
+          )}
         </div>
 
         {/* Main Content Area */}

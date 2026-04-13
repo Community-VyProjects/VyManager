@@ -624,9 +624,105 @@ export default function FirewallPoliciesPage() {
 
   return (
     <AppLayout>
-      <div className="flex h-full">
+      <div className="flex flex-col lg:flex-row h-full">
+        {/* Mobile Chain Selector */}
+        <div className="lg:hidden border-b border-border bg-card px-4 py-3">
+          <div className="flex items-center gap-2 mb-2">
+            <Shield className="h-5 w-5 text-primary" />
+            <h2 className="text-sm font-semibold text-foreground">Firewall Policies</h2>
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {/* Protocol pills */}
+            <button
+              onClick={() => setSelectedProtocol("ipv4")}
+              className={cn(
+                "flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all",
+                selectedProtocol === "ipv4"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:bg-accent"
+              )}
+            >
+              IPv4
+            </button>
+            <button
+              onClick={() => setSelectedProtocol("ipv6")}
+              className={cn(
+                "flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all",
+                selectedProtocol === "ipv6"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:bg-accent"
+              )}
+            >
+              IPv6
+            </button>
+            <div className="w-px bg-border flex-shrink-0" />
+            {/* Base chain pills */}
+            <button
+              onClick={() => handleChainSelect("forward", false)}
+              className={cn(
+                "flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all",
+                (selectedProtocol === "ipv4" ? selectedChain === "forward" && !isCustomChain : selectedChainIPv6 === "forward" && !isCustomChainIPv6)
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:bg-accent"
+              )}
+            >
+              Forward
+            </button>
+            <button
+              onClick={() => handleChainSelect("input", false)}
+              className={cn(
+                "flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all",
+                (selectedProtocol === "ipv4" ? selectedChain === "input" && !isCustomChain : selectedChainIPv6 === "input" && !isCustomChainIPv6)
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:bg-accent"
+              )}
+            >
+              Input
+            </button>
+            <button
+              onClick={() => handleChainSelect("output", false)}
+              className={cn(
+                "flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all",
+                (selectedProtocol === "ipv4" ? selectedChain === "output" && !isCustomChain : selectedChainIPv6 === "output" && !isCustomChainIPv6)
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:bg-accent"
+              )}
+            >
+              Output
+            </button>
+            {selectedProtocol === "ipv4" && capabilities?.features.prerouting_raw?.supported && (
+              <button
+                onClick={() => handleChainSelect("prerouting_raw", false)}
+                className={cn(
+                  "flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all",
+                  selectedChain === "prerouting_raw" && !isCustomChain
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground hover:bg-accent"
+                )}
+              >
+                Prerouting Raw
+              </button>
+            )}
+            {/* Custom chain pills */}
+            {(selectedProtocol === "ipv4" ? customChains : customChainsIPv6).map((chain) => (
+              <button
+                key={chain.name}
+                onClick={() => handleChainSelect(chain.name, true)}
+                className={cn(
+                  "flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all",
+                  (selectedProtocol === "ipv4" ? selectedChain === chain.name && isCustomChain : selectedChainIPv6 === chain.name && isCustomChainIPv6)
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground hover:bg-accent"
+                )}
+              >
+                {chain.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Sidebar */}
-        <div className="w-72 border-r border-border bg-card/50 flex flex-col h-full">
+        <div className="w-72 border-r border-border bg-card/50 hidden lg:flex flex-col h-full">
           <div className="p-4 sm:p-6 pb-4">
             <div className="flex items-center gap-3 mb-6">
               <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">

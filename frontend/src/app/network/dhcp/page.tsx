@@ -322,9 +322,9 @@ export default function DHCPPage() {
 
   return (
     <AppLayout>
-      <div className="flex h-full overflow-hidden">
+      <div className="flex flex-col lg:flex-row h-full overflow-hidden">
         {/* Sidebar */}
-        <div className="w-72 border-r border-border bg-card/50 flex flex-col">
+        <div className="w-72 border-r border-border bg-card/50 hidden lg:flex flex-col">
           {/* Sidebar Header */}
           <div className="p-4 border-b border-border">
             <div className="flex items-center justify-between mb-3">
@@ -425,6 +425,58 @@ export default function DHCPPage() {
                 <span className="font-medium">{totalStatic}</span>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Mobile Network Selector */}
+        <div className="lg:hidden border-b border-border bg-card px-4 py-3">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-foreground">DHCP Servers</h2>
+            </div>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => {
+                  fetchConfig(true);
+                  fetchLeases();
+                }}
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => setCreateModalOpen(true)}
+              >
+                <Plus className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {config?.shared_networks.map((network) => {
+              const isSelected = selectedNetwork === network.name;
+              return (
+                <button
+                  key={network.name}
+                  className={cn(
+                    "flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all",
+                    isSelected
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground hover:bg-accent"
+                  )}
+                  onClick={() => setSelectedNetwork(network.name)}
+                >
+                  {network.name}
+                </button>
+              );
+            })}
+            {(!config?.shared_networks || config.shared_networks.length === 0) && (
+              <span className="text-xs text-muted-foreground py-1.5">No DHCP servers configured</span>
+            )}
           </div>
         </div>
 

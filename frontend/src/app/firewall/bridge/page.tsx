@@ -339,9 +339,83 @@ export default function BridgeFirewallPage() {
 
   return (
     <AppLayout>
-      <div className="flex h-full">
+      <div className="flex flex-col lg:flex-row h-full">
+        {/* Mobile Chain Selector */}
+        <div className="lg:hidden border-b border-border bg-card px-4 py-3">
+          <div className="flex items-center gap-2 mb-2">
+            <Network className="h-5 w-5 text-primary" />
+            <h2 className="text-sm font-semibold text-foreground">Bridge Firewall</h2>
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {/* Base chain pills */}
+            <button
+              onClick={() => handleChainSelect("forward", false)}
+              className={cn(
+                "flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all",
+                selectedChain === "forward" && !isCustomChain
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:bg-accent"
+              )}
+            >
+              Forward
+            </button>
+            {isV15 && (
+              <>
+                <button
+                  onClick={() => handleChainSelect("input", false)}
+                  className={cn(
+                    "flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all",
+                    selectedChain === "input" && !isCustomChain
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground hover:bg-accent"
+                  )}
+                >
+                  Input
+                </button>
+                <button
+                  onClick={() => handleChainSelect("output", false)}
+                  className={cn(
+                    "flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all",
+                    selectedChain === "output" && !isCustomChain
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground hover:bg-accent"
+                  )}
+                >
+                  Output
+                </button>
+                <button
+                  onClick={() => handleChainSelect("prerouting", false)}
+                  className={cn(
+                    "flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all",
+                    selectedChain === "prerouting" && !isCustomChain
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground hover:bg-accent"
+                  )}
+                >
+                  Prerouting
+                </button>
+              </>
+            )}
+            {/* Custom chain pills */}
+            {customChains.map((chain) => (
+              <button
+                key={chain.name}
+                onClick={() => handleChainSelect(chain.name, true)}
+                className={cn(
+                  "flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all",
+                  selectedChain === chain.name && isCustomChain
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground hover:bg-accent"
+                )}
+              >
+                {chain.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Sidebar */}
-        <div className="w-72 border-r border-border bg-card/50 flex flex-col h-full">
+        <div className="w-72 border-r border-border bg-card/50 hidden lg:flex flex-col h-full">
           <div className="p-6 pb-4">
             <div className="flex items-center gap-3 mb-6">
               <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
