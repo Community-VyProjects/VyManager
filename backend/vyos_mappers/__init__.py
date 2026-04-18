@@ -90,6 +90,8 @@ from .nhrp import NhrpMapper
 from .nhrp.nhrp_versions import get_nhrp_mapper
 from .pim import PimMapper
 from .pim.pim_versions import get_pim_mapper
+from .pim6 import Pim6Mapper
+from .pim6.pim6_versions import get_pim6_mapper
 
 # Auto-register all mappers
 # Ethernet uses factory for version-specific mappers
@@ -202,6 +204,8 @@ CommandMapperRegistry.register_feature("vxlan", get_vxlan_mapper)
 CommandMapperRegistry.register_feature("nhrp", get_nhrp_mapper)
 # PIM uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("pim", get_pim_mapper)
+# PIMv6 uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("pim6", get_pim6_mapper)
 
 __all__ = [
     "BaseFeatureMapper",
@@ -256,6 +260,7 @@ __all__ = [
     "VxlanMapper",
     "NhrpMapper",
     "PimMapper",
+    "Pim6Mapper",
     "BondingInterfaceMapper",
     "BridgeInterfaceMapper",
     "GeneveInterfaceMapper",
