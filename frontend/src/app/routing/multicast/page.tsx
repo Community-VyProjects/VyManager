@@ -4,6 +4,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { InProgress } from "@/components/layout/InProgress";
 import { IgmpProxyContent } from "@/components/igmp-proxy/IgmpProxyContent";
 import { PimContent } from "@/components/pim/PimContent";
+import { Pim6Content } from "@/components/pim6/Pim6Content";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Radio, ChevronRight, Wifi } from "lucide-react";
@@ -123,6 +124,8 @@ export default function MulticastPage() {
             <IgmpProxyContent />
           ) : selectedMulticast === "pim" ? (
             <PimContent />
+          ) : selectedMulticast === "pim6" ? (
+            <Pim6Content />
           ) : (
             <InProgress />
           )}

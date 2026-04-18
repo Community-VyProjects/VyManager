@@ -87,16 +87,24 @@ class Pim6BatchBuilder:
     def delete_rp_address(self, address: str) -> "Pim6BatchBuilder":
         return self.add_delete(self.m.get_rp_address_delete(address))
 
-    def set_rp_address_group(self, address: str, group: str) -> "Pim6BatchBuilder":
+    def set_rp_address_group(self, value: str) -> "Pim6BatchBuilder":
+        """Value is encoded as 'address,group' (comma-separated)."""
+        address, group = value.split(",", 1)
         return self.add_set(self.m.get_rp_address_group(address, group))
 
-    def delete_rp_address_group(self, address: str, group: str) -> "Pim6BatchBuilder":
+    def delete_rp_address_group(self, value: str) -> "Pim6BatchBuilder":
+        """Value is encoded as 'address,group' (comma-separated)."""
+        address, group = value.split(",", 1)
         return self.add_delete(self.m.get_rp_address_group_delete(address, group))
 
-    def set_rp_address_prefix_list6(self, address: str, value: str) -> "Pim6BatchBuilder":
-        return self.add_set(self.m.get_rp_address_prefix_list6(address, value))
+    def set_rp_address_prefix_list6(self, value: str) -> "Pim6BatchBuilder":
+        """Value is encoded as 'address,listname' (comma-separated)."""
+        address, listname = value.split(",", 1)
+        return self.add_set(self.m.get_rp_address_prefix_list6(address, listname))
 
-    def delete_rp_address_prefix_list6(self, address: str) -> "Pim6BatchBuilder":
+    def delete_rp_address_prefix_list6(self, value: str) -> "Pim6BatchBuilder":
+        """Value is the RP address (optionally with trailing ',listname' which is ignored — the delete removes the whole prefix-list6 binding)."""
+        address = value.split(",", 1)[0]
         return self.add_delete(self.m.get_rp_address_prefix_list6_delete(address))
 
     def set_rp_keep_alive_timer(self, value: str) -> "Pim6BatchBuilder":
