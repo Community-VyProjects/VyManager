@@ -10,11 +10,6 @@ No version differences between VyOS 1.4 and 1.5.
 from typing import List, Dict, Any
 from vyos_mappers import CommandMapperRegistry
 
-_INTERNAL_BUILDER_METHODS = frozenset({
-    "add_set", "add_delete", "get_operations", "is_empty",
-    "get_capabilities",
-})
-
 
 class Pim6BatchBuilder:
     """Complete batch builder for PIMv6 operations."""
