@@ -13,7 +13,7 @@ from fastapi_permissions import get_user_feature_permissions
 
 # Import routers
 from routers.session import session as session_router
-from routers.interfaces import ethernet, dummy, bonding, bridge, geneve, input, l2tpv3, loopback, macsec
+from routers.interfaces import ethernet, dummy, bonding, bridge, geneve, input, l2tpv3, loopback, macsec, openvpn
 from routers.firewall import groups
 from routers.firewall import ipv4 as firewall_ipv4
 from routers.firewall import ipv6 as firewall_ipv6
@@ -289,6 +289,7 @@ app.include_router(input.router)
 app.include_router(l2tpv3.router)
 app.include_router(loopback.router)
 app.include_router(macsec.router)
+app.include_router(openvpn.router)
 app.include_router(groups.router)
 app.include_router(firewall_ipv4.router)
 app.include_router(firewall_ipv6.router)
@@ -360,6 +361,7 @@ async def read_root() -> dict:
             "ethernet-interface",
             "dummy-interface",
             "loopback-interface",
+            "openvpn-interface",
             "firewall-groups",
             "firewall-ipv4",
             "firewall-ipv6",
