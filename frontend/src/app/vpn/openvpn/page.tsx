@@ -30,7 +30,6 @@ import {
   AlertCircle,
   Server,
   Users,
-  Globe,
   ArrowLeftRight,
   Pencil,
   Trash2,
@@ -441,7 +440,7 @@ export default function OpenvpnPage() {
       {/* Edit Modal */}
       {hasWrite && editingInterface && (
         <EditOpenvpnModal
-          open={editingInterface !== null}
+          open={true}
           onOpenChange={(open) => !open && setEditingInterface(null)}
           onSuccess={handleSuccess}
           capabilities={capabilities}
@@ -452,7 +451,7 @@ export default function OpenvpnPage() {
       {/* Delete Modal */}
       {hasWrite && deletingInterface && (
         <DeleteOpenvpnModal
-          open={deletingInterface !== null}
+          open={true}
           onOpenChange={(open) => !open && setDeletingInterface(null)}
           onSuccess={handleSuccess}
           interfaceData={deletingInterface}
