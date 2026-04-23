@@ -253,7 +253,7 @@ class OpenvpnInterfacesConfigResponse(BaseModel):
 @router.get("/capabilities")
 async def get_capabilities(request: Request) -> Dict[str, Any]:
     """Return version-aware feature capabilities for OpenVPN interfaces."""
-    await require_read_permission(request, FeatureGroup.INTERFACES)
+    await require_read_permission(request, FeatureGroup.OPENVPN)
     service = get_session_vyos_service(request)
     from vyos_builders.interfaces.openvpn import OpenvpnInterfaceBuilderMixin
     builder = OpenvpnInterfaceBuilderMixin(version=service.get_version())
@@ -263,7 +263,7 @@ async def get_capabilities(request: Request) -> Dict[str, Any]:
 @router.get("/config", response_model=OpenvpnInterfacesConfigResponse)
 async def get_config(http_request: Request, refresh: bool = False) -> OpenvpnInterfacesConfigResponse:
     """Get all OpenVPN interface configurations from VyOS."""
-    await require_read_permission(http_request, FeatureGroup.INTERFACES)
+    await require_read_permission(http_request, FeatureGroup.OPENVPN)
     try:
         service = get_session_vyos_service(http_request)
         full_config = await run_in_threadpool(service.get_full_config, refresh)
@@ -287,7 +287,7 @@ async def batch_configure(http_request: Request, request: BatchRequest) -> VyOSR
     the interface name + one value, encode extras in `value` using colon-separated
     components (e.g., `address:mask`, `client:ip`, `client:route`, `route:metric`).
     """
-    await require_write_permission(http_request, FeatureGroup.INTERFACES)
+    await require_write_permission(http_request, FeatureGroup.OPENVPN)
 
     try:
         service = get_session_vyos_service(http_request)

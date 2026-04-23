@@ -192,7 +192,7 @@ class VyOSResponse(BaseModel):
 
 
 @router.get("/capabilities")
-async def get_route_map_capabilities(request: Request):
+async def get_route_map_capabilities(http_request: Request):
     """
     Get feature capabilities based on device VyOS version.
 
@@ -200,7 +200,7 @@ async def get_route_map_capabilities(request: Request):
     Allows frontends to conditionally enable/disable features.
     """
     # Check RBAC permission
-    await require_read_permission(request, FeatureGroup.ROUTE_MAP)
+    await require_read_permission(http_request, FeatureGroup.ROUTE_MAP)
 
     try:
         service = get_session_vyos_service(http_request)
@@ -209,9 +209,9 @@ async def get_route_map_capabilities(request: Request):
         capabilities = builder.get_capabilities()
 
         # Add instance info
-        if hasattr(request.state, "instance") and request.state.instance:
-            capabilities["instance_name"] = request.state.instance.get("name")
-            capabilities["instance_id"] = request.state.instance.get("id")
+        if hasattr(http_request.state, "instance") and http_request.state.instance:
+            capabilities["instance_name"] = http_request.state.instance.get("name")
+            capabilities["instance_id"] = http_request.state.instance.get("id")
         return capabilities
     except Exception as e:
         logger.exception("Unhandled error")
