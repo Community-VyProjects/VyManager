@@ -14,6 +14,7 @@ from .l2tpv3 import L2TPv3InterfaceBuilderMixin
 from .loopback import LoopbackInterfaceBuilderMixin
 from .macsec import MacsecInterfaceBuilderMixin
 from .openvpn import OpenvpnInterfaceBuilderMixin
+from .pppoe import PppoeInterfaceBuilderMixin
 
 __all__ = [
     "EthernetInterfaceBuilderMixin",
@@ -26,4 +27,5 @@ __all__ = [
     "LoopbackInterfaceBuilderMixin",
     "MacsecInterfaceBuilderMixin",
     "OpenvpnInterfaceBuilderMixin",
+    "PppoeInterfaceBuilderMixin",
 ]
