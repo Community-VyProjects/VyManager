@@ -23,6 +23,7 @@ from vyos_builders import (
     L2TPv3BatchBuilder,
     LoopbackBatchBuilder,
     MacsecBatchBuilder,
+    OpenvpnBatchBuilder,
     FirewallGroupsBatchBuilder,
     NATBatchBuilder,
     DHCPBatchBuilder,
@@ -138,6 +139,14 @@ class VyOSService:
         """
         return MacsecBatchBuilder(self.config.version)
 
+    def create_openvpn_batch(self) -> OpenvpnBatchBuilder:
+        """
+        Create a batch builder for OpenVPN interfaces.
+
+        The builder automatically uses correct command syntax based on version.
+        """
+        return OpenvpnBatchBuilder(self.config.version)
+
     def create_bonding_batch(self) -> BondingBatchBuilder:
         """
         Create a batch builder for bonding interfaces.
@@ -180,6 +189,9 @@ class VyOSService:
             DHCPBatchBuilder,
             WireGuardBatchBuilder,
             SystemPerformanceBatchBuilder,
+            LoopbackBatchBuilder,
+            MacsecBatchBuilder,
+            OpenvpnBatchBuilder,
         ],
     ) -> ApiResponse:
         """Execute a batch of operations using configure_multiple_op.

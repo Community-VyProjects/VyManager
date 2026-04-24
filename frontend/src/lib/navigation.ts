@@ -74,8 +74,9 @@ export const navigation: NavItem[] = [
     icon: Lock,
     children: [
       { title: "IPsec", href: "/vpn/ipsec", requiredPermission: FeatureGroup.IPSEC },
-      { title: "WireGuard", href: "/vpn/wireguard", requiredPermission: FeatureGroup.WIREGUARD },
       { title: "L2TP", href: "/vpn/l2tp", requiredPermission: FeatureGroup.L2TP },
+      { title: "OpenVPN", href: "/vpn/openvpn", requiredPermission: FeatureGroup.OPENVPN },
+      { title: "WireGuard", href: "/vpn/wireguard", requiredPermission: FeatureGroup.WIREGUARD },
     ],
   },
   { title: "Load Balancing", icon: Scale, requiredPermission: FeatureGroup.LOAD_BALANCING, children: [

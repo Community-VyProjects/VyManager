@@ -130,6 +130,7 @@ export enum FeatureGroup {
   IPSEC = "IPSEC",
   WIREGUARD = "WIREGUARD",
   L2TP = "L2TP",
+  OPENVPN = "OPENVPN",
 
   // PKI
   PKI = "PKI",
@@ -368,6 +369,7 @@ class UserManagementService {
       [FeatureGroup.NAT]: "NAT",
       [FeatureGroup.DHCP]: "DHCP",
       [FeatureGroup.INTERFACES]: "Interfaces",
+      [FeatureGroup.OPENVPN]: "OpenVPN",
     };
     return displayNames[feature] || feature;
   }

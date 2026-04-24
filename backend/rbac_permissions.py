@@ -51,6 +51,7 @@ class FeatureGroup(str, Enum):
     IPSEC = "IPSEC"
     WIREGUARD = "WIREGUARD"
     L2TP = "L2TP"
+    OPENVPN = "OPENVPN"
 
     # PKI
     PKI = "PKI"
@@ -148,6 +149,7 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.IPSEC: PermissionLevel.WRITE,
         FeatureGroup.WIREGUARD: PermissionLevel.WRITE,
         FeatureGroup.L2TP: PermissionLevel.WRITE,
+        FeatureGroup.OPENVPN: PermissionLevel.WRITE,
         FeatureGroup.PKI: PermissionLevel.WRITE,
         FeatureGroup.ROUTING: PermissionLevel.WRITE,
         FeatureGroup.UNICAST_PROTOCOLS: PermissionLevel.WRITE,
@@ -213,6 +215,7 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.IPSEC: PermissionLevel.WRITE,
         FeatureGroup.WIREGUARD: PermissionLevel.WRITE,
         FeatureGroup.L2TP: PermissionLevel.WRITE,
+        FeatureGroup.OPENVPN: PermissionLevel.WRITE,
         FeatureGroup.PKI: PermissionLevel.WRITE,
         FeatureGroup.ROUTING: PermissionLevel.WRITE,
         FeatureGroup.UNICAST_PROTOCOLS: PermissionLevel.WRITE,
@@ -279,6 +282,7 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.IPSEC: PermissionLevel.READ,
         FeatureGroup.WIREGUARD: PermissionLevel.READ,
         FeatureGroup.L2TP: PermissionLevel.READ,
+        FeatureGroup.OPENVPN: PermissionLevel.READ,
         FeatureGroup.PKI: PermissionLevel.READ,
         FeatureGroup.ROUTING: PermissionLevel.READ,
         FeatureGroup.UNICAST_PROTOCOLS: PermissionLevel.READ,
@@ -384,6 +388,7 @@ async def get_user_permissions(
                 FeatureGroup.IPSEC,
                 FeatureGroup.WIREGUARD,
                 FeatureGroup.L2TP,
+                FeatureGroup.OPENVPN,
                 FeatureGroup.PKI,
                 FeatureGroup.VXLAN,
                 FeatureGroup.ROUTING,
@@ -468,6 +473,7 @@ async def get_user_permissions(
                 FeatureGroup.IPSEC,
                 FeatureGroup.WIREGUARD,
                 FeatureGroup.L2TP,
+                FeatureGroup.OPENVPN,
                 FeatureGroup.PKI,
                 FeatureGroup.VXLAN,
                 FeatureGroup.ROUTING,  # Added for three-level hierarchy
@@ -812,6 +818,7 @@ def _apply_parent_child_permissions(permissions: Dict[FeatureGroup, PermissionLe
             FeatureGroup.IPSEC,
             FeatureGroup.WIREGUARD,
             FeatureGroup.L2TP,
+            FeatureGroup.OPENVPN,
         ]
         for child in vpn_children:
             current = permissions.get(child, PermissionLevel.NONE)

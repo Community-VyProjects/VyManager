@@ -6,7 +6,7 @@ This keeps the codebase organized and maintainable as it grows.
 """
 
 from .base import BaseFeatureMapper, CommandMapperRegistry
-from .interfaces import EthernetInterfaceMapper, DummyInterfaceMapper, BondingInterfaceMapper, BridgeInterfaceMapper, GeneveInterfaceMapper, InputInterfaceMapper, L2TPv3InterfaceMapper, LoopbackInterfaceMapper, MacsecInterfaceMapper
+from .interfaces import EthernetInterfaceMapper, DummyInterfaceMapper, BondingInterfaceMapper, BridgeInterfaceMapper, GeneveInterfaceMapper, InputInterfaceMapper, L2TPv3InterfaceMapper, LoopbackInterfaceMapper, MacsecInterfaceMapper, OpenvpnInterfaceMapper
 from .interfaces.ethernet_versions import get_ethernet_mapper
 from .interfaces.dummy_versions import get_dummy_mapper
 from .interfaces.bonding_versions import get_bonding_mapper
@@ -16,6 +16,7 @@ from .interfaces.input_versions import get_input_mapper
 from .interfaces.l2tpv3_versions import get_l2tpv3_mapper
 from .interfaces.loopback_versions import get_loopback_mapper
 from .interfaces.macsec_versions import get_macsec_mapper
+from .interfaces.openvpn_versions import get_openvpn_mapper
 from .firewall import FirewallGroupsMapper, FirewallIPv4Mapper, FirewallIPv6Mapper, BridgeFirewallMapper, FlowtablesMapper, FirewallZonesMapper
 from .firewall.groups_versions import get_firewall_groups_mapper
 from .firewall.ipv4_versions import get_firewall_ipv4_mapper
@@ -112,6 +113,8 @@ CommandMapperRegistry.register_feature("interface_l2tpv3", get_l2tpv3_mapper)
 CommandMapperRegistry.register_feature("interface_loopback", get_loopback_mapper)
 # MACsec uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("interface_macsec", get_macsec_mapper)
+# OpenVPN uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("interface_openvpn", get_openvpn_mapper)
 # Firewall groups uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("firewall_groups", get_firewall_groups_mapper)
 # Firewall IPv4 uses factory for version-specific mappers
@@ -268,4 +271,5 @@ __all__ = [
     "L2TPv3InterfaceMapper",
     "LoopbackInterfaceMapper",
     "MacsecInterfaceMapper",
+    "OpenvpnInterfaceMapper",
 ]

@@ -13,6 +13,7 @@ from .input import InputInterfaceMapper
 from .l2tpv3 import L2TPv3InterfaceMapper
 from .loopback import LoopbackInterfaceMapper
 from .macsec import MacsecInterfaceMapper
+from .openvpn import OpenvpnInterfaceMapper
 
 __all__ = [
     "EthernetInterfaceMapper",
@@ -24,4 +25,5 @@ __all__ = [
     "L2TPv3InterfaceMapper",
     "LoopbackInterfaceMapper",
     "MacsecInterfaceMapper",
+    "OpenvpnInterfaceMapper",
 ]
