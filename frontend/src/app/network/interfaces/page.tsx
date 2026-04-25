@@ -63,6 +63,10 @@ import { pppoeService, type PppoeInterface, type PppoeCapabilities } from "@/lib
 import { CreatePppoeModal } from "@/components/pppoe/CreatePppoeModal";
 import { EditPppoeModal } from "@/components/pppoe/EditPppoeModal";
 import { DeletePppoeModal } from "@/components/pppoe/DeletePppoeModal";
+import { pseudoEthernetService, type PseudoEthernetInterface, type PseudoEthernetCapabilities } from "@/lib/api/pseudo-ethernet";
+import { CreatePseudoEthernetModal } from "@/components/pseudo-ethernet/CreatePseudoEthernetModal";
+import { EditPseudoEthernetModal } from "@/components/pseudo-ethernet/EditPseudoEthernetModal";
+import { DeletePseudoEthernetModal } from "@/components/pseudo-ethernet/DeletePseudoEthernetModal";
 import { CreateVxlanModal } from "@/components/vxlan/CreateVxlanModal";
 import { EditVxlanModal } from "@/components/vxlan/EditVxlanModal";
 import { DeleteVxlanModal } from "@/components/vxlan/DeleteVxlanModal";
@@ -76,7 +80,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 
-type InterfaceType = "ethernet" | "vlan" | "wireguard" | "vxlan" | "tunnel" | "bonding" | "bridge" | "dummy" | "geneve" | "input" | "l2tpv3" | "loopback" | "macsec" | "pppoe";
+type InterfaceType = "ethernet" | "vlan" | "wireguard" | "vxlan" | "tunnel" | "bonding" | "bridge" | "dummy" | "geneve" | "input" | "l2tpv3" | "loopback" | "macsec" | "pppoe" | "pseudo-ethernet";
 type VlanSubTab = "vif" | "vif-s" | "vif-c";
 
 interface VLANWithParent extends VIFConfig {
@@ -211,6 +215,15 @@ export default function InterfacesPage() {
   const [editingPppoe, setEditingPppoe] = useState<PppoeInterface | null>(null);
   const [deletingPppoe, setDeletingPppoe] = useState<PppoeInterface | null>(null);
 
+  // Pseudo-Ethernet state
+  const [pseudoEthernetInterfaces, setPseudoEthernetInterfaces] = useState<PseudoEthernetInterface[]>([]);
+  const [pseudoEthernetCapabilities, setPseudoEthernetCapabilities] = useState<PseudoEthernetCapabilities | null>(null);
+
+  // Pseudo-Ethernet Modal states
+  const [isCreatePseudoEthernetModalOpen, setIsCreatePseudoEthernetModalOpen] = useState(false);
+  const [editingPseudoEthernet, setEditingPseudoEthernet] = useState<PseudoEthernetInterface | null>(null);
+  const [deletingPseudoEthernet, setDeletingPseudoEthernet] = useState<PseudoEthernetInterface | null>(null);
+
   // Bridge state
   const [bridgeInterfaces, setBridgeInterfaces] = useState<BridgeInterface[]>([]);
   const [bridgeCapabilities, setBridgeCapabilities] = useState<BridgeCapabilities | null>(null);
@@ -225,7 +238,7 @@ export default function InterfacesPage() {
   const loadData = async () => {
     try {
       setError(null);
-      const [configData, capabilitiesData, wgData, vxlanData, vxlanCapData, tunnelData, tunnelCapData, dummyData, dummyCapData, geneveData, geneveCapData, inputData, inputCapData, l2tpv3Data, l2tpv3CapData, loopbackData, loopbackCapData, macsecData, macsecCapData, bondingData, bondingCapData, bridgeData, bridgeCapData, pppoeData, pppoeCapData] = await Promise.all([
+      const [configData, capabilitiesData, wgData, vxlanData, vxlanCapData, tunnelData, tunnelCapData, dummyData, dummyCapData, geneveData, geneveCapData, inputData, inputCapData, l2tpv3Data, l2tpv3CapData, loopbackData, loopbackCapData, macsecData, macsecCapData, bondingData, bondingCapData, bridgeData, bridgeCapData, pppoeData, pppoeCapData, pseudoEthernetData, pseudoEthernetCapData] = await Promise.all([
         ethernetService.getConfig(),
         ethernetService.getCapabilities(),
         wireguardService.getConfig(),
@@ -251,6 +264,8 @@ export default function InterfacesPage() {
         bridgeService.getCapabilities(),
         pppoeService.getConfig(),
         pppoeService.getCapabilities(),
+        pseudoEthernetService.getConfig(),
+        pseudoEthernetService.getCapabilities(),
       ]);
       setInterfaces(configData.interfaces);
       setCapabilities(capabilitiesData);
@@ -277,6 +292,8 @@ export default function InterfacesPage() {
       setBridgeCapabilities(bridgeCapData);
       setPppoeInterfaces(pppoeData.interfaces);
       setPppoeCapabilities(pppoeCapData);
+      setPseudoEthernetInterfaces(pseudoEthernetData.interfaces);
+      setPseudoEthernetCapabilities(pseudoEthernetCapData);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load interface data");
     } finally {
@@ -332,6 +349,7 @@ export default function InterfacesPage() {
   const totalBonding = bondingInterfaces.length;
   const totalBridge = bridgeInterfaces.length;
   const totalPppoe = pppoeInterfaces.length;
+  const totalPseudoEthernet = pseudoEthernetInterfaces.length;
 
   // Filter interfaces based on search
   const filteredInterfaces = interfaces.filter((iface) => {
@@ -659,6 +677,17 @@ export default function InterfacesPage() {
     );
   });
 
+  const filteredPseudoEthernet = pseudoEthernetInterfaces.filter((iface) => {
+    if (searchQuery === "") return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      iface.name.toLowerCase().includes(q) ||
+      (iface.description || "").toLowerCase().includes(q) ||
+      (iface.source_interface || "").toLowerCase().includes(q) ||
+      iface.addresses?.some((a) => a.toLowerCase().includes(q))
+    );
+  });
+
   return (
     <AppLayout>
       <div className="flex h-full overflow-hidden">
@@ -669,7 +698,7 @@ export default function InterfacesPage() {
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Interfaces</h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {totalInterfaces + totalVlans + totalWireGuard + totalVxlan + totalTunnel + totalDummy + totalGeneve + totalInput + totalLoopback + totalMacsec + totalBonding + totalBridge + totalPppoe} total
+                  {totalInterfaces + totalVlans + totalWireGuard + totalVxlan + totalTunnel + totalDummy + totalGeneve + totalInput + totalLoopback + totalMacsec + totalBonding + totalBridge + totalPppoe + totalPseudoEthernet} total
                 </p>
               </div>
               <Button
@@ -1079,6 +1108,42 @@ export default function InterfacesPage() {
                   </button>
                 )}
 
+                {/* Pseudo-Ethernet */}
+                {canRead(FeatureGroup.INTERFACES) && (
+                  <button
+                    onClick={() => setSelectedType("pseudo-ethernet")}
+                    className={cn(
+                      "w-full text-left rounded-lg px-3 py-3 transition-all",
+                      selectedType === "pseudo-ethernet"
+                        ? "bg-accent text-accent-foreground shadow-sm"
+                        : "hover:bg-accent/50"
+                    )}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className={cn(
+                        "mt-0.5 rounded-md p-1.5",
+                        selectedType === "pseudo-ethernet" ? "bg-primary/10" : "bg-muted"
+                      )}>
+                        <Layers className={cn(
+                          "h-4 w-4",
+                          selectedType === "pseudo-ethernet" ? "text-primary" : "text-muted-foreground"
+                        )} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <span className="font-medium text-sm text-foreground">Pseudo-Ethernet</span>
+                          {selectedType === "pseudo-ethernet" && (
+                            <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
+                          )}
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          {totalPseudoEthernet} {totalPseudoEthernet === 1 ? "interface" : "interfaces"}
+                        </span>
+                      </div>
+                    </div>
+                  </button>
+                )}
+
                 {/* Bonding */}
                 <button
                   onClick={() => setSelectedType("bonding")}
@@ -1194,7 +1259,7 @@ export default function InterfacesPage() {
             <div className="flex items-start justify-between mb-4">
               <div className="flex-1">
                 <h1 className="text-2xl font-bold text-foreground">
-                  {selectedType === "ethernet" ? "Ethernet Interfaces" : selectedType === "vlan" ? "VLANs" : selectedType === "vxlan" ? "VXLAN Interfaces" : selectedType === "tunnel" ? "Tunnel Interfaces" : selectedType === "l2tpv3" ? "L2TPv3 Interfaces" : selectedType === "dummy" ? "Dummy Interfaces" : selectedType === "geneve" ? "GENEVE Interfaces" : selectedType === "input" ? "Input Interfaces" : selectedType === "loopback" ? "Loopback Interface" : selectedType === "macsec" ? "MACsec Interfaces" : selectedType === "bonding" ? "Bonding Interfaces" : selectedType === "bridge" ? "Bridge Interfaces" : selectedType === "pppoe" ? "PPPoE Interfaces" : "WireGuard Interfaces"}
+                  {selectedType === "ethernet" ? "Ethernet Interfaces" : selectedType === "vlan" ? "VLANs" : selectedType === "vxlan" ? "VXLAN Interfaces" : selectedType === "tunnel" ? "Tunnel Interfaces" : selectedType === "l2tpv3" ? "L2TPv3 Interfaces" : selectedType === "dummy" ? "Dummy Interfaces" : selectedType === "geneve" ? "GENEVE Interfaces" : selectedType === "input" ? "Input Interfaces" : selectedType === "loopback" ? "Loopback Interface" : selectedType === "macsec" ? "MACsec Interfaces" : selectedType === "bonding" ? "Bonding Interfaces" : selectedType === "bridge" ? "Bridge Interfaces" : selectedType === "pppoe" ? "PPPoE Interfaces" : selectedType === "pseudo-ethernet" ? "Pseudo-Ethernet Interfaces" : "WireGuard Interfaces"}
                 </h1>
                 <p className="text-sm text-muted-foreground mt-2">
                   {selectedType === "ethernet"
@@ -1223,7 +1288,9 @@ export default function InterfacesPage() {
                               ? "Bridge interfaces for layer-2 network bridging"
                               : selectedType === "pppoe"
                                 ? "PPP over Ethernet dial-up interfaces — connects to an upstream access concentrator over an Ethernet source"
-                                : "WireGuard tunnel interfaces and status"}
+                                : selectedType === "pseudo-ethernet"
+                                  ? "MacVLAN pseudo-ethernet interfaces bound to a physical Ethernet port with configurable isolation mode"
+                                  : "WireGuard tunnel interfaces and status"}
                 </p>
               </div>
               <Button
@@ -1260,6 +1327,8 @@ export default function InterfacesPage() {
                     setIsCreateBridgeModalOpen(true);
                   } else if (selectedType === "pppoe") {
                     setIsCreatePppoeModalOpen(true);
+                  } else if (selectedType === "pseudo-ethernet") {
+                    setIsCreatePseudoEthernetModalOpen(true);
                   } else {
                     setIsCreateInterfaceModalOpen(true);
                   }
@@ -1293,7 +1362,9 @@ export default function InterfacesPage() {
                             ? "Create Bridge"
                             : selectedType === "pppoe"
                               ? "Create PPPoE"
-                              : "Manage WireGuard"}
+                              : selectedType === "pseudo-ethernet"
+                                ? "Create Pseudo-Ethernet"
+                                : "Manage WireGuard"}
               </Button>
             </div>
 
@@ -1348,7 +1419,9 @@ export default function InterfacesPage() {
                               ? "Search by name, description, address, or member..."
                               : selectedType === "pppoe"
                                 ? "Search by name, source, AC, or username..."
-                                : "Search by name, description, address..."
+                                : selectedType === "pseudo-ethernet"
+                                  ? "Search by name, description, source, or address..."
+                                  : "Search by name, description, address..."
                 }
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -2223,6 +2296,109 @@ export default function InterfacesPage() {
                   </p>
                 </>
               )
+            ) : selectedType === "pseudo-ethernet" ? (
+              /* Pseudo-Ethernet Table */
+              filteredPseudoEthernet.length === 0 ? (
+                <Card className="border-border">
+                  <CardContent className="py-12">
+                    <div className="flex flex-col items-center gap-2">
+                      <Layers className="h-12 w-12 text-muted-foreground/30" />
+                      <p className="text-muted-foreground">
+                        {searchQuery ? "No pseudo-ethernet interfaces matching your search" : "No pseudo-ethernet interfaces configured"}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <>
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Source Interface</TableHead>
+                          <TableHead>Mode</TableHead>
+                          <TableHead>Addresses</TableHead>
+                          <TableHead>Description</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="w-[80px]"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredPseudoEthernet.map((iface) => (
+                          <TableRow key={iface.name} className="group">
+                            <TableCell>
+                              <code className="font-semibold font-mono text-foreground">{iface.name}</code>
+                            </TableCell>
+                            <TableCell>
+                              {iface.source_interface ? (
+                                <code className="text-xs font-mono px-1.5 py-0.5 rounded bg-accent text-foreground">{iface.source_interface}</code>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {iface.mode ? (
+                                <Badge variant="outline" className={
+                                  iface.mode === "private" ? "bg-muted/50 text-muted-foreground border-muted-foreground/20 text-xs" :
+                                  iface.mode === "vepa" ? "bg-blue-500/10 text-blue-500 border-blue-500/20 text-xs" :
+                                  iface.mode === "bridge" ? "bg-green-500/10 text-green-500 border-green-500/20 text-xs" :
+                                  "bg-orange-500/10 text-orange-500 border-orange-500/20 text-xs"
+                                }>
+                                  {iface.mode}
+                                </Badge>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {iface.addresses?.length ? (
+                                <div className="flex flex-wrap gap-1">
+                                  {iface.addresses.slice(0, 2).map((addr, idx) => (
+                                    <code key={idx} className="text-xs font-mono px-1.5 py-0.5 rounded bg-accent text-foreground">{addr}</code>
+                                  ))}
+                                  {iface.addresses.length > 2 && (
+                                    <Badge variant="secondary" className="text-xs px-1.5 py-0">+{iface.addresses.length - 2}</Badge>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground max-w-[180px] truncate">
+                              {iface.description || "—"}
+                            </TableCell>
+                            <TableCell>
+                              {iface.disabled ? (
+                                <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">Disabled</Badge>
+                              ) : (
+                                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">Enabled</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                {canWrite(FeatureGroup.INTERFACES) && (
+                                  <>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingPseudoEthernet(iface)}>
+                                      <Pencil className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeletingPseudoEthernet(iface)}>
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <p className="text-sm text-muted-foreground text-center mt-3">
+                    Showing {filteredPseudoEthernet.length} of {totalPseudoEthernet} interface{totalPseudoEthernet !== 1 ? "s" : ""}
+                  </p>
+                </>
+              )
             ) : selectedType === "bonding" ? (
               /* Bonding Table */
               filteredBonding.length === 0 ? (
@@ -2854,6 +3030,35 @@ export default function InterfacesPage() {
           loadData();
         }}
         interfaceData={deletingPppoe}
+      />
+      {/* Pseudo-Ethernet Modals */}
+      <CreatePseudoEthernetModal
+        open={isCreatePseudoEthernetModalOpen}
+        onOpenChange={setIsCreatePseudoEthernetModalOpen}
+        onSuccess={loadData}
+        availableInterfaces={interfaces}
+        capabilities={pseudoEthernetCapabilities}
+        existingNames={pseudoEthernetInterfaces.map((i) => i.name)}
+      />
+      <EditPseudoEthernetModal
+        open={!!editingPseudoEthernet}
+        onOpenChange={(o) => !o && setEditingPseudoEthernet(null)}
+        onSuccess={() => {
+          setEditingPseudoEthernet(null);
+          loadData();
+        }}
+        interfaceData={editingPseudoEthernet}
+        availableInterfaces={interfaces}
+        capabilities={pseudoEthernetCapabilities}
+      />
+      <DeletePseudoEthernetModal
+        open={!!deletingPseudoEthernet}
+        onOpenChange={(o) => !o && setDeletingPseudoEthernet(null)}
+        onSuccess={() => {
+          setDeletingPseudoEthernet(null);
+          loadData();
+        }}
+        interfaceData={deletingPseudoEthernet}
       />
       {/* Bridge Modals */}
       <CreateBridgeModal
