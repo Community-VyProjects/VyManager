@@ -25,6 +25,7 @@ from vyos_builders import (
     MacsecBatchBuilder,
     OpenvpnBatchBuilder,
     PppoeBatchBuilder,
+    PseudoEthernetBatchBuilder,
     FirewallGroupsBatchBuilder,
     NATBatchBuilder,
     DHCPBatchBuilder,
@@ -155,6 +156,14 @@ class VyOSService:
         The builder automatically uses correct command syntax based on version.
         """
         return PppoeBatchBuilder(self.config.version)
+
+    def create_pseudo_ethernet_batch(self) -> PseudoEthernetBatchBuilder:
+        """
+        Create a batch builder for pseudo-ethernet (MacVLAN) interfaces.
+
+        The builder automatically uses correct command syntax based on version.
+        """
+        return PseudoEthernetBatchBuilder(self.config.version)
 
     def create_bonding_batch(self) -> BondingBatchBuilder:
         """

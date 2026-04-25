@@ -15,6 +15,7 @@ from .loopback import LoopbackInterfaceMapper
 from .macsec import MacsecInterfaceMapper
 from .openvpn import OpenvpnInterfaceMapper
 from .pppoe import PppoeInterfaceMapper
+from .pseudo_ethernet import PseudoEthernetInterfaceMapper
 
 __all__ = [
     "EthernetInterfaceMapper",
@@ -28,4 +29,5 @@ __all__ = [
     "MacsecInterfaceMapper",
     "OpenvpnInterfaceMapper",
     "PppoeInterfaceMapper",
+    "PseudoEthernetInterfaceMapper",
 ]
