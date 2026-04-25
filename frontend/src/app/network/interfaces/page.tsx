@@ -59,6 +59,10 @@ import { bridgeService, type BridgeInterface, type BridgeCapabilities } from "@/
 import { CreateBridgeModal } from "@/components/bridge/CreateBridgeModal";
 import { EditBridgeModal } from "@/components/bridge/EditBridgeModal";
 import { DeleteBridgeModal } from "@/components/bridge/DeleteBridgeModal";
+import { pppoeService, type PppoeInterface, type PppoeCapabilities } from "@/lib/api/pppoe";
+import { CreatePppoeModal } from "@/components/pppoe/CreatePppoeModal";
+import { EditPppoeModal } from "@/components/pppoe/EditPppoeModal";
+import { DeletePppoeModal } from "@/components/pppoe/DeletePppoeModal";
 import { CreateVxlanModal } from "@/components/vxlan/CreateVxlanModal";
 import { EditVxlanModal } from "@/components/vxlan/EditVxlanModal";
 import { DeleteVxlanModal } from "@/components/vxlan/DeleteVxlanModal";
@@ -72,7 +76,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 
-type InterfaceType = "ethernet" | "vlan" | "wireguard" | "vxlan" | "tunnel" | "bonding" | "bridge" | "dummy" | "geneve" | "input" | "l2tpv3" | "loopback" | "macsec";
+type InterfaceType = "ethernet" | "vlan" | "wireguard" | "vxlan" | "tunnel" | "bonding" | "bridge" | "dummy" | "geneve" | "input" | "l2tpv3" | "loopback" | "macsec" | "pppoe";
 type VlanSubTab = "vif" | "vif-s" | "vif-c";
 
 interface VLANWithParent extends VIFConfig {
@@ -198,6 +202,15 @@ export default function InterfacesPage() {
   const [editingBonding, setEditingBonding] = useState<BondingInterface | null>(null);
   const [deletingBonding, setDeletingBonding] = useState<BondingInterface | null>(null);
 
+  // PPPoE state
+  const [pppoeInterfaces, setPppoeInterfaces] = useState<PppoeInterface[]>([]);
+  const [pppoeCapabilities, setPppoeCapabilities] = useState<PppoeCapabilities | null>(null);
+
+  // PPPoE Modal states
+  const [isCreatePppoeModalOpen, setIsCreatePppoeModalOpen] = useState(false);
+  const [editingPppoe, setEditingPppoe] = useState<PppoeInterface | null>(null);
+  const [deletingPppoe, setDeletingPppoe] = useState<PppoeInterface | null>(null);
+
   // Bridge state
   const [bridgeInterfaces, setBridgeInterfaces] = useState<BridgeInterface[]>([]);
   const [bridgeCapabilities, setBridgeCapabilities] = useState<BridgeCapabilities | null>(null);
@@ -207,12 +220,12 @@ export default function InterfacesPage() {
   const [editingBridge, setEditingBridge] = useState<BridgeInterface | null>(null);
   const [deletingBridge, setDeletingBridge] = useState<BridgeInterface | null>(null);
 
-  const { canWrite } = usePermissions();
+  const { canWrite, canRead } = usePermissions();
 
   const loadData = async () => {
     try {
       setError(null);
-      const [configData, capabilitiesData, wgData, vxlanData, vxlanCapData, tunnelData, tunnelCapData, dummyData, dummyCapData, geneveData, geneveCapData, inputData, inputCapData, l2tpv3Data, l2tpv3CapData, loopbackData, loopbackCapData, macsecData, macsecCapData, bondingData, bondingCapData, bridgeData, bridgeCapData] = await Promise.all([
+      const [configData, capabilitiesData, wgData, vxlanData, vxlanCapData, tunnelData, tunnelCapData, dummyData, dummyCapData, geneveData, geneveCapData, inputData, inputCapData, l2tpv3Data, l2tpv3CapData, loopbackData, loopbackCapData, macsecData, macsecCapData, bondingData, bondingCapData, bridgeData, bridgeCapData, pppoeData, pppoeCapData] = await Promise.all([
         ethernetService.getConfig(),
         ethernetService.getCapabilities(),
         wireguardService.getConfig(),
@@ -236,6 +249,8 @@ export default function InterfacesPage() {
         bondingService.getCapabilities(),
         bridgeService.getConfig(),
         bridgeService.getCapabilities(),
+        pppoeService.getConfig(),
+        pppoeService.getCapabilities(),
       ]);
       setInterfaces(configData.interfaces);
       setCapabilities(capabilitiesData);
@@ -260,6 +275,8 @@ export default function InterfacesPage() {
       setBondingCapabilities(bondingCapData);
       setBridgeInterfaces(bridgeData.interfaces);
       setBridgeCapabilities(bridgeCapData);
+      setPppoeInterfaces(pppoeData.interfaces);
+      setPppoeCapabilities(pppoeCapData);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load interface data");
     } finally {
@@ -314,6 +331,7 @@ export default function InterfacesPage() {
   const totalMacsec = macsecInterfaces.length;
   const totalBonding = bondingInterfaces.length;
   const totalBridge = bridgeInterfaces.length;
+  const totalPppoe = pppoeInterfaces.length;
 
   // Filter interfaces based on search
   const filteredInterfaces = interfaces.filter((iface) => {
@@ -629,6 +647,18 @@ export default function InterfacesPage() {
     );
   });
 
+  const filteredPppoe = pppoeInterfaces.filter((iface) => {
+    if (searchQuery === "") return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      iface.name.toLowerCase().includes(q) ||
+      (iface.description || "").toLowerCase().includes(q) ||
+      (iface.source_interface || "").toLowerCase().includes(q) ||
+      (iface.access_concentrator || "").toLowerCase().includes(q) ||
+      (iface.authentication?.username || "").toLowerCase().includes(q)
+    );
+  });
+
   return (
     <AppLayout>
       <div className="flex h-full overflow-hidden">
@@ -639,7 +669,7 @@ export default function InterfacesPage() {
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Interfaces</h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {totalInterfaces + totalVlans + totalWireGuard + totalVxlan + totalTunnel + totalDummy + totalGeneve + totalInput + totalLoopback + totalMacsec + totalBonding + totalBridge} total
+                  {totalInterfaces + totalVlans + totalWireGuard + totalVxlan + totalTunnel + totalDummy + totalGeneve + totalInput + totalLoopback + totalMacsec + totalBonding + totalBridge + totalPppoe} total
                 </p>
               </div>
               <Button
@@ -1013,6 +1043,42 @@ export default function InterfacesPage() {
                   </div>
                 </button>
 
+                {/* PPPoE */}
+                {(canRead(FeatureGroup.PPPOE) || canRead(FeatureGroup.INTERFACES)) && (
+                  <button
+                    onClick={() => setSelectedType("pppoe")}
+                    className={cn(
+                      "w-full text-left rounded-lg px-3 py-3 transition-all",
+                      selectedType === "pppoe"
+                        ? "bg-accent text-accent-foreground shadow-sm"
+                        : "hover:bg-accent/50"
+                    )}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className={cn(
+                        "mt-0.5 rounded-md p-1.5",
+                        selectedType === "pppoe" ? "bg-primary/10" : "bg-muted"
+                      )}>
+                        <Cable className={cn(
+                          "h-4 w-4",
+                          selectedType === "pppoe" ? "text-primary" : "text-muted-foreground"
+                        )} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <span className="font-medium text-sm text-foreground">PPPoE</span>
+                          {selectedType === "pppoe" && (
+                            <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
+                          )}
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          {totalPppoe} {totalPppoe === 1 ? "interface" : "interfaces"}
+                        </span>
+                      </div>
+                    </div>
+                  </button>
+                )}
+
                 {/* Bonding */}
                 <button
                   onClick={() => setSelectedType("bonding")}
@@ -1128,7 +1194,7 @@ export default function InterfacesPage() {
             <div className="flex items-start justify-between mb-4">
               <div className="flex-1">
                 <h1 className="text-2xl font-bold text-foreground">
-                  {selectedType === "ethernet" ? "Ethernet Interfaces" : selectedType === "vlan" ? "VLANs" : selectedType === "vxlan" ? "VXLAN Interfaces" : selectedType === "tunnel" ? "Tunnel Interfaces" : selectedType === "l2tpv3" ? "L2TPv3 Interfaces" : selectedType === "dummy" ? "Dummy Interfaces" : selectedType === "geneve" ? "GENEVE Interfaces" : selectedType === "input" ? "Input Interfaces" : selectedType === "loopback" ? "Loopback Interface" : selectedType === "macsec" ? "MACsec Interfaces" : selectedType === "bonding" ? "Bonding Interfaces" : selectedType === "bridge" ? "Bridge Interfaces" : "WireGuard Interfaces"}
+                  {selectedType === "ethernet" ? "Ethernet Interfaces" : selectedType === "vlan" ? "VLANs" : selectedType === "vxlan" ? "VXLAN Interfaces" : selectedType === "tunnel" ? "Tunnel Interfaces" : selectedType === "l2tpv3" ? "L2TPv3 Interfaces" : selectedType === "dummy" ? "Dummy Interfaces" : selectedType === "geneve" ? "GENEVE Interfaces" : selectedType === "input" ? "Input Interfaces" : selectedType === "loopback" ? "Loopback Interface" : selectedType === "macsec" ? "MACsec Interfaces" : selectedType === "bonding" ? "Bonding Interfaces" : selectedType === "bridge" ? "Bridge Interfaces" : selectedType === "pppoe" ? "PPPoE Interfaces" : "WireGuard Interfaces"}
                 </h1>
                 <p className="text-sm text-muted-foreground mt-2">
                   {selectedType === "ethernet"
@@ -1154,7 +1220,9 @@ export default function InterfacesPage() {
                               : selectedType === "bonding"
                               ? "Link aggregation (bonding) interfaces for high availability and throughput"
                               : selectedType === "bridge"
-                                ? "Bridge interfaces for layer-2 network bridging"
+                              ? "Bridge interfaces for layer-2 network bridging"
+                              : selectedType === "pppoe"
+                                ? "PPP over Ethernet dial-up interfaces — connects to an upstream access concentrator over an Ethernet source"
                                 : "WireGuard tunnel interfaces and status"}
                 </p>
               </div>
@@ -1190,11 +1258,13 @@ export default function InterfacesPage() {
                     setIsCreateBondingModalOpen(true);
                   } else if (selectedType === "bridge") {
                     setIsCreateBridgeModalOpen(true);
+                  } else if (selectedType === "pppoe") {
+                    setIsCreatePppoeModalOpen(true);
                   } else {
                     setIsCreateInterfaceModalOpen(true);
                   }
                 }}
-                disabled={selectedType === "vxlan" ? !canWrite(FeatureGroup.VXLAN) : selectedType === "tunnel" ? !canWrite(FeatureGroup.TUNNEL) && !canWrite(FeatureGroup.INTERFACES) : !canWrite(FeatureGroup.INTERFACES)}
+                disabled={selectedType === "vxlan" ? !canWrite(FeatureGroup.VXLAN) : selectedType === "tunnel" ? !canWrite(FeatureGroup.TUNNEL) && !canWrite(FeatureGroup.INTERFACES) : selectedType === "pppoe" ? !canWrite(FeatureGroup.PPPOE) && !canWrite(FeatureGroup.INTERFACES) : !canWrite(FeatureGroup.INTERFACES)}
               >
                 <Plus className="h-4 w-4" />
                 {selectedType === "ethernet"
@@ -1220,7 +1290,9 @@ export default function InterfacesPage() {
                             : selectedType === "bonding"
                             ? "Create Bond"
                             : selectedType === "bridge"
-                              ? "Create Bridge"
+                            ? "Create Bridge"
+                            : selectedType === "pppoe"
+                              ? "Create PPPoE"
                               : "Manage WireGuard"}
               </Button>
             </div>
@@ -1273,7 +1345,9 @@ export default function InterfacesPage() {
                               : selectedType === "bonding"
                               ? "Search by name, description, address, mode, or member..."
                               : selectedType === "bridge"
-                                ? "Search by name, description, address, or member..."
+                              ? "Search by name, description, address, or member..."
+                              : selectedType === "pppoe"
+                                ? "Search by name, source, AC, or username..."
                                 : "Search by name, description, address..."
                 }
                 value={searchQuery}
@@ -2063,6 +2137,92 @@ export default function InterfacesPage() {
                   </p>
                 </>
               )
+            ) : selectedType === "pppoe" ? (
+              /* PPPoE Table */
+              filteredPppoe.length === 0 ? (
+                <Card className="border-border">
+                  <CardContent className="py-12">
+                    <div className="flex flex-col items-center gap-2">
+                      <Cable className="h-12 w-12 text-muted-foreground/30" />
+                      <p className="text-muted-foreground">
+                        {searchQuery ? "No PPPoE interfaces matching your search" : "No PPPoE interfaces configured"}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <>
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Source</TableHead>
+                          <TableHead>AC / Service</TableHead>
+                          <TableHead>Description</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="w-[80px]"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredPppoe.map((iface) => (
+                          <TableRow key={iface.name} className="group">
+                            <TableCell>
+                              <code className="font-semibold font-mono text-foreground">{iface.name}</code>
+                            </TableCell>
+                            <TableCell>
+                              {iface.source_interface ? (
+                                <code className="text-xs font-mono px-1.5 py-0.5 rounded bg-accent text-foreground">{iface.source_interface}</code>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground text-sm">
+                              {iface.access_concentrator && (
+                                <span>{iface.access_concentrator}</span>
+                              )}
+                              {iface.access_concentrator && iface.service_name && (
+                                <span className="mx-1 text-muted-foreground/50">/</span>
+                              )}
+                              {iface.service_name && (
+                                <span>{iface.service_name}</span>
+                              )}
+                              {!iface.access_concentrator && !iface.service_name && "—"}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground max-w-[180px] truncate">
+                              {iface.description || "—"}
+                            </TableCell>
+                            <TableCell>
+                              {iface.disabled ? (
+                                <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">Disabled</Badge>
+                              ) : (
+                                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">Enabled</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                {(canWrite(FeatureGroup.PPPOE) || canWrite(FeatureGroup.INTERFACES)) && (
+                                  <>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingPppoe(iface)}>
+                                      <Pencil className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeletingPppoe(iface)}>
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <p className="text-sm text-muted-foreground text-center mt-3">
+                    Showing {filteredPppoe.length} of {totalPppoe} interface{totalPppoe !== 1 ? "s" : ""}
+                  </p>
+                </>
+              )
             ) : selectedType === "bonding" ? (
               /* Bonding Table */
               filteredBonding.length === 0 ? (
@@ -2665,6 +2825,35 @@ export default function InterfacesPage() {
           loadData();
         }}
         interfaceData={deletingBonding}
+      />
+      {/* PPPoE Modals */}
+      <CreatePppoeModal
+        open={isCreatePppoeModalOpen}
+        onOpenChange={setIsCreatePppoeModalOpen}
+        onSuccess={loadData}
+        capabilities={pppoeCapabilities}
+        existingInterfaces={pppoeInterfaces.map((i) => i.name)}
+        availableEthernet={interfaces.map((i) => i.name)}
+      />
+      <EditPppoeModal
+        open={!!editingPppoe}
+        onOpenChange={(open) => !open && setEditingPppoe(null)}
+        onSuccess={() => {
+          setEditingPppoe(null);
+          loadData();
+        }}
+        capabilities={pppoeCapabilities}
+        interfaceData={editingPppoe}
+        availableEthernet={interfaces.map((i) => i.name)}
+      />
+      <DeletePppoeModal
+        open={!!deletingPppoe}
+        onOpenChange={(open) => !open && setDeletingPppoe(null)}
+        onSuccess={() => {
+          setDeletingPppoe(null);
+          loadData();
+        }}
+        interfaceData={deletingPppoe}
       />
       {/* Bridge Modals */}
       <CreateBridgeModal

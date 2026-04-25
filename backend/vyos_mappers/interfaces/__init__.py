@@ -14,6 +14,7 @@ from .l2tpv3 import L2TPv3InterfaceMapper
 from .loopback import LoopbackInterfaceMapper
 from .macsec import MacsecInterfaceMapper
 from .openvpn import OpenvpnInterfaceMapper
+from .pppoe import PppoeInterfaceMapper
 
 __all__ = [
     "EthernetInterfaceMapper",
@@ -26,4 +27,5 @@ __all__ = [
     "LoopbackInterfaceMapper",
     "MacsecInterfaceMapper",
     "OpenvpnInterfaceMapper",
+    "PppoeInterfaceMapper",
 ]

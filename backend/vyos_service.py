@@ -24,6 +24,7 @@ from vyos_builders import (
     LoopbackBatchBuilder,
     MacsecBatchBuilder,
     OpenvpnBatchBuilder,
+    PppoeBatchBuilder,
     FirewallGroupsBatchBuilder,
     NATBatchBuilder,
     DHCPBatchBuilder,
@@ -147,6 +148,14 @@ class VyOSService:
         """
         return OpenvpnBatchBuilder(self.config.version)
 
+    def create_pppoe_batch(self) -> PppoeBatchBuilder:
+        """
+        Create a batch builder for PPPoE interfaces.
+
+        The builder automatically uses correct command syntax based on version.
+        """
+        return PppoeBatchBuilder(self.config.version)
+
     def create_bonding_batch(self) -> BondingBatchBuilder:
         """
         Create a batch builder for bonding interfaces.
@@ -192,6 +201,7 @@ class VyOSService:
             LoopbackBatchBuilder,
             MacsecBatchBuilder,
             OpenvpnBatchBuilder,
+            PppoeBatchBuilder,
         ],
     ) -> ApiResponse:
         """Execute a batch of operations using configure_multiple_op.
