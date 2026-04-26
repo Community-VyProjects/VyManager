@@ -15,6 +15,7 @@ from .loopback import LoopbackInterfaceBuilderMixin
 from .macsec import MacsecInterfaceBuilderMixin
 from .openvpn import OpenvpnInterfaceBuilderMixin
 from .pppoe import PppoeInterfaceBuilderMixin
+from .pseudo_ethernet import PseudoEthernetInterfaceBuilderMixin
 
 __all__ = [
     "EthernetInterfaceBuilderMixin",
@@ -28,4 +29,5 @@ __all__ = [
     "MacsecInterfaceBuilderMixin",
     "OpenvpnInterfaceBuilderMixin",
     "PppoeInterfaceBuilderMixin",
+    "PseudoEthernetInterfaceBuilderMixin",
 ]
