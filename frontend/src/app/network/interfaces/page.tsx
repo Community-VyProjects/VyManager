@@ -67,6 +67,10 @@ import { pseudoEthernetService, type PseudoEthernetInterface, type PseudoEtherne
 import { CreatePseudoEthernetModal } from "@/components/pseudo-ethernet/CreatePseudoEthernetModal";
 import { EditPseudoEthernetModal } from "@/components/pseudo-ethernet/EditPseudoEthernetModal";
 import { DeletePseudoEthernetModal } from "@/components/pseudo-ethernet/DeletePseudoEthernetModal";
+import { sstpcService, type SstpcInterface, type SstpcCapabilities } from "@/lib/api/sstpc";
+import { CreateSstpcModal } from "@/components/sstpc/CreateSstpcModal";
+import { EditSstpcModal } from "@/components/sstpc/EditSstpcModal";
+import { DeleteSstpcModal } from "@/components/sstpc/DeleteSstpcModal";
 import { CreateVxlanModal } from "@/components/vxlan/CreateVxlanModal";
 import { EditVxlanModal } from "@/components/vxlan/EditVxlanModal";
 import { DeleteVxlanModal } from "@/components/vxlan/DeleteVxlanModal";
@@ -80,7 +84,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 
-type InterfaceType = "ethernet" | "vlan" | "wireguard" | "vxlan" | "tunnel" | "bonding" | "bridge" | "dummy" | "geneve" | "input" | "l2tpv3" | "loopback" | "macsec" | "pppoe" | "pseudo-ethernet";
+type InterfaceType = "ethernet" | "vlan" | "wireguard" | "vxlan" | "tunnel" | "bonding" | "bridge" | "dummy" | "geneve" | "input" | "l2tpv3" | "loopback" | "macsec" | "pppoe" | "pseudo-ethernet" | "sstpc";
 type VlanSubTab = "vif" | "vif-s" | "vif-c";
 
 interface VLANWithParent extends VIFConfig {
@@ -224,6 +228,15 @@ export default function InterfacesPage() {
   const [editingPseudoEthernet, setEditingPseudoEthernet] = useState<PseudoEthernetInterface | null>(null);
   const [deletingPseudoEthernet, setDeletingPseudoEthernet] = useState<PseudoEthernetInterface | null>(null);
 
+  // SSTPC state
+  const [sstpcInterfaces, setSstpcInterfaces] = useState<SstpcInterface[]>([]);
+  const [sstpcCapabilities, setSstpcCapabilities] = useState<SstpcCapabilities | null>(null);
+
+  // SSTPC Modal states
+  const [isCreateSstpcModalOpen, setIsCreateSstpcModalOpen] = useState(false);
+  const [editingSstpc, setEditingSstpc] = useState<SstpcInterface | null>(null);
+  const [deletingSstpc, setDeletingSstpc] = useState<SstpcInterface | null>(null);
+
   // Bridge state
   const [bridgeInterfaces, setBridgeInterfaces] = useState<BridgeInterface[]>([]);
   const [bridgeCapabilities, setBridgeCapabilities] = useState<BridgeCapabilities | null>(null);
@@ -238,7 +251,7 @@ export default function InterfacesPage() {
   const loadData = async () => {
     try {
       setError(null);
-      const [configData, capabilitiesData, wgData, vxlanData, vxlanCapData, tunnelData, tunnelCapData, dummyData, dummyCapData, geneveData, geneveCapData, inputData, inputCapData, l2tpv3Data, l2tpv3CapData, loopbackData, loopbackCapData, macsecData, macsecCapData, bondingData, bondingCapData, bridgeData, bridgeCapData, pppoeData, pppoeCapData, pseudoEthernetData, pseudoEthernetCapData] = await Promise.all([
+      const [configData, capabilitiesData, wgData, vxlanData, vxlanCapData, tunnelData, tunnelCapData, dummyData, dummyCapData, geneveData, geneveCapData, inputData, inputCapData, l2tpv3Data, l2tpv3CapData, loopbackData, loopbackCapData, macsecData, macsecCapData, bondingData, bondingCapData, bridgeData, bridgeCapData, pppoeData, pppoeCapData, pseudoEthernetData, pseudoEthernetCapData, sstpcData, sstpcCapData] = await Promise.all([
         ethernetService.getConfig(),
         ethernetService.getCapabilities(),
         wireguardService.getConfig(),
@@ -266,6 +279,8 @@ export default function InterfacesPage() {
         pppoeService.getCapabilities(),
         pseudoEthernetService.getConfig(),
         pseudoEthernetService.getCapabilities(),
+        sstpcService.getConfig(),
+        sstpcService.getCapabilities(),
       ]);
       setInterfaces(configData.interfaces);
       setCapabilities(capabilitiesData);
@@ -294,6 +309,8 @@ export default function InterfacesPage() {
       setPppoeCapabilities(pppoeCapData);
       setPseudoEthernetInterfaces(pseudoEthernetData.interfaces);
       setPseudoEthernetCapabilities(pseudoEthernetCapData);
+      setSstpcInterfaces(sstpcData.interfaces);
+      setSstpcCapabilities(sstpcCapData);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load interface data");
     } finally {
@@ -350,6 +367,7 @@ export default function InterfacesPage() {
   const totalBridge = bridgeInterfaces.length;
   const totalPppoe = pppoeInterfaces.length;
   const totalPseudoEthernet = pseudoEthernetInterfaces.length;
+  const totalSstpc = sstpcInterfaces.length;
 
   // Filter interfaces based on search
   const filteredInterfaces = interfaces.filter((iface) => {
@@ -685,6 +703,18 @@ export default function InterfacesPage() {
       (iface.description || "").toLowerCase().includes(q) ||
       (iface.source_interface || "").toLowerCase().includes(q) ||
       iface.addresses?.some((a) => a.toLowerCase().includes(q))
+    );
+  });
+
+  const filteredSstpc = sstpcInterfaces.filter((iface) => {
+    if (searchQuery === "") return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      iface.name.toLowerCase().includes(q) ||
+      (iface.description || "").toLowerCase().includes(q) ||
+      (iface.server || "").toLowerCase().includes(q) ||
+      (iface.vrf || "").toLowerCase().includes(q) ||
+      (iface.authentication?.username || "").toLowerCase().includes(q)
     );
   });
 
@@ -1144,6 +1174,42 @@ export default function InterfacesPage() {
                   </button>
                 )}
 
+                {/* SSTPC */}
+                {(canRead(FeatureGroup.SSTPC) || canRead(FeatureGroup.INTERFACES)) && (
+                  <button
+                    onClick={() => setSelectedType("sstpc")}
+                    className={cn(
+                      "w-full text-left rounded-lg px-3 py-3 transition-all",
+                      selectedType === "sstpc"
+                        ? "bg-accent text-accent-foreground shadow-sm"
+                        : "hover:bg-accent/50"
+                    )}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className={cn(
+                        "mt-0.5 rounded-md p-1.5",
+                        selectedType === "sstpc" ? "bg-primary/10" : "bg-muted"
+                      )}>
+                        <Lock className={cn(
+                          "h-4 w-4",
+                          selectedType === "sstpc" ? "text-primary" : "text-muted-foreground"
+                        )} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <span className="font-medium text-sm text-foreground">SSTPC</span>
+                          {selectedType === "sstpc" && (
+                            <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
+                          )}
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          {totalSstpc} {totalSstpc === 1 ? "interface" : "interfaces"}
+                        </span>
+                      </div>
+                    </div>
+                  </button>
+                )}
+
                 {/* Bonding */}
                 <button
                   onClick={() => setSelectedType("bonding")}
@@ -1259,7 +1325,7 @@ export default function InterfacesPage() {
             <div className="flex items-start justify-between mb-4">
               <div className="flex-1">
                 <h1 className="text-2xl font-bold text-foreground">
-                  {selectedType === "ethernet" ? "Ethernet Interfaces" : selectedType === "vlan" ? "VLANs" : selectedType === "vxlan" ? "VXLAN Interfaces" : selectedType === "tunnel" ? "Tunnel Interfaces" : selectedType === "l2tpv3" ? "L2TPv3 Interfaces" : selectedType === "dummy" ? "Dummy Interfaces" : selectedType === "geneve" ? "GENEVE Interfaces" : selectedType === "input" ? "Input Interfaces" : selectedType === "loopback" ? "Loopback Interface" : selectedType === "macsec" ? "MACsec Interfaces" : selectedType === "bonding" ? "Bonding Interfaces" : selectedType === "bridge" ? "Bridge Interfaces" : selectedType === "pppoe" ? "PPPoE Interfaces" : selectedType === "pseudo-ethernet" ? "Pseudo-Ethernet Interfaces" : "WireGuard Interfaces"}
+                  {selectedType === "ethernet" ? "Ethernet Interfaces" : selectedType === "vlan" ? "VLANs" : selectedType === "vxlan" ? "VXLAN Interfaces" : selectedType === "tunnel" ? "Tunnel Interfaces" : selectedType === "l2tpv3" ? "L2TPv3 Interfaces" : selectedType === "dummy" ? "Dummy Interfaces" : selectedType === "geneve" ? "GENEVE Interfaces" : selectedType === "input" ? "Input Interfaces" : selectedType === "loopback" ? "Loopback Interface" : selectedType === "macsec" ? "MACsec Interfaces" : selectedType === "bonding" ? "Bonding Interfaces" : selectedType === "bridge" ? "Bridge Interfaces" : selectedType === "pppoe" ? "PPPoE Interfaces" : selectedType === "pseudo-ethernet" ? "Pseudo-Ethernet Interfaces" : selectedType === "sstpc" ? "SSTPC Interfaces" : "WireGuard Interfaces"}
                 </h1>
                 <p className="text-sm text-muted-foreground mt-2">
                   {selectedType === "ethernet"
@@ -1290,7 +1356,9 @@ export default function InterfacesPage() {
                                 ? "PPP over Ethernet dial-up interfaces — connects to an upstream access concentrator over an Ethernet source"
                                 : selectedType === "pseudo-ethernet"
                                   ? "MacVLAN pseudo-ethernet interfaces bound to a physical Ethernet port with configurable isolation mode"
-                                  : "WireGuard tunnel interfaces and status"}
+                                  : selectedType === "sstpc"
+                                    ? "SSTP client interfaces — tunnel PPP over HTTPS to a remote server for VPN connectivity through restrictive firewalls"
+                                    : "WireGuard tunnel interfaces and status"}
                 </p>
               </div>
               <Button
@@ -1329,11 +1397,13 @@ export default function InterfacesPage() {
                     setIsCreatePppoeModalOpen(true);
                   } else if (selectedType === "pseudo-ethernet") {
                     setIsCreatePseudoEthernetModalOpen(true);
+                  } else if (selectedType === "sstpc") {
+                    setIsCreateSstpcModalOpen(true);
                   } else {
                     setIsCreateInterfaceModalOpen(true);
                   }
                 }}
-                disabled={selectedType === "vxlan" ? !canWrite(FeatureGroup.VXLAN) : selectedType === "tunnel" ? !canWrite(FeatureGroup.TUNNEL) && !canWrite(FeatureGroup.INTERFACES) : selectedType === "pppoe" ? !canWrite(FeatureGroup.PPPOE) && !canWrite(FeatureGroup.INTERFACES) : !canWrite(FeatureGroup.INTERFACES)}
+                disabled={selectedType === "vxlan" ? !canWrite(FeatureGroup.VXLAN) : selectedType === "tunnel" ? !canWrite(FeatureGroup.TUNNEL) && !canWrite(FeatureGroup.INTERFACES) : selectedType === "pppoe" ? !canWrite(FeatureGroup.PPPOE) && !canWrite(FeatureGroup.INTERFACES) : selectedType === "sstpc" ? !canWrite(FeatureGroup.SSTPC) && !canWrite(FeatureGroup.INTERFACES) : !canWrite(FeatureGroup.INTERFACES)}
               >
                 <Plus className="h-4 w-4" />
                 {selectedType === "ethernet"
@@ -1364,7 +1434,9 @@ export default function InterfacesPage() {
                               ? "Create PPPoE"
                               : selectedType === "pseudo-ethernet"
                                 ? "Create Pseudo-Ethernet"
-                                : "Manage WireGuard"}
+                                : selectedType === "sstpc"
+                                  ? "Create SSTPC"
+                                  : "Manage WireGuard"}
               </Button>
             </div>
 
@@ -2399,6 +2471,83 @@ export default function InterfacesPage() {
                   </p>
                 </>
               )
+            ) : selectedType === "sstpc" ? (
+              /* SSTPC Table */
+              filteredSstpc.length === 0 ? (
+                <Card className="border-border">
+                  <CardContent className="py-12">
+                    <div className="flex flex-col items-center gap-2">
+                      <Lock className="h-12 w-12 text-muted-foreground/30" />
+                      <p className="text-muted-foreground">
+                        {searchQuery ? "No SSTPC interfaces matching your search" : "No SSTPC interfaces configured"}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <>
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Server</TableHead>
+                          <TableHead>Port</TableHead>
+                          <TableHead>Description</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="w-[80px]"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredSstpc.map((iface) => (
+                          <TableRow key={iface.name} className="group">
+                            <TableCell>
+                              <code className="font-semibold font-mono text-foreground">{iface.name}</code>
+                            </TableCell>
+                            <TableCell>
+                              {iface.server ? (
+                                <code className="text-xs font-mono px-1.5 py-0.5 rounded bg-accent text-foreground">{iface.server}</code>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground text-sm">
+                              {iface.port || "443"}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground max-w-[180px] truncate">
+                              {iface.description || "—"}
+                            </TableCell>
+                            <TableCell>
+                              {iface.disabled ? (
+                                <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">Disabled</Badge>
+                              ) : (
+                                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">Enabled</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                {(canWrite(FeatureGroup.SSTPC) || canWrite(FeatureGroup.INTERFACES)) && (
+                                  <>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingSstpc(iface)}>
+                                      <Pencil className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeletingSstpc(iface)}>
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <p className="text-sm text-muted-foreground text-center mt-3">
+                    Showing {filteredSstpc.length} of {totalSstpc} interface{totalSstpc !== 1 ? "s" : ""}
+                  </p>
+                </>
+              )
             ) : selectedType === "bonding" ? (
               /* Bonding Table */
               filteredBonding.length === 0 ? (
@@ -3059,6 +3208,33 @@ export default function InterfacesPage() {
           loadData();
         }}
         interfaceData={deletingPseudoEthernet}
+      />
+      {/* SSTPC Modals */}
+      <CreateSstpcModal
+        open={isCreateSstpcModalOpen}
+        onOpenChange={setIsCreateSstpcModalOpen}
+        onSuccess={loadData}
+        capabilities={sstpcCapabilities}
+        existingInterfaces={sstpcInterfaces.map((i) => i.name)}
+      />
+      <EditSstpcModal
+        open={!!editingSstpc}
+        onOpenChange={(o) => !o && setEditingSstpc(null)}
+        onSuccess={() => {
+          setEditingSstpc(null);
+          loadData();
+        }}
+        interfaceData={editingSstpc}
+        capabilities={sstpcCapabilities}
+      />
+      <DeleteSstpcModal
+        open={!!deletingSstpc}
+        onOpenChange={(o) => !o && setDeletingSstpc(null)}
+        onSuccess={() => {
+          setDeletingSstpc(null);
+          loadData();
+        }}
+        interfaceData={deletingSstpc}
       />
       {/* Bridge Modals */}
       <CreateBridgeModal

@@ -6,7 +6,7 @@ This keeps the codebase organized and maintainable as it grows.
 """
 
 from .base import BaseFeatureMapper, CommandMapperRegistry
-from .interfaces import EthernetInterfaceMapper, DummyInterfaceMapper, BondingInterfaceMapper, BridgeInterfaceMapper, GeneveInterfaceMapper, InputInterfaceMapper, L2TPv3InterfaceMapper, LoopbackInterfaceMapper, MacsecInterfaceMapper, OpenvpnInterfaceMapper, PppoeInterfaceMapper, PseudoEthernetInterfaceMapper
+from .interfaces import EthernetInterfaceMapper, DummyInterfaceMapper, BondingInterfaceMapper, BridgeInterfaceMapper, GeneveInterfaceMapper, InputInterfaceMapper, L2TPv3InterfaceMapper, LoopbackInterfaceMapper, MacsecInterfaceMapper, OpenvpnInterfaceMapper, PppoeInterfaceMapper
 from .interfaces.ethernet_versions import get_ethernet_mapper
 from .interfaces.dummy_versions import get_dummy_mapper
 from .interfaces.bonding_versions import get_bonding_mapper
@@ -19,6 +19,7 @@ from .interfaces.macsec_versions import get_macsec_mapper
 from .interfaces.openvpn_versions import get_openvpn_mapper
 from .interfaces.pppoe_versions import get_pppoe_mapper
 from .interfaces.pseudo_ethernet_versions import get_pseudo_ethernet_mapper
+from .interfaces.sstpc_versions import get_sstpc_mapper
 from .firewall import FirewallGroupsMapper, FirewallIPv4Mapper, FirewallIPv6Mapper, BridgeFirewallMapper, FlowtablesMapper, FirewallZonesMapper
 from .firewall.groups_versions import get_firewall_groups_mapper
 from .firewall.ipv4_versions import get_firewall_ipv4_mapper
@@ -121,6 +122,8 @@ CommandMapperRegistry.register_feature("interface_openvpn", get_openvpn_mapper)
 CommandMapperRegistry.register_feature("interface_pppoe", get_pppoe_mapper)
 # Pseudo-ethernet uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("interface_pseudo_ethernet", get_pseudo_ethernet_mapper)
+# SSTPC uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("interface_sstpc", get_sstpc_mapper)
 # Firewall groups uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("firewall_groups", get_firewall_groups_mapper)
 # Firewall IPv4 uses factory for version-specific mappers
