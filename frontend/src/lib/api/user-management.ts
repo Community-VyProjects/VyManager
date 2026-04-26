@@ -132,6 +132,7 @@ export enum FeatureGroup {
   L2TP = "L2TP",
   OPENVPN = "OPENVPN",
   PPPOE = "PPPOE",
+  SSTPC = "SSTPC",
 
   // PKI
   PKI = "PKI",

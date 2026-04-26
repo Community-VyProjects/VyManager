@@ -26,6 +26,7 @@ from vyos_builders import (
     OpenvpnBatchBuilder,
     PppoeBatchBuilder,
     PseudoEthernetBatchBuilder,
+    SstpcBatchBuilder,
     FirewallGroupsBatchBuilder,
     NATBatchBuilder,
     DHCPBatchBuilder,
@@ -164,6 +165,14 @@ class VyOSService:
         The builder automatically uses correct command syntax based on version.
         """
         return PseudoEthernetBatchBuilder(self.config.version)
+
+    def create_sstpc_batch(self) -> SstpcBatchBuilder:
+        """
+        Create a batch builder for SSTPC interfaces.
+
+        The builder automatically uses correct command syntax based on version.
+        """
+        return SstpcBatchBuilder(self.config.version)
 
     def create_bonding_batch(self) -> BondingBatchBuilder:
         """
