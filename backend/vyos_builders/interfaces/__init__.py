@@ -17,6 +17,7 @@ from .openvpn import OpenvpnInterfaceBuilderMixin
 from .pppoe import PppoeInterfaceBuilderMixin
 from .pseudo_ethernet import PseudoEthernetInterfaceBuilderMixin
 from .sstpc import SstpcInterfaceBuilderMixin
+from .virtual_ethernet import VirtualEthernetInterfaceBuilderMixin
 
 __all__ = [
     "EthernetInterfaceBuilderMixin",
@@ -32,4 +33,5 @@ __all__ = [
     "PppoeInterfaceBuilderMixin",
     "PseudoEthernetInterfaceBuilderMixin",
     "SstpcInterfaceBuilderMixin",
+    "VirtualEthernetInterfaceBuilderMixin",
 ]

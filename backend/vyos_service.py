@@ -27,6 +27,7 @@ from vyos_builders import (
     PppoeBatchBuilder,
     PseudoEthernetBatchBuilder,
     SstpcBatchBuilder,
+    VirtualEthernetBatchBuilder,
     FirewallGroupsBatchBuilder,
     NATBatchBuilder,
     DHCPBatchBuilder,
@@ -173,6 +174,14 @@ class VyOSService:
         The builder automatically uses correct command syntax based on version.
         """
         return SstpcBatchBuilder(self.config.version)
+
+    def create_virtual_ethernet_batch(self) -> VirtualEthernetBatchBuilder:
+        """
+        Create a batch builder for virtual-ethernet interfaces.
+
+        The builder automatically uses correct command syntax based on version.
+        """
+        return VirtualEthernetBatchBuilder(self.config.version)
 
     def create_bonding_batch(self) -> BondingBatchBuilder:
         """
