@@ -16,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, RefreshCw, AlertCircle, Search, Cable, Pencil, Trash2, Network, ChevronRight, Shield, Boxes, Waypoints, Link2, GitMerge, Box, Layers, ArrowDownToLine, Repeat, Lock } from "lucide-react";
+import { Plus, RefreshCw, AlertCircle, Search, Cable, Pencil, Trash2, Network, ChevronRight, Shield, Boxes, Waypoints, Link2, GitMerge, Box, Layers, ArrowDownToLine, Repeat, Lock, ArrowLeftRight } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { ethernetService } from "@/lib/api/ethernet";
@@ -71,6 +71,10 @@ import { sstpcService, type SstpcInterface, type SstpcCapabilities } from "@/lib
 import { CreateSstpcModal } from "@/components/sstpc/CreateSstpcModal";
 import { EditSstpcModal } from "@/components/sstpc/EditSstpcModal";
 import { DeleteSstpcModal } from "@/components/sstpc/DeleteSstpcModal";
+import { virtualEthernetService, type VirtualEthernetInterface, type VirtualEthernetCapabilities } from "@/lib/api/virtual-ethernet";
+import { CreateVirtualEthernetModal } from "@/components/virtual-ethernet/CreateVirtualEthernetModal";
+import { EditVirtualEthernetModal } from "@/components/virtual-ethernet/EditVirtualEthernetModal";
+import { DeleteVirtualEthernetModal } from "@/components/virtual-ethernet/DeleteVirtualEthernetModal";
 import { CreateVxlanModal } from "@/components/vxlan/CreateVxlanModal";
 import { EditVxlanModal } from "@/components/vxlan/EditVxlanModal";
 import { DeleteVxlanModal } from "@/components/vxlan/DeleteVxlanModal";
@@ -84,7 +88,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 
-type InterfaceType = "ethernet" | "vlan" | "wireguard" | "vxlan" | "tunnel" | "bonding" | "bridge" | "dummy" | "geneve" | "input" | "l2tpv3" | "loopback" | "macsec" | "pppoe" | "pseudo-ethernet" | "sstpc";
+type InterfaceType = "ethernet" | "vlan" | "wireguard" | "vxlan" | "tunnel" | "bonding" | "bridge" | "dummy" | "geneve" | "input" | "l2tpv3" | "loopback" | "macsec" | "pppoe" | "pseudo-ethernet" | "sstpc" | "virtual-ethernet";
 type VlanSubTab = "vif" | "vif-s" | "vif-c";
 
 interface VLANWithParent extends VIFConfig {
@@ -237,6 +241,15 @@ export default function InterfacesPage() {
   const [editingSstpc, setEditingSstpc] = useState<SstpcInterface | null>(null);
   const [deletingSstpc, setDeletingSstpc] = useState<SstpcInterface | null>(null);
 
+  // Virtual-Ethernet state
+  const [virtualEthernetInterfaces, setVirtualEthernetInterfaces] = useState<VirtualEthernetInterface[]>([]);
+  const [virtualEthernetCapabilities, setVirtualEthernetCapabilities] = useState<VirtualEthernetCapabilities | null>(null);
+
+  // Virtual-Ethernet Modal states
+  const [isCreateVirtualEthernetModalOpen, setIsCreateVirtualEthernetModalOpen] = useState(false);
+  const [editingVirtualEthernet, setEditingVirtualEthernet] = useState<VirtualEthernetInterface | null>(null);
+  const [deletingVirtualEthernet, setDeletingVirtualEthernet] = useState<VirtualEthernetInterface | null>(null);
+
   // Bridge state
   const [bridgeInterfaces, setBridgeInterfaces] = useState<BridgeInterface[]>([]);
   const [bridgeCapabilities, setBridgeCapabilities] = useState<BridgeCapabilities | null>(null);
@@ -251,7 +264,7 @@ export default function InterfacesPage() {
   const loadData = async () => {
     try {
       setError(null);
-      const [configData, capabilitiesData, wgData, vxlanData, vxlanCapData, tunnelData, tunnelCapData, dummyData, dummyCapData, geneveData, geneveCapData, inputData, inputCapData, l2tpv3Data, l2tpv3CapData, loopbackData, loopbackCapData, macsecData, macsecCapData, bondingData, bondingCapData, bridgeData, bridgeCapData, pppoeData, pppoeCapData, pseudoEthernetData, pseudoEthernetCapData, sstpcData, sstpcCapData] = await Promise.all([
+      const [configData, capabilitiesData, wgData, vxlanData, vxlanCapData, tunnelData, tunnelCapData, dummyData, dummyCapData, geneveData, geneveCapData, inputData, inputCapData, l2tpv3Data, l2tpv3CapData, loopbackData, loopbackCapData, macsecData, macsecCapData, bondingData, bondingCapData, bridgeData, bridgeCapData, pppoeData, pppoeCapData, pseudoEthernetData, pseudoEthernetCapData, sstpcData, sstpcCapData, virtualEthernetData, virtualEthernetCapData] = await Promise.all([
         ethernetService.getConfig(),
         ethernetService.getCapabilities(),
         wireguardService.getConfig(),
@@ -281,6 +294,8 @@ export default function InterfacesPage() {
         pseudoEthernetService.getCapabilities(),
         sstpcService.getConfig(),
         sstpcService.getCapabilities(),
+        virtualEthernetService.getConfig(),
+        virtualEthernetService.getCapabilities(),
       ]);
       setInterfaces(configData.interfaces);
       setCapabilities(capabilitiesData);
@@ -311,6 +326,8 @@ export default function InterfacesPage() {
       setPseudoEthernetCapabilities(pseudoEthernetCapData);
       setSstpcInterfaces(sstpcData.interfaces);
       setSstpcCapabilities(sstpcCapData);
+      setVirtualEthernetInterfaces(virtualEthernetData.interfaces);
+      setVirtualEthernetCapabilities(virtualEthernetCapData);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load interface data");
     } finally {
@@ -368,6 +385,7 @@ export default function InterfacesPage() {
   const totalPppoe = pppoeInterfaces.length;
   const totalPseudoEthernet = pseudoEthernetInterfaces.length;
   const totalSstpc = sstpcInterfaces.length;
+  const totalVirtualEthernet = virtualEthernetInterfaces.length;
 
   // Filter interfaces based on search
   const filteredInterfaces = interfaces.filter((iface) => {
@@ -718,6 +736,17 @@ export default function InterfacesPage() {
     );
   });
 
+  const filteredVirtualEthernet = virtualEthernetInterfaces.filter((iface) => {
+    if (searchQuery === "") return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      iface.name.toLowerCase().includes(q) ||
+      (iface.description || "").toLowerCase().includes(q) ||
+      (iface.peer_name || "").toLowerCase().includes(q) ||
+      iface.addresses?.some((a) => a.toLowerCase().includes(q))
+    );
+  });
+
   return (
     <AppLayout>
       <div className="flex h-full overflow-hidden">
@@ -728,7 +757,7 @@ export default function InterfacesPage() {
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Interfaces</h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {totalInterfaces + totalVlans + totalWireGuard + totalVxlan + totalTunnel + totalDummy + totalGeneve + totalInput + totalLoopback + totalMacsec + totalBonding + totalBridge + totalPppoe + totalPseudoEthernet} total
+                  {totalInterfaces + totalVlans + totalWireGuard + totalVxlan + totalTunnel + totalDummy + totalGeneve + totalInput + totalLoopback + totalMacsec + totalBonding + totalBridge + totalPppoe + totalPseudoEthernet + totalSstpc + totalVirtualEthernet} total
                 </p>
               </div>
               <Button
@@ -1210,6 +1239,42 @@ export default function InterfacesPage() {
                   </button>
                 )}
 
+                {/* Virtual Ethernet */}
+                {canRead(FeatureGroup.INTERFACES) && (
+                  <button
+                    onClick={() => setSelectedType("virtual-ethernet")}
+                    className={cn(
+                      "w-full text-left rounded-lg px-3 py-3 transition-all",
+                      selectedType === "virtual-ethernet"
+                        ? "bg-accent text-accent-foreground shadow-sm"
+                        : "hover:bg-accent/50"
+                    )}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className={cn(
+                        "mt-0.5 rounded-md p-1.5",
+                        selectedType === "virtual-ethernet" ? "bg-primary/10" : "bg-muted"
+                      )}>
+                        <ArrowLeftRight className={cn(
+                          "h-4 w-4",
+                          selectedType === "virtual-ethernet" ? "text-primary" : "text-muted-foreground"
+                        )} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <span className="font-medium text-sm text-foreground">Virtual Ethernet</span>
+                          {selectedType === "virtual-ethernet" && (
+                            <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
+                          )}
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          {totalVirtualEthernet} {totalVirtualEthernet === 1 ? "interface" : "interfaces"}
+                        </span>
+                      </div>
+                    </div>
+                  </button>
+                )}
+
                 {/* Bonding */}
                 <button
                   onClick={() => setSelectedType("bonding")}
@@ -1325,7 +1390,7 @@ export default function InterfacesPage() {
             <div className="flex items-start justify-between mb-4">
               <div className="flex-1">
                 <h1 className="text-2xl font-bold text-foreground">
-                  {selectedType === "ethernet" ? "Ethernet Interfaces" : selectedType === "vlan" ? "VLANs" : selectedType === "vxlan" ? "VXLAN Interfaces" : selectedType === "tunnel" ? "Tunnel Interfaces" : selectedType === "l2tpv3" ? "L2TPv3 Interfaces" : selectedType === "dummy" ? "Dummy Interfaces" : selectedType === "geneve" ? "GENEVE Interfaces" : selectedType === "input" ? "Input Interfaces" : selectedType === "loopback" ? "Loopback Interface" : selectedType === "macsec" ? "MACsec Interfaces" : selectedType === "bonding" ? "Bonding Interfaces" : selectedType === "bridge" ? "Bridge Interfaces" : selectedType === "pppoe" ? "PPPoE Interfaces" : selectedType === "pseudo-ethernet" ? "Pseudo-Ethernet Interfaces" : selectedType === "sstpc" ? "SSTPC Interfaces" : "WireGuard Interfaces"}
+                  {selectedType === "ethernet" ? "Ethernet Interfaces" : selectedType === "vlan" ? "VLANs" : selectedType === "vxlan" ? "VXLAN Interfaces" : selectedType === "tunnel" ? "Tunnel Interfaces" : selectedType === "l2tpv3" ? "L2TPv3 Interfaces" : selectedType === "dummy" ? "Dummy Interfaces" : selectedType === "geneve" ? "GENEVE Interfaces" : selectedType === "input" ? "Input Interfaces" : selectedType === "loopback" ? "Loopback Interface" : selectedType === "macsec" ? "MACsec Interfaces" : selectedType === "bonding" ? "Bonding Interfaces" : selectedType === "bridge" ? "Bridge Interfaces" : selectedType === "pppoe" ? "PPPoE Interfaces" : selectedType === "pseudo-ethernet" ? "Pseudo-Ethernet Interfaces" : selectedType === "sstpc" ? "SSTPC Interfaces" : selectedType === "virtual-ethernet" ? "Virtual Ethernet Interfaces" : "WireGuard Interfaces"}
                 </h1>
                 <p className="text-sm text-muted-foreground mt-2">
                   {selectedType === "ethernet"
@@ -1358,7 +1423,9 @@ export default function InterfacesPage() {
                                   ? "MacVLAN pseudo-ethernet interfaces bound to a physical Ethernet port with configurable isolation mode"
                                   : selectedType === "sstpc"
                                     ? "SSTP client interfaces — tunnel PPP over HTTPS to a remote server for VPN connectivity through restrictive firewalls"
-                                    : "WireGuard tunnel interfaces and status"}
+                                    : selectedType === "virtual-ethernet"
+                                      ? "Virtual Ethernet (veth) peer interface pairs — kernel-level point-to-point links connecting network namespaces"
+                                      : "WireGuard tunnel interfaces and status"}
                 </p>
               </div>
               <Button
@@ -1399,6 +1466,8 @@ export default function InterfacesPage() {
                     setIsCreatePseudoEthernetModalOpen(true);
                   } else if (selectedType === "sstpc") {
                     setIsCreateSstpcModalOpen(true);
+                  } else if (selectedType === "virtual-ethernet") {
+                    setIsCreateVirtualEthernetModalOpen(true);
                   } else {
                     setIsCreateInterfaceModalOpen(true);
                   }
@@ -1436,7 +1505,9 @@ export default function InterfacesPage() {
                                 ? "Create Pseudo-Ethernet"
                                 : selectedType === "sstpc"
                                   ? "Create SSTPC"
-                                  : "Manage WireGuard"}
+                                  : selectedType === "virtual-ethernet"
+                                    ? "Create Virtual Ethernet"
+                                    : "Manage WireGuard"}
               </Button>
             </div>
 
@@ -1493,7 +1564,9 @@ export default function InterfacesPage() {
                                 ? "Search by name, source, AC, or username..."
                                 : selectedType === "pseudo-ethernet"
                                   ? "Search by name, description, source, or address..."
-                                  : "Search by name, description, address..."
+                                  : selectedType === "virtual-ethernet"
+                                    ? "Search by name, peer, description, or address..."
+                                    : "Search by name, description, address..."
                 }
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -2548,6 +2621,113 @@ export default function InterfacesPage() {
                   </p>
                 </>
               )
+            ) : selectedType === "virtual-ethernet" ? (
+              /* Virtual Ethernet Table */
+              filteredVirtualEthernet.length === 0 ? (
+                <Card className="border-border">
+                  <CardContent className="py-12">
+                    <div className="flex flex-col items-center gap-2">
+                      <ArrowLeftRight className="h-12 w-12 text-muted-foreground/30" />
+                      <p className="text-muted-foreground">
+                        {searchQuery ? "No virtual ethernet interfaces matching your search" : "No virtual ethernet interfaces configured"}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <>
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Peer</TableHead>
+                          <TableHead>Addresses</TableHead>
+                          <TableHead>Namespace</TableHead>
+                          <TableHead>Sub-interfaces</TableHead>
+                          <TableHead>Description</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="w-[80px]"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredVirtualEthernet.map((iface) => {
+                          const subIfaceCount = iface.vif.length + iface.vif_s.length;
+                          return (
+                            <TableRow key={iface.name} className="group">
+                              <TableCell>
+                                <code className="font-semibold font-mono text-foreground">{iface.name}</code>
+                              </TableCell>
+                              <TableCell>
+                                {iface.peer_name ? (
+                                  <code className="text-xs font-mono px-1.5 py-0.5 rounded bg-accent text-foreground">{iface.peer_name}</code>
+                                ) : (
+                                  <span className="text-muted-foreground">—</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {iface.addresses?.length ? (
+                                  <div className="flex flex-wrap gap-1">
+                                    {iface.addresses.slice(0, 2).map((addr, idx) => (
+                                      <code key={idx} className="text-xs font-mono px-1.5 py-0.5 rounded bg-accent text-foreground">{addr}</code>
+                                    ))}
+                                    {iface.addresses.length > 2 && (
+                                      <Badge variant="secondary" className="text-xs px-1.5 py-0">+{iface.addresses.length - 2}</Badge>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className="text-muted-foreground">—</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {iface.netns ? (
+                                  <code className="text-xs font-mono px-1.5 py-0.5 rounded bg-accent text-foreground">{iface.netns}</code>
+                                ) : (
+                                  <span className="text-muted-foreground">—</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {subIfaceCount > 0 ? (
+                                  <Badge variant="secondary" className="text-xs">{subIfaceCount}</Badge>
+                                ) : (
+                                  <span className="text-muted-foreground">—</span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-muted-foreground max-w-[180px] truncate">
+                                {iface.description || "—"}
+                              </TableCell>
+                              <TableCell>
+                                {iface.disabled ? (
+                                  <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">Disabled</Badge>
+                                ) : (
+                                  <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">Enabled</Badge>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  {canWrite(FeatureGroup.INTERFACES) && (
+                                    <>
+                                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingVirtualEthernet(iface)}>
+                                        <Pencil className="h-3.5 w-3.5" />
+                                      </Button>
+                                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeletingVirtualEthernet(iface)}>
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </>
+                                  )}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <p className="text-sm text-muted-foreground text-center mt-3">
+                    Showing {filteredVirtualEthernet.length} of {totalVirtualEthernet} interface{totalVirtualEthernet !== 1 ? "s" : ""}
+                  </p>
+                </>
+              )
             ) : selectedType === "bonding" ? (
               /* Bonding Table */
               filteredBonding.length === 0 ? (
@@ -3235,6 +3415,33 @@ export default function InterfacesPage() {
           loadData();
         }}
         interfaceData={deletingSstpc}
+      />
+      {/* Virtual Ethernet Modals */}
+      <CreateVirtualEthernetModal
+        open={isCreateVirtualEthernetModalOpen}
+        onOpenChange={setIsCreateVirtualEthernetModalOpen}
+        onSuccess={loadData}
+        capabilities={virtualEthernetCapabilities}
+        existingNames={virtualEthernetInterfaces.map((i) => i.name)}
+      />
+      <EditVirtualEthernetModal
+        open={!!editingVirtualEthernet}
+        onOpenChange={(o) => !o && setEditingVirtualEthernet(null)}
+        onSuccess={() => {
+          setEditingVirtualEthernet(null);
+          loadData();
+        }}
+        interfaceData={editingVirtualEthernet}
+        capabilities={virtualEthernetCapabilities}
+      />
+      <DeleteVirtualEthernetModal
+        open={!!deletingVirtualEthernet}
+        onOpenChange={(o) => !o && setDeletingVirtualEthernet(null)}
+        onSuccess={() => {
+          setDeletingVirtualEthernet(null);
+          loadData();
+        }}
+        interfaceData={deletingVirtualEthernet}
       />
       {/* Bridge Modals */}
       <CreateBridgeModal
