@@ -18,13 +18,6 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle, Loader2, Plus, X } from "lucide-react";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   virtualEthernetService,
   type VirtualEthernetCapabilities,
   type VirtualEthernetCreateConfig,
@@ -33,12 +26,6 @@ import {
 import { ApiError } from "@/lib/types/api";
 
 const VETH_NAME_RE = /^[a-zA-Z][a-zA-Z0-9_.-]{0,14}$/;
-
-const SOURCE_VALIDATION_OPTIONS = [
-  { value: "strict", label: "Strict" },
-  { value: "loose", label: "Loose" },
-  { value: "disable", label: "Disable" },
-];
 
 interface PdInstanceForm {
   instance: string;
