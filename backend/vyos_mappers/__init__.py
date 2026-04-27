@@ -20,6 +20,7 @@ from .interfaces.openvpn_versions import get_openvpn_mapper
 from .interfaces.pppoe_versions import get_pppoe_mapper
 from .interfaces.pseudo_ethernet_versions import get_pseudo_ethernet_mapper
 from .interfaces.sstpc_versions import get_sstpc_mapper
+from .interfaces.virtual_ethernet_versions import get_virtual_ethernet_mapper
 from .firewall import FirewallGroupsMapper, FirewallIPv4Mapper, FirewallIPv6Mapper, BridgeFirewallMapper, FlowtablesMapper, FirewallZonesMapper
 from .firewall.groups_versions import get_firewall_groups_mapper
 from .firewall.ipv4_versions import get_firewall_ipv4_mapper
@@ -124,6 +125,8 @@ CommandMapperRegistry.register_feature("interface_pppoe", get_pppoe_mapper)
 CommandMapperRegistry.register_feature("interface_pseudo_ethernet", get_pseudo_ethernet_mapper)
 # SSTPC uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("interface_sstpc", get_sstpc_mapper)
+# Virtual-ethernet uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("interface_virtual_ethernet", get_virtual_ethernet_mapper)
 # Firewall groups uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("firewall_groups", get_firewall_groups_mapper)
 # Firewall IPv4 uses factory for version-specific mappers
