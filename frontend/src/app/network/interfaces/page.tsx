@@ -79,6 +79,10 @@ import { vppService, type VppCapabilities, type VppBondingConfig, type VppBridge
 import { CreateVppModal } from "@/components/vpp/CreateVppModal";
 import { EditVppModal } from "@/components/vpp/EditVppModal";
 import { DeleteVppModal } from "@/components/vpp/DeleteVppModal";
+import { vtiService, type VtiInterface, type VtiCapabilities } from "@/lib/api/vti";
+import { CreateVtiModal } from "@/components/vti/CreateVtiModal";
+import { EditVtiModal } from "@/components/vti/EditVtiModal";
+import { DeleteVtiModal } from "@/components/vti/DeleteVtiModal";
 import { CreateVxlanModal } from "@/components/vxlan/CreateVxlanModal";
 import { EditVxlanModal } from "@/components/vxlan/EditVxlanModal";
 import { DeleteVxlanModal } from "@/components/vxlan/DeleteVxlanModal";
@@ -92,7 +96,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 
-type InterfaceType = "ethernet" | "vlan" | "wireguard" | "vxlan" | "tunnel" | "bonding" | "bridge" | "dummy" | "geneve" | "input" | "l2tpv3" | "loopback" | "macsec" | "pppoe" | "pseudo-ethernet" | "sstpc" | "virtual-ethernet" | "vpp";
+type InterfaceType = "ethernet" | "vlan" | "wireguard" | "vxlan" | "tunnel" | "bonding" | "bridge" | "dummy" | "geneve" | "input" | "l2tpv3" | "loopback" | "macsec" | "pppoe" | "pseudo-ethernet" | "sstpc" | "virtual-ethernet" | "vpp" | "vti";
 type VlanSubTab = "vif" | "vif-s" | "vif-c";
 
 interface VLANWithParent extends VIFConfig {
@@ -254,6 +258,15 @@ export default function InterfacesPage() {
   const [editingVirtualEthernet, setEditingVirtualEthernet] = useState<VirtualEthernetInterface | null>(null);
   const [deletingVirtualEthernet, setDeletingVirtualEthernet] = useState<VirtualEthernetInterface | null>(null);
 
+  // VTI state
+  const [vtiInterfaces, setVtiInterfaces] = useState<VtiInterface[]>([]);
+  const [vtiCapabilities, setVtiCapabilities] = useState<VtiCapabilities | null>(null);
+
+  // VTI Modal states
+  const [isCreateVtiModalOpen, setIsCreateVtiModalOpen] = useState(false);
+  const [editingVti, setEditingVti] = useState<VtiInterface | null>(null);
+  const [deletingVti, setDeletingVti] = useState<VtiInterface | null>(null);
+
   // VPP state
   const [vppBonding, setVppBonding] = useState<VppBondingConfig[]>([]);
   const [vppBridge, setVppBridge] = useState<VppBridgeConfig[]>([]);
@@ -282,7 +295,7 @@ export default function InterfacesPage() {
   const loadData = async () => {
     try {
       setError(null);
-      const [configData, capabilitiesData, wgData, vxlanData, vxlanCapData, tunnelData, tunnelCapData, dummyData, dummyCapData, geneveData, geneveCapData, inputData, inputCapData, l2tpv3Data, l2tpv3CapData, loopbackData, loopbackCapData, macsecData, macsecCapData, bondingData, bondingCapData, bridgeData, bridgeCapData, pppoeData, pppoeCapData, pseudoEthernetData, pseudoEthernetCapData, sstpcData, sstpcCapData, virtualEthernetData, virtualEthernetCapData, vppData, vppCapData] = await Promise.all([
+      const [configData, capabilitiesData, wgData, vxlanData, vxlanCapData, tunnelData, tunnelCapData, dummyData, dummyCapData, geneveData, geneveCapData, inputData, inputCapData, l2tpv3Data, l2tpv3CapData, loopbackData, loopbackCapData, macsecData, macsecCapData, bondingData, bondingCapData, bridgeData, bridgeCapData, pppoeData, pppoeCapData, pseudoEthernetData, pseudoEthernetCapData, sstpcData, sstpcCapData, virtualEthernetData, virtualEthernetCapData, vppData, vppCapData, vtiData, vtiCapData] = await Promise.all([
         ethernetService.getConfig(),
         ethernetService.getCapabilities(),
         wireguardService.getConfig(),
@@ -316,6 +329,8 @@ export default function InterfacesPage() {
         virtualEthernetService.getCapabilities(),
         vppService.getConfig(),
         vppService.getCapabilities(),
+        vtiService.getConfig(),
+        vtiService.getCapabilities(),
       ]);
       setInterfaces(configData.interfaces);
       setCapabilities(capabilitiesData);
@@ -358,6 +373,8 @@ export default function InterfacesPage() {
         setVppVxlanIfaces(vppData.vxlan);
         setVppXconnect(vppData.xconnect);
       }
+      setVtiInterfaces(vtiData.interfaces);
+      setVtiCapabilities(vtiCapData);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load interface data");
     } finally {
@@ -417,6 +434,7 @@ export default function InterfacesPage() {
   const totalSstpc = sstpcInterfaces.length;
   const totalVirtualEthernet = virtualEthernetInterfaces.length;
   const totalVpp = vppBonding.length + vppBridge.length + vppGre.length + vppIpip.length + vppLoopback.length + vppVxlanIfaces.length + vppXconnect.length;
+  const totalVti = vtiInterfaces.length;
 
   // Filter interfaces based on search
   const filteredInterfaces = interfaces.filter((iface) => {
@@ -778,6 +796,17 @@ export default function InterfacesPage() {
     );
   });
 
+  const filteredVti = vtiInterfaces.filter((iface) => {
+    if (searchQuery === "") return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      iface.name.toLowerCase().includes(q) ||
+      (iface.description || "").toLowerCase().includes(q) ||
+      iface.addresses?.some((addr) => addr.toLowerCase().includes(q)) ||
+      (iface.vrf || "").toLowerCase().includes(q)
+    );
+  });
+
   const filterVppIface = <T extends { name: string; description: string | null }>(items: T[]): T[] => {
     if (searchQuery === "") return items;
     const q = searchQuery.toLowerCase();
@@ -804,7 +833,7 @@ export default function InterfacesPage() {
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Interfaces</h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {totalInterfaces + totalVlans + totalWireGuard + totalVxlan + totalTunnel + totalDummy + totalGeneve + totalInput + totalLoopback + totalMacsec + totalBonding + totalBridge + totalPppoe + totalPseudoEthernet + totalSstpc + totalVirtualEthernet} total
+                  {totalInterfaces + totalVlans + totalWireGuard + totalVxlan + totalTunnel + totalDummy + totalGeneve + totalInput + totalLoopback + totalMacsec + totalBonding + totalBridge + totalPppoe + totalPseudoEthernet + totalSstpc + totalVirtualEthernet + totalVti} total
                 </p>
               </div>
               <Button
@@ -1358,6 +1387,40 @@ export default function InterfacesPage() {
                   </button>
                 )}
 
+                {/* VTI */}
+                <button
+                  onClick={() => setSelectedType("vti")}
+                  className={cn(
+                    "w-full text-left rounded-lg px-3 py-3 transition-all",
+                    selectedType === "vti"
+                      ? "bg-accent text-accent-foreground shadow-sm"
+                      : "hover:bg-accent/50"
+                  )}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={cn(
+                      "mt-0.5 rounded-md p-1.5",
+                      selectedType === "vti" ? "bg-primary/10" : "bg-muted"
+                    )}>
+                      <Lock className={cn(
+                        "h-4 w-4",
+                        selectedType === "vti" ? "text-primary" : "text-muted-foreground"
+                      )} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="font-medium text-sm text-foreground">VTI</span>
+                        {selectedType === "vti" && (
+                          <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
+                        )}
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {totalVti} {totalVti === 1 ? "interface" : "interfaces"}
+                      </span>
+                    </div>
+                  </div>
+                </button>
+
                 {/* Bonding */}
                 <button
                   onClick={() => setSelectedType("bonding")}
@@ -1473,7 +1536,7 @@ export default function InterfacesPage() {
             <div className="flex items-start justify-between mb-4">
               <div className="flex-1">
                 <h1 className="text-2xl font-bold text-foreground">
-                  {selectedType === "ethernet" ? "Ethernet Interfaces" : selectedType === "vlan" ? "VLANs" : selectedType === "vxlan" ? "VXLAN Interfaces" : selectedType === "tunnel" ? "Tunnel Interfaces" : selectedType === "l2tpv3" ? "L2TPv3 Interfaces" : selectedType === "dummy" ? "Dummy Interfaces" : selectedType === "geneve" ? "GENEVE Interfaces" : selectedType === "input" ? "Input Interfaces" : selectedType === "loopback" ? "Loopback Interface" : selectedType === "macsec" ? "MACsec Interfaces" : selectedType === "bonding" ? "Bonding Interfaces" : selectedType === "bridge" ? "Bridge Interfaces" : selectedType === "pppoe" ? "PPPoE Interfaces" : selectedType === "pseudo-ethernet" ? "Pseudo-Ethernet Interfaces" : selectedType === "sstpc" ? "SSTPC Interfaces" : selectedType === "virtual-ethernet" ? "Virtual Ethernet Interfaces" : selectedType === "vpp" ? "VPP Interfaces" : "WireGuard Interfaces"}
+                  {selectedType === "ethernet" ? "Ethernet Interfaces" : selectedType === "vlan" ? "VLANs" : selectedType === "vxlan" ? "VXLAN Interfaces" : selectedType === "tunnel" ? "Tunnel Interfaces" : selectedType === "l2tpv3" ? "L2TPv3 Interfaces" : selectedType === "dummy" ? "Dummy Interfaces" : selectedType === "geneve" ? "GENEVE Interfaces" : selectedType === "input" ? "Input Interfaces" : selectedType === "loopback" ? "Loopback Interface" : selectedType === "macsec" ? "MACsec Interfaces" : selectedType === "bonding" ? "Bonding Interfaces" : selectedType === "bridge" ? "Bridge Interfaces" : selectedType === "pppoe" ? "PPPoE Interfaces" : selectedType === "pseudo-ethernet" ? "Pseudo-Ethernet Interfaces" : selectedType === "sstpc" ? "SSTPC Interfaces" : selectedType === "virtual-ethernet" ? "Virtual Ethernet Interfaces" : selectedType === "vpp" ? "VPP Interfaces" : selectedType === "vti" ? "VTI Interfaces" : "WireGuard Interfaces"}
                 </h1>
                 <p className="text-sm text-muted-foreground mt-2">
                   {selectedType === "ethernet"
@@ -1510,7 +1573,9 @@ export default function InterfacesPage() {
                                       ? "Virtual Ethernet (veth) peer interface pairs — kernel-level point-to-point links connecting network namespaces"
                                       : selectedType === "vpp"
                                         ? "VPP (Vector Packet Processing) interfaces — bonding, bridge, GRE, IPIP, loopback, VXLAN, and XConnect types"
-                                        : "WireGuard tunnel interfaces and status"}
+                                        : selectedType === "vti"
+                                          ? "Virtual Tunnel Interfaces (XFRM) — kernel-side endpoint for IPsec tunnels"
+                                          : "WireGuard tunnel interfaces and status"}
                 </p>
               </div>
               <Button
@@ -1555,6 +1620,8 @@ export default function InterfacesPage() {
                     setIsCreateVirtualEthernetModalOpen(true);
                   } else if (selectedType === "vpp") {
                     setIsCreateVppModalOpen(true);
+                  } else if (selectedType === "vti") {
+                    setIsCreateVtiModalOpen(true);
                   } else {
                     setIsCreateInterfaceModalOpen(true);
                   }
@@ -1596,7 +1663,9 @@ export default function InterfacesPage() {
                                     ? "Create Virtual Ethernet"
                                     : selectedType === "vpp"
                                       ? "Create VPP Interface"
-                                      : "Manage WireGuard"}
+                                      : selectedType === "vti"
+                                        ? "Create VTI"
+                                        : "Manage WireGuard"}
               </Button>
             </div>
 
@@ -3173,6 +3242,86 @@ export default function InterfacesPage() {
                   </p>
                 </>
               )
+            ) : selectedType === "vti" ? (
+              /* VTI Table */
+              filteredVti.length === 0 ? (
+                <Card className="border-border">
+                  <CardContent className="py-12">
+                    <div className="flex flex-col items-center gap-2">
+                      <Lock className="h-12 w-12 text-muted-foreground/30" />
+                      <p className="text-muted-foreground">
+                        {searchQuery ? "No VTI interfaces matching your search" : "No VTI interfaces configured"}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <>
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Description</TableHead>
+                          <TableHead>Addresses</TableHead>
+                          <TableHead>MTU</TableHead>
+                          <TableHead>VRF</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="w-[80px]"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredVti.map((vti) => (
+                          <TableRow key={vti.name} className="group">
+                            <TableCell><code className="font-semibold font-mono text-foreground">{vti.name}</code></TableCell>
+                            <TableCell className="text-muted-foreground max-w-[180px] truncate">{vti.description || "—"}</TableCell>
+                            <TableCell>
+                              {vti.addresses?.length ? (
+                                <div className="flex flex-wrap gap-1">
+                                  {vti.addresses.slice(0, 2).map((addr, idx) => <code key={idx} className="text-xs font-mono px-1.5 py-0.5 rounded bg-accent text-foreground">{addr}</code>)}
+                                  {vti.addresses.length > 2 && <Badge variant="secondary" className="text-xs px-1.5 py-0">+{vti.addresses.length - 2}</Badge>}
+                                </div>
+                              ) : <span className="text-muted-foreground">—</span>}
+                            </TableCell>
+                            <TableCell className="text-sm">{vti.mtu || "—"}</TableCell>
+                            <TableCell>
+                              {vti.vrf ? (
+                                <Badge variant="outline" className="bg-purple-500/10 text-purple-500 border-purple-500/20 text-xs">
+                                  {vti.vrf}
+                                </Badge>
+                              ) : <span className="text-muted-foreground">—</span>}
+                            </TableCell>
+                            <TableCell>
+                              {vti.disable ? (
+                                <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">Disabled</Badge>
+                              ) : (
+                                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">Enabled</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                {canWrite(FeatureGroup.INTERFACES) && (
+                                  <>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingVti(vti)}>
+                                      <Pencil className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeletingVti(vti)}>
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <p className="text-sm text-muted-foreground text-center mt-3">
+                    Showing {filteredVti.length} of {totalVti} interface{totalVti !== 1 ? "s" : ""}
+                  </p>
+                </>
+              )
             ) : filteredWireGuard.length === 0 ? (
               <Card className="border-border">
                 <CardContent className="py-12">
@@ -3738,6 +3887,33 @@ export default function InterfacesPage() {
         onSuccess={() => { setDeletingVpp(null); loadData(); }}
         interfaceData={deletingVpp ? { name: deletingVpp.name } : null}
         subType={deletingVpp?.subType ?? null}
+      />
+      {/* VTI Modals */}
+      <CreateVtiModal
+        open={isCreateVtiModalOpen}
+        onOpenChange={setIsCreateVtiModalOpen}
+        onSuccess={loadData}
+        capabilities={vtiCapabilities}
+        existingInterfaces={vtiInterfaces.map((i) => i.name)}
+      />
+      <EditVtiModal
+        open={!!editingVti}
+        onOpenChange={(open) => !open && setEditingVti(null)}
+        onSuccess={() => {
+          setEditingVti(null);
+          loadData();
+        }}
+        capabilities={vtiCapabilities}
+        interfaceData={editingVti}
+      />
+      <DeleteVtiModal
+        open={!!deletingVti}
+        onOpenChange={(open) => !open && setDeletingVti(null)}
+        onSuccess={() => {
+          setDeletingVti(null);
+          loadData();
+        }}
+        interfaceData={deletingVti}
       />
       {/* Bridge Modals */}
       <CreateBridgeModal

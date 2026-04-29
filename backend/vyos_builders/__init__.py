@@ -5,7 +5,7 @@ Self-contained batch builders for different features.
 Each builder includes all necessary operations for its feature type.
 """
 
-from .interfaces import EthernetInterfaceBuilderMixin, DummyInterfaceBuilderMixin, BondingInterfaceBuilderMixin, GeneveInterfaceBuilderMixin, InputInterfaceBuilderMixin, L2TPv3InterfaceBuilderMixin, LoopbackInterfaceBuilderMixin, MacsecInterfaceBuilderMixin, OpenvpnInterfaceBuilderMixin, PppoeInterfaceBuilderMixin, PseudoEthernetInterfaceBuilderMixin, SstpcInterfaceBuilderMixin, VirtualEthernetInterfaceBuilderMixin, VppInterfaceBuilderMixin
+from .interfaces import EthernetInterfaceBuilderMixin, DummyInterfaceBuilderMixin, BondingInterfaceBuilderMixin, GeneveInterfaceBuilderMixin, InputInterfaceBuilderMixin, L2TPv3InterfaceBuilderMixin, LoopbackInterfaceBuilderMixin, MacsecInterfaceBuilderMixin, OpenvpnInterfaceBuilderMixin, PppoeInterfaceBuilderMixin, PseudoEthernetInterfaceBuilderMixin, SstpcInterfaceBuilderMixin, VirtualEthernetInterfaceBuilderMixin, VppInterfaceBuilderMixin, VtiInterfaceBuilderMixin
 from .firewall import FirewallGroupsBatchBuilder, FirewallIPv4BatchBuilder, FirewallIPv6BatchBuilder, BridgeFirewallBatchBuilder, FirewallZonesBatchBuilder
 from .nat import NATBatchBuilder
 from .nat64 import NAT64BatchBuilder
@@ -53,6 +53,7 @@ PseudoEthernetBatchBuilder = PseudoEthernetInterfaceBuilderMixin
 SstpcBatchBuilder = SstpcInterfaceBuilderMixin
 VirtualEthernetBatchBuilder = VirtualEthernetInterfaceBuilderMixin
 VppBatchBuilder = VppInterfaceBuilderMixin
+VtiBatchBuilder = VtiInterfaceBuilderMixin
 
 __all__ = [
     "EthernetBatchBuilder",
@@ -105,4 +106,5 @@ __all__ = [
     "SstpcBatchBuilder",
     "VirtualEthernetBatchBuilder",
     "VppBatchBuilder",
+    "VtiBatchBuilder",
 ]

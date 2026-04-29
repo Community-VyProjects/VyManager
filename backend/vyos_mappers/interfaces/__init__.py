@@ -18,6 +18,7 @@ from .pppoe import PppoeInterfaceMapper
 from .pseudo_ethernet import PseudoEthernetInterfaceMapper
 from .virtual_ethernet import VirtualEthernetInterfaceMapper
 from .vpp import VppInterfaceMapper
+from .vti import VtiInterfaceMapper
 
 __all__ = [
     "EthernetInterfaceMapper",
@@ -34,4 +35,5 @@ __all__ = [
     "PseudoEthernetInterfaceMapper",
     "VirtualEthernetInterfaceMapper",
     "VppInterfaceMapper",
+    "VtiInterfaceMapper",
 ]
