@@ -123,9 +123,7 @@ export function EditVppModal({
 
   // Members
   const [members, setMembers] = useState<string[]>([]);
-  const [memberInput, setMemberInput] = useState("");
   const [bridgeMembers, setBridgeMembers] = useState<VppBridgeMemberInput[]>([]);
-  const [bridgeMemberInput, setBridgeMemberInput] = useState("");
 
   // VIF sub-interfaces
   const [vifs, setVifs] = useState<VifFormState[]>([]);
@@ -148,8 +146,6 @@ export function EditVppModal({
     setEditingVifIdx(null);
     setVifDraft(emptyVif());
     setAddressInput("");
-    setMemberInput("");
-    setBridgeMemberInput("");
 
     setDescription(interfaceData.description ?? "");
 
@@ -292,20 +288,6 @@ export function EditVppModal({
     setAddressInput("");
   };
 
-  const addMember = () => {
-    const v = memberInput.trim();
-    if (v && !members.includes(v)) setMembers((p) => [...p, v]);
-    setMemberInput("");
-  };
-
-  const addBridgeMember = () => {
-    const v = bridgeMemberInput.trim();
-    if (v && !bridgeMembers.some((m) => m.interface === v)) {
-      setBridgeMembers((p) => [...p, { interface: v, bvi: false }]);
-    }
-    setBridgeMemberInput("");
-  };
-
   const toggleBvi = (iface: string) => {
     setBridgeMembers((p) => p.map((m) => m.interface === iface ? { ...m, bvi: !m.bvi } : m));
   };
@@ -344,14 +326,6 @@ export function EditVppModal({
   const hasMembersTab = subType === "bonding" || subType === "xconnect";
   const hasBridgeMembersTab = subType === "bridge";
   const hasAddressesTab = subType !== "bridge" && subType !== "xconnect";
-
-  const tabCount =
-    1 +
-    (hasAddressesTab ? 1 : 0) +
-    (hasMembersTab || hasBridgeMembersTab ? 1 : 0) +
-    (hasVifTab ? 1 : 0);
-
-  const gridCols = tabCount <= 2 ? "grid-cols-2" : tabCount === 3 ? "grid-cols-3" : "grid-cols-4";
 
   // ── VIF sub-form ──────────────────────────────────────────────────────────
 

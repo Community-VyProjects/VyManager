@@ -11,7 +11,7 @@ Handles all VPP (Vector Packet Processing) interface types for VyOS 1.5+:
   xconnect  (vppxconN)  — L2 cross-connects
 """
 
-from typing import List, Optional
+from typing import List
 from ..base import BaseFeatureMapper
 
 

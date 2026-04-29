@@ -151,9 +151,7 @@ export function CreateVppModal({
 
   // Members (bonding, bridge, xconnect)
   const [members, setMembers] = useState<string[]>([]);
-  const [memberInput, setMemberInput] = useState("");
   const [bridgeMembers, setBridgeMembers] = useState<VppBridgeMemberInput[]>([]);
-  const [bridgeMemberInput, setBridgeMemberInput] = useState("");
 
   // VIF sub-interfaces (bonding, loopback)
   const [vifs, setVifs] = useState<VifFormState[]>([]);
@@ -188,9 +186,7 @@ export function CreateVppModal({
     setVxlanSource("");
     setVxlanVni("");
     setMembers([]);
-    setMemberInput("");
     setBridgeMembers([]);
-    setBridgeMemberInput("");
     setVifs([]);
     setEditingVifIdx(null);
     setVifDraft(emptyVif());
@@ -312,20 +308,6 @@ export function CreateVppModal({
     setAddressInput("");
   };
 
-  const addMember = () => {
-    const v = memberInput.trim();
-    if (v && !members.includes(v)) setMembers((p) => [...p, v]);
-    setMemberInput("");
-  };
-
-  const addBridgeMember = () => {
-    const v = bridgeMemberInput.trim();
-    if (v && !bridgeMembers.some((m) => m.interface === v)) {
-      setBridgeMembers((p) => [...p, { interface: v, bvi: false }]);
-    }
-    setBridgeMemberInput("");
-  };
-
   const toggleBvi = (iface: string) => {
     setBridgeMembers((p) => p.map((m) => m.interface === iface ? { ...m, bvi: !m.bvi } : m));
   };
@@ -362,16 +344,6 @@ export function CreateVppModal({
   const hasMembersTab = selectedSubType === "bonding" || selectedSubType === "xconnect";
   const hasBridgeMembersTab = selectedSubType === "bridge";
   const hasAddressesTab = selectedSubType !== "bridge" && selectedSubType !== "xconnect";
-
-  // ── Tabs config ───────────────────────────────────────────────────────────
-
-  const tabCount =
-    1 + // basic
-    (hasAddressesTab ? 1 : 0) +
-    (hasMembersTab || hasBridgeMembersTab ? 1 : 0) +
-    (hasVifTab ? 1 : 0);
-
-  const gridCols = tabCount <= 2 ? "grid-cols-2" : tabCount === 3 ? "grid-cols-3" : "grid-cols-4";
 
   // ── Type picker ───────────────────────────────────────────────────────────
 
