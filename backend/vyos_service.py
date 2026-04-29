@@ -29,6 +29,7 @@ from vyos_builders import (
     SstpcBatchBuilder,
     VirtualEthernetBatchBuilder,
     VppBatchBuilder,
+    VtiBatchBuilder,
     FirewallGroupsBatchBuilder,
     NATBatchBuilder,
     DHCPBatchBuilder,
@@ -191,6 +192,14 @@ class VyOSService:
         The builder automatically uses correct command syntax based on version.
         """
         return VppBatchBuilder(self.config.version)
+
+    def create_vti_batch(self) -> VtiBatchBuilder:
+        """
+        Create a batch builder for VTI (Virtual Tunnel Interface) interfaces.
+
+        The builder automatically uses correct command syntax based on version.
+        """
+        return VtiBatchBuilder(self.config.version)
 
     def create_bonding_batch(self) -> BondingBatchBuilder:
         """

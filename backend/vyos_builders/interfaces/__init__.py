@@ -19,6 +19,7 @@ from .pseudo_ethernet import PseudoEthernetInterfaceBuilderMixin
 from .sstpc import SstpcInterfaceBuilderMixin
 from .virtual_ethernet import VirtualEthernetInterfaceBuilderMixin
 from .vpp import VppInterfaceBuilderMixin
+from .vti import VtiInterfaceBuilderMixin
 
 __all__ = [
     "EthernetInterfaceBuilderMixin",
@@ -36,4 +37,5 @@ __all__ = [
     "SstpcInterfaceBuilderMixin",
     "VirtualEthernetInterfaceBuilderMixin",
     "VppInterfaceBuilderMixin",
+    "VtiInterfaceBuilderMixin",
 ]
