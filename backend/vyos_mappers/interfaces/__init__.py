@@ -20,6 +20,7 @@ from .virtual_ethernet import VirtualEthernetInterfaceMapper
 from .vpp import VppInterfaceMapper
 from .vti import VtiInterfaceMapper
 from .wireless import WirelessInterfaceMapper
+from .wwan import WwanInterfaceMapper
 
 __all__ = [
     "EthernetInterfaceMapper",
@@ -38,4 +39,5 @@ __all__ = [
     "VppInterfaceMapper",
     "VtiInterfaceMapper",
     "WirelessInterfaceMapper",
+    "WwanInterfaceMapper",
 ]
