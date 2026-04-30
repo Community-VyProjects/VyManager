@@ -20,6 +20,7 @@ from .sstpc import SstpcInterfaceBuilderMixin
 from .virtual_ethernet import VirtualEthernetInterfaceBuilderMixin
 from .vpp import VppInterfaceBuilderMixin
 from .vti import VtiInterfaceBuilderMixin
+from .wireless import WirelessInterfaceBuilderMixin
 
 __all__ = [
     "EthernetInterfaceBuilderMixin",
@@ -38,4 +39,5 @@ __all__ = [
     "VirtualEthernetInterfaceBuilderMixin",
     "VppInterfaceBuilderMixin",
     "VtiInterfaceBuilderMixin",
+    "WirelessInterfaceBuilderMixin",
 ]

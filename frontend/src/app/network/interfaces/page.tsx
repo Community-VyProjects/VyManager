@@ -16,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, RefreshCw, AlertCircle, Search, Cable, Pencil, Trash2, Network, ChevronRight, Shield, Boxes, Waypoints, Link2, GitMerge, Box, Layers, ArrowDownToLine, Repeat, Lock, ArrowLeftRight } from "lucide-react";
+import { Plus, RefreshCw, AlertCircle, Search, Cable, Pencil, Trash2, Network, ChevronRight, Shield, Boxes, Waypoints, Link2, GitMerge, Box, Layers, ArrowDownToLine, Repeat, Lock, ArrowLeftRight, Wifi } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { ethernetService } from "@/lib/api/ethernet";
@@ -83,6 +83,10 @@ import { vtiService, type VtiInterface, type VtiCapabilities } from "@/lib/api/v
 import { CreateVtiModal } from "@/components/vti/CreateVtiModal";
 import { EditVtiModal } from "@/components/vti/EditVtiModal";
 import { DeleteVtiModal } from "@/components/vti/DeleteVtiModal";
+import { wirelessService, type WirelessInterface, type WirelessCapabilitiesResponse } from "@/lib/api/wireless";
+import { CreateWirelessModal } from "@/components/wireless/CreateWirelessModal";
+import { EditWirelessModal } from "@/components/wireless/EditWirelessModal";
+import { DeleteWirelessModal } from "@/components/wireless/DeleteWirelessModal";
 import { CreateVxlanModal } from "@/components/vxlan/CreateVxlanModal";
 import { EditVxlanModal } from "@/components/vxlan/EditVxlanModal";
 import { DeleteVxlanModal } from "@/components/vxlan/DeleteVxlanModal";
@@ -96,7 +100,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 
-type InterfaceType = "ethernet" | "vlan" | "wireguard" | "vxlan" | "tunnel" | "bonding" | "bridge" | "dummy" | "geneve" | "input" | "l2tpv3" | "loopback" | "macsec" | "pppoe" | "pseudo-ethernet" | "sstpc" | "virtual-ethernet" | "vpp" | "vti";
+type InterfaceType = "ethernet" | "vlan" | "wireguard" | "vxlan" | "tunnel" | "bonding" | "bridge" | "dummy" | "geneve" | "input" | "l2tpv3" | "loopback" | "macsec" | "pppoe" | "pseudo-ethernet" | "sstpc" | "virtual-ethernet" | "vpp" | "vti" | "wireless";
 type VlanSubTab = "vif" | "vif-s" | "vif-c";
 
 interface VLANWithParent extends VIFConfig {
@@ -267,6 +271,15 @@ export default function InterfacesPage() {
   const [editingVti, setEditingVti] = useState<VtiInterface | null>(null);
   const [deletingVti, setDeletingVti] = useState<VtiInterface | null>(null);
 
+  // Wireless state
+  const [wirelessInterfaces, setWirelessInterfaces] = useState<WirelessInterface[]>([]);
+  const [wirelessCapabilities, setWirelessCapabilities] = useState<WirelessCapabilitiesResponse | null>(null);
+
+  // Wireless Modal states
+  const [isCreateWirelessModalOpen, setIsCreateWirelessModalOpen] = useState(false);
+  const [editingWireless, setEditingWireless] = useState<WirelessInterface | null>(null);
+  const [deletingWireless, setDeletingWireless] = useState<WirelessInterface | null>(null);
+
   // VPP state
   const [vppBonding, setVppBonding] = useState<VppBondingConfig[]>([]);
   const [vppBridge, setVppBridge] = useState<VppBridgeConfig[]>([]);
@@ -295,7 +308,7 @@ export default function InterfacesPage() {
   const loadData = async () => {
     try {
       setError(null);
-      const [configData, capabilitiesData, wgData, vxlanData, vxlanCapData, tunnelData, tunnelCapData, dummyData, dummyCapData, geneveData, geneveCapData, inputData, inputCapData, l2tpv3Data, l2tpv3CapData, loopbackData, loopbackCapData, macsecData, macsecCapData, bondingData, bondingCapData, bridgeData, bridgeCapData, pppoeData, pppoeCapData, pseudoEthernetData, pseudoEthernetCapData, sstpcData, sstpcCapData, virtualEthernetData, virtualEthernetCapData, vppData, vppCapData, vtiData, vtiCapData] = await Promise.all([
+      const [configData, capabilitiesData, wgData, vxlanData, vxlanCapData, tunnelData, tunnelCapData, dummyData, dummyCapData, geneveData, geneveCapData, inputData, inputCapData, l2tpv3Data, l2tpv3CapData, loopbackData, loopbackCapData, macsecData, macsecCapData, bondingData, bondingCapData, bridgeData, bridgeCapData, pppoeData, pppoeCapData, pseudoEthernetData, pseudoEthernetCapData, sstpcData, sstpcCapData, virtualEthernetData, virtualEthernetCapData, vppData, vppCapData, vtiData, vtiCapData, wirelessData, wirelessCapData] = await Promise.all([
         ethernetService.getConfig(),
         ethernetService.getCapabilities(),
         wireguardService.getConfig(),
@@ -331,6 +344,8 @@ export default function InterfacesPage() {
         vppService.getCapabilities(),
         vtiService.getConfig(),
         vtiService.getCapabilities(),
+        wirelessService.getConfig(),
+        wirelessService.getCapabilities(),
       ]);
       setInterfaces(configData.interfaces);
       setCapabilities(capabilitiesData);
@@ -375,6 +390,8 @@ export default function InterfacesPage() {
       }
       setVtiInterfaces(vtiData.interfaces);
       setVtiCapabilities(vtiCapData);
+      setWirelessInterfaces(wirelessData.interfaces);
+      setWirelessCapabilities(wirelessCapData);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load interface data");
     } finally {
@@ -435,6 +452,7 @@ export default function InterfacesPage() {
   const totalVirtualEthernet = virtualEthernetInterfaces.length;
   const totalVpp = vppBonding.length + vppBridge.length + vppGre.length + vppIpip.length + vppLoopback.length + vppVxlanIfaces.length + vppXconnect.length;
   const totalVti = vtiInterfaces.length;
+  const totalWireless = wirelessInterfaces.length;
 
   // Filter interfaces based on search
   const filteredInterfaces = interfaces.filter((iface) => {
@@ -807,6 +825,18 @@ export default function InterfacesPage() {
     );
   });
 
+  const filteredWireless = wirelessInterfaces.filter((iface) => {
+    if (searchQuery === "") return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      iface.name.toLowerCase().includes(q) ||
+      (iface.description || "").toLowerCase().includes(q) ||
+      (iface.ssid || "").toLowerCase().includes(q) ||
+      iface.addresses?.some((addr) => addr.toLowerCase().includes(q)) ||
+      (iface.vrf || "").toLowerCase().includes(q)
+    );
+  });
+
   const filterVppIface = <T extends { name: string; description: string | null }>(items: T[]): T[] => {
     if (searchQuery === "") return items;
     const q = searchQuery.toLowerCase();
@@ -833,7 +863,7 @@ export default function InterfacesPage() {
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Interfaces</h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {totalInterfaces + totalVlans + totalWireGuard + totalVxlan + totalTunnel + totalDummy + totalGeneve + totalInput + totalLoopback + totalMacsec + totalBonding + totalBridge + totalPppoe + totalPseudoEthernet + totalSstpc + totalVirtualEthernet + totalVti} total
+                  {totalInterfaces + totalVlans + totalWireGuard + totalVxlan + totalTunnel + totalDummy + totalGeneve + totalInput + totalLoopback + totalMacsec + totalBonding + totalBridge + totalPppoe + totalPseudoEthernet + totalSstpc + totalVirtualEthernet + totalVti + totalWireless} total
                 </p>
               </div>
               <Button
@@ -1421,6 +1451,40 @@ export default function InterfacesPage() {
                   </div>
                 </button>
 
+                {/* Wireless */}
+                <button
+                  onClick={() => setSelectedType("wireless")}
+                  className={cn(
+                    "w-full text-left rounded-lg px-3 py-3 transition-all",
+                    selectedType === "wireless"
+                      ? "bg-accent text-accent-foreground shadow-sm"
+                      : "hover:bg-accent/50"
+                  )}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={cn(
+                      "mt-0.5 rounded-md p-1.5",
+                      selectedType === "wireless" ? "bg-primary/10" : "bg-muted"
+                    )}>
+                      <Wifi className={cn(
+                        "h-4 w-4",
+                        selectedType === "wireless" ? "text-primary" : "text-muted-foreground"
+                      )} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="font-medium text-sm text-foreground">Wireless</span>
+                        {selectedType === "wireless" && (
+                          <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
+                        )}
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {totalWireless} {totalWireless === 1 ? "interface" : "interfaces"}
+                      </span>
+                    </div>
+                  </div>
+                </button>
+
                 {/* Bonding */}
                 <button
                   onClick={() => setSelectedType("bonding")}
@@ -1536,7 +1600,7 @@ export default function InterfacesPage() {
             <div className="flex items-start justify-between mb-4">
               <div className="flex-1">
                 <h1 className="text-2xl font-bold text-foreground">
-                  {selectedType === "ethernet" ? "Ethernet Interfaces" : selectedType === "vlan" ? "VLANs" : selectedType === "vxlan" ? "VXLAN Interfaces" : selectedType === "tunnel" ? "Tunnel Interfaces" : selectedType === "l2tpv3" ? "L2TPv3 Interfaces" : selectedType === "dummy" ? "Dummy Interfaces" : selectedType === "geneve" ? "GENEVE Interfaces" : selectedType === "input" ? "Input Interfaces" : selectedType === "loopback" ? "Loopback Interface" : selectedType === "macsec" ? "MACsec Interfaces" : selectedType === "bonding" ? "Bonding Interfaces" : selectedType === "bridge" ? "Bridge Interfaces" : selectedType === "pppoe" ? "PPPoE Interfaces" : selectedType === "pseudo-ethernet" ? "Pseudo-Ethernet Interfaces" : selectedType === "sstpc" ? "SSTPC Interfaces" : selectedType === "virtual-ethernet" ? "Virtual Ethernet Interfaces" : selectedType === "vpp" ? "VPP Interfaces" : selectedType === "vti" ? "VTI Interfaces" : "WireGuard Interfaces"}
+                  {selectedType === "ethernet" ? "Ethernet Interfaces" : selectedType === "vlan" ? "VLANs" : selectedType === "vxlan" ? "VXLAN Interfaces" : selectedType === "tunnel" ? "Tunnel Interfaces" : selectedType === "l2tpv3" ? "L2TPv3 Interfaces" : selectedType === "dummy" ? "Dummy Interfaces" : selectedType === "geneve" ? "GENEVE Interfaces" : selectedType === "input" ? "Input Interfaces" : selectedType === "loopback" ? "Loopback Interface" : selectedType === "macsec" ? "MACsec Interfaces" : selectedType === "bonding" ? "Bonding Interfaces" : selectedType === "bridge" ? "Bridge Interfaces" : selectedType === "pppoe" ? "PPPoE Interfaces" : selectedType === "pseudo-ethernet" ? "Pseudo-Ethernet Interfaces" : selectedType === "sstpc" ? "SSTPC Interfaces" : selectedType === "virtual-ethernet" ? "Virtual Ethernet Interfaces" : selectedType === "vpp" ? "VPP Interfaces" : selectedType === "vti" ? "VTI Interfaces" : selectedType === "wireless" ? "Wireless Interfaces" : "WireGuard Interfaces"}
                 </h1>
                 <p className="text-sm text-muted-foreground mt-2">
                   {selectedType === "ethernet"
@@ -1575,7 +1639,9 @@ export default function InterfacesPage() {
                                         ? "VPP (Vector Packet Processing) interfaces — bonding, bridge, GRE, IPIP, loopback, VXLAN, and XConnect types"
                                         : selectedType === "vti"
                                           ? "Virtual Tunnel Interfaces (XFRM) — kernel-side endpoint for IPsec tunnels"
-                                          : "WireGuard tunnel interfaces and status"}
+                                          : selectedType === "wireless"
+                                            ? "Wireless (802.11) interfaces — access point, station, and monitor mode"
+                                            : "WireGuard tunnel interfaces and status"}
                 </p>
               </div>
               <Button
@@ -1622,6 +1688,8 @@ export default function InterfacesPage() {
                     setIsCreateVppModalOpen(true);
                   } else if (selectedType === "vti") {
                     setIsCreateVtiModalOpen(true);
+                  } else if (selectedType === "wireless") {
+                    setIsCreateWirelessModalOpen(true);
                   } else {
                     setIsCreateInterfaceModalOpen(true);
                   }
@@ -1665,7 +1733,9 @@ export default function InterfacesPage() {
                                       ? "Create VPP Interface"
                                       : selectedType === "vti"
                                         ? "Create VTI"
-                                        : "Manage WireGuard"}
+                                        : selectedType === "wireless"
+                                          ? "Create Wireless"
+                                          : "Manage WireGuard"}
               </Button>
             </div>
 
@@ -3322,6 +3392,110 @@ export default function InterfacesPage() {
                   </p>
                 </>
               )
+            ) : selectedType === "wireless" ? (
+              /* Wireless Table */
+              filteredWireless.length === 0 ? (
+                <Card className="border-border">
+                  <CardContent className="py-12">
+                    <div className="flex flex-col items-center gap-2">
+                      <Wifi className="h-12 w-12 text-muted-foreground/30" />
+                      <p className="text-muted-foreground">
+                        {searchQuery ? "No wireless interfaces matching your search" : "No wireless interfaces configured"}
+                      </p>
+                      {!searchQuery && canWrite(FeatureGroup.INTERFACES) && (
+                        <Button variant="outline" size="sm" onClick={() => setIsCreateWirelessModalOpen(true)} className="mt-2 gap-2">
+                          <Plus className="h-4 w-4" />
+                          Create Wireless Interface
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <>
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Mode</TableHead>
+                          <TableHead>SSID</TableHead>
+                          <TableHead>Channel</TableHead>
+                          <TableHead>Security</TableHead>
+                          <TableHead>Addresses</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="w-[80px]"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredWireless.map((iface) => {
+                          const wpaMode = iface.security?.wpa?.mode;
+                          const hasWep = (iface.security?.wep?.key?.length ?? 0) > 0;
+                          const securityBadge = wpaMode === "wpa3"
+                            ? <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">WPA3</Badge>
+                            : wpaMode === "wpa2"
+                              ? <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/20 text-xs">WPA2</Badge>
+                              : (wpaMode === "wpa+wpa2" || wpaMode === "wpa")
+                                ? <Badge variant="outline" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20 text-xs">WPA</Badge>
+                                : hasWep
+                                  ? <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">WEP</Badge>
+                                  : <Badge variant="outline" className="text-xs">Open</Badge>;
+                          const typeBadge = iface.wireless_type === "access-point"
+                            ? <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/20 text-xs">AP</Badge>
+                            : iface.wireless_type === "station"
+                              ? <Badge variant="outline" className="bg-purple-500/10 text-purple-500 border-purple-500/20 text-xs">Station</Badge>
+                              : iface.wireless_type === "monitor"
+                                ? <Badge variant="outline" className="text-xs">Monitor</Badge>
+                                : <span className="text-muted-foreground">—</span>;
+                          return (
+                            <TableRow key={iface.name} className="group">
+                              <TableCell><code className="font-semibold font-mono text-foreground">{iface.name}</code></TableCell>
+                              <TableCell>{typeBadge}</TableCell>
+                              <TableCell className="text-sm text-muted-foreground">{iface.mode ?? "—"}</TableCell>
+                              <TableCell className="text-sm">{iface.ssid ?? "—"}</TableCell>
+                              <TableCell className="text-sm">{iface.channel ?? "—"}</TableCell>
+                              <TableCell>{securityBadge}</TableCell>
+                              <TableCell>
+                                {iface.addresses?.length ? (
+                                  <div className="flex flex-wrap gap-1">
+                                    {iface.addresses.slice(0, 2).map((addr, idx) => <code key={idx} className="text-xs font-mono px-1.5 py-0.5 rounded bg-accent text-foreground">{addr}</code>)}
+                                    {iface.addresses.length > 2 && <Badge variant="secondary" className="text-xs px-1.5 py-0">+{iface.addresses.length - 2}</Badge>}
+                                  </div>
+                                ) : <span className="text-muted-foreground">—</span>}
+                              </TableCell>
+                              <TableCell>
+                                {iface.disable ? (
+                                  <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">Disabled</Badge>
+                                ) : (
+                                  <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">Enabled</Badge>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  {canWrite(FeatureGroup.INTERFACES) && (
+                                    <>
+                                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingWireless(iface)}>
+                                        <Pencil className="h-3.5 w-3.5" />
+                                      </Button>
+                                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeletingWireless(iface)}>
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </>
+                                  )}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <p className="text-sm text-muted-foreground text-center mt-3">
+                    Showing {filteredWireless.length} of {totalWireless} interface{totalWireless !== 1 ? "s" : ""}
+                  </p>
+                </>
+              )
             ) : filteredWireGuard.length === 0 ? (
               <Card className="border-border">
                 <CardContent className="py-12">
@@ -3914,6 +4088,33 @@ export default function InterfacesPage() {
           loadData();
         }}
         interfaceData={deletingVti}
+      />
+      {/* Wireless Modals */}
+      <CreateWirelessModal
+        open={isCreateWirelessModalOpen}
+        onOpenChange={setIsCreateWirelessModalOpen}
+        onSuccess={loadData}
+        capabilities={wirelessCapabilities}
+        existingInterfaces={wirelessInterfaces.map((i) => i.name)}
+      />
+      <EditWirelessModal
+        open={!!editingWireless}
+        onOpenChange={(open) => !open && setEditingWireless(null)}
+        onSuccess={() => {
+          setEditingWireless(null);
+          loadData();
+        }}
+        capabilities={wirelessCapabilities}
+        interfaceData={editingWireless}
+      />
+      <DeleteWirelessModal
+        open={!!deletingWireless}
+        onOpenChange={(open) => !open && setDeletingWireless(null)}
+        onSuccess={() => {
+          setDeletingWireless(null);
+          loadData();
+        }}
+        interfaceData={deletingWireless}
       />
       {/* Bridge Modals */}
       <CreateBridgeModal

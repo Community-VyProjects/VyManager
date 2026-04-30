@@ -30,6 +30,7 @@ from vyos_builders import (
     VirtualEthernetBatchBuilder,
     VppBatchBuilder,
     VtiBatchBuilder,
+    WirelessBatchBuilder,
     FirewallGroupsBatchBuilder,
     NATBatchBuilder,
     DHCPBatchBuilder,
@@ -200,6 +201,14 @@ class VyOSService:
         The builder automatically uses correct command syntax based on version.
         """
         return VtiBatchBuilder(self.config.version)
+
+    def create_wireless_batch(self) -> WirelessBatchBuilder:
+        """
+        Create a batch builder for wireless interfaces.
+
+        The builder automatically uses correct command syntax based on version.
+        """
+        return WirelessBatchBuilder(self.config.version)
 
     def create_bonding_batch(self) -> BondingBatchBuilder:
         """
