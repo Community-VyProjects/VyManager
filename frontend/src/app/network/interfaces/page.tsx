@@ -925,12 +925,12 @@ export default function InterfacesPage() {
               </div>
             ) : (
               <div className="space-y-1 py-3">
-                {/* Ethernet */}
+                {/* Bonding */}
                 <button
-                  onClick={() => setSelectedType("ethernet")}
+                  onClick={() => setSelectedType("bonding")}
                   className={cn(
                     "w-full text-left rounded-lg px-3 py-3 transition-all",
-                    selectedType === "ethernet"
+                    selectedType === "bonding"
                       ? "bg-accent text-accent-foreground shadow-sm"
                       : "hover:bg-accent/50"
                   )}
@@ -938,33 +938,33 @@ export default function InterfacesPage() {
                   <div className="flex items-start gap-3">
                     <div className={cn(
                       "mt-0.5 rounded-md p-1.5",
-                      selectedType === "ethernet" ? "bg-primary/10" : "bg-muted"
+                      selectedType === "bonding" ? "bg-primary/10" : "bg-muted"
                     )}>
-                      <Cable className={cn(
+                      <Link2 className={cn(
                         "h-4 w-4",
-                        selectedType === "ethernet" ? "text-primary" : "text-muted-foreground"
+                        selectedType === "bonding" ? "text-primary" : "text-muted-foreground"
                       )} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2 mb-1">
-                        <span className="font-medium text-sm text-foreground">Ethernet</span>
-                        {selectedType === "ethernet" && (
+                        <span className="font-medium text-sm text-foreground">Bonding</span>
+                        {selectedType === "bonding" && (
                           <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
                         )}
                       </div>
                       <span className="text-xs text-muted-foreground">
-                        {totalInterfaces} {totalInterfaces === 1 ? "interface" : "interfaces"}
+                        {totalBonding} {totalBonding === 1 ? "interface" : "interfaces"}
                       </span>
                     </div>
                   </div>
                 </button>
 
-                {/* VLAN */}
+                {/* Bridge */}
                 <button
-                  onClick={() => setSelectedType("vlan")}
+                  onClick={() => setSelectedType("bridge")}
                   className={cn(
                     "w-full text-left rounded-lg px-3 py-3 transition-all",
-                    selectedType === "vlan"
+                    selectedType === "bridge"
                       ? "bg-accent text-accent-foreground shadow-sm"
                       : "hover:bg-accent/50"
                   )}
@@ -972,92 +972,22 @@ export default function InterfacesPage() {
                   <div className="flex items-start gap-3">
                     <div className={cn(
                       "mt-0.5 rounded-md p-1.5",
-                      selectedType === "vlan" ? "bg-primary/10" : "bg-muted"
+                      selectedType === "bridge" ? "bg-primary/10" : "bg-muted"
                     )}>
-                      <Network className={cn(
+                      <GitMerge className={cn(
                         "h-4 w-4",
-                        selectedType === "vlan" ? "text-primary" : "text-muted-foreground"
+                        selectedType === "bridge" ? "text-primary" : "text-muted-foreground"
                       )} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2 mb-1">
-                        <span className="font-medium text-sm text-foreground">VLAN</span>
-                        {selectedType === "vlan" && (
+                        <span className="font-medium text-sm text-foreground">Bridge</span>
+                        {selectedType === "bridge" && (
                           <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
                         )}
                       </div>
                       <span className="text-xs text-muted-foreground">
-                        {totalVlans} {totalVlans === 1 ? "VLAN" : "VLANs"}
-                      </span>
-                    </div>
-                  </div>
-                </button>
-
-                {/* VXLAN */}
-                <button
-                  onClick={() => setSelectedType("vxlan")}
-                  className={cn(
-                    "w-full text-left rounded-lg px-3 py-3 transition-all",
-                    selectedType === "vxlan"
-                      ? "bg-accent text-accent-foreground shadow-sm"
-                      : "hover:bg-accent/50"
-                  )}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className={cn(
-                      "mt-0.5 rounded-md p-1.5",
-                      selectedType === "vxlan" ? "bg-primary/10" : "bg-muted"
-                    )}>
-                      <Boxes className={cn(
-                        "h-4 w-4",
-                        selectedType === "vxlan" ? "text-primary" : "text-muted-foreground"
-                      )} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2 mb-1">
-                        <span className="font-medium text-sm text-foreground">
-                          VXLAN
-                        </span>
-                        {selectedType === "vxlan" && (
-                          <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
-                        )}
-                      </div>
-                      <span className="text-xs text-muted-foreground">
-                        {totalVxlan} {totalVxlan === 1 ? "tunnel" : "tunnels"}
-                      </span>
-                    </div>
-                  </div>
-                </button>
-
-                {/* Tunnel */}
-                <button
-                  onClick={() => setSelectedType("tunnel")}
-                  className={cn(
-                    "w-full text-left rounded-lg px-3 py-3 transition-all",
-                    selectedType === "tunnel"
-                      ? "bg-accent text-accent-foreground shadow-sm"
-                      : "hover:bg-accent/50"
-                  )}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className={cn(
-                      "mt-0.5 rounded-md p-1.5",
-                      selectedType === "tunnel" ? "bg-primary/10" : "bg-muted"
-                    )}>
-                      <Waypoints className={cn(
-                        "h-4 w-4",
-                        selectedType === "tunnel" ? "text-primary" : "text-muted-foreground"
-                      )} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2 mb-1">
-                        <span className="font-medium text-sm text-foreground">Tunnel</span>
-                        {selectedType === "tunnel" && (
-                          <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
-                        )}
-                      </div>
-                      <span className="text-xs text-muted-foreground">
-                        {totalTunnel} {totalTunnel === 1 ? "interface" : "interfaces"}
+                        {totalBridge} {totalBridge === 1 ? "interface" : "interfaces"}
                       </span>
                     </div>
                   </div>
@@ -1092,6 +1022,40 @@ export default function InterfacesPage() {
                       </div>
                       <span className="text-xs text-muted-foreground">
                         {totalDummy} {totalDummy === 1 ? "interface" : "interfaces"}
+                      </span>
+                    </div>
+                  </div>
+                </button>
+
+                {/* Ethernet */}
+                <button
+                  onClick={() => setSelectedType("ethernet")}
+                  className={cn(
+                    "w-full text-left rounded-lg px-3 py-3 transition-all",
+                    selectedType === "ethernet"
+                      ? "bg-accent text-accent-foreground shadow-sm"
+                      : "hover:bg-accent/50"
+                  )}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={cn(
+                      "mt-0.5 rounded-md p-1.5",
+                      selectedType === "ethernet" ? "bg-primary/10" : "bg-muted"
+                    )}>
+                      <Cable className={cn(
+                        "h-4 w-4",
+                        selectedType === "ethernet" ? "text-primary" : "text-muted-foreground"
+                      )} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="font-medium text-sm text-foreground">Ethernet</span>
+                        {selectedType === "ethernet" && (
+                          <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
+                        )}
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {totalInterfaces} {totalInterfaces === 1 ? "interface" : "interfaces"}
                       </span>
                     </div>
                   </div>
@@ -1375,6 +1339,40 @@ export default function InterfacesPage() {
                   </button>
                 )}
 
+                {/* Tunnel */}
+                <button
+                  onClick={() => setSelectedType("tunnel")}
+                  className={cn(
+                    "w-full text-left rounded-lg px-3 py-3 transition-all",
+                    selectedType === "tunnel"
+                      ? "bg-accent text-accent-foreground shadow-sm"
+                      : "hover:bg-accent/50"
+                  )}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={cn(
+                      "mt-0.5 rounded-md p-1.5",
+                      selectedType === "tunnel" ? "bg-primary/10" : "bg-muted"
+                    )}>
+                      <Waypoints className={cn(
+                        "h-4 w-4",
+                        selectedType === "tunnel" ? "text-primary" : "text-muted-foreground"
+                      )} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="font-medium text-sm text-foreground">Tunnel</span>
+                        {selectedType === "tunnel" && (
+                          <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
+                        )}
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {totalTunnel} {totalTunnel === 1 ? "interface" : "interfaces"}
+                      </span>
+                    </div>
+                  </div>
+                </button>
+
                 {/* Virtual Ethernet */}
                 {canRead(FeatureGroup.INTERFACES) && (
                   <button
@@ -1410,6 +1408,40 @@ export default function InterfacesPage() {
                     </div>
                   </button>
                 )}
+
+                {/* VLAN */}
+                <button
+                  onClick={() => setSelectedType("vlan")}
+                  className={cn(
+                    "w-full text-left rounded-lg px-3 py-3 transition-all",
+                    selectedType === "vlan"
+                      ? "bg-accent text-accent-foreground shadow-sm"
+                      : "hover:bg-accent/50"
+                  )}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={cn(
+                      "mt-0.5 rounded-md p-1.5",
+                      selectedType === "vlan" ? "bg-primary/10" : "bg-muted"
+                    )}>
+                      <Network className={cn(
+                        "h-4 w-4",
+                        selectedType === "vlan" ? "text-primary" : "text-muted-foreground"
+                      )} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="font-medium text-sm text-foreground">VLAN</span>
+                        {selectedType === "vlan" && (
+                          <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
+                        )}
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {totalVlans} {totalVlans === 1 ? "VLAN" : "VLANs"}
+                      </span>
+                    </div>
+                  </div>
+                </button>
 
                 {/* VPP — only shown when capabilities confirm VyOS 1.5+ support */}
                 {canRead(FeatureGroup.INTERFACES) && vppCapabilities?.supported && (
@@ -1481,6 +1513,78 @@ export default function InterfacesPage() {
                   </div>
                 </button>
 
+                {/* VXLAN */}
+                <button
+                  onClick={() => setSelectedType("vxlan")}
+                  className={cn(
+                    "w-full text-left rounded-lg px-3 py-3 transition-all",
+                    selectedType === "vxlan"
+                      ? "bg-accent text-accent-foreground shadow-sm"
+                      : "hover:bg-accent/50"
+                  )}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={cn(
+                      "mt-0.5 rounded-md p-1.5",
+                      selectedType === "vxlan" ? "bg-primary/10" : "bg-muted"
+                    )}>
+                      <Boxes className={cn(
+                        "h-4 w-4",
+                        selectedType === "vxlan" ? "text-primary" : "text-muted-foreground"
+                      )} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="font-medium text-sm text-foreground">
+                          VXLAN
+                        </span>
+                        {selectedType === "vxlan" && (
+                          <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
+                        )}
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {totalVxlan} {totalVxlan === 1 ? "tunnel" : "tunnels"}
+                      </span>
+                    </div>
+                  </div>
+                </button>
+
+                {/* WireGuard */}
+                <button
+                  onClick={() => setSelectedType("wireguard")}
+                  className={cn(
+                    "w-full text-left rounded-lg px-3 py-3 transition-all",
+                    selectedType === "wireguard"
+                      ? "bg-accent text-accent-foreground shadow-sm"
+                      : "hover:bg-accent/50"
+                  )}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={cn(
+                      "mt-0.5 rounded-md p-1.5",
+                      selectedType === "wireguard" ? "bg-primary/10" : "bg-muted"
+                    )}>
+                      <Shield className={cn(
+                        "h-4 w-4",
+                        selectedType === "wireguard" ? "text-primary" : "text-muted-foreground"
+                      )} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="font-medium text-sm text-foreground">
+                          WireGuard
+                        </span>
+                        {selectedType === "wireguard" && (
+                          <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
+                        )}
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {totalWireGuard} {totalWireGuard === 1 ? "tunnel" : "tunnels"}
+                      </span>
+                    </div>
+                  </div>
+                </button>
+
                 {/* Wireless */}
                 <button
                   onClick={() => setSelectedType("wireless")}
@@ -1544,110 +1648,6 @@ export default function InterfacesPage() {
                       </div>
                       <span className="text-xs text-muted-foreground">
                         {totalWwan} {totalWwan === 1 ? "interface" : "interfaces"}
-                      </span>
-                    </div>
-                  </div>
-                </button>
-
-                {/* Bonding */}
-                <button
-                  onClick={() => setSelectedType("bonding")}
-                  className={cn(
-                    "w-full text-left rounded-lg px-3 py-3 transition-all",
-                    selectedType === "bonding"
-                      ? "bg-accent text-accent-foreground shadow-sm"
-                      : "hover:bg-accent/50"
-                  )}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className={cn(
-                      "mt-0.5 rounded-md p-1.5",
-                      selectedType === "bonding" ? "bg-primary/10" : "bg-muted"
-                    )}>
-                      <Link2 className={cn(
-                        "h-4 w-4",
-                        selectedType === "bonding" ? "text-primary" : "text-muted-foreground"
-                      )} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2 mb-1">
-                        <span className="font-medium text-sm text-foreground">Bonding</span>
-                        {selectedType === "bonding" && (
-                          <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
-                        )}
-                      </div>
-                      <span className="text-xs text-muted-foreground">
-                        {totalBonding} {totalBonding === 1 ? "interface" : "interfaces"}
-                      </span>
-                    </div>
-                  </div>
-                </button>
-
-                {/* Bridge */}
-                <button
-                  onClick={() => setSelectedType("bridge")}
-                  className={cn(
-                    "w-full text-left rounded-lg px-3 py-3 transition-all",
-                    selectedType === "bridge"
-                      ? "bg-accent text-accent-foreground shadow-sm"
-                      : "hover:bg-accent/50"
-                  )}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className={cn(
-                      "mt-0.5 rounded-md p-1.5",
-                      selectedType === "bridge" ? "bg-primary/10" : "bg-muted"
-                    )}>
-                      <GitMerge className={cn(
-                        "h-4 w-4",
-                        selectedType === "bridge" ? "text-primary" : "text-muted-foreground"
-                      )} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2 mb-1">
-                        <span className="font-medium text-sm text-foreground">Bridge</span>
-                        {selectedType === "bridge" && (
-                          <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
-                        )}
-                      </div>
-                      <span className="text-xs text-muted-foreground">
-                        {totalBridge} {totalBridge === 1 ? "interface" : "interfaces"}
-                      </span>
-                    </div>
-                  </div>
-                </button>
-
-                {/* WireGuard */}
-                <button
-                  onClick={() => setSelectedType("wireguard")}
-                  className={cn(
-                    "w-full text-left rounded-lg px-3 py-3 transition-all",
-                    selectedType === "wireguard"
-                      ? "bg-accent text-accent-foreground shadow-sm"
-                      : "hover:bg-accent/50"
-                  )}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className={cn(
-                      "mt-0.5 rounded-md p-1.5",
-                      selectedType === "wireguard" ? "bg-primary/10" : "bg-muted"
-                    )}>
-                      <Shield className={cn(
-                        "h-4 w-4",
-                        selectedType === "wireguard" ? "text-primary" : "text-muted-foreground"
-                      )} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2 mb-1">
-                        <span className="font-medium text-sm text-foreground">
-                          WireGuard
-                        </span>
-                        {selectedType === "wireguard" && (
-                          <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
-                        )}
-                      </div>
-                      <span className="text-xs text-muted-foreground">
-                        {totalWireGuard} {totalWireGuard === 1 ? "tunnel" : "tunnels"}
                       </span>
                     </div>
                   </div>
