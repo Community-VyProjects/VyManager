@@ -5,7 +5,7 @@ Handles wireless (WiFi) interface commands for VyOS.
 Supports AP, station, and monitor modes with full security and capabilities configuration.
 """
 
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from ..base import BaseFeatureMapper
 
 
