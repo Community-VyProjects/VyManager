@@ -101,6 +101,8 @@ from .pim import PimMapper
 from .pim.pim_versions import get_pim_mapper
 from .pim6 import Pim6Mapper
 from .pim6.pim6_versions import get_pim6_mapper
+from .rip import RipMapper
+from .rip.rip_versions import get_rip_mapper
 
 # Auto-register all mappers
 # Ethernet uses factory for version-specific mappers
@@ -232,6 +234,8 @@ CommandMapperRegistry.register_feature("nhrp", get_nhrp_mapper)
 CommandMapperRegistry.register_feature("pim", get_pim_mapper)
 # PIMv6 uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("pim6", get_pim6_mapper)
+# RIP uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("rip", get_rip_mapper)
 
 __all__ = [
     "BaseFeatureMapper",

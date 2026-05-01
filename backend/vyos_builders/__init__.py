@@ -37,6 +37,7 @@ from .isis import IsisBatchBuilder
 from .ipsec import IPSecBatchBuilder
 from .pki import PKIBatchBuilder
 from .tunnel import TunnelBatchBuilder
+from .rip import RipBatchBuilder
 
 # Directly use the self-contained builders
 EthernetBatchBuilder = EthernetInterfaceBuilderMixin
@@ -95,6 +96,7 @@ __all__ = [
     "IPSecBatchBuilder",
     "PKIBatchBuilder",
     "TunnelBatchBuilder",
+    "RipBatchBuilder",
     "BondingBatchBuilder",
     "GeneveBatchBuilder",
     "InputBatchBuilder",
