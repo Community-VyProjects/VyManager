@@ -16,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, RefreshCw, AlertCircle, Search, Cable, Pencil, Trash2, Network, ChevronRight, Shield, Boxes, Waypoints, Link2, GitMerge, Box, Layers, ArrowDownToLine, Repeat, Lock, ArrowLeftRight, Wifi } from "lucide-react";
+import { Plus, RefreshCw, AlertCircle, Search, Cable, Pencil, Trash2, Network, ChevronRight, Shield, Boxes, Waypoints, Link2, GitMerge, Box, Layers, ArrowDownToLine, Repeat, Lock, ArrowLeftRight, Wifi, Signal } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { ethernetService } from "@/lib/api/ethernet";
@@ -87,6 +87,10 @@ import { wirelessService, type WirelessInterface, type WirelessCapabilitiesRespo
 import { CreateWirelessModal } from "@/components/wireless/CreateWirelessModal";
 import { EditWirelessModal } from "@/components/wireless/EditWirelessModal";
 import { DeleteWirelessModal } from "@/components/wireless/DeleteWirelessModal";
+import { wwanService, type WwanInterface, type WwanCapabilities } from "@/lib/api/wwan";
+import { CreateWwanModal } from "@/components/wwan/CreateWwanModal";
+import { EditWwanModal } from "@/components/wwan/EditWwanModal";
+import { DeleteWwanModal } from "@/components/wwan/DeleteWwanModal";
 import { CreateVxlanModal } from "@/components/vxlan/CreateVxlanModal";
 import { EditVxlanModal } from "@/components/vxlan/EditVxlanModal";
 import { DeleteVxlanModal } from "@/components/vxlan/DeleteVxlanModal";
@@ -100,7 +104,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 
-type InterfaceType = "ethernet" | "vlan" | "wireguard" | "vxlan" | "tunnel" | "bonding" | "bridge" | "dummy" | "geneve" | "input" | "l2tpv3" | "loopback" | "macsec" | "pppoe" | "pseudo-ethernet" | "sstpc" | "virtual-ethernet" | "vpp" | "vti" | "wireless";
+type InterfaceType = "ethernet" | "vlan" | "wireguard" | "vxlan" | "tunnel" | "bonding" | "bridge" | "dummy" | "geneve" | "input" | "l2tpv3" | "loopback" | "macsec" | "pppoe" | "pseudo-ethernet" | "sstpc" | "virtual-ethernet" | "vpp" | "vti" | "wireless" | "wwan";
 type VlanSubTab = "vif" | "vif-s" | "vif-c";
 
 interface VLANWithParent extends VIFConfig {
@@ -280,6 +284,15 @@ export default function InterfacesPage() {
   const [editingWireless, setEditingWireless] = useState<WirelessInterface | null>(null);
   const [deletingWireless, setDeletingWireless] = useState<WirelessInterface | null>(null);
 
+  // WWAN state
+  const [wwanInterfaces, setWwanInterfaces] = useState<WwanInterface[]>([]);
+  const [wwanCapabilities, setWwanCapabilities] = useState<WwanCapabilities | null>(null);
+
+  // WWAN Modal states
+  const [isCreateWwanModalOpen, setIsCreateWwanModalOpen] = useState(false);
+  const [editingWwan, setEditingWwan] = useState<WwanInterface | null>(null);
+  const [deletingWwan, setDeletingWwan] = useState<WwanInterface | null>(null);
+
   // VPP state
   const [vppBonding, setVppBonding] = useState<VppBondingConfig[]>([]);
   const [vppBridge, setVppBridge] = useState<VppBridgeConfig[]>([]);
@@ -308,7 +321,7 @@ export default function InterfacesPage() {
   const loadData = async () => {
     try {
       setError(null);
-      const [configData, capabilitiesData, wgData, vxlanData, vxlanCapData, tunnelData, tunnelCapData, dummyData, dummyCapData, geneveData, geneveCapData, inputData, inputCapData, l2tpv3Data, l2tpv3CapData, loopbackData, loopbackCapData, macsecData, macsecCapData, bondingData, bondingCapData, bridgeData, bridgeCapData, pppoeData, pppoeCapData, pseudoEthernetData, pseudoEthernetCapData, sstpcData, sstpcCapData, virtualEthernetData, virtualEthernetCapData, vppData, vppCapData, vtiData, vtiCapData, wirelessData, wirelessCapData] = await Promise.all([
+      const [configData, capabilitiesData, wgData, vxlanData, vxlanCapData, tunnelData, tunnelCapData, dummyData, dummyCapData, geneveData, geneveCapData, inputData, inputCapData, l2tpv3Data, l2tpv3CapData, loopbackData, loopbackCapData, macsecData, macsecCapData, bondingData, bondingCapData, bridgeData, bridgeCapData, pppoeData, pppoeCapData, pseudoEthernetData, pseudoEthernetCapData, sstpcData, sstpcCapData, virtualEthernetData, virtualEthernetCapData, vppData, vppCapData, vtiData, vtiCapData, wirelessData, wirelessCapData, wwanData, wwanCapData] = await Promise.all([
         ethernetService.getConfig(),
         ethernetService.getCapabilities(),
         wireguardService.getConfig(),
@@ -346,6 +359,8 @@ export default function InterfacesPage() {
         vtiService.getCapabilities(),
         wirelessService.getConfig(),
         wirelessService.getCapabilities(),
+        wwanService.getConfig(),
+        wwanService.getCapabilities(),
       ]);
       setInterfaces(configData.interfaces);
       setCapabilities(capabilitiesData);
@@ -392,6 +407,8 @@ export default function InterfacesPage() {
       setVtiCapabilities(vtiCapData);
       setWirelessInterfaces(wirelessData.interfaces);
       setWirelessCapabilities(wirelessCapData);
+      setWwanInterfaces(wwanData.interfaces);
+      setWwanCapabilities(wwanCapData);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load interface data");
     } finally {
@@ -453,6 +470,7 @@ export default function InterfacesPage() {
   const totalVpp = vppBonding.length + vppBridge.length + vppGre.length + vppIpip.length + vppLoopback.length + vppVxlanIfaces.length + vppXconnect.length;
   const totalVti = vtiInterfaces.length;
   const totalWireless = wirelessInterfaces.length;
+  const totalWwan = wwanInterfaces.length;
 
   // Filter interfaces based on search
   const filteredInterfaces = interfaces.filter((iface) => {
@@ -837,6 +855,18 @@ export default function InterfacesPage() {
     );
   });
 
+  const filteredWwan = wwanInterfaces.filter((iface) => {
+    if (searchQuery === "") return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      iface.name.toLowerCase().includes(q) ||
+      (iface.description || "").toLowerCase().includes(q) ||
+      (iface.apn || "").toLowerCase().includes(q) ||
+      iface.addresses?.some((addr) => addr.toLowerCase().includes(q)) ||
+      (iface.vrf || "").toLowerCase().includes(q)
+    );
+  });
+
   const filterVppIface = <T extends { name: string; description: string | null }>(items: T[]): T[] => {
     if (searchQuery === "") return items;
     const q = searchQuery.toLowerCase();
@@ -863,7 +893,7 @@ export default function InterfacesPage() {
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Interfaces</h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {totalInterfaces + totalVlans + totalWireGuard + totalVxlan + totalTunnel + totalDummy + totalGeneve + totalInput + totalLoopback + totalMacsec + totalBonding + totalBridge + totalPppoe + totalPseudoEthernet + totalSstpc + totalVirtualEthernet + totalVti + totalWireless} total
+                  {totalInterfaces + totalVlans + totalWireGuard + totalVxlan + totalTunnel + totalDummy + totalGeneve + totalInput + totalLoopback + totalMacsec + totalBonding + totalBridge + totalPppoe + totalPseudoEthernet + totalSstpc + totalVirtualEthernet + totalVti + totalWireless + totalWwan} total
                 </p>
               </div>
               <Button
@@ -895,12 +925,12 @@ export default function InterfacesPage() {
               </div>
             ) : (
               <div className="space-y-1 py-3">
-                {/* Ethernet */}
+                {/* Bonding */}
                 <button
-                  onClick={() => setSelectedType("ethernet")}
+                  onClick={() => setSelectedType("bonding")}
                   className={cn(
                     "w-full text-left rounded-lg px-3 py-3 transition-all",
-                    selectedType === "ethernet"
+                    selectedType === "bonding"
                       ? "bg-accent text-accent-foreground shadow-sm"
                       : "hover:bg-accent/50"
                   )}
@@ -908,33 +938,33 @@ export default function InterfacesPage() {
                   <div className="flex items-start gap-3">
                     <div className={cn(
                       "mt-0.5 rounded-md p-1.5",
-                      selectedType === "ethernet" ? "bg-primary/10" : "bg-muted"
+                      selectedType === "bonding" ? "bg-primary/10" : "bg-muted"
                     )}>
-                      <Cable className={cn(
+                      <Link2 className={cn(
                         "h-4 w-4",
-                        selectedType === "ethernet" ? "text-primary" : "text-muted-foreground"
+                        selectedType === "bonding" ? "text-primary" : "text-muted-foreground"
                       )} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2 mb-1">
-                        <span className="font-medium text-sm text-foreground">Ethernet</span>
-                        {selectedType === "ethernet" && (
+                        <span className="font-medium text-sm text-foreground">Bonding</span>
+                        {selectedType === "bonding" && (
                           <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
                         )}
                       </div>
                       <span className="text-xs text-muted-foreground">
-                        {totalInterfaces} {totalInterfaces === 1 ? "interface" : "interfaces"}
+                        {totalBonding} {totalBonding === 1 ? "interface" : "interfaces"}
                       </span>
                     </div>
                   </div>
                 </button>
 
-                {/* VLAN */}
+                {/* Bridge */}
                 <button
-                  onClick={() => setSelectedType("vlan")}
+                  onClick={() => setSelectedType("bridge")}
                   className={cn(
                     "w-full text-left rounded-lg px-3 py-3 transition-all",
-                    selectedType === "vlan"
+                    selectedType === "bridge"
                       ? "bg-accent text-accent-foreground shadow-sm"
                       : "hover:bg-accent/50"
                   )}
@@ -942,92 +972,22 @@ export default function InterfacesPage() {
                   <div className="flex items-start gap-3">
                     <div className={cn(
                       "mt-0.5 rounded-md p-1.5",
-                      selectedType === "vlan" ? "bg-primary/10" : "bg-muted"
+                      selectedType === "bridge" ? "bg-primary/10" : "bg-muted"
                     )}>
-                      <Network className={cn(
+                      <GitMerge className={cn(
                         "h-4 w-4",
-                        selectedType === "vlan" ? "text-primary" : "text-muted-foreground"
+                        selectedType === "bridge" ? "text-primary" : "text-muted-foreground"
                       )} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2 mb-1">
-                        <span className="font-medium text-sm text-foreground">VLAN</span>
-                        {selectedType === "vlan" && (
+                        <span className="font-medium text-sm text-foreground">Bridge</span>
+                        {selectedType === "bridge" && (
                           <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
                         )}
                       </div>
                       <span className="text-xs text-muted-foreground">
-                        {totalVlans} {totalVlans === 1 ? "VLAN" : "VLANs"}
-                      </span>
-                    </div>
-                  </div>
-                </button>
-
-                {/* VXLAN */}
-                <button
-                  onClick={() => setSelectedType("vxlan")}
-                  className={cn(
-                    "w-full text-left rounded-lg px-3 py-3 transition-all",
-                    selectedType === "vxlan"
-                      ? "bg-accent text-accent-foreground shadow-sm"
-                      : "hover:bg-accent/50"
-                  )}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className={cn(
-                      "mt-0.5 rounded-md p-1.5",
-                      selectedType === "vxlan" ? "bg-primary/10" : "bg-muted"
-                    )}>
-                      <Boxes className={cn(
-                        "h-4 w-4",
-                        selectedType === "vxlan" ? "text-primary" : "text-muted-foreground"
-                      )} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2 mb-1">
-                        <span className="font-medium text-sm text-foreground">
-                          VXLAN
-                        </span>
-                        {selectedType === "vxlan" && (
-                          <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
-                        )}
-                      </div>
-                      <span className="text-xs text-muted-foreground">
-                        {totalVxlan} {totalVxlan === 1 ? "tunnel" : "tunnels"}
-                      </span>
-                    </div>
-                  </div>
-                </button>
-
-                {/* Tunnel */}
-                <button
-                  onClick={() => setSelectedType("tunnel")}
-                  className={cn(
-                    "w-full text-left rounded-lg px-3 py-3 transition-all",
-                    selectedType === "tunnel"
-                      ? "bg-accent text-accent-foreground shadow-sm"
-                      : "hover:bg-accent/50"
-                  )}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className={cn(
-                      "mt-0.5 rounded-md p-1.5",
-                      selectedType === "tunnel" ? "bg-primary/10" : "bg-muted"
-                    )}>
-                      <Waypoints className={cn(
-                        "h-4 w-4",
-                        selectedType === "tunnel" ? "text-primary" : "text-muted-foreground"
-                      )} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2 mb-1">
-                        <span className="font-medium text-sm text-foreground">Tunnel</span>
-                        {selectedType === "tunnel" && (
-                          <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
-                        )}
-                      </div>
-                      <span className="text-xs text-muted-foreground">
-                        {totalTunnel} {totalTunnel === 1 ? "interface" : "interfaces"}
+                        {totalBridge} {totalBridge === 1 ? "interface" : "interfaces"}
                       </span>
                     </div>
                   </div>
@@ -1062,6 +1022,40 @@ export default function InterfacesPage() {
                       </div>
                       <span className="text-xs text-muted-foreground">
                         {totalDummy} {totalDummy === 1 ? "interface" : "interfaces"}
+                      </span>
+                    </div>
+                  </div>
+                </button>
+
+                {/* Ethernet */}
+                <button
+                  onClick={() => setSelectedType("ethernet")}
+                  className={cn(
+                    "w-full text-left rounded-lg px-3 py-3 transition-all",
+                    selectedType === "ethernet"
+                      ? "bg-accent text-accent-foreground shadow-sm"
+                      : "hover:bg-accent/50"
+                  )}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={cn(
+                      "mt-0.5 rounded-md p-1.5",
+                      selectedType === "ethernet" ? "bg-primary/10" : "bg-muted"
+                    )}>
+                      <Cable className={cn(
+                        "h-4 w-4",
+                        selectedType === "ethernet" ? "text-primary" : "text-muted-foreground"
+                      )} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="font-medium text-sm text-foreground">Ethernet</span>
+                        {selectedType === "ethernet" && (
+                          <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
+                        )}
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {totalInterfaces} {totalInterfaces === 1 ? "interface" : "interfaces"}
                       </span>
                     </div>
                   </div>
@@ -1345,6 +1339,40 @@ export default function InterfacesPage() {
                   </button>
                 )}
 
+                {/* Tunnel */}
+                <button
+                  onClick={() => setSelectedType("tunnel")}
+                  className={cn(
+                    "w-full text-left rounded-lg px-3 py-3 transition-all",
+                    selectedType === "tunnel"
+                      ? "bg-accent text-accent-foreground shadow-sm"
+                      : "hover:bg-accent/50"
+                  )}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={cn(
+                      "mt-0.5 rounded-md p-1.5",
+                      selectedType === "tunnel" ? "bg-primary/10" : "bg-muted"
+                    )}>
+                      <Waypoints className={cn(
+                        "h-4 w-4",
+                        selectedType === "tunnel" ? "text-primary" : "text-muted-foreground"
+                      )} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="font-medium text-sm text-foreground">Tunnel</span>
+                        {selectedType === "tunnel" && (
+                          <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
+                        )}
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {totalTunnel} {totalTunnel === 1 ? "interface" : "interfaces"}
+                      </span>
+                    </div>
+                  </div>
+                </button>
+
                 {/* Virtual Ethernet */}
                 {canRead(FeatureGroup.INTERFACES) && (
                   <button
@@ -1380,6 +1408,40 @@ export default function InterfacesPage() {
                     </div>
                   </button>
                 )}
+
+                {/* VLAN */}
+                <button
+                  onClick={() => setSelectedType("vlan")}
+                  className={cn(
+                    "w-full text-left rounded-lg px-3 py-3 transition-all",
+                    selectedType === "vlan"
+                      ? "bg-accent text-accent-foreground shadow-sm"
+                      : "hover:bg-accent/50"
+                  )}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={cn(
+                      "mt-0.5 rounded-md p-1.5",
+                      selectedType === "vlan" ? "bg-primary/10" : "bg-muted"
+                    )}>
+                      <Network className={cn(
+                        "h-4 w-4",
+                        selectedType === "vlan" ? "text-primary" : "text-muted-foreground"
+                      )} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="font-medium text-sm text-foreground">VLAN</span>
+                        {selectedType === "vlan" && (
+                          <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
+                        )}
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {totalVlans} {totalVlans === 1 ? "VLAN" : "VLANs"}
+                      </span>
+                    </div>
+                  </div>
+                </button>
 
                 {/* VPP — only shown when capabilities confirm VyOS 1.5+ support */}
                 {canRead(FeatureGroup.INTERFACES) && vppCapabilities?.supported && (
@@ -1451,12 +1513,12 @@ export default function InterfacesPage() {
                   </div>
                 </button>
 
-                {/* Wireless */}
+                {/* VXLAN */}
                 <button
-                  onClick={() => setSelectedType("wireless")}
+                  onClick={() => setSelectedType("vxlan")}
                   className={cn(
                     "w-full text-left rounded-lg px-3 py-3 transition-all",
-                    selectedType === "wireless"
+                    selectedType === "vxlan"
                       ? "bg-accent text-accent-foreground shadow-sm"
                       : "hover:bg-accent/50"
                   )}
@@ -1464,90 +1526,24 @@ export default function InterfacesPage() {
                   <div className="flex items-start gap-3">
                     <div className={cn(
                       "mt-0.5 rounded-md p-1.5",
-                      selectedType === "wireless" ? "bg-primary/10" : "bg-muted"
+                      selectedType === "vxlan" ? "bg-primary/10" : "bg-muted"
                     )}>
-                      <Wifi className={cn(
+                      <Boxes className={cn(
                         "h-4 w-4",
-                        selectedType === "wireless" ? "text-primary" : "text-muted-foreground"
+                        selectedType === "vxlan" ? "text-primary" : "text-muted-foreground"
                       )} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2 mb-1">
-                        <span className="font-medium text-sm text-foreground">Wireless</span>
-                        {selectedType === "wireless" && (
+                        <span className="font-medium text-sm text-foreground">
+                          VXLAN
+                        </span>
+                        {selectedType === "vxlan" && (
                           <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
                         )}
                       </div>
                       <span className="text-xs text-muted-foreground">
-                        {totalWireless} {totalWireless === 1 ? "interface" : "interfaces"}
-                      </span>
-                    </div>
-                  </div>
-                </button>
-
-                {/* Bonding */}
-                <button
-                  onClick={() => setSelectedType("bonding")}
-                  className={cn(
-                    "w-full text-left rounded-lg px-3 py-3 transition-all",
-                    selectedType === "bonding"
-                      ? "bg-accent text-accent-foreground shadow-sm"
-                      : "hover:bg-accent/50"
-                  )}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className={cn(
-                      "mt-0.5 rounded-md p-1.5",
-                      selectedType === "bonding" ? "bg-primary/10" : "bg-muted"
-                    )}>
-                      <Link2 className={cn(
-                        "h-4 w-4",
-                        selectedType === "bonding" ? "text-primary" : "text-muted-foreground"
-                      )} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2 mb-1">
-                        <span className="font-medium text-sm text-foreground">Bonding</span>
-                        {selectedType === "bonding" && (
-                          <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
-                        )}
-                      </div>
-                      <span className="text-xs text-muted-foreground">
-                        {totalBonding} {totalBonding === 1 ? "interface" : "interfaces"}
-                      </span>
-                    </div>
-                  </div>
-                </button>
-
-                {/* Bridge */}
-                <button
-                  onClick={() => setSelectedType("bridge")}
-                  className={cn(
-                    "w-full text-left rounded-lg px-3 py-3 transition-all",
-                    selectedType === "bridge"
-                      ? "bg-accent text-accent-foreground shadow-sm"
-                      : "hover:bg-accent/50"
-                  )}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className={cn(
-                      "mt-0.5 rounded-md p-1.5",
-                      selectedType === "bridge" ? "bg-primary/10" : "bg-muted"
-                    )}>
-                      <GitMerge className={cn(
-                        "h-4 w-4",
-                        selectedType === "bridge" ? "text-primary" : "text-muted-foreground"
-                      )} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2 mb-1">
-                        <span className="font-medium text-sm text-foreground">Bridge</span>
-                        {selectedType === "bridge" && (
-                          <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
-                        )}
-                      </div>
-                      <span className="text-xs text-muted-foreground">
-                        {totalBridge} {totalBridge === 1 ? "interface" : "interfaces"}
+                        {totalVxlan} {totalVxlan === 1 ? "tunnel" : "tunnels"}
                       </span>
                     </div>
                   </div>
@@ -1588,6 +1584,74 @@ export default function InterfacesPage() {
                     </div>
                   </div>
                 </button>
+
+                {/* Wireless */}
+                <button
+                  onClick={() => setSelectedType("wireless")}
+                  className={cn(
+                    "w-full text-left rounded-lg px-3 py-3 transition-all",
+                    selectedType === "wireless"
+                      ? "bg-accent text-accent-foreground shadow-sm"
+                      : "hover:bg-accent/50"
+                  )}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={cn(
+                      "mt-0.5 rounded-md p-1.5",
+                      selectedType === "wireless" ? "bg-primary/10" : "bg-muted"
+                    )}>
+                      <Wifi className={cn(
+                        "h-4 w-4",
+                        selectedType === "wireless" ? "text-primary" : "text-muted-foreground"
+                      )} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="font-medium text-sm text-foreground">Wireless</span>
+                        {selectedType === "wireless" && (
+                          <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
+                        )}
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {totalWireless} {totalWireless === 1 ? "interface" : "interfaces"}
+                      </span>
+                    </div>
+                  </div>
+                </button>
+
+                {/* WWAN */}
+                <button
+                  onClick={() => setSelectedType("wwan")}
+                  className={cn(
+                    "w-full text-left rounded-lg px-3 py-3 transition-all",
+                    selectedType === "wwan"
+                      ? "bg-accent text-accent-foreground shadow-sm"
+                      : "hover:bg-accent/50"
+                  )}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={cn(
+                      "mt-0.5 rounded-md p-1.5",
+                      selectedType === "wwan" ? "bg-primary/10" : "bg-muted"
+                    )}>
+                      <Signal className={cn(
+                        "h-4 w-4",
+                        selectedType === "wwan" ? "text-primary" : "text-muted-foreground"
+                      )} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="font-medium text-sm text-foreground">WWAN</span>
+                        {selectedType === "wwan" && (
+                          <ChevronRight className="h-4 w-4 text-primary flex-shrink-0" />
+                        )}
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {totalWwan} {totalWwan === 1 ? "interface" : "interfaces"}
+                      </span>
+                    </div>
+                  </div>
+                </button>
               </div>
             )}
           </ScrollArea>
@@ -1600,7 +1664,7 @@ export default function InterfacesPage() {
             <div className="flex items-start justify-between mb-4">
               <div className="flex-1">
                 <h1 className="text-2xl font-bold text-foreground">
-                  {selectedType === "ethernet" ? "Ethernet Interfaces" : selectedType === "vlan" ? "VLANs" : selectedType === "vxlan" ? "VXLAN Interfaces" : selectedType === "tunnel" ? "Tunnel Interfaces" : selectedType === "l2tpv3" ? "L2TPv3 Interfaces" : selectedType === "dummy" ? "Dummy Interfaces" : selectedType === "geneve" ? "GENEVE Interfaces" : selectedType === "input" ? "Input Interfaces" : selectedType === "loopback" ? "Loopback Interface" : selectedType === "macsec" ? "MACsec Interfaces" : selectedType === "bonding" ? "Bonding Interfaces" : selectedType === "bridge" ? "Bridge Interfaces" : selectedType === "pppoe" ? "PPPoE Interfaces" : selectedType === "pseudo-ethernet" ? "Pseudo-Ethernet Interfaces" : selectedType === "sstpc" ? "SSTPC Interfaces" : selectedType === "virtual-ethernet" ? "Virtual Ethernet Interfaces" : selectedType === "vpp" ? "VPP Interfaces" : selectedType === "vti" ? "VTI Interfaces" : selectedType === "wireless" ? "Wireless Interfaces" : "WireGuard Interfaces"}
+                  {selectedType === "ethernet" ? "Ethernet Interfaces" : selectedType === "vlan" ? "VLANs" : selectedType === "vxlan" ? "VXLAN Interfaces" : selectedType === "tunnel" ? "Tunnel Interfaces" : selectedType === "l2tpv3" ? "L2TPv3 Interfaces" : selectedType === "dummy" ? "Dummy Interfaces" : selectedType === "geneve" ? "GENEVE Interfaces" : selectedType === "input" ? "Input Interfaces" : selectedType === "loopback" ? "Loopback Interface" : selectedType === "macsec" ? "MACsec Interfaces" : selectedType === "bonding" ? "Bonding Interfaces" : selectedType === "bridge" ? "Bridge Interfaces" : selectedType === "pppoe" ? "PPPoE Interfaces" : selectedType === "pseudo-ethernet" ? "Pseudo-Ethernet Interfaces" : selectedType === "sstpc" ? "SSTPC Interfaces" : selectedType === "virtual-ethernet" ? "Virtual Ethernet Interfaces" : selectedType === "vpp" ? "VPP Interfaces" : selectedType === "vti" ? "VTI Interfaces" : selectedType === "wireless" ? "Wireless Interfaces" : selectedType === "wwan" ? "WWAN Interfaces" : "WireGuard Interfaces"}
                 </h1>
                 <p className="text-sm text-muted-foreground mt-2">
                   {selectedType === "ethernet"
@@ -1641,7 +1705,9 @@ export default function InterfacesPage() {
                                           ? "Virtual Tunnel Interfaces (XFRM) — kernel-side endpoint for IPsec tunnels"
                                           : selectedType === "wireless"
                                             ? "Wireless (802.11) interfaces — access point, station, and monitor mode"
-                                            : "WireGuard tunnel interfaces and status"}
+                                            : selectedType === "wwan"
+                                              ? "Wireless WAN (cellular modem) interfaces — connect via APN with LTE/5G modems"
+                                              : "WireGuard tunnel interfaces and status"}
                 </p>
               </div>
               <Button
@@ -1690,6 +1756,8 @@ export default function InterfacesPage() {
                     setIsCreateVtiModalOpen(true);
                   } else if (selectedType === "wireless") {
                     setIsCreateWirelessModalOpen(true);
+                  } else if (selectedType === "wwan") {
+                    setIsCreateWwanModalOpen(true);
                   } else {
                     setIsCreateInterfaceModalOpen(true);
                   }
@@ -1735,7 +1803,9 @@ export default function InterfacesPage() {
                                         ? "Create VTI"
                                         : selectedType === "wireless"
                                           ? "Create Wireless"
-                                          : "Manage WireGuard"}
+                                          : selectedType === "wwan"
+                                            ? "Create WWAN"
+                                            : "Manage WireGuard"}
               </Button>
             </div>
 
@@ -3496,6 +3566,94 @@ export default function InterfacesPage() {
                   </p>
                 </>
               )
+            ) : selectedType === "wwan" ? (
+              /* WWAN Table */
+              filteredWwan.length === 0 ? (
+                <Card className="border-border">
+                  <CardContent className="py-12">
+                    <div className="flex flex-col items-center gap-2">
+                      <Signal className="h-12 w-12 text-muted-foreground/30" />
+                      <p className="text-muted-foreground">
+                        {searchQuery ? "No WWAN interfaces matching your search" : "No WWAN interfaces configured"}
+                      </p>
+                      {!searchQuery && canWrite(FeatureGroup.INTERFACES) && (
+                        <Button variant="outline" size="sm" onClick={() => setIsCreateWwanModalOpen(true)} className="mt-2 gap-2">
+                          <Plus className="h-4 w-4" />
+                          Create WWAN Interface
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <>
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>APN</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Addresses</TableHead>
+                          <TableHead>VRF</TableHead>
+                          <TableHead className="w-[80px]"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredWwan.map((iface) => (
+                          <TableRow key={iface.name} className="group">
+                            <TableCell><code className="font-semibold font-mono text-foreground">{iface.name}</code></TableCell>
+                            <TableCell>
+                              {iface.apn ? (
+                                <Badge variant="outline" className="text-xs font-mono">{iface.apn}</Badge>
+                              ) : <span className="text-muted-foreground">—</span>}
+                            </TableCell>
+                            <TableCell>
+                              {iface.disable ? (
+                                <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">Disabled</Badge>
+                              ) : (
+                                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">Enabled</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {iface.addresses?.length ? (
+                                <div className="flex flex-wrap gap-1">
+                                  {iface.addresses.slice(0, 2).map((addr, idx) => <code key={idx} className="text-xs font-mono px-1.5 py-0.5 rounded bg-accent text-foreground">{addr}</code>)}
+                                  {iface.addresses.length > 2 && <Badge variant="secondary" className="text-xs px-1.5 py-0">+{iface.addresses.length - 2}</Badge>}
+                                </div>
+                              ) : <span className="text-muted-foreground">—</span>}
+                            </TableCell>
+                            <TableCell>
+                              {iface.vrf ? (
+                                <Badge variant="outline" className="bg-purple-500/10 text-purple-500 border-purple-500/20 text-xs">
+                                  {iface.vrf}
+                                </Badge>
+                              ) : <span className="text-muted-foreground">—</span>}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                {canWrite(FeatureGroup.INTERFACES) && (
+                                  <>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingWwan(iface)}>
+                                      <Pencil className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeletingWwan(iface)}>
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <p className="text-sm text-muted-foreground text-center mt-3">
+                    Showing {filteredWwan.length} of {totalWwan} interface{totalWwan !== 1 ? "s" : ""}
+                  </p>
+                </>
+              )
             ) : filteredWireGuard.length === 0 ? (
               <Card className="border-border">
                 <CardContent className="py-12">
@@ -4115,6 +4273,33 @@ export default function InterfacesPage() {
           loadData();
         }}
         interfaceData={deletingWireless}
+      />
+      {/* WWAN Modals */}
+      <CreateWwanModal
+        open={isCreateWwanModalOpen}
+        onOpenChange={setIsCreateWwanModalOpen}
+        onSuccess={loadData}
+        capabilities={wwanCapabilities}
+        existingInterfaces={wwanInterfaces.map((i) => i.name)}
+      />
+      <EditWwanModal
+        open={!!editingWwan}
+        onOpenChange={(open) => !open && setEditingWwan(null)}
+        onSuccess={() => {
+          setEditingWwan(null);
+          loadData();
+        }}
+        capabilities={wwanCapabilities}
+        interfaceData={editingWwan}
+      />
+      <DeleteWwanModal
+        open={!!deletingWwan}
+        onOpenChange={(open) => !open && setDeletingWwan(null)}
+        onSuccess={() => {
+          setDeletingWwan(null);
+          loadData();
+        }}
+        interfaceData={deletingWwan}
       />
       {/* Bridge Modals */}
       <CreateBridgeModal
