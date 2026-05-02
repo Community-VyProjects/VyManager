@@ -103,6 +103,8 @@ from .pim6 import Pim6Mapper
 from .pim6.pim6_versions import get_pim6_mapper
 from .rip import RipMapper
 from .rip.rip_versions import get_rip_mapper
+from .ripng import RipNgMapper
+from .ripng.ripng_versions import get_ripng_mapper
 
 # Auto-register all mappers
 # Ethernet uses factory for version-specific mappers
@@ -236,6 +238,7 @@ CommandMapperRegistry.register_feature("pim", get_pim_mapper)
 CommandMapperRegistry.register_feature("pim6", get_pim6_mapper)
 # RIP uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("rip", get_rip_mapper)
+CommandMapperRegistry.register_feature("ripng", get_ripng_mapper)
 
 __all__ = [
     "BaseFeatureMapper",

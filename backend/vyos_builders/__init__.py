@@ -38,6 +38,7 @@ from .ipsec import IPSecBatchBuilder
 from .pki import PKIBatchBuilder
 from .tunnel import TunnelBatchBuilder
 from .rip import RipBatchBuilder
+from .ripng import RipNgBatchBuilder
 
 # Directly use the self-contained builders
 EthernetBatchBuilder = EthernetInterfaceBuilderMixin
@@ -97,6 +98,7 @@ __all__ = [
     "PKIBatchBuilder",
     "TunnelBatchBuilder",
     "RipBatchBuilder",
+    "RipNgBatchBuilder",
     "BondingBatchBuilder",
     "GeneveBatchBuilder",
     "InputBatchBuilder",

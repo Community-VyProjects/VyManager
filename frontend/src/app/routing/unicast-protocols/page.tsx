@@ -9,6 +9,7 @@ import { OpenfabricContent } from "@/components/openfabric/OpenfabricContent";
 import { OspfContent } from "@/components/ospf/OspfContent";
 import { Ospfv3Content } from "@/components/ospfv3/Ospfv3Content";
 import { RipContent } from "@/components/rip/RipContent";
+import { RipngContent } from "@/components/ripng/RipngContent";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Network, ChevronRight } from "lucide-react";
@@ -141,7 +142,7 @@ export default function UnicastProtocolsPage() {
           ) : selectedProtocol === "rip" ? (
             <RipContent />
           ) : selectedProtocol === "ripng" ? (
-            <InProgress />
+            <RipngContent />
           ) : (
             <InProgress />
           )}
