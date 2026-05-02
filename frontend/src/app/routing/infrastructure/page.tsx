@@ -5,6 +5,7 @@ import { InProgress } from "@/components/layout/InProgress";
 import { BfdContent } from "@/components/bfd/BfdContent";
 import { MplsContent } from "@/components/mpls/MplsContent";
 import { NhrpContent } from "@/components/nhrp/NhrpContent";
+import { RpkiContent } from "@/components/rpki/RpkiContent";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Settings, ChevronRight, Activity, Box, Waypoints, Globe, Shield } from "lucide-react";
@@ -128,6 +129,8 @@ export default function InfrastructurePage() {
             <MplsContent />
           ) : selectedInfra === "nhrp" ? (
             <NhrpContent />
+          ) : selectedInfra === "rpki" ? (
+            <RpkiContent />
           ) : (
             <InProgress />
           )}
