@@ -46,7 +46,7 @@ export function RpkiContent() {
   const hasWritePermission = canWrite(FeatureGroup.RPKI);
 
   const [config, setConfig] = useState<RpkiConfig | null>(null);
-  const [capabilities, setCapabilities] = useState<RpkiCapabilities | null>(null);
+  const [, setCapabilities] = useState<RpkiCapabilities | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"cache-servers" | "settings">("cache-servers");
