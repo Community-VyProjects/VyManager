@@ -105,6 +105,8 @@ from .rip import RipMapper
 from .rip.rip_versions import get_rip_mapper
 from .ripng import RipNgMapper
 from .ripng.ripng_versions import get_ripng_mapper
+from .rpki import RpkiMapper
+from .rpki.rpki_versions import get_rpki_mapper
 
 # Auto-register all mappers
 # Ethernet uses factory for version-specific mappers
@@ -239,6 +241,8 @@ CommandMapperRegistry.register_feature("pim6", get_pim6_mapper)
 # RIP uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("rip", get_rip_mapper)
 CommandMapperRegistry.register_feature("ripng", get_ripng_mapper)
+# RPKI uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("rpki", get_rpki_mapper)
 
 __all__ = [
     "BaseFeatureMapper",
@@ -294,6 +298,7 @@ __all__ = [
     "NhrpMapper",
     "PimMapper",
     "Pim6Mapper",
+    "RpkiMapper",
     "BondingInterfaceMapper",
     "BridgeInterfaceMapper",
     "GeneveInterfaceMapper",

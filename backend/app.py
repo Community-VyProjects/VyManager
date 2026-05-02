@@ -66,6 +66,7 @@ from routers.pim import pim as pim_router
 from routers.pim6 import pim6 as pim6_router
 from routers.rip import rip as rip_router
 from routers.ripng import ripng as ripng_router
+from routers.rpki import rpki as rpki_router
 from routers import version as version_router
 from routers import events as events_router
 from routers.events import start_poller, stop_poller
@@ -352,6 +353,7 @@ app.include_router(pim_router.router)
 app.include_router(pim6_router.router)
 app.include_router(rip_router.router)
 app.include_router(ripng_router.router)
+app.include_router(rpki_router.router)
 app.include_router(version_router.router)
 app.include_router(events_router.router)
 
