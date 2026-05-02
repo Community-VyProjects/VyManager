@@ -67,7 +67,7 @@ export function RipContent() {
   const hasWritePermission = canWrite(FeatureGroup.RIP);
 
   const [config, setConfig] = useState<RipConfig | null>(null);
-  const [capabilities, setCapabilities] = useState<RipCapabilities | null>(null);
+  const [, setCapabilities] = useState<RipCapabilities | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("overview");
