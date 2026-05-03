@@ -66,6 +66,7 @@ import {
   Power,
   Scale,
   ShieldCheck,
+  GitBranch,
 } from "lucide-react";
 import {
   userManagementService,
@@ -135,6 +136,7 @@ const FEATURE_ICONS: Record<FeatureGroup, any> = {
   [FeatureGroup.SEGMENT_ROUTING]: Waypoints,
   [FeatureGroup.NHRP]: Globe,
   [FeatureGroup.RPKI]: Shield,
+  [FeatureGroup.TRAFFIC_ENGINEERING]: GitBranch,
   [FeatureGroup.ROUTING_POLICIES]: FileText,
   [FeatureGroup.ACCESS_LIST]: List,
   [FeatureGroup.PREFIX_LIST]: List,
@@ -204,6 +206,7 @@ const FEATURE_NAMES: Record<FeatureGroup, string> = {
   [FeatureGroup.SEGMENT_ROUTING]: "Segment Routing",
   [FeatureGroup.NHRP]: "NHRP",
   [FeatureGroup.RPKI]: "RPKI",
+  [FeatureGroup.TRAFFIC_ENGINEERING]: "Traffic Engineering",
   [FeatureGroup.ROUTING_POLICIES]: "Routing Policies",
   [FeatureGroup.ACCESS_LIST]: "Access List",
   [FeatureGroup.PREFIX_LIST]: "Prefix List",
@@ -316,6 +319,7 @@ const FEATURE_CATEGORIES: FeatureCategory[] = [
               { feature: FeatureGroup.SEGMENT_ROUTING },
               { feature: FeatureGroup.NHRP },
               { feature: FeatureGroup.RPKI },
+              { feature: FeatureGroup.TRAFFIC_ENGINEERING },
             ],
           },
           {

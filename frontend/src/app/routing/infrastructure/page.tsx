@@ -6,32 +6,54 @@ import { BfdContent } from "@/components/bfd/BfdContent";
 import { MplsContent } from "@/components/mpls/MplsContent";
 import { NhrpContent } from "@/components/nhrp/NhrpContent";
 import { RpkiContent } from "@/components/rpki/RpkiContent";
+import { TrafficEngineeringContent } from "@/components/traffic-engineering/TrafficEngineeringContent";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Settings, ChevronRight, Activity, Box, Waypoints, Globe, Shield } from "lucide-react";
+import { Settings, ChevronRight, Activity, Box, Waypoints, Globe, Shield, GitBranch } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
+import { trafficEngineeringService } from "@/lib/api/traffic-engineering";
 
-type InfraType = "bfd" | "mpls" | "segment-routing" | "nhrp" | "rpki";
+type InfraType = "bfd" | "mpls" | "segment-routing" | "nhrp" | "rpki" | "traffic-engineering";
 
-const allInfrastructure = [
-  { id: "bfd" as InfraType, name: "BFD", description: "Bidirectional Forwarding Detection", icon: Activity, permission: FeatureGroup.BFD },
-  { id: "mpls" as InfraType, name: "MPLS", description: "Multiprotocol Label Switching", icon: Box, permission: FeatureGroup.MPLS },
-  { id: "segment-routing" as InfraType, name: "Segment Routing", description: "Source routing with segments", icon: Waypoints, permission: FeatureGroup.SEGMENT_ROUTING },
-  { id: "nhrp" as InfraType, name: "NHRP", description: "Next Hop Resolution Protocol", icon: Globe, permission: FeatureGroup.NHRP },
-  { id: "rpki" as InfraType, name: "RPKI", description: "Resource Public Key Infrastructure", icon: Shield, permission: FeatureGroup.RPKI },
+const allInfrastructure: {
+  id: InfraType;
+  name: string;
+  description: string;
+  icon: React.ComponentType<{ className?: string }>;
+  permission: FeatureGroup;
+  requiresCapability?: boolean;
+}[] = [
+  { id: "bfd", name: "BFD", description: "Bidirectional Forwarding Detection", icon: Activity, permission: FeatureGroup.BFD },
+  { id: "mpls", name: "MPLS", description: "Multiprotocol Label Switching", icon: Box, permission: FeatureGroup.MPLS },
+  { id: "segment-routing", name: "Segment Routing", description: "Source routing with segments", icon: Waypoints, permission: FeatureGroup.SEGMENT_ROUTING },
+  { id: "nhrp", name: "NHRP", description: "Next Hop Resolution Protocol", icon: Globe, permission: FeatureGroup.NHRP },
+  { id: "rpki", name: "RPKI", description: "Resource Public Key Infrastructure", icon: Shield, permission: FeatureGroup.RPKI },
+  { id: "traffic-engineering", name: "Traffic Engineering", description: "MPLS-TE link parameter configuration", icon: GitBranch, permission: FeatureGroup.TRAFFIC_ENGINEERING, requiresCapability: true },
 ];
 
 export default function InfrastructurePage() {
   const { canRead, isLoading } = usePermissions();
+  const [teSupported, setTeSupported] = useState<boolean | null>(null);
 
-  // Filter infrastructure based on user permissions
+  useEffect(() => {
+    trafficEngineeringService
+      .getCapabilities()
+      .then((caps) => setTeSupported(caps.features.traffic_engineering.supported))
+      .catch(() => setTeSupported(false));
+  }, []);
+
+  // Filter infrastructure based on user permissions and capabilities
   const infrastructure = useMemo(() => {
     if (isLoading) return [];
-    return allInfrastructure.filter(infra => canRead(infra.permission));
-  }, [canRead, isLoading]);
+    return allInfrastructure.filter((infra) => {
+      if (!canRead(infra.permission)) return false;
+      if (infra.requiresCapability && teSupported !== true) return false;
+      return true;
+    });
+  }, [canRead, isLoading, teSupported]);
 
   const [selectedInfra, setSelectedInfra] = useState<InfraType | null>(null);
 
@@ -131,6 +153,8 @@ export default function InfrastructurePage() {
             <NhrpContent />
           ) : selectedInfra === "rpki" ? (
             <RpkiContent />
+          ) : selectedInfra === "traffic-engineering" ? (
+            <TrafficEngineeringContent />
           ) : (
             <InProgress />
           )}
