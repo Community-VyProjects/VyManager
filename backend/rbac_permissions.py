@@ -79,6 +79,7 @@ class FeatureGroup(str, Enum):
     SEGMENT_ROUTING = "SEGMENT_ROUTING"
     NHRP = "NHRP"
     RPKI = "RPKI"
+    TRAFFIC_ENGINEERING = "TRAFFIC_ENGINEERING"
 
     # Routing Policies
     ROUTING_POLICIES = "ROUTING_POLICIES"
@@ -173,6 +174,7 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.SEGMENT_ROUTING: PermissionLevel.WRITE,
         FeatureGroup.NHRP: PermissionLevel.WRITE,
         FeatureGroup.RPKI: PermissionLevel.WRITE,
+        FeatureGroup.TRAFFIC_ENGINEERING: PermissionLevel.WRITE,
         FeatureGroup.ROUTING_POLICIES: PermissionLevel.WRITE,
         FeatureGroup.ACCESS_LIST: PermissionLevel.WRITE,
         FeatureGroup.PREFIX_LIST: PermissionLevel.WRITE,
@@ -241,6 +243,7 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.SEGMENT_ROUTING: PermissionLevel.WRITE,
         FeatureGroup.NHRP: PermissionLevel.WRITE,
         FeatureGroup.RPKI: PermissionLevel.WRITE,
+        FeatureGroup.TRAFFIC_ENGINEERING: PermissionLevel.WRITE,
         FeatureGroup.ROUTING_POLICIES: PermissionLevel.WRITE,
         FeatureGroup.ACCESS_LIST: PermissionLevel.WRITE,
         FeatureGroup.PREFIX_LIST: PermissionLevel.WRITE,
@@ -310,6 +313,7 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.SEGMENT_ROUTING: PermissionLevel.READ,
         FeatureGroup.NHRP: PermissionLevel.READ,
         FeatureGroup.RPKI: PermissionLevel.READ,
+        FeatureGroup.TRAFFIC_ENGINEERING: PermissionLevel.READ,
         FeatureGroup.ROUTING_POLICIES: PermissionLevel.READ,
         FeatureGroup.ACCESS_LIST: PermissionLevel.READ,
         FeatureGroup.PREFIX_LIST: PermissionLevel.READ,
@@ -419,6 +423,7 @@ async def get_user_permissions(
                 FeatureGroup.SEGMENT_ROUTING,
                 FeatureGroup.NHRP,
                 FeatureGroup.RPKI,
+                FeatureGroup.TRAFFIC_ENGINEERING,
                 FeatureGroup.ROUTING_POLICIES,
                 FeatureGroup.ACCESS_LIST,
                 FeatureGroup.PREFIX_LIST,
@@ -506,6 +511,7 @@ async def get_user_permissions(
                 FeatureGroup.SEGMENT_ROUTING,
                 FeatureGroup.NHRP,
                 FeatureGroup.RPKI,
+                FeatureGroup.TRAFFIC_ENGINEERING,
                 FeatureGroup.ROUTING_POLICIES,
                 FeatureGroup.ACCESS_LIST,
                 FeatureGroup.PREFIX_LIST,
@@ -703,7 +709,7 @@ def _apply_parent_child_permissions(permissions: Dict[FeatureGroup, PermissionLe
     - VPN → IPSEC, WIREGUARD
     - ROUTING → UNICAST_PROTOCOLS
     - UNICAST_PROTOCOLS → BGP, OSPF, OSPFv3, ISIS, OPENFABRIC, RIP, RIPng, BABEL
-    - ROUTING_INFRASTRUCTURE → BFD, MPLS, SEGMENT_ROUTING, NHRP, RPKI
+    - ROUTING_INFRASTRUCTURE → BFD, MPLS, SEGMENT_ROUTING, NHRP, RPKI, TRAFFIC_ENGINEERING
     - ROUTING_POLICIES → ACCESS_LIST, PREFIX_LIST, ROUTE_POLICY, ROUTE_MAP, LOCAL_ROUTE,
                          BGP_AS_PATH, BGP_COMMUNITY, BGP_EXTENDED_COMMUNITY, BGP_LARGE_COMMUNITY
     - MULTICAST → IGMP_PROXY, PIM, PIM6
@@ -779,6 +785,7 @@ def _apply_parent_child_permissions(permissions: Dict[FeatureGroup, PermissionLe
             FeatureGroup.SEGMENT_ROUTING,
             FeatureGroup.NHRP,
             FeatureGroup.RPKI,
+            FeatureGroup.TRAFFIC_ENGINEERING,
         ]
         for child in infrastructure_children:
             current = permissions.get(child, PermissionLevel.NONE)
