@@ -41,6 +41,7 @@ from .rip import RipBatchBuilder
 from .ripng import RipNgBatchBuilder
 from .rpki import RpkiBatchBuilder
 from .traffic_engineering import TrafficEngineeringBatchBuilder
+from .broadcast_relay import BroadcastRelayBatchBuilder
 
 # Directly use the self-contained builders
 EthernetBatchBuilder = EthernetInterfaceBuilderMixin
@@ -117,4 +118,5 @@ __all__ = [
     "VppBatchBuilder",
     "VtiBatchBuilder",
     "WirelessBatchBuilder",
+    "BroadcastRelayBatchBuilder",
 ]
