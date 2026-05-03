@@ -125,6 +125,9 @@ export enum FeatureGroup {
   VRF = "VRF",
   LOAD_BALANCING = "LOAD_BALANCING",
 
+  // Service features
+  SERVICE = "SERVICE",
+
   // VPN features
   VPN = "VPN",
   IPSEC = "IPSEC",
@@ -142,6 +145,23 @@ export enum FeatureGroup {
 
   // Tunnel
   TUNNEL = "TUNNEL",
+
+  // Interface sub-types
+  BONDING = "BONDING",
+  BRIDGE = "BRIDGE",
+  DUMMY = "DUMMY",
+  ETHERNET = "ETHERNET",
+  VLAN = "VLAN",
+  GENEVE = "GENEVE",
+  INPUT_IFACE = "INPUT_IFACE",
+  LOOPBACK = "LOOPBACK",
+  MACSEC = "MACSEC",
+  PSEUDO_ETHERNET = "PSEUDO_ETHERNET",
+  VIRTUAL_ETHERNET = "VIRTUAL_ETHERNET",
+  VPP = "VPP",
+  VTI = "VTI",
+  WIRELESS = "WIRELESS",
+  WWAN = "WWAN",
 
   // Routing features (three-level hierarchy)
   ROUTING = "ROUTING",
