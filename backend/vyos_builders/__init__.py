@@ -40,6 +40,7 @@ from .tunnel import TunnelBatchBuilder
 from .rip import RipBatchBuilder
 from .ripng import RipNgBatchBuilder
 from .rpki import RpkiBatchBuilder
+from .traffic_engineering import TrafficEngineeringBatchBuilder
 
 # Directly use the self-contained builders
 EthernetBatchBuilder = EthernetInterfaceBuilderMixin
@@ -101,6 +102,7 @@ __all__ = [
     "RipBatchBuilder",
     "RipNgBatchBuilder",
     "RpkiBatchBuilder",
+    "TrafficEngineeringBatchBuilder",
     "BondingBatchBuilder",
     "GeneveBatchBuilder",
     "InputBatchBuilder",
