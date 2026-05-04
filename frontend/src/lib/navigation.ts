@@ -1,4 +1,4 @@
-import { Activity, Shield, ShieldCheck, Network, Route, Lock, FileText, LayoutDashboard, Server, Settings, HeartPulse, Route as RouteIcon, Scale, Layers, ArrowLeftRight, Package } from "lucide-react";
+import { Activity, Shield, ShieldCheck, Network, Lock, FileText, LayoutDashboard, Server, Settings, HeartPulse, Route as RouteIcon, Scale, Layers, ArrowLeftRight, Package } from "lucide-react";
 import { FeatureGroup } from "@/lib/api/user-management";
 
 export interface NavItem {

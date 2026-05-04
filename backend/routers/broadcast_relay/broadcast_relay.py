@@ -216,7 +216,7 @@ def _parse_instance(relay_id: str, cfg: dict) -> BroadcastRelayInstance:
         try:
             port = int(port_raw)
         except (ValueError, TypeError):
-            pass
+            logger.debug("Instance %s has non-integer port value %r; leaving port unset", relay_id, port_raw)
 
     return BroadcastRelayInstance(
         id=relay_id,

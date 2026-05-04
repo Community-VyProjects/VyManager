@@ -28,7 +28,6 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import {
   broadcastRelayService,
   BroadcastRelayConfig,
-  BroadcastRelayCapabilities,
   BroadcastRelayInstance,
 } from "@/lib/api/broadcast-relay";
 import { BroadcastRelayInstanceModal } from "./BroadcastRelayInstanceModal";
@@ -41,7 +40,6 @@ export function BroadcastRelayContent() {
   const hasWritePermission = canWrite(FeatureGroup.BROADCAST_RELAY);
 
   const [config, setConfig] = useState<BroadcastRelayConfig | null>(null);
-  const [capabilities, setCapabilities] = useState<BroadcastRelayCapabilities | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [globalDisableLoading, setGlobalDisableLoading] = useState(false);
@@ -54,12 +52,8 @@ export function BroadcastRelayContent() {
     try {
       setLoading(true);
       setError(null);
-      const [configData, capData] = await Promise.all([
-        broadcastRelayService.getConfig(refresh),
-        broadcastRelayService.getCapabilities(),
-      ]);
+      const configData = await broadcastRelayService.getConfig(refresh);
       setConfig(configData);
-      setCapabilities(capData);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load broadcast relay configuration");
     } finally {
