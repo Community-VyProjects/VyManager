@@ -45,6 +45,7 @@ export const navigation: NavItem[] = [
     title: "Service",
     icon: Package,
     children: [
+      { title: "Broadcast Relay", href: "/service/broadcast-relay", requiredPermission: FeatureGroup.BROADCAST_RELAY },
       { title: "DHCP", href: "/network/dhcp", requiredPermission: FeatureGroup.DHCP },
     ],
   },
