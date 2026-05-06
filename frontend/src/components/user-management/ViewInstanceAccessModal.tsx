@@ -45,6 +45,7 @@ import {
   Power,
   ShieldCheck,
   GitBranch,
+  Package,
 } from "lucide-react";
 import { userManagementService, FeatureGroup, InstanceUserListItem } from "@/lib/api/user-management";
 import { ApiError } from "@/lib/types/api";
@@ -72,6 +73,8 @@ const FEATURE_ICONS: Record<FeatureGroup, any> = {
   [FeatureGroup.NAT]: Network,
   [FeatureGroup.NAT64]: Globe,
   [FeatureGroup.NAT66]: Globe,
+  [FeatureGroup.SERVICE]: Package,
+  [FeatureGroup.BROADCAST_RELAY]: Radio,
   [FeatureGroup.DHCP]: Wifi,
   [FeatureGroup.INTERFACES]: Router,
   [FeatureGroup.FIREWALL_GROUPS]: Shield,
@@ -134,6 +137,21 @@ const FEATURE_ICONS: Record<FeatureGroup, any> = {
   [FeatureGroup.HIGH_AVAILABILITY]: Shield,
   [FeatureGroup.VXLAN]: Network,
   [FeatureGroup.TUNNEL]: Waypoints,
+  [FeatureGroup.BONDING]: Network,
+  [FeatureGroup.BRIDGE]: Network,
+  [FeatureGroup.DUMMY]: Network,
+  [FeatureGroup.ETHERNET]: Network,
+  [FeatureGroup.VLAN]: Network,
+  [FeatureGroup.GENEVE]: Network,
+  [FeatureGroup.INPUT_IFACE]: Network,
+  [FeatureGroup.LOOPBACK]: Router,
+  [FeatureGroup.MACSEC]: Lock,
+  [FeatureGroup.PSEUDO_ETHERNET]: Network,
+  [FeatureGroup.VIRTUAL_ETHERNET]: Network,
+  [FeatureGroup.VPP]: Network,
+  [FeatureGroup.VTI]: Lock,
+  [FeatureGroup.WIRELESS]: Wifi,
+  [FeatureGroup.WWAN]: Wifi,
 };
 
 // Feature display names
@@ -142,6 +160,8 @@ const FEATURE_NAMES: Record<FeatureGroup, string> = {
   [FeatureGroup.NAT]: "NAT",
   [FeatureGroup.NAT64]: "NAT64",
   [FeatureGroup.NAT66]: "NAT66",
+  [FeatureGroup.SERVICE]: "Service",
+  [FeatureGroup.BROADCAST_RELAY]: "Broadcast Relay",
   [FeatureGroup.DHCP]: "DHCP",
   [FeatureGroup.INTERFACES]: "Interfaces",
   [FeatureGroup.FIREWALL_GROUPS]: "Firewall Groups",
@@ -204,6 +224,21 @@ const FEATURE_NAMES: Record<FeatureGroup, string> = {
   [FeatureGroup.HIGH_AVAILABILITY]: "High Availability",
   [FeatureGroup.VXLAN]: "VXLAN",
   [FeatureGroup.TUNNEL]: "Tunnels",
+  [FeatureGroup.BONDING]: "Bonding",
+  [FeatureGroup.BRIDGE]: "Bridge",
+  [FeatureGroup.DUMMY]: "Dummy",
+  [FeatureGroup.ETHERNET]: "Ethernet",
+  [FeatureGroup.VLAN]: "VLAN",
+  [FeatureGroup.GENEVE]: "GENEVE",
+  [FeatureGroup.INPUT_IFACE]: "Input",
+  [FeatureGroup.LOOPBACK]: "Loopback",
+  [FeatureGroup.MACSEC]: "MACsec",
+  [FeatureGroup.PSEUDO_ETHERNET]: "Pseudo-Ethernet",
+  [FeatureGroup.VIRTUAL_ETHERNET]: "Virtual Ethernet",
+  [FeatureGroup.VPP]: "VPP",
+  [FeatureGroup.VTI]: "VTI",
+  [FeatureGroup.WIRELESS]: "Wireless",
+  [FeatureGroup.WWAN]: "WWAN",
 };
 
 export function ViewInstanceAccessModal({

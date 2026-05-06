@@ -1,4 +1,4 @@
-import { Activity, Shield, ShieldCheck, Network, Route, Lock, FileText, LayoutDashboard, Server, Settings, HeartPulse, Route as RouteIcon, Scale } from "lucide-react";
+import { Activity, Shield, ShieldCheck, Network, Lock, FileText, LayoutDashboard, Server, Settings, HeartPulse, Route as RouteIcon, Scale, Layers, ArrowLeftRight, Package } from "lucide-react";
 import { FeatureGroup } from "@/lib/api/user-management";
 
 export interface NavItem {
@@ -31,18 +31,25 @@ export const navigation: NavItem[] = [
       { title: "Flowtables", href: "/firewall/flowtables", requiredPermission: FeatureGroup.FIREWALL_FLOWTABLES },
     ],
   },
+  { title: "Interfaces", href: "/network/interfaces", icon: Network, requiredPermission: FeatureGroup.INTERFACES },
   {
-    title: "Network",
-    icon: Network,
+    title: "NAT",
+    icon: ArrowLeftRight,
     children: [
-      { title: "DHCP", href: "/network/dhcp", requiredPermission: FeatureGroup.DHCP },
-      { title: "VRF", href: "/network/vrf", requiredPermission: FeatureGroup.VRF },
-      { title: "Interfaces", href: "/network/interfaces", requiredPermission: FeatureGroup.INTERFACES },
       { title: "NAT", href: "/network/nat", requiredPermission: FeatureGroup.NAT },
       { title: "NAT64", href: "/network/nat64", requiredPermission: FeatureGroup.NAT64 },
       { title: "NAT66", href: "/network/nat66", requiredPermission: FeatureGroup.NAT66 },
     ],
   },
+  {
+    title: "Service",
+    icon: Package,
+    children: [
+      { title: "Broadcast Relay", href: "/service/broadcast-relay", requiredPermission: FeatureGroup.BROADCAST_RELAY },
+      { title: "DHCP", href: "/network/dhcp", requiredPermission: FeatureGroup.DHCP },
+    ],
+  },
+  { title: "VRF", href: "/network/vrf", icon: Layers, requiredPermission: FeatureGroup.VRF },
   {
     title: "Routing",
     icon: RouteIcon,

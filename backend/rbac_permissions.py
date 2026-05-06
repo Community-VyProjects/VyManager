@@ -43,8 +43,27 @@ class FeatureGroup(str, Enum):
     NETWORK = "NETWORK"
     TUNNEL = "TUNNEL"
     VXLAN = "VXLAN"
+    BONDING = "BONDING"
+    BRIDGE = "BRIDGE"
+    DUMMY = "DUMMY"
+    ETHERNET = "ETHERNET"
+    VLAN = "VLAN"
+    GENEVE = "GENEVE"
+    INPUT_IFACE = "INPUT_IFACE"
+    LOOPBACK = "LOOPBACK"
+    MACSEC = "MACSEC"
+    PSEUDO_ETHERNET = "PSEUDO_ETHERNET"
+    VIRTUAL_ETHERNET = "VIRTUAL_ETHERNET"
+    VPP = "VPP"
+    VTI = "VTI"
+    WIRELESS = "WIRELESS"
+    WWAN = "WWAN"
     VRF = "VRF"
     LOAD_BALANCING = "LOAD_BALANCING"
+
+    # Service features
+    SERVICE = "SERVICE"
+    BROADCAST_RELAY = "BROADCAST_RELAY"
 
     # VPN features
     VPN = "VPN"
@@ -142,10 +161,27 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.NAT: PermissionLevel.WRITE,
         FeatureGroup.NAT64: PermissionLevel.WRITE,
         FeatureGroup.NAT66: PermissionLevel.WRITE,
+        FeatureGroup.SERVICE: PermissionLevel.WRITE,
+        FeatureGroup.BROADCAST_RELAY: PermissionLevel.WRITE,
         FeatureGroup.DHCP: PermissionLevel.WRITE,
         FeatureGroup.INTERFACES: PermissionLevel.WRITE,
         FeatureGroup.TUNNEL: PermissionLevel.WRITE,
         FeatureGroup.VXLAN: PermissionLevel.WRITE,
+        FeatureGroup.BONDING: PermissionLevel.WRITE,
+        FeatureGroup.BRIDGE: PermissionLevel.WRITE,
+        FeatureGroup.DUMMY: PermissionLevel.WRITE,
+        FeatureGroup.ETHERNET: PermissionLevel.WRITE,
+        FeatureGroup.VLAN: PermissionLevel.WRITE,
+        FeatureGroup.GENEVE: PermissionLevel.WRITE,
+        FeatureGroup.INPUT_IFACE: PermissionLevel.WRITE,
+        FeatureGroup.LOOPBACK: PermissionLevel.WRITE,
+        FeatureGroup.MACSEC: PermissionLevel.WRITE,
+        FeatureGroup.PSEUDO_ETHERNET: PermissionLevel.WRITE,
+        FeatureGroup.VIRTUAL_ETHERNET: PermissionLevel.WRITE,
+        FeatureGroup.VPP: PermissionLevel.WRITE,
+        FeatureGroup.VTI: PermissionLevel.WRITE,
+        FeatureGroup.WIRELESS: PermissionLevel.WRITE,
+        FeatureGroup.WWAN: PermissionLevel.WRITE,
         FeatureGroup.VRF: PermissionLevel.WRITE,
         FeatureGroup.LOAD_BALANCING: PermissionLevel.WRITE,
         FeatureGroup.VPN: PermissionLevel.WRITE,
@@ -211,10 +247,27 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.NAT: PermissionLevel.WRITE,
         FeatureGroup.NAT64: PermissionLevel.WRITE,
         FeatureGroup.NAT66: PermissionLevel.WRITE,
+        FeatureGroup.SERVICE: PermissionLevel.WRITE,
+        FeatureGroup.BROADCAST_RELAY: PermissionLevel.WRITE,
         FeatureGroup.DHCP: PermissionLevel.WRITE,
         FeatureGroup.INTERFACES: PermissionLevel.WRITE,
         FeatureGroup.TUNNEL: PermissionLevel.WRITE,
         FeatureGroup.VXLAN: PermissionLevel.WRITE,
+        FeatureGroup.BONDING: PermissionLevel.WRITE,
+        FeatureGroup.BRIDGE: PermissionLevel.WRITE,
+        FeatureGroup.DUMMY: PermissionLevel.WRITE,
+        FeatureGroup.ETHERNET: PermissionLevel.WRITE,
+        FeatureGroup.VLAN: PermissionLevel.WRITE,
+        FeatureGroup.GENEVE: PermissionLevel.WRITE,
+        FeatureGroup.INPUT_IFACE: PermissionLevel.WRITE,
+        FeatureGroup.LOOPBACK: PermissionLevel.WRITE,
+        FeatureGroup.MACSEC: PermissionLevel.WRITE,
+        FeatureGroup.PSEUDO_ETHERNET: PermissionLevel.WRITE,
+        FeatureGroup.VIRTUAL_ETHERNET: PermissionLevel.WRITE,
+        FeatureGroup.VPP: PermissionLevel.WRITE,
+        FeatureGroup.VTI: PermissionLevel.WRITE,
+        FeatureGroup.WIRELESS: PermissionLevel.WRITE,
+        FeatureGroup.WWAN: PermissionLevel.WRITE,
         FeatureGroup.VRF: PermissionLevel.WRITE,
         FeatureGroup.LOAD_BALANCING: PermissionLevel.WRITE,
         FeatureGroup.VPN: PermissionLevel.WRITE,
@@ -281,10 +334,27 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.NAT: PermissionLevel.READ,
         FeatureGroup.NAT64: PermissionLevel.READ,
         FeatureGroup.NAT66: PermissionLevel.READ,
+        FeatureGroup.SERVICE: PermissionLevel.READ,
+        FeatureGroup.BROADCAST_RELAY: PermissionLevel.READ,
         FeatureGroup.DHCP: PermissionLevel.READ,
         FeatureGroup.INTERFACES: PermissionLevel.READ,
         FeatureGroup.TUNNEL: PermissionLevel.READ,
         FeatureGroup.VXLAN: PermissionLevel.READ,
+        FeatureGroup.BONDING: PermissionLevel.READ,
+        FeatureGroup.BRIDGE: PermissionLevel.READ,
+        FeatureGroup.DUMMY: PermissionLevel.READ,
+        FeatureGroup.ETHERNET: PermissionLevel.READ,
+        FeatureGroup.VLAN: PermissionLevel.READ,
+        FeatureGroup.GENEVE: PermissionLevel.READ,
+        FeatureGroup.INPUT_IFACE: PermissionLevel.READ,
+        FeatureGroup.LOOPBACK: PermissionLevel.READ,
+        FeatureGroup.MACSEC: PermissionLevel.READ,
+        FeatureGroup.PSEUDO_ETHERNET: PermissionLevel.READ,
+        FeatureGroup.VIRTUAL_ETHERNET: PermissionLevel.READ,
+        FeatureGroup.VPP: PermissionLevel.READ,
+        FeatureGroup.VTI: PermissionLevel.READ,
+        FeatureGroup.WIRELESS: PermissionLevel.READ,
+        FeatureGroup.WWAN: PermissionLevel.READ,
         FeatureGroup.VRF: PermissionLevel.READ,
         FeatureGroup.LOAD_BALANCING: PermissionLevel.READ,
         FeatureGroup.VPN: PermissionLevel.READ,
@@ -392,6 +462,8 @@ async def get_user_permissions(
                 FeatureGroup.NAT,
                 FeatureGroup.NAT64,
                 FeatureGroup.NAT66,
+                FeatureGroup.SERVICE,
+                FeatureGroup.BROADCAST_RELAY,
                 FeatureGroup.DHCP,
                 FeatureGroup.INTERFACES,
                 FeatureGroup.VRF,
@@ -405,6 +477,21 @@ async def get_user_permissions(
                 FeatureGroup.SSTPC,
                 FeatureGroup.PKI,
                 FeatureGroup.VXLAN,
+                FeatureGroup.BONDING,
+                FeatureGroup.BRIDGE,
+                FeatureGroup.DUMMY,
+                FeatureGroup.ETHERNET,
+                FeatureGroup.VLAN,
+                FeatureGroup.GENEVE,
+                FeatureGroup.INPUT_IFACE,
+                FeatureGroup.LOOPBACK,
+                FeatureGroup.MACSEC,
+                FeatureGroup.PSEUDO_ETHERNET,
+                FeatureGroup.VIRTUAL_ETHERNET,
+                FeatureGroup.VPP,
+                FeatureGroup.VTI,
+                FeatureGroup.WIRELESS,
+                FeatureGroup.WWAN,
                 FeatureGroup.ROUTING,
                 FeatureGroup.UNICAST_PROTOCOLS,
                 FeatureGroup.BGP,
@@ -480,6 +567,8 @@ async def get_user_permissions(
                 FeatureGroup.NAT,
                 FeatureGroup.NAT64,
                 FeatureGroup.NAT66,
+                FeatureGroup.SERVICE,
+                FeatureGroup.BROADCAST_RELAY,
                 FeatureGroup.DHCP,
                 FeatureGroup.INTERFACES,
                 FeatureGroup.VRF,
@@ -493,6 +582,21 @@ async def get_user_permissions(
                 FeatureGroup.SSTPC,
                 FeatureGroup.PKI,
                 FeatureGroup.VXLAN,
+                FeatureGroup.BONDING,
+                FeatureGroup.BRIDGE,
+                FeatureGroup.DUMMY,
+                FeatureGroup.ETHERNET,
+                FeatureGroup.VLAN,
+                FeatureGroup.GENEVE,
+                FeatureGroup.INPUT_IFACE,
+                FeatureGroup.LOOPBACK,
+                FeatureGroup.MACSEC,
+                FeatureGroup.PSEUDO_ETHERNET,
+                FeatureGroup.VIRTUAL_ETHERNET,
+                FeatureGroup.VPP,
+                FeatureGroup.VTI,
+                FeatureGroup.WIRELESS,
+                FeatureGroup.WWAN,
                 FeatureGroup.ROUTING,  # Added for three-level hierarchy
                 FeatureGroup.UNICAST_PROTOCOLS,  # Added for three-level hierarchy
                 FeatureGroup.BGP,
@@ -747,6 +851,37 @@ def _apply_parent_child_permissions(permissions: Dict[FeatureGroup, PermissionLe
             elif network_perm == PermissionLevel.READ and current == PermissionLevel.NONE:
                 permissions[child] = PermissionLevel.READ
 
+    # INTERFACES grants permissions to all interface sub-types
+    interfaces_perm = permissions.get(FeatureGroup.INTERFACES, PermissionLevel.NONE)
+    if interfaces_perm != PermissionLevel.NONE:
+        interface_children = [
+            FeatureGroup.VXLAN,
+            FeatureGroup.TUNNEL,
+            FeatureGroup.PPPOE,
+            FeatureGroup.SSTPC,
+            FeatureGroup.BONDING,
+            FeatureGroup.BRIDGE,
+            FeatureGroup.DUMMY,
+            FeatureGroup.ETHERNET,
+            FeatureGroup.VLAN,
+            FeatureGroup.GENEVE,
+            FeatureGroup.INPUT_IFACE,
+            FeatureGroup.LOOPBACK,
+            FeatureGroup.MACSEC,
+            FeatureGroup.PSEUDO_ETHERNET,
+            FeatureGroup.VIRTUAL_ETHERNET,
+            FeatureGroup.VPP,
+            FeatureGroup.VTI,
+            FeatureGroup.WIRELESS,
+            FeatureGroup.WWAN,
+        ]
+        for child in interface_children:
+            current = permissions.get(child, PermissionLevel.NONE)
+            if interfaces_perm == PermissionLevel.WRITE:
+                permissions[child] = PermissionLevel.WRITE
+            elif interfaces_perm == PermissionLevel.READ and current == PermissionLevel.NONE:
+                permissions[child] = PermissionLevel.READ
+
     # ROUTING parent grants UNICAST_PROTOCOLS permission
     routing_perm = permissions.get(FeatureGroup.ROUTING, PermissionLevel.NONE)
     if routing_perm != PermissionLevel.NONE:
@@ -828,6 +963,16 @@ def _apply_parent_child_permissions(permissions: Dict[FeatureGroup, PermissionLe
             if multicast_perm == PermissionLevel.WRITE:
                 permissions[child] = PermissionLevel.WRITE
             elif multicast_perm == PermissionLevel.READ and current == PermissionLevel.NONE:
+                permissions[child] = PermissionLevel.READ
+
+    # SERVICE grants permissions to all service features
+    service_perm = permissions.get(FeatureGroup.SERVICE, PermissionLevel.NONE)
+    if service_perm != PermissionLevel.NONE:
+        for child in [FeatureGroup.BROADCAST_RELAY, FeatureGroup.DHCP]:
+            current = permissions.get(child, PermissionLevel.NONE)
+            if service_perm == PermissionLevel.WRITE:
+                permissions[child] = PermissionLevel.WRITE
+            elif service_perm == PermissionLevel.READ and current == PermissionLevel.NONE:
                 permissions[child] = PermissionLevel.READ
 
     # VPN grants permissions to all VPN protocols

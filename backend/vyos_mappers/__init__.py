@@ -109,6 +109,8 @@ from .rpki import RpkiMapper
 from .rpki.rpki_versions import get_rpki_mapper
 from .traffic_engineering import TrafficEngineeringMapper
 from .traffic_engineering.traffic_engineering_versions import get_traffic_engineering_mapper
+from .broadcast_relay import BroadcastRelayMapper
+from .broadcast_relay.broadcast_relay_versions import get_broadcast_relay_mapper
 
 # Auto-register all mappers
 # Ethernet uses factory for version-specific mappers
@@ -247,6 +249,8 @@ CommandMapperRegistry.register_feature("ripng", get_ripng_mapper)
 CommandMapperRegistry.register_feature("rpki", get_rpki_mapper)
 # Traffic Engineering uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("traffic_engineering", get_traffic_engineering_mapper)
+# Broadcast Relay uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("broadcast_relay", get_broadcast_relay_mapper)
 
 __all__ = [
     "BaseFeatureMapper",
