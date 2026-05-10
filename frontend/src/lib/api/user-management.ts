@@ -128,6 +128,7 @@ export enum FeatureGroup {
   // Service features
   SERVICE = "SERVICE",
   BROADCAST_RELAY = "BROADCAST_RELAY",
+  CONTAINER = "CONTAINER",
 
   // VPN features
   VPN = "VPN",

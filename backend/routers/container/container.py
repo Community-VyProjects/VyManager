@@ -15,6 +15,7 @@ Endpoints:
 
 import asyncio
 import re
+import shlex
 
 import asyncssh
 import asyncpg
@@ -200,9 +201,21 @@ _INTERNAL_BUILDER_METHODS = frozenset({
 })
 
 # Validates container names: alphanumeric + hyphens only (matches VyOS node.def syntax).
-# This is the only user-supplied value that ever reaches the shell, so it is
-# validated before anything else.
-_CONTAINER_NAME_RE = re.compile(r'^[-a-zA-Z0-9]+$')
+# Must start with an alphanumeric character (no leading hyphen — a name like
+# "-rm" would otherwise be parsable as a flag by upstream tooling) and be at
+# most 63 characters long. This is the only user-supplied value that ever
+# reaches the shell, so it is validated before anything else.
+_CONTAINER_NAME_RE = re.compile(r'^[a-zA-Z0-9][-a-zA-Z0-9]{0,62}$')
+
+# Validates image references: registry/namespace/name:tag or name:tag etc.
+# Allows the characters that appear in valid OCI image references.
+_IMAGE_REF_RE = re.compile(r'^[a-zA-Z0-9][a-zA-Z0-9\-\._/:@]{0,254}$')
+
+# Validates paths under /config/containers/.
+# Each segment: alphanumeric + hyphens/dots/underscores. No spaces, no shell metacharacters.
+_SAFE_CONTAINER_SUBPATH_RE = re.compile(
+    r'^/config/containers/[a-zA-Z0-9][a-zA-Z0-9\-]*((/[a-zA-Z0-9][a-zA-Z0-9\-._]*)*)$'
+)
 
 # SSH timeouts (seconds)
 _SSH_CONNECT_TIMEOUT = 15
@@ -219,7 +232,28 @@ _CONTAINER_SSH_ALLOWLIST: Dict[str, tuple] = {
     "add_image":    ("add container image {name}",    _SSH_IMAGE_TIMEOUT),
     "delete_image": ("delete container image {name}", _SSH_QUICK_TIMEOUT),
     "update_image": ("update container image {name}", _SSH_IMAGE_TIMEOUT),
-    "restart":      ("restart container name {name}", _SSH_QUICK_TIMEOUT),
+    "restart":      ("restart container {name}",      _SSH_QUICK_TIMEOUT),
+}
+
+# Validates registry names: hostname-style identifiers like "docker.io",
+# "quay.io", or "registry.example.com:5000". Allows alphanumerics, dots,
+# hyphens, and an optional :port suffix. Explicitly excludes whitespace and
+# shell metacharacters even though registry names never reach the shell —
+# they do flow into VyOS config and we want a clean rejection of garbage.
+_REGISTRY_NAME_RE = re.compile(r'^[a-zA-Z0-9][a-zA-Z0-9.\-]{0,252}(?::[0-9]{1,5})?$')
+
+# Builder-method prefixes whose first positional argument is an entity name.
+# Each prefix maps to the regex its first arg must satisfy. The batch endpoint
+# enforces this so names with shell metacharacters or other illegal patterns
+# can never enter the VyOS config — defense-in-depth so they can't be
+# referenced later by an SSH endpoint.
+_NAME_PREFIXED_BUILDER_OPS: Dict[str, "re.Pattern"] = {
+    "set_name":        _CONTAINER_NAME_RE,
+    "delete_name":     _CONTAINER_NAME_RE,
+    "set_network":     _CONTAINER_NAME_RE,
+    "delete_network":  _CONTAINER_NAME_RE,
+    "set_registry":    _REGISTRY_NAME_RE,
+    "delete_registry": _REGISTRY_NAME_RE,
 }
 
 
@@ -233,6 +267,18 @@ class ContainerSSHResponse(BaseModel):
     error: Optional[str] = None
 
 
+class ContainerImagesResponse(BaseModel):
+    images: List[str] = []
+
+
+class ContainerBaseDirResponse(BaseModel):
+    exists: bool
+
+
+class ContainerMkdirRequest(BaseModel):
+    paths: List[str] = Field(..., description="Paths under /config/containers/ to create")
+
+
 # ============================================================================
 # SSH helper — operation key + validated name only, never a raw command string
 # ============================================================================
@@ -241,23 +287,23 @@ async def _run_container_ssh_command(
     request: Request,
     operation: str,
     container_name: str,
+    name_re: re.Pattern = _CONTAINER_NAME_RE,
 ) -> ContainerSSHResponse:
     """
-    Execute one of the four allowlisted container SSH operations.
+    Execute one of the allowlisted container SSH operations.
 
     The operation key is resolved against _CONTAINER_SSH_ALLOWLIST before
     anything is sent over SSH.  The container_name is validated against
-    _CONTAINER_NAME_RE.  No raw command strings are accepted from callers.
+    name_re (defaults to _CONTAINER_NAME_RE).
     """
     # --- Allowlist check (must come before any other work) ---
     if operation not in _CONTAINER_SSH_ALLOWLIST:
-        # Should never happen — callers use hardcoded string literals.
         raise HTTPException(status_code=400, detail=f"Operation not permitted: {operation}")
 
     template, timeout = _CONTAINER_SSH_ALLOWLIST[operation]
 
-    # --- Container name validation ---
-    if not container_name or not _CONTAINER_NAME_RE.match(container_name):
+    # --- Name validation ---
+    if not container_name or not name_re.match(container_name):
         raise HTTPException(
             status_code=400,
             detail="Invalid container name. Must be alphanumeric and may contain hyphens.",
@@ -343,12 +389,91 @@ async def _run_container_ssh_command(
             ),
             timeout=timeout,
         )
-        output = result.stdout or ""
+        raw = result.stdout or ""
+        # Strip vbash non-interactive warnings that always appear without a TTY
+        lines = [
+            ln for ln in raw.splitlines()
+            if not ln.startswith("vbash:")
+        ]
+        output = "\n".join(lines).strip()
         success = result.exit_status == 0
         return ContainerSSHResponse(
             success=success,
-            output=output.strip() or None,
-            error=None if success else output.strip() or "Command failed",
+            output=output or None,
+            error=None if success else output or "Command failed",
+        )
+    except asyncio.TimeoutError:
+        return ContainerSSHResponse(success=False, error="Command timed out")
+    except asyncssh.Error as exc:
+        return ContainerSSHResponse(success=False, error=f"SSH error: {exc}")
+    finally:
+        ssh_conn.close()
+
+
+async def _get_ssh_connection(request: Request) -> tuple:
+    """Return (ssh_conn, row) for the current session's instance, raising HTTPException on failure."""
+    user = getattr(request.state, "user", None)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    instance = getattr(request.state, "instance", None)
+    if not instance:
+        raise HTTPException(status_code=400, detail="No active instance.")
+
+    db_pool: asyncpg.Pool = request.app.state.db_pool
+    async with db_pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """SELECT host, "sshPort", "sshUsername", "sshEncryptedPrivKey", "sshKeyNonce", "sshKeyConfigured"
+               FROM instances WHERE id = $1""",
+            instance["id"],
+        )
+
+    if not row:
+        raise HTTPException(status_code=404, detail="Instance not found")
+    if not row["sshKeyConfigured"]:
+        raise HTTPException(status_code=409, detail="SSH key not configured.")
+    if not row["sshEncryptedPrivKey"] or not row["sshKeyNonce"]:
+        raise HTTPException(status_code=409, detail="SSH private key missing.")
+
+    try:
+        private_key_pem = decrypt_private_key(row["sshEncryptedPrivKey"], row["sshKeyNonce"])
+        private_key = asyncssh.import_private_key(private_key_pem.decode("utf-8"))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to decrypt SSH key: {exc}")
+
+    try:
+        ssh_conn = await asyncio.wait_for(
+            asyncssh.connect(
+                row["host"],
+                port=row["sshPort"] or 22,
+                username=row["sshUsername"] or "vyos",
+                client_keys=[private_key],
+                known_hosts=None,
+            ),
+            timeout=_SSH_CONNECT_TIMEOUT,
+        )
+    except asyncio.TimeoutError:
+        raise HTTPException(status_code=504, detail="SSH connection timed out")
+    except (OSError, asyncssh.Error) as exc:
+        raise HTTPException(status_code=502, detail=f"SSH connection failed: {exc}")
+
+    return ssh_conn
+
+
+async def _run_shell_command(request: Request, command: str, timeout: int = _SSH_QUICK_TIMEOUT) -> ContainerSSHResponse:
+    """Run a plain POSIX shell command (not vbash) via SSH. Caller must pre-validate command."""
+    ssh_conn = await _get_ssh_connection(request)
+    try:
+        result = await asyncio.wait_for(
+            ssh_conn.run(command, check=False),
+            timeout=timeout,
+        )
+        output = (result.stdout or "").strip()
+        success = result.exit_status == 0
+        return ContainerSSHResponse(
+            success=success,
+            output=output or None,
+            error=None if success else (result.stderr or output or "Command failed"),
         )
     except asyncio.TimeoutError:
         return ContainerSSHResponse(success=False, error="Command timed out")
@@ -433,6 +558,20 @@ async def container_batch_configure(
                     detail=f"Operation not allowed: {operation.op}",
                 )
 
+            # For ops whose first arg is a container/network/registry name,
+            # enforce the appropriate regex. Prevents seeding the VyOS config
+            # with names containing shell metacharacters or leading hyphens
+            # that downstream SSH ops would later reject.
+            for prefix, pattern in _NAME_PREFIXED_BUILDER_OPS.items():
+                if operation.op.startswith(prefix):
+                    first_arg = (operation.value or "").split(",", 1)[0].strip()
+                    if not first_arg or not pattern.match(first_arg):
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Invalid name in operation '{operation.op}'.",
+                        )
+                    break
+
             method = getattr(builder, operation.op)
             sig = inspect.signature(method)
             params = [p for p in sig.parameters.keys() if p != "self"]
@@ -473,6 +612,39 @@ async def container_batch_configure(
 # ============================================================================
 
 
+class ContainerImageRefRequest(BaseModel):
+    image: str = Field(..., description="Image reference (e.g. adguard/adguardhome:latest)")
+
+
+def _validate_image_ref(image: str):
+    if not image or not _IMAGE_REF_RE.match(image):
+        raise HTTPException(status_code=400, detail="Invalid image reference.")
+
+
+@router.post("/image/pull", response_model=ContainerSSHResponse)
+async def container_image_pull(request: Request, body: ContainerImageRefRequest):
+    """Pull an image by reference directly (add container image <image-ref>)."""
+    await require_write_permission(request, FeatureGroup.CONTAINER)
+    _validate_image_ref(body.image)
+    return await _run_container_ssh_command(request, "add_image", body.image, name_re=_IMAGE_REF_RE)
+
+
+@router.post("/image/update-ref", response_model=ContainerSSHResponse)
+async def container_image_update_ref(request: Request, body: ContainerImageRefRequest):
+    """Update (re-pull) an image by reference (update container image <image-ref>)."""
+    await require_write_permission(request, FeatureGroup.CONTAINER)
+    _validate_image_ref(body.image)
+    return await _run_container_ssh_command(request, "update_image", body.image, name_re=_IMAGE_REF_RE)
+
+
+@router.post("/image/delete-ref", response_model=ContainerSSHResponse)
+async def container_image_delete_ref(request: Request, body: ContainerImageRefRequest):
+    """Delete an image by reference (delete container image <image-ref>)."""
+    await require_write_permission(request, FeatureGroup.CONTAINER)
+    _validate_image_ref(body.image)
+    return await _run_container_ssh_command(request, "delete_image", body.image, name_re=_IMAGE_REF_RE)
+
+
 @router.post("/image/add", response_model=ContainerSSHResponse)
 async def container_image_add(request: Request, body: ContainerImageRequest):
     """Pull the image for a configured container (add container image <name>)."""
@@ -499,6 +671,123 @@ async def container_restart(request: Request, body: ContainerImageRequest):
     """Restart a running container (restart container name <name>)."""
     await require_write_permission(request, FeatureGroup.CONTAINER)
     return await _run_container_ssh_command(request, "restart", body.container_name)
+
+
+# ============================================================================
+# Show Endpoints — read-only device queries via pyvyos (no SSH required)
+# ============================================================================
+
+
+@router.get("/images", response_model=ContainerImagesResponse)
+async def get_container_images(http_request: Request):
+    """Return a list of container images pulled on the device."""
+    await require_read_permission(http_request, FeatureGroup.CONTAINER)
+    try:
+        service = get_session_vyos_service(http_request)
+        response = await run_in_threadpool(service.device.show, path=["container", "image"])
+        if response.status != 200:
+            return ContainerImagesResponse(images=[])
+
+        if isinstance(response.result, dict) and "data" in response.result:
+            output = response.result["data"]
+        elif isinstance(response.result, str):
+            output = response.result
+        else:
+            output = ""
+
+        images = []
+        lines = output.splitlines()
+        # Skip the header line (starts with REPOSITORY)
+        for line in lines[1:]:
+            parts = line.split()
+            if len(parts) < 2:
+                continue
+            repo = parts[0]
+            tag = parts[1]
+            if repo != "<none>" and tag != "<none>":
+                images.append(f"{repo}:{tag}")
+
+        return ContainerImagesResponse(images=sorted(set(images)))
+    except Exception:
+        return ContainerImagesResponse(images=[])
+
+
+@router.post("/log", response_model=ContainerSSHResponse)
+async def get_container_log(http_request: Request, body: ContainerImageRequest):
+    """Return log output for a container."""
+    await require_read_permission(http_request, FeatureGroup.CONTAINER)
+    if not body.container_name or not _CONTAINER_NAME_RE.match(body.container_name):
+        raise HTTPException(status_code=400, detail="Invalid container name.")
+    try:
+        service = get_session_vyos_service(http_request)
+        response = await run_in_threadpool(
+            service.device.show, path=["container", "log", body.container_name]
+        )
+
+        if isinstance(response.result, dict) and "data" in response.result:
+            output = response.result["data"]
+        elif isinstance(response.result, str):
+            output = response.result
+        else:
+            output = ""
+
+        return ContainerSSHResponse(
+            success=response.status == 200,
+            output=output.strip() or None,
+            error=response.error if response.status != 200 else None,
+        )
+    except Exception:
+        logger.exception("Unhandled error in get_container_log")
+        return ContainerSSHResponse(success=False, error="Failed to retrieve container log.")
+
+
+# ============================================================================
+# Filesystem / Directory Endpoints (SSH — plain shell, not vbash)
+# ============================================================================
+
+
+@router.get("/base-dir", response_model=ContainerBaseDirResponse)
+async def check_base_dir(http_request: Request):
+    """Check whether /config/containers exists on the device."""
+    await require_read_permission(http_request, FeatureGroup.CONTAINER)
+    result = await _run_shell_command(
+        http_request,
+        "test -d /config/containers && echo exists || echo missing",
+    )
+    return ContainerBaseDirResponse(exists="exists" in (result.output or ""))
+
+
+@router.post("/base-dir", response_model=ContainerSSHResponse)
+async def create_base_dir(http_request: Request):
+    """Create /config/containers on the device."""
+    await require_write_permission(http_request, FeatureGroup.CONTAINER)
+    return await _run_shell_command(http_request, "sudo mkdir -p /config/containers")
+
+
+@router.post("/mkdir", response_model=ContainerSSHResponse)
+async def create_container_dirs(http_request: Request, body: ContainerMkdirRequest):
+    """Create one or more directories under /config/containers/."""
+    await require_write_permission(http_request, FeatureGroup.CONTAINER)
+    if not body.paths:
+        return ContainerSSHResponse(success=True)
+    for path in body.paths:
+        if not _SAFE_CONTAINER_SUBPATH_RE.match(path):
+            raise HTTPException(status_code=400, detail=f"Invalid path: {path}")
+    quoted = " ".join(shlex.quote(p) for p in body.paths)
+    return await _run_shell_command(http_request, f"sudo mkdir -p {quoted}")
+
+
+class ContainerRmdirRequest(BaseModel):
+    path: str = Field(..., description="Path under /config/containers/ to remove")
+
+
+@router.post("/rmdir", response_model=ContainerSSHResponse)
+async def remove_container_dir(http_request: Request, body: ContainerRmdirRequest):
+    """Recursively remove a directory under /config/containers/."""
+    await require_write_permission(http_request, FeatureGroup.CONTAINER)
+    if not _SAFE_CONTAINER_SUBPATH_RE.match(body.path):
+        raise HTTPException(status_code=400, detail=f"Invalid path: {body.path}")
+    return await _run_shell_command(http_request, f"sudo rm -rf {shlex.quote(body.path)}")
 
 
 # ============================================================================

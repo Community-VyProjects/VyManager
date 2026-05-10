@@ -1,4 +1,4 @@
-import { Activity, Shield, ShieldCheck, Network, Lock, FileText, LayoutDashboard, Server, Settings, HeartPulse, Route as RouteIcon, Scale, Layers, ArrowLeftRight, Package } from "lucide-react";
+import { Activity, Shield, ShieldCheck, Network, Lock, FileText, LayoutDashboard, Server, Settings, HeartPulse, Route as RouteIcon, Scale, Layers, ArrowLeftRight, Package, Box } from "lucide-react";
 import { FeatureGroup } from "@/lib/api/user-management";
 
 export interface NavItem {
@@ -94,5 +94,6 @@ export const navigation: NavItem[] = [
   { title: "High Availability", href: "/network/high-availability", icon: HeartPulse, requiredPermission: FeatureGroup.HIGH_AVAILABILITY },
   { title: "Monitoring", href: "/monitoring", icon: Activity, requiredPermission: FeatureGroup.MONITORING },
   { title: "System", href: "/system/settings", icon: Server, requiredPermission: FeatureGroup.SYSTEM },
+  { title: "Containers", href: "/system/containers", icon: Box, requiredPermission: FeatureGroup.CONTAINER },
   { title: "Settings", href: "/settings", icon: Settings },
 ];

@@ -98,11 +98,11 @@ class ContainerBatchBuilder:
                     ],
                 },
                 "health_check": {
-                    "supported": True,
+                    "supported": is_1_5,
                     "description": "Container health check configuration",
                 },
                 "log_driver": {
-                    "supported": True,
+                    "supported": is_1_5,
                     "description": "Container log driver",
                     "values": ["k8s-file", "journald", "none"],
                 },
@@ -123,17 +123,33 @@ class ContainerBatchBuilder:
                         "rprivate",
                     ],
                 },
+                "network_attachment_mac": {
+                    "supported": is_1_5,
+                    "description": "MAC address assignment on container network attachment",
+                },
+                "network_gateway": {
+                    "supported": is_1_5,
+                    "description": "Gateway address on container network",
+                },
+                "network_mtu": {
+                    "supported": is_1_5,
+                    "description": "MTU on container network",
+                },
                 "network_type_bridge": {
-                    "supported": True,
+                    "supported": is_1_5,
                     "description": "Bridge network type",
                 },
                 "network_type_macvlan": {
-                    "supported": True,
+                    "supported": is_1_5,
                     "description": "MACVLAN network type",
                     "macvlan_modes": ["bridge", "private", "vepa"],
                 },
+                "registry_insecure": {
+                    "supported": is_1_5,
+                    "description": "Allow insecure (HTTP) registry connections",
+                },
                 "registry_mirror": {
-                    "supported": True,
+                    "supported": is_1_5,
                     "description": "Registry mirror support",
                 },
                 "sysctl": {
@@ -141,7 +157,7 @@ class ContainerBatchBuilder:
                     "description": "Namespaced kernel parameter configuration",
                 },
                 "tmpfs": {
-                    "supported": True,
+                    "supported": is_1_5,
                     "description": "Tmpfs filesystem mounts",
                 },
             },
