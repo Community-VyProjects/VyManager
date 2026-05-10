@@ -354,6 +354,7 @@ const FEATURE_CATEGORIES: FeatureCategory[] = [
           { feature: FeatureGroup.DHCP },
         ],
       },
+      { feature: FeatureGroup.CONTAINER },
       { feature: FeatureGroup.VRF },
       { feature: FeatureGroup.LOAD_BALANCING },
       { feature: FeatureGroup.HIGH_AVAILABILITY },
