@@ -16,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, RefreshCw, AlertCircle, Search, Cable, Pencil, Trash2, Network, ChevronRight, Shield, Boxes, Waypoints, Link2, GitMerge, Box, Layers, ArrowDownToLine, Repeat, Lock, ArrowLeftRight, Wifi, Signal } from "lucide-react";
+import { Plus, RefreshCw, AlertCircle, Search, Cable, Pencil, Trash2, Network, ChevronRight, ChevronDown, Shield, Boxes, Waypoints, Link2, GitMerge, Box, Layers, ArrowDownToLine, Repeat, Lock, ArrowLeftRight, Wifi, Signal } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { ethernetService } from "@/lib/api/ethernet";
@@ -55,10 +55,13 @@ import { macsecService, type MacsecInterface, type MacsecCapabilities } from "@/
 import { CreateMacsecModal } from "@/components/macsec/CreateMacsecModal";
 import { EditMacsecModal } from "@/components/macsec/EditMacsecModal";
 import { DeleteMacsecModal } from "@/components/macsec/DeleteMacsecModal";
-import { bridgeService, type BridgeInterface, type BridgeCapabilities } from "@/lib/api/bridge";
+import { bridgeService, type BridgeInterface, type BridgeCapabilities, type BridgeVifConfig } from "@/lib/api/bridge";
 import { CreateBridgeModal } from "@/components/bridge/CreateBridgeModal";
 import { EditBridgeModal } from "@/components/bridge/EditBridgeModal";
 import { DeleteBridgeModal } from "@/components/bridge/DeleteBridgeModal";
+import { CreateBridgeVifModal } from "@/components/bridge/CreateBridgeVifModal";
+import { EditBridgeVifModal } from "@/components/bridge/EditBridgeVifModal";
+import { DeleteBridgeVifModal } from "@/components/bridge/DeleteBridgeVifModal";
 import { pppoeService, type PppoeInterface, type PppoeCapabilities } from "@/lib/api/pppoe";
 import { CreatePppoeModal } from "@/components/pppoe/CreatePppoeModal";
 import { EditPppoeModal } from "@/components/pppoe/EditPppoeModal";
@@ -315,6 +318,20 @@ export default function InterfacesPage() {
   const [isCreateBridgeModalOpen, setIsCreateBridgeModalOpen] = useState(false);
   const [editingBridge, setEditingBridge] = useState<BridgeInterface | null>(null);
   const [deletingBridge, setDeletingBridge] = useState<BridgeInterface | null>(null);
+
+  // Bridge VIF states
+  const [expandedBridges, setExpandedBridges] = useState<Set<string>>(new Set());
+  const [createVifForBridge, setCreateVifForBridge] = useState<string | null>(null);
+  const [editingVif, setEditingVif] = useState<{ bridge: string; vif: BridgeVifConfig } | null>(null);
+  const [deletingVif, setDeletingVif] = useState<{ bridge: string; vifId: string } | null>(null);
+
+  const toggleBridgeExpand = (name: string) => {
+    setExpandedBridges((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name); else next.add(name);
+      return next;
+    });
+  };
 
   const { canWrite, canRead } = usePermissions();
 
@@ -3316,6 +3333,7 @@ export default function InterfacesPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
+                          <TableHead className="w-8"></TableHead>
                           <TableHead>Name</TableHead>
                           <TableHead>STP</TableHead>
                           <TableHead>Description</TableHead>
@@ -3326,54 +3344,152 @@ export default function InterfacesPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {filteredBridge.map((br) => (
-                          <TableRow key={br.name} className="group">
-                            <TableCell><code className="font-semibold font-mono text-foreground">{br.name}</code></TableCell>
-                            <TableCell>
-                              <Badge variant="outline" className={cn("text-xs", br.stp ? "bg-green-500/10 text-green-500 border-green-500/20" : "bg-muted text-muted-foreground")}>
-                                {br.stp ? "Enabled" : "Disabled"}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-muted-foreground max-w-[180px] truncate">{br.description || "\u2014"}</TableCell>
-                            <TableCell>
-                              {br.addresses?.length ? (
-                                <div className="flex flex-wrap gap-1">
-                                  {br.addresses.slice(0, 2).map((addr, idx) => <code key={idx} className="text-xs font-mono px-1.5 py-0.5 rounded bg-accent text-foreground">{addr}</code>)}
-                                  {br.addresses.length > 2 && <Badge variant="secondary" className="text-xs px-1.5 py-0">+{br.addresses.length - 2}</Badge>}
-                                </div>
-                              ) : <span className="text-muted-foreground">{"\u2014"}</span>}
-                            </TableCell>
-                            <TableCell>
-                              {br.members?.length ? (
-                                <div className="flex flex-wrap gap-1">
-                                  {br.members.slice(0, 3).map((m, idx) => <code key={idx} className="text-xs font-mono px-1.5 py-0.5 rounded bg-accent text-foreground">{m.name}</code>)}
-                                  {br.members.length > 3 && <Badge variant="secondary" className="text-xs px-1.5 py-0">+{br.members.length - 3}</Badge>}
-                                </div>
-                              ) : <span className="text-muted-foreground">{"\u2014"}</span>}
-                            </TableCell>
-                            <TableCell>
-                              {br.disable ? (
-                                <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">Disabled</Badge>
-                              ) : (
-                                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">Enabled</Badge>
+                        {filteredBridge.map((br) => {
+                          const isExpanded = expandedBridges.has(br.name);
+                          const vifCount = br.vifs?.length ?? 0;
+                          return (
+                            <>
+                              <TableRow key={br.name} className="group">
+                                <TableCell className="pr-0 pl-3">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6"
+                                    onClick={() => toggleBridgeExpand(br.name)}
+                                  >
+                                    <ChevronDown className={cn("h-3.5 w-3.5 transition-transform text-muted-foreground", isExpanded ? "rotate-0" : "-rotate-90")} />
+                                  </Button>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex items-center gap-2">
+                                    <code className="font-semibold font-mono text-foreground">{br.name}</code>
+                                    {vifCount > 0 && (
+                                      <Badge variant="secondary" className="text-xs px-1.5 py-0 cursor-pointer" onClick={() => toggleBridgeExpand(br.name)}>
+                                        {vifCount} VIF{vifCount !== 1 ? "s" : ""}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge variant="outline" className={cn("text-xs", br.stp ? "bg-green-500/10 text-green-500 border-green-500/20" : "bg-muted text-muted-foreground")}>
+                                    {br.stp ? "Enabled" : "Disabled"}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-muted-foreground max-w-[180px] truncate">{br.description || "\u2014"}</TableCell>
+                                <TableCell>
+                                  {br.addresses?.length ? (
+                                    <div className="flex flex-wrap gap-1">
+                                      {br.addresses.slice(0, 2).map((addr, idx) => <code key={idx} className="text-xs font-mono px-1.5 py-0.5 rounded bg-accent text-foreground">{addr}</code>)}
+                                      {br.addresses.length > 2 && <Badge variant="secondary" className="text-xs px-1.5 py-0">+{br.addresses.length - 2}</Badge>}
+                                    </div>
+                                  ) : <span className="text-muted-foreground">{"\u2014"}</span>}
+                                </TableCell>
+                                <TableCell>
+                                  {br.members?.length ? (
+                                    <div className="flex flex-wrap gap-1">
+                                      {br.members.slice(0, 3).map((m, idx) => <code key={idx} className="text-xs font-mono px-1.5 py-0.5 rounded bg-accent text-foreground">{m.name}</code>)}
+                                      {br.members.length > 3 && <Badge variant="secondary" className="text-xs px-1.5 py-0">+{br.members.length - 3}</Badge>}
+                                    </div>
+                                  ) : <span className="text-muted-foreground">{"\u2014"}</span>}
+                                </TableCell>
+                                <TableCell>
+                                  {br.disable ? (
+                                    <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">Disabled</Badge>
+                                  ) : (
+                                    <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">Enabled</Badge>
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    {canWrite(FeatureGroup.INTERFACES) && (
+                                      <>
+                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingBridge(br)}>
+                                          <Pencil className="h-3.5 w-3.5" />
+                                        </Button>
+                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeletingBridge(br)}>
+                                          <Trash2 className="h-3.5 w-3.5" />
+                                        </Button>
+                                      </>
+                                    )}
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                              {isExpanded && (
+                                <TableRow key={`${br.name}-vifs`} className="hover:bg-transparent">
+                                  <TableCell colSpan={8} className="p-0">
+                                    <div className="mx-4 mb-3 mt-1 rounded-lg border bg-muted/30">
+                                      <div className="flex items-center justify-between px-4 py-2 border-b">
+                                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">VIF Sub-interfaces ({vifCount})</span>
+                                        {canWrite(FeatureGroup.INTERFACES) && (
+                                          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setCreateVifForBridge(br.name)}>
+                                            <Plus className="h-3 w-3 mr-1" /> Add VIF
+                                          </Button>
+                                        )}
+                                      </div>
+                                      {vifCount > 0 ? (
+                                        <Table>
+                                          <TableHeader>
+                                            <TableRow className="hover:bg-transparent">
+                                              <TableHead className="h-8 text-xs pl-4">Sub-interface</TableHead>
+                                              <TableHead className="h-8 text-xs">Addresses</TableHead>
+                                              <TableHead className="h-8 text-xs">Description</TableHead>
+                                              <TableHead className="h-8 text-xs">MTU</TableHead>
+                                              <TableHead className="h-8 text-xs">Status</TableHead>
+                                              <TableHead className="h-8 w-[70px]"></TableHead>
+                                            </TableRow>
+                                          </TableHeader>
+                                          <TableBody>
+                                            {br.vifs!.map((vif) => (
+                                              <TableRow key={vif.vlan_id} className="group/vif hover:bg-muted/50">
+                                                <TableCell className="py-2 pl-4">
+                                                  <code className="font-mono text-sm font-medium">{br.name}.{vif.vlan_id}</code>
+                                                </TableCell>
+                                                <TableCell className="py-2">
+                                                  {vif.addresses.length ? (
+                                                    <div className="flex flex-wrap gap-1">
+                                                      {vif.addresses.map((addr, i) => (
+                                                        <code key={i} className="text-xs font-mono px-1.5 py-0.5 rounded bg-accent text-foreground">{addr}</code>
+                                                      ))}
+                                                    </div>
+                                                  ) : <span className="text-muted-foreground text-xs">{"\u2014"}</span>}
+                                                </TableCell>
+                                                <TableCell className="py-2 text-muted-foreground text-sm">{vif.description || "\u2014"}</TableCell>
+                                                <TableCell className="py-2 text-sm font-mono text-muted-foreground">{vif.mtu || "\u2014"}</TableCell>
+                                                <TableCell className="py-2">
+                                                  {vif.disable ? (
+                                                    <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">Disabled</Badge>
+                                                  ) : (
+                                                    <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">Enabled</Badge>
+                                                  )}
+                                                </TableCell>
+                                                <TableCell className="py-2 pr-3">
+                                                  <div className="flex gap-1 opacity-0 group-hover/vif:opacity-100 transition-opacity justify-end">
+                                                    {canWrite(FeatureGroup.INTERFACES) && (
+                                                      <>
+                                                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditingVif({ bridge: br.name, vif })}>
+                                                          <Pencil className="h-3 w-3" />
+                                                        </Button>
+                                                        <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => setDeletingVif({ bridge: br.name, vifId: vif.vlan_id })}>
+                                                          <Trash2 className="h-3 w-3" />
+                                                        </Button>
+                                                      </>
+                                                    )}
+                                                  </div>
+                                                </TableCell>
+                                              </TableRow>
+                                            ))}
+                                          </TableBody>
+                                        </Table>
+                                      ) : (
+                                        <p className="text-sm text-muted-foreground px-4 py-3">No VIFs configured on this bridge.</p>
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
                               )}
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                {canWrite(FeatureGroup.INTERFACES) && (
-                                  <>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingBridge(br)}>
-                                      <Pencil className="h-3.5 w-3.5" />
-                                    </Button>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeletingBridge(br)}>
-                                      <Trash2 className="h-3.5 w-3.5" />
-                                    </Button>
-                                  </>
-                                )}
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
+                            </>
+                          );
+                        })}
                       </TableBody>
                     </Table>
                   </div>
@@ -4327,6 +4443,27 @@ export default function InterfacesPage() {
           loadData();
         }}
         interfaceData={deletingBridge}
+      />
+      <CreateBridgeVifModal
+        open={!!createVifForBridge}
+        onOpenChange={(open) => { if (!open) setCreateVifForBridge(null); }}
+        onSuccess={() => { setCreateVifForBridge(null); loadData(); }}
+        interfaceName={createVifForBridge ?? ""}
+        existingVlanIds={bridgeInterfaces.find((b) => b.name === createVifForBridge)?.vifs?.map((v) => v.vlan_id) ?? []}
+      />
+      <EditBridgeVifModal
+        open={!!editingVif}
+        onOpenChange={(open) => { if (!open) setEditingVif(null); }}
+        onSuccess={() => { setEditingVif(null); loadData(); }}
+        interfaceName={editingVif?.bridge ?? ""}
+        vif={editingVif?.vif ?? null}
+      />
+      <DeleteBridgeVifModal
+        open={!!deletingVif}
+        onOpenChange={(open) => { if (!open) setDeletingVif(null); }}
+        onSuccess={() => { setDeletingVif(null); loadData(); }}
+        interfaceName={deletingVif?.bridge ?? ""}
+        vlanId={deletingVif?.vifId ?? null}
       />
     </AppLayout>
   );
