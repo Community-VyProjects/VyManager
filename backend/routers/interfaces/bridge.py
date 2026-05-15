@@ -446,9 +446,15 @@ async def configure_bridge_batch(http_request: Request, request: BridgeBatchRequ
 
         response = service.execute_batch(batch)
 
+        result_data = response.result
+        if result_data == "" or result_data is None:
+            result_data = None
+        elif not isinstance(result_data, dict):
+            result_data = {"result": result_data}
+
         return VyOSResponse(
             success=response.status == 200,
-            data=response.result,
+            data=result_data,
             error=response.error if response.error else None,
         )
     except HTTPException:

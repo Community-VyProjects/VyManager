@@ -118,14 +118,14 @@ export interface BridgeInterface {
   stp: boolean;
   enable_vlan: boolean;
   protocol: string | null;
-  igmp: BridgeIgmpConfig;
+  igmp: BridgeIgmpConfig | null;
   members: BridgeMemberInterfaceConfig[];
   // Sub-configs
-  mirror: BridgeMirror;
-  ip: BridgeIpSettings;
-  ipv6: BridgeIpv6Settings;
-  dhcp_options: BridgeDhcpOptions;
-  dhcpv6_options: BridgeDhcpv6Options;
+  mirror: BridgeMirror | null;
+  ip: BridgeIpSettings | null;
+  ipv6: BridgeIpv6Settings | null;
+  dhcp_options: BridgeDhcpOptions | null;
+  dhcpv6_options: BridgeDhcpv6Options | null;
   vifs: BridgeVifConfig[];
 }
 
@@ -491,10 +491,10 @@ class BridgeService {
     if (updated.enable_vlan !== undefined && updated.enable_vlan !== current.enable_vlan) {
       operations.push({ op: updated.enable_vlan ? "set_enable_vlan" : "delete_enable_vlan" });
     }
-    if (updated.igmp_snooping !== undefined && updated.igmp_snooping !== current.igmp.snooping) {
+    if (updated.igmp_snooping !== undefined && updated.igmp_snooping !== (current.igmp?.snooping ?? false)) {
       operations.push({ op: updated.igmp_snooping ? "set_igmp_snooping" : "delete_igmp_snooping" });
     }
-    if (updated.igmp_querier !== undefined && updated.igmp_querier !== current.igmp.querier) {
+    if (updated.igmp_querier !== undefined && updated.igmp_querier !== (current.igmp?.querier ?? false)) {
       operations.push({ op: updated.igmp_querier ? "set_igmp_querier" : "delete_igmp_querier" });
     }
 
@@ -536,14 +536,14 @@ class BridgeService {
       if ("ingress" in updated.mirror) {
         if (updated.mirror.ingress) {
           operations.push({ op: "set_mirror_ingress", value: updated.mirror.ingress });
-        } else if (current.mirror.ingress) {
+        } else if (current.mirror?.ingress) {
           operations.push({ op: "delete_mirror_ingress" });
         }
       }
       if ("egress" in updated.mirror) {
         if (updated.mirror.egress) {
           operations.push({ op: "set_mirror_egress", value: updated.mirror.egress });
-        } else if (current.mirror.egress) {
+        } else if (current.mirror?.egress) {
           operations.push({ op: "delete_mirror_egress" });
         }
       }
@@ -552,7 +552,7 @@ class BridgeService {
     // IP settings
     if (updated.ip) {
       const ip = updated.ip;
-      const cip = current.ip;
+      const cip = current.ip ?? ({} as BridgeIpSettings);
 
       const ipStr: { key: keyof typeof ip; setOp: string; deleteOp: string; currentVal: string | null }[] = [
         { key: "adjust_mss", setOp: "set_ip_adjust_mss", deleteOp: "delete_ip_adjust_mss", currentVal: cip.adjust_mss },
@@ -590,7 +590,7 @@ class BridgeService {
     // IPv6 settings
     if (updated.ipv6) {
       const ipv6 = updated.ipv6;
-      const cipv6 = current.ipv6;
+      const cipv6 = current.ipv6 ?? ({} as BridgeIpv6Settings);
 
       const ipv6Str: { key: keyof typeof ipv6; setOp: string; deleteOp: string; currentVal: string | null }[] = [
         { key: "accept_dad", setOp: "set_ipv6_accept_dad", deleteOp: "delete_ipv6_accept_dad", currentVal: cipv6.accept_dad },
@@ -622,7 +622,7 @@ class BridgeService {
       }
 
       if (ipv6.address_eui64 !== undefined) {
-        for (const prefix of cipv6.address_eui64) {
+        for (const prefix of cipv6.address_eui64 ?? []) {
           operations.push({ op: "delete_ipv6_address_eui64", value: prefix });
         }
         for (const prefix of ipv6.address_eui64) {
@@ -634,7 +634,7 @@ class BridgeService {
     // DHCP Options
     if (updated.dhcp_options) {
       const dhcp = updated.dhcp_options;
-      const cdhcp = current.dhcp_options;
+      const cdhcp = current.dhcp_options ?? ({} as BridgeDhcpOptions);
 
       const dhcpStr: { key: keyof typeof dhcp; setOp: string; deleteOp: string; currentVal: string | null }[] = [
         { key: "client_id", setOp: "set_dhcp_options_client_id", deleteOp: "delete_dhcp_options_client_id", currentVal: cdhcp.client_id },
@@ -662,7 +662,7 @@ class BridgeService {
       }
 
       if (dhcp.reject !== undefined) {
-        for (const r of cdhcp.reject) {
+        for (const r of cdhcp.reject ?? []) {
           operations.push({ op: "delete_dhcp_options_reject", value: r });
         }
         for (const r of dhcp.reject) {
@@ -674,7 +674,7 @@ class BridgeService {
     // DHCPv6 Options
     if (updated.dhcpv6_options) {
       const dhcpv6 = updated.dhcpv6_options;
-      const cdhcpv6 = current.dhcpv6_options;
+      const cdhcpv6 = current.dhcpv6_options ?? ({} as BridgeDhcpv6Options);
 
       if ("duid" in dhcpv6) {
         if (dhcpv6.duid) {
@@ -708,6 +708,89 @@ class BridgeService {
 
   async deleteInterface(name: string): Promise<VyOSResponse> {
     return this.batchConfigure(name, [{ op: "delete_interface" }]);
+  }
+
+  async createVif(
+    interfaceName: string,
+    config: {
+      vlan_id: string;
+      addresses?: string[];
+      description?: string;
+      mtu?: string;
+      vrf?: string;
+      disabled?: boolean;
+    }
+  ): Promise<VyOSResponse> {
+    const ops: BridgeBatchOperation[] = [{ op: "set_vif", vlan_id: config.vlan_id }];
+
+    if (config.description) ops.push({ op: "set_vif_description", vlan_id: config.vlan_id, value: config.description });
+    if (config.mtu) ops.push({ op: "set_vif_mtu", vlan_id: config.vlan_id, value: config.mtu });
+    if (config.vrf) ops.push({ op: "set_vif_vrf", vlan_id: config.vlan_id, value: config.vrf });
+    if (config.disabled) ops.push({ op: "set_vif_disable", vlan_id: config.vlan_id });
+    for (const addr of config.addresses ?? []) {
+      ops.push({ op: "set_vif_address", vlan_id: config.vlan_id, value: addr });
+    }
+
+    return this.batchConfigure(interfaceName, ops);
+  }
+
+  async updateVif(
+    interfaceName: string,
+    current: BridgeVifConfig,
+    updated: {
+      addresses?: string[];
+      description?: string | null;
+      mtu?: string | null;
+      vrf?: string | null;
+      disabled?: boolean;
+    }
+  ): Promise<VyOSResponse> {
+    const vlan = current.vlan_id;
+    const ops: BridgeBatchOperation[] = [];
+
+    if ("description" in updated) {
+      if (updated.description) {
+        ops.push({ op: "set_vif_description", vlan_id: vlan, value: updated.description });
+      } else if (current.description) {
+        ops.push({ op: "delete_vif_description", vlan_id: vlan });
+      }
+    }
+
+    if ("mtu" in updated) {
+      if (updated.mtu) {
+        ops.push({ op: "set_vif_mtu", vlan_id: vlan, value: updated.mtu });
+      } else if (current.mtu) {
+        ops.push({ op: "delete_vif_mtu", vlan_id: vlan });
+      }
+    }
+
+    if ("vrf" in updated) {
+      if (updated.vrf) {
+        ops.push({ op: "set_vif_vrf", vlan_id: vlan, value: updated.vrf });
+      } else if (current.vrf) {
+        ops.push({ op: "delete_vif_vrf", vlan_id: vlan });
+      }
+    }
+
+    if ("disabled" in updated && updated.disabled !== current.disable) {
+      ops.push({ op: updated.disabled ? "set_vif_disable" : "delete_vif_disable", vlan_id: vlan });
+    }
+
+    if ("addresses" in updated && updated.addresses !== undefined) {
+      for (const addr of current.addresses) {
+        ops.push({ op: "delete_vif_address", vlan_id: vlan, value: addr });
+      }
+      for (const addr of updated.addresses) {
+        ops.push({ op: "set_vif_address", vlan_id: vlan, value: addr });
+      }
+    }
+
+    if (ops.length === 0) return { success: true, data: { message: "No changes" } };
+    return this.batchConfigure(interfaceName, ops);
+  }
+
+  async deleteVif(interfaceName: string, vlanId: string): Promise<VyOSResponse> {
+    return this.batchConfigure(interfaceName, [{ op: "delete_vif", vlan_id: vlanId }]);
   }
 }
 
