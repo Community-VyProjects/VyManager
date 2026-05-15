@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AlertCircle,
@@ -51,7 +52,8 @@ export function CreateInterfaceModal({
   const [privateKey, setPrivateKey] = useState("");
   const [mtu, setMtu] = useState("");
   const [perClientThread, setPerClientThread] = useState(false);
-  const [mssClamping, setMssClamping] = useState(false);
+  const [mssClamping, setMssClamping] = useState<string>("off");
+  const [mssCustomValue, setMssCustomValue] = useState("");
 
   // UI state
   const [loading, setLoading] = useState(false);
@@ -108,7 +110,8 @@ export function CreateInterfaceModal({
     setPrivateKey("");
     setMtu("");
     setPerClientThread(false);
-    setMssClamping(false);
+    setMssClamping("off");
+    setMssCustomValue("");
     setError(null);
     setShowPrivateKey(false);
     setGeneratedPublicKey(null);
@@ -176,8 +179,10 @@ export function CreateInterfaceModal({
       if (perClientThread && capabilities?.features.per_client_thread.supported) {
         config.per_client_thread = true;
       }
-      if (mssClamping) {
-        config.mss_clamping = true;
+      if (mssClamping === "auto") {
+        config.mss_clamping = "clamp-mss-to-pmtu";
+      } else if (mssClamping === "custom" && mssCustomValue.trim()) {
+        config.mss_clamping = mssCustomValue.trim();
       }
 
       const result = await wireguardService.createInterface(config);
@@ -400,20 +405,35 @@ export function CreateInterfaceModal({
               </div>
             )}
 
-            <div className="flex items-center space-x-2 rounded-lg border p-3">
-              <Checkbox
-                id="mssClamping"
-                checked={mssClamping}
-                onCheckedChange={(checked) => setMssClamping(checked === true)}
-              />
-              <div className="flex-1">
-                <Label htmlFor="mssClamping" className="cursor-pointer">
-                  MSS Clamping
-                </Label>
-                <p className="text-xs text-muted-foreground">
-                  Set firewall options interface {name || "wg0"} adjust-mss clamp-mss-to-pmtu.
-                </p>
-              </div>
+            <div className="space-y-2 rounded-lg border p-3">
+              <Label>TCP MSS Clamping</Label>
+              <Select value={mssClamping} onValueChange={setMssClamping}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Disabled" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="off">Disabled</SelectItem>
+                  <SelectItem value="auto">Auto (clamp-mss-to-pmtu)</SelectItem>
+                  <SelectItem value="custom">Custom value</SelectItem>
+                </SelectContent>
+              </Select>
+              {mssClamping === "custom" && (
+                <Input
+                  type="number"
+                  min={536}
+                  max={65535}
+                  placeholder="536–65535"
+                  value={mssCustomValue}
+                  onChange={(e) => setMssCustomValue(e.target.value)}
+                />
+              )}
+              <p className="text-xs text-muted-foreground">
+                {mssClamping === "auto"
+                  ? "Automatically sets MSS to the path MTU (clamp-mss-to-pmtu)."
+                  : mssClamping === "custom"
+                    ? "Set a specific TCP MSS value in bytes (536–65535)."
+                    : "No MSS adjustment applied to this interface."}
+              </p>
             </div>
           </TabsContent>
         </Tabs>

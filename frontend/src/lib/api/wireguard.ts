@@ -26,7 +26,7 @@ export interface WireGuardInterface {
   mtu?: string | null;
   fwmark?: string | null;
   per_client_thread: boolean;
-  mss_clamping?: boolean;
+  mss_clamping?: string | null;
   disabled?: boolean;
   peers: WireGuardPeer[];
   peer_count: number;
@@ -170,7 +170,7 @@ class WireGuardService {
     private_key?: string;
     mtu?: string;
     per_client_thread?: boolean;
-    mss_clamping?: boolean;
+    mss_clamping?: string | null;
     initial_peers?: Array<{
       name: string;
       public_key: string;
@@ -206,7 +206,7 @@ class WireGuardService {
       operations.push({ op: "set_interface_per_client_thread" });
     }
     if (config.mss_clamping) {
-      operations.push({ op: "set_interface_mss_clamping" });
+      operations.push({ op: "set_interface_mss_clamping", value: config.mss_clamping });
     }
 
     // Build peer batch groups for atomic commit (required on VyOS 1.4)
@@ -246,7 +246,7 @@ class WireGuardService {
       private_key?: string | null;
       mtu?: string | null;
       per_client_thread?: boolean;
-      mss_clamping?: boolean;
+      mss_clamping?: string | null;
       disabled?: boolean;
     }
   ): Promise<VyOSResponse> {
@@ -311,9 +311,9 @@ class WireGuardService {
 
     // Handle MSS clamping
     if (newConfig.mss_clamping !== undefined) {
-      if (newConfig.mss_clamping && !currentConfig.mss_clamping) {
-        operations.push({ op: "set_interface_mss_clamping" });
-      } else if (!newConfig.mss_clamping && currentConfig.mss_clamping) {
+      if (newConfig.mss_clamping) {
+        operations.push({ op: "set_interface_mss_clamping", value: newConfig.mss_clamping });
+      } else if (currentConfig.mss_clamping) {
         operations.push({ op: "delete_interface_mss_clamping" });
       }
     }

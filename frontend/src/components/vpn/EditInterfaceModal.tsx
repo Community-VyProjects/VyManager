@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AlertCircle,
@@ -53,7 +54,8 @@ export function EditInterfaceModal({
   const [privateKey, setPrivateKey] = useState("");
   const [mtu, setMtu] = useState("");
   const [perClientThread, setPerClientThread] = useState(false);
-  const [mssClamping, setMssClamping] = useState(false);
+  const [mssClamping, setMssClamping] = useState<string>("off");
+  const [mssCustomValue, setMssCustomValue] = useState("");
   const [disabled, setDisabled] = useState(false);
 
   // UI state
@@ -73,7 +75,14 @@ export function EditInterfaceModal({
       setPrivateKey(interfaceData.private_key || "");
       setMtu(interfaceData.mtu || "");
       setPerClientThread(interfaceData.per_client_thread);
-      setMssClamping(interfaceData.mss_clamping || false);
+      const mss = interfaceData.mss_clamping || "";
+      if (!mss || mss === "clamp-mss-to-pmtu") {
+        setMssClamping(mss ? "auto" : "off");
+        setMssCustomValue("");
+      } else {
+        setMssClamping("custom");
+        setMssCustomValue(mss);
+      }
       setDisabled(interfaceData.disabled || false);
       setGeneratedPublicKey(null);
     }
@@ -115,7 +124,8 @@ export function EditInterfaceModal({
     setPrivateKey("");
     setMtu("");
     setPerClientThread(false);
-    setMssClamping(false);
+    setMssClamping("off");
+    setMssCustomValue("");
     setDisabled(false);
     setError(null);
     setShowPrivateKey(false);
@@ -175,8 +185,14 @@ export function EditInterfaceModal({
       }
 
       // MSS clamping change
-      if (mssClamping !== (interfaceData.mss_clamping || false)) {
-        newConfig.mss_clamping = mssClamping;
+      const newMss = mssClamping === "auto"
+        ? "clamp-mss-to-pmtu"
+        : mssClamping === "custom"
+          ? mssCustomValue.trim() || null
+          : null;
+      const currentMss = interfaceData.mss_clamping || null;
+      if (newMss !== currentMss) {
+        newConfig.mss_clamping = newMss;
       }
 
       // Disabled change
@@ -412,20 +428,35 @@ export function EditInterfaceModal({
               </div>
             )}
 
-            <div className="flex items-center space-x-2 rounded-lg border p-3">
-              <Checkbox
-                id="edit-mss-clamping"
-                checked={mssClamping}
-                onCheckedChange={(checked) => setMssClamping(checked === true)}
-              />
-              <div className="flex-1">
-                <Label htmlFor="edit-mss-clamping" className="cursor-pointer">
-                  TCP MSS Clamping
-                </Label>
-                <p className="text-xs text-muted-foreground">
-                  Adjusts TCP MSS to match the path MTU to prevent fragmentation issues.
-                </p>
-              </div>
+            <div className="space-y-2 rounded-lg border p-3">
+              <Label>TCP MSS Clamping</Label>
+              <Select value={mssClamping} onValueChange={setMssClamping}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Disabled" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="off">Disabled</SelectItem>
+                  <SelectItem value="auto">Auto (clamp-mss-to-pmtu)</SelectItem>
+                  <SelectItem value="custom">Custom value</SelectItem>
+                </SelectContent>
+              </Select>
+              {mssClamping === "custom" && (
+                <Input
+                  type="number"
+                  min={536}
+                  max={65535}
+                  placeholder="536–65535"
+                  value={mssCustomValue}
+                  onChange={(e) => setMssCustomValue(e.target.value)}
+                />
+              )}
+              <p className="text-xs text-muted-foreground">
+                {mssClamping === "auto"
+                  ? "Automatically sets MSS to the path MTU (clamp-mss-to-pmtu)."
+                  : mssClamping === "custom"
+                    ? "Set a specific TCP MSS value in bytes (536–65535)."
+                    : "No MSS adjustment applied to this interface."}
+              </p>
             </div>
           </TabsContent>
         </Tabs>
