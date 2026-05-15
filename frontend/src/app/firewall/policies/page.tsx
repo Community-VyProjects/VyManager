@@ -653,8 +653,8 @@ export default function FirewallPoliciesPage() {
     <AppLayout>
       <div className="flex h-full">
         {/* Sidebar */}
-        <div className="w-72 border-r border-border bg-card/50 flex flex-col h-full">
-          <div className="p-6 pb-4">
+        <div className="w-80 border-r border-border bg-card/50 flex flex-col h-full">
+          <div className="p-6 pb-4 flex flex-col flex-1 min-h-0 overflow-hidden">
             <div className="flex items-center gap-3 mb-6">
               <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
                 <Shield className="h-5 w-5 text-primary" />
@@ -671,16 +671,16 @@ export default function FirewallPoliciesPage() {
               defaultValue="ipv4"
               value={selectedProtocol}
               onValueChange={(value) => setSelectedProtocol(value as "ipv4" | "ipv6")}
-              className="w-full flex flex-col flex-1 overflow-hidden"
+              className="w-full flex flex-col flex-1 min-h-0 overflow-hidden"
             >
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="ipv4">IPv4</TabsTrigger>
                 <TabsTrigger value="ipv6">IPv6</TabsTrigger>
               </TabsList>
 
-              <TabsContent value="ipv4" className="flex-1 overflow-hidden mt-0">
-                <Separator className="mb-3" />
-                <ScrollArea className="h-full px-3">
+              <TabsContent value="ipv4" className="flex flex-col flex-1 min-h-0 overflow-hidden mt-0">
+                <Separator className="mb-3 shrink-0" />
+                <ScrollArea className="flex-1 min-h-0 px-3">
                   <div className="space-y-1 py-3">
                     <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-2 py-1 mb-2">
                       Base Chains
@@ -689,102 +689,50 @@ export default function FirewallPoliciesPage() {
                     <button
                       onClick={() => handleChainSelect("forward", false)}
                       className={cn(
-                        "w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all",
+                        "w-full flex items-center px-3 py-2.5 rounded-lg text-sm transition-all",
                         selectedChain === "forward" && !isCustomChain
                           ? "bg-accent text-accent-foreground shadow-sm"
                           : "hover:bg-accent/50 text-foreground"
                       )}
                     >
                       <span className="font-medium">Forward</span>
-                      <div className="flex items-center gap-1.5">
-                        {getDefaultAction("forward", false, "ipv4") && (
-                          <Badge
-                            variant="outline"
-                            className={cn("uppercase text-xs", getDefaultActionBadgeClass(getDefaultAction("forward", false, "ipv4")))}
-                          >
-                            {getDefaultAction("forward", false, "ipv4")}
-                          </Badge>
-                        )}
-                        <Badge variant="secondary">
-                          {forwardRules.length}
-                        </Badge>
-                      </div>
                     </button>
 
                     <button
                       onClick={() => handleChainSelect("input", false)}
                       className={cn(
-                        "w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all",
+                        "w-full flex items-center px-3 py-2.5 rounded-lg text-sm transition-all",
                         selectedChain === "input" && !isCustomChain
                           ? "bg-accent text-accent-foreground shadow-sm"
                           : "hover:bg-accent/50 text-foreground"
                       )}
                     >
                       <span className="font-medium">Input</span>
-                      <div className="flex items-center gap-1.5">
-                        {getDefaultAction("input", false, "ipv4") && (
-                          <Badge
-                            variant="outline"
-                            className={cn("uppercase text-xs", getDefaultActionBadgeClass(getDefaultAction("input", false, "ipv4")))}
-                          >
-                            {getDefaultAction("input", false, "ipv4")}
-                          </Badge>
-                        )}
-                        <Badge variant="secondary">
-                          {inputRules.length}
-                        </Badge>
-                      </div>
                     </button>
 
                     <button
                       onClick={() => handleChainSelect("output", false)}
                       className={cn(
-                        "w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all",
+                        "w-full flex items-center px-3 py-2.5 rounded-lg text-sm transition-all",
                         selectedChain === "output" && !isCustomChain
                           ? "bg-accent text-accent-foreground shadow-sm"
                           : "hover:bg-accent/50 text-foreground"
                       )}
                     >
                       <span className="font-medium">Output</span>
-                      <div className="flex items-center gap-1.5">
-                        {getDefaultAction("output", false, "ipv4") && (
-                          <Badge
-                            variant="outline"
-                            className={cn("uppercase text-xs", getDefaultActionBadgeClass(getDefaultAction("output", false, "ipv4")))}
-                          >
-                            {getDefaultAction("output", false, "ipv4")}
-                          </Badge>
-                        )}
-                        <Badge variant="secondary">
-                          {outputRules.length}
-                        </Badge>
-                      </div>
                     </button>
 
                     {capabilities?.features.prerouting_raw?.supported && (
                       <button
                         onClick={() => handleChainSelect("prerouting_raw", false)}
                         className={cn(
-                          "w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all",
+                          "w-full flex items-center px-3 py-2.5 rounded-lg text-sm transition-all",
                           selectedChain === "prerouting_raw" && !isCustomChain
                             ? "bg-accent text-accent-foreground shadow-sm"
                             : "hover:bg-accent/50 text-foreground"
                         )}
                       >
                         <span className="font-medium">Prerouting Raw</span>
-                        <div className="flex items-center gap-1.5">
-                          {getDefaultAction("prerouting_raw", false, "ipv4") && (
-                            <Badge
-                              variant="outline"
-                              className={cn("uppercase text-xs", getDefaultActionBadgeClass(getDefaultAction("prerouting_raw", false, "ipv4")))}
-                            >
-                              {getDefaultAction("prerouting_raw", false, "ipv4")}
-                            </Badge>
-                          )}
-                          <Badge variant="secondary">
-                            {preroutingRawRules.length}
-                          </Badge>
-                        </div>
                       </button>
                     )}
 
@@ -812,64 +760,49 @@ export default function FirewallPoliciesPage() {
                         </p>
                       </div>
                     ) : (
-                      <ScrollArea className="max-h-[400px]">
-                        <div className="space-y-1">
-                          {customChains.map((chain) => (
-                            <div
-                              key={chain.name}
-                              className={cn(
-                                "group relative rounded-lg transition-all",
-                                selectedChain === chain.name && isCustomChain
-                                  ? "bg-accent shadow-sm"
-                                  : "hover:bg-accent/50"
-                              )}
-                            >
-                              <div className="w-full flex items-center gap-2 px-3 py-2.5 text-sm">
-                                <button
-                                  onClick={() => handleChainSelect(chain.name, true)}
-                                  className="flex-1 text-left truncate"
-                                >
-                                  <span className="font-medium text-foreground">
-                                    {chain.name}
-                                  </span>
-                                </button>
-                                <div className="flex items-center gap-1.5">
-                                  {getDefaultAction(chain.name, true, "ipv4") && (
-                                    <Badge
-                                      variant="outline"
-                                      className={cn("uppercase text-xs", getDefaultActionBadgeClass(getDefaultAction(chain.name, true, "ipv4")))}
-                                    >
-                                      {getDefaultAction(chain.name, true, "ipv4")}
-                                    </Badge>
-                                  )}
-                                  <Badge variant="secondary" className="flex-shrink-0">
-                                    {chain.rules.length}
-                                  </Badge>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-6 w-6 hover:bg-destructive/10"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setDeletingChain(chain);
-                                    }}
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                                  </Button>
-                                </div>
-                              </div>
+                      <div className="space-y-1">
+                        {customChains.map((chain) => (
+                          <div
+                            key={chain.name}
+                            className={cn(
+                              "group relative rounded-lg transition-all",
+                              selectedChain === chain.name && isCustomChain
+                                ? "bg-accent shadow-sm"
+                                : "hover:bg-accent/50"
+                            )}
+                          >
+                            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-1.5 pl-3 pr-1 py-2.5 text-sm">
+                              <button
+                                onClick={() => handleChainSelect(chain.name, true)}
+                                className="text-left truncate min-w-0"
+                              >
+                                <span className="font-medium text-foreground">
+                                  {chain.name}
+                                </span>
+                              </button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-5 w-5 hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setDeletingChain(chain);
+                                }}
+                              >
+                                <Trash2 className="h-3 w-3 text-destructive" />
+                              </Button>
                             </div>
-                          ))}
-                        </div>
-                      </ScrollArea>
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </div>
                 </ScrollArea>
               </TabsContent>
 
-              <TabsContent value="ipv6" className="flex-1 overflow-hidden mt-0">
-                <Separator className="mb-3" />
-                <ScrollArea className="h-full px-3">
+              <TabsContent value="ipv6" className="flex flex-col flex-1 min-h-0 overflow-hidden mt-0">
+                <Separator className="mb-3 shrink-0" />
+                <ScrollArea className="flex-1 min-h-0 px-3">
                   <div className="space-y-1 py-3">
                     <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-2 py-1 mb-2">
                       Base Chains
@@ -878,76 +811,37 @@ export default function FirewallPoliciesPage() {
                     <button
                       onClick={() => handleChainSelect("forward", false)}
                       className={cn(
-                        "w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all",
+                        "w-full flex items-center px-3 py-2.5 rounded-lg text-sm transition-all",
                         selectedChainIPv6 === "forward" && !isCustomChainIPv6
                           ? "bg-accent text-accent-foreground shadow-sm"
                           : "hover:bg-accent/50 text-foreground"
                       )}
                     >
                       <span className="font-medium">Forward</span>
-                      <div className="flex items-center gap-1.5">
-                        {getDefaultAction("forward", false, "ipv6") && (
-                          <Badge
-                            variant="outline"
-                            className={cn("uppercase text-xs", getDefaultActionBadgeClass(getDefaultAction("forward", false, "ipv6")))}
-                          >
-                            {getDefaultAction("forward", false, "ipv6")}
-                          </Badge>
-                        )}
-                        <Badge variant="secondary">
-                          {forwardRulesIPv6.length}
-                        </Badge>
-                      </div>
                     </button>
 
                     <button
                       onClick={() => handleChainSelect("input", false)}
                       className={cn(
-                        "w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all",
+                        "w-full flex items-center px-3 py-2.5 rounded-lg text-sm transition-all",
                         selectedChainIPv6 === "input" && !isCustomChainIPv6
                           ? "bg-accent text-accent-foreground shadow-sm"
                           : "hover:bg-accent/50 text-foreground"
                       )}
                     >
                       <span className="font-medium">Input</span>
-                      <div className="flex items-center gap-1.5">
-                        {getDefaultAction("input", false, "ipv6") && (
-                          <Badge
-                            variant="outline"
-                            className={cn("uppercase text-xs", getDefaultActionBadgeClass(getDefaultAction("input", false, "ipv6")))}
-                          >
-                            {getDefaultAction("input", false, "ipv6")}
-                          </Badge>
-                        )}
-                        <Badge variant="secondary">
-                          {inputRulesIPv6.length}
-                        </Badge>
-                      </div>
                     </button>
 
                     <button
                       onClick={() => handleChainSelect("output", false)}
                       className={cn(
-                        "w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all",
+                        "w-full flex items-center px-3 py-2.5 rounded-lg text-sm transition-all",
                         selectedChainIPv6 === "output" && !isCustomChainIPv6
                           ? "bg-accent text-accent-foreground shadow-sm"
                           : "hover:bg-accent/50 text-foreground"
                       )}
                     >
                       <span className="font-medium">Output</span>
-                      <div className="flex items-center gap-1.5">
-                        {getDefaultAction("output", false, "ipv6") && (
-                          <Badge
-                            variant="outline"
-                            className={cn("uppercase text-xs", getDefaultActionBadgeClass(getDefaultAction("output", false, "ipv6")))}
-                          >
-                            {getDefaultAction("output", false, "ipv6")}
-                          </Badge>
-                        )}
-                        <Badge variant="secondary">
-                          {outputRulesIPv6.length}
-                        </Badge>
-                      </div>
                     </button>
 
                     <Separator className="my-4" />
@@ -974,56 +868,41 @@ export default function FirewallPoliciesPage() {
                         </p>
                       </div>
                     ) : (
-                      <ScrollArea className="max-h-[400px]">
-                        <div className="space-y-1">
-                          {customChainsIPv6.map((chain) => (
-                            <div
-                              key={chain.name}
-                              className={cn(
-                                "group relative rounded-lg transition-all",
-                                selectedChainIPv6 === chain.name && isCustomChainIPv6
-                                  ? "bg-accent shadow-sm"
-                                  : "hover:bg-accent/50"
-                              )}
-                            >
-                              <div className="w-full flex items-center gap-2 px-3 py-2.5 text-sm">
-                                <button
-                                  onClick={() => handleChainSelect(chain.name, true)}
-                                  className="flex-1 text-left truncate"
-                                >
-                                  <span className="font-medium text-foreground">
-                                    {chain.name}
-                                  </span>
-                                </button>
-                                <div className="flex items-center gap-1.5">
-                                  {getDefaultAction(chain.name, true, "ipv6") && (
-                                    <Badge
-                                      variant="outline"
-                                      className={cn("uppercase text-xs", getDefaultActionBadgeClass(getDefaultAction(chain.name, true, "ipv6")))}
-                                    >
-                                      {getDefaultAction(chain.name, true, "ipv6")}
-                                    </Badge>
-                                  )}
-                                  <Badge variant="secondary" className="flex-shrink-0">
-                                    {chain.rules.length}
-                                  </Badge>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-6 w-6 hover:bg-destructive/10"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setDeletingChain(chain);
-                                    }}
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                                  </Button>
-                                </div>
-                              </div>
+                      <div className="space-y-1">
+                        {customChainsIPv6.map((chain) => (
+                          <div
+                            key={chain.name}
+                            className={cn(
+                              "group relative rounded-lg transition-all",
+                              selectedChainIPv6 === chain.name && isCustomChainIPv6
+                                ? "bg-accent shadow-sm"
+                                : "hover:bg-accent/50"
+                            )}
+                          >
+                            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-1.5 pl-3 pr-1 py-2.5 text-sm">
+                              <button
+                                onClick={() => handleChainSelect(chain.name, true)}
+                                className="text-left truncate min-w-0"
+                              >
+                                <span className="font-medium text-foreground">
+                                  {chain.name}
+                                </span>
+                              </button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-5 w-5 hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setDeletingChain(chain);
+                                }}
+                              >
+                                <Trash2 className="h-3 w-3 text-destructive" />
+                              </Button>
                             </div>
-                          ))}
-                        </div>
-                      </ScrollArea>
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </div>
                 </ScrollArea>
