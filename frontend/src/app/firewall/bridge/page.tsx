@@ -64,6 +64,26 @@ import { CreateCustomBridgeChainModal } from "@/components/firewall/CreateCustom
 import { DeleteCustomBridgeChainModal } from "@/components/firewall/DeleteCustomBridgeChainModal";
 import { BridgeRuleRow } from "@/components/firewall/BridgeRuleRow";
 import { BridgeReorderBanner } from "@/components/firewall/BridgeReorderBanner";
+import { ColumnToggleButton } from "@/components/firewall/ColumnToggleButton";
+import { useColumnVisibility, type ColumnDef } from "@/hooks/useColumnVisibility";
+
+const BRIDGE_COLUMNS: ColumnDef[] = [
+  { id: "source",          label: "Source" },
+  { id: "destination",     label: "Destination" },
+  { id: "protocol",        label: "Protocol" },
+  { id: "interface",       label: "Interface" },
+  // Extra columns — hidden by default
+  { id: "description",     label: "Description",      defaultVisible: false },
+  { id: "status",          label: "Status",           defaultVisible: false },
+  { id: "log",             label: "Log",              defaultVisible: false },
+  { id: "vlan",            label: "VLAN",             defaultVisible: false },
+  { id: "ethernetType",    label: "Ethernet Type",    defaultVisible: false },
+  { id: "connectionState", label: "Conn. State",      defaultVisible: false },
+  { id: "limit",           label: "Limit",            defaultVisible: false },
+  { id: "time",            label: "Time",             defaultVisible: false },
+  { id: "icmpType",        label: "ICMP Type",        defaultVisible: false },
+  { id: "tcpFlags",        label: "TCP Flags",        defaultVisible: false },
+];
 
 export default function BridgeFirewallPage() {
   const [config, setConfig] = useState<BridgeConfigResponse | null>(null);
@@ -91,6 +111,10 @@ export default function BridgeFirewallPage() {
   const [hasChanges, setHasChanges] = useState(false);
   const [savingReorder, setSavingReorder] = useState(false);
   const [activeId, setActiveId] = useState<number | null>(null);
+
+  // Column visibility
+  const { visibleColumns, toggleColumn, visibleColumnCount, orderedColumns, visibleOrderedColumns, reorderColumns, resetToDefault } =
+    useColumnVisibility("firewall-bridge-columns", BRIDGE_COLUMNS);
 
   // DnD sensors
   const sensors = useSensors(
@@ -610,6 +634,13 @@ export default function BridgeFirewallPage() {
                 >
                   <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
                 </Button>
+                <ColumnToggleButton
+                  columns={orderedColumns}
+                  visibleColumns={visibleColumns}
+                  onToggle={toggleColumn}
+                  onReorder={reorderColumns}
+                  onReset={resetToDefault}
+                />
                 <Button onClick={() => setCreateModalOpen(true)} disabled={hasChanges}>
                   <Plus className="h-4 w-4 mr-2" />
                   Add Rule
@@ -688,17 +719,34 @@ export default function BridgeFirewallPage() {
                       <TableHead className="w-10"></TableHead>
                       <TableHead className="w-14">#</TableHead>
                       <TableHead className="w-24">Action</TableHead>
-                      <TableHead className="min-w-[120px]">Source</TableHead>
-                      <TableHead className="min-w-[120px]">Destination</TableHead>
-                      {isV15 && <TableHead className="w-20">Protocol</TableHead>}
-                      <TableHead className="w-28">Interface</TableHead>
+                      {visibleOrderedColumns.map((col) => {
+                        if (col.id === "protocol" && !isV15) return null;
+                        const widths: Record<string, string> = {
+                          source: "min-w-[120px]",
+                          destination: "min-w-[120px]",
+                          protocol: "w-20",
+                          interface: "w-28",
+                          status: "w-[100px]",
+                          log: "w-[80px]",
+                          ethernetType: "w-[120px]",
+                          connectionState: "w-[120px]",
+                          limit: "w-[120px]",
+                          icmpType: "w-[120px]",
+                          tcpFlags: "w-[100px]",
+                        };
+                        return (
+                          <TableHead key={col.id} className={widths[col.id] ?? ""}>
+                            {col.label}
+                          </TableHead>
+                        );
+                      })}
                       <TableHead className="w-28 text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredRules.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={isV15 ? 8 : 7} className="h-32">
+                        <TableCell colSpan={4 + visibleColumnCount} className="h-32">
                           <div className="flex flex-col items-center justify-center text-center">
                             <AlertCircle className="h-8 w-8 text-muted-foreground mb-2" />
                             <p className="text-sm font-medium text-foreground">
@@ -722,6 +770,7 @@ export default function BridgeFirewallPage() {
                             isV15={isV15}
                             onEdit={(r) => setEditingRule({ chain: selectedChain, rule: r, openedAt: Date.now() })}
                             onDelete={(r) => setDeletingRule({ chain: selectedChain, rule: r })}
+                            visibleOrderedColumns={visibleOrderedColumns}
                           />
                         ))}
                       </SortableContext>

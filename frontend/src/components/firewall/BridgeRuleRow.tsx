@@ -13,15 +13,24 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import type { BridgeRule } from "@/lib/api/firewall-bridge";
+import type { ColumnDef } from "@/hooks/useColumnVisibility";
+
+const DEFAULT_BRIDGE_COLUMNS: ColumnDef[] = [
+  { id: "source",      label: "Source" },
+  { id: "destination", label: "Destination" },
+  { id: "protocol",    label: "Protocol" },
+  { id: "interface",   label: "Interface" },
+];
 
 interface BridgeRuleRowProps {
   rule: BridgeRule;
   isV15: boolean;
   onEdit: (rule: BridgeRule) => void;
   onDelete: (rule: BridgeRule) => void;
+  visibleOrderedColumns?: ColumnDef[];
 }
 
-export function BridgeRuleRow({ rule, isV15, onEdit, onDelete }: BridgeRuleRowProps) {
+export function BridgeRuleRow({ rule, isV15, onEdit, onDelete, visibleOrderedColumns = DEFAULT_BRIDGE_COLUMNS }: BridgeRuleRowProps) {
   const {
     attributes,
     listeners,
@@ -240,10 +249,134 @@ export function BridgeRuleRow({ rule, isV15, onEdit, onDelete }: BridgeRuleRowPr
           </div>
         </div>
       </TableCell>
-      <TableCell>{formatSource()}</TableCell>
-      <TableCell>{formatDestination()}</TableCell>
-      {isV15 && <TableCell>{formatProtocol()}</TableCell>}
-      <TableCell>{formatInterfaces()}</TableCell>
+      {visibleOrderedColumns.map((col) => {
+        switch (col.id) {
+          case "source":
+            return <TableCell key="source">{formatSource()}</TableCell>;
+          case "destination":
+            return <TableCell key="destination">{formatDestination()}</TableCell>;
+          case "protocol":
+            return isV15 ? <TableCell key="protocol">{formatProtocol()}</TableCell> : null;
+          case "interface":
+            return <TableCell key="interface">{formatInterfaces()}</TableCell>;
+          case "description":
+            return (
+              <TableCell key="description">
+                <span className="text-sm text-muted-foreground">{rule.description || "-"}</span>
+              </TableCell>
+            );
+          case "status":
+            return (
+              <TableCell key="status">
+                <Badge variant="outline" className={rule.disabled ? "bg-red-500/10 text-red-500 border-red-500/20" : "bg-green-500/10 text-green-500 border-green-500/20"}>
+                  {rule.disabled ? "disabled" : "enabled"}
+                </Badge>
+              </TableCell>
+            );
+          case "log":
+            return (
+              <TableCell key="log">
+                {rule.log ? (
+                  <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-500 border-blue-500/20">on</Badge>
+                ) : (
+                  <span className="text-sm text-muted-foreground">off</span>
+                )}
+              </TableCell>
+            );
+          case "vlan":
+            return (
+              <TableCell key="vlan">
+                {rule.vlan_id ? (
+                  <div className="flex flex-col gap-0.5 text-xs">
+                    <code className="bg-muted/50 px-2 py-1 rounded font-mono">{rule.vlan_id}</code>
+                    {rule.vlan_priority && <span className="text-muted-foreground">pri: {rule.vlan_priority}</span>}
+                    {rule.vlan_ethernet_type && <span className="text-muted-foreground">{rule.vlan_ethernet_type}</span>}
+                  </div>
+                ) : (
+                  <span className="text-sm text-muted-foreground">-</span>
+                )}
+              </TableCell>
+            );
+          case "ethernetType":
+            return (
+              <TableCell key="ethernetType">
+                {rule.ethernet_type ? (
+                  <Badge variant="outline" className="text-xs font-mono uppercase">{rule.ethernet_type}</Badge>
+                ) : (
+                  <span className="text-sm text-muted-foreground">-</span>
+                )}
+              </TableCell>
+            );
+          case "connectionState":
+            return (
+              <TableCell key="connectionState">
+                {rule.connection_status_established || rule.connection_status_new || rule.connection_status_related || rule.connection_status_invalid ? (
+                  <div className="flex flex-wrap gap-1">
+                    {rule.connection_status_established && <Badge variant="outline" className="text-xs bg-green-500/10 text-green-500 border-green-500/20">EST</Badge>}
+                    {rule.connection_status_new && <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-500 border-blue-500/20">NEW</Badge>}
+                    {rule.connection_status_related && <Badge variant="outline" className="text-xs bg-purple-500/10 text-purple-500 border-purple-500/20">REL</Badge>}
+                    {rule.connection_status_invalid && <Badge variant="outline" className="text-xs bg-red-500/10 text-red-500 border-red-500/20">INV</Badge>}
+                  </div>
+                ) : (
+                  <span className="text-sm text-muted-foreground">-</span>
+                )}
+              </TableCell>
+            );
+          case "limit":
+            return (
+              <TableCell key="limit">
+                {rule.limit_rate ? (
+                  <code className="text-xs bg-muted/50 px-2 py-1 rounded font-mono">
+                    {rule.limit_rate}{rule.limit_burst ? ` / ${rule.limit_burst}` : ""}
+                  </code>
+                ) : (
+                  <span className="text-sm text-muted-foreground">-</span>
+                )}
+              </TableCell>
+            );
+          case "time":
+            return (
+              <TableCell key="time">
+                {rule.time_starttime || rule.time_stoptime || rule.time_weekdays ? (
+                  <div className="flex flex-col gap-0.5 text-xs">
+                    {(rule.time_starttime || rule.time_stoptime) && (
+                      <span className="font-mono text-muted-foreground">
+                        {rule.time_starttime || "00:00"}–{rule.time_stoptime || "23:59"}
+                      </span>
+                    )}
+                    {rule.time_weekdays && <span className="text-muted-foreground">{rule.time_weekdays}</span>}
+                  </div>
+                ) : (
+                  <span className="text-sm text-muted-foreground">-</span>
+                )}
+              </TableCell>
+            );
+          case "icmpType":
+            return (
+              <TableCell key="icmpType">
+                {rule.icmp_type_name || rule.icmpv6_type_name ? (
+                  <code className="text-xs bg-muted/50 px-2 py-1 rounded font-mono">
+                    {rule.icmp_type_name || rule.icmpv6_type_name}
+                  </code>
+                ) : (
+                  <span className="text-sm text-muted-foreground">-</span>
+                )}
+              </TableCell>
+            );
+          case "tcpFlags":
+            return (
+              <TableCell key="tcpFlags">
+                {rule.tcp_flags ? (
+                  <code className="text-xs bg-muted/50 px-2 py-1 rounded font-mono">{rule.tcp_flags}</code>
+                ) : (
+                  <span className="text-sm text-muted-foreground">-</span>
+                )}
+              </TableCell>
+            );
+          default:
+            return null;
+        }
+      })}
       <TableCell className="text-right">
         <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <Button

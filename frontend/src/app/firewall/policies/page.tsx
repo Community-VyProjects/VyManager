@@ -61,8 +61,31 @@ import { CreateCustomChainModal } from "@/components/firewall/CreateCustomChainM
 import { DeleteCustomChainModal } from "@/components/firewall/DeleteCustomChainModal";
 import { FirewallRuleRow } from "@/components/firewall/FirewallRuleRow";
 import { FirewallReorderBanner } from "@/components/firewall/FirewallReorderBanner";
+import { ColumnToggleButton } from "@/components/firewall/ColumnToggleButton";
+import { useColumnVisibility, type ColumnDef } from "@/hooks/useColumnVisibility";
 
 type ChainType = "forward" | "input" | "output" | "prerouting_raw";
+
+const POLICIES_COLUMNS: ColumnDef[] = [
+  { id: "protocol",      label: "Protocol" },
+  { id: "source",        label: "Source" },
+  { id: "srcPort",       label: "Src Port" },
+  { id: "destination",   label: "Destination" },
+  { id: "dstPort",       label: "Dst Port" },
+  { id: "state",         label: "State" },
+  { id: "description",   label: "Description" },
+  { id: "status",        label: "Status" },
+  // Extra columns — hidden by default
+  { id: "log",           label: "Log",          defaultVisible: false },
+  { id: "interface",     label: "Interface",    defaultVisible: false },
+  { id: "limit",         label: "Limit",        defaultVisible: false },
+  { id: "time",          label: "Time",         defaultVisible: false },
+  { id: "icmpType",      label: "ICMP Type",    defaultVisible: false },
+  { id: "tcpFlags",      label: "TCP Flags",    defaultVisible: false },
+  { id: "mark",          label: "Mark",         defaultVisible: false },
+  { id: "packetLength",  label: "Pkt Length",   defaultVisible: false },
+  { id: "recent",        label: "Recent",       defaultVisible: false },
+];
 
 export default function FirewallPoliciesPage() {
   // Protocol selection state
@@ -116,6 +139,10 @@ export default function FirewallPoliciesPage() {
   const [hasChangesIPv6, setHasChangesIPv6] = useState(false);
   const [activeIdIPv6, setActiveIdIPv6] = useState<number | null>(null);
   const [savingReorderIPv6, setSavingReorderIPv6] = useState(false);
+
+  // Column visibility & order
+  const { visibleColumns, toggleColumn, visibleColumnCount, orderedColumns, visibleOrderedColumns, reorderColumns, resetToDefault } =
+    useColumnVisibility("firewall-policies-columns", POLICIES_COLUMNS);
 
   // Drag and drop sensors - require 8px movement before drag starts
   const sensors = useSensors(
@@ -1038,6 +1065,13 @@ export default function FirewallPoliciesPage() {
                 >
                   <RefreshCw className={cn("h-4 w-4", (selectedProtocol === "ipv4" ? loading : loadingIPv6) && "animate-spin")} />
                 </Button>
+                <ColumnToggleButton
+                  columns={orderedColumns}
+                  visibleColumns={visibleColumns}
+                  onToggle={toggleColumn}
+                  onReorder={reorderColumns}
+                  onReset={resetToDefault}
+                />
                 <Button onClick={() => setCreateModalOpen(true)}>
                   <Plus className="h-4 w-4 mr-2" />
                   Add Rule
@@ -1196,14 +1230,21 @@ export default function FirewallPoliciesPage() {
                           <TableHead className="w-[40px]"></TableHead>
                           <TableHead className="w-[80px]">Rule #</TableHead>
                           <TableHead className="w-[100px]">Action</TableHead>
-                          <TableHead className="w-[100px]">Protocol</TableHead>
-                          <TableHead>Source</TableHead>
-                          <TableHead className="w-[100px]">Src Port</TableHead>
-                          <TableHead>Destination</TableHead>
-                          <TableHead className="w-[100px]">Dst Port</TableHead>
-                          <TableHead className="w-[120px]">State</TableHead>
-                          <TableHead className="w-[200px]">Description</TableHead>
-                          <TableHead className="w-[100px]">Status</TableHead>
+                          {visibleOrderedColumns.map((col) => {
+                            const widths: Record<string, string> = {
+                              source: "", destination: "",
+                              protocol: "w-[100px]", srcPort: "w-[100px]", dstPort: "w-[100px]",
+                              state: "w-[120px]", description: "w-[200px]", status: "w-[100px]",
+                              log: "w-[80px]", interface: "w-[140px]", limit: "w-[120px]",
+                              time: "w-[160px]", icmpType: "w-[120px]", tcpFlags: "w-[120px]",
+                              mark: "w-[100px]", packetLength: "w-[100px]", recent: "w-[100px]",
+                            };
+                            return (
+                              <TableHead key={col.id} className={widths[col.id] ?? ""}>
+                                {col.label}
+                              </TableHead>
+                            );
+                          })}
                           <TableHead className="w-[140px] text-right">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -1214,7 +1255,7 @@ export default function FirewallPoliciesPage() {
                         >
                           {filteredRules.length === 0 ? (
                             <TableRow>
-                              <TableCell colSpan={12} className="h-32">
+                              <TableCell colSpan={4 + visibleColumnCount} className="h-32">
                                 <div className="flex flex-col items-center justify-center text-center">
                                   <AlertCircle className="h-8 w-8 text-muted-foreground mb-2" />
                                   <p className="text-sm font-medium text-foreground">
@@ -1237,6 +1278,7 @@ export default function FirewallPoliciesPage() {
                                 onDelete={() => setDeletingRule(rule)}
                                 isDragging={(selectedProtocol === "ipv4" ? activeId : activeIdIPv6) === rule.rule_number}
                                 groups={groups}
+                                visibleOrderedColumns={visibleOrderedColumns}
                               />
                             ))
                           )}
