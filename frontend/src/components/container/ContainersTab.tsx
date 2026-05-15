@@ -17,6 +17,7 @@ import {
   ArrowRight,
   Box,
   Download,
+  FolderOpen,
   Loader2,
   Pencil,
   Plus,
@@ -31,7 +32,9 @@ import {
   type ContainerConfig,
   type ContainerCapabilities,
 } from "@/lib/api/container";
+import { APP_CATALOG } from "@/lib/apps-catalog";
 import { ContainerModal } from "./ContainerModal";
+import { ContainerFilesModal } from "./ContainerFilesModal";
 import { DeleteContainerModal } from "./DeleteContainerModal";
 import { SshOutputModal } from "./SshOutputModal";
 
@@ -55,7 +58,14 @@ export function ContainersTab({ config, capabilities, hasWritePermission, onRelo
   const [modalOpen, setModalOpen] = useState(false);
   const [editingContainer, setEditingContainer] = useState<ContainerInstance | null>(null);
   const [deletingContainer, setDeletingContainer] = useState<ContainerInstance | null>(null);
+  const [filesContainer, setFilesContainer] = useState<ContainerInstance | null>(null);
   const [ssh, setSsh] = useState<SshState>({ open: false, title: "", loading: false, success: null });
+
+  const getCatalogApp = (c: ContainerInstance) => {
+    const appId = c.labels.find(l => l.name === "com.vymanager.app")?.value;
+    if (!appId) return null;
+    return APP_CATALOG.find(a => a.id === appId) ?? null;
+  };
 
   const containers = config.containers;
   const [pulledImages, setPulledImages] = useState<string[]>([]);
@@ -186,6 +196,11 @@ export function ContainersTab({ config, capabilities, hasWritePermission, onRelo
                     {hasWritePermission && (
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
+                          {(() => { const app = getCatalogApp(c); return app?.installConfig?.editableFiles?.length ? (
+                            <Button variant="ghost" size="icon" className="h-8 w-8" title="Edit Files" onClick={() => setFilesContainer(c)}>
+                              <FolderOpen className="h-4 w-4" />
+                            </Button>
+                          ) : null; })()}
                           <Button variant="ghost" size="icon" className="h-8 w-8" title="Edit" onClick={() => openModal(c)}>
                             <Pencil className="h-4 w-4" />
                           </Button>
@@ -225,6 +240,15 @@ export function ContainersTab({ config, capabilities, hasWritePermission, onRelo
         imagesLoading={imagesLoading}
         onSubmit={handleSubmit}
       />
+
+      {filesContainer && getCatalogApp(filesContainer) && (
+        <ContainerFilesModal
+          open={!!filesContainer}
+          onOpenChange={open => { if (!open) setFilesContainer(null); }}
+          containerName={filesContainer.name}
+          app={getCatalogApp(filesContainer)!}
+        />
+      )}
 
       <DeleteContainerModal
         open={!!deletingContainer}

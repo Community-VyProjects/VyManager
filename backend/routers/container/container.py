@@ -777,6 +777,78 @@ async def create_container_dirs(http_request: Request, body: ContainerMkdirReque
     return await _run_shell_command(http_request, f"sudo mkdir -p {quoted}")
 
 
+class ContainerTouchRequest(BaseModel):
+    paths: List[str] = Field(..., description="File paths under /config/containers/ to create if absent")
+
+
+class ContainerFileResponse(BaseModel):
+    success: bool
+    content: Optional[str] = None
+    error: Optional[str] = None
+
+
+class ContainerFileWriteRequest(BaseModel):
+    path: str = Field(..., description="File path under /config/containers/ to write")
+    content: str = Field(..., description="New file content")
+
+
+@router.post("/touch", response_model=ContainerSSHResponse)
+async def touch_container_files(http_request: Request, body: ContainerTouchRequest):
+    """Create one or more files under /config/containers/ without truncating existing ones."""
+    await require_write_permission(http_request, FeatureGroup.CONTAINER)
+    if not body.paths:
+        return ContainerSSHResponse(success=True)
+    for path in body.paths:
+        if not _SAFE_CONTAINER_SUBPATH_RE.match(path):
+            raise HTTPException(status_code=400, detail=f"Invalid path: {path}")
+    quoted = " ".join(shlex.quote(p) for p in body.paths)
+    return await _run_shell_command(http_request, f"sudo touch {quoted}")
+
+
+@router.get("/file", response_model=ContainerFileResponse)
+async def read_container_file(http_request: Request, path: str):
+    """Read a file under /config/containers/."""
+    await require_read_permission(http_request, FeatureGroup.CONTAINER)
+    if not _SAFE_CONTAINER_SUBPATH_RE.match(path):
+        raise HTTPException(status_code=400, detail=f"Invalid path: {path}")
+    result = await _run_shell_command(http_request, f"sudo cat {shlex.quote(path)}")
+    if not result.success:
+        return ContainerFileResponse(success=False, error=result.error)
+    return ContainerFileResponse(success=True, content=result.output or "")
+
+
+@router.post("/file", response_model=ContainerSSHResponse)
+async def write_container_file(http_request: Request, body: ContainerFileWriteRequest):
+    """Back up then overwrite a file under /config/containers/."""
+    await require_write_permission(http_request, FeatureGroup.CONTAINER)
+    if not _SAFE_CONTAINER_SUBPATH_RE.match(body.path):
+        raise HTTPException(status_code=400, detail=f"Invalid path: {body.path}")
+    bak = body.path + ".bak"
+    if not _SAFE_CONTAINER_SUBPATH_RE.match(bak):
+        raise HTTPException(status_code=400, detail="Backup path invalid")
+    ssh_conn = await _get_ssh_connection(http_request)
+    try:
+        await asyncio.wait_for(
+            ssh_conn.run(f"sudo cp {shlex.quote(body.path)} {shlex.quote(bak)} 2>/dev/null || true", check=False),
+            timeout=_SSH_QUICK_TIMEOUT,
+        )
+        result = await asyncio.wait_for(
+            ssh_conn.run(f"sudo tee {shlex.quote(body.path)} > /dev/null", input=body.content, check=False),
+            timeout=_SSH_QUICK_TIMEOUT,
+        )
+        success = result.exit_status == 0
+        return ContainerSSHResponse(
+            success=success,
+            error=None if success else (result.stderr or "Write failed"),
+        )
+    except asyncio.TimeoutError:
+        return ContainerSSHResponse(success=False, error="Command timed out")
+    except asyncssh.Error as exc:
+        return ContainerSSHResponse(success=False, error=f"SSH error: {exc}")
+    finally:
+        ssh_conn.close()
+
+
 class ContainerRmdirRequest(BaseModel):
     path: str = Field(..., description="Path under /config/containers/ to remove")
 
