@@ -670,6 +670,18 @@ class ContainerService {
     return apiClient.post<ContainerSSHResponse>("/vyos/container/mkdir", { paths });
   }
 
+  async touchContainerFiles(paths: string[]): Promise<ContainerSSHResponse> {
+    return apiClient.post<ContainerSSHResponse>("/vyos/container/touch", { paths });
+  }
+
+  async readContainerFile(path: string): Promise<{ success: boolean; content?: string; error?: string }> {
+    return apiClient.get("/vyos/container/file", { path });
+  }
+
+  async writeContainerFile(path: string, content: string): Promise<ContainerSSHResponse> {
+    return apiClient.post<ContainerSSHResponse>("/vyos/container/file", { path, content });
+  }
+
   async removeContainerDir(path: string): Promise<ContainerSSHResponse> {
     return apiClient.post<ContainerSSHResponse>("/vyos/container/rmdir", { path });
   }

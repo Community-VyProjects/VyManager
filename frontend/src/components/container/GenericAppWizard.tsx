@@ -189,12 +189,26 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
 
       running(idx);
       const basePath = `/config/containers/${name}`;
-      const allDirs = [...new Set([basePath, ...(ic.volumes ?? []).map(v => `${basePath}/${v.name}`)])];
+      const resolvedInitFiles = (ic.initFiles ?? []).map(f => resolve(f, resolvedValues));
+      const initFileDirs = resolvedInitFiles.map(f => f.substring(0, f.lastIndexOf("/")));
+      const allDirs = [...new Set([
+        basePath,
+        ...(ic.volumes ?? []).map(v => `${basePath}/${v.name}`),
+        ...initFileDirs,
+      ])];
       const mkResult = await containerService.createContainerDirs(allDirs);
       if (!mkResult.success) {
         fail(idx, mkResult.error || "Failed to create directories.");
         setDeployError("Directory creation failed — see above.");
         return;
+      }
+      if (resolvedInitFiles.length > 0) {
+        const touchResult = await containerService.touchContainerFiles(resolvedInitFiles);
+        if (!touchResult.success) {
+          fail(idx, touchResult.error || "Failed to create init files.");
+          setDeployError("File initialisation failed — see above.");
+          return;
+        }
       }
       done(idx++);
 
@@ -323,7 +337,7 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg flex flex-col max-h-[90vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {app.iconPath ? (
@@ -339,6 +353,8 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
         </DialogHeader>
 
         <StepIndicator steps={steps} current={step} />
+
+        <div className="flex-1 overflow-y-auto min-h-0">
 
         {/* ── Step 0: Basic ── */}
         {step === 0 && (
@@ -592,6 +608,8 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
             )}
           </div>
         )}
+
+        </div>{/* end scrollable area */}
 
         {/* ── Footer ── */}
         <div className="flex items-center justify-between pt-2">
