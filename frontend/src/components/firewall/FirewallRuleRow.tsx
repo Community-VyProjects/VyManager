@@ -2,7 +2,7 @@
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Pencil, Trash2, ArrowRight, Globe } from "lucide-react";
+import { GripVertical, Pencil, Trash2, Copy, ArrowRight, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TableCell, TableRow } from "@/components/ui/table";
@@ -32,6 +32,7 @@ interface FirewallRuleRowProps {
   rule: FirewallRule;
   onEdit: () => void;
   onDelete: () => void;
+  onClone?: () => void;
   isDragging?: boolean;
   groups?: FirewallGroup[];
   visibleOrderedColumns?: ColumnDef[];
@@ -41,6 +42,7 @@ export function FirewallRuleRow({
   rule,
   onEdit,
   onDelete,
+  onClone,
   isDragging,
   groups = [],
   visibleOrderedColumns = DEFAULT_COLUMNS,
@@ -562,6 +564,9 @@ export function FirewallRuleRow({
         <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onEdit}>
             <Pencil className="h-3.5 w-3.5" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClone}>
+            <Copy className="h-3.5 w-3.5" />
           </Button>
           <Button
             variant="ghost"

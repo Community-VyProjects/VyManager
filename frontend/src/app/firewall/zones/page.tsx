@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/table";
 import {
   Ban,
+  Copy,
   Lock,
   Info,
   RefreshCw,
@@ -78,12 +79,14 @@ function SortableRuleRow({
   id,
   row,
   onClick,
+  onClone,
   isReordering,
   groups,
 }: {
   id: string;
   row: PolicyRow;
   onClick: () => void;
+  onClone?: (e: React.MouseEvent) => void;
   isReordering: boolean;
   groups: FirewallGroup[];
 }) {
@@ -225,7 +228,7 @@ function SortableRuleRow({
       ref={setNodeRef}
       style={style}
       className={cn(
-        "text-xs",
+        "group text-xs",
         row.rule.disable && "opacity-50",
         !isReordering && "cursor-pointer hover:bg-muted/50",
         isDragging && "opacity-40 bg-primary/5"
@@ -297,6 +300,22 @@ function SortableRuleRow({
 
       <TableCell>{renderAddr(row.rule.destination)}</TableCell>
       <TableCell>{renderPort(row.rule.destination)}</TableCell>
+
+      {/* Actions */}
+      <TableCell>
+        {!isReordering && (
+          <div className="flex items-center justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={(e) => { e.stopPropagation(); onClone?.(e); }}
+            >
+              <Copy className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        )}
+      </TableCell>
     </TableRow>
   );
 }
@@ -391,6 +410,7 @@ export default function FirewallZonesPage() {
   const [rulePanelOpen, setRulePanelOpen] = useState(false);
   const [rulePanelMode, setRulePanelMode] = useState<"create" | "edit">("create");
   const [selectedRow, setSelectedRow] = useState<PolicyRow | null>(null);
+  const [cloningRow, setCloningRow] = useState<PolicyRow | null>(null);
 
   // Reorder state
   const [isReordering, setIsReordering] = useState(false);
@@ -603,7 +623,15 @@ export default function FirewallZonesPage() {
 
   const openEditPanel = (row: PolicyRow) => {
     setSelectedRow(row);
+    setCloningRow(null);
     setRulePanelMode("edit");
+    setRulePanelOpen(true);
+  };
+
+  const openClonePanel = (row: PolicyRow) => {
+    setCloningRow(row);
+    setSelectedRow(row);
+    setRulePanelMode("create");
     setRulePanelOpen(true);
   };
 
@@ -1007,6 +1035,7 @@ export default function FirewallZonesPage() {
                       <TableHead>Dst. Zone</TableHead>
                       <TableHead>Destination</TableHead>
                       <TableHead>Dst. Port</TableHead>
+                      <TableHead className="w-12" />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1032,6 +1061,7 @@ export default function FirewallZonesPage() {
                               row={row}
                               isReordering={isReordering}
                               onClick={() => openEditPanel(row)}
+                              onClone={() => openClonePanel(row)}
                               groups={groups}
                             />
                           );
@@ -1102,10 +1132,11 @@ export default function FirewallZonesPage() {
 
         <ZoneRulePanel
           open={rulePanelOpen}
-          onOpenChange={setRulePanelOpen}
+          onOpenChange={(open) => { setRulePanelOpen(open); if (!open) setCloningRow(null); }}
           onSuccess={handleSuccess}
           mode={rulePanelMode}
           rule={rulePanelMode === "edit" ? selectedRow?.rule : undefined}
+          cloneRule={cloningRow?.rule ?? undefined}
           sourceZone={panelSourceZone}
           destZone={panelDestZone}
           chainName={panelChainName}
