@@ -5,6 +5,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { GripVertical, Pencil, Trash2 } from "lucide-react";
 
 interface RouteRuleRowProps {
@@ -26,22 +27,86 @@ export function RouteRuleRow({ rule, onEdit, onDelete }: RouteRuleRowProps) {
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
+    opacity: isDragging ? 0 : 1,
   };
 
-  // Count match conditions
-  const matchCount = rule.match
-    ? Object.values(rule.match).filter(
-        (value) => value !== null && value !== undefined && value !== false && value !== ""
-      ).length
-    : 0;
+  const MATCH_LABELS: Record<string, string> = {
+    source_address: "Src Addr",
+    destination_address: "Dst Addr",
+    source_mac_address: "Src MAC",
+    destination_mac_address: "Dst MAC",
+    source_group_address: "Src Group Addr",
+    source_group_domain: "Src Group Domain",
+    source_group_mac: "Src Group MAC",
+    source_group_network: "Src Group Net",
+    source_group_port: "Src Group Port",
+    destination_group_address: "Dst Group Addr",
+    destination_group_domain: "Dst Group Domain",
+    destination_group_mac: "Dst Group MAC",
+    destination_group_network: "Dst Group Net",
+    destination_group_port: "Dst Group Port",
+    source_port: "Src Port",
+    destination_port: "Dst Port",
+    protocol: "Protocol",
+    tcp_flags: "TCP Flags",
+    icmp_code: "ICMP Code",
+    icmp_type: "ICMP Type",
+    icmp_type_name: "ICMP Name",
+    icmpv6_code: "ICMPv6 Code",
+    icmpv6_type: "ICMPv6 Type",
+    icmpv6_type_name: "ICMPv6 Name",
+    fragment: "Fragment",
+    packet_type: "Pkt Type",
+    packet_length: "Pkt Length",
+    packet_length_exclude: "Pkt Len Excl",
+    dscp: "DSCP",
+    dscp_exclude: "DSCP Excl",
+    state: "State",
+    ipsec: "IPsec",
+    mark: "Mark",
+    connection_mark: "Conn Mark",
+    ttl_eq: "TTL =",
+    ttl_gt: "TTL >",
+    ttl_lt: "TTL <",
+    hop_limit_eq: "Hop Limit =",
+    hop_limit_gt: "Hop Limit >",
+    hop_limit_lt: "Hop Limit <",
+    time_monthdays: "Month Days",
+    time_startdate: "Start Date",
+    time_starttime: "Start Time",
+    time_stopdate: "Stop Date",
+    time_stoptime: "Stop Time",
+    time_utc: "UTC",
+    time_weekdays: "Weekdays",
+    limit_burst: "Limit Burst",
+    limit_rate: "Limit Rate",
+    recent_count: "Recent Count",
+    recent_time: "Recent Time",
+  };
 
-  // Count set actions
-  const setCount = rule.set
-    ? Object.values(rule.set).filter(
-        (value) => value !== null && value !== undefined && value !== false && value !== ""
-      ).length
-    : 0;
+  const SET_LABELS: Record<string, string> = {
+    connection_mark: "Conn Mark",
+    dscp: "DSCP",
+    mark: "Mark",
+    table: "Table",
+    tcp_mss: "TCP MSS",
+    vrf: "VRF",
+  };
+
+  const activeMatchConditions = rule.match
+    ? Object.entries(rule.match).filter(
+        ([, value]) => value !== null && value !== undefined && value !== false && value !== ""
+      )
+    : [];
+
+  const activeSetActions = rule.set
+    ? Object.entries(rule.set).filter(
+        ([key, value]) => key !== "action_drop" && value !== null && value !== undefined && value !== false && value !== ""
+      )
+    : [];
+
+  const matchCount = activeMatchConditions.length;
+  const setCount = activeSetActions.length;
 
   return (
     <TableRow
@@ -62,26 +127,30 @@ export function RouteRuleRow({ rule, onEdit, onDelete }: RouteRuleRowProps) {
       <TableCell>{rule.description || "-"}</TableCell>
       <TableCell>
         {matchCount > 0 ? (
-          <div className="flex flex-wrap gap-1">
-            <Badge variant="secondary" className="text-xs">
-              {matchCount} condition{matchCount !== 1 ? "s" : ""}
-            </Badge>
-            {rule.match.source_address && (
-              <Badge variant="secondary" className="text-xs">
-                Src: {rule.match.source_address}
-              </Badge>
-            )}
-            {rule.match.destination_address && (
-              <Badge variant="secondary" className="text-xs">
-                Dst: {rule.match.destination_address}
-              </Badge>
-            )}
-            {rule.match.protocol && (
-              <Badge variant="secondary" className="text-xs">
-                Proto: {rule.match.protocol}
-              </Badge>
-            )}
-          </div>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge variant="secondary" className="text-xs cursor-help">
+                  {matchCount} condition{matchCount !== 1 ? "s" : ""}
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent
+                side="top"
+                avoidCollisions
+                collisionPadding={8}
+                className="p-2 max-w-[260px]"
+              >
+                <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
+                  {activeMatchConditions.map(([key, value]) => (
+                    <div key={key} className="contents">
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">{MATCH_LABELS[key] ?? key}:</span>
+                      <span className="text-xs font-mono truncate">{String(value)}</span>
+                    </div>
+                  ))}
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         ) : (
           <span className="text-muted-foreground text-sm">—</span>
         )}
@@ -90,26 +159,30 @@ export function RouteRuleRow({ rule, onEdit, onDelete }: RouteRuleRowProps) {
         {rule.set?.action_drop ? (
           <Badge variant="destructive">Drop</Badge>
         ) : setCount > 0 ? (
-          <div className="flex flex-wrap gap-1">
-            <Badge variant="secondary" className="text-xs bg-blue-500/10 text-blue-500 border-blue-500/20">
-              {setCount} action{setCount !== 1 ? "s" : ""}
-            </Badge>
-            {rule.set.table && (
-              <Badge variant="secondary" className="text-xs bg-purple-500/10 text-purple-500 border-purple-500/20">
-                Table: {rule.set.table}
-              </Badge>
-            )}
-            {rule.set.vrf && (
-              <Badge variant="secondary" className="text-xs bg-yellow-500/10 text-yellow-500 border-yellow-500/20">
-                VRF: {rule.set.vrf}
-              </Badge>
-            )}
-            {rule.set.mark && (
-              <Badge variant="secondary" className="text-xs bg-green-500/10 text-green-500 border-green-500/20">
-                Mark: {rule.set.mark}
-              </Badge>
-            )}
-          </div>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge variant="secondary" className="text-xs bg-blue-500/10 text-blue-500 border-blue-500/20 cursor-help">
+                  {setCount} action{setCount !== 1 ? "s" : ""}
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent
+                side="top"
+                avoidCollisions
+                collisionPadding={8}
+                className="p-2 max-w-[220px]"
+              >
+                <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
+                  {activeSetActions.map(([key, value]) => (
+                    <div key={key} className="contents">
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">{SET_LABELS[key] ?? key}:</span>
+                      <span className="text-xs font-mono truncate">{String(value)}</span>
+                    </div>
+                  ))}
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         ) : (
           <span className="text-muted-foreground text-sm">—</span>
         )}

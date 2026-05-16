@@ -21,7 +21,7 @@ import {
   X,
   Network,
 } from "lucide-react";
-import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { DndContext, closestCenter, DragOverlay, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { routeService, PolicyRoute, RouteCapabilitiesResponse } from "@/lib/api/route";
 import { CreateRoutePolicyModal } from "@/components/policies/CreateRoutePolicyModal";
@@ -567,14 +567,14 @@ export default function RoutePage() {
                     </CardContent>
                   </Card>
                 ) : (
-                  <Card>
-                    <ScrollArea className="h-[calc(100vh-350px)]">
-                      <DndContext
-                        sensors={sensors}
-                        collisionDetection={closestCenter}
-                        onDragStart={handleDragStart}
-                        onDragEnd={handleDragEnd}
-                      >
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragStart={handleDragStart}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <Card>
+                      <ScrollArea className="h-[calc(100vh-350px)]">
                         <Table>
                           <TableHeader>
                             <TableRow className="hover:bg-transparent">
@@ -603,9 +603,58 @@ export default function RoutePage() {
                             </SortableContext>
                           </TableBody>
                         </Table>
-                      </DndContext>
-                    </ScrollArea>
-                  </Card>
+                      </ScrollArea>
+                    </Card>
+                    <DragOverlay
+                      dropAnimation={{
+                        duration: 200,
+                        easing: "cubic-bezier(0.18, 0.67, 0.6, 1.22)",
+                      }}
+                    >
+                      {activeId !== null ? (() => {
+                        const draggedRule = currentRules.find((r) => r.rule_number === activeId);
+                        if (!draggedRule) return null;
+                        const matchCount = draggedRule.match
+                          ? Object.values(draggedRule.match).filter(
+                              (v) => v !== null && v !== undefined && v !== false && v !== ""
+                            ).length
+                          : 0;
+                        return (
+                          <div className="bg-card border-2 border-primary shadow-2xl rounded-lg overflow-hidden opacity-95">
+                            <Table>
+                              <TableBody>
+                                <TableRow className="hover:bg-transparent">
+                                  <TableCell className="w-12 text-muted-foreground">
+                                    ⠿
+                                  </TableCell>
+                                  <TableCell className="font-mono font-medium">{draggedRule.rule_number}</TableCell>
+                                  <TableCell>{draggedRule.description || "-"}</TableCell>
+                                  <TableCell>
+                                    {matchCount > 0 ? (
+                                      <Badge variant="secondary" className="text-xs">
+                                        {matchCount} condition{matchCount !== 1 ? "s" : ""}
+                                      </Badge>
+                                    ) : (
+                                      <span className="text-muted-foreground text-sm">—</span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell></TableCell>
+                                  <TableCell>
+                                    {draggedRule.disable ? (
+                                      <Badge variant="outline" className="bg-gray-500/10 text-gray-500 border-gray-500/20">Disabled</Badge>
+                                    ) : (
+                                      <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20">Enabled</Badge>
+                                    )}
+                                  </TableCell>
+                                  <TableCell></TableCell>
+                                </TableRow>
+                              </TableBody>
+                            </Table>
+                          </div>
+                        );
+                      })() : null}
+                    </DragOverlay>
+                  </DndContext>
                 )}
               </div>
             </>
