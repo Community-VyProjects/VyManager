@@ -22,6 +22,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ethernetService } from "@/lib/api/ethernet";
+import { showService } from "@/lib/api/show";
 import type { EthernetInterface, EthernetCapabilities, BatchOperation } from "@/lib/api/types/ethernet";
 import { Loader2, X, AlertCircle } from "lucide-react";
 
@@ -44,6 +45,10 @@ export function ComprehensiveEthernetModal({
 }: ComprehensiveEthernetModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Available interfaces for create mode
+  const [availableInterfaces, setAvailableInterfaces] = useState<string[]>([]);
+  const [loadingInterfaces, setLoadingInterfaces] = useState(false);
 
   // Basic settings
   const [interfaceName, setInterfaceName] = useState("");
@@ -151,6 +156,23 @@ export function ComprehensiveEthernetModal({
   const [icRxFrames, setIcRxFrames] = useState("");
   const [icTxUsecs, setIcTxUsecs] = useState("");
   const [icTxFrames, setIcTxFrames] = useState("");
+
+  // Fetch available ethernet interfaces when opening in create mode
+  useEffect(() => {
+    if (open && mode === "create") {
+      setLoadingInterfaces(true);
+      showService
+        .getAvailableEthernetInterfaces()
+        .then((res) => {
+          setAvailableInterfaces(res.interfaces);
+          if (res.interfaces.length > 0) {
+            setInterfaceName(res.interfaces[0]);
+          }
+        })
+        .catch(() => setAvailableInterfaces([]))
+        .finally(() => setLoadingInterfaces(false));
+    }
+  }, [open, mode]);
 
   // Initialize form with interface data
   useEffect(() => {
@@ -277,6 +299,7 @@ export function ComprehensiveEthernetModal({
 
   const resetForm = () => {
     setInterfaceName("");
+    setAvailableInterfaces([]);
     setDescription("");
     setAddresses([]);
     setMtu("");
@@ -707,13 +730,29 @@ export function ComprehensiveEthernetModal({
                   <Label htmlFor="interface-name">
                     Interface Name <span className="text-destructive">*</span>
                   </Label>
-                  <Input
-                    id="interface-name"
-                    placeholder="eth2"
-                    value={interfaceName}
-                    onChange={(e) => setInterfaceName(e.target.value)}
-                    required
-                  />
+                  {loadingInterfaces ? (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground h-9">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Loading available interfaces…
+                    </div>
+                  ) : availableInterfaces.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      All ethernet interfaces are already configured.
+                    </p>
+                  ) : (
+                    <Select value={interfaceName} onValueChange={setInterfaceName}>
+                      <SelectTrigger id="interface-name">
+                        <SelectValue placeholder="Select an interface" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableInterfaces.map((iface) => (
+                          <SelectItem key={iface} value={iface}>
+                            {iface}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
               )}
 
@@ -1718,7 +1757,10 @@ export function ComprehensiveEthernetModal({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={loading}>
+            <Button
+              type="submit"
+              disabled={loading || (mode === "create" && (loadingInterfaces || availableInterfaces.length === 0))}
+            >
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {mode === "create" ? "Create Interface" : "Save Changes"}
             </Button>

@@ -50,6 +50,14 @@ class ShowService {
   async getAllInterfaces(): Promise<AllInterfacesResponse> {
     return apiClient.get<AllInterfacesResponse>("/vyos/show/all-interfaces");
   }
+
+  /**
+   * Get physical ethernet interfaces that exist on the router but are not yet
+   * configured in VyOS. Used to populate the create ethernet interface dropdown.
+   */
+  async getAvailableEthernetInterfaces(): Promise<{ interfaces: string[] }> {
+    return apiClient.get<{ interfaces: string[] }>("/vyos/show/available-ethernet-interfaces");
+  }
 }
 
 export const showService = new ShowService();

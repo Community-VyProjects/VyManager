@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ethernetService } from "@/lib/api/ethernet";
+import { showService } from "@/lib/api/show";
 import type { EthernetCapabilities } from "@/lib/api/types/ethernet";
 import { Loader2 } from "lucide-react";
 
@@ -39,6 +40,8 @@ export function CreateEthernetModal({
 }: CreateEthernetModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [availableInterfaces, setAvailableInterfaces] = useState<string[]>([]);
+  const [loadingInterfaces, setLoadingInterfaces] = useState(false);
 
   // Form state
   const [interfaceName, setInterfaceName] = useState("");
@@ -61,6 +64,21 @@ export function CreateEthernetModal({
     setDisabled(false);
     setError(null);
   };
+
+  useEffect(() => {
+    if (!open) return;
+    setLoadingInterfaces(true);
+    showService
+      .getAvailableEthernetInterfaces()
+      .then((res) => {
+        setAvailableInterfaces(res.interfaces);
+        if (res.interfaces.length > 0) {
+          setInterfaceName(res.interfaces[0]);
+        }
+      })
+      .catch(() => setAvailableInterfaces([]))
+      .finally(() => setLoadingInterfaces(false));
+  }, [open]);
 
   const handleAddAddress = () => {
     setAddresses([...addresses, ""]);
@@ -143,16 +161,29 @@ export function CreateEthernetModal({
             <Label htmlFor="interface-name">
               Interface Name <span className="text-destructive">*</span>
             </Label>
-            <Input
-              id="interface-name"
-              placeholder="eth2"
-              value={interfaceName}
-              onChange={(e) => setInterfaceName(e.target.value)}
-              required
-            />
-            <p className="text-xs text-muted-foreground">
-              Example: eth0, eth1, eth2
-            </p>
+            {loadingInterfaces ? (
+              <div className="flex items-center gap-2 h-10 px-3 border rounded-md text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading available interfaces…
+              </div>
+            ) : availableInterfaces.length === 0 ? (
+              <div className="px-3 py-2 border rounded-md text-sm text-muted-foreground">
+                No unconfigured ethernet interfaces found.
+              </div>
+            ) : (
+              <Select value={interfaceName} onValueChange={setInterfaceName}>
+                <SelectTrigger id="interface-name">
+                  <SelectValue placeholder="Select an interface" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableInterfaces.map((iface) => (
+                    <SelectItem key={iface} value={iface}>
+                      {iface}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
 
           {/* Description */}
@@ -296,7 +327,7 @@ export function CreateEthernetModal({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={loading || loadingInterfaces || !interfaceName}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Create Interface
             </Button>
