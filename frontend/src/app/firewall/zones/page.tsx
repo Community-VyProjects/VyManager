@@ -134,8 +134,18 @@ function SortableRuleRow({
                 </Badge>
               </TooltipTrigger>
               <TooltipContent>
-                <p className="font-semibold text-xs mb-1">{inverted ? `NOT ${displayName}` : displayName}</p>
-                <p className="text-xs">{members.length > 0 ? members.join(", ") : "No members"}</p>
+                <div className="max-w-xs">
+                  <p className="font-semibold text-xs mb-2">{inverted ? `NOT ${displayName}` : displayName}</p>
+                  {members.length > 0 ? (
+                    <div className="flex flex-wrap gap-1 max-h-40 overflow-y-auto">
+                      {members.map((m, i) => (
+                        <code key={i} className="text-xs font-mono px-1.5 py-0.5 rounded bg-muted/60 whitespace-nowrap">{m}</code>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">No members</p>
+                  )}
+                </div>
               </TooltipContent>
             </Tooltip>
           );
@@ -160,8 +170,14 @@ function SortableRuleRow({
               </Badge>
             </TooltipTrigger>
             <TooltipContent>
-              <p className="font-semibold text-xs mb-1">{obj.geoip!.inverse_match ? "Excluded Countries" : "Countries"}</p>
-              <p className="text-xs">{obj.geoip!.country_code!.map((c) => c.toUpperCase()).join(", ")}</p>
+              <div className="max-w-xs">
+                <p className="font-semibold text-xs mb-2">{obj.geoip!.inverse_match ? "Excluded Countries" : "Countries"}</p>
+                <div className="flex flex-wrap gap-1 max-h-40 overflow-y-auto">
+                  {obj.geoip!.country_code!.map((c, i) => (
+                    <code key={i} className="text-xs font-mono px-1.5 py-0.5 rounded bg-muted/60 whitespace-nowrap">{c.toUpperCase()}</code>
+                  ))}
+                </div>
+              </div>
             </TooltipContent>
           </Tooltip>
         )}
@@ -185,8 +201,18 @@ function SortableRuleRow({
             </Badge>
           </TooltipTrigger>
           <TooltipContent>
-            <p className="font-semibold text-xs mb-1">{inverted ? `NOT ${displayName}` : displayName}</p>
-            <p className="text-xs">{members.length > 0 ? members.join(", ") : "No ports"}</p>
+            <div className="max-w-xs">
+              <p className="font-semibold text-xs mb-2">{inverted ? `NOT ${displayName}` : displayName}</p>
+              {members.length > 0 ? (
+                <div className="flex flex-wrap gap-1 max-h-40 overflow-y-auto">
+                  {members.map((m, i) => (
+                    <code key={i} className="text-xs font-mono px-1.5 py-0.5 rounded bg-muted/60 whitespace-nowrap">{m}</code>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">No ports</p>
+              )}
+            </div>
           </TooltipContent>
         </Tooltip>
       );

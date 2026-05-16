@@ -110,9 +110,13 @@ export function FirewallRuleRow({
                             </TooltipTrigger>
                             <TooltipContent>
                               <div className="max-w-xs">
-                                <p className="font-semibold text-xs mb-1">{inv ? `NOT ${display}` : display}</p>
+                                <p className="font-semibold text-xs mb-2">{inv ? `NOT ${display}` : display}</p>
                                 {members.length > 0 ? (
-                                  <p className="text-xs">{members.join(", ")}</p>
+                                  <div className="flex flex-wrap gap-1 max-h-40 overflow-y-auto">
+                                    {members.map((m, i) => (
+                                      <code key={i} className="text-xs font-mono px-1.5 py-0.5 rounded bg-muted/60 whitespace-nowrap">{m}</code>
+                                    ))}
+                                  </div>
                                 ) : (
                                   <p className="text-xs text-muted-foreground">No members</p>
                                 )}
@@ -138,12 +142,14 @@ export function FirewallRuleRow({
                       </TooltipTrigger>
                       <TooltipContent>
                         <div className="max-w-xs">
-                          <p className="font-semibold text-xs mb-1">
+                          <p className="font-semibold text-xs mb-2">
                             {rule.source.geoip.inverse_match ? "Excluded Countries" : "Source Countries"}
                           </p>
-                          <p className="text-xs">
-                            {rule.source.geoip.country_code.map((c) => c.toUpperCase()).join(", ")}
-                          </p>
+                          <div className="flex flex-wrap gap-1 max-h-40 overflow-y-auto">
+                            {rule.source.geoip.country_code.map((c, i) => (
+                              <code key={i} className="text-xs font-mono px-1.5 py-0.5 rounded bg-muted/60 whitespace-nowrap">{c.toUpperCase()}</code>
+                            ))}
+                          </div>
                         </div>
                       </TooltipContent>
                     </Tooltip>
@@ -182,9 +188,13 @@ export function FirewallRuleRow({
                           </TooltipTrigger>
                           <TooltipContent>
                             <div className="max-w-xs">
-                              <p className="font-semibold text-xs mb-1">{inv ? `NOT ${display}` : display}</p>
+                              <p className="font-semibold text-xs mb-2">{inv ? `NOT ${display}` : display}</p>
                               {members.length > 0 ? (
-                                <p className="text-xs">{members.join(", ")}</p>
+                                <div className="flex flex-wrap gap-1 max-h-40 overflow-y-auto">
+                                  {members.map((m, i) => (
+                                    <code key={i} className="text-xs font-mono px-1.5 py-0.5 rounded bg-muted/60 whitespace-nowrap">{m}</code>
+                                  ))}
+                                </div>
                               ) : (
                                 <p className="text-xs text-muted-foreground">No ports</p>
                               )}
@@ -230,9 +240,13 @@ export function FirewallRuleRow({
                             </TooltipTrigger>
                             <TooltipContent>
                               <div className="max-w-xs">
-                                <p className="font-semibold text-xs mb-1">{inv ? `NOT ${display}` : display}</p>
+                                <p className="font-semibold text-xs mb-2">{inv ? `NOT ${display}` : display}</p>
                                 {members.length > 0 ? (
-                                  <p className="text-xs">{members.join(", ")}</p>
+                                  <div className="flex flex-wrap gap-1 max-h-40 overflow-y-auto">
+                                    {members.map((m, i) => (
+                                      <code key={i} className="text-xs font-mono px-1.5 py-0.5 rounded bg-muted/60 whitespace-nowrap">{m}</code>
+                                    ))}
+                                  </div>
                                 ) : (
                                   <p className="text-xs text-muted-foreground">No members</p>
                                 )}
@@ -258,12 +272,14 @@ export function FirewallRuleRow({
                       </TooltipTrigger>
                       <TooltipContent>
                         <div className="max-w-xs">
-                          <p className="font-semibold text-xs mb-1">
+                          <p className="font-semibold text-xs mb-2">
                             {rule.destination.geoip.inverse_match ? "Excluded Countries" : "Destination Countries"}
                           </p>
-                          <p className="text-xs">
-                            {rule.destination.geoip.country_code.map((c) => c.toUpperCase()).join(", ")}
-                          </p>
+                          <div className="flex flex-wrap gap-1 max-h-40 overflow-y-auto">
+                            {rule.destination.geoip.country_code.map((c, i) => (
+                              <code key={i} className="text-xs font-mono px-1.5 py-0.5 rounded bg-muted/60 whitespace-nowrap">{c.toUpperCase()}</code>
+                            ))}
+                          </div>
                         </div>
                       </TooltipContent>
                     </Tooltip>
@@ -302,9 +318,13 @@ export function FirewallRuleRow({
                           </TooltipTrigger>
                           <TooltipContent>
                             <div className="max-w-xs">
-                              <p className="font-semibold text-xs mb-1">{inv ? `NOT ${display}` : display}</p>
+                              <p className="font-semibold text-xs mb-2">{inv ? `NOT ${display}` : display}</p>
                               {members.length > 0 ? (
-                                <p className="text-xs">{members.join(", ")}</p>
+                                <div className="flex flex-wrap gap-1 max-h-40 overflow-y-auto">
+                                  {members.map((m, i) => (
+                                    <code key={i} className="text-xs font-mono px-1.5 py-0.5 rounded bg-muted/60 whitespace-nowrap">{m}</code>
+                                  ))}
+                                </div>
                               ) : (
                                 <p className="text-xs text-muted-foreground">No ports</p>
                               )}
