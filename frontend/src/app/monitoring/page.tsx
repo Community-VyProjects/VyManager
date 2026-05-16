@@ -145,6 +145,25 @@ export default function MonitoringPage() {
     stop();
   };
 
+  useEffect(() => {
+    if (commands.length === 0) return;
+
+    let requestedCommand: string | null = null;
+    let requestedIface: string | null = null;
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      requestedCommand = params.get("command");
+      requestedIface = params.get("iface");
+    }
+
+    if (requestedCommand && commands.some((cmd) => cmd.name === requestedCommand)) {
+      setSelectedCommand(requestedCommand);
+      if (requestedCommand === "monitor_traffic") {
+        setCaptureIface(requestedIface || (interfaces.length > 0 ? "any" : ""));
+      }
+    }
+  }, [commands, interfaces]);
+
   const currentCommandDef = commands.find((c) => c.name === selectedCommand);
   const tableView = activeCommand ? getTableView(activeCommand) : null;
   const isTerminalCommand =

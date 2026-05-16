@@ -57,9 +57,19 @@ export default function InfrastructurePage() {
 
   const [selectedInfra, setSelectedInfra] = useState<InfraType | null>(null);
 
-  // Auto-select first available infrastructure component
+  // Auto-select first available infrastructure component or use the requested section
   useEffect(() => {
-    if (infrastructure.length > 0 && !selectedInfra) {
+    if (infrastructure.length === 0) return;
+
+    const params = new URLSearchParams(window.location.search);
+    const section = params.get("section") as InfraType | null;
+
+    if (section && infrastructure.some((infra) => infra.id === section)) {
+      setSelectedInfra(section);
+      return;
+    }
+
+    if (!selectedInfra) {
       setSelectedInfra(infrastructure[0].id);
     }
   }, [infrastructure, selectedInfra]);

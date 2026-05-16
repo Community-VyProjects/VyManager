@@ -42,12 +42,24 @@ export default function UnicastProtocolsPage() {
 
   const [selectedProtocol, setSelectedProtocol] = useState<ProtocolType | null>(null);
 
-  // Auto-select first available protocol
+  // Auto-select first available protocol or honor query params
   useEffect(() => {
-    if (protocols.length > 0 && !selectedProtocol) {
-      setSelectedProtocol(protocols[0].id);
+    if (!isLoading && protocols.length > 0) {
+      let requested: ProtocolType | null = null;
+      if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search);
+        requested = params.get("protocol") as ProtocolType | null;
+      }
+
+      if (requested && protocols.some((protocol) => protocol.id === requested)) {
+        setSelectedProtocol(requested);
+        return;
+      }
+      if (!selectedProtocol) {
+        setSelectedProtocol(protocols[0].id);
+      }
     }
-  }, [protocols, selectedProtocol]);
+  }, [protocols, selectedProtocol, isLoading]);
 
   return (
     <AppLayout>

@@ -85,6 +85,14 @@ export default function PrefixListPage() {
     fetchCapabilities();
   }, []);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const section = params.get("section");
+    if (section === "ipv4" || section === "ipv6") {
+      setSelectedListType(section);
+    }
+  }, []);
+
   const fetchConfig = async (refresh: boolean = false) => {
     try {
       setLoading(true);

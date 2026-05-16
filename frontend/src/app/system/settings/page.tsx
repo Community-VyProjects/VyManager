@@ -26,6 +26,7 @@ export default function SystemSettingsPage() {
   const { canWrite } = usePermissions();
 
   const isReadOnly = !canWrite(FeatureGroup.SYSTEM);
+  const [selectedTab, setSelectedTab] = useState("general");
 
   const load = (refresh = false) => {
     setLoading(true);
@@ -44,6 +45,11 @@ export default function SystemSettingsPage() {
 
   useEffect(() => {
     load(true);
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setSelectedTab(params.get("tab") ?? "general");
   }, []);
 
   const refresh = () => load(true);
@@ -78,7 +84,7 @@ export default function SystemSettingsPage() {
         )}
 
         {!loading && config && capabilities && (
-          <Tabs defaultValue="general" className="space-y-6">
+          <Tabs value={selectedTab} onValueChange={setSelectedTab} className="space-y-6">
             <TabsList className="flex flex-wrap gap-1 h-auto">
               <TabsTrigger value="general" className="flex items-center gap-2">
                 <Settings2 className="h-4 w-4" />

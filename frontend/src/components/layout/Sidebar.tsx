@@ -18,21 +18,9 @@ import { useSessionStore } from "@/store/session-store";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 import { ThemeSelector } from "@/components/ui/theme-selector";
-import { SearchBar } from "@/components/ui/search-bar";
+import { SearchCommand } from "@/components/search/SearchCommand";
 
-import { navigation } from "@/lib/navigation";
-
-interface NavItem {
-  title: string;
-  href?: string;
-  icon: React.ComponentType<{ className?: string }>;
-  requiredPermission?: FeatureGroup;
-  children?: {
-    title: string;
-    href: string;
-    requiredPermission?: FeatureGroup;
-  }[];
-}
+import { getSidebarNavigation, type NavItem, type NavChild } from "@/lib/navigation";
 
 
 
@@ -66,9 +54,9 @@ export function Sidebar() {
   // Initialize and update openItems based on current pathname
   useEffect(() => {
     const activeParents: string[] = [];
-    navigation.forEach((item) => {
+    getSidebarNavigation().forEach((item) => {
       if (item.children) {
-        const hasActiveChild = item.children.some(child => pathname === child.href);
+        const hasActiveChild = item.children.some((child) => pathname === child.href);
         if (hasActiveChild) {
           activeParents.push(item.title);
         }
@@ -209,7 +197,7 @@ export function Sidebar() {
     }).filter((item): item is NavItem => item !== null);
   };
 
-  const visibleNavigation = filterNavigation(navigation);
+  const visibleNavigation = filterNavigation(getSidebarNavigation());
 
   return (
     <div className="flex h-screen w-64 flex-col border-r border-border bg-card">
@@ -235,7 +223,7 @@ export function Sidebar() {
 
       {/* Search */}
       <div className="px-3 pt-3 pb-1 shrink-0">
-        <SearchBar />
+        <SearchCommand />
       </div>
 
       {/* Navigation */}
@@ -272,11 +260,12 @@ export function Sidebar() {
                     />
                   </CollapsibleTrigger>
                   <CollapsibleContent className="mt-1 space-y-1 pl-4">
-                    {item.children.map((child) => {
+                    {item.children.map((child: NavChild) => {
                       const isChildActive = pathname === child.href;
+                      const ChildIcon = child.icon;
                       return (
                         <Link
-                          key={child.href}
+                          key={`${child.href}-${child.title}`}
                           href={child.href}
                           className={cn(
                             "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
@@ -285,10 +274,21 @@ export function Sidebar() {
                               : "text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground"
                           )}
                         >
-                          <span className={cn(
-                            "h-1.5 w-1.5 rounded-full",
-                            isChildActive ? "bg-primary" : "bg-muted-foreground/40"
-                          )} />
+                          {ChildIcon ? (
+                            <ChildIcon
+                              className={cn(
+                                "h-3.5 w-3.5 shrink-0",
+                                isChildActive ? "text-primary" : "text-muted-foreground"
+                              )}
+                            />
+                          ) : (
+                            <span
+                              className={cn(
+                                "h-1.5 w-1.5 shrink-0 rounded-full",
+                                isChildActive ? "bg-primary" : "bg-muted-foreground/40"
+                              )}
+                            />
+                          )}
                           {child.title}
                         </Link>
                       );

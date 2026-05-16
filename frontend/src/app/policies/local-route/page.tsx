@@ -65,6 +65,14 @@ export default function LocalRoutePage() {
     fetchConfig();
   }, []);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const section = params.get("section");
+    if (section === "ipv4" || section === "ipv6") {
+      setSelectedTab(section);
+    }
+  }, []);
+
   const fetchCapabilities = async () => {
     try {
       const data = await localRouteService.getCapabilities();

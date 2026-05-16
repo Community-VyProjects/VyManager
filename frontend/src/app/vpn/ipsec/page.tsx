@@ -110,6 +110,11 @@ export default function IPSecPage() {
     if (hasRead) fetchConfig();
   }, [hasRead]);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setActiveTab(params.get("tab") ?? "s2s");
+  }, []);
+
   const onSuccess = () => fetchConfig(true);
 
   // Loading state

@@ -112,6 +112,14 @@ export default function StaticRoutesPage() {
     fetchConfig();
   }, []);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get("tab");
+    if (tab === "routes" || tab === "arp" || tab === "mroute" || tab === "neighbor-proxy" || tab === "tables") {
+      setActiveTab(tab);
+    }
+  }, []);
+
   // Get current routes based on selected type
   const currentRoutes = selectedType === "ipv4"
     ? (config?.ipv4_routes || [])

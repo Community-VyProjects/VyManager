@@ -125,6 +125,11 @@ export default function PKIPage() {
     if (hasRead) fetchConfig();
   }, [hasRead]);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setActiveTab(params.get("tab") ?? "certificates");
+  }, []);
+
   const onSuccess = () => fetchConfig(true);
 
   // Loading state

@@ -138,6 +138,46 @@ export default function InterfacesPage() {
   const [selectedType, setSelectedType] = useState<InterfaceType>("ethernet");
   const [vlanSubTab, setVlanSubTab] = useState<VlanSubTab>("vif");
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const params = new URLSearchParams(window.location.search);
+    const requestedType = params.get("type") as InterfaceType | null;
+    const requestedVlanSubTab = params.get("vlanSubTab") as VlanSubTab | null;
+
+    const validTypes: InterfaceType[] = [
+      "ethernet",
+      "vlan",
+      "wireguard",
+      "vxlan",
+      "tunnel",
+      "bonding",
+      "bridge",
+      "dummy",
+      "geneve",
+      "input",
+      "l2tpv3",
+      "loopback",
+      "macsec",
+      "pppoe",
+      "pseudo-ethernet",
+      "sstpc",
+      "virtual-ethernet",
+      "vpp",
+      "vti",
+      "wireless",
+      "wwan",
+    ];
+
+    if (requestedType && validTypes.includes(requestedType)) {
+      setSelectedType(requestedType);
+    }
+
+    if (requestedType === "vlan" && requestedVlanSubTab && ["vif", "vif-s", "vif-c"].includes(requestedVlanSubTab)) {
+      setVlanSubTab(requestedVlanSubTab);
+    }
+  }, []);
+
   // Ethernet Modal states
   const [isCreateInterfaceModalOpen, setIsCreateInterfaceModalOpen] = useState(false);
   const [editingInterface, setEditingInterface] = useState<EthernetInterface | null>(null);

@@ -115,6 +115,11 @@ export default function L2TPPage() {
     if (hasRead) fetchConfig();
   }, [hasRead]);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setActiveTab(params.get("tab") ?? "overview");
+  }, []);
+
   const onSuccess = () => fetchConfig(true);
 
   // Loading state

@@ -206,6 +206,14 @@ export default function DHCPPage() {
     fetchLeases();
   }, []);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const section = params.get("section");
+    if (section === "subnets" || section === "ranges" || section === "static" || section === "leases") {
+      setActiveTab(section);
+    }
+  }, []);
+
   // Get currently selected network data
   const currentNetwork = config?.shared_networks.find(n => n.name === selectedNetwork) || null;
 

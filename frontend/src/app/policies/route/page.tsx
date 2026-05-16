@@ -82,7 +82,9 @@ export default function RoutePage() {
     })
   );
 
-  const fetchData = async (refresh: boolean = false) => {
+  const fetchData = async (refresh: boolean = false, initialPolicyType: "route" | "route6" | null = null) => {
+    const activePolicyType = initialPolicyType || selectedPolicyType;
+
     try {
       setLoading(true);
       setError(null);
@@ -101,7 +103,7 @@ export default function RoutePage() {
 
       // Auto-select first policy if none selected
       if (!selectedPolicyName) {
-        const policies = selectedPolicyType === "route" ? config.ipv4_policies : config.ipv6_policies;
+        const policies = activePolicyType === "route" ? config.ipv4_policies : config.ipv6_policies;
         if (policies.length > 0) {
           setSelectedPolicyName(policies[0].name);
         }
@@ -115,7 +117,13 @@ export default function RoutePage() {
   };
 
   useEffect(() => {
-    fetchData();
+    const params = new URLSearchParams(window.location.search);
+    const section = params.get("section");
+    const initialPolicyType = section === "route6" ? "route6" : "route";
+    if (section === "route" || section === "route6") {
+      setSelectedPolicyType(section);
+    }
+    fetchData(false, initialPolicyType);
   }, []);
 
   const policies = selectedPolicyType === "route" ? ipv4Policies : ipv6Policies;

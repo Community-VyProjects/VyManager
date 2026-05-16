@@ -312,6 +312,7 @@ export function HighAvailabilityContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [selectedTab, setSelectedTab] = useState<"vrrp" | "sync" | "vs">("vrrp");
   const [haDisabled, setHaDisabled] = useState(false);
   const [togglingHA, setTogglingHA] = useState(false);
 
@@ -353,6 +354,15 @@ export function HighAvailabilityContent() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const tabParam = params.get("tab");
+    if (tabParam === "vrrp" || tabParam === "sync" || tabParam === "vs") {
+      setSelectedTab(tabParam);
+    }
+  }, []);
 
   const handleToggleHA = async () => {
     setTogglingHA(true);
@@ -567,7 +577,7 @@ export function HighAvailabilityContent() {
           )}
 
           {/* Tabs */}
-          <Tabs defaultValue="vrrp">
+          <Tabs value={selectedTab} onValueChange={(value) => setSelectedTab(value as "vrrp" | "sync" | "vs")}>
             <div className="flex items-center justify-between mb-4">
               <TabsList>
                 <TabsTrigger value="vrrp" className="flex items-center gap-1.5">
