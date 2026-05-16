@@ -299,6 +299,7 @@ enum FeatureGroup {
   DHCP // DHCP server
   NAT // NAT rules
   MONITORING // SSH monitoring / live traffic
+  SSH_CONSOLE // Interactive SSH shell console
 }
 
 // Note: CustomRole and FeaturePermission models removed in favor of simplified

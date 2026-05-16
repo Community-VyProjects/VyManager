@@ -156,3 +156,32 @@ export class ApiClient {
 }
 
 export const apiClient = new ApiClient();
+
+/**
+ * Resolve the WebSocket base URL.
+ *
+ * Priority:
+ *  1. NEXT_PUBLIC_WS_URL env var — explicit override, e.g. wss://api.example.com
+ *  2. Dev server (port 3000) — connect directly to backend on :8000
+ *  3. Anything else (production via reverse proxy) — use same origin so the
+ *     request goes through the proxy on the standard port (no :8000 appended)
+ *
+ * For production behind a reverse proxy, configure the proxy to upgrade
+ * WebSocket connections for paths /vyos/monitoring/ws/* and /vyos/console/ws/*
+ * and forward them to the backend at port 8000.
+ */
+export function resolveWsBase(): string {
+  const proto = window.location.protocol === "https:" ? "wss" : "ws";
+
+  if (process.env.NEXT_PUBLIC_WS_URL) {
+    return process.env.NEXT_PUBLIC_WS_URL;
+  }
+
+  // Dev: Next.js runs on :3000, backend is on :8000
+  if (window.location.port === "3000") {
+    return `${proto}://${window.location.hostname}:8000`;
+  }
+
+  // Production / reverse proxy: same origin, proxy handles routing
+  return `${proto}://${window.location.host}`;
+}

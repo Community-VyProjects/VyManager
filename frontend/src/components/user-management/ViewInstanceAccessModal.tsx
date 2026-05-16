@@ -46,6 +46,7 @@ import {
   ShieldCheck,
   GitBranch,
   Package,
+  Terminal,
 } from "lucide-react";
 import { userManagementService, FeatureGroup, InstanceUserListItem } from "@/lib/api/user-management";
 import { ApiError } from "@/lib/types/api";
@@ -131,6 +132,7 @@ const FEATURE_ICONS: Record<FeatureGroup, any> = {
   [FeatureGroup.SYSTEM]: Server,
   [FeatureGroup.CONFIGURATION]: Server,
   [FeatureGroup.MONITORING]: Activity,
+  [FeatureGroup.SSH_CONSOLE]: Terminal,
   [FeatureGroup.DASHBOARD]: Server,
   [FeatureGroup.SITES_INSTANCES]: Building2,
   [FeatureGroup.USER_MANAGEMENT]: UserCircle,
@@ -219,6 +221,7 @@ const FEATURE_NAMES: Record<FeatureGroup, string> = {
   [FeatureGroup.SYSTEM]: "System",
   [FeatureGroup.CONFIGURATION]: "Configuration",
   [FeatureGroup.MONITORING]: "Monitoring",
+  [FeatureGroup.SSH_CONSOLE]: "SSH Console",
   [FeatureGroup.DASHBOARD]: "Dashboard",
   [FeatureGroup.SITES_INSTANCES]: "Sites & Instances",
   [FeatureGroup.USER_MANAGEMENT]: "User Management",
