@@ -515,6 +515,61 @@ async def get_all_interfaces(request: Request):
 
 
 # ========================================================================
+# Endpoint: Available Ethernet Interfaces (unconfigured physical ports)
+# ========================================================================
+
+
+class AvailableEthernetInterfacesResponse(BaseModel):
+    interfaces: List[str]
+    total: int
+
+
+@router.get("/available-ethernet-interfaces", response_model=AvailableEthernetInterfacesResponse)
+async def get_available_ethernet_interfaces(request: Request):
+    """
+    Return physical ethernet interfaces that exist on the router but are not
+    yet configured in VyOS. Used to populate the create-interface dropdown.
+    """
+    try:
+        service = get_session_vyos_service(request)
+
+        # Operational show to list all physical ethernet ports
+        response = service.device.show(path=["interfaces", "ethernet"])
+
+        all_eth: List[str] = []
+        if response.status == 200:
+            output = ""
+            if isinstance(response.result, dict) and "data" in response.result:
+                output = response.result["data"]
+            elif isinstance(response.result, str):
+                output = response.result
+
+            for line in output.split("\n"):
+                parts = line.split()
+                if parts and re.match(r"^eth\d+$", parts[0]):
+                    all_eth.append(parts[0])
+
+        # Exclude interfaces that already have an address configured.
+        # Interfaces in the config tree with no address (e.g. disabled/empty)
+        # are still considered available.
+        full_config = service.get_full_config(refresh=False)
+        eth_config = full_config.get("interfaces", {}).get("ethernet", {})
+        with_address = {
+            name for name, cfg in eth_config.items()
+            if isinstance(cfg, dict) and "address" in cfg
+        }
+        available = sorted(i for i in all_eth if i not in with_address)
+
+        return AvailableEthernetInterfacesResponse(interfaces=available, total=len(available))
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+# ========================================================================
 # GraphQL-based WireGuard helpers (no pyvyos show calls)
 # ========================================================================
 
