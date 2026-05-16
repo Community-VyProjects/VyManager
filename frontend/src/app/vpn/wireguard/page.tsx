@@ -33,6 +33,7 @@ import {
   Check,
   QrCode,
   Wand2,
+  Upload,
   CheckCircle2,
   XCircle,
   ArrowDownUp,
@@ -77,6 +78,7 @@ import { EditPeerModal } from "@/components/vpn/EditPeerModal";
 import { DeletePeerModal } from "@/components/vpn/DeletePeerModal";
 import { GenerateClientConfigModal } from "@/components/vpn/GenerateClientConfigModal";
 import { QuickSetupWizard } from "@/components/vpn/QuickSetupWizard";
+import { ImportConfigModal } from "@/components/vpn/ImportConfigModal";
 
 export default function WireGuardPage() {
   // State
@@ -106,6 +108,8 @@ export default function WireGuardPage() {
   const [deletingPeer, setDeletingPeer] = useState<WireGuardPeer | null>(null);
   const [showClientConfig, setShowClientConfig] = useState(false);
   const [showQuickSetup, setShowQuickSetup] = useState(false);
+
+  const [showImportConfig, setShowImportConfig] = useState(false);
 
   // Copy state
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
@@ -288,6 +292,14 @@ export default function WireGuardPage() {
               >
                 <Plus className="h-4 w-4 mr-1" />
                 New Tunnel
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setShowImportConfig(true)}
+                title="Import .conf file"
+              >
+                <Upload className="h-4 w-4" />
               </Button>
               <Button
                 size="sm"
@@ -885,6 +897,17 @@ export default function WireGuardPage() {
         capabilities={capabilities}
         existingInterfaces={config?.interfaces.map((i) => i.name) || []}
         existingPorts={config?.interfaces.map((i) => i.port).filter((p): p is string => !!p) || []}
+      />
+
+      <ImportConfigModal
+        open={showImportConfig}
+        onOpenChange={setShowImportConfig}
+        onSuccess={() => {
+          fetchConfig(true);
+          setShowImportConfig(false);
+        }}
+        existingInterfaces={config?.interfaces.map((i) => i.name) || []}
+        capabilities={capabilities}
       />
     </AppLayout>
   );
