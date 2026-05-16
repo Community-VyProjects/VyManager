@@ -497,6 +497,19 @@ export function FirewallRuleRow({
           </TableCell>
         );
 
+      case "connectionStatus":
+        return (
+          <TableCell key="connectionStatus">
+            {rule.connection_status?.nat ? (
+              <Badge variant="outline" className="text-xs bg-cyan-500/10 text-cyan-500 border-cyan-500/20 uppercase">
+                {rule.connection_status.nat}
+              </Badge>
+            ) : (
+              <span className="text-sm text-muted-foreground">any</span>
+            )}
+          </TableCell>
+        );
+
       default:
         return null;
     }
