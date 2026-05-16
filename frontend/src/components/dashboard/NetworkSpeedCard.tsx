@@ -30,7 +30,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import Link from "next/link";
 import { useDashboardData } from "@/contexts/DashboardDataContext";
+import { ethernetService } from "@/lib/api/ethernet";
+import type { EthernetConfigResponse } from "@/lib/api/types/ethernet";
 
 // ============================================================================
 // Constants
@@ -152,6 +155,11 @@ export function NetworkSpeedCard({
 }: NetworkSpeedCardProps) {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const { status: sseStatus, data: sseData } = useDashboardData();
+  const ethernetConfigRef = useRef<EthernetConfigResponse | null>(null);
+
+  useEffect(() => {
+    ethernetService.getConfig().then((cfg) => { ethernetConfigRef.current = cfg; }).catch(() => {});
+  }, []);
 
   const selectedIface = (config?.interface as string) || "";
   const [history, setHistory] = useState<SpeedPoint[]>([]);
@@ -163,6 +171,23 @@ export function NetworkSpeedCard({
   const availableInterfaces = (
     sseData.interfaceCounters?.interfaces.map((i) => i.interface) ?? []
   ).sort();
+
+  // Look up a description for an interface name from the ethernet config
+  const getIfaceDescription = (name: string): string | undefined => {
+    const cfg = ethernetConfigRef.current;
+    if (!cfg) return undefined;
+    const direct = cfg.interfaces?.find((i) => i.name === name);
+    if (direct?.description) return direct.description;
+    const [parentName, vlanId] = name.split(".");
+    if (vlanId && !isNaN(parseInt(vlanId))) {
+      const parent = cfg.interfaces?.find((i) => i.name === parentName);
+      const vif = parent?.vif?.find((v) => v.vlan_id === vlanId);
+      if (vif?.description) return vif.description;
+    }
+    return undefined;
+  };
+
+  const interfaceDescription = selectedIface ? getIfaceDescription(selectedIface) : undefined;
 
   // Clear history when selected interface changes
   useEffect(() => {
@@ -242,56 +267,81 @@ export function NetworkSpeedCard({
 
   return (
     <Card className="flex flex-col h-[520px]">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 shrink-0">
-        <div className="flex items-center gap-2 min-w-0">
-          <TrendingUp className="h-5 w-5 text-primary shrink-0" />
-          <CardTitle className="text-lg font-medium shrink-0">Network Speed</CardTitle>
+      <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-3 shrink-0">
+        <div className="flex flex-col min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5 text-primary shrink-0" />
+            <CardTitle className="text-lg font-medium shrink-0">Network Speed</CardTitle>
 
-          {/* Interface selector — always visible, interactive when onConfigChange provided */}
-          {onConfigChange ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
+            {/* Interface selector — always visible, interactive when onConfigChange provided */}
+            {onConfigChange ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-6 text-xs px-2 font-mono max-w-[120px] truncate"
+                    title={selectedIface || "Select interface"}
+                  >
+                    <Network className="h-3 w-3 mr-1 shrink-0" />
+                    <span className="truncate">
+                      {selectedIface || "Select…"}
+                    </span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  <DropdownMenuLabel>Select Interface</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {availableInterfaces.length === 0 ? (
+                    <DropdownMenuItem disabled>No interfaces available</DropdownMenuItem>
+                  ) : (
+                    availableInterfaces.map((name) => {
+                      const desc = getIfaceDescription(name);
+                      return (
+                        <DropdownMenuItem
+                          key={name}
+                          onClick={() =>
+                            onConfigChange({ ...config, interface: name })
+                          }
+                        >
+                          <div className="flex items-center justify-between w-full gap-4">
+                            <div className="flex flex-col">
+                              <span className="font-mono text-xs">{name}</span>
+                              {desc && (
+                                <span className="text-xs text-muted-foreground">{desc}</span>
+                              )}
+                            </div>
+                            {selectedIface === name && (
+                              <span className="text-primary shrink-0">✓</span>
+                            )}
+                          </div>
+                        </DropdownMenuItem>
+                      );
+                    })
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : selectedIface ? (
+              <Link href="/network/interfaces">
+                <Badge
                   variant="outline"
-                  size="sm"
-                  className="h-6 text-xs px-2 font-mono max-w-[120px] truncate"
-                  title={selectedIface || "Select interface"}
+                  className="text-xs font-mono cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors"
                 >
-                  <Network className="h-3 w-3 mr-1 shrink-0" />
-                  <span className="truncate">
-                    {selectedIface || "Select…"}
-                  </span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                <DropdownMenuLabel>Select Interface</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {availableInterfaces.length === 0 ? (
-                  <DropdownMenuItem disabled>No interfaces available</DropdownMenuItem>
-                ) : (
-                  availableInterfaces.map((name) => (
-                    <DropdownMenuItem
-                      key={name}
-                      onClick={() =>
-                        onConfigChange({ ...config, interface: name })
-                      }
-                    >
-                      <div className="flex items-center justify-between w-full gap-4">
-                        <span className="font-mono text-xs">{name}</span>
-                        {selectedIface === name && (
-                          <span className="text-primary">✓</span>
-                        )}
-                      </div>
-                    </DropdownMenuItem>
-                  ))
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : selectedIface ? (
-            <Badge variant="outline" className="text-xs font-mono">
-              {selectedIface}
-            </Badge>
-          ) : null}
+                  {selectedIface}
+                </Badge>
+              </Link>
+            ) : null}
+          </div>
+
+          {/* Interface description */}
+          {interfaceDescription && (
+            <p
+              className="text-xs text-muted-foreground truncate pl-7 mt-0.5"
+              title={interfaceDescription}
+            >
+              {interfaceDescription}
+            </p>
+          )}
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">

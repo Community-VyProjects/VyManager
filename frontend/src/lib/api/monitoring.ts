@@ -4,7 +4,7 @@
  * Handles SSH key management and real-time monitoring WebSocket connections.
  */
 
-import { apiClient } from "./client";
+import { apiClient, resolveWsBase } from "./client";
 
 // ============================================================================
 // TypeScript Interfaces
@@ -125,11 +125,7 @@ class MonitoringService {
    * Connects directly to the backend (Next.js cannot proxy WebSockets).
    */
   createMonitoringSocket(): WebSocket {
-    const wsProtocol = window.location.protocol === "https:" ? "wss" : "ws";
-    const wsUrl =
-      process.env.NEXT_PUBLIC_WS_URL ||
-      `${wsProtocol}://${window.location.hostname}:8000`;
-    return new WebSocket(`${wsUrl}/vyos/monitoring/ws/monitor`);
+    return new WebSocket(`${resolveWsBase()}/vyos/monitoring/ws/monitor`);
   }
 }
 

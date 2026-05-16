@@ -10,6 +10,8 @@ Architecture:
 """
 
 import asyncio
+import logging
+import os
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -24,6 +26,8 @@ from fastapi_permissions import require_read_permission, require_super_admin
 from session_cookie import verify_session_cookie
 from ssh_key_manager import decrypt_private_key, generate_keypair
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/vyos/monitoring", tags=["monitoring"])
 
 # Track active monitoring sessions: user_id -> asyncio.Task
@@ -32,6 +36,12 @@ _active_sessions: dict[str, asyncio.Task] = {}
 # Timeouts
 IDLE_TIMEOUT_SECONDS = 300   # 5 minutes
 MAX_DURATION_SECONDS = 1800  # 30 minutes
+
+# Defense against Cross-Site WebSocket Hijacking: only accept connections whose
+# Origin header matches an entry in TRUSTED_ORIGINS (comma-separated). Falls back
+# to FRONTEND_URL if TRUSTED_ORIGINS is not set.
+_trusted_origins_raw = os.getenv("TRUSTED_ORIGINS") or os.getenv("FRONTEND_URL", "")
+_TRUSTED_ORIGINS = {o.strip() for o in _trusted_origins_raw.split(",") if o.strip()}
 
 
 # ============================================================================
@@ -240,6 +250,14 @@ async def websocket_monitor(websocket: WebSocket):
     4. Client sends: {"type": "stop"} to terminate
     5. Server sends: {"type": "stopped"} when done
     """
+    # Origin allowlist (defense against Cross-Site WebSocket Hijacking). Done
+    # BEFORE accept() so a forged cross-origin handshake never gets upgraded.
+    origin = websocket.headers.get("origin")
+    if _TRUSTED_ORIGINS and (not origin or origin not in _TRUSTED_ORIGINS):
+        logger.warning("Rejected monitoring WebSocket from untrusted origin: %r", origin)
+        await websocket.close(code=1008)  # Policy Violation
+        return
+
     await websocket.accept()
 
     # Authenticate via session cookie
@@ -338,10 +356,11 @@ async def websocket_monitor(websocket: WebSocket):
                 instance["sshKeyNonce"],
             )
             private_key = asyncssh.import_private_key(private_key_pem.decode("utf-8"))
-        except Exception as e:
+        except Exception:
+            logger.exception("Monitoring: failed to decrypt SSH private key for instance %s", instance_id)
             await websocket.send_json({
                 "type": "error",
-                "data": f"Failed to decrypt SSH key: {str(e)}",
+                "data": "SSH key could not be loaded. Regenerate the SSH key in instance settings.",
             })
             await websocket.close()
             return
@@ -367,10 +386,11 @@ async def websocket_monitor(websocket: WebSocket):
             })
             await websocket.close()
             return
-        except (OSError, asyncssh.Error) as e:
+        except (OSError, asyncssh.Error):
+            logger.exception("Monitoring: SSH connection failed for instance %s", instance_id)
             await websocket.send_json({
                 "type": "error",
-                "data": f"SSH connection failed: {str(e)}",
+                "data": "SSH connection failed",
             })
             await websocket.close()
             return
@@ -448,9 +468,10 @@ async def websocket_monitor(websocket: WebSocket):
 
     except WebSocketDisconnect:
         pass
-    except Exception as e:
+    except Exception:
+        logger.exception("Unexpected error in monitoring WebSocket")
         try:
-            await websocket.send_json({"type": "error", "data": str(e)})
+            await websocket.send_json({"type": "error", "data": "Internal server error"})
         except Exception:
             pass
     finally:

@@ -204,3 +204,12 @@
     opacity: 0.35;
   }
 }
+
+/* xterm.js: force the .xterm element to fill its container so the
+   absolutely-positioned viewport/canvas children are visible */
+.xterm {
+  height: 100%;
+}
+.xterm-viewport {
+  overflow-y: auto !important;
+}
