@@ -21,14 +21,15 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertCircle, Loader2, Plus, Trash2 } from "lucide-react";
-import { staticRoutesService, type RoutingTable } from "@/lib/api/static-routes";
+import { staticRoutesService, type RoutingTable, type StaticRoute } from "@/lib/api/static-routes";
 import { showService } from "@/lib/api/show";
 
-interface CreateTableRouteModalProps {
+interface EditTableRouteModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   table: RoutingTable | null;
+  route: StaticRoute | null;
 }
 
 interface NextHopEntry {
@@ -43,19 +44,17 @@ interface InterfaceEntry {
   disable: boolean;
 }
 
-export function CreateTableRouteModal({
+export function EditTableRouteModal({
   open,
   onOpenChange,
   onSuccess,
   table,
-}: CreateTableRouteModalProps) {
+  route,
+}: EditTableRouteModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [availableInterfaces, setAvailableInterfaces] = useState<string[]>([]);
 
-  // Form fields
-  const [routeType, setRouteType] = useState<"ipv4" | "ipv6">("ipv4");
-  const [destination, setDestination] = useState("");
   const [description, setDescription] = useState("");
   const [nextHops, setNextHops] = useState<NextHopEntry[]>([]);
   const [interfaces, setInterfaces] = useState<InterfaceEntry[]>([]);
@@ -65,11 +64,11 @@ export function CreateTableRouteModal({
   const [rejectDistance, setRejectDistance] = useState("");
 
   useEffect(() => {
-    if (open) {
+    if (open && route) {
       loadInterfaces();
-      resetForm();
+      populateForm(route);
     }
-  }, [open]);
+  }, [open, route]);
 
   const loadInterfaces = async () => {
     try {
@@ -80,68 +79,44 @@ export function CreateTableRouteModal({
     }
   };
 
-  const resetForm = () => {
-    setRouteType("ipv4");
-    setDestination("");
-    setDescription("");
-    setNextHops([]);
-    setInterfaces([]);
-    setIsBlackhole(false);
-    setBlackholeDistance("");
-    setIsReject(false);
-    setRejectDistance("");
+  const populateForm = (r: StaticRoute) => {
+    setDescription(r.description || "");
+    setNextHops(r.next_hops.map((nh) => ({
+      address: nh.address,
+      distance: nh.distance?.toString() || "",
+      disable: nh.disable,
+    })));
+    setInterfaces(r.interfaces.map((iface) => ({
+      interface: iface.interface,
+      distance: iface.distance?.toString() || "",
+      disable: iface.disable,
+    })));
+    setIsBlackhole(r.blackhole);
+    setBlackholeDistance(r.blackhole_distance?.toString() || "");
+    setIsReject(r.reject);
+    setRejectDistance(r.reject_distance?.toString() || "");
     setError(null);
   };
 
-  const addNextHop = () => {
-    setNextHops([...nextHops, { address: "", distance: "", disable: false }]);
-  };
-
-  const removeNextHop = (index: number) => {
-    setNextHops(nextHops.filter((_, i) => i !== index));
-  };
-
-  const updateNextHop = (index: number, field: keyof NextHopEntry, value: string | boolean) => {
+  const addNextHop = () => setNextHops([...nextHops, { address: "", distance: "", disable: false }]);
+  const removeNextHop = (i: number) => setNextHops(nextHops.filter((_, idx) => idx !== i));
+  const updateNextHop = (i: number, field: keyof NextHopEntry, value: string | boolean) => {
     const updated = [...nextHops];
-    updated[index] = { ...updated[index], [field]: value };
+    updated[i] = { ...updated[i], [field]: value };
     setNextHops(updated);
   };
 
-  const addInterface = () => {
-    setInterfaces([...interfaces, { interface: "", distance: "", disable: false }]);
-  };
-
-  const removeInterface = (index: number) => {
-    setInterfaces(interfaces.filter((_, i) => i !== index));
-  };
-
-  const updateInterface = (index: number, field: keyof InterfaceEntry, value: string | boolean) => {
+  const addInterface = () => setInterfaces([...interfaces, { interface: "", distance: "", disable: false }]);
+  const removeInterface = (i: number) => setInterfaces(interfaces.filter((_, idx) => idx !== i));
+  const updateInterface = (i: number, field: keyof InterfaceEntry, value: string | boolean) => {
     const updated = [...interfaces];
-    updated[index] = { ...updated[index], [field]: value };
+    updated[i] = { ...updated[i], [field]: value };
     setInterfaces(updated);
   };
 
   const handleSubmit = async () => {
-    if (!table) return;
+    if (!table || !route) return;
     setError(null);
-
-    // Validation
-    if (!destination) {
-      setError("Destination is required");
-      return;
-    }
-
-    // Validate destination format
-    const ipv4Regex = /^(\d{1,3}\.){3}\d{1,3}\/\d{1,2}$/;
-    const ipv6Regex = /^[0-9a-fA-F:]+\/\d{1,3}$/;
-    if (routeType === "ipv4" && !ipv4Regex.test(destination)) {
-      setError("Invalid IPv4 CIDR format (e.g., 10.0.0.0/8)");
-      return;
-    }
-    if (routeType === "ipv6" && !ipv6Regex.test(destination)) {
-      setError("Invalid IPv6 CIDR format (e.g., 2001:db8::/32)");
-      return;
-    }
 
     if (!isBlackhole && !isReject && nextHops.length === 0 && interfaces.length === 0) {
       setError("At least one next-hop, interface, blackhole, or reject is required");
@@ -149,56 +124,61 @@ export function CreateTableRouteModal({
     }
 
     setLoading(true);
-
     try {
-      await staticRoutesService.createTableRoute(table.table_id, destination, routeType, {
-        description: description || undefined,
-        next_hops: nextHops
-          .filter((nh) => nh.address)
-          .map((nh) => ({
-            address: nh.address,
-            distance: nh.distance ? parseInt(nh.distance) : undefined,
-            disable: nh.disable,
-            vrf: null,
-            interface: null,
-            bfd_enable: false,
-            bfd_profile: null,
-            bfd_multi_hop: false,
-            bfd_multi_hop_source: null,
-            segments: null,
-          })),
-        interfaces: interfaces
-          .filter((iface) => iface.interface)
-          .map((iface) => ({
-            interface: iface.interface,
-            distance: iface.distance ? parseInt(iface.distance) : undefined,
-            disable: iface.disable,
-            vrf: null,
-            segments: null,
-          })),
-        blackhole: isBlackhole,
-        blackhole_distance: blackholeDistance ? parseInt(blackholeDistance) : undefined,
-        reject: isReject,
-        reject_distance: rejectDistance ? parseInt(rejectDistance) : undefined,
-      });
+      await staticRoutesService.updateTableRoute(
+        table.table_id,
+        route.destination,
+        route.route_type,
+        route,
+        {
+          description: description || undefined,
+          next_hops: nextHops
+            .filter((nh) => nh.address)
+            .map((nh) => ({
+              address: nh.address,
+              distance: nh.distance ? parseInt(nh.distance) : undefined,
+              disable: nh.disable,
+              vrf: null,
+              interface: null,
+              bfd_enable: false,
+              bfd_profile: null,
+              bfd_multi_hop: false,
+              bfd_multi_hop_source: null,
+              segments: null,
+            })),
+          interfaces: interfaces
+            .filter((iface) => iface.interface)
+            .map((iface) => ({
+              interface: iface.interface,
+              distance: iface.distance ? parseInt(iface.distance) : undefined,
+              disable: iface.disable,
+              vrf: null,
+              segments: null,
+            })),
+          blackhole: isBlackhole,
+          blackhole_distance: blackholeDistance ? parseInt(blackholeDistance) : undefined,
+          reject: isReject,
+          reject_distance: rejectDistance ? parseInt(rejectDistance) : undefined,
+        }
+      );
       onSuccess();
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create route");
+      setError(err instanceof Error ? err.message : "Failed to update route");
     } finally {
       setLoading(false);
     }
   };
 
-  if (!table) return null;
+  if (!table || !route) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add Route to Table {table.table_id}</DialogTitle>
+          <DialogTitle>Edit Route in Table {table.table_id}</DialogTitle>
           <DialogDescription>
-            Create a new static route in this routing table
+            Modify route {route.destination} ({route.route_type.toUpperCase()})
           </DialogDescription>
         </DialogHeader>
 
@@ -210,28 +190,12 @@ export function CreateTableRouteModal({
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Route Type</Label>
-              <Select value={routeType} onValueChange={(v) => setRouteType(v as "ipv4" | "ipv6")}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ipv4">IPv4</SelectItem>
-                  <SelectItem value="ipv6">IPv6</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="destination">Destination (CIDR)</Label>
-              <Input
-                id="destination"
-                placeholder={routeType === "ipv4" ? "10.0.0.0/8" : "2001:db8::/32"}
-                value={destination}
-                onChange={(e) => setDestination(e.target.value)}
-              />
-            </div>
+          <div className="space-y-2">
+            <Label>Destination (CIDR)</Label>
+            <Input value={route.destination} disabled className="bg-muted font-mono" />
+            <p className="text-xs text-muted-foreground">
+              Destination cannot be changed. Delete and recreate to change destination.
+            </p>
           </div>
 
           <div className="space-y-2">
@@ -396,7 +360,7 @@ export function CreateTableRouteModal({
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Create Route
+            Save Changes
           </Button>
         </DialogFooter>
       </DialogContent>
