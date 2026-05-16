@@ -85,16 +85,22 @@ export function EditRouteRuleModal({
   const [destMac, setDestMac] = useState("");
   const [destMacInvert, setDestMacInvert] = useState(false);
 
-  // Match Conditions - Groups (address/domain are mutually exclusive, mac and port are independent)
+  // Match Conditions - Groups (address/network/domain are mutually exclusive, mac and port are independent)
   const [sourceAddressDomainType, setSourceAddressDomainType] = useState<string>("none");
   const [sourceAddressDomainValue, setSourceAddressDomainValue] = useState<string>("");
+  const [sourceGroupInvert, setSourceGroupInvert] = useState(false);
   const [sourceMacGroup, setSourceMacGroup] = useState<string>("");
+  const [sourceMacGroupInvert, setSourceMacGroupInvert] = useState(false);
   const [sourcePortGroup, setSourcePortGroup] = useState<string>("");
+  const [sourcePortGroupInvert, setSourcePortGroupInvert] = useState(false);
 
   const [destAddressDomainType, setDestAddressDomainType] = useState<string>("none");
   const [destAddressDomainValue, setDestAddressDomainValue] = useState<string>("");
+  const [destGroupInvert, setDestGroupInvert] = useState(false);
   const [destMacGroup, setDestMacGroup] = useState<string>("");
+  const [destMacGroupInvert, setDestMacGroupInvert] = useState(false);
   const [destPortGroup, setDestPortGroup] = useState<string>("");
+  const [destPortGroupInvert, setDestPortGroupInvert] = useState(false);
 
   // Match Conditions - Port
   const [sourcePort, setSourcePort] = useState("");
@@ -243,32 +249,89 @@ export function EditRouteRuleModal({
       setDestMacInvert(false);
     }
 
-    // Match - Groups (detect which type is set)
+    // Match - Groups (detect which type is set, strip ! prefix for invert)
+    const parseGroup = (raw: string) => {
+      const inverted = raw.startsWith("!");
+      return { value: inverted ? raw.slice(1) : raw, inverted };
+    };
+
     if (match.source_group_address) {
+      const { value, inverted } = parseGroup(match.source_group_address);
       setSourceAddressDomainType("address");
-      setSourceAddressDomainValue(match.source_group_address);
+      setSourceAddressDomainValue(value);
+      setSourceGroupInvert(inverted);
+    } else if (match.source_group_network) {
+      const { value, inverted } = parseGroup(match.source_group_network);
+      setSourceAddressDomainType("network");
+      setSourceAddressDomainValue(value);
+      setSourceGroupInvert(inverted);
     } else if (match.source_group_domain) {
+      const { value, inverted } = parseGroup(match.source_group_domain);
       setSourceAddressDomainType("domain");
-      setSourceAddressDomainValue(match.source_group_domain);
+      setSourceAddressDomainValue(value);
+      setSourceGroupInvert(inverted);
     } else {
       setSourceAddressDomainType("none");
       setSourceAddressDomainValue("");
+      setSourceGroupInvert(false);
     }
-    setSourceMacGroup(match.source_group_mac || "");
-    setSourcePortGroup(match.source_group_port || "");
+
+    const srcMacRaw = match.source_group_mac || "";
+    if (srcMacRaw.startsWith("!")) {
+      setSourceMacGroup(srcMacRaw.slice(1));
+      setSourceMacGroupInvert(true);
+    } else {
+      setSourceMacGroup(srcMacRaw);
+      setSourceMacGroupInvert(false);
+    }
+
+    const srcPortRaw = match.source_group_port || "";
+    if (srcPortRaw.startsWith("!")) {
+      setSourcePortGroup(srcPortRaw.slice(1));
+      setSourcePortGroupInvert(true);
+    } else {
+      setSourcePortGroup(srcPortRaw);
+      setSourcePortGroupInvert(false);
+    }
 
     if (match.destination_group_address) {
+      const { value, inverted } = parseGroup(match.destination_group_address);
       setDestAddressDomainType("address");
-      setDestAddressDomainValue(match.destination_group_address);
+      setDestAddressDomainValue(value);
+      setDestGroupInvert(inverted);
+    } else if (match.destination_group_network) {
+      const { value, inverted } = parseGroup(match.destination_group_network);
+      setDestAddressDomainType("network");
+      setDestAddressDomainValue(value);
+      setDestGroupInvert(inverted);
     } else if (match.destination_group_domain) {
+      const { value, inverted } = parseGroup(match.destination_group_domain);
       setDestAddressDomainType("domain");
-      setDestAddressDomainValue(match.destination_group_domain);
+      setDestAddressDomainValue(value);
+      setDestGroupInvert(inverted);
     } else {
       setDestAddressDomainType("none");
       setDestAddressDomainValue("");
+      setDestGroupInvert(false);
     }
-    setDestMacGroup(match.destination_group_mac || "");
-    setDestPortGroup(match.destination_group_port || "");
+
+    const dstMacRaw = match.destination_group_mac || "";
+    if (dstMacRaw.startsWith("!")) {
+      setDestMacGroup(dstMacRaw.slice(1));
+      setDestMacGroupInvert(true);
+    } else {
+      setDestMacGroup(dstMacRaw);
+      setDestMacGroupInvert(false);
+    }
+
+    const dstPortRaw = match.destination_group_port || "";
+    if (dstPortRaw.startsWith("!")) {
+      setDestPortGroup(dstPortRaw.slice(1));
+      setDestPortGroupInvert(true);
+    } else {
+      setDestPortGroup(dstPortRaw);
+      setDestPortGroupInvert(false);
+    }
 
     // Match - Port
     setSourcePort(match.source_port || "");
@@ -397,18 +460,22 @@ export function EditRouteRuleModal({
 
       // Match - Groups
       if (sourceAddressDomainType !== "none" && sourceAddressDomainValue) {
-        if (sourceAddressDomainType === "address") match.source_group_address = sourceAddressDomainValue;
-        else if (sourceAddressDomainType === "domain") match.source_group_domain = sourceAddressDomainValue;
+        const srcGrpVal = sourceGroupInvert ? `!${sourceAddressDomainValue}` : sourceAddressDomainValue;
+        if (sourceAddressDomainType === "address") match.source_group_address = srcGrpVal;
+        else if (sourceAddressDomainType === "network") match.source_group_network = srcGrpVal;
+        else if (sourceAddressDomainType === "domain") match.source_group_domain = srcGrpVal;
       }
-      if (sourceMacGroup) match.source_group_mac = sourceMacGroup;
-      if (sourcePortGroup) match.source_group_port = sourcePortGroup;
+      if (sourceMacGroup) match.source_group_mac = sourceMacGroupInvert ? `!${sourceMacGroup}` : sourceMacGroup;
+      if (sourcePortGroup) match.source_group_port = sourcePortGroupInvert ? `!${sourcePortGroup}` : sourcePortGroup;
 
       if (destAddressDomainType !== "none" && destAddressDomainValue) {
-        if (destAddressDomainType === "address") match.destination_group_address = destAddressDomainValue;
-        else if (destAddressDomainType === "domain") match.destination_group_domain = destAddressDomainValue;
+        const dstGrpVal = destGroupInvert ? `!${destAddressDomainValue}` : destAddressDomainValue;
+        if (destAddressDomainType === "address") match.destination_group_address = dstGrpVal;
+        else if (destAddressDomainType === "network") match.destination_group_network = dstGrpVal;
+        else if (destAddressDomainType === "domain") match.destination_group_domain = dstGrpVal;
       }
-      if (destMacGroup) match.destination_group_mac = destMacGroup;
-      if (destPortGroup) match.destination_group_port = destPortGroup;
+      if (destMacGroup) match.destination_group_mac = destMacGroupInvert ? `!${destMacGroup}` : destMacGroup;
+      if (destPortGroup) match.destination_group_port = destPortGroupInvert ? `!${destPortGroup}` : destPortGroup;
 
       // Match - Port
       if (sourcePort) match.source_port = sourcePort;
@@ -713,7 +780,7 @@ export function EditRouteRuleModal({
                 {/* Source Groups */}
                 <div className="space-y-4">
                   <div>
-                    <Label className="text-sm font-medium mb-2 block">Source Address/Domain Group (choose one)</Label>
+                    <Label className="text-sm font-medium mb-2 block">Source Address/Network/Domain Group (choose one)</Label>
                     <RadioGroup value={sourceAddressDomainType} onValueChange={(value) => {
                       setSourceAddressDomainType(value);
                       setSourceAddressDomainValue("");
@@ -725,6 +792,10 @@ export function EditRouteRuleModal({
                       <div className="flex items-center space-x-2">
                         <RadioGroupItem value="address" id="edit-src-address" />
                         <Label htmlFor="edit-src-address" className="font-normal cursor-pointer">Address Group</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="network" id="edit-src-network" />
+                        <Label htmlFor="edit-src-network" className="font-normal cursor-pointer">Network Group</Label>
                       </div>
                       <div className="flex items-center space-x-2">
                         <RadioGroupItem value="domain" id="edit-src-domain" />
@@ -742,7 +813,9 @@ export function EditRouteRuleModal({
                             {getGroupsByType(
                               sourceAddressDomainType === "address"
                                 ? (policyType === "route" ? "address-group" : "ipv6-address-group")
-                                : "domain-group"
+                                : sourceAddressDomainType === "network"
+                                  ? (policyType === "route" ? "network-group" : "ipv6-network-group")
+                                  : "domain-group"
                             ).map((g) => (
                               <SelectItem key={g.name} value={g.name}>
                                 {g.name}
@@ -750,6 +823,17 @@ export function EditRouteRuleModal({
                             ))}
                           </SelectContent>
                         </Select>
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id="edit-sourceGroupInvert"
+                            checked={sourceGroupInvert}
+                            onCheckedChange={(checked) => setSourceGroupInvert(checked as boolean)}
+                            disabled={loading}
+                          />
+                          <Label htmlFor="edit-sourceGroupInvert" className="text-sm font-normal cursor-pointer">
+                            Invert match
+                          </Label>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -768,6 +852,19 @@ export function EditRouteRuleModal({
                         ))}
                       </SelectContent>
                     </Select>
+                    {sourceMacGroup && (
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="edit-sourceMacGroupInvert"
+                          checked={sourceMacGroupInvert}
+                          onCheckedChange={(checked) => setSourceMacGroupInvert(checked as boolean)}
+                          disabled={loading}
+                        />
+                        <Label htmlFor="edit-sourceMacGroupInvert" className="text-sm font-normal cursor-pointer">
+                          Invert match
+                        </Label>
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -785,7 +882,20 @@ export function EditRouteRuleModal({
                       </SelectContent>
                     </Select>
                     {sourcePortGroup && (
-                      <p className="text-xs text-muted-foreground">Protocol will be restricted to TCP/UDP</p>
+                      <>
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id="edit-sourcePortGroupInvert"
+                            checked={sourcePortGroupInvert}
+                            onCheckedChange={(checked) => setSourcePortGroupInvert(checked as boolean)}
+                            disabled={loading}
+                          />
+                          <Label htmlFor="edit-sourcePortGroupInvert" className="text-sm font-normal cursor-pointer">
+                            Invert match
+                          </Label>
+                        </div>
+                        <p className="text-xs text-muted-foreground">Protocol will be restricted to TCP/UDP</p>
+                      </>
                     )}
                   </div>
                 </div>
@@ -793,7 +903,7 @@ export function EditRouteRuleModal({
                 {/* Destination Groups */}
                 <div className="space-y-4">
                   <div>
-                    <Label className="text-sm font-medium mb-2 block">Destination Address/Domain Group (choose one)</Label>
+                    <Label className="text-sm font-medium mb-2 block">Destination Address/Network/Domain Group (choose one)</Label>
                     <RadioGroup value={destAddressDomainType} onValueChange={(value) => {
                       setDestAddressDomainType(value);
                       setDestAddressDomainValue("");
@@ -805,6 +915,10 @@ export function EditRouteRuleModal({
                       <div className="flex items-center space-x-2">
                         <RadioGroupItem value="address" id="edit-dst-address" />
                         <Label htmlFor="edit-dst-address" className="font-normal cursor-pointer">Address Group</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="network" id="edit-dst-network" />
+                        <Label htmlFor="edit-dst-network" className="font-normal cursor-pointer">Network Group</Label>
                       </div>
                       <div className="flex items-center space-x-2">
                         <RadioGroupItem value="domain" id="edit-dst-domain" />
@@ -822,7 +936,9 @@ export function EditRouteRuleModal({
                             {getGroupsByType(
                               destAddressDomainType === "address"
                                 ? (policyType === "route" ? "address-group" : "ipv6-address-group")
-                                : "domain-group"
+                                : destAddressDomainType === "network"
+                                  ? (policyType === "route" ? "network-group" : "ipv6-network-group")
+                                  : "domain-group"
                             ).map((g) => (
                               <SelectItem key={g.name} value={g.name}>
                                 {g.name}
@@ -830,6 +946,17 @@ export function EditRouteRuleModal({
                             ))}
                           </SelectContent>
                         </Select>
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id="edit-destGroupInvert"
+                            checked={destGroupInvert}
+                            onCheckedChange={(checked) => setDestGroupInvert(checked as boolean)}
+                            disabled={loading}
+                          />
+                          <Label htmlFor="edit-destGroupInvert" className="text-sm font-normal cursor-pointer">
+                            Invert match
+                          </Label>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -848,6 +975,19 @@ export function EditRouteRuleModal({
                         ))}
                       </SelectContent>
                     </Select>
+                    {destMacGroup && (
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="edit-destMacGroupInvert"
+                          checked={destMacGroupInvert}
+                          onCheckedChange={(checked) => setDestMacGroupInvert(checked as boolean)}
+                          disabled={loading}
+                        />
+                        <Label htmlFor="edit-destMacGroupInvert" className="text-sm font-normal cursor-pointer">
+                          Invert match
+                        </Label>
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -865,7 +1005,20 @@ export function EditRouteRuleModal({
                       </SelectContent>
                     </Select>
                     {destPortGroup && (
-                      <p className="text-xs text-muted-foreground">Protocol will be restricted to TCP/UDP</p>
+                      <>
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id="edit-destPortGroupInvert"
+                            checked={destPortGroupInvert}
+                            onCheckedChange={(checked) => setDestPortGroupInvert(checked as boolean)}
+                            disabled={loading}
+                          />
+                          <Label htmlFor="edit-destPortGroupInvert" className="text-sm font-normal cursor-pointer">
+                            Invert match
+                          </Label>
+                        </div>
+                        <p className="text-xs text-muted-foreground">Protocol will be restricted to TCP/UDP</p>
+                      </>
                     )}
                   </div>
                 </div>
