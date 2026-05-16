@@ -24,6 +24,7 @@ import {
   Phone,
   Key,
 } from "lucide-react";
+import { Activity, Shield, ShieldCheck, Network, Lock, FileText, LayoutDashboard, Server, Settings, HeartPulse, Route as RouteIcon, Scale, Layers, ArrowLeftRight, Package, Box, Terminal } from "lucide-react";
 import { FeatureGroup } from "@/lib/api/user-management";
 
 export interface NavSection {
@@ -309,6 +310,7 @@ export const navigation: NavItem[] = [
       { id: "container-images", title: "Images", href: "/system/containers", description: "Manage container images", searchParams: { tab: "images" } },
       { id: "container-networks", title: "Networks", href: "/system/containers", description: "Container networks and bridges", searchParams: { tab: "networks" } },
     ] },
+  { title: "Console", href: "/console", icon: Terminal, requiredPermission: FeatureGroup.SSH_CONSOLE },
   { title: "Settings", href: "/settings", icon: Settings },
 ];
 
