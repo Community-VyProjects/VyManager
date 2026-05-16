@@ -32,6 +32,8 @@ import {
   ChevronRight,
   ChevronDown,
   Trash2,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 import {
   Collapsible,
@@ -82,6 +84,7 @@ const POLICIES_COLUMNS: ColumnDef[] = [
   { id: "time",          label: "Time",         defaultVisible: false },
   { id: "icmpType",      label: "ICMP Type",    defaultVisible: false },
   { id: "tcpFlags",      label: "TCP Flags",    defaultVisible: false },
+  { id: "connectionStatus", label: "Conn Status", defaultVisible: false },
   { id: "mark",          label: "Mark",         defaultVisible: false },
   { id: "packetLength",  label: "Pkt Length",   defaultVisible: false },
   { id: "recent",        label: "Recent",       defaultVisible: false },
@@ -140,6 +143,9 @@ export default function FirewallPoliciesPage() {
   const [hasChangesIPv6, setHasChangesIPv6] = useState(false);
   const [activeIdIPv6, setActiveIdIPv6] = useState<number | null>(null);
   const [savingReorderIPv6, setSavingReorderIPv6] = useState(false);
+
+  // Sidebar collapsed state
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Column visibility & order
   const { visibleColumns, toggleColumn, visibleColumnCount, orderedColumns, visibleOrderedColumns, reorderColumns, resetToDefault } =
@@ -654,18 +660,45 @@ export default function FirewallPoliciesPage() {
     <AppLayout>
       <div className="flex h-full">
         {/* Sidebar */}
-        <div className="w-80 border-r border-border bg-card/50 flex flex-col h-full">
+        <div className={cn(
+          "border-r border-border bg-card/50 flex flex-col h-full transition-all duration-300 shrink-0",
+          sidebarCollapsed ? "w-12" : "w-80"
+        )}>
+          {sidebarCollapsed ? (
+            /* Collapsed strip */
+            <div className="flex flex-col items-center py-4 gap-4">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setSidebarCollapsed(false)}
+              >
+                <PanelLeftOpen className="h-4 w-4" />
+              </Button>
+              <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Shield className="h-4 w-4 text-primary" />
+              </div>
+            </div>
+          ) : (
           <div className="p-6 pb-4 flex flex-col flex-1 min-h-0 overflow-hidden">
             <div className="flex items-center gap-3 mb-6">
               <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
                 <Shield className="h-5 w-5 text-primary" />
               </div>
-              <div>
+              <div className="flex-1 min-w-0">
                 <h1 className="text-lg font-semibold text-foreground">Firewall Policies</h1>
                 <p className="text-xs text-muted-foreground">
                   {totalRules} rule{totalRules !== 1 ? "s" : ""}
                 </p>
               </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 shrink-0"
+                onClick={() => setSidebarCollapsed(true)}
+              >
+                <PanelLeftClose className="h-4 w-4" />
+              </Button>
             </div>
 
             <Tabs
@@ -910,6 +943,7 @@ export default function FirewallPoliciesPage() {
               </TabsContent>
             </Tabs>
           </div>
+          )}
         </div>
 
         {/* Main Content */}
@@ -1117,6 +1151,7 @@ export default function FirewallPoliciesPage() {
                               state: "w-[120px]", description: "w-[200px]", status: "w-[100px]",
                               log: "w-[80px]", interface: "w-[140px]", limit: "w-[120px]",
                               time: "w-[160px]", icmpType: "w-[120px]", tcpFlags: "w-[120px]",
+                              connectionStatus: "w-[120px]",
                               mark: "w-[100px]", packetLength: "w-[100px]", recent: "w-[100px]",
                             };
                             return (
