@@ -252,7 +252,6 @@ export const navigation: NavItem[] = [
       { title: "WAN", href: "/load-balancing/wan", icon: Globe, requiredPermission: FeatureGroup.LOAD_BALANCING },
     ],
   },
-<<<<<<< HEAD
   { title: "High Availability", href: "/network/high-availability", icon: HeartPulse, requiredPermission: FeatureGroup.HIGH_AVAILABILITY, sections: [
       { id: "vrrp", title: "VRRP Groups", href: "/network/high-availability", description: "Manage VRRP group configuration", searchParams: { tab: "vrrp" } },
       { id: "sync", title: "Sync Groups", href: "/network/high-availability", description: "Manage HA sync group configuration", searchParams: { tab: "sync" } },
@@ -285,12 +284,6 @@ export const navigation: NavItem[] = [
       { id: "container-images", title: "Images", href: "/system/containers", description: "Manage container images", searchParams: { tab: "images" } },
       { id: "container-networks", title: "Networks", href: "/system/containers", description: "Container networks and bridges", searchParams: { tab: "networks" } },
     ] },
-=======
-  { title: "High Availability", href: "/network/high-availability", icon: HeartPulse, requiredPermission: FeatureGroup.HIGH_AVAILABILITY },
-  { title: "Monitoring", href: "/monitoring", icon: Activity, requiredPermission: FeatureGroup.MONITORING },
-  { title: "System", href: "/system/settings", icon: Server, requiredPermission: FeatureGroup.SYSTEM },
-  { title: "Containers", href: "/system/containers", icon: Box, requiredPermission: FeatureGroup.CONTAINER },
->>>>>>> origin/beta
   { title: "Console", href: "/console", icon: Terminal, requiredPermission: FeatureGroup.SSH_CONSOLE },
   { title: "Settings", href: "/settings", icon: Settings },
 ];
