@@ -84,21 +84,29 @@ export function RouteRuleRow({ rule, onEdit, onDelete }: RouteRuleRowProps) {
     recent_time: "Recent Time",
   };
 
+  const SET_LABELS: Record<string, string> = {
+    connection_mark: "Conn Mark",
+    dscp: "DSCP",
+    mark: "Mark",
+    table: "Table",
+    tcp_mss: "TCP MSS",
+    vrf: "VRF",
+  };
+
   const activeMatchConditions = rule.match
     ? Object.entries(rule.match).filter(
         ([, value]) => value !== null && value !== undefined && value !== false && value !== ""
       )
     : [];
 
-  // Count match conditions
-  const matchCount = activeMatchConditions.length;
+  const activeSetActions = rule.set
+    ? Object.entries(rule.set).filter(
+        ([key, value]) => key !== "action_drop" && value !== null && value !== undefined && value !== false && value !== ""
+      )
+    : [];
 
-  // Count set actions
-  const setCount = rule.set
-    ? Object.values(rule.set).filter(
-        (value) => value !== null && value !== undefined && value !== false && value !== ""
-      ).length
-    : 0;
+  const matchCount = activeMatchConditions.length;
+  const setCount = activeSetActions.length;
 
   return (
     <TableRow
@@ -151,26 +159,30 @@ export function RouteRuleRow({ rule, onEdit, onDelete }: RouteRuleRowProps) {
         {rule.set?.action_drop ? (
           <Badge variant="destructive">Drop</Badge>
         ) : setCount > 0 ? (
-          <div className="flex flex-wrap gap-1">
-            <Badge variant="secondary" className="text-xs bg-blue-500/10 text-blue-500 border-blue-500/20">
-              {setCount} action{setCount !== 1 ? "s" : ""}
-            </Badge>
-            {rule.set.table && (
-              <Badge variant="secondary" className="text-xs bg-purple-500/10 text-purple-500 border-purple-500/20">
-                Table: {rule.set.table}
-              </Badge>
-            )}
-            {rule.set.vrf && (
-              <Badge variant="secondary" className="text-xs bg-yellow-500/10 text-yellow-500 border-yellow-500/20">
-                VRF: {rule.set.vrf}
-              </Badge>
-            )}
-            {rule.set.mark && (
-              <Badge variant="secondary" className="text-xs bg-green-500/10 text-green-500 border-green-500/20">
-                Mark: {rule.set.mark}
-              </Badge>
-            )}
-          </div>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge variant="secondary" className="text-xs bg-blue-500/10 text-blue-500 border-blue-500/20 cursor-help">
+                  {setCount} action{setCount !== 1 ? "s" : ""}
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent
+                side="top"
+                avoidCollisions
+                collisionPadding={8}
+                className="p-2 max-w-[220px]"
+              >
+                <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
+                  {activeSetActions.map(([key, value]) => (
+                    <div key={key} className="contents">
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">{SET_LABELS[key] ?? key}:</span>
+                      <span className="text-xs font-mono truncate">{String(value)}</span>
+                    </div>
+                  ))}
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         ) : (
           <span className="text-muted-foreground text-sm">—</span>
         )}
