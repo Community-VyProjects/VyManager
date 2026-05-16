@@ -77,6 +77,8 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: oklch(0.75 0 0 / 35%);
 }
 
 .light {
@@ -111,6 +113,8 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: oklch(0.75 0 0 / 35%);
 }
 
 .dark {
@@ -145,6 +149,8 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+  --scrollbar-track: oklch(0.22 0 0 / 60%);
+  --scrollbar-thumb: oklch(0.45 0 0 / 70%);
 }
 
 @layer base {
@@ -168,6 +174,34 @@
   /* Backdrop blur utilities */
   .backdrop-blur-xl {
     backdrop-filter: blur(24px);
+  }
+
+  .scrollbar-themed {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  }
+
+  .scrollbar-themed::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .scrollbar-themed::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+    border-radius: 4px;
+  }
+
+  .scrollbar-themed::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 4px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+
+  .scrollbar-themed::-webkit-scrollbar-thumb:hover {
+    background: var(--foreground);
+    background-clip: padding-box;
+    opacity: 0.35;
   }
 }
 

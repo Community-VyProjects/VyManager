@@ -1,6 +1,10 @@
 "use client";
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect } from "react";
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -38,7 +42,8 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { apiClient } from "@/lib/api/client";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-export default function RoutePage() {
+function RoutePageInner() {
+  const searchParams = useSearchParams();
   const [ipv4Policies, setIpv4Policies] = useState<PolicyRoute[]>([]);
   const [ipv6Policies, setIpv6Policies] = useState<PolicyRoute[]>([]);
   const [loading, setLoading] = useState(true);
@@ -82,7 +87,9 @@ export default function RoutePage() {
     })
   );
 
-  const fetchData = async (refresh: boolean = false) => {
+  const fetchData = async (refresh: boolean = false, initialPolicyType: "route" | "route6" | null = null) => {
+    const activePolicyType = initialPolicyType || selectedPolicyType;
+
     try {
       setLoading(true);
       setError(null);
@@ -101,7 +108,7 @@ export default function RoutePage() {
 
       // Auto-select first policy if none selected
       if (!selectedPolicyName) {
-        const policies = selectedPolicyType === "route" ? config.ipv4_policies : config.ipv6_policies;
+        const policies = activePolicyType === "route" ? config.ipv4_policies : config.ipv6_policies;
         if (policies.length > 0) {
           setSelectedPolicyName(policies[0].name);
         }
@@ -115,7 +122,13 @@ export default function RoutePage() {
   };
 
   useEffect(() => {
-    fetchData();
+    const section = searchParams.get("section");
+    const initialPolicyType = section === "route6" ? "route6" : "route";
+    if (section === "route" || section === "route6") {
+      setSelectedPolicyType(section);
+    }
+    fetchData(false, initialPolicyType);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const policies = selectedPolicyType === "route" ? ipv4Policies : ipv6Policies;
@@ -756,5 +769,13 @@ export default function RoutePage() {
         </>
       )}
     </AppLayout>
+  );
+}
+
+export default function RoutePage() {
+  return (
+    <Suspense>
+      <RoutePageInner />
+    </Suspense>
   );
 }

@@ -1,5 +1,9 @@
 "use client";
 
+export const dynamic = 'force-dynamic';
+
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -46,7 +50,8 @@ import { DeleteAccessListRuleModal } from "@/components/policies/DeleteAccessLis
 import { AccessListRuleRow } from "@/components/policies/AccessListRuleRow";
 import { AccessListReorderBanner } from "@/components/policies/AccessListReorderBanner";
 
-export default function AccessListPage() {
+function AccessListPageInner() {
+  const searchParams = useSearchParams();
   const [config, setConfig] = useState<AccessListConfigResponse | null>(null);
   const [capabilities, setCapabilities] = useState<AccessListCapabilitiesResponse | null>(null);
   const [selectedListType, setSelectedListType] = useState<"ipv4" | "ipv6">("ipv4");
@@ -84,6 +89,13 @@ export default function AccessListPage() {
     fetchConfig();
     fetchCapabilities();
   }, []);
+
+  useEffect(() => {
+    const section = searchParams.get("section");
+    if (section === "ipv4" || section === "ipv6") {
+      setSelectedListType(section);
+    }
+  }, [searchParams]);
 
   const fetchConfig = async (refresh: boolean = false) => {
     try {
@@ -615,5 +627,13 @@ export default function AccessListPage() {
         </>
       )}
     </AppLayout>
+  );
+}
+
+export default function AccessListPage() {
+  return (
+    <Suspense>
+      <AccessListPageInner />
+    </Suspense>
   );
 }

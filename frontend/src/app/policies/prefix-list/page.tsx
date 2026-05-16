@@ -1,5 +1,9 @@
 "use client";
 
+export const dynamic = 'force-dynamic';
+
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -46,7 +50,8 @@ import { DeletePrefixListRuleModal } from "@/components/policies/DeletePrefixLis
 import { PrefixListRuleRow } from "@/components/policies/PrefixListRuleRow";
 import { PrefixListReorderBanner } from "@/components/policies/PrefixListReorderBanner";
 
-export default function PrefixListPage() {
+function PrefixListPageInner() {
+  const searchParams = useSearchParams();
   const [config, setConfig] = useState<PrefixListConfigResponse | null>(null);
   const [capabilities, setCapabilities] = useState<PrefixListCapabilitiesResponse | null>(null);
   const [selectedListType, setSelectedListType] = useState<"ipv4" | "ipv6">("ipv4");
@@ -84,6 +89,13 @@ export default function PrefixListPage() {
     fetchConfig();
     fetchCapabilities();
   }, []);
+
+  useEffect(() => {
+    const section = searchParams.get("section");
+    if (section === "ipv4" || section === "ipv6") {
+      setSelectedListType(section);
+    }
+  }, [searchParams]);
 
   const fetchConfig = async (refresh: boolean = false) => {
     try {
@@ -609,5 +621,13 @@ export default function PrefixListPage() {
         </>
       )}
     </AppLayout>
+  );
+}
+
+export default function PrefixListPage() {
+  return (
+    <Suspense>
+      <PrefixListPageInner />
+    </Suspense>
   );
 }

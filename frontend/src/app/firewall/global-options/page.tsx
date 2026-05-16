@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = 'force-dynamic';
+
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,6 +25,8 @@ import {
   Settings,
 } from "lucide-react";
 import { useState, useEffect } from "react";
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   firewallGlobalOptionsService,
   type FirewallGlobalOptionsConfig,
@@ -30,7 +34,8 @@ import {
 } from "@/lib/api/firewall-global-options";
 import { cn } from "@/lib/utils";
 
-export default function FirewallGlobalOptionsPage() {
+function FirewallGlobalOptionsPageInner() {
+  const searchParams = useSearchParams();
   const [config, setConfig] = useState<FirewallGlobalOptionsConfig | null>(null);
   const [capabilities, setCapabilities] = useState<FirewallGlobalOptionsCapabilities | null>(null);
   const [loading, setLoading] = useState(true);
@@ -260,6 +265,17 @@ export default function FirewallGlobalOptionsPage() {
     loadData();
   }, []);
 
+  useEffect(() => {
+    const field = searchParams.get("field");
+    const section = searchParams.get("section");
+    const targetId = field || section;
+    if (targetId) {
+      requestAnimationFrame(() => {
+        document.getElementById(targetId)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+    }
+  }, [searchParams]);
+
   const handleSave = async () => {
     try {
       setSaving(true);
@@ -362,15 +378,20 @@ export default function FirewallGlobalOptionsPage() {
     value,
     onChange,
     options,
-    description
+    description,
+    fieldId,
   }: {
     label: string;
     value: string;
     onChange: (v: string) => void;
     options: { value: string; label: string }[];
     description?: string;
+    fieldId?: string;
   }) => (
-    <div className="flex items-center justify-between py-2 border-b border-border/50 last:border-0">
+    <div
+      id={fieldId}
+      className="flex items-center justify-between py-2 border-b border-border/50 last:border-0 scroll-mt-24"
+    >
       <div className="flex-1 min-w-0 pr-4">
         <span className="text-sm font-medium">{label}</span>
         {description && <p className="text-xs text-muted-foreground mt-0.5">{description}</p>}
@@ -486,12 +507,13 @@ export default function FirewallGlobalOptionsPage() {
           {/* Left Column */}
           <div className="space-y-4">
             {/* ICMP Settings */}
-            <Card>
+            <Card id="icmp-settings">
               <CardHeader className="py-3 px-4">
                 <CardTitle className="text-sm font-semibold">ICMP Settings</CardTitle>
               </CardHeader>
               <CardContent className="px-4 pb-3 pt-0">
                 <SettingSelect
+                  fieldId="all-ping"
                   label="All Ping"
                   value={allPing}
                   onChange={setAllPing}
@@ -499,6 +521,7 @@ export default function FirewallGlobalOptionsPage() {
                   description="Accept/reject all IPv4 ICMP echo requests"
                 />
                 <SettingSelect
+                  fieldId="broadcast-ping"
                   label="Broadcast Ping"
                   value={broadcastPing}
                   onChange={setBroadcastPing}
@@ -509,18 +532,20 @@ export default function FirewallGlobalOptionsPage() {
             </Card>
 
             {/* Source Routing */}
-            <Card>
+            <Card id="source-routing">
               <CardHeader className="py-3 px-4">
                 <CardTitle className="text-sm font-semibold">Source Routing</CardTitle>
               </CardHeader>
               <CardContent className="px-4 pb-3 pt-0">
                 <SettingSelect
+                  fieldId="ipv4-source-routing"
                   label="IPv4 Source Routing"
                   value={ipSrcRoute}
                   onChange={setIpSrcRoute}
                   options={enableDisableOptions}
                 />
                 <SettingSelect
+                  fieldId="ipv6-source-routing"
                   label="IPv6 Source Routing"
                   value={ipv6SrcRoute}
                   onChange={setIpv6SrcRoute}
@@ -530,24 +555,27 @@ export default function FirewallGlobalOptionsPage() {
             </Card>
 
             {/* ICMP Redirects */}
-            <Card>
+            <Card id="icmp-redirects">
               <CardHeader className="py-3 px-4">
                 <CardTitle className="text-sm font-semibold">ICMP Redirects</CardTitle>
               </CardHeader>
               <CardContent className="px-4 pb-3 pt-0">
                 <SettingSelect
+                  fieldId="receive-redirects-ipv4"
                   label="Receive Redirects (IPv4)"
                   value={receiveRedirects}
                   onChange={setReceiveRedirects}
                   options={enableDisableOptions}
                 />
                 <SettingSelect
+                  fieldId="receive-redirects-ipv6"
                   label="Receive Redirects (IPv6)"
                   value={ipv6ReceiveRedirects}
                   onChange={setIpv6ReceiveRedirects}
                   options={enableDisableOptions}
                 />
                 <SettingSelect
+                  fieldId="send-redirects"
                   label="Send Redirects"
                   value={sendRedirects}
                   onChange={setSendRedirects}
@@ -557,12 +585,13 @@ export default function FirewallGlobalOptionsPage() {
             </Card>
 
             {/* Security Options */}
-            <Card>
+            <Card id="security-options">
               <CardHeader className="py-3 px-4">
                 <CardTitle className="text-sm font-semibold">Security Options</CardTitle>
               </CardHeader>
               <CardContent className="px-4 pb-3 pt-0">
                 <SettingSelect
+                  fieldId="log-martians"
                   label="Log Martians"
                   value={logMartians}
                   onChange={setLogMartians}
@@ -570,6 +599,7 @@ export default function FirewallGlobalOptionsPage() {
                   description="Log packets with impossible addresses"
                 />
                 <SettingSelect
+                  fieldId="source-validation"
                   label="Source Validation"
                   value={sourceValidation}
                   onChange={setSourceValidation}
@@ -577,6 +607,7 @@ export default function FirewallGlobalOptionsPage() {
                   description="Reverse path filtering mode"
                 />
                 <SettingSelect
+                  fieldId="syn-cookies"
                   label="SYN Cookies"
                   value={synCookies}
                   onChange={setSynCookies}
@@ -584,6 +615,7 @@ export default function FirewallGlobalOptionsPage() {
                   description="SYN flood protection"
                 />
                 <SettingSelect
+                  fieldId="twa-hazards"
                   label="TWA Hazards Protection"
                   value={twaHazardsProtection}
                   onChange={setTwaHazardsProtection}
@@ -597,7 +629,7 @@ export default function FirewallGlobalOptionsPage() {
           {/* Right Column */}
           <div className="space-y-4">
             {/* State Policies */}
-            <Card>
+            <Card id="state-policies">
               <CardHeader className="py-3 px-4">
                 <CardTitle className="text-sm font-semibold">State Policies</CardTitle>
               </CardHeader>
@@ -608,7 +640,7 @@ export default function FirewallGlobalOptionsPage() {
                     <Badge variant="outline" className="text-xs font-medium">Established</Badge>
                   </div>
                   <div className="grid grid-cols-3 gap-2">
-                    <div>
+                    <div id="established-action" className="scroll-mt-24">
                       <Label className="text-xs text-muted-foreground">Action</Label>
                       <Select value={establishedAction} onValueChange={setEstablishedAction}>
                         <SelectTrigger className="h-8 text-xs mt-1">
@@ -621,7 +653,7 @@ export default function FirewallGlobalOptionsPage() {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div>
+                    <div id="established-log-level" className="scroll-mt-24">
                       <Label className="text-xs text-muted-foreground">Log Level</Label>
                       <Select value={establishedLogLevel} onValueChange={setEstablishedLogLevel}>
                         <SelectTrigger className="h-8 text-xs mt-1">
@@ -634,7 +666,7 @@ export default function FirewallGlobalOptionsPage() {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="flex items-end pb-1">
+                    <div id="established-log" className="flex items-end pb-1 scroll-mt-24">
                       <div className="flex items-center gap-1.5">
                         <Checkbox
                           id="est-log"
@@ -741,7 +773,7 @@ export default function FirewallGlobalOptionsPage() {
 
             {/* Bridged Traffic - Only show if VyOS 1.5+ */}
             {isV15 && (
-              <Card>
+              <Card id="bridged-traffic">
                 <CardHeader className="py-3 px-4">
                   <CardTitle className="text-sm font-semibold">Bridged Traffic</CardTitle>
                 </CardHeader>
@@ -766,7 +798,7 @@ export default function FirewallGlobalOptionsPage() {
 
             {/* Connection Timeouts - Only show if VyOS 1.5+ */}
             {isV15 && (
-              <Card>
+              <Card id="connection-timeouts">
                 <CardHeader className="py-3 px-4">
                   <CardTitle className="text-sm font-semibold">Connection Timeouts</CardTitle>
                 </CardHeader>
@@ -855,5 +887,13 @@ export default function FirewallGlobalOptionsPage() {
         </div>
       </div>
     </AppLayout>
+  );
+}
+
+export default function FirewallGlobalOptionsPage() {
+  return (
+    <Suspense>
+      <FirewallGlobalOptionsPageInner />
+    </Suspense>
   );
 }

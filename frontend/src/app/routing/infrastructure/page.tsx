@@ -1,5 +1,9 @@
 "use client";
 
+export const dynamic = 'force-dynamic';
+
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { InProgress } from "@/components/layout/InProgress";
 import { BfdContent } from "@/components/bfd/BfdContent";
@@ -34,7 +38,8 @@ const allInfrastructure: {
   { id: "traffic-engineering", name: "Traffic Engineering", description: "MPLS-TE link parameter configuration", icon: GitBranch, permission: FeatureGroup.TRAFFIC_ENGINEERING, requiresCapability: true },
 ];
 
-export default function InfrastructurePage() {
+function InfrastructurePageInner() {
+  const searchParams = useSearchParams();
   const { canRead, isLoading } = usePermissions();
   const [teSupported, setTeSupported] = useState<boolean | null>(null);
 
@@ -57,12 +62,21 @@ export default function InfrastructurePage() {
 
   const [selectedInfra, setSelectedInfra] = useState<InfraType | null>(null);
 
-  // Auto-select first available infrastructure component
+  // Auto-select first available infrastructure component or use the requested section
   useEffect(() => {
-    if (infrastructure.length > 0 && !selectedInfra) {
+    if (infrastructure.length === 0) return;
+
+    const section = searchParams.get("section") as InfraType | null;
+
+    if (section && infrastructure.some((infra) => infra.id === section)) {
+      setSelectedInfra(section);
+      return;
+    }
+
+    if (!selectedInfra) {
       setSelectedInfra(infrastructure[0].id);
     }
-  }, [infrastructure, selectedInfra]);
+  }, [infrastructure, selectedInfra, searchParams]);
 
   return (
     <AppLayout>
@@ -161,5 +175,13 @@ export default function InfrastructurePage() {
         </div>
       </div>
     </AppLayout>
+  );
+}
+
+export default function InfrastructurePage() {
+  return (
+    <Suspense>
+      <InfrastructurePageInner />
+    </Suspense>
   );
 }

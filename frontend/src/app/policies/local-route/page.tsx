@@ -1,6 +1,10 @@
 "use client";
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect } from "react";
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -33,7 +37,8 @@ import { LocalRouteRuleRow } from "@/components/policies/LocalRouteRuleRow";
 import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors, closestCenter } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 
-export default function LocalRoutePage() {
+function LocalRoutePageInner() {
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [config, setConfig] = useState<LocalRouteConfigResponse | null>(null);
@@ -64,6 +69,13 @@ export default function LocalRoutePage() {
     fetchCapabilities();
     fetchConfig();
   }, []);
+
+  useEffect(() => {
+    const section = searchParams.get("section");
+    if (section === "ipv4" || section === "ipv6") {
+      setSelectedTab(section);
+    }
+  }, [searchParams]);
 
   const fetchCapabilities = async () => {
     try {
@@ -456,5 +468,13 @@ export default function LocalRoutePage() {
         />
       )}
     </AppLayout>
+  );
+}
+
+export default function LocalRoutePage() {
+  return (
+    <Suspense>
+      <LocalRoutePageInner />
+    </Suspense>
   );
 }

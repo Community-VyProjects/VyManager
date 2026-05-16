@@ -1,6 +1,10 @@
 "use client";
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect } from "react";
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Server, Users, FileText, Shield, Map, Settings2 } from "lucide-react";
@@ -18,7 +22,8 @@ import { ConntrackPanel } from "@/components/system/settings/ConntrackPanel";
 import { HostMappingPanel } from "@/components/system/settings/HostMappingPanel";
 import { AdvancedPanel } from "@/components/system/settings/AdvancedPanel";
 
-export default function SystemSettingsPage() {
+function SystemSettingsPageInner() {
+  const searchParams = useSearchParams();
   const [config, setConfig] = useState<SystemConfig | null>(null);
   const [capabilities, setCapabilities] = useState<SystemCapabilities | null>(null);
   const [loading, setLoading] = useState(true);
@@ -26,6 +31,7 @@ export default function SystemSettingsPage() {
   const { canWrite } = usePermissions();
 
   const isReadOnly = !canWrite(FeatureGroup.SYSTEM);
+  const [selectedTab, setSelectedTab] = useState("general");
 
   const load = (refresh = false) => {
     setLoading(true);
@@ -45,6 +51,10 @@ export default function SystemSettingsPage() {
   useEffect(() => {
     load(true);
   }, []);
+
+  useEffect(() => {
+    setSelectedTab(searchParams.get("tab") ?? "general");
+  }, [searchParams]);
 
   const refresh = () => load(true);
 
@@ -78,7 +88,7 @@ export default function SystemSettingsPage() {
         )}
 
         {!loading && config && capabilities && (
-          <Tabs defaultValue="general" className="space-y-6">
+          <Tabs value={selectedTab} onValueChange={setSelectedTab} className="space-y-6">
             <TabsList className="flex flex-wrap gap-1 h-auto">
               <TabsTrigger value="general" className="flex items-center gap-2">
                 <Settings2 className="h-4 w-4" />
@@ -162,5 +172,13 @@ export default function SystemSettingsPage() {
         )}
       </div>
     </AppLayout>
+  );
+}
+
+export default function SystemSettingsPage() {
+  return (
+    <Suspense>
+      <SystemSettingsPageInner />
+    </Suspense>
   );
 }

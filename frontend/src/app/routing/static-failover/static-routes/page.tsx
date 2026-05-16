@@ -1,5 +1,9 @@
 "use client";
 
+export const dynamic = 'force-dynamic';
+
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -55,7 +59,8 @@ import { DeleteNeighborProxyModal } from "@/components/routing/DeleteNeighborPro
 import { CreateRoutingTableModal } from "@/components/routing/CreateRoutingTableModal";
 import { RoutingTablesAccordion } from "@/components/routing/RoutingTablesAccordion";
 
-export default function StaticRoutesPage() {
+function StaticRoutesPageInner() {
+  const searchParams = useSearchParams();
   const [config, setConfig] = useState<StaticRoutesConfig | null>(null);
   const [capabilities, setCapabilities] = useState<StaticRoutesCapabilities | null>(null);
   const [loading, setLoading] = useState(true);
@@ -111,6 +116,13 @@ export default function StaticRoutesPage() {
   useEffect(() => {
     fetchConfig();
   }, []);
+
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (tab === "routes" || tab === "arp" || tab === "mroute" || tab === "neighbor-proxy" || tab === "tables") {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
 
   // Get current routes based on selected type
   const currentRoutes = selectedType === "ipv4"
@@ -959,5 +971,13 @@ export default function StaticRoutesPage() {
         onSuccess={() => fetchConfig(true)}
       />
     </>
+  );
+}
+
+export default function StaticRoutesPage() {
+  return (
+    <Suspense>
+      <StaticRoutesPageInner />
+    </Suspense>
   );
 }

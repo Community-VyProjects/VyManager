@@ -1,6 +1,10 @@
 "use client";
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect } from "react";
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -49,7 +53,8 @@ function getTableView(command: string): TableView | null {
   return TABLE_COMMANDS[command as keyof typeof TABLE_COMMANDS] ?? null;
 }
 
-export default function MonitoringPage() {
+function MonitoringPageInner() {
+  const searchParams = useSearchParams();
   const [session, setSession] = useState<ActiveSession | null>(null);
   const [sshStatus, setSSHStatus] = useState<MonitoringStatus | null>(null);
   const [commands, setCommands] = useState<MonitoringCommand[]>([]);
@@ -144,6 +149,20 @@ export default function MonitoringPage() {
   const handleStop = () => {
     stop();
   };
+
+  useEffect(() => {
+    if (commands.length === 0) return;
+
+    const requestedCommand = searchParams.get("command");
+    const requestedIface = searchParams.get("iface");
+
+    if (requestedCommand && commands.some((cmd) => cmd.name === requestedCommand)) {
+      setSelectedCommand(requestedCommand);
+      if (requestedCommand === "monitor_traffic") {
+        setCaptureIface(requestedIface || (interfaces.length > 0 ? "any" : ""));
+      }
+    }
+  }, [commands, interfaces, searchParams]);
 
   const currentCommandDef = commands.find((c) => c.name === selectedCommand);
   const tableView = activeCommand ? getTableView(activeCommand) : null;
@@ -476,5 +495,13 @@ export default function MonitoringPage() {
         onApply={(bpf) => setCaptureFilter(bpf)}
       />
     </AppLayout>
+  );
+}
+
+export default function MonitoringPage() {
+  return (
+    <Suspense>
+      <MonitoringPageInner />
+    </Suspense>
   );
 }

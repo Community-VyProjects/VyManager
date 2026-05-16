@@ -1,5 +1,9 @@
 "use client";
 
+export const dynamic = 'force-dynamic';
+
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { InProgress } from "@/components/layout/InProgress";
 import { BabelContent } from "@/components/babel/BabelContent";
@@ -31,7 +35,8 @@ const allProtocols = [
   { id: "babel" as ProtocolType, name: "Babel", description: "Babel Routing Protocol", permission: FeatureGroup.BABEL },
 ];
 
-export default function UnicastProtocolsPage() {
+function UnicastProtocolsPageInner() {
+  const searchParams = useSearchParams();
   const { canRead, isLoading } = usePermissions();
 
   // Filter protocols based on user permissions
@@ -42,12 +47,21 @@ export default function UnicastProtocolsPage() {
 
   const [selectedProtocol, setSelectedProtocol] = useState<ProtocolType | null>(null);
 
-  // Auto-select first available protocol
+  // Auto-select first available protocol or honor query params
   useEffect(() => {
-    if (protocols.length > 0 && !selectedProtocol) {
-      setSelectedProtocol(protocols[0].id);
+    if (!isLoading && protocols.length > 0) {
+      let requested: ProtocolType | null = null;
+      requested = searchParams.get("protocol") as ProtocolType | null;
+
+      if (requested && protocols.some((protocol) => protocol.id === requested)) {
+        setSelectedProtocol(requested);
+        return;
+      }
+      if (!selectedProtocol) {
+        setSelectedProtocol(protocols[0].id);
+      }
     }
-  }, [protocols, selectedProtocol]);
+  }, [protocols, selectedProtocol, isLoading, searchParams]);
 
   return (
     <AppLayout>
@@ -149,5 +163,13 @@ export default function UnicastProtocolsPage() {
         </div>
       </div>
     </AppLayout>
+  );
+}
+
+export default function UnicastProtocolsPage() {
+  return (
+    <Suspense>
+      <UnicastProtocolsPageInner />
+    </Suspense>
   );
 }

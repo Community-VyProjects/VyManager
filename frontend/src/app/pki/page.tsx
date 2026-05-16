@@ -1,6 +1,10 @@
 "use client";
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect } from "react";
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -56,7 +60,8 @@ import {
   type PKIViewingItem,
 } from "@/components/pki";
 
-export default function PKIPage() {
+function PKIPageInner() {
+  const searchParams = useSearchParams();
   const { canRead, canWrite } = usePermissions();
   const hasRead = canRead(FeatureGroup.PKI);
   const hasWrite = canWrite(FeatureGroup.PKI);
@@ -124,6 +129,10 @@ export default function PKIPage() {
   useEffect(() => {
     if (hasRead) fetchConfig();
   }, [hasRead]);
+
+  useEffect(() => {
+    setActiveTab(searchParams.get("tab") ?? "certificates");
+  }, [searchParams]);
 
   const onSuccess = () => fetchConfig(true);
 
@@ -822,5 +831,13 @@ export default function PKIPage() {
         />
       )}
     </AppLayout>
+  );
+}
+
+export default function PKIPage() {
+  return (
+    <Suspense>
+      <PKIPageInner />
+    </Suspense>
   );
 }

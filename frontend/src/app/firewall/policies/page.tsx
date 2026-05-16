@@ -1,5 +1,9 @@
 "use client";
 
+export const dynamic = 'force-dynamic';
+
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -90,7 +94,8 @@ const POLICIES_COLUMNS: ColumnDef[] = [
   { id: "recent",        label: "Recent",       defaultVisible: false },
 ];
 
-export default function FirewallPoliciesPage() {
+function FirewallPoliciesPageInner() {
+  const searchParams = useSearchParams();
   // Protocol selection state
   const [selectedProtocol, setSelectedProtocol] = useState<"ipv4" | "ipv6">("ipv4");
 
@@ -312,6 +317,13 @@ export default function FirewallPoliciesPage() {
     fetchGroups();
   }, []);
 
+  useEffect(() => {
+    const section = searchParams.get("section");
+    if (section === "ipv4" || section === "ipv6") {
+      setSelectedProtocol(section);
+    }
+  }, [searchParams]);
+
   // IPv4 rules
   const forwardRules = config ? config.forward_rules : [];
   const inputRules = config ? config.input_rules : [];
@@ -323,6 +335,40 @@ export default function FirewallPoliciesPage() {
   const inputRulesIPv6 = configIPv6 ? configIPv6.input_rules : [];
   const outputRulesIPv6 = configIPv6 ? configIPv6.output_rules : [];
   const customChainsIPv6 = configIPv6 ? configIPv6.custom_chains : [];
+
+  useEffect(() => {
+    const chainParam = searchParams.get("chain");
+    const view = searchParams.get("view");
+    const customParam = searchParams.get("custom");
+    const section = searchParams.get("section");
+    const protocol = section === "ipv6" ? "ipv6" : "ipv4";
+
+    if (protocol === "ipv6") {
+      if (!configIPv6) return;
+      if (chainParam && customChainsIPv6.some((c) => c.name === chainParam)) {
+        setSelectedChainIPv6(chainParam);
+        setIsCustomChainIPv6(true);
+      } else if (view === "custom-chains" || customParam === "1") {
+        const first = customChainsIPv6[0];
+        if (first) {
+          setSelectedChainIPv6(first.name);
+          setIsCustomChainIPv6(true);
+        }
+      }
+    } else {
+      if (!config) return;
+      if (chainParam && customChains.some((c) => c.name === chainParam)) {
+        setSelectedChain(chainParam);
+        setIsCustomChain(true);
+      } else if (view === "custom-chains" || customParam === "1") {
+        const first = customChains[0];
+        if (first) {
+          setSelectedChain(first.name);
+          setIsCustomChain(true);
+        }
+      }
+    }
+  }, [config, configIPv6, customChains, customChainsIPv6, searchParams]);
 
   // Prerouting raw rules
   const preroutingRawRules = config?.prerouting_raw?.rules ?? [];
@@ -1325,5 +1371,13 @@ export default function FirewallPoliciesPage() {
         protocol={selectedProtocol}
       />
     </AppLayout>
+  );
+}
+
+export default function FirewallPoliciesPage() {
+  return (
+    <Suspense>
+      <FirewallPoliciesPageInner />
+    </Suspense>
   );
 }

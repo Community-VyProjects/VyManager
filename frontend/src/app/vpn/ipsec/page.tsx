@@ -1,6 +1,10 @@
 "use client";
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect } from "react";
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -55,7 +59,8 @@ import {
   SettingsModal,
 } from "@/components/vpn/ipsec";
 
-export default function IPSecPage() {
+function IPSecPageInner() {
+  const searchParams = useSearchParams();
   const { canRead, canWrite } = usePermissions();
   const hasRead = canRead(FeatureGroup.IPSEC);
   const hasWrite = canWrite(FeatureGroup.IPSEC);
@@ -109,6 +114,10 @@ export default function IPSecPage() {
   useEffect(() => {
     if (hasRead) fetchConfig();
   }, [hasRead]);
+
+  useEffect(() => {
+    setActiveTab(searchParams.get("tab") ?? "s2s");
+  }, [searchParams]);
 
   const onSuccess = () => fetchConfig(true);
 
@@ -804,5 +813,13 @@ function EmptyState({ icon: Icon, label }: { icon: React.ComponentType<{ classNa
       <Icon className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
       <p className="text-muted-foreground">{label}</p>
     </div>
+  );
+}
+
+export default function IPSecPage() {
+  return (
+    <Suspense>
+      <IPSecPageInner />
+    </Suspense>
   );
 }
