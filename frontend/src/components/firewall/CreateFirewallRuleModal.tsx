@@ -52,6 +52,7 @@ interface CreateFirewallRuleModalProps {
   existingRules: FirewallRule[];
   protocol?: "ipv4" | "ipv6";
   capabilities?: FirewallCapabilitiesResponse | null;
+  cloneRule?: FirewallRule;
 }
 
 export function CreateFirewallRuleModal({
@@ -63,6 +64,7 @@ export function CreateFirewallRuleModal({
   existingRules,
   protocol = "ipv4",
   capabilities,
+  cloneRule,
 }: CreateFirewallRuleModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -310,10 +312,14 @@ export function CreateFirewallRuleModal({
       loadInterfaces();
       loadCustomChains();
       loadFlowtables();
-      resetForm();
+      if (cloneRule) {
+        populateFromClone(cloneRule);
+      } else {
+        resetForm();
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, cloneRule]);
 
   // Auto-clear TCP flags when protocol changes away from TCP
   useEffect(() => {
@@ -343,6 +349,277 @@ export function CreateFirewallRuleModal({
       }
     }
   }, [ruleProtocol, icmpTypeName]);
+
+  const populateFromClone = (rule: FirewallRule) => {
+    setDescription(rule.description || "");
+    setAction(rule.action || "accept");
+
+    const proto = rule.protocol || "";
+    if (proto.startsWith("!")) {
+      setRuleProtocol(proto.substring(1));
+      setProtocolInvert(true);
+    } else {
+      setRuleProtocol(proto);
+      setProtocolInvert(false);
+    }
+
+    setSourceMode("any");
+    setSourceAddress("");
+    setSourceAddressInvert(false);
+    setSourceGroupType("");
+    setSourceGroupName("");
+    setSourceGroupInvert(false);
+    setSourcePortMode("any");
+    setSourcePort("");
+    setSourcePortGroup("");
+    setSourcePortGroupInvert(false);
+    setSourceMac("");
+    setSourceGeoipCountry([]);
+    setSourceGeoipInverse(false);
+    setSourceFqdn("");
+    setSourceAddressMask("");
+
+    if (rule.source_fqdn) {
+      setSourceMode("fqdn");
+      setSourceFqdn(rule.source_fqdn);
+    } else if (rule.source?.mac_address) {
+      setSourceMode("mac");
+      setSourceMac(rule.source.mac_address);
+    } else if (rule.source?.geoip && rule.source.geoip.country_code && rule.source.geoip.country_code.length > 0) {
+      setSourceMode("geoip");
+      setSourceGeoipCountry(rule.source.geoip.country_code);
+      setSourceGeoipInverse(rule.source.geoip.inverse_match || false);
+    } else if (rule.source?.address) {
+      setSourceMode("address");
+      const addr = rule.source.address;
+      if (addr.startsWith("!")) {
+        setSourceAddress(addr.substring(1));
+        setSourceAddressInvert(true);
+      } else {
+        setSourceAddress(addr);
+        setSourceAddressInvert(false);
+      }
+    } else if (rule.source?.group) {
+      const entries = Object.entries(rule.source.group);
+      let hasAddressGroup = false;
+      for (const [type, name] of entries) {
+        if (type !== "port-group") {
+          setSourceMode("group");
+          setSourceGroupType(type);
+          if (name.startsWith("!")) {
+            setSourceGroupName(name.substring(1));
+            setSourceGroupInvert(true);
+          } else {
+            setSourceGroupName(name);
+            setSourceGroupInvert(false);
+          }
+          hasAddressGroup = true;
+          break;
+        }
+      }
+      if (!hasAddressGroup) setSourceMode("any");
+    }
+
+    if (rule.source_address_mask) setSourceAddressMask(rule.source_address_mask);
+
+    if (rule.source?.port) {
+      setSourcePortMode("port");
+      setSourcePort(rule.source.port);
+    } else if (rule.source?.group && rule.source.group["port-group"]) {
+      setSourcePortMode("group");
+      const rawPortGroup = rule.source.group["port-group"];
+      if (rawPortGroup.startsWith("!")) {
+        setSourcePortGroup(rawPortGroup.substring(1));
+        setSourcePortGroupInvert(true);
+      } else {
+        setSourcePortGroup(rawPortGroup);
+        setSourcePortGroupInvert(false);
+      }
+    } else {
+      setSourcePortMode("any");
+    }
+
+    setDestMode("any");
+    setDestAddress("");
+    setDestAddressInvert(false);
+    setDestGroupType("");
+    setDestGroupName("");
+    setDestGroupInvert(false);
+    setDestPortMode("any");
+    setDestPort("");
+    setDestPortGroup("");
+    setDestPortGroupInvert(false);
+    setDestGeoipCountry([]);
+    setDestGeoipInverse(false);
+    setDestFqdn("");
+    setDestAddressMask("");
+    setDestMacAddress("");
+
+    if (rule.destination_fqdn) {
+      setDestMode("fqdn");
+      setDestFqdn(rule.destination_fqdn);
+    } else if (rule.destination_mac_address) {
+      setDestMode("mac");
+      setDestMacAddress(rule.destination_mac_address);
+    } else if (rule.destination?.geoip && rule.destination.geoip.country_code && rule.destination.geoip.country_code.length > 0) {
+      setDestMode("geoip");
+      setDestGeoipCountry(rule.destination.geoip.country_code);
+      setDestGeoipInverse(rule.destination.geoip.inverse_match || false);
+    } else if (rule.destination?.address) {
+      setDestMode("address");
+      const addr = rule.destination.address;
+      if (addr.startsWith("!")) {
+        setDestAddress(addr.substring(1));
+        setDestAddressInvert(true);
+      } else {
+        setDestAddress(addr);
+        setDestAddressInvert(false);
+      }
+    } else if (rule.destination?.group) {
+      const entries = Object.entries(rule.destination.group);
+      let hasAddressGroup = false;
+      for (const [type, name] of entries) {
+        if (type !== "port-group") {
+          setDestMode("group");
+          setDestGroupType(type);
+          if (name.startsWith("!")) {
+            setDestGroupName(name.substring(1));
+            setDestGroupInvert(true);
+          } else {
+            setDestGroupName(name);
+            setDestGroupInvert(false);
+          }
+          hasAddressGroup = true;
+          break;
+        }
+      }
+      if (!hasAddressGroup) setDestMode("any");
+    }
+
+    if (rule.destination?.port) {
+      setDestPortMode("port");
+      setDestPort(rule.destination.port);
+    } else if (rule.destination?.group && rule.destination.group["port-group"]) {
+      setDestPortMode("group");
+      const rawPortGroup = rule.destination.group["port-group"];
+      if (rawPortGroup.startsWith("!")) {
+        setDestPortGroup(rawPortGroup.substring(1));
+        setDestPortGroupInvert(true);
+      } else {
+        setDestPortGroup(rawPortGroup);
+        setDestPortGroupInvert(false);
+      }
+    } else {
+      setDestPortMode("any");
+    }
+
+    if (rule.destination_address_mask) setDestAddressMask(rule.destination_address_mask);
+
+    setConnectionMark(rule.connection_mark || "");
+    setConnectionStatusNat(rule.connection_status?.nat || "");
+    setConntrackHelper(rule.conntrack_helper || "");
+    setDscpMatch(rule.dscp_match || "");
+    setDscpExclude(rule.dscp_exclude || "");
+    setFragmentMatchFrag(rule.fragment?.match_frag || false);
+    setFragmentMatchNonFrag(rule.fragment?.match_non_frag || false);
+    setGreKey(rule.gre?.key || "");
+    setGreVersion(rule.gre?.version || "");
+    setGreInnerProto(rule.gre?.inner_proto || "");
+    const newGreFlags: Record<string, boolean> = {};
+    if (rule.gre?.flags_checksum) newGreFlags.checksum = true;
+    if (rule.gre?.flags_checksum_unset) newGreFlags.checksum_unset = true;
+    if (rule.gre?.flags_key) newGreFlags.key = true;
+    if (rule.gre?.flags_key_unset) newGreFlags.key_unset = true;
+    if (rule.gre?.flags_sequence) newGreFlags.sequence = true;
+    if (rule.gre?.flags_sequence_unset) newGreFlags.sequence_unset = true;
+    setGreFlags(newGreFlags);
+
+    setIpsecMode("none");
+    setIpsecInbound("none");
+    setIpsecOutbound("none");
+    if (rule.ipsec) {
+      if (rule.ipsec.match_ipsec_in) setIpsecInbound("match-ipsec");
+      else if (rule.ipsec.match_none_in) setIpsecInbound("match-none");
+      if (rule.ipsec.match_ipsec_out) setIpsecOutbound("match-ipsec");
+      else if (rule.ipsec.match_none_out) setIpsecOutbound("match-none");
+      if (rule.ipsec.match_ipsec) setIpsecMode("match-ipsec");
+      else if (rule.ipsec.match_none) setIpsecMode("match-none");
+    }
+
+    setMarkMatch(rule.mark_match || "");
+    setPacketLength(rule.packet_length || "");
+    setPacketLengthExclude(rule.packet_length_exclude || "");
+    setPacketType(rule.packet_type || "");
+    setTcpMssMatch(rule.tcp_mss || "");
+    setTtlEq(rule.ttl_match?.eq || "");
+    setTtlGt(rule.ttl_match?.gt || "");
+    setTtlLt(rule.ttl_match?.lt || "");
+
+    setLimitRate(rule.limit?.rate || "");
+    setLimitBurst(rule.limit?.burst || "");
+    setRecentCount(rule.recent?.count || "");
+    setRecentTime(rule.recent?.time || "");
+    setTimeStartdate(rule.time?.startdate || "");
+    setTimeStarttime(rule.time?.starttime || "");
+    setTimeStopdate(rule.time?.stopdate || "");
+    setTimeStoptime(rule.time?.stoptime || "");
+    setTimeWeekdays(rule.time?.weekdays || "");
+
+    setLogOptionsGroup(rule.log_options?.group || "");
+    setLogOptionsLevel(rule.log_options?.level || "");
+    setLogOptionsQueueThreshold(rule.log_options?.queue_threshold || "");
+    setLogOptionsSnapshotLength(rule.log_options?.snapshot_length || "");
+    setQueueNumber(rule.queue_number || "");
+    setQueueOptions(rule.queue_options || "");
+    setSynproxyTcpMss(rule.synproxy_config?.tcp_mss || "");
+    setSynproxyTcpWindowScale(rule.synproxy_config?.tcp_window_scale || "");
+    setModSetConnectionMark(rule.set_connection_mark || "");
+    setModSetTcpMss(rule.set_tcp_mss || "");
+    setAddAddrToGroupSrcGroup(rule.add_address_to_group?.source_address_group || "");
+    setAddAddrToGroupSrcTimeout(rule.add_address_to_group?.source_timeout || "");
+    setAddAddrToGroupDstGroup(rule.add_address_to_group?.destination_address_group || "");
+    setAddAddrToGroupDstTimeout(rule.add_address_to_group?.destination_timeout || "");
+
+    setStateEstablished(rule.state?.established || false);
+    setStateNew(rule.state?.new || false);
+    setStateRelated(rule.state?.related || false);
+    setStateInvalid(rule.state?.invalid || false);
+
+    setInboundInterface(rule.interface?.inbound || "");
+    setOutboundInterface(rule.interface?.outbound || "");
+
+    const newTcpFlags: Record<string, "disabled" | "enabled" | "not"> = {
+      syn: "disabled", ack: "disabled", fin: "disabled", rst: "disabled",
+      psh: "disabled", urg: "disabled", ecn: "disabled", cwr: "disabled",
+    };
+    if (rule.tcp_flags) {
+      if (Array.isArray(rule.tcp_flags)) {
+        rule.tcp_flags.forEach((flag: string) => {
+          if (flag.startsWith("!")) {
+            const cleanFlag = flag.substring(1);
+            if (cleanFlag in newTcpFlags) newTcpFlags[cleanFlag] = "not";
+          } else if (flag in newTcpFlags) {
+            newTcpFlags[flag] = "enabled";
+          }
+        });
+      } else {
+        Object.entries(rule.tcp_flags).forEach(([flag, state]) => {
+          if (flag in newTcpFlags) newTcpFlags[flag] = state as "disabled" | "enabled" | "not";
+        });
+      }
+    }
+    setTcpFlags(newTcpFlags);
+
+    setIcmpTypeName(rule.icmp_type_name || "");
+    setJumpTarget(rule.jump_target || "");
+    setOffloadTarget(rule.offload_target || "");
+    setDscp(rule.packet_mods?.dscp || "");
+    setMark(rule.packet_mods?.mark || "");
+    setTtl(rule.packet_mods?.ttl || "");
+    setDisable(rule.disable);
+    setLog(rule.log);
+    setError(null);
+  };
 
   const resetForm = () => {
     setDescription("");
@@ -858,10 +1135,14 @@ export function CreateFirewallRuleModal({
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            Create Firewall Rule - {chain.charAt(0).toUpperCase() + chain.slice(1)} Chain
+            {cloneRule
+              ? `Clone Rule ${cloneRule.rule_number} - ${chain.charAt(0).toUpperCase() + chain.slice(1)} Chain`
+              : `Create Firewall Rule - ${chain.charAt(0).toUpperCase() + chain.slice(1)} Chain`}
           </DialogTitle>
           <DialogDescription>
-            Configure a new firewall rule for the {chain} chain
+            {cloneRule
+              ? `Cloning rule ${cloneRule.rule_number}. A new rule will be created with the next available number.`
+              : `Configure a new firewall rule for the ${chain} chain`}
           </DialogDescription>
         </DialogHeader>
 
@@ -888,18 +1169,20 @@ export function CreateFirewallRuleModal({
 
           {/* Basic Tab */}
           <TabsContent value="basic" className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="ruleNumber">Rule Number</Label>
-              <Input
-                id="ruleNumber"
-                type="number"
-                value={ruleNumber}
-                onChange={(e) => setRuleNumber(parseInt(e.target.value) || 100)}
-              />
-              <p className="text-xs text-muted-foreground">
-                Auto-calculated based on existing rules
-              </p>
-            </div>
+            {!cloneRule && (
+              <div className="space-y-2">
+                <Label htmlFor="ruleNumber">Rule Number</Label>
+                <Input
+                  id="ruleNumber"
+                  type="number"
+                  value={ruleNumber}
+                  onChange={(e) => setRuleNumber(parseInt(e.target.value) || 100)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Auto-calculated based on existing rules
+                </p>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">

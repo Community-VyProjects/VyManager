@@ -111,6 +111,7 @@ export default function FirewallPoliciesPage() {
 
   // Modal states
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [cloningRule, setCloningRule] = useState<FirewallRule | null>(null);
   const [editingRule, setEditingRule] = useState<FirewallRule | null>(null);
   const [deletingRule, setDeletingRule] = useState<FirewallRule | null>(null);
   const [createChainModalOpen, setCreateChainModalOpen] = useState(false);
@@ -1154,6 +1155,7 @@ export default function FirewallPoliciesPage() {
                                 key={rule.rule_number}
                                 rule={rule}
                                 onEdit={() => setEditingRule(rule)}
+                                onClone={() => { setCloningRule(rule); setCreateModalOpen(true); }}
                                 onDelete={() => setDeletingRule(rule)}
                                 isDragging={(selectedProtocol === "ipv4" ? activeId : activeIdIPv6) === rule.rule_number}
                                 groups={groups}
@@ -1227,13 +1229,14 @@ export default function FirewallPoliciesPage() {
       {/* Modals */}
       <CreateFirewallRuleModal
         open={createModalOpen}
-        onOpenChange={setCreateModalOpen}
+        onOpenChange={(open) => { setCreateModalOpen(open); if (!open) setCloningRule(null); }}
         onSuccess={() => selectedProtocol === "ipv4" ? fetchConfig(true) : fetchConfigIPv6(true)}
         chain={(selectedProtocol === "ipv4" ? selectedChain : selectedChainIPv6) as string}
         isCustomChain={selectedProtocol === "ipv4" ? isCustomChain : isCustomChainIPv6}
         existingRules={currentRules}
         protocol={selectedProtocol}
         capabilities={selectedProtocol === "ipv4" ? capabilities : capabilitiesIPv6}
+        cloneRule={cloningRule ?? undefined}
       />
 
       {editingRule && (

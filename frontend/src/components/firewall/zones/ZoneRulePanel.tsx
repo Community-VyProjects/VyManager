@@ -57,6 +57,7 @@ interface ZoneRulePanelProps {
   onSuccess: () => void;
   mode: "create" | "edit";
   rule?: FirewallRule;
+  cloneRule?: FirewallRule;
   /** Pre-filled when a specific zone pair is selected in the matrix */
   sourceZone?: string;
   destZone?: string;
@@ -121,6 +122,7 @@ export function ZoneRulePanel({
   onSuccess,
   mode,
   rule,
+  cloneRule,
   sourceZone,
   destZone,
   chainName: chainNameProp,
@@ -618,6 +620,9 @@ export function ZoneRulePanel({
 
     if (mode === "edit" && rule) {
       loadRuleData(rule);
+    } else if (mode === "create" && cloneRule) {
+      resetForm();
+      loadRuleData(cloneRule);
     } else {
       resetForm();
     }
@@ -1015,7 +1020,11 @@ export function ZoneRulePanel({
         <div className="px-6 py-4 border-b bg-background shrink-0">
           <SheetHeader>
             <SheetTitle className="text-base">
-              {mode === "create" ? "New Firewall Rule" : `Edit Rule #${rule?.rule_number}`}
+              {mode === "edit"
+                ? `Edit Rule #${rule?.rule_number}`
+                : cloneRule
+                  ? `Clone Rule ${cloneRule.rule_number}`
+                  : "New Firewall Rule"}
             </SheetTitle>
           </SheetHeader>
           <div className="flex items-center gap-2 mt-2 flex-wrap">
