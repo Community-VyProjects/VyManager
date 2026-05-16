@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -39,6 +40,7 @@ import { apiClient } from "@/lib/api/client";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function RoutePage() {
+  const searchParams = useSearchParams();
   const [ipv4Policies, setIpv4Policies] = useState<PolicyRoute[]>([]);
   const [ipv6Policies, setIpv6Policies] = useState<PolicyRoute[]>([]);
   const [loading, setLoading] = useState(true);
@@ -117,13 +119,13 @@ export default function RoutePage() {
   };
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const section = params.get("section");
+    const section = searchParams.get("section");
     const initialPolicyType = section === "route6" ? "route6" : "route";
     if (section === "route" || section === "route6") {
       setSelectedPolicyType(section);
     }
     fetchData(false, initialPolicyType);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const policies = selectedPolicyType === "route" ? ipv4Policies : ipv6Policies;

@@ -43,6 +43,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   dhcpService,
   type DHCPConfigResponse,
@@ -95,6 +96,7 @@ function isIpInSubnet(ip: string, cidr: string): boolean {
 }
 
 export default function DHCPPage() {
+  const searchParams = useSearchParams();
   const [config, setConfig] = useState<DHCPConfigResponse | null>(null);
   const [capabilities, setCapabilities] = useState<DHCPCapabilitiesResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -207,12 +209,11 @@ export default function DHCPPage() {
   }, []);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const section = params.get("section");
+    const section = searchParams.get("section");
     if (section === "subnets" || section === "ranges" || section === "static" || section === "leases") {
       setActiveTab(section);
     }
-  }, []);
+  }, [searchParams]);
 
   // Get currently selected network data
   const currentNetwork = config?.shared_networks.find(n => n.name === selectedNetwork) || null;

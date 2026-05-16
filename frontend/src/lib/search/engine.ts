@@ -1,6 +1,6 @@
 import type { SearchResult, SearchFilters, SearchQueryOptions, ScoredSearchResult } from "./types";
 
-const DEFAULT_LIMIT = 80;
+const DEFAULT_LIMIT = 30;
 
 function matchesFilters(result: SearchResult, filters?: SearchFilters): boolean {
   if (!filters) return true;

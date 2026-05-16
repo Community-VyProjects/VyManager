@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/table";
 import { Plus, RefreshCw, AlertCircle, Search, Cable, Pencil, Trash2, Network, ChevronRight, ChevronDown, Shield, Boxes, Waypoints, Link2, GitMerge, Box, Layers, ArrowDownToLine, Repeat, Lock, ArrowLeftRight, Wifi, Signal } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { ethernetService } from "@/lib/api/ethernet";
 import type { EthernetInterface, EthernetCapabilities, VIFConfig, VIFSConfig } from "@/lib/api/types/ethernet";
@@ -127,6 +128,7 @@ interface VIFCWithParent extends VIFConfig {
 }
 
 export default function InterfacesPage() {
+  const searchParams = useSearchParams();
   const [interfaces, setInterfaces] = useState<EthernetInterface[]>([]);
   const [capabilities, setCapabilities] = useState<EthernetCapabilities | null>(null);
   const [wireGuardInterfaces, setWireGuardInterfaces] = useState<WireGuardInterface[]>([]);
@@ -139,11 +141,8 @@ export default function InterfacesPage() {
   const [vlanSubTab, setVlanSubTab] = useState<VlanSubTab>("vif");
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const params = new URLSearchParams(window.location.search);
-    const requestedType = params.get("type") as InterfaceType | null;
-    const requestedVlanSubTab = params.get("vlanSubTab") as VlanSubTab | null;
+    const requestedType = searchParams.get("type") as InterfaceType | null;
+    const requestedVlanSubTab = searchParams.get("vlanSubTab") as VlanSubTab | null;
 
     const validTypes: InterfaceType[] = [
       "ethernet",
@@ -176,7 +175,7 @@ export default function InterfacesPage() {
     if (requestedType === "vlan" && requestedVlanSubTab && ["vif", "vif-s", "vif-c"].includes(requestedVlanSubTab)) {
       setVlanSubTab(requestedVlanSubTab);
     }
-  }, []);
+  }, [searchParams]);
 
   // Ethernet Modal states
   const [isCreateInterfaceModalOpen, setIsCreateInterfaceModalOpen] = useState(false);

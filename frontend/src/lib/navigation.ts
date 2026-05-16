@@ -44,7 +44,7 @@ export const navigation: NavItem[] = [
           { id: "ipv4", title: "IPv4", href: "/firewall/policies", description: "IPv4 firewall policies", searchParams: { section: "ipv4" } },
           { id: "ipv6", title: "IPv6", href: "/firewall/policies", description: "IPv6 firewall policies", searchParams: { section: "ipv6" } },
         ] },
-      { title: "Custom Chains", href: "/firewall/policies", requiredPermission: FeatureGroup.FIREWALL_POLICIES, sections: [
+      { title: "Custom Chains", href: "/firewall/policies", requiredPermission: FeatureGroup.FIREWALL_POLICIES, searchOnly: true, sections: [
           { id: "custom-chains", title: "Custom Chains", href: "/firewall/policies", description: "Manage custom firewall chains", searchParams: { section: "ipv4", view: "custom-chains" } },
           { id: "chains-rules", title: "Chain Rules", href: "/firewall/policies", description: "Rules within custom chains", searchParams: { section: "ipv4", view: "custom-chains" } },
         ] },
@@ -273,8 +273,8 @@ export const navigation: NavItem[] = [
       { id: "users", title: "Users & Login", href: "/system/settings", description: "User and login management", searchParams: { tab: "users" } },
       { id: "syslog", title: "Syslog", href: "/system/settings", description: "Syslog configuration", searchParams: { tab: "syslog" } },
       { id: "conntrack", title: "Conntrack", href: "/system/settings", description: "Conntrack settings", searchParams: { tab: "conntrack" } },
-      { id: "conntrack-table-sizes", title: "Table Sizes", href: "/system/settings", description: "Conntrack Table Sizes \n Conntrack Table Sizes", searchParams: { tab: "conntrack", section: "table-sizes" } },
-      { id: "conntrack-tcp-settings", title: "TCP Settings", href: "/system/settings", description: "Conntrack TCP Settings \n Conntrack TCP Settings", searchParams: { tab: "conntrack", section: "tcp-settings" } },
+      { id: "conntrack-table-sizes", title: "Table Sizes", href: "/system/settings", description: "Conntrack table size settings", searchParams: { tab: "conntrack", section: "table-sizes" } },
+      { id: "conntrack-tcp-settings", title: "TCP Settings", href: "/system/settings", description: "Conntrack TCP timeout settings", searchParams: { tab: "conntrack", section: "tcp-settings" } },
       { id: "hostmap", title: "Host Mapping", href: "/system/settings", description: "Host mapping configuration", searchParams: { tab: "hostmap" } },
       { id: "advanced", title: "Advanced", href: "/system/settings", description: "Advanced system settings", searchParams: { tab: "advanced" } },
     ],

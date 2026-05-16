@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -47,6 +48,7 @@ import { PrefixListRuleRow } from "@/components/policies/PrefixListRuleRow";
 import { PrefixListReorderBanner } from "@/components/policies/PrefixListReorderBanner";
 
 export default function PrefixListPage() {
+  const searchParams = useSearchParams();
   const [config, setConfig] = useState<PrefixListConfigResponse | null>(null);
   const [capabilities, setCapabilities] = useState<PrefixListCapabilitiesResponse | null>(null);
   const [selectedListType, setSelectedListType] = useState<"ipv4" | "ipv6">("ipv4");
@@ -86,12 +88,11 @@ export default function PrefixListPage() {
   }, []);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const section = params.get("section");
+    const section = searchParams.get("section");
     if (section === "ipv4" || section === "ipv6") {
       setSelectedListType(section);
     }
-  }, []);
+  }, [searchParams]);
 
   const fetchConfig = async (refresh: boolean = false) => {
     try {

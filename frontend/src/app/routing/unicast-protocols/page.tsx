@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { InProgress } from "@/components/layout/InProgress";
 import { BabelContent } from "@/components/babel/BabelContent";
@@ -32,6 +33,7 @@ const allProtocols = [
 ];
 
 export default function UnicastProtocolsPage() {
+  const searchParams = useSearchParams();
   const { canRead, isLoading } = usePermissions();
 
   // Filter protocols based on user permissions
@@ -46,10 +48,7 @@ export default function UnicastProtocolsPage() {
   useEffect(() => {
     if (!isLoading && protocols.length > 0) {
       let requested: ProtocolType | null = null;
-      if (typeof window !== "undefined") {
-        const params = new URLSearchParams(window.location.search);
-        requested = params.get("protocol") as ProtocolType | null;
-      }
+      requested = searchParams.get("protocol") as ProtocolType | null;
 
       if (requested && protocols.some((protocol) => protocol.id === requested)) {
         setSelectedProtocol(requested);
@@ -59,7 +58,7 @@ export default function UnicastProtocolsPage() {
         setSelectedProtocol(protocols[0].id);
       }
     }
-  }, [protocols, selectedProtocol, isLoading]);
+  }, [protocols, selectedProtocol, isLoading, searchParams]);
 
   return (
     <AppLayout>

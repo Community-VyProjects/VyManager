@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -56,6 +57,7 @@ import {
 } from "@/components/vpn/l2tp";
 
 export default function L2TPPage() {
+  const searchParams = useSearchParams();
   const { canRead, canWrite } = usePermissions();
   const hasRead = canRead(FeatureGroup.L2TP);
   const hasWrite = canWrite(FeatureGroup.L2TP);
@@ -116,9 +118,8 @@ export default function L2TPPage() {
   }, [hasRead]);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    setActiveTab(params.get("tab") ?? "overview");
-  }, []);
+    setActiveTab(searchParams.get("tab") ?? "overview");
+  }, [searchParams]);
 
   const onSuccess = () => fetchConfig(true);
 

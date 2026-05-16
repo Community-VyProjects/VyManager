@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -56,6 +57,7 @@ import { CreateRoutingTableModal } from "@/components/routing/CreateRoutingTable
 import { RoutingTablesAccordion } from "@/components/routing/RoutingTablesAccordion";
 
 export default function StaticRoutesPage() {
+  const searchParams = useSearchParams();
   const [config, setConfig] = useState<StaticRoutesConfig | null>(null);
   const [capabilities, setCapabilities] = useState<StaticRoutesCapabilities | null>(null);
   const [loading, setLoading] = useState(true);
@@ -113,12 +115,11 @@ export default function StaticRoutesPage() {
   }, []);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const tab = params.get("tab");
+    const tab = searchParams.get("tab");
     if (tab === "routes" || tab === "arp" || tab === "mroute" || tab === "neighbor-proxy" || tab === "tables") {
       setActiveTab(tab);
     }
-  }, []);
+  }, [searchParams]);
 
   // Get current routes based on selected type
   const currentRoutes = selectedType === "ipv4"

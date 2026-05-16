@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Server, Users, FileText, Shield, Map, Settings2 } from "lucide-react";
@@ -19,6 +20,7 @@ import { HostMappingPanel } from "@/components/system/settings/HostMappingPanel"
 import { AdvancedPanel } from "@/components/system/settings/AdvancedPanel";
 
 export default function SystemSettingsPage() {
+  const searchParams = useSearchParams();
   const [config, setConfig] = useState<SystemConfig | null>(null);
   const [capabilities, setCapabilities] = useState<SystemCapabilities | null>(null);
   const [loading, setLoading] = useState(true);
@@ -48,9 +50,8 @@ export default function SystemSettingsPage() {
   }, []);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    setSelectedTab(params.get("tab") ?? "general");
-  }, []);
+    setSelectedTab(searchParams.get("tab") ?? "general");
+  }, [searchParams]);
 
   const refresh = () => load(true);
 

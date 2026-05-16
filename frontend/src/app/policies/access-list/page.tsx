@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -47,6 +48,7 @@ import { AccessListRuleRow } from "@/components/policies/AccessListRuleRow";
 import { AccessListReorderBanner } from "@/components/policies/AccessListReorderBanner";
 
 export default function AccessListPage() {
+  const searchParams = useSearchParams();
   const [config, setConfig] = useState<AccessListConfigResponse | null>(null);
   const [capabilities, setCapabilities] = useState<AccessListCapabilitiesResponse | null>(null);
   const [selectedListType, setSelectedListType] = useState<"ipv4" | "ipv6">("ipv4");
@@ -86,12 +88,11 @@ export default function AccessListPage() {
   }, []);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const section = params.get("section");
+    const section = searchParams.get("section");
     if (section === "ipv4" || section === "ipv6") {
       setSelectedListType(section);
     }
-  }, []);
+  }, [searchParams]);
 
   const fetchConfig = async (refresh: boolean = false) => {
     try {

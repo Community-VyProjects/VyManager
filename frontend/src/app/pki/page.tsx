@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -57,6 +58,7 @@ import {
 } from "@/components/pki";
 
 export default function PKIPage() {
+  const searchParams = useSearchParams();
   const { canRead, canWrite } = usePermissions();
   const hasRead = canRead(FeatureGroup.PKI);
   const hasWrite = canWrite(FeatureGroup.PKI);
@@ -126,9 +128,8 @@ export default function PKIPage() {
   }, [hasRead]);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    setActiveTab(params.get("tab") ?? "certificates");
-  }, []);
+    setActiveTab(searchParams.get("tab") ?? "certificates");
+  }, [searchParams]);
 
   const onSuccess = () => fetchConfig(true);
 

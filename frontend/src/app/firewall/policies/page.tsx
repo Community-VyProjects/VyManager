@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -91,6 +92,7 @@ const POLICIES_COLUMNS: ColumnDef[] = [
 ];
 
 export default function FirewallPoliciesPage() {
+  const searchParams = useSearchParams();
   // Protocol selection state
   const [selectedProtocol, setSelectedProtocol] = useState<"ipv4" | "ipv6">("ipv4");
 
@@ -313,12 +315,11 @@ export default function FirewallPoliciesPage() {
   }, []);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const section = params.get("section");
+    const section = searchParams.get("section");
     if (section === "ipv4" || section === "ipv6") {
       setSelectedProtocol(section);
     }
-  }, []);
+  }, [searchParams]);
 
   // IPv4 rules
   const forwardRules = config ? config.forward_rules : [];
@@ -333,11 +334,10 @@ export default function FirewallPoliciesPage() {
   const customChainsIPv6 = configIPv6 ? configIPv6.custom_chains : [];
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const chainParam = params.get("chain");
-    const view = params.get("view");
-    const customParam = params.get("custom");
-    const section = params.get("section");
+    const chainParam = searchParams.get("chain");
+    const view = searchParams.get("view");
+    const customParam = searchParams.get("custom");
+    const section = searchParams.get("section");
     const protocol = section === "ipv6" ? "ipv6" : "ipv4";
 
     if (protocol === "ipv6") {
@@ -365,7 +365,7 @@ export default function FirewallPoliciesPage() {
         }
       }
     }
-  }, [config, configIPv6, customChains, customChainsIPv6]);
+  }, [config, configIPv6, customChains, customChainsIPv6, searchParams]);
 
   // Prerouting raw rules
   const preroutingRawRules = config?.prerouting_raw?.rules ?? [];

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -56,6 +57,7 @@ import {
 } from "@/components/vpn/ipsec";
 
 export default function IPSecPage() {
+  const searchParams = useSearchParams();
   const { canRead, canWrite } = usePermissions();
   const hasRead = canRead(FeatureGroup.IPSEC);
   const hasWrite = canWrite(FeatureGroup.IPSEC);
@@ -111,9 +113,8 @@ export default function IPSecPage() {
   }, [hasRead]);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    setActiveTab(params.get("tab") ?? "s2s");
-  }, []);
+    setActiveTab(searchParams.get("tab") ?? "s2s");
+  }, [searchParams]);
 
   const onSuccess = () => fetchConfig(true);
 

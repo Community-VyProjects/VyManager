@@ -2,6 +2,9 @@ import { createSearchResult, buildHref } from "./utils";
 import { humanizeToken } from "./labels";
 import type { SearchEntityKind, SearchResult } from "./types";
 
+// Keys the generic walker skips entirely — arrays like "interfaces" and "rules" are
+// handled by curated indexers (firewall-indexer, network-indexer, etc.) which produce
+// richer, more accurately linked results. The walker covers named scalars and settings.
 const SKIP_KEYS = new Set([
   "capabilities",
   "features",

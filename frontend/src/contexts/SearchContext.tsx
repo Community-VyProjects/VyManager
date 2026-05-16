@@ -33,13 +33,10 @@ function applyFavorites(results: SearchResult[], favoriteIds: Set<string>): Sear
 }
 
 interface SearchContextType {
-  indexedData: SearchResult[];
-  searchResults: ScoredSearchResult[];
   isIndexing: boolean;
   indexReady: boolean;
   facets: ReturnType<typeof getIndexFacets>;
   favorites: string[];
-  /** Prefer `runSearch` in UI — synchronous, no stale async updates */
   runSearch: (query: string, filters?: SearchFilters) => ScoredSearchResult[];
   refreshIndex: () => Promise<void>;
   toggleFavorite: (id: string) => void;
@@ -50,7 +47,6 @@ const SearchContext = createContext<SearchContextType | undefined>(undefined);
 
 export function SearchProvider({ children }: { children: React.ReactNode }) {
   const [indexedData, setIndexedData] = useState<SearchResult[]>(navigationSearchIndex);
-  const [searchResults, setSearchResults] = useState<ScoredSearchResult[]>([]);
   const [isIndexing, setIsIndexing] = useState(false);
   const [indexReady, setIndexReady] = useState(false);
   const [favorites, setFavorites] = useState<string[]>(loadFavorites);
@@ -99,9 +95,8 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
     setFavorites((prev) => {
       const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
       localStorage.setItem(FAVORITES_KEY, JSON.stringify(next));
-      setIndexedData((data) =>
-        data.map((r) => ({ ...r, starred: next.includes(r.id) }))
-      );
+      const nextSet = new Set(next);
+      setIndexedData((data) => data.map((r) => ({ ...r, starred: nextSet.has(r.id) })));
       return next;
     });
   }, []);
@@ -113,8 +108,6 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
   return (
     <SearchContext.Provider
       value={{
-        indexedData,
-        searchResults,
         isIndexing,
         indexReady,
         facets,

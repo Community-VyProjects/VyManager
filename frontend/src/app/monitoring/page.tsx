@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -50,6 +51,7 @@ function getTableView(command: string): TableView | null {
 }
 
 export default function MonitoringPage() {
+  const searchParams = useSearchParams();
   const [session, setSession] = useState<ActiveSession | null>(null);
   const [sshStatus, setSSHStatus] = useState<MonitoringStatus | null>(null);
   const [commands, setCommands] = useState<MonitoringCommand[]>([]);
@@ -148,13 +150,8 @@ export default function MonitoringPage() {
   useEffect(() => {
     if (commands.length === 0) return;
 
-    let requestedCommand: string | null = null;
-    let requestedIface: string | null = null;
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      requestedCommand = params.get("command");
-      requestedIface = params.get("iface");
-    }
+    const requestedCommand = searchParams.get("command");
+    const requestedIface = searchParams.get("iface");
 
     if (requestedCommand && commands.some((cmd) => cmd.name === requestedCommand)) {
       setSelectedCommand(requestedCommand);
@@ -162,7 +159,7 @@ export default function MonitoringPage() {
         setCaptureIface(requestedIface || (interfaces.length > 0 ? "any" : ""));
       }
     }
-  }, [commands, interfaces]);
+  }, [commands, interfaces, searchParams]);
 
   const currentCommandDef = commands.find((c) => c.name === selectedCommand);
   const tableView = activeCommand ? getTableView(activeCommand) : null;

@@ -23,6 +23,7 @@ import {
   Settings,
 } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   firewallGlobalOptionsService,
   type FirewallGlobalOptionsConfig,
@@ -31,6 +32,7 @@ import {
 import { cn } from "@/lib/utils";
 
 export default function FirewallGlobalOptionsPage() {
+  const searchParams = useSearchParams();
   const [config, setConfig] = useState<FirewallGlobalOptionsConfig | null>(null);
   const [capabilities, setCapabilities] = useState<FirewallGlobalOptionsCapabilities | null>(null);
   const [loading, setLoading] = useState(true);
@@ -261,17 +263,15 @@ export default function FirewallGlobalOptionsPage() {
   }, []);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const field = params.get("field");
-    const section = params.get("section");
-
-    requestAnimationFrame(() => {
-      const targetId = field || section;
-      if (targetId) {
+    const field = searchParams.get("field");
+    const section = searchParams.get("section");
+    const targetId = field || section;
+    if (targetId) {
+      requestAnimationFrame(() => {
         document.getElementById(targetId)?.scrollIntoView({ behavior: "smooth", block: "center" });
-      }
-    });
-  }, []);
+      });
+    }
+  }, [searchParams]);
 
   const handleSave = async () => {
     try {

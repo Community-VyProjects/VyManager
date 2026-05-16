@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { InProgress } from "@/components/layout/InProgress";
 import { BfdContent } from "@/components/bfd/BfdContent";
@@ -35,6 +36,7 @@ const allInfrastructure: {
 ];
 
 export default function InfrastructurePage() {
+  const searchParams = useSearchParams();
   const { canRead, isLoading } = usePermissions();
   const [teSupported, setTeSupported] = useState<boolean | null>(null);
 
@@ -61,8 +63,7 @@ export default function InfrastructurePage() {
   useEffect(() => {
     if (infrastructure.length === 0) return;
 
-    const params = new URLSearchParams(window.location.search);
-    const section = params.get("section") as InfraType | null;
+    const section = searchParams.get("section") as InfraType | null;
 
     if (section && infrastructure.some((infra) => infra.id === section)) {
       setSelectedInfra(section);
@@ -72,7 +73,7 @@ export default function InfrastructurePage() {
     if (!selectedInfra) {
       setSelectedInfra(infrastructure[0].id);
     }
-  }, [infrastructure, selectedInfra]);
+  }, [infrastructure, selectedInfra, searchParams]);
 
   return (
     <AppLayout>

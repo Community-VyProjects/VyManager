@@ -278,12 +278,10 @@ export function SearchOverlay({ open, onOpenChange }: SearchOverlayProps) {
                     "bg-muted text-muted-foreground border-border";
 
                   return (
-                    <div
+                    <button
                       key={result.id}
-                      role="button"
-                      tabIndex={0}
+                      type="button"
                       onClick={() => handleSelect(result)}
-                      onKeyDown={(e) => e.key === "Enter" && handleSelect(result)}
                       className={cn(
                         "group flex w-full cursor-pointer items-start gap-3 rounded-xl px-3 py-2.5 text-left transition-all",
                         isSelected
@@ -344,7 +342,7 @@ export function SearchOverlay({ open, onOpenChange }: SearchOverlayProps) {
                         </Button>
                         <ArrowRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                       </div>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
