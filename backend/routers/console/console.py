@@ -146,8 +146,10 @@ async def websocket_console(websocket: WebSocket):
         existing.cancel()
         try:
             await existing
-        except (asyncio.CancelledError, Exception):
+        except asyncio.CancelledError:
             pass
+        except Exception:
+            logger.exception("Console: error while cancelling existing session for user %s", user_id)
     _active_console_sessions.pop(user_id, None)
 
     # RBAC: require SSH_CONSOLE WRITE permission
@@ -274,7 +276,7 @@ async def websocket_console(websocket: WebSocket):
                     "reason": "Session timed out due to inactivity (10 minutes)",
                 })
             except (ConnectionError, WebSocketDisconnect):
-                pass
+                return  # Client disconnected normally; stop forwarding output.
 
         async def forward_input():
             """Forward WebSocket messages to SSH stdin or handle resize."""
@@ -316,7 +318,8 @@ async def websocket_console(websocket: WebSocket):
                         continue
                     try:
                         ssh_process.change_terminal_size(cols, rows)
-                    except Exception:
+                    except (OSError, asyncssh.Error):
+                        # Terminal resize is best-effort; ignore if the channel is already closing.
                         pass
                 # Unknown msg_type: silently ignore (forwards-compat).
 
@@ -349,11 +352,13 @@ async def websocket_console(websocket: WebSocket):
             task.cancel()
             try:
                 await task
-            except (asyncio.CancelledError, Exception):
+            except asyncio.CancelledError:
                 pass
+            except Exception:
+                logger.exception("Console: error while cancelling pending task")
 
     except WebSocketDisconnect:
-        pass
+        pass  # Normal client disconnect; cleanup runs in finally.
     except Exception:
         logger.exception("Unexpected error in console WebSocket")
         await _safe_send(websocket, {"type": "error", "message": "Internal server error"})
