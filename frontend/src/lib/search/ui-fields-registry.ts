@@ -10,6 +10,16 @@ const CONTROL_WORD: Record<UiFieldControlType, string> = {
   input: "field",
 };
 
+const systemField = (
+  field: Omit<UiFieldDefinition, "feature" | "pageTitle" | "href">
+): UiFieldDefinition => ({
+  ...field,
+  feature: "System",
+  pageTitle: "System Settings",
+  href: "/system/settings",
+  searchParams: { tab: field.sectionId },
+});
+
 export interface UiFieldDefinition {
   id: string;
   label: string;
@@ -333,6 +343,47 @@ export const uiFieldDefinitions: UiFieldDefinition[] = [
     controlType: "input",
     sectionId: "connection-timeouts",
     sectionTitle: "Connection Timeouts",
+  }),
+  // System settings — commonly searched fields
+  systemField({
+    id: "ui-system-watchdog-timeout",
+    label: "Watchdog Timeout",
+    controlType: "input",
+    sectionId: "watchdog",
+    sectionTitle: "Watchdog",
+    aliases: ["watchdog"],
+  }),
+  systemField({
+    id: "ui-system-frr-profile",
+    label: "FRR Profile",
+    controlType: "select",
+    sectionId: "frr-profile",
+    sectionTitle: "FRR Profile",
+    aliases: ["frr", "frrprofile"],
+  }),
+  systemField({
+    id: "ui-system-config-commit-revisions",
+    label: "Commit Revisions",
+    controlType: "input",
+    sectionId: "config-management",
+    sectionTitle: "Config Management",
+    aliases: ["commit revisions", "commit_revisions"],
+  }),
+  systemField({
+    id: "ui-system-pre-login-banner",
+    label: "Pre-Login Banner",
+    controlType: "input",
+    sectionId: "login",
+    sectionTitle: "Login Settings",
+    aliases: ["pre-login banner", "pre login banner"],
+  }),
+  systemField({
+    id: "ui-system-post-login-banner",
+    label: "Post-Login Banner",
+    controlType: "input",
+    sectionId: "login",
+    sectionTitle: "Login Settings",
+    aliases: ["post-login banner", "post login banner"],
   }),
 ];
 
