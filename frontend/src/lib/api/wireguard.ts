@@ -177,6 +177,9 @@ class WireGuardService {
       allowed_ips: string[];
       preshared_key?: string;
       persistent_keepalive?: string;
+      address?: string;
+      port?: string;
+      host_name?: string;
     }>;
   }): Promise<VyOSResponse> {
     const operations: WireGuardBatchOperation[] = [];
@@ -225,6 +228,15 @@ class WireGuardService {
         }
         if (peer.persistent_keepalive) {
           peerOps.push({ op: "set_peer_persistent_keepalive", value: peer.persistent_keepalive });
+        }
+        if (peer.address) {
+          peerOps.push({ op: "set_peer_address", value: peer.address });
+        }
+        if (peer.port) {
+          peerOps.push({ op: "set_peer_port", value: peer.port });
+        }
+        if (peer.host_name) {
+          peerOps.push({ op: "set_peer_host_name", value: peer.host_name });
         }
         return { peer: peer.name, operations: peerOps };
       });
