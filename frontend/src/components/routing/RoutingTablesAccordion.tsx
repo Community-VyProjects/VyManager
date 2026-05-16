@@ -38,6 +38,7 @@ import {
 } from "@/lib/api/static-routes";
 import { cn } from "@/lib/utils";
 import { CreateTableRouteModal } from "./CreateTableRouteModal";
+import { EditTableRouteModal } from "./EditTableRouteModal";
 
 interface RoutingTablesAccordionProps {
   tables: RoutingTable[];
@@ -51,6 +52,7 @@ export function RoutingTablesAccordion({
   const [editingDescription, setEditingDescription] = useState<number | null>(null);
   const [descriptionValue, setDescriptionValue] = useState("");
   const [deletingRoute, setDeletingRoute] = useState<{ tableId: number; route: StaticRoute } | null>(null);
+  const [editingRoute, setEditingRoute] = useState<{ table: RoutingTable; route: StaticRoute } | null>(null);
   const [addingRouteToTable, setAddingRouteToTable] = useState<RoutingTable | null>(null);
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -273,6 +275,7 @@ export function RoutingTablesAccordion({
                               key={`ipv4-${route.destination}`}
                               route={route}
                               tableId={table.table_id}
+                              onEdit={() => setEditingRoute({ table, route })}
                               onDelete={() => handleDeleteRoute(table.table_id, route)}
                               isDeleting={loading === `delete-route-${table.table_id}-${route.destination}`}
                             />
@@ -283,6 +286,7 @@ export function RoutingTablesAccordion({
                               key={`ipv6-${route.destination}`}
                               route={route}
                               tableId={table.table_id}
+                              onEdit={() => setEditingRoute({ table, route })}
                               onDelete={() => handleDeleteRoute(table.table_id, route)}
                               isDeleting={loading === `delete-route-${table.table_id}-${route.destination}`}
                             />
@@ -308,6 +312,18 @@ export function RoutingTablesAccordion({
         }}
         table={addingRouteToTable}
       />
+
+      {/* Edit Route Modal */}
+      <EditTableRouteModal
+        open={editingRoute !== null}
+        onOpenChange={(open) => !open && setEditingRoute(null)}
+        onSuccess={() => {
+          setEditingRoute(null);
+          onRefresh();
+        }}
+        table={editingRoute?.table ?? null}
+        route={editingRoute?.route ?? null}
+      />
     </>
   );
 }
@@ -315,11 +331,12 @@ export function RoutingTablesAccordion({
 interface RouteRowProps {
   route: StaticRoute;
   tableId: number;
+  onEdit: () => void;
   onDelete: () => void;
   isDeleting: boolean;
 }
 
-function RouteRow({ route, tableId, onDelete, isDeleting }: RouteRowProps) {
+function RouteRow({ route, tableId, onEdit, onDelete, isDeleting }: RouteRowProps) {
   const isIPv4 = route.route_type === "ipv4";
 
   return (
@@ -341,66 +358,76 @@ function RouteRow({ route, tableId, onDelete, isDeleting }: RouteRowProps) {
         {route.destination}
       </TableCell>
       <TableCell>
-        {route.blackhole ? (
-          <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20">
-            <Shield className="h-3 w-3 mr-1" />
-            Blackhole
-          </Badge>
-        ) : route.reject ? (
-          <Badge variant="outline" className="bg-orange-500/10 text-orange-500 border-orange-500/20">
-            Reject
-          </Badge>
-        ) : (
-          <div className="flex flex-wrap gap-1">
-            {route.next_hops.slice(0, 2).map((nh, idx) => (
-              <Badge
-                key={`nh-${idx}`}
-                variant="secondary"
-                className={cn(
-                  "text-xs font-mono",
-                  nh.disable && "opacity-50 line-through"
-                )}
-              >
-                <ArrowRight className="h-3 w-3 mr-1" />
-                {nh.address}
-              </Badge>
-            ))}
-            {route.interfaces.slice(0, 2).map((iface, idx) => (
-              <Badge
-                key={`iface-${idx}`}
-                variant="outline"
-                className={cn(
-                  "text-xs",
-                  iface.disable && "opacity-50 line-through"
-                )}
-              >
-                {iface.interface}
-              </Badge>
-            ))}
-            {(route.next_hops.length > 2 || route.interfaces.length > 2) && (
-              <Badge variant="secondary" className="text-xs">
-                +{Math.max(0, route.next_hops.length - 2) + Math.max(0, route.interfaces.length - 2)}
-              </Badge>
-            )}
-            {route.next_hops.length === 0 && route.interfaces.length === 0 && (
-              <span className="text-muted-foreground text-sm">—</span>
-            )}
-          </div>
-        )}
+        <div className="flex flex-wrap gap-1">
+          {route.blackhole && (
+            <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20">
+              <Shield className="h-3 w-3 mr-1" />
+              Blackhole
+            </Badge>
+          )}
+          {route.reject && (
+            <Badge variant="outline" className="bg-orange-500/10 text-orange-500 border-orange-500/20">
+              Reject
+            </Badge>
+          )}
+          {route.next_hops.slice(0, 2).map((nh, idx) => (
+            <Badge
+              key={`nh-${idx}`}
+              variant="secondary"
+              className={cn(
+                "text-xs font-mono",
+                nh.disable && "opacity-50 line-through"
+              )}
+            >
+              <ArrowRight className="h-3 w-3 mr-1" />
+              {nh.address}
+            </Badge>
+          ))}
+          {route.interfaces.slice(0, 2).map((iface, idx) => (
+            <Badge
+              key={`iface-${idx}`}
+              variant="outline"
+              className={cn(
+                "text-xs",
+                iface.disable && "opacity-50 line-through"
+              )}
+            >
+              {iface.interface}
+            </Badge>
+          ))}
+          {(route.next_hops.length > 2 || route.interfaces.length > 2) && (
+            <Badge variant="secondary" className="text-xs">
+              +{Math.max(0, route.next_hops.length - 2) + Math.max(0, route.interfaces.length - 2)}
+            </Badge>
+          )}
+          {!route.blackhole && !route.reject && route.next_hops.length === 0 && route.interfaces.length === 0 && (
+            <span className="text-muted-foreground text-sm">—</span>
+          )}
+        </div>
       </TableCell>
       <TableCell className="text-sm text-muted-foreground">
         {route.description || "—"}
       </TableCell>
       <TableCell className="text-right">
-        <Button
-          size="sm"
-          variant="ghost"
-          className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-          onClick={onDelete}
-          disabled={isDeleting}
-        >
-          <Trash2 className="h-4 w-4 text-destructive" />
-        </Button>
+        <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 w-8 p-0"
+            onClick={onEdit}
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 w-8 p-0"
+            onClick={onDelete}
+            disabled={isDeleting}
+          >
+            <Trash2 className="h-4 w-4 text-destructive" />
+          </Button>
+        </div>
       </TableCell>
     </TableRow>
   );

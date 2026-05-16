@@ -177,52 +177,52 @@ function RouteTable({ routes, onDelete }: RouteTableProps) {
                   </div>
                 </TableCell>
                 <TableCell>
-                  {isBlackhole ? (
-                    <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20">
-                      <Shield className="h-3 w-3 mr-1" />
-                      Blackhole
-                    </Badge>
-                  ) : isReject ? (
-                    <Badge variant="outline" className="bg-orange-500/10 text-orange-500 border-orange-500/20">
-                      Reject
-                    </Badge>
-                  ) : (
-                    <div className="flex flex-wrap gap-1">
-                      {hasNextHops && route.next_hops.slice(0, 2).map((nh, idx) => (
-                        <Badge
-                          key={`nh-${idx}`}
-                          variant="secondary"
-                          className={cn(
-                            "text-xs font-mono",
-                            nh.disable && "bg-orange-500/10 text-orange-500"
-                          )}
-                        >
-                          <ArrowRight className="h-3 w-3 mr-1" />
-                          {nh.address}
-                        </Badge>
-                      ))}
-                      {hasInterfaces && route.interfaces.slice(0, 2).map((iface, idx) => (
-                        <Badge
-                          key={`iface-${idx}`}
-                          variant="outline"
-                          className={cn(
-                            "text-xs",
-                            iface.disable && "bg-orange-500/10 text-orange-500"
-                          )}
-                        >
-                          {iface.interface}
-                        </Badge>
-                      ))}
-                      {(route.next_hops.length > 2 || route.interfaces.length > 2) && (
-                        <Badge variant="secondary" className="text-xs">
-                          +{Math.max(0, route.next_hops.length - 2) + Math.max(0, route.interfaces.length - 2)}
-                        </Badge>
-                      )}
-                      {!hasNextHops && !hasInterfaces && (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </div>
-                  )}
+                  <div className="flex flex-wrap gap-1">
+                    {isBlackhole && (
+                      <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20">
+                        <Shield className="h-3 w-3 mr-1" />
+                        Blackhole
+                      </Badge>
+                    )}
+                    {isReject && (
+                      <Badge variant="outline" className="bg-orange-500/10 text-orange-500 border-orange-500/20">
+                        Reject
+                      </Badge>
+                    )}
+                    {hasNextHops && route.next_hops.slice(0, 2).map((nh, idx) => (
+                      <Badge
+                        key={`nh-${idx}`}
+                        variant="secondary"
+                        className={cn(
+                          "text-xs font-mono",
+                          nh.disable && "bg-orange-500/10 text-orange-500"
+                        )}
+                      >
+                        <ArrowRight className="h-3 w-3 mr-1" />
+                        {nh.address}
+                      </Badge>
+                    ))}
+                    {hasInterfaces && route.interfaces.slice(0, 2).map((iface, idx) => (
+                      <Badge
+                        key={`iface-${idx}`}
+                        variant="outline"
+                        className={cn(
+                          "text-xs",
+                          iface.disable && "bg-orange-500/10 text-orange-500"
+                        )}
+                      >
+                        {iface.interface}
+                      </Badge>
+                    ))}
+                    {(route.next_hops.length > 2 || route.interfaces.length > 2) && (
+                      <Badge variant="secondary" className="text-xs">
+                        +{Math.max(0, route.next_hops.length - 2) + Math.max(0, route.interfaces.length - 2)}
+                      </Badge>
+                    )}
+                    {!isBlackhole && !isReject && !hasNextHops && !hasInterfaces && (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell>
                   {route.description || (

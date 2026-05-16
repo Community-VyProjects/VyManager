@@ -1037,6 +1037,73 @@ class StaticRoutesService {
   }
 
   /**
+   * Update an existing route in a routing table
+   */
+  async updateTableRoute(
+    tableId: number,
+    destination: string,
+    routeType: "ipv4" | "ipv6",
+    originalRoute: StaticRoute,
+    config: Partial<StaticRoute>
+  ): Promise<VyOSResponse> {
+    const operations: StaticRoutesBatchOperation[] = [];
+    const p = routeType === "ipv4" ? "set_table_ipv4_route" : "set_table_ipv6_route";
+    const d = routeType === "ipv4" ? "delete_table_ipv4_route" : "delete_table_ipv6_route";
+
+    if (config.description !== undefined && config.description) {
+      operations.push({ op: `${p}_description`, value: config.description });
+    }
+
+    if (config.next_hops !== undefined) {
+      for (const oldNh of originalRoute.next_hops) {
+        operations.push({ op: `${d}_next_hop`, value: oldNh.address });
+      }
+      for (const nh of config.next_hops) {
+        operations.push({ op: `${p}_next_hop`, value: nh.address });
+        if (nh.distance) operations.push({ op: `${p}_next_hop_distance`, value: `${nh.address},${nh.distance}` });
+        if (nh.disable) operations.push({ op: `${p}_next_hop_disable`, value: nh.address });
+        if (nh.vrf) operations.push({ op: `${p}_next_hop_vrf`, value: `${nh.address},${nh.vrf}` });
+        if (nh.bfd_enable) operations.push({ op: `${p}_next_hop_bfd`, value: nh.address });
+      }
+    }
+
+    if (config.interfaces !== undefined) {
+      for (const oldIface of originalRoute.interfaces) {
+        operations.push({ op: `${d}_interface`, value: oldIface.interface });
+      }
+      for (const iface of config.interfaces) {
+        operations.push({ op: `${p}_interface`, value: iface.interface });
+        if (iface.distance) operations.push({ op: `${p}_interface_distance`, value: `${iface.interface},${iface.distance}` });
+        if (iface.disable) operations.push({ op: `${p}_interface_disable`, value: iface.interface });
+      }
+    }
+
+    if (config.blackhole !== undefined) {
+      if (config.blackhole) {
+        operations.push({ op: `${p}_blackhole` });
+        if (config.blackhole_distance) {
+          operations.push({ op: `${p}_blackhole_distance`, value: config.blackhole_distance.toString() });
+        }
+      } else {
+        operations.push({ op: `${d}_blackhole` });
+      }
+    }
+
+    if (config.reject !== undefined) {
+      if (config.reject) {
+        operations.push({ op: `${p}_reject` });
+        if (config.reject_distance) {
+          operations.push({ op: `${p}_reject_distance`, value: config.reject_distance.toString() });
+        }
+      } else {
+        operations.push({ op: `${d}_reject` });
+      }
+    }
+
+    return this.tableRouteBatchConfigure({ table_id: tableId, destination, route_type: routeType, operations });
+  }
+
+  /**
    * Delete a route from a routing table
    */
   async deleteTableRoute(
