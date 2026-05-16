@@ -2,6 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
@@ -93,7 +94,7 @@ const POLICIES_COLUMNS: ColumnDef[] = [
   { id: "recent",        label: "Recent",       defaultVisible: false },
 ];
 
-export default function FirewallPoliciesPage() {
+function FirewallPoliciesPageInner() {
   const searchParams = useSearchParams();
   // Protocol selection state
   const [selectedProtocol, setSelectedProtocol] = useState<"ipv4" | "ipv6">("ipv4");
@@ -1370,5 +1371,13 @@ export default function FirewallPoliciesPage() {
         protocol={selectedProtocol}
       />
     </AppLayout>
+  );
+}
+
+export default function FirewallPoliciesPage() {
+  return (
+    <Suspense>
+      <FirewallPoliciesPageInner />
+    </Suspense>
   );
 }

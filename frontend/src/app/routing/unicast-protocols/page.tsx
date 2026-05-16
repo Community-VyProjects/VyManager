@@ -2,6 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { InProgress } from "@/components/layout/InProgress";
@@ -34,7 +35,7 @@ const allProtocols = [
   { id: "babel" as ProtocolType, name: "Babel", description: "Babel Routing Protocol", permission: FeatureGroup.BABEL },
 ];
 
-export default function UnicastProtocolsPage() {
+function UnicastProtocolsPageInner() {
   const searchParams = useSearchParams();
   const { canRead, isLoading } = usePermissions();
 
@@ -162,5 +163,13 @@ export default function UnicastProtocolsPage() {
         </div>
       </div>
     </AppLayout>
+  );
+}
+
+export default function UnicastProtocolsPage() {
+  return (
+    <Suspense>
+      <UnicastProtocolsPageInner />
+    </Suspense>
   );
 }

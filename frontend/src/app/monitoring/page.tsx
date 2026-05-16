@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect } from "react";
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -52,7 +53,7 @@ function getTableView(command: string): TableView | null {
   return TABLE_COMMANDS[command as keyof typeof TABLE_COMMANDS] ?? null;
 }
 
-export default function MonitoringPage() {
+function MonitoringPageInner() {
   const searchParams = useSearchParams();
   const [session, setSession] = useState<ActiveSession | null>(null);
   const [sshStatus, setSSHStatus] = useState<MonitoringStatus | null>(null);
@@ -494,5 +495,13 @@ export default function MonitoringPage() {
         onApply={(bpf) => setCaptureFilter(bpf)}
       />
     </AppLayout>
+  );
+}
+
+export default function MonitoringPage() {
+  return (
+    <Suspense>
+      <MonitoringPageInner />
+    </Suspense>
   );
 }

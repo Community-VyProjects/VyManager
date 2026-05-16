@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/table";
 import { Plus, RefreshCw, AlertCircle, Search, Cable, Pencil, Trash2, Network, ChevronRight, ChevronDown, Shield, Boxes, Waypoints, Link2, GitMerge, Box, Layers, ArrowDownToLine, Repeat, Lock, ArrowLeftRight, Wifi, Signal } from "lucide-react";
 import { useState, useEffect } from "react";
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { ethernetService } from "@/lib/api/ethernet";
@@ -129,7 +130,7 @@ interface VIFCWithParent extends VIFConfig {
   fullName: string;
 }
 
-export default function InterfacesPage() {
+function InterfacesPageInner() {
   const searchParams = useSearchParams();
   const [interfaces, setInterfaces] = useState<EthernetInterface[]>([]);
   const [capabilities, setCapabilities] = useState<EthernetCapabilities | null>(null);
@@ -4507,5 +4508,13 @@ export default function InterfacesPage() {
         vlanId={deletingVif?.vifId ?? null}
       />
     </AppLayout>
+  );
+}
+
+export default function InterfacesPage() {
+  return (
+    <Suspense>
+      <InterfacesPageInner />
+    </Suspense>
   );
 }

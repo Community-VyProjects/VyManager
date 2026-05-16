@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect } from "react";
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -21,7 +22,7 @@ import { ConntrackPanel } from "@/components/system/settings/ConntrackPanel";
 import { HostMappingPanel } from "@/components/system/settings/HostMappingPanel";
 import { AdvancedPanel } from "@/components/system/settings/AdvancedPanel";
 
-export default function SystemSettingsPage() {
+function SystemSettingsPageInner() {
   const searchParams = useSearchParams();
   const [config, setConfig] = useState<SystemConfig | null>(null);
   const [capabilities, setCapabilities] = useState<SystemCapabilities | null>(null);
@@ -171,5 +172,13 @@ export default function SystemSettingsPage() {
         )}
       </div>
     </AppLayout>
+  );
+}
+
+export default function SystemSettingsPage() {
+  return (
+    <Suspense>
+      <SystemSettingsPageInner />
+    </Suspense>
   );
 }

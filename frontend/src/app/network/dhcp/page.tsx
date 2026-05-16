@@ -45,6 +45,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   dhcpService,
@@ -97,7 +98,7 @@ function isIpInSubnet(ip: string, cidr: string): boolean {
   return ((ipInt >>> 0) & maskInt) === ((subnetInt >>> 0) & maskInt);
 }
 
-export default function DHCPPage() {
+function DHCPPageInner() {
   const searchParams = useSearchParams();
   const [config, setConfig] = useState<DHCPConfigResponse | null>(null);
   const [capabilities, setCapabilities] = useState<DHCPCapabilitiesResponse | null>(null);
@@ -1281,5 +1282,13 @@ export default function DHCPPage() {
         )}
       </div>
     </AppLayout>
+  );
+}
+
+export default function DHCPPage() {
+  return (
+    <Suspense>
+      <DHCPPageInner />
+    </Suspense>
   );
 }

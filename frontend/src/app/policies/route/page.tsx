@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect } from "react";
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
@@ -41,7 +42,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { apiClient } from "@/lib/api/client";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-export default function RoutePage() {
+function RoutePageInner() {
   const searchParams = useSearchParams();
   const [ipv4Policies, setIpv4Policies] = useState<PolicyRoute[]>([]);
   const [ipv6Policies, setIpv6Policies] = useState<PolicyRoute[]>([]);
@@ -768,5 +769,13 @@ export default function RoutePage() {
         </>
       )}
     </AppLayout>
+  );
+}
+
+export default function RoutePage() {
+  return (
+    <Suspense>
+      <RoutePageInner />
+    </Suspense>
   );
 }

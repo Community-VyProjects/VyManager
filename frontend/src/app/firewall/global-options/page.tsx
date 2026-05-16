@@ -25,6 +25,7 @@ import {
   Settings,
 } from "lucide-react";
 import { useState, useEffect } from "react";
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   firewallGlobalOptionsService,
@@ -33,7 +34,7 @@ import {
 } from "@/lib/api/firewall-global-options";
 import { cn } from "@/lib/utils";
 
-export default function FirewallGlobalOptionsPage() {
+function FirewallGlobalOptionsPageInner() {
   const searchParams = useSearchParams();
   const [config, setConfig] = useState<FirewallGlobalOptionsConfig | null>(null);
   const [capabilities, setCapabilities] = useState<FirewallGlobalOptionsCapabilities | null>(null);
@@ -886,5 +887,13 @@ export default function FirewallGlobalOptionsPage() {
         </div>
       </div>
     </AppLayout>
+  );
+}
+
+export default function FirewallGlobalOptionsPage() {
+  return (
+    <Suspense>
+      <FirewallGlobalOptionsPageInner />
+    </Suspense>
   );
 }

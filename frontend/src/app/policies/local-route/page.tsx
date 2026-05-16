@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect } from "react";
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -36,7 +37,7 @@ import { LocalRouteRuleRow } from "@/components/policies/LocalRouteRuleRow";
 import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors, closestCenter } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 
-export default function LocalRoutePage() {
+function LocalRoutePageInner() {
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -467,5 +468,13 @@ export default function LocalRoutePage() {
         />
       )}
     </AppLayout>
+  );
+}
+
+export default function LocalRoutePage() {
+  return (
+    <Suspense>
+      <LocalRoutePageInner />
+    </Suspense>
   );
 }

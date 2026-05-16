@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect } from "react";
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -58,7 +59,7 @@ import {
   AuthSettingsModal,
 } from "@/components/vpn/l2tp";
 
-export default function L2TPPage() {
+function L2TPPageInner() {
   const searchParams = useSearchParams();
   const { canRead, canWrite } = usePermissions();
   const hasRead = canRead(FeatureGroup.L2TP);
@@ -799,5 +800,13 @@ function EmptyState({ icon: Icon, label }: { icon: React.ComponentType<{ classNa
       <Icon className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
       <p className="text-muted-foreground">{label}</p>
     </div>
+  );
+}
+
+export default function L2TPPage() {
+  return (
+    <Suspense>
+      <L2TPPageInner />
+    </Suspense>
   );
 }

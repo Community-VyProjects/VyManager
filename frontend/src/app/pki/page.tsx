@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect } from "react";
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -59,7 +60,7 @@ import {
   type PKIViewingItem,
 } from "@/components/pki";
 
-export default function PKIPage() {
+function PKIPageInner() {
   const searchParams = useSearchParams();
   const { canRead, canWrite } = usePermissions();
   const hasRead = canRead(FeatureGroup.PKI);
@@ -830,5 +831,13 @@ export default function PKIPage() {
         />
       )}
     </AppLayout>
+  );
+}
+
+export default function PKIPage() {
+  return (
+    <Suspense>
+      <PKIPageInner />
+    </Suspense>
   );
 }

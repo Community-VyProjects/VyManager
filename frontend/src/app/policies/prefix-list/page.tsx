@@ -2,6 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
@@ -49,7 +50,7 @@ import { DeletePrefixListRuleModal } from "@/components/policies/DeletePrefixLis
 import { PrefixListRuleRow } from "@/components/policies/PrefixListRuleRow";
 import { PrefixListReorderBanner } from "@/components/policies/PrefixListReorderBanner";
 
-export default function PrefixListPage() {
+function PrefixListPageInner() {
   const searchParams = useSearchParams();
   const [config, setConfig] = useState<PrefixListConfigResponse | null>(null);
   const [capabilities, setCapabilities] = useState<PrefixListCapabilitiesResponse | null>(null);
@@ -620,5 +621,13 @@ export default function PrefixListPage() {
         </>
       )}
     </AppLayout>
+  );
+}
+
+export default function PrefixListPage() {
+  return (
+    <Suspense>
+      <PrefixListPageInner />
+    </Suspense>
   );
 }

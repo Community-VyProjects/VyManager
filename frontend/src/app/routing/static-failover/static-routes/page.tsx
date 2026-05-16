@@ -2,6 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -58,7 +59,7 @@ import { DeleteNeighborProxyModal } from "@/components/routing/DeleteNeighborPro
 import { CreateRoutingTableModal } from "@/components/routing/CreateRoutingTableModal";
 import { RoutingTablesAccordion } from "@/components/routing/RoutingTablesAccordion";
 
-export default function StaticRoutesPage() {
+function StaticRoutesPageInner() {
   const searchParams = useSearchParams();
   const [config, setConfig] = useState<StaticRoutesConfig | null>(null);
   const [capabilities, setCapabilities] = useState<StaticRoutesCapabilities | null>(null);
@@ -970,5 +971,13 @@ export default function StaticRoutesPage() {
         onSuccess={() => fetchConfig(true)}
       />
     </>
+  );
+}
+
+export default function StaticRoutesPage() {
+  return (
+    <Suspense>
+      <StaticRoutesPageInner />
+    </Suspense>
   );
 }
