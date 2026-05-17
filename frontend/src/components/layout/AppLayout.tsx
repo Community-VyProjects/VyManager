@@ -13,7 +13,7 @@ import { useUnifiedView } from "@/contexts/UnifiedViewContext";
 import { useBannerEvents } from "@/hooks/useBannerEvents";
 
 
-export function AppLayout({ children }: { children: React.ReactNode }) {
+function AppLayoutInner({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { activeSession, loadSession } = useSessionStore();
   const [isChecking, setIsChecking] = useState(true);
@@ -88,4 +88,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       )}
     </div>
   );
+}
+
+export function AppLayout({ children }: { children: React.ReactNode }) {
+  return <AppLayoutInner>{children}</AppLayoutInner>;
 }

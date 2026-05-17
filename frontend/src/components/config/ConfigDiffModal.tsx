@@ -13,6 +13,41 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Minus, Edit, FileJson } from "lucide-react";
 import type { ConfigDiff } from "@/lib/api/config";
 import type { ReactNode } from "react";
+import { cn } from "@/lib/utils";
+
+function expandSetCommands(pathParts: string[], value: any): string[] {
+  if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+    return Object.entries(value).flatMap(([k, v]) => expandSetCommands([...pathParts, k], v));
+  }
+  const pathStr = pathParts.join(" ");
+  const valStr = formatCLIValue(value);
+  return [`set ${pathStr}${valStr ? " " + valStr : ""}`];
+}
+
+function expandDeleteCommands(pathParts: string[], value: any): string[] {
+  if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+    return [`delete ${pathParts.join(" ")}`];
+  }
+  const pathStr = pathParts.join(" ");
+  const valStr = formatCLIValue(value);
+  return [`delete ${pathStr}${valStr ? " " + valStr : ""}`];
+}
+
+function formatCLIValue(value: any): string {
+  if (value === null || value === undefined || value === "") return "";
+  const str = String(value);
+  if (/\s|'/.test(str)) return `'${str.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
+  return str;
+}
+
+function generateCommands(section: Record<string, any>, type: "added" | "removed" | "modified"): string[] {
+  return Object.entries(section).flatMap(([dotPath, value]) => {
+    const pathParts = dotPath.split(".");
+    if (type === "modified") return expandSetCommands(pathParts, (value as { old: any; new: any }).new);
+    if (type === "added") return expandSetCommands(pathParts, value);
+    return expandDeleteCommands(pathParts, value);
+  });
+}
 
 interface ConfigDiffModalProps {
   open: boolean;
@@ -97,8 +132,8 @@ export function ConfigDiffModal({ open, onOpenChange, diff }: ConfigDiffModalPro
           )}
         </div>
 
-        <Tabs defaultValue={hasAdded ? "added" : hasRemoved ? "removed" : "modified"} className="flex-1 overflow-hidden flex flex-col">
-          <TabsList className="grid w-full grid-cols-3">
+        <Tabs defaultValue={hasAdded ? "added" : hasRemoved ? "removed" : hasModified ? "modified" : "commands"} className="flex-1 overflow-hidden flex flex-col">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="added" disabled={!hasAdded}>
               Added ({summary.added})
             </TabsTrigger>
@@ -107,6 +142,9 @@ export function ConfigDiffModal({ open, onOpenChange, diff }: ConfigDiffModalPro
             </TabsTrigger>
             <TabsTrigger value="modified" disabled={!hasModified}>
               Modified ({summary.modified})
+            </TabsTrigger>
+            <TabsTrigger value="commands">
+              Commands
             </TabsTrigger>
           </TabsList>
 
@@ -214,6 +252,38 @@ export function ConfigDiffModal({ open, onOpenChange, diff }: ConfigDiffModalPro
                   ))}
                 </div>
               )}
+            </ScrollArea>
+          </TabsContent>
+
+          {/* Commands Tab */}
+          <TabsContent value="commands" className="flex-1 overflow-hidden mt-4">
+            <ScrollArea className="h-[calc(80vh-280px)]">
+              {(() => {
+                const cmds = [
+                  ...generateCommands(added, "added"),
+                  ...generateCommands(modified, "modified"),
+                  ...generateCommands(removed, "removed"),
+                ];
+                return cmds.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">No commands to show</div>
+                ) : (
+                  <div className="space-y-1 pr-4">
+                    {cmds.map((cmd, i) => (
+                      <div
+                        key={i}
+                        className={cn(
+                          "px-3 py-1.5 rounded font-mono text-sm",
+                          cmd.startsWith("set")
+                            ? "bg-green-500/5 text-green-700 dark:text-green-400"
+                            : "bg-red-500/5 text-red-700 dark:text-red-400"
+                        )}
+                      >
+                        {cmd}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
             </ScrollArea>
           </TabsContent>
         </Tabs>

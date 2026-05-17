@@ -106,6 +106,53 @@ def deep_diff(current: Dict, saved: Dict, path: str = "") -> tuple:
     return added, removed, modified
 
 
+def _expand_set_ops(path_parts: list, value) -> list:
+    """Recursively expand a diff value into VyOS set operations."""
+    if isinstance(value, dict):
+        ops = []
+        for k, v in value.items():
+            ops.extend(_expand_set_ops(path_parts + [k], v))
+        return ops
+    elif isinstance(value, list):
+        return [{"op": "set", "path": path_parts + [str(item)]} for item in value]
+    else:
+        return [{"op": "set", "path": path_parts + [str(value)]}]
+
+
+def _expand_delete_ops(path_parts: list, value) -> list:
+    """Recursively expand a diff value into VyOS delete operations."""
+    if isinstance(value, dict):
+        # Entire subtree is new — delete at the root (VyOS removes the whole tree)
+        return [{"op": "delete", "path": path_parts}]
+    elif isinstance(value, list):
+        return [{"op": "delete", "path": path_parts + [str(item)]} for item in value]
+    else:
+        return [{"op": "delete", "path": path_parts}]
+
+
+def _build_discard_operations(added: dict, removed: dict, modified: dict) -> list:
+    """Build the reverse operations needed to undo a config diff."""
+    operations = []
+    for dot_path, value in added.items():
+        operations.extend(_expand_delete_ops(dot_path.split("."), value))
+    for dot_path, value in removed.items():
+        operations.extend(_expand_set_ops(dot_path.split("."), value))
+    for dot_path, change in modified.items():
+        path_parts = dot_path.split(".")
+        old, new = change["old"], change["new"]
+        if isinstance(old, list) or isinstance(new, list):
+            # Multi-value node: use set-difference to only touch changed items
+            old_set = {str(x) for x in (old if isinstance(old, list) else [old])}
+            new_set = {str(x) for x in (new if isinstance(new, list) else [new])}
+            for item in new_set - old_set:  # in new but not old → delete
+                operations.append({"op": "delete", "path": path_parts + [item]})
+            for item in old_set - new_set:  # in old but not new → restore
+                operations.append({"op": "set", "path": path_parts + [item]})
+        else:
+            operations.extend(_expand_set_ops(path_parts, old))
+    return operations
+
+
 # ========================================================================
 # Endpoints
 # ========================================================================
@@ -240,6 +287,59 @@ async def save_config(request: Request, file: Optional[str] = None):
         raise  # Re-raise HTTP exceptions as-is
     except Exception as e:
         print(f"[ConfigRouter] Error in /config/save: {type(e).__name__}: {str(e)}")
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post("/discard", response_model=SaveConfigResponse)
+async def discard_config(request: Request):
+    """
+    Discard all unsaved configuration changes for the active instance.
+
+    Computes the reverse of the current diff (delete added, restore removed,
+    revert modified) and executes those operations directly — no config file
+    path required. Works on any VyOS setup regardless of config file location.
+    """
+    await require_write_permission(request, FeatureGroup.CONFIGURATION)
+    try:
+        global _saved_config_snapshots
+
+        service = get_session_vyos_service(request)
+        instance_id = request.state.instance['id']
+        current_config = await run_in_threadpool(service.get_full_config, refresh=True)
+
+        if instance_id not in _saved_config_snapshots:
+            return SaveConfigResponse(success=True, message="No changes to discard")
+
+        added, removed, modified = deep_diff(current_config, _saved_config_snapshots[instance_id])
+
+        if not added and not removed and not modified:
+            return SaveConfigResponse(success=True, message="No changes to discard")
+
+        operations = _build_discard_operations(added, removed, modified)
+        response = await run_in_threadpool(
+            service.device.configure_multiple_op, op_path=operations
+        )
+
+        if response.status != 200:
+            return SaveConfigResponse(
+                success=False,
+                message="Failed to discard configuration changes",
+                error=response.error or "Unknown error"
+            )
+
+        current_config = await run_in_threadpool(service.get_full_config, refresh=True)
+        _saved_config_snapshots[instance_id] = current_config
+        event_manager.emit(instance_id, EVENT_CONFIG_DIFF, None)
+
+        return SaveConfigResponse(
+            success=True,
+            message="Configuration changes discarded successfully"
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[ConfigRouter] Error in /config/discard: {type(e).__name__}: {str(e)}")
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
 
