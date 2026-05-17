@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Palette, Plus, X } from "lucide-react";
+import { Palette, Pencil, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
@@ -14,11 +14,13 @@ function ThemeCard({
   theme,
   isActive,
   onSelect,
+  onEdit,
   onDelete,
 }: {
   theme: ThemeDefinition;
   isActive: boolean;
   onSelect: () => void;
+  onEdit?: () => void;
   onDelete?: () => void;
 }) {
   return (
@@ -34,17 +36,26 @@ function ThemeCard({
         <div className="flex-1" style={{ background: theme.variables["primary"] }} />
         <div className="flex-1" style={{ background: theme.variables["accent"] }} />
       </div>
-      <span className="text-xs font-medium leading-none truncate pr-3">{theme.name}</span>
-      {theme.isCustom && onDelete && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete();
-          }}
-          className="absolute top-1 right-1 rounded p-0.5 hover:bg-destructive/20 text-muted-foreground hover:text-destructive"
-        >
-          <X className="h-3 w-3" />
-        </button>
+      <span className="text-xs font-medium leading-none truncate pr-6">{theme.name}</span>
+      {theme.isCustom && (
+        <div className="absolute top-1 right-1 flex gap-0.5">
+          {onEdit && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onEdit(); }}
+              className="rounded p-0.5 hover:bg-accent text-muted-foreground hover:text-foreground"
+            >
+              <Pencil className="h-3 w-3" />
+            </button>
+          )}
+          {onDelete && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onDelete(); }}
+              className="rounded p-0.5 hover:bg-destructive/20 text-muted-foreground hover:text-destructive"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          )}
+        </div>
       )}
     </button>
   );
@@ -54,8 +65,21 @@ export function ThemeSelector() {
   const { themeId, setThemeId, allThemes, removeCustomTheme } = useTheme();
   const [open, setOpen] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
+  const [editingTheme, setEditingTheme] = useState<ThemeDefinition | undefined>(undefined);
 
   const activeTheme = allThemes.find((t) => t.id === themeId) ?? allThemes[0];
+
+  function openCreate() {
+    setEditingTheme(undefined);
+    setOpen(false);
+    setEditorOpen(true);
+  }
+
+  function openEdit(theme: ThemeDefinition) {
+    setEditingTheme(theme);
+    setOpen(false);
+    setEditorOpen(true);
+  }
 
   return (
     <>
@@ -80,10 +104,8 @@ export function ThemeSelector() {
                 key={theme.id}
                 theme={theme}
                 isActive={theme.id === themeId}
-                onSelect={() => {
-                  setThemeId(theme.id);
-                  setOpen(false);
-                }}
+                onSelect={() => { setThemeId(theme.id); setOpen(false); }}
+                onEdit={theme.isCustom ? () => openEdit(theme) : undefined}
                 onDelete={theme.isCustom ? () => removeCustomTheme(theme.id) : undefined}
               />
             ))}
@@ -93,17 +115,18 @@ export function ThemeSelector() {
             variant="ghost"
             size="sm"
             className="w-full justify-start gap-2 text-xs"
-            onClick={() => {
-              setOpen(false);
-              setEditorOpen(true);
-            }}
+            onClick={openCreate}
           >
             <Plus className="h-3 w-3" />
             Create custom theme
           </Button>
         </PopoverContent>
       </Popover>
-      <CustomThemeEditor open={editorOpen} onOpenChange={setEditorOpen} />
+      <CustomThemeEditor
+        open={editorOpen}
+        onOpenChange={setEditorOpen}
+        editingTheme={editingTheme}
+      />
     </>
   );
 }

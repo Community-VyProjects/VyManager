@@ -10,6 +10,7 @@ interface ThemeContextType {
   allThemes: ThemeDefinition[];
   customThemes: ThemeDefinition[];
   addCustomTheme: (t: ThemeDefinition) => void;
+  updateCustomTheme: (id: string, t: ThemeDefinition) => void;
   removeCustomTheme: (id: string) => void;
 }
 
@@ -62,6 +63,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem("custom-themes", JSON.stringify(updated));
   }
 
+  function updateCustomTheme(id: string, t: ThemeDefinition) {
+    const updated = customThemes.map((c) => (c.id === id ? { ...t, id } : c));
+    setCustomThemes(updated);
+    localStorage.setItem("custom-themes", JSON.stringify(updated));
+  }
+
   function removeCustomTheme(id: string) {
     const updated = customThemes.filter((t) => t.id !== id);
     setCustomThemes(updated);
@@ -71,7 +78,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <ThemeContext.Provider
-      value={{ themeId, setThemeId, allThemes, customThemes, addCustomTheme, removeCustomTheme }}
+      value={{ themeId, setThemeId, allThemes, customThemes, addCustomTheme, updateCustomTheme, removeCustomTheme }}
     >
       {children}
     </ThemeContext.Provider>
