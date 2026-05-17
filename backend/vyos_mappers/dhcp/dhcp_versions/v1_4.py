@@ -70,6 +70,24 @@ class DHCPMapperV1_4:
             "subnet", subnet, "domain-name"
         ]
 
+    def get_static_mapping_mac_address(
+        self, network_name: str, subnet: str, mapping_name: str, mac_address: str
+    ) -> List[str]:
+        """Get command path for static mapping MAC address (1.4: uses 'mac-address')."""
+        return [
+            "service", "dhcp-server", "shared-network-name", network_name,
+            "subnet", subnet, "static-mapping", mapping_name, "mac-address", mac_address
+        ]
+
+    def get_static_mapping_mac_address_path(
+        self, network_name: str, subnet: str, mapping_name: str
+    ) -> List[str]:
+        """Get command path for static mapping MAC address deletion (1.4: uses 'mac-address')."""
+        return [
+            "service", "dhcp-server", "shared-network-name", network_name,
+            "subnet", subnet, "static-mapping", mapping_name, "mac-address"
+        ]
+
     def has_subnet_id(self) -> bool:
         """Returns False - subnet-id does not exist in VyOS 1.4."""
         return False
