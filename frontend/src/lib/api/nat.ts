@@ -213,14 +213,18 @@ class NATService {
     config: {
       description?: string;
       source_address?: string;
+      source_address_invert?: boolean;
       source_port?: string;
       source_group_type?: string;
       source_group_name?: string;
+      source_group_invert?: boolean;
       source_port_group_name?: string;
       destination_address?: string;
+      destination_address_invert?: boolean;
       destination_port?: string;
       destination_group_type?: string;
       destination_group_name?: string;
+      destination_group_invert?: boolean;
       destination_port_group_name?: string;
       outbound_interface_type?: "name" | "group";
       outbound_interface_value?: string;
@@ -248,15 +252,17 @@ class NATService {
 
     // Source
     if (config.source_address) {
-      operations.push({ op: "set_source_rule_source_address", value: config.source_address });
+      const addr = config.source_address_invert ? `!${config.source_address}` : config.source_address;
+      operations.push({ op: "set_source_rule_source_address", value: addr });
     }
     if (config.source_port) {
       operations.push({ op: "set_source_rule_source_port", value: config.source_port });
     }
     if (config.source_group_type && config.source_group_name) {
+      const groupName = config.source_group_invert ? `!${config.source_group_name}` : config.source_group_name;
       operations.push({
         op: "set_source_rule_source_group",
-        value: JSON.stringify({ group_type: config.source_group_type, group_name: config.source_group_name })
+        value: JSON.stringify({ group_type: config.source_group_type, group_name: groupName })
       });
     }
     if (config.source_port_group_name) {
@@ -268,15 +274,17 @@ class NATService {
 
     // Destination
     if (config.destination_address) {
-      operations.push({ op: "set_source_rule_destination_address", value: config.destination_address });
+      const addr = config.destination_address_invert ? `!${config.destination_address}` : config.destination_address;
+      operations.push({ op: "set_source_rule_destination_address", value: addr });
     }
     if (config.destination_port) {
       operations.push({ op: "set_source_rule_destination_port", value: config.destination_port });
     }
     if (config.destination_group_type && config.destination_group_name) {
+      const groupName = config.destination_group_invert ? `!${config.destination_group_name}` : config.destination_group_name;
       operations.push({
         op: "set_source_rule_destination_group",
-        value: JSON.stringify({ group_type: config.destination_group_type, group_name: config.destination_group_name })
+        value: JSON.stringify({ group_type: config.destination_group_type, group_name: groupName })
       });
     }
     if (config.destination_port_group_name) {
@@ -357,14 +365,18 @@ class NATService {
     config: {
       description?: string;
       source_address?: string;
+      source_address_invert?: boolean;
       source_port?: string;
       source_group_type?: string;
       source_group_name?: string;
+      source_group_invert?: boolean;
       source_port_group_name?: string;
       destination_address?: string;
+      destination_address_invert?: boolean;
       destination_port?: string;
       destination_group_type?: string;
       destination_group_name?: string;
+      destination_group_invert?: boolean;
       destination_port_group_name?: string;
       inbound_interface_type?: "name" | "group";
       inbound_interface_value?: string;
@@ -392,15 +404,17 @@ class NATService {
 
     // Source
     if (config.source_address) {
-      operations.push({ op: "set_destination_rule_source_address", value: config.source_address });
+      const addr = config.source_address_invert ? `!${config.source_address}` : config.source_address;
+      operations.push({ op: "set_destination_rule_source_address", value: addr });
     }
     if (config.source_port) {
       operations.push({ op: "set_destination_rule_source_port", value: config.source_port });
     }
     if (config.source_group_type && config.source_group_name) {
+      const groupName = config.source_group_invert ? `!${config.source_group_name}` : config.source_group_name;
       operations.push({
         op: "set_destination_rule_source_group",
-        value: JSON.stringify({ group_type: config.source_group_type, group_name: config.source_group_name })
+        value: JSON.stringify({ group_type: config.source_group_type, group_name: groupName })
       });
     }
     if (config.source_port_group_name) {
@@ -412,15 +426,17 @@ class NATService {
 
     // Destination
     if (config.destination_address) {
-      operations.push({ op: "set_destination_rule_destination_address", value: config.destination_address });
+      const addr = config.destination_address_invert ? `!${config.destination_address}` : config.destination_address;
+      operations.push({ op: "set_destination_rule_destination_address", value: addr });
     }
     if (config.destination_port) {
       operations.push({ op: "set_destination_rule_destination_port", value: config.destination_port });
     }
     if (config.destination_group_type && config.destination_group_name) {
+      const groupName = config.destination_group_invert ? `!${config.destination_group_name}` : config.destination_group_name;
       operations.push({
         op: "set_destination_rule_destination_group",
-        value: JSON.stringify({ group_type: config.destination_group_type, group_name: config.destination_group_name })
+        value: JSON.stringify({ group_type: config.destination_group_type, group_name: groupName })
       });
     }
     if (config.destination_port_group_name) {
@@ -560,14 +576,18 @@ class NATService {
     config: {
       description?: string;
       source_address?: string;
+      source_address_invert?: boolean;
       source_port?: string;
       source_group_type?: string;
       source_group_name?: string;
+      source_group_invert?: boolean;
       source_port_group_name?: string;
       destination_address?: string;
+      destination_address_invert?: boolean;
       destination_port?: string;
       destination_group_type?: string;
       destination_group_name?: string;
+      destination_group_invert?: boolean;
       destination_port_group_name?: string;
       outbound_interface_type?: "name" | "group";
       outbound_interface_value?: string;
@@ -611,7 +631,8 @@ class NATService {
     if (config.delete_source_address) {
       operations.push({ op: "delete_source_rule_source_address" });
     } else if (config.source_address) {
-      operations.push({ op: "set_source_rule_source_address", value: config.source_address });
+      const addr = config.source_address_invert ? `!${config.source_address}` : config.source_address;
+      operations.push({ op: "set_source_rule_source_address", value: addr });
     }
 
     if (config.delete_source_port) {
@@ -626,9 +647,10 @@ class NATService {
       operations.push({ op: "delete_source_rule_source_group", value: "network-group" });
       operations.push({ op: "delete_source_rule_source_group", value: "domain-group" });
     } else if (config.source_group_type && config.source_group_name) {
+      const groupName = config.source_group_invert ? `!${config.source_group_name}` : config.source_group_name;
       operations.push({
         op: "set_source_rule_source_group",
-        value: JSON.stringify({ group_type: config.source_group_type, group_name: config.source_group_name })
+        value: JSON.stringify({ group_type: config.source_group_type, group_name: groupName })
       });
     }
 
@@ -645,7 +667,8 @@ class NATService {
     if (config.delete_destination_address) {
       operations.push({ op: "delete_source_rule_destination_address" });
     } else if (config.destination_address) {
-      operations.push({ op: "set_source_rule_destination_address", value: config.destination_address });
+      const addr = config.destination_address_invert ? `!${config.destination_address}` : config.destination_address;
+      operations.push({ op: "set_source_rule_destination_address", value: addr });
     }
 
     if (config.delete_destination_port) {
@@ -660,9 +683,10 @@ class NATService {
       operations.push({ op: "delete_source_rule_destination_group", value: "network-group" });
       operations.push({ op: "delete_source_rule_destination_group", value: "domain-group" });
     } else if (config.destination_group_type && config.destination_group_name) {
+      const groupName = config.destination_group_invert ? `!${config.destination_group_name}` : config.destination_group_name;
       operations.push({
         op: "set_source_rule_destination_group",
-        value: JSON.stringify({ group_type: config.destination_group_type, group_name: config.destination_group_name })
+        value: JSON.stringify({ group_type: config.destination_group_type, group_name: groupName })
       });
     }
 
@@ -754,14 +778,18 @@ class NATService {
     config: {
       description?: string;
       source_address?: string;
+      source_address_invert?: boolean;
       source_port?: string;
       source_group_type?: string;
       source_group_name?: string;
+      source_group_invert?: boolean;
       source_port_group_name?: string;
       destination_address?: string;
+      destination_address_invert?: boolean;
       destination_port?: string;
       destination_group_type?: string;
       destination_group_name?: string;
+      destination_group_invert?: boolean;
       destination_port_group_name?: string;
       inbound_interface_type?: "name" | "group";
       inbound_interface_value?: string;
@@ -805,7 +833,8 @@ class NATService {
     if (config.delete_source_address) {
       operations.push({ op: "delete_destination_rule_source_address" });
     } else if (config.source_address) {
-      operations.push({ op: "set_destination_rule_source_address", value: config.source_address });
+      const addr = config.source_address_invert ? `!${config.source_address}` : config.source_address;
+      operations.push({ op: "set_destination_rule_source_address", value: addr });
     }
 
     if (config.delete_source_port) {
@@ -820,9 +849,10 @@ class NATService {
       operations.push({ op: "delete_destination_rule_source_group", value: "network-group" });
       operations.push({ op: "delete_destination_rule_source_group", value: "domain-group" });
     } else if (config.source_group_type && config.source_group_name) {
+      const groupName = config.source_group_invert ? `!${config.source_group_name}` : config.source_group_name;
       operations.push({
         op: "set_destination_rule_source_group",
-        value: JSON.stringify({ group_type: config.source_group_type, group_name: config.source_group_name })
+        value: JSON.stringify({ group_type: config.source_group_type, group_name: groupName })
       });
     }
 
@@ -839,7 +869,8 @@ class NATService {
     if (config.delete_destination_address) {
       operations.push({ op: "delete_destination_rule_destination_address" });
     } else if (config.destination_address) {
-      operations.push({ op: "set_destination_rule_destination_address", value: config.destination_address });
+      const addr = config.destination_address_invert ? `!${config.destination_address}` : config.destination_address;
+      operations.push({ op: "set_destination_rule_destination_address", value: addr });
     }
 
     if (config.delete_destination_port) {
@@ -854,9 +885,10 @@ class NATService {
       operations.push({ op: "delete_destination_rule_destination_group", value: "network-group" });
       operations.push({ op: "delete_destination_rule_destination_group", value: "domain-group" });
     } else if (config.destination_group_type && config.destination_group_name) {
+      const groupName = config.destination_group_invert ? `!${config.destination_group_name}` : config.destination_group_name;
       operations.push({
         op: "set_destination_rule_destination_group",
-        value: JSON.stringify({ group_type: config.destination_group_type, group_name: config.destination_group_name })
+        value: JSON.stringify({ group_type: config.destination_group_type, group_name: groupName })
       });
     }
 
