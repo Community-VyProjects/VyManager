@@ -36,7 +36,7 @@ function expandDeleteCommands(pathParts: string[], value: any): string[] {
 function formatCLIValue(value: any): string {
   if (value === null || value === undefined || value === "") return "";
   const str = String(value);
-  if (/\s|'/.test(str)) return `'${str.replace(/'/g, "\\'")}'`;
+  if (/\s|'/.test(str)) return `'${str.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
   return str;
 }
 
