@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { PageRefreshProvider, usePageRefresh } from "@/contexts/PageRefreshContext";
 import { Sidebar } from "./Sidebar";
 import { UnsavedChangesBanner } from "../config/UnsavedChangesBanner";
 import { PowerActionBanner } from "../system/PowerActionBanner";
@@ -13,9 +14,10 @@ import { useUnifiedView } from "@/contexts/UnifiedViewContext";
 import { useBannerEvents } from "@/hooks/useBannerEvents";
 
 
-export function AppLayout({ children }: { children: React.ReactNode }) {
+function AppLayoutInner({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { activeSession, loadSession } = useSessionStore();
+  const { refreshKey } = usePageRefresh();
   const [isChecking, setIsChecking] = useState(true);
   const { unifiedViewData, closeUnifiedView } = useUnifiedView();
   const bannerEvents = useBannerEvents();
@@ -70,7 +72,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <main className="flex-1 flex flex-col overflow-hidden relative">
           <PowerActionBanner powerStatus={bannerEvents.data.powerStatus} />
           <UnsavedChangesBanner configDiff={bannerEvents.data.configDiff} commitConfirm={bannerEvents.data.commitConfirm} />
-          <div className="flex-1 min-h-0 overflow-y-auto">
+          <div key={refreshKey} className="flex-1 min-h-0 overflow-y-auto">
             {children}
           </div>
         </main>
@@ -87,5 +89,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         />
       )}
     </div>
+  );
+}
+
+export function AppLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <PageRefreshProvider>
+      <AppLayoutInner>{children}</AppLayoutInner>
+    </PageRefreshProvider>
   );
 }

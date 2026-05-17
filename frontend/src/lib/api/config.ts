@@ -65,6 +65,13 @@ class ConfigService {
   }
 
   /**
+   * Discard all unsaved configuration changes by reverting to the last saved state
+   */
+  async discardConfig(): Promise<SaveConfigResponse> {
+    return apiClient.post<SaveConfigResponse>("/vyos/config/discard");
+  }
+
+  /**
    * Force refresh the configuration cache
    */
   async refreshConfig(): Promise<{ success: boolean; message: string }> {

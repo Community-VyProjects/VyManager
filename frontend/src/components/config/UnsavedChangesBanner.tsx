@@ -1,9 +1,14 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { AlertTriangle, Save, FileText, CheckCircle, Clock } from "lucide-react";
+import { AlertTriangle, Save, FileText, CheckCircle, Clock, RotateCcw, Loader2 } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { configService, type ConfigDiff, type CommitConfirmStatus } from "@/lib/api/config";
+import { usePageRefresh } from "@/contexts/PageRefreshContext";
 import { ConfigDiffModal } from "./ConfigDiffModal";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/useToast";
@@ -19,12 +24,15 @@ export function UnsavedChangesBanner({ configDiff, commitConfirm }: UnsavedChang
   const [cc, setCc] = useState<CommitConfirmStatus | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [showDiscardDialog, setShowDiscardDialog] = useState(false);
+  const [discarding, setDiscarding] = useState(false);
   const [showDiffModal, setShowDiffModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Tick every second to update countdown display when commit-confirm is active
   const [, setTick] = useState(0);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const { toast } = useToast();
+  const { triggerRefresh } = usePageRefresh();
 
   // Sync SSE-driven props into local state
   useEffect(() => {
@@ -97,6 +105,32 @@ export function UnsavedChangesBanner({ configDiff, commitConfirm }: UnsavedChang
       toast.error("Save Failed", msg);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDiscard = async () => {
+    setDiscarding(true);
+    setError(null);
+    try {
+      const result = await configService.discardConfig();
+      if (!result.success) {
+        const msg = result.error || "Failed to discard configuration changes";
+        setError(msg);
+        toast.error("Discard Failed", msg);
+        return;
+      }
+      toast.success("Changes Discarded", "Configuration has been reverted to the last saved state.");
+      triggerRefresh();
+      const newDiff = await configService.getDiff();
+      setDiff(newDiff);
+      setError(null);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to discard configuration changes";
+      setError(msg);
+      toast.error("Discard Failed", msg);
+    } finally {
+      setDiscarding(false);
+      setShowDiscardDialog(false);
     }
   };
 
@@ -223,6 +257,17 @@ export function UnsavedChangesBanner({ configDiff, commitConfirm }: UnsavedChang
               </Button>
 
               <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowDiscardDialog(true)}
+                disabled={discarding}
+                className="bg-red-500/20 text-white border-red-400/40 hover:bg-red-500/30 hover:text-white font-medium shadow-sm"
+              >
+                <RotateCcw className="h-4 w-4 mr-2" />
+                Discard Changes
+              </Button>
+
+              <Button
                 size="sm"
                 onClick={handleSave}
                 disabled={saving}
@@ -241,6 +286,31 @@ export function UnsavedChangesBanner({ configDiff, commitConfirm }: UnsavedChang
         onOpenChange={setShowDiffModal}
         diff={diff}
       />
+
+      <AlertDialog open={showDiscardDialog} onOpenChange={setShowDiscardDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Discard All Changes?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently discard all unsaved changes to the running
+              configuration, reverting it to the last saved state.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={discarding}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async (e) => { e.preventDefault(); await handleDiscard(); }}
+              disabled={discarding}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {discarding ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Discarding...</>
+              ) : "Discard Changes"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
