@@ -1,6 +1,6 @@
 {
   "name": "vymanager-open-beta",
-  "version": "1.0.0-beta.1",
+  "version": "1.0.0-beta.2",
   "description": "VyManager Open Beta Community Release - Monorepo for Frontend and Backend for VyOS Management",
   "private": true,
   "scripts": {
