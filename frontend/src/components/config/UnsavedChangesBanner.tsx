@@ -8,7 +8,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { configService, type ConfigDiff, type CommitConfirmStatus } from "@/lib/api/config";
-import { usePageRefresh } from "@/contexts/PageRefreshContext";
 import { ConfigDiffModal } from "./ConfigDiffModal";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/useToast";
@@ -32,7 +31,6 @@ export function UnsavedChangesBanner({ configDiff, commitConfirm }: UnsavedChang
   const [, setTick] = useState(0);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const { toast } = useToast();
-  const { triggerRefresh } = usePageRefresh();
 
   // Sync SSE-driven props into local state
   useEffect(() => {
@@ -120,10 +118,7 @@ export function UnsavedChangesBanner({ configDiff, commitConfirm }: UnsavedChang
         return;
       }
       toast.success("Changes Discarded", "Configuration has been reverted to the last saved state.");
-      triggerRefresh();
-      const newDiff = await configService.getDiff();
-      setDiff(newDiff);
-      setError(null);
+      window.location.reload();
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed to discard configuration changes";
       setError(msg);
