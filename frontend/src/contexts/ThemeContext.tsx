@@ -1,49 +1,85 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
-
-type Theme = "light" | "dark";
+import type { ThemeDefinition } from "@/themes/types";
+import { BUILT_IN_THEMES } from "@/themes/built-in";
 
 interface ThemeContextType {
-  theme: Theme;
-  setTheme: (theme: Theme) => void;
+  themeId: string;
+  setThemeId: (id: string) => void;
+  allThemes: ThemeDefinition[];
+  customThemes: ThemeDefinition[];
+  addCustomTheme: (t: ThemeDefinition) => void;
+  updateCustomTheme: (id: string, t: ThemeDefinition) => void;
+  removeCustomTheme: (id: string) => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
+function loadCustomThemes(): ThemeDefinition[] {
+  if (typeof window === "undefined") return [];
+  try {
+    return JSON.parse(localStorage.getItem("custom-themes") ?? "[]");
+  } catch {
+    return [];
+  }
+}
+
+function loadThemeId(customThemes: ThemeDefinition[]): string {
+  if (typeof window === "undefined") return "dark";
+  const saved = localStorage.getItem("theme-id");
+  if (saved) return saved;
+  // Migrate old "theme" key
+  const legacy = localStorage.getItem("theme");
+  if (legacy === "light") return "light";
+  return "dark";
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>(() => {
-    // Initialize theme from localStorage
-    if (typeof window !== "undefined") {
-      const savedTheme = localStorage.getItem("theme");
-      if (savedTheme && ["light", "dark"].includes(savedTheme)) {
-        return savedTheme as Theme;
-      }
-    }
-    return "dark";
-  });
+  const [customThemes, setCustomThemes] = useState<ThemeDefinition[]>(loadCustomThemes);
+  const [themeId, setThemeIdRaw] = useState<string>(() => loadThemeId([]));
 
-  // Apply theme to document
+  const allThemes = [...BUILT_IN_THEMES, ...customThemes];
+
   useEffect(() => {
+    const theme = allThemes.find((t) => t.id === themeId) ?? BUILT_IN_THEMES[0];
     const root = document.documentElement;
+    Object.entries(theme.variables).forEach(([k, v]) => {
+      root.style.setProperty(`--${k}`, v);
+    });
+    root.classList.toggle("dark", theme.isDark);
+    root.classList.toggle("light", !theme.isDark);
+    localStorage.setItem("theme-id", theme.id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [themeId, customThemes]);
 
-    // Remove all theme classes
-    root.classList.remove("light", "dark");
+  function setThemeId(id: string) {
+    setThemeIdRaw(id);
+  }
 
-    // Add the current theme class
-    root.classList.add(theme);
+  function addCustomTheme(t: ThemeDefinition) {
+    const updated = [...customThemes, t];
+    setCustomThemes(updated);
+    localStorage.setItem("custom-themes", JSON.stringify(updated));
+  }
 
-    // Save to localStorage
-    localStorage.setItem("theme", theme);
-  }, [theme]);
+  function updateCustomTheme(id: string, t: ThemeDefinition) {
+    const updated = customThemes.map((c) => (c.id === id ? { ...t, id } : c));
+    setCustomThemes(updated);
+    localStorage.setItem("custom-themes", JSON.stringify(updated));
+  }
 
-  const value = {
-    theme,
-    setTheme,
-  };
+  function removeCustomTheme(id: string) {
+    const updated = customThemes.filter((t) => t.id !== id);
+    setCustomThemes(updated);
+    localStorage.setItem("custom-themes", JSON.stringify(updated));
+    if (themeId === id) setThemeIdRaw("dark");
+  }
 
   return (
-    <ThemeContext.Provider value={value}>
+    <ThemeContext.Provider
+      value={{ themeId, setThemeId, allThemes, customThemes, addCustomTheme, updateCustomTheme, removeCustomTheme }}
+    >
       {children}
     </ThemeContext.Provider>
   );
