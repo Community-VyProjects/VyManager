@@ -57,6 +57,16 @@ class DHCPBatchBuilder:
     # Global DHCP Server Operations
     # ========================================================================
 
+    def set_global_disable(self) -> "DHCPBatchBuilder":
+        """Disable the global DHCP server."""
+        path = self.mappers[self.mapper_key].get_global_disable()
+        return self.add_set(path)
+
+    def delete_global_disable(self) -> "DHCPBatchBuilder":
+        """Enable the global DHCP server."""
+        path = self.mappers[self.mapper_key].get_global_disable_path()
+        return self.add_delete(path)
+
     def set_listen_address(self, address: str) -> "DHCPBatchBuilder":
         """Set DHCP listen address."""
         path = self.mappers[self.mapper_key].get_listen_address(address)
@@ -187,6 +197,30 @@ class DHCPBatchBuilder:
         path = self.mappers[self.mapper_key].get_shared_network_ping_check_path(
             network_name
         )
+        return self.add_delete(path)
+
+    def set_shared_network_disable(self, network_name: str) -> "DHCPBatchBuilder":
+        """Disable a shared network."""
+        path = self.mappers[self.mapper_key].get_shared_network_disable(network_name)
+        return self.add_set(path)
+
+    def delete_shared_network_disable(self, network_name: str) -> "DHCPBatchBuilder":
+        """Enable a shared network."""
+        path = self.mappers[self.mapper_key].get_shared_network_disable_path(network_name)
+        return self.add_delete(path)
+
+    def set_shared_network_description(
+        self, network_name: str, description: str
+    ) -> "DHCPBatchBuilder":
+        """Set shared network description."""
+        path = self.mappers[self.mapper_key].get_shared_network_description(
+            network_name, description
+        )
+        return self.add_set(path)
+
+    def delete_shared_network_description(self, network_name: str) -> "DHCPBatchBuilder":
+        """Delete shared network description."""
+        path = self.mappers[self.mapper_key].get_shared_network_description_path(network_name)
         return self.add_delete(path)
 
     # ========================================================================
@@ -325,6 +359,34 @@ class DHCPBatchBuilder:
     ) -> "DHCPBatchBuilder":
         """Disable subnet ping-check."""
         path = self.mappers[self.mapper_key].get_subnet_ping_check_path(
+            network_name, subnet
+        )
+        return self.add_delete(path)
+
+    def set_subnet_disable(self, network_name: str, subnet: str) -> "DHCPBatchBuilder":
+        """Disable a subnet."""
+        path = self.mappers[self.mapper_key].get_subnet_disable(network_name, subnet)
+        return self.add_set(path)
+
+    def delete_subnet_disable(self, network_name: str, subnet: str) -> "DHCPBatchBuilder":
+        """Enable a subnet."""
+        path = self.mappers[self.mapper_key].get_subnet_disable_path(network_name, subnet)
+        return self.add_delete(path)
+
+    def set_subnet_description(
+        self, network_name: str, subnet: str, description: str
+    ) -> "DHCPBatchBuilder":
+        """Set subnet description."""
+        path = self.mappers[self.mapper_key].get_subnet_description(
+            network_name, subnet, description
+        )
+        return self.add_set(path)
+
+    def delete_subnet_description(
+        self, network_name: str, subnet: str
+    ) -> "DHCPBatchBuilder":
+        """Delete subnet description."""
+        path = self.mappers[self.mapper_key].get_subnet_description_path(
             network_name, subnet
         )
         return self.add_delete(path)
@@ -481,6 +543,24 @@ class DHCPBatchBuilder:
     ) -> "DHCPBatchBuilder":
         """Enable static mapping."""
         path = self.mappers[self.mapper_key].get_static_mapping_disable_path(
+            network_name, subnet, mapping_name
+        )
+        return self.add_delete(path)
+
+    def set_static_mapping_description(
+        self, network_name: str, subnet: str, mapping_name: str, description: str
+    ) -> "DHCPBatchBuilder":
+        """Set static mapping description."""
+        path = self.mappers[self.mapper_key].get_static_mapping_description(
+            network_name, subnet, mapping_name, description
+        )
+        return self.add_set(path)
+
+    def delete_static_mapping_description(
+        self, network_name: str, subnet: str, mapping_name: str
+    ) -> "DHCPBatchBuilder":
+        """Delete static mapping description."""
+        path = self.mappers[self.mapper_key].get_static_mapping_description_path(
             network_name, subnet, mapping_name
         )
         return self.add_delete(path)
@@ -758,6 +838,23 @@ class DHCPBatchBuilder:
                     "supported": True,
                     "description": "Lease time in seconds",
                 },
+                "description": {
+                    "supported": True,
+                    "description": "Human-readable description",
+                },
+                # Disable/enable flags
+                "global_disable": {
+                    "supported": True,
+                    "description": "Disable the entire DHCP server",
+                },
+                "network_disable": {
+                    "supported": True,
+                    "description": "Disable a shared network",
+                },
+                "subnet_disable": {
+                    "supported": True,
+                    "description": "Disable a subnet",
+                },
                 # DNS fields
                 "name_servers": {
                     "supported": True,
@@ -831,5 +928,7 @@ class DHCPBatchBuilder:
                 "option_prefix": is_v15_or_later,
                 "subnet_failover_removed": not is_v14,
                 "time_offset_requires_option_prefix": is_v15_or_later,
+                "mac_key": "mac" if is_v15_or_later else "mac-address",
+                "shared_network_option_prefix": is_v15_or_later,
             },
         }

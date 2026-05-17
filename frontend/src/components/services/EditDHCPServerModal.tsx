@@ -92,6 +92,8 @@ export function EditDHCPServerModal({
   const [error, setError] = useState<string | null>(null);
 
   // Basic fields
+  const [disabled, setDisabled] = useState(false);
+  const [description, setDescription] = useState("");
   const [defaultRouter, setDefaultRouter] = useState("");
   const [domainName, setDomainName] = useState("");
   const [lease, setLease] = useState("");
@@ -127,6 +129,8 @@ export function EditDHCPServerModal({
 
   const loadSubnetData = () => {
     // Basic fields
+    setDisabled(subnet.disable ?? false);
+    setDescription(subnet.description ?? "");
     setDefaultRouter(subnet.default_router || "");
     setDomainName(subnet.domain_name || "");
     setLease(subnet.lease || "");
@@ -288,9 +292,16 @@ export function EditDHCPServerModal({
     setError(null);
 
     try {
+      const descTrimmed = description.trim();
+      const oldDesc = subnet.description ?? "";
       await dhcpService.updateSubnet({
         network_name: networkName,
         subnet: subnet.subnet,
+        // Disable state
+        disable: disabled !== (subnet.disable ?? false) ? disabled : undefined,
+        // Description
+        description: descTrimmed !== oldDesc && descTrimmed ? descTrimmed : undefined,
+        delete_description: descTrimmed !== oldDesc && !descTrimmed && !!oldDesc,
         // Basic fields - always set if they have values
         default_router: defaultRouter.trim() || undefined,
         name_servers: nameServers.filter((ns) => ns.trim()),
@@ -446,6 +457,30 @@ export function EditDHCPServerModal({
                   <p className="text-xs text-muted-foreground mt-1">
                     Cannot be changed
                   </p>
+                </div>
+
+                <div className="flex items-center gap-3 rounded-lg border p-4">
+                  <Checkbox
+                    id="subnetDisabled"
+                    checked={disabled}
+                    onCheckedChange={(checked) => setDisabled(checked === true)}
+                  />
+                  <div className="space-y-0.5">
+                    <Label htmlFor="subnetDisabled" className="cursor-pointer">Disable Subnet</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Subnet will not respond to DHCP requests while disabled
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="subnetDescription">Description</Label>
+                  <Input
+                    id="subnetDescription"
+                    placeholder="Optional description"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                  />
                 </div>
 
                 <div>

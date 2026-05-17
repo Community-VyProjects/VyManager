@@ -50,6 +50,7 @@ class DHCPStaticMapping(BaseModel):
     name: str = Field(..., description="Static mapping name")
     ip_address: Optional[str] = None
     mac_address: Optional[str] = None
+    description: Optional[str] = None
     disable: bool = False
 
 
@@ -60,6 +61,8 @@ class DHCPSubnet(BaseModel):
     subnet_id: Optional[int] = Field(
         None, description="Subnet ID (required in VyOS 1.5)"
     )
+    description: Optional[str] = None
+    disable: bool = False
     default_router: Optional[str] = None
     name_servers: List[str] = []
     domain_name: Optional[str] = None
@@ -86,6 +89,8 @@ class DHCPSharedNetwork(BaseModel):
     """DHCP shared network configuration."""
 
     name: str = Field(..., description="Shared network name")
+    description: Optional[str] = None
+    disable: bool = False
     authoritative: bool = False
     name_servers: List[str] = []
     domain_name: Optional[str] = None
@@ -110,6 +115,7 @@ class DHCPGlobalConfig(BaseModel):
     listen_addresses: List[str] = []
     hostfile_update: bool = False
     host_decl_name: bool = False
+    disable: bool = False
 
 
 class DHCPConfigResponse(BaseModel):
@@ -257,6 +263,7 @@ async def get_dhcp_config(http_request: Request, refresh: bool = False):
             else [],
             hostfile_update="hostfile-update" in dhcp_config,
             host_decl_name="host-decl-name" in dhcp_config,
+            disable="disable" in dhcp_config,
         )
 
         # Parse failover configuration
@@ -276,27 +283,35 @@ async def get_dhcp_config(http_request: Request, refresh: bool = False):
             for network_name, network_data in dhcp_config[
                 "shared-network-name"
             ].items():
-                # Parse network-level name-servers
-                network_name_servers = []
-                if "name-server" in network_data:
-                    ns_data = network_data["name-server"]
-                    if isinstance(ns_data, dict):
-                        network_name_servers = list(ns_data.keys())
-                    elif isinstance(ns_data, list):
-                        network_name_servers = ns_data
-                    elif isinstance(ns_data, str):
-                        network_name_servers = [ns_data]
+                # Resolve option container (v1.5 uses 'option' prefix at network level)
+                network_opts = network_data.get("option", network_data)
 
-                # Parse network-level domain-search
+                # Parse network-level name-servers (check option prefix for v1.5, direct for v1.4)
+                network_name_servers = []
+                ns_raw = network_opts.get("name-server") or network_data.get("name-server")
+                if ns_raw:
+                    if isinstance(ns_raw, dict):
+                        network_name_servers = list(ns_raw.keys())
+                    elif isinstance(ns_raw, list):
+                        network_name_servers = ns_raw
+                    elif isinstance(ns_raw, str):
+                        network_name_servers = [ns_raw]
+
+                # Parse network-level domain-search (check option prefix for v1.5)
                 network_domain_search = []
-                if "domain-search" in network_data:
-                    ds_data = network_data["domain-search"]
-                    if isinstance(ds_data, dict):
-                        network_domain_search = list(ds_data.keys())
-                    elif isinstance(ds_data, list):
-                        network_domain_search = ds_data
-                    elif isinstance(ds_data, str):
-                        network_domain_search = [ds_data]
+                ds_raw = network_opts.get("domain-search") or network_data.get("domain-search")
+                if ds_raw:
+                    if isinstance(ds_raw, dict):
+                        network_domain_search = list(ds_raw.keys())
+                    elif isinstance(ds_raw, list):
+                        network_domain_search = ds_raw
+                    elif isinstance(ds_raw, str):
+                        network_domain_search = [ds_raw]
+
+                # Parse network-level domain-name (check option prefix for v1.5)
+                network_domain_name = (
+                    network_opts.get("domain-name") or network_data.get("domain-name")
+                )
 
                 subnets = []
 
@@ -389,11 +404,14 @@ async def get_dhcp_config(http_request: Request, refresh: bool = False):
                                 "static-mapping"
                             ].items():
                                 total_static_mappings += 1
+                                # v1.4 uses 'mac-address', v1.5 uses 'mac'
+                                mac_addr = mapping_data.get("mac") or mapping_data.get("mac-address")
                                 static_mappings.append(
                                     DHCPStaticMapping(
                                         name=mapping_name,
                                         ip_address=mapping_data.get("ip-address"),
-                                        mac_address=mapping_data.get("mac"),
+                                        mac_address=mac_addr,
+                                        description=mapping_data.get("description"),
                                         disable="disable" in mapping_data,
                                     )
                                 )
@@ -483,9 +501,26 @@ async def get_dhcp_config(http_request: Request, refresh: bool = False):
                         elif "time-offset" in subnet_data:
                             time_offset = subnet_data["time-offset"]
 
+                        # Parse client-prefix-length (check both option and direct paths)
+                        subnet_opts = subnet_data.get("option", {})
+                        client_prefix_length = (
+                            subnet_opts.get("client-prefix-length")
+                            or subnet_data.get("client-prefix-length")
+                        )
+                        if client_prefix_length is not None:
+                            client_prefix_length = str(client_prefix_length)
+
+                        # Parse wpad-url (check both option and direct paths)
+                        wpad_url = (
+                            subnet_opts.get("wpad-url")
+                            or subnet_data.get("wpad-url")
+                        )
+
                         subnet = DHCPSubnet(
                             subnet=subnet_cidr,
                             subnet_id=subnet_data.get("subnet-id"),
+                            description=subnet_data.get("description"),
+                            disable="disable" in subnet_data,
                             default_router=default_router,
                             name_servers=subnet_name_servers,
                             domain_name=domain_name,
@@ -503,16 +538,18 @@ async def get_dhcp_config(http_request: Request, refresh: bool = False):
                             ntp_servers=ntp_servers,
                             wins_servers=wins_servers,
                             time_offset=time_offset,
-                            client_prefix_length=subnet_data.get("client-prefix-length"),
-                            wpad_url=subnet_data.get("wpad-url"),
+                            client_prefix_length=client_prefix_length,
+                            wpad_url=wpad_url,
                         )
                         subnets.append(subnet)
 
                 network = DHCPSharedNetwork(
                     name=network_name,
+                    description=network_data.get("description"),
+                    disable="disable" in network_data,
                     authoritative="authoritative" in network_data,
                     name_servers=network_name_servers,
-                    domain_name=network_data.get("domain-name"),
+                    domain_name=network_domain_name,
                     domain_search=network_domain_search,
                     ping_check="ping-check" in network_data,
                     subnets=subnets,

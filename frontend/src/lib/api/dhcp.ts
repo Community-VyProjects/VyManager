@@ -16,11 +16,14 @@ export interface DHCPStaticMapping {
   ip_address?: string;
   mac_address?: string;
   disable: boolean;
+  description?: string;
 }
 
 export interface DHCPSubnet {
   subnet: string;
   subnet_id?: number;
+  disable?: boolean;
+  description?: string;
   default_router?: string;
   name_servers: string[];
   domain_name?: string;
@@ -45,6 +48,8 @@ export interface DHCPSubnet {
 export interface DHCPSharedNetwork {
   name: string;
   authoritative: boolean;
+  disable?: boolean;
+  description?: string;
   name_servers: string[];
   domain_name?: string;
   domain_search: string[];
@@ -61,6 +66,7 @@ export interface DHCPFailoverConfig {
 }
 
 export interface DHCPGlobalConfig {
+  disable?: boolean;
   listen_addresses: string[];
   hostfile_update: boolean;
   host_decl_name: boolean;
@@ -128,12 +134,19 @@ export interface DHCPCapabilitiesResponse {
     // Options
     ping_check: DHCPFieldCapability;
     enable_failover: DHCPFieldCapability;
+    // Disable / description
+    description: DHCPFieldCapability;
+    global_disable: DHCPFieldCapability;
+    network_disable: DHCPFieldCapability;
+    subnet_disable: DHCPFieldCapability;
   };
   version_notes: {
     subnet_id_required: boolean;
     option_prefix: boolean;
     subnet_failover_removed: boolean;
     time_offset_requires_option_prefix: boolean;
+    mac_key: string;
+    shared_network_option_prefix: boolean;
   };
   device_name?: string;
 }
@@ -153,6 +166,7 @@ export interface CreateSubnetConfig {
   network_name: string;
   subnet: string;
   subnet_id?: number;
+  description?: string;
   default_router: string;
   name_servers: string[];
   domain_name: string;
@@ -177,6 +191,9 @@ export interface UpdateSubnetConfig {
   network_name: string;
   subnet: string;
   subnet_id?: number;
+  disable?: boolean;
+  description?: string;
+  delete_description?: boolean;
   default_router?: string;
   name_servers?: string[];
   domain_name?: string;
@@ -373,6 +390,10 @@ class DHCPService {
     }
     if (config.wpad_url) {
       operations.push({ op: "set_subnet_wpad_url", value: config.wpad_url });
+    }
+
+    if (config.description?.trim()) {
+      operations.push({ op: "set_subnet_description", value: config.description.trim() });
     }
 
     return this.batchConfigure({
@@ -596,6 +617,20 @@ class DHCPService {
       operations.push({ op: "set_subnet_wpad_url", value: config.wpad_url });
     }
 
+    // Update disable state
+    if (config.disable === true) {
+      operations.push({ op: "set_subnet_disable" });
+    } else if (config.disable === false) {
+      operations.push({ op: "delete_subnet_disable" });
+    }
+
+    // Update description
+    if (config.delete_description) {
+      operations.push({ op: "delete_subnet_description" });
+    } else if (config.description !== undefined) {
+      operations.push({ op: "set_subnet_description", value: config.description });
+    }
+
     return this.batchConfigure({
       network_name: config.network_name,
       subnet: config.subnet,
@@ -694,7 +729,8 @@ class DHCPService {
     subnet: string,
     mapping_name: string,
     ip_address: string,
-    mac_address: string
+    mac_address: string,
+    description?: string
   ): Promise<VyOSResponse> {
     const operations: DHCPBatchOperation[] = [
       {
@@ -706,6 +742,12 @@ class DHCPService {
         value: `${mapping_name}|${mac_address}`,
       },
     ];
+    if (description?.trim()) {
+      operations.push({
+        op: "set_static_mapping_description",
+        value: `${mapping_name}|${description.trim()}`,
+      });
+    }
 
     return this.batchConfigure({
       network_name,
@@ -725,8 +767,10 @@ class DHCPService {
       ip_address?: string;
       mac_address?: string;
       disable?: boolean;
+      description?: string;
       delete_ip_address?: boolean;
       delete_mac_address?: boolean;
+      delete_description?: boolean;
     }
   ): Promise<VyOSResponse> {
     const operations: DHCPBatchOperation[] = [];
@@ -770,6 +814,19 @@ class DHCPService {
       });
     }
 
+    // Handle description
+    if (config.delete_description) {
+      operations.push({
+        op: "delete_static_mapping_description",
+        value: mapping_name,
+      });
+    } else if (config.description !== undefined) {
+      operations.push({
+        op: "set_static_mapping_description",
+        value: `${mapping_name}|${config.description}`,
+      });
+    }
+
     return this.batchConfigure({
       network_name,
       subnet,
@@ -793,6 +850,53 @@ class DHCPService {
       network_name,
       subnet,
       operations,
+    });
+  }
+
+  // Global DHCP server disable
+  async setGlobalDisable(): Promise<VyOSResponse> {
+    return this.batchConfigure({
+      network_name: "_global",
+      operations: [{ op: "set_global_disable" }],
+    });
+  }
+
+  async deleteGlobalDisable(): Promise<VyOSResponse> {
+    return this.batchConfigure({
+      network_name: "_global",
+      operations: [{ op: "delete_global_disable" }],
+    });
+  }
+
+  // Shared network disable
+  async setSharedNetworkDisable(networkName: string): Promise<VyOSResponse> {
+    return this.batchConfigure({
+      network_name: networkName,
+      operations: [{ op: "set_shared_network_disable" }],
+    });
+  }
+
+  async deleteSharedNetworkDisable(networkName: string): Promise<VyOSResponse> {
+    return this.batchConfigure({
+      network_name: networkName,
+      operations: [{ op: "delete_shared_network_disable" }],
+    });
+  }
+
+  // Subnet disable
+  async setSubnetDisable(networkName: string, subnet: string): Promise<VyOSResponse> {
+    return this.batchConfigure({
+      network_name: networkName,
+      subnet,
+      operations: [{ op: "set_subnet_disable" }],
+    });
+  }
+
+  async deleteSubnetDisable(networkName: string, subnet: string): Promise<VyOSResponse> {
+    return this.batchConfigure({
+      network_name: networkName,
+      subnet,
+      operations: [{ op: "delete_subnet_disable" }],
     });
   }
 }

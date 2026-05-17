@@ -245,6 +245,96 @@ class DHCPMapperV1_5:
             "subnet", subnet, "option", "time-offset"
         ]
 
+    def get_subnet_client_prefix_length(
+        self, network_name: str, subnet: str, prefix_length: str
+    ) -> List[str]:
+        """Get command path for subnet client-prefix-length (1.5: with 'option' prefix)."""
+        return [
+            "service", "dhcp-server", "shared-network-name", network_name,
+            "subnet", subnet, "option", "client-prefix-length", prefix_length
+        ]
+
+    def get_subnet_client_prefix_length_path(
+        self, network_name: str, subnet: str
+    ) -> List[str]:
+        """Get command path for subnet client-prefix-length deletion."""
+        return [
+            "service", "dhcp-server", "shared-network-name", network_name,
+            "subnet", subnet, "option", "client-prefix-length"
+        ]
+
+    def get_subnet_wpad_url(
+        self, network_name: str, subnet: str, url: str
+    ) -> List[str]:
+        """Get command path for subnet wpad-url (1.5: with 'option' prefix)."""
+        return [
+            "service", "dhcp-server", "shared-network-name", network_name,
+            "subnet", subnet, "option", "wpad-url", url
+        ]
+
+    def get_subnet_wpad_url_path(
+        self, network_name: str, subnet: str
+    ) -> List[str]:
+        """Get command path for subnet wpad-url deletion."""
+        return [
+            "service", "dhcp-server", "shared-network-name", network_name,
+            "subnet", subnet, "option", "wpad-url"
+        ]
+
+    def get_shared_network_name_server(
+        self, network_name: str, name_server: str
+    ) -> List[str]:
+        """Get command path for shared network name-server (1.5: with 'option' prefix)."""
+        return [
+            "service", "dhcp-server", "shared-network-name", network_name,
+            "option", "name-server", name_server
+        ]
+
+    def get_shared_network_name_server_path(
+        self, network_name: str, name_server: str
+    ) -> List[str]:
+        """Get command path for shared network name-server deletion."""
+        return [
+            "service", "dhcp-server", "shared-network-name", network_name,
+            "option", "name-server", name_server
+        ]
+
+    def get_shared_network_domain_name(
+        self, network_name: str, domain_name: str
+    ) -> List[str]:
+        """Get command path for shared network domain-name (1.5: with 'option' prefix)."""
+        return [
+            "service", "dhcp-server", "shared-network-name", network_name,
+            "option", "domain-name", domain_name
+        ]
+
+    def get_shared_network_domain_name_path(
+        self, network_name: str
+    ) -> List[str]:
+        """Get command path for shared network domain-name deletion."""
+        return [
+            "service", "dhcp-server", "shared-network-name", network_name,
+            "option", "domain-name"
+        ]
+
+    def get_shared_network_domain_search(
+        self, network_name: str, domain_search: str
+    ) -> List[str]:
+        """Get command path for shared network domain-search (1.5: with 'option' prefix)."""
+        return [
+            "service", "dhcp-server", "shared-network-name", network_name,
+            "option", "domain-search", domain_search
+        ]
+
+    def get_shared_network_domain_search_path(
+        self, network_name: str, domain_search: str
+    ) -> List[str]:
+        """Get command path for shared network domain-search deletion."""
+        return [
+            "service", "dhcp-server", "shared-network-name", network_name,
+            "option", "domain-search", domain_search
+        ]
+
     def get_subnet_exclude(
         self, network_name: str, subnet: str, exclude: str
     ) -> List[str]:

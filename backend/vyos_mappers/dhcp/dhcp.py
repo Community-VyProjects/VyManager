@@ -24,6 +24,14 @@ class DHCPMapper(BaseFeatureMapper):
 
     # ==================== Global DHCP Server Commands ====================
 
+    def get_global_disable(self) -> List[str]:
+        """Get command path for global DHCP server disable."""
+        return ["service", "dhcp-server", "disable"]
+
+    def get_global_disable_path(self) -> List[str]:
+        """Get command path for global DHCP server disable deletion."""
+        return ["service", "dhcp-server", "disable"]
+
     def get_listen_address(self, address: str) -> List[str]:
         """Get command path for DHCP listen address."""
         return ["service", "dhcp-server", "listen-address", address]
@@ -75,7 +83,9 @@ class DHCPMapper(BaseFeatureMapper):
     def get_shared_network_name_server(
         self, network_name: str, name_server: str
     ) -> List[str]:
-        """Get command path for shared network name-server."""
+        """Get command path for shared network name-server (version-aware)."""
+        if hasattr(self.version_mapper, 'get_shared_network_name_server'):
+            return self.version_mapper.get_shared_network_name_server(network_name, name_server)
         return [
             "service", "dhcp-server", "shared-network-name", network_name,
             "name-server", name_server
@@ -84,7 +94,9 @@ class DHCPMapper(BaseFeatureMapper):
     def get_shared_network_name_server_path(
         self, network_name: str, name_server: str
     ) -> List[str]:
-        """Get command path for specific shared network name-server deletion."""
+        """Get command path for specific shared network name-server deletion (version-aware)."""
+        if hasattr(self.version_mapper, 'get_shared_network_name_server_path'):
+            return self.version_mapper.get_shared_network_name_server_path(network_name, name_server)
         return [
             "service", "dhcp-server", "shared-network-name", network_name,
             "name-server", name_server
@@ -93,14 +105,18 @@ class DHCPMapper(BaseFeatureMapper):
     def get_shared_network_domain_name(
         self, network_name: str, domain_name: str
     ) -> List[str]:
-        """Get command path for shared network domain-name."""
+        """Get command path for shared network domain-name (version-aware)."""
+        if hasattr(self.version_mapper, 'get_shared_network_domain_name'):
+            return self.version_mapper.get_shared_network_domain_name(network_name, domain_name)
         return [
             "service", "dhcp-server", "shared-network-name", network_name,
             "domain-name", domain_name
         ]
 
     def get_shared_network_domain_name_path(self, network_name: str) -> List[str]:
-        """Get command path for shared network domain-name deletion."""
+        """Get command path for shared network domain-name deletion (version-aware)."""
+        if hasattr(self.version_mapper, 'get_shared_network_domain_name_path'):
+            return self.version_mapper.get_shared_network_domain_name_path(network_name)
         return [
             "service", "dhcp-server", "shared-network-name", network_name,
             "domain-name"
@@ -109,7 +125,9 @@ class DHCPMapper(BaseFeatureMapper):
     def get_shared_network_domain_search(
         self, network_name: str, domain_search: str
     ) -> List[str]:
-        """Get command path for shared network domain-search."""
+        """Get command path for shared network domain-search (version-aware)."""
+        if hasattr(self.version_mapper, 'get_shared_network_domain_search'):
+            return self.version_mapper.get_shared_network_domain_search(network_name, domain_search)
         return [
             "service", "dhcp-server", "shared-network-name", network_name,
             "domain-search", domain_search
@@ -118,7 +136,9 @@ class DHCPMapper(BaseFeatureMapper):
     def get_shared_network_domain_search_path(
         self, network_name: str, domain_search: str
     ) -> List[str]:
-        """Get command path for specific shared network domain-search deletion."""
+        """Get command path for specific shared network domain-search deletion (version-aware)."""
+        if hasattr(self.version_mapper, 'get_shared_network_domain_search_path'):
+            return self.version_mapper.get_shared_network_domain_search_path(network_name, domain_search)
         return [
             "service", "dhcp-server", "shared-network-name", network_name,
             "domain-search", domain_search
@@ -138,6 +158,36 @@ class DHCPMapper(BaseFeatureMapper):
             "ping-check"
         ]
 
+    def get_shared_network_disable(self, network_name: str) -> List[str]:
+        """Get command path for shared network disable."""
+        return [
+            "service", "dhcp-server", "shared-network-name", network_name,
+            "disable"
+        ]
+
+    def get_shared_network_disable_path(self, network_name: str) -> List[str]:
+        """Get command path for shared network disable deletion."""
+        return [
+            "service", "dhcp-server", "shared-network-name", network_name,
+            "disable"
+        ]
+
+    def get_shared_network_description(
+        self, network_name: str, description: str
+    ) -> List[str]:
+        """Get command path for shared network description."""
+        return [
+            "service", "dhcp-server", "shared-network-name", network_name,
+            "description", description
+        ]
+
+    def get_shared_network_description_path(self, network_name: str) -> List[str]:
+        """Get command path for shared network description deletion."""
+        return [
+            "service", "dhcp-server", "shared-network-name", network_name,
+            "description"
+        ]
+
     # ==================== Subnet Commands ====================
 
     def get_subnet(self, network_name: str, subnet: str) -> List[str]:
@@ -152,6 +202,36 @@ class DHCPMapper(BaseFeatureMapper):
         return [
             "service", "dhcp-server", "shared-network-name", network_name,
             "subnet", subnet
+        ]
+
+    def get_subnet_disable(self, network_name: str, subnet: str) -> List[str]:
+        """Get command path for subnet disable."""
+        return [
+            "service", "dhcp-server", "shared-network-name", network_name,
+            "subnet", subnet, "disable"
+        ]
+
+    def get_subnet_disable_path(self, network_name: str, subnet: str) -> List[str]:
+        """Get command path for subnet disable deletion."""
+        return [
+            "service", "dhcp-server", "shared-network-name", network_name,
+            "subnet", subnet, "disable"
+        ]
+
+    def get_subnet_description(
+        self, network_name: str, subnet: str, description: str
+    ) -> List[str]:
+        """Get command path for subnet description."""
+        return [
+            "service", "dhcp-server", "shared-network-name", network_name,
+            "subnet", subnet, "description", description
+        ]
+
+    def get_subnet_description_path(self, network_name: str, subnet: str) -> List[str]:
+        """Get command path for subnet description deletion."""
+        return [
+            "service", "dhcp-server", "shared-network-name", network_name,
+            "subnet", subnet, "description"
         ]
 
     def get_subnet_lease(
@@ -293,8 +373,11 @@ class DHCPMapper(BaseFeatureMapper):
     def get_static_mapping_mac_address(
         self, network_name: str, subnet: str, mapping_name: str, mac_address: str
     ) -> List[str]:
-        """Get command path for static mapping MAC address."""
-        # VyOS uses 'mac' not 'mac-address' for static mappings
+        """Get command path for static mapping MAC address (version-aware: 1.4='mac-address', 1.5='mac')."""
+        if hasattr(self.version_mapper, 'get_static_mapping_mac_address'):
+            return self.version_mapper.get_static_mapping_mac_address(
+                network_name, subnet, mapping_name, mac_address
+            )
         return [
             "service", "dhcp-server", "shared-network-name", network_name,
             "subnet", subnet, "static-mapping", mapping_name, "mac", mac_address
@@ -303,11 +386,32 @@ class DHCPMapper(BaseFeatureMapper):
     def get_static_mapping_mac_address_path(
         self, network_name: str, subnet: str, mapping_name: str
     ) -> List[str]:
-        """Get command path for static mapping MAC address deletion."""
-        # VyOS uses 'mac' not 'mac-address' for static mappings
+        """Get command path for static mapping MAC address deletion (version-aware)."""
+        if hasattr(self.version_mapper, 'get_static_mapping_mac_address_path'):
+            return self.version_mapper.get_static_mapping_mac_address_path(
+                network_name, subnet, mapping_name
+            )
         return [
             "service", "dhcp-server", "shared-network-name", network_name,
             "subnet", subnet, "static-mapping", mapping_name, "mac"
+        ]
+
+    def get_static_mapping_description(
+        self, network_name: str, subnet: str, mapping_name: str, description: str
+    ) -> List[str]:
+        """Get command path for static mapping description."""
+        return [
+            "service", "dhcp-server", "shared-network-name", network_name,
+            "subnet", subnet, "static-mapping", mapping_name, "description", description
+        ]
+
+    def get_static_mapping_description_path(
+        self, network_name: str, subnet: str, mapping_name: str
+    ) -> List[str]:
+        """Get command path for static mapping description deletion."""
+        return [
+            "service", "dhcp-server", "shared-network-name", network_name,
+            "subnet", subnet, "static-mapping", mapping_name, "description"
         ]
 
     def get_static_mapping_disable(
@@ -527,7 +631,9 @@ class DHCPMapper(BaseFeatureMapper):
     def get_subnet_client_prefix_length(
         self, network_name: str, subnet: str, prefix_length: str
     ) -> List[str]:
-        """Get command path for subnet client-prefix-length."""
+        """Get command path for subnet client-prefix-length (version-aware)."""
+        if hasattr(self.version_mapper, 'get_subnet_client_prefix_length'):
+            return self.version_mapper.get_subnet_client_prefix_length(network_name, subnet, prefix_length)
         return [
             "service", "dhcp-server", "shared-network-name", network_name,
             "subnet", subnet, "client-prefix-length", prefix_length
@@ -536,7 +642,9 @@ class DHCPMapper(BaseFeatureMapper):
     def get_subnet_client_prefix_length_path(
         self, network_name: str, subnet: str
     ) -> List[str]:
-        """Get command path for subnet client-prefix-length deletion."""
+        """Get command path for subnet client-prefix-length deletion (version-aware)."""
+        if hasattr(self.version_mapper, 'get_subnet_client_prefix_length_path'):
+            return self.version_mapper.get_subnet_client_prefix_length_path(network_name, subnet)
         return [
             "service", "dhcp-server", "shared-network-name", network_name,
             "subnet", subnet, "client-prefix-length"
@@ -545,7 +653,9 @@ class DHCPMapper(BaseFeatureMapper):
     def get_subnet_wpad_url(
         self, network_name: str, subnet: str, url: str
     ) -> List[str]:
-        """Get command path for subnet wpad-url."""
+        """Get command path for subnet wpad-url (version-aware)."""
+        if hasattr(self.version_mapper, 'get_subnet_wpad_url'):
+            return self.version_mapper.get_subnet_wpad_url(network_name, subnet, url)
         return [
             "service", "dhcp-server", "shared-network-name", network_name,
             "subnet", subnet, "wpad-url", url
@@ -554,7 +664,9 @@ class DHCPMapper(BaseFeatureMapper):
     def get_subnet_wpad_url_path(
         self, network_name: str, subnet: str
     ) -> List[str]:
-        """Get command path for subnet wpad-url deletion."""
+        """Get command path for subnet wpad-url deletion (version-aware)."""
+        if hasattr(self.version_mapper, 'get_subnet_wpad_url_path'):
+            return self.version_mapper.get_subnet_wpad_url_path(network_name, subnet)
         return [
             "service", "dhcp-server", "shared-network-name", network_name,
             "subnet", subnet, "wpad-url"

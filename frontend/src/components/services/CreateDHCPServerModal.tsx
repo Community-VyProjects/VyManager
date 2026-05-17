@@ -91,6 +91,7 @@ export function CreateDHCPServerModal({
   // Basic fields
   const [networkName, setNetworkName] = useState("");
   const [selectedNetwork, setSelectedNetwork] = useState("");
+  const [description, setDescription] = useState("");
   const [subnet, setSubnet] = useState("");
   const [subnetId, setSubnetId] = useState("");
   const [defaultRouter, setDefaultRouter] = useState("");
@@ -177,6 +178,7 @@ export function CreateDHCPServerModal({
     setMode("new");
     setNetworkName("");
     setSelectedNetwork("");
+    setDescription("");
     setSubnet("");
     setSubnetId("");
     setDefaultRouter("");
@@ -372,6 +374,7 @@ export function CreateDHCPServerModal({
         network_name: targetNetworkName,
         subnet: subnet.trim(),
         subnet_id: calculatedSubnetId,
+        description: description.trim() || undefined,
         default_router: defaultRouter.trim(),
         name_servers: nameServers.filter((ns) => ns.trim()),
         domain_name: domainName.trim(),
@@ -566,6 +569,16 @@ export function CreateDHCPServerModal({
                       : "Select an existing shared network to add this subnet to"
                     }
                   </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="createDescription">Description</Label>
+                  <Input
+                    id="createDescription"
+                    placeholder="Optional description"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                  />
                 </div>
 
                 <div>
