@@ -51,6 +51,7 @@ import { DeleteInstanceModal } from "@/components/sites/DeleteInstanceModal";
 import { ImportCSVModal } from "@/components/session/ImportCSVModal";
 import { UserManagement } from "@/components/user-management/UserManagement";
 import { AuthenticationSettings } from "@/components/authentication/AuthenticationSettings";
+import { ThemeSelector } from "@/components/ui/theme-selector";
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/types/api";
 
@@ -359,8 +360,13 @@ export default function SitesPage() {
             </div>
           </ScrollArea>
 
+          {/* Theme Selector */}
+          <div className="border-t border-border p-4 pt-4">
+            <ThemeSelector />
+          </div>
+
           {/* User Info & Logout */}
-          <div className="border-t border-border p-4">
+          <div className="p-4 pt-0">
             <div className="rounded-lg bg-muted/50 p-3">
               <div className="flex items-center gap-2 mb-2">
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">

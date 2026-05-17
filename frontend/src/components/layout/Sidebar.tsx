@@ -200,11 +200,11 @@ export function Sidebar() {
   const visibleNavigation = filterNavigation(getSidebarNavigation());
 
   return (
-    <div className="flex h-screen w-64 flex-col border-r border-border bg-card">
+    <div className="flex h-screen w-64 flex-col border-r border-border/50 bg-card">
       {/* Header */}
-      <div className="flex h-16 items-center border-b border-border px-6 shrink-0">
+      <div className="flex h-16 items-center border-b border-border/50 px-6 shrink-0">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
             <Image
               src="/vy-icon.png"
               alt="VyOS Logo"
@@ -215,7 +215,7 @@ export function Sidebar() {
             />
           </div>
           <div>
-            <h1 className="text-lg font-semibold text-foreground">VyManager</h1>
+            <h1 className="text-lg font-semibold text-foreground glow-text">VyManager</h1>
             <p className="text-xs text-muted-foreground">VyOS Management</p>
           </div>
         </div>
@@ -242,19 +242,20 @@ export function Sidebar() {
                   open={isOpen}
                   onOpenChange={() => toggleItem(item.title)}
                 >
-                  <CollapsibleTrigger className="group flex w-full items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground">
+                  <CollapsibleTrigger className="group flex w-full items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-all hover:bg-accent/50 hover:text-accent-foreground dark:hover:shadow-sm dark:hover:shadow-primary/5">
                     <div className="flex items-center gap-3">
                       <Icon className={cn(
-                        "h-4 w-4",
-                        isActive ? "text-primary" : "text-muted-foreground"
+                        "h-4 w-4 transition-colors",
+                        isActive ? "text-primary glow-text" : "text-muted-foreground group-hover:text-primary/80"
                       )} />
                       <span className={cn(
-                        isActive ? "text-foreground" : "text-muted-foreground"
+                        "transition-colors",
+                        isActive ? "text-foreground" : "text-muted-foreground group-hover:text-foreground/80"
                       )}>{item.title}</span>
                     </div>
                     <ChevronDown
                       className={cn(
-                        "h-4 w-4 text-muted-foreground transition-transform",
+                        "h-4 w-4 text-muted-foreground transition-transform group-hover:text-foreground/60",
                         isOpen && "rotate-180"
                       )}
                     />
@@ -268,24 +269,24 @@ export function Sidebar() {
                           key={`${child.href}-${child.title}`}
                           href={child.href}
                           className={cn(
-                            "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
+                            "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-all",
                             isChildActive
-                              ? "bg-accent text-accent-foreground font-medium"
-                              : "text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground"
+                              ? "bg-accent/50 text-accent-foreground font-medium shadow-sm shadow-primary/10"
+                              : "text-muted-foreground hover:bg-accent/30 hover:text-accent-foreground dark:hover:shadow-sm dark:hover:shadow-primary/5"
                           )}
                         >
                           {ChildIcon ? (
                             <ChildIcon
                               className={cn(
-                                "h-3.5 w-3.5 shrink-0",
-                                isChildActive ? "text-primary" : "text-muted-foreground"
+                                "h-3.5 w-3.5 shrink-0 transition-colors",
+                                isChildActive ? "text-primary glow-text" : "text-muted-foreground group-hover:text-primary/70"
                               )}
                             />
                           ) : (
                             <span
                               className={cn(
-                                "h-1.5 w-1.5 shrink-0 rounded-full",
-                                isChildActive ? "bg-primary" : "bg-muted-foreground/40"
+                                "h-1.5 w-1.5 shrink-0 rounded-full transition-all",
+                                isChildActive ? "bg-primary glow-primary-subtle" : "bg-muted-foreground/40 group-hover:bg-primary/60"
                               )}
                             />
                           )}
@@ -303,15 +304,15 @@ export function Sidebar() {
                 key={item.title}
                 href={item.href!}
                 className={cn(
-                  "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-all",
                   isActive
-                    ? "bg-accent text-accent-foreground"
-                    : "text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground"
+                    ? "bg-accent/50 text-accent-foreground shadow-sm shadow-primary/10"
+                    : "text-muted-foreground hover:bg-accent/30 hover:text-accent-foreground dark:hover:shadow-sm dark:hover:shadow-primary/5"
                 )}
               >
                 <Icon className={cn(
-                  "h-4 w-4",
-                  isActive ? "text-primary" : "text-muted-foreground"
+                  "h-4 w-4 transition-colors",
+                  isActive ? "text-primary glow-text" : "text-muted-foreground group-hover:text-primary/70"
                 )} />
                 {item.title}
               </Link>
@@ -321,7 +322,7 @@ export function Sidebar() {
       </ScrollArea>
 
       {/* Footer */}
-      <div className="border-t border-border p-4 space-y-3 shrink-0">
+      <div className="border-t border-border/50 p-4 space-y-3 shrink-0">
         {/* Theme Selector */}
         <div className="space-y-2">
           <ThemeSelector />
@@ -330,10 +331,10 @@ export function Sidebar() {
         {/* Active Instance Indicator */}
         {activeSession ? (
           <div className="space-y-2">
-            <div className="rounded-lg bg-primary/10 border border-primary/20 p-3">
+            <div className="rounded-lg bg-primary/10 border border-primary/30 p-3 glow-border">
               <div className="flex items-center gap-2 mb-2">
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20">
-                  <Building2 className="h-4 w-4 text-primary" />
+                  <Building2 className="h-4 w-4 text-primary glow-text" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-medium text-primary truncate">
@@ -344,7 +345,7 @@ export function Sidebar() {
                   </p>
                 </div>
                 <div
-                  className="h-2 w-2 rounded-full bg-green-500 animate-pulse"
+                  className="h-2 w-2 rounded-full bg-primary animate-pulse glow-primary-subtle"
                   title="Connected"
                 />
               </div>
@@ -364,9 +365,9 @@ export function Sidebar() {
           </div>
         ) : (
           <div className="space-y-2">
-            <div className="rounded-lg bg-muted/50 border border-border p-3">
+            <div className="rounded-lg bg-muted/30 border border-border/50 p-3">
               <div className="flex items-center gap-2 mb-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted/50">
                   <Building2 className="h-4 w-4 text-muted-foreground" />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -378,7 +379,7 @@ export function Sidebar() {
                   </p>
                 </div>
                 <div
-                  className="h-2 w-2 rounded-full bg-gray-500"
+                  className="h-2 w-2 rounded-full bg-muted-foreground/50"
                   title="Disconnected"
                 />
               </div>
@@ -396,10 +397,10 @@ export function Sidebar() {
         )}
 
         {/* User Info & Logout */}
-        <div className="rounded-lg bg-muted/50 p-3">
+        <div className="rounded-lg bg-muted/30 border border-border/50 p-3">
           <div className="flex items-center gap-2 mb-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
-              <User className="h-4 w-4 text-primary" />
+              <User className="h-4 w-4 text-primary glow-text" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-semibold text-foreground truncate">
