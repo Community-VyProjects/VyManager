@@ -43,6 +43,7 @@ export function AddStaticMappingModal({
   const [mappingName, setMappingName] = useState("");
   const [ipAddress, setIpAddress] = useState("");
   const [macAddress, setMacAddress] = useState("");
+  const [description, setDescription] = useState("");
 
   // Reset form when modal opens
   useEffect(() => {
@@ -51,6 +52,7 @@ export function AddStaticMappingModal({
       setMappingName("");
       setIpAddress("");
       setMacAddress("");
+      setDescription("");
       // Auto-select subnet if there's only one
       if (network.subnets.length === 1) {
         setSelectedSubnet(network.subnets[0].subnet);
@@ -126,7 +128,8 @@ export function AddStaticMappingModal({
         selectedSubnet,
         mappingName.trim(),
         ipAddress.trim(),
-        macAddress.trim()
+        macAddress.trim(),
+        description.trim() || undefined
       );
 
       handleClose();
@@ -222,6 +225,17 @@ export function AddStaticMappingModal({
             <p className="text-xs text-muted-foreground">
               The hardware MAC address of the device
             </p>
+          </div>
+
+          {/* Description */}
+          <div className="space-y-2">
+            <Label htmlFor="mapping-description">Description</Label>
+            <Input
+              id="mapping-description"
+              placeholder="Optional description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
           </div>
 
           {/* Error Display */}

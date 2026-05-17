@@ -5,6 +5,14 @@ export const dynamic = 'force-dynamic';
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
   Table,
   TableBody,
   TableCell,
@@ -43,6 +51,8 @@ import {
   Settings2,
   Link2,
   Loader2,
+  Power,
+  PowerOff,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Suspense } from "react";
@@ -157,6 +167,61 @@ function DHCPPageInner() {
 
   // Static mapping modal state
   const [addingStaticMapping, setAddingStaticMapping] = useState(false);
+
+  // Disable/enable confirmation modal state
+  type DisableConfirm =
+    | { kind: "network"; networkName: string; currentlyDisabled: boolean }
+    | { kind: "global"; currentlyDisabled: boolean };
+  const [disableConfirm, setDisableConfirm] = useState<DisableConfirm | null>(null);
+  const [disableConfirmLoading, setDisableConfirmLoading] = useState(false);
+  const [disableConfirmError, setDisableConfirmError] = useState<string | null>(null);
+
+  const requestToggleNetworkDisable = (networkName: string, currentlyDisabled: boolean) => {
+    if (!currentlyDisabled) {
+      // Guard before even showing the modal
+      const enabledCount = config?.shared_networks.filter(n => !n.disable).length ?? 0;
+      if (enabledCount <= 1) {
+        setDisableConfirm({ kind: "network", networkName, currentlyDisabled });
+        setDisableConfirmError("At least one shared network must remain enabled.");
+        return;
+      }
+    }
+    setDisableConfirmError(null);
+    setDisableConfirm({ kind: "network", networkName, currentlyDisabled });
+  };
+
+  const requestToggleGlobalDisable = () => {
+    const globallyDisabled = config?.global_config.disable ?? false;
+    setDisableConfirmError(null);
+    setDisableConfirm({ kind: "global", currentlyDisabled: globallyDisabled });
+  };
+
+  const handleConfirmDisableToggle = async () => {
+    if (!disableConfirm) return;
+    setDisableConfirmLoading(true);
+    setDisableConfirmError(null);
+    try {
+      if (disableConfirm.kind === "network") {
+        if (disableConfirm.currentlyDisabled) {
+          await dhcpService.deleteSharedNetworkDisable(disableConfirm.networkName);
+        } else {
+          await dhcpService.setSharedNetworkDisable(disableConfirm.networkName);
+        }
+      } else {
+        if (disableConfirm.currentlyDisabled) {
+          await dhcpService.deleteGlobalDisable();
+        } else {
+          await dhcpService.setGlobalDisable();
+        }
+      }
+      setDisableConfirm(null);
+      fetchConfig(true);
+    } catch (err) {
+      setDisableConfirmError(err instanceof Error ? err.message : "Operation failed");
+    } finally {
+      setDisableConfirmLoading(false);
+    }
+  };
 
   const fetchConfig = async (refresh: boolean = false) => {
     try {
@@ -386,6 +451,7 @@ function DHCPPageInner() {
                 <div className="space-y-1">
                   {config?.shared_networks.map((network) => {
                     const isSelected = selectedNetwork === network.name;
+                    const isDisabled = network.disable ?? false;
 
                     return (
                       <div
@@ -394,16 +460,30 @@ function DHCPPageInner() {
                           "group w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all cursor-pointer",
                           isSelected
                             ? "bg-accent text-accent-foreground shadow-sm"
-                            : "hover:bg-accent/50 text-foreground"
+                            : "hover:bg-accent/50 text-foreground",
+                          isDisabled && "opacity-60"
                         )}
                         onClick={() => setSelectedNetwork(network.name)}
                       >
                         <div className="p-1.5 rounded-md bg-blue-500/10 flex-shrink-0">
-                          <Server className="h-4 w-4 text-blue-500" />
+                          <Server className={cn("h-4 w-4", isDisabled ? "text-muted-foreground" : "text-blue-500")} />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="font-medium truncate">{network.name}</div>
+                          <div className={cn("font-medium truncate", isDisabled && "text-muted-foreground")}>{network.name}</div>
                         </div>
+                        <button
+                          className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-accent transition-opacity"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            requestToggleNetworkDisable(network.name, isDisabled);
+                          }}
+                          title={isDisabled ? "Enable network" : "Disable network"}
+                        >
+                          {isDisabled
+                              ? <Power className="h-4 w-4 text-green-500" />
+                              : <PowerOff className="h-4 w-4 text-muted-foreground" />
+                          }
+                        </button>
                         <button
                           className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-destructive/10 transition-opacity"
                           onClick={(e) => {
@@ -453,6 +533,14 @@ function DHCPPageInner() {
         <div className="flex-1 flex flex-col overflow-hidden">
           {currentNetwork ? (
             <>
+              {/* Global disable warning banner */}
+              {config?.global_config.disable && (
+                <div className="border-b border-amber-500/30 bg-amber-500/10 px-6 py-3 flex items-center gap-2 text-amber-600 dark:text-amber-400">
+                  <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                  <span className="text-sm font-medium">DHCP server is globally disabled — no networks are serving requests.</span>
+                </div>
+              )}
+
               {/* Network Header */}
               <div className="border-b border-border bg-card/50 px-6 py-4">
                 <div className="flex items-center justify-between">
@@ -466,6 +554,11 @@ function DHCPPageInner() {
                           Authoritative
                         </Badge>
                       )}
+                      {currentNetwork.disable && (
+                        <Badge variant="outline" className="ml-2 bg-red-500/10 text-red-500 border-red-500/20">
+                          Disabled
+                        </Badge>
+                      )}
                     </div>
                     <h2 className="text-2xl font-bold text-foreground">{currentNetwork.name}</h2>
                     {currentNetwork.domain_name && (
@@ -474,6 +567,28 @@ function DHCPPageInner() {
                         {currentNetwork.domain_name}
                       </div>
                     )}
+                    {currentNetwork.description && (
+                      <div className="flex items-center gap-1.5 mt-1 text-sm text-muted-foreground">
+                        {currentNetwork.description}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={requestToggleGlobalDisable}
+                      className={cn(
+                        config?.global_config.disable
+                          ? "border-green-500/50 text-green-600 hover:bg-green-500/10"
+                          : "border-muted text-muted-foreground hover:bg-muted"
+                      )}
+                    >
+                      {config?.global_config.disable
+                        ? <><Power className="h-4 w-4 mr-1.5" />Enable DHCP</>
+                        : <><PowerOff className="h-4 w-4 mr-1.5" />Disable DHCP</>
+                      }
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -571,6 +686,7 @@ function DHCPPageInner() {
                                 <TableHead>Ranges</TableHead>
                                 <TableHead>Active</TableHead>
                                 <TableHead>Static</TableHead>
+                                <TableHead>Status</TableHead>
                                 <TableHead className="text-right">Actions</TableHead>
                               </TableRow>
                             </TableHeader>
@@ -644,6 +760,18 @@ function DHCPPageInner() {
                                     <TableCell>
                                       <Badge variant="outline">
                                         {subnet.static_mappings.length}
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                      <Badge
+                                        variant="outline"
+                                        className={cn(
+                                          subnet.disable
+                                            ? "bg-red-500/10 text-red-500 border-red-500/20"
+                                            : "bg-green-500/10 text-green-500 border-green-500/20"
+                                        )}
+                                      >
+                                        {subnet.disable ? "Disabled" : "Active"}
                                       </Badge>
                                     </TableCell>
                                     <TableCell className="text-right">
@@ -1280,6 +1408,66 @@ function DHCPPageInner() {
             }}
           />
         )}
+
+        {/* Disable / Enable Confirmation Modal */}
+        <Dialog
+          open={!!disableConfirm}
+          onOpenChange={(open) => {
+            if (!open && !disableConfirmLoading) {
+              setDisableConfirm(null);
+              setDisableConfirmError(null);
+            }
+          }}
+        >
+          <DialogContent className="sm:max-w-[400px]">
+            <DialogHeader>
+              <DialogTitle>
+                {disableConfirm?.currentlyDisabled ? "Enable" : "Disable"}{" "}
+                {disableConfirm?.kind === "global"
+                  ? "DHCP Server"
+                  : `Network "${disableConfirm?.kind === "network" ? disableConfirm.networkName : ""}"`
+                }
+              </DialogTitle>
+              <DialogDescription>
+                {disableConfirm?.kind === "global"
+                  ? disableConfirm.currentlyDisabled
+                    ? "This will enable the DHCP server globally. All configured networks will resume serving requests."
+                    : "This will disable the DHCP server globally. No networks will serve DHCP requests until re-enabled."
+                  : disableConfirm?.currentlyDisabled
+                    ? `Enable shared network "${disableConfirm.networkName}"? It will resume serving DHCP requests.`
+                    : `Disable shared network "${disableConfirm?.kind === "network" ? disableConfirm.networkName : ""}"? It will stop serving DHCP requests.`
+                }
+              </DialogDescription>
+            </DialogHeader>
+
+            {disableConfirmError && (
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0" />
+                <p className="text-sm text-destructive">{disableConfirmError}</p>
+              </div>
+            )}
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => { setDisableConfirm(null); setDisableConfirmError(null); }}
+                disabled={disableConfirmLoading}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant={disableConfirm?.currentlyDisabled ? "default" : "destructive"}
+                onClick={handleConfirmDisableToggle}
+                disabled={disableConfirmLoading || !!disableConfirmError}
+              >
+                {disableConfirmLoading
+                  ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Processing...</>
+                  : disableConfirm?.currentlyDisabled ? "Enable" : "Disable"
+                }
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </AppLayout>
   );

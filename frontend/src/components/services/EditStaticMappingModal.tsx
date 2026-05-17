@@ -41,6 +41,7 @@ export function EditStaticMappingModal({
   const [ipAddress, setIpAddress] = useState("");
   const [macAddress, setMacAddress] = useState("");
   const [disabled, setDisabled] = useState(false);
+  const [description, setDescription] = useState("");
 
   // Load mapping data when modal opens
   useEffect(() => {
@@ -48,6 +49,7 @@ export function EditStaticMappingModal({
       setIpAddress(mapping.ip_address || "");
       setMacAddress(mapping.mac_address || "");
       setDisabled(mapping.disable);
+      setDescription(mapping.description ?? "");
       setError(null);
     }
   }, [open, mapping]);
@@ -95,8 +97,10 @@ export function EditStaticMappingModal({
         ip_address?: string;
         mac_address?: string;
         disable?: boolean;
+        description?: string;
         delete_ip_address?: boolean;
         delete_mac_address?: boolean;
+        delete_description?: boolean;
       } = {};
 
       // Handle IP address changes
@@ -124,6 +128,17 @@ export function EditStaticMappingModal({
       // Handle disable state changes
       if (disabled !== mapping.disable) {
         config.disable = disabled;
+      }
+
+      // Handle description changes
+      const newDesc = description.trim();
+      const oldDesc = mapping.description ?? "";
+      if (newDesc !== oldDesc) {
+        if (newDesc) {
+          config.description = newDesc;
+        } else if (oldDesc) {
+          config.delete_description = true;
+        }
       }
 
       // Only make API call if there are changes
@@ -219,6 +234,17 @@ export function EditStaticMappingModal({
                 When disabled, this mapping will not assign the IP to the device
               </p>
             </div>
+          </div>
+
+          {/* Description */}
+          <div className="space-y-2">
+            <Label htmlFor="mapping-description">Description</Label>
+            <Input
+              id="mapping-description"
+              placeholder="Optional description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
           </div>
 
           {/* Error Display */}
