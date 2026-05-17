@@ -52,6 +52,10 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
   const [favorites, setFavorites] = useState<string[]>(loadFavorites);
   const { activeSession } = useSessionStore();
 
+  // Use a stable primitive so the index only rebuilds when the actual instance
+  // changes, not on every object-reference change from the session store.
+  const instanceId = activeSession?.instance_id ?? null;
+
   const favoriteSet = useMemo(() => new Set(favorites), [favorites]);
 
   const facets = useMemo(() => getIndexFacets(indexedData), [indexedData]);
@@ -61,7 +65,7 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
     setFavorites(favs);
     const favSet = new Set(favs);
 
-    if (!activeSession) {
+    if (!instanceId) {
       setIndexedData(applyFavorites(dedupeSearchResults(navigationSearchIndex), favSet));
       setIndexReady(true);
       return;
@@ -79,7 +83,7 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
       setIsIndexing(false);
       setIndexReady(true);
     }
-  }, [activeSession]);
+  }, [instanceId]); // Stable string — only changes when instance actually changes
 
   useEffect(() => {
     setIndexReady(false);
