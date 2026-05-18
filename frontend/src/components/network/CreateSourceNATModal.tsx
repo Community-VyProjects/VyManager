@@ -44,6 +44,7 @@ export function CreateSourceNATModal({ open, onOpenChange, onSuccess }: CreateSo
   // Source
   const [sourceType, setSourceType] = useState<"address" | "group">("address");
   const [sourceAddress, setSourceAddress] = useState("");
+  const [sourceInvert, setSourceInvert] = useState(false);
   const [sourceGroupType, setSourceGroupType] = useState("");
   const [sourceGroupName, setSourceGroupName] = useState("");
   const [sourcePort, setSourcePort] = useState("");
@@ -53,6 +54,7 @@ export function CreateSourceNATModal({ open, onOpenChange, onSuccess }: CreateSo
   // Destination
   const [destinationType, setDestinationType] = useState<"address" | "group">("address");
   const [destinationAddress, setDestinationAddress] = useState("");
+  const [destinationInvert, setDestinationInvert] = useState(false);
   const [destinationGroupType, setDestinationGroupType] = useState("");
   const [destinationGroupName, setDestinationGroupName] = useState("");
   const [destinationPort, setDestinationPort] = useState("");
@@ -208,11 +210,13 @@ export function CreateSourceNATModal({ open, onOpenChange, onSuccess }: CreateSo
     setDescription("");
     setSourceType("address");
     setSourceAddress("");
+    setSourceInvert(false);
     setSourceGroupType("");
     setSourceGroupName("");
     setSourcePort("");
     setDestinationType("address");
     setDestinationAddress("");
+    setDestinationInvert(false);
     setDestinationGroupType("");
     setDestinationGroupName("");
     setDestinationPort("");
@@ -255,9 +259,11 @@ export function CreateSourceNATModal({ open, onOpenChange, onSuccess }: CreateSo
       // Source
       if (sourceType === "address" && sourceAddress.trim()) {
         config.source_address = sourceAddress.trim();
+        config.source_address_invert = sourceInvert;
       } else if (sourceType === "group" && sourceGroupType && sourceGroupName) {
         config.source_group_type = sourceGroupType;
         config.source_group_name = sourceGroupName;
+        config.source_group_invert = sourceInvert;
       }
       if (sourcePortType === "input" && sourcePort.trim()) {
         config.source_port = sourcePort.trim();
@@ -268,9 +274,11 @@ export function CreateSourceNATModal({ open, onOpenChange, onSuccess }: CreateSo
       // Destination
       if (destinationType === "address" && destinationAddress.trim()) {
         config.destination_address = destinationAddress.trim();
+        config.destination_address_invert = destinationInvert;
       } else if (destinationType === "group" && destinationGroupType && destinationGroupName) {
         config.destination_group_type = destinationGroupType;
         config.destination_group_name = destinationGroupName;
+        config.destination_group_invert = destinationInvert;
       }
       if (destPortType === "input" && destinationPort.trim()) {
         config.destination_port = destinationPort.trim();
@@ -648,6 +656,17 @@ export function CreateSourceNATModal({ open, onOpenChange, onSuccess }: CreateSo
                 </>
               )}
 
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="source-invert"
+                  checked={sourceInvert}
+                  onCheckedChange={(checked) => setSourceInvert(checked === true)}
+                />
+                <Label htmlFor="source-invert" className="text-sm font-normal">
+                  Invert match
+                </Label>
+              </div>
+
               <div className="space-y-3">
                 <Label className="text-base font-medium">Source Port</Label>
                 <RadioGroup value={sourcePortType} onValueChange={(v) => {
@@ -751,6 +770,17 @@ export function CreateSourceNATModal({ open, onOpenChange, onSuccess }: CreateSo
                   </div>
                 </>
               )}
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="destination-invert"
+                  checked={destinationInvert}
+                  onCheckedChange={(checked) => setDestinationInvert(checked === true)}
+                />
+                <Label htmlFor="destination-invert" className="text-sm font-normal">
+                  Invert match
+                </Label>
+              </div>
 
               <div className="space-y-3">
                 <Label className="text-base font-medium">Destination Port</Label>

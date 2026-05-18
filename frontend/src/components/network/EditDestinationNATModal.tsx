@@ -43,6 +43,7 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
   // Source fields
   const [sourceType, setSourceType] = useState<"address" | "group">("address");
   const [sourceAddress, setSourceAddress] = useState("");
+  const [sourceInvert, setSourceInvert] = useState(false);
   const [sourcePort, setSourcePort] = useState("");
   const [sourceGroupType, setSourceGroupType] = useState("");
   const [sourceGroupName, setSourceGroupName] = useState("");
@@ -54,6 +55,7 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
   // Destination fields
   const [destinationType, setDestinationType] = useState<"address" | "group">("address");
   const [destinationAddress, setDestinationAddress] = useState("");
+  const [destinationInvert, setDestinationInvert] = useState(false);
   const [destinationPort, setDestinationPort] = useState("");
   const [destinationGroupType, setDestinationGroupType] = useState("");
   const [destinationGroupName, setDestinationGroupName] = useState("");
@@ -102,11 +104,13 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
     setDescription("");
     setSourceType("address");
     setSourceAddress("");
+    setSourceInvert(false);
     setSourcePort("");
     setSourceGroupType("");
     setSourceGroupName("");
     setDestinationType("address");
     setDestinationAddress("");
+    setDestinationInvert(false);
     setDestinationPort("");
     setDestinationGroupType("");
     setDestinationGroupName("");
@@ -179,18 +183,24 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
     // Source
     if (rule.source?.address) {
       setSourceType("address");
-      setSourceAddress(rule.source.address);
-      setOriginalSourceAddress(rule.source.address);
+      const srcAddrInverted = rule.source.address.startsWith("!");
+      setSourceInvert(srcAddrInverted);
+      const cleanSrcAddr = srcAddrInverted ? rule.source.address.substring(1) : rule.source.address;
+      setSourceAddress(cleanSrcAddr);
+      setOriginalSourceAddress(cleanSrcAddr);
     } else if (rule.source?.group) {
       setSourceType("group");
-      const groupEntries = Object.entries(rule.source.group);
+      const groupEntries = Object.entries(rule.source.group).filter(([t]) => t !== "port-group");
       if (groupEntries.length > 0) {
         const [type, name] = groupEntries[0];
+        const srcGrpInverted = name.startsWith("!");
+        setSourceInvert(srcGrpInverted);
         setSourceGroupType(type);
-        setSourceGroupName(name);
+        setSourceGroupName(srcGrpInverted ? name.substring(1) : name);
         setOriginalSourceGroup(true);
       }
     } else {
+      setSourceInvert(false);
       setOriginalSourceAddress("");
       setOriginalSourceGroup(false);
     }
@@ -211,18 +221,24 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
     // Destination
     if (rule.destination?.address) {
       setDestinationType("address");
-      setDestinationAddress(rule.destination.address);
-      setOriginalDestinationAddress(rule.destination.address);
+      const dstAddrInverted = rule.destination.address.startsWith("!");
+      setDestinationInvert(dstAddrInverted);
+      const cleanDstAddr = dstAddrInverted ? rule.destination.address.substring(1) : rule.destination.address;
+      setDestinationAddress(cleanDstAddr);
+      setOriginalDestinationAddress(cleanDstAddr);
     } else if (rule.destination?.group) {
       setDestinationType("group");
-      const groupEntries = Object.entries(rule.destination.group);
+      const groupEntries = Object.entries(rule.destination.group).filter(([t]) => t !== "port-group");
       if (groupEntries.length > 0) {
         const [type, name] = groupEntries[0];
+        const dstGrpInverted = name.startsWith("!");
+        setDestinationInvert(dstGrpInverted);
         setDestinationGroupType(type);
-        setDestinationGroupName(name);
+        setDestinationGroupName(dstGrpInverted ? name.substring(1) : name);
         setOriginalDestinationGroup(true);
       }
     } else {
+      setDestinationInvert(false);
       setOriginalDestinationAddress("");
       setOriginalDestinationGroup(false);
     }
@@ -379,6 +395,7 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
       if (sourceType === "address") {
         if (sourceAddress.trim()) {
           config.source_address = sourceAddress.trim();
+          config.source_address_invert = sourceInvert;
         } else if (originalSourceAddress) {
           // Address was cleared - need to delete it
           config.delete_source_address = true;
@@ -391,6 +408,7 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
         if (sourceGroupType && sourceGroupName) {
           config.source_group_type = sourceGroupType;
           config.source_group_name = sourceGroupName;
+          config.source_group_invert = sourceInvert;
         } else if (originalSourceGroup) {
           // Group was cleared - need to delete it
           config.delete_source_group = true;
@@ -423,6 +441,7 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
       if (destinationType === "address") {
         if (destinationAddress.trim()) {
           config.destination_address = destinationAddress.trim();
+          config.destination_address_invert = destinationInvert;
         } else if (originalDestinationAddress) {
           // Address was cleared - need to delete it
           config.delete_destination_address = true;
@@ -435,6 +454,7 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
         if (destinationGroupType && destinationGroupName) {
           config.destination_group_type = destinationGroupType;
           config.destination_group_name = destinationGroupName;
+          config.destination_group_invert = destinationInvert;
         } else if (originalDestinationGroup) {
           // Group was cleared - need to delete it
           config.delete_destination_group = true;
@@ -812,6 +832,17 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
                 </>
               )}
 
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="source-invert"
+                  checked={sourceInvert}
+                  onCheckedChange={(checked) => setSourceInvert(checked === true)}
+                />
+                <Label htmlFor="source-invert" className="text-sm font-normal">
+                  Invert match
+                </Label>
+              </div>
+
               <div className="space-y-3">
                 <Label className="text-base font-medium">Source Port</Label>
                 <RadioGroup value={sourcePortType} onValueChange={(v) => {
@@ -915,6 +946,17 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
                   </div>
                 </>
               )}
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="destination-invert"
+                  checked={destinationInvert}
+                  onCheckedChange={(checked) => setDestinationInvert(checked === true)}
+                />
+                <Label htmlFor="destination-invert" className="text-sm font-normal">
+                  Invert match
+                </Label>
+              </div>
 
               <div className="space-y-3">
                 <Label className="text-base font-medium">Destination Port</Label>
