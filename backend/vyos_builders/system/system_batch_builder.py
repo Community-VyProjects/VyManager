@@ -893,6 +893,12 @@ class SystemBatchBuilder:
     def delete_proxy_password(self, module: str) -> "SystemBatchBuilder":
         return self.add_delete(self.mapper.get_delete_proxy_password_path())
 
+    def add_proxy_no_proxy(self, host: str) -> "SystemBatchBuilder":
+        return self.add_set(self.mapper.get_proxy_no_proxy_path(host))
+
+    def delete_proxy_no_proxy(self, host: str) -> "SystemBatchBuilder":
+        return self.add_delete(self.mapper.get_delete_proxy_no_proxy_path(host))
+
     def delete_proxy(self, module: str) -> "SystemBatchBuilder":
         return self.add_delete(self.mapper.get_delete_proxy_path())
 

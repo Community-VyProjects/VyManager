@@ -44,7 +44,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { AlertCircle, Edit2, FolderOpen, Info, Loader2, Plus, Search, Trash2 } from "lucide-react";
+import { AlertCircle, Edit2, FolderOpen, Info, Loader2, Plus, Search, Trash2, X } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   systemSettingsService,
   type ArchiveFile,
@@ -126,8 +127,52 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
   const [wirelessSaving, setWirelessSaving] = useState(false);
 
   // FRR profile (1.5)
-  const [frrProfile, setFrrProfile] = useState(config.frr_profile ?? "");
+  const [frrProfile, setFrrProfile] = useState(config.frr?.profile ?? "");
   const [frrSaving, setFrrSaving] = useState(false);
+
+  // System Options
+  const opts = config.options;
+  const [editingOpts, setEditingOpts] = useState(false);
+  const [optKeyboard, setOptKeyboard] = useState(opts?.keyboard_layout ?? "");
+  const [optTimeFormat, setOptTimeFormat] = useState(opts?.time_format ?? "");
+  const [optCtrlAlt, setOptCtrlAlt] = useState(opts?.ctrl_alt_delete ?? "");
+  const [optStartupBeep, setOptStartupBeep] = useState(opts?.startup_beep ?? false);
+  const [optUsbAutosuspend, setOptUsbAutosuspend] = useState(opts?.disable_usb_autosuspend ?? false);
+  const [optRebootOnPanic, setOptRebootOnPanic] = useState(opts?.reboot_on_panic ?? false);
+  const [optRootResize, setOptRootResize] = useState(opts?.root_partition_auto_resize ?? false);
+  const [optRebootUpgrade, setOptRebootUpgrade] = useState(opts?.reboot_on_upgrade_failure ?? false);
+  const [optHttpAddr, setOptHttpAddr] = useState(opts?.http_client?.source_address ?? "");
+  const [optHttpIface, setOptHttpIface] = useState(opts?.http_client?.source_interface ?? "");
+  const [optSshAddr, setOptSshAddr] = useState(opts?.ssh_client?.source_address ?? "");
+  const [optSshIface, setOptSshIface] = useState(opts?.ssh_client?.source_interface ?? "");
+  const [optsSaving, setOptsSaving] = useState(false);
+  const [optsError, setOptsError] = useState<string | null>(null);
+
+  // Proxy
+  const px = config.proxy;
+  const [editingProxy, setEditingProxy] = useState(false);
+  const [proxyUrl, setProxyUrl] = useState(px?.url ?? "");
+  const [proxyPort, setProxyPort] = useState(px?.port ? String(px.port) : "");
+  const [proxyUsername, setProxyUsername] = useState(px?.username ?? "");
+  const [proxyNoProxyInput, setProxyNoProxyInput] = useState("");
+  const [proxySaving, setProxySaving] = useState(false);
+  const [proxyError, setProxyError] = useState<string | null>(null);
+
+  // Logs / logrotate
+  const [editingLogs, setEditingLogs] = useState(false);
+  const [logAtopSize, setLogAtopSize] = useState(config.logs?.atop?.max_size ? String(config.logs.atop.max_size) : "");
+  const [logAtopRotate, setLogAtopRotate] = useState(config.logs?.atop?.rotate_count ? String(config.logs.atop.rotate_count) : "");
+  const [logMsgSize, setLogMsgSize] = useState(config.logs?.messages?.max_size ? String(config.logs.messages.max_size) : "");
+  const [logMsgRotate, setLogMsgRotate] = useState(config.logs?.messages?.rotate_count ? String(config.logs.messages.rotate_count) : "");
+  const [logsSaving, setLogsSaving] = useState(false);
+  const [logsError, setLogsError] = useState<string | null>(null);
+
+  // Update check
+  const [editingUc, setEditingUc] = useState(false);
+  const [ucUrl, setUcUrl] = useState(config.update_check?.url ?? "");
+  const [ucAuto, setUcAuto] = useState(config.update_check?.auto_install ?? false);
+  const [ucSaving, setUcSaving] = useState(false);
+  const [ucError, setUcError] = useState<string | null>(null);
 
   // Config Management handlers
   const handleSaveCm = async () => {
@@ -384,6 +429,191 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
       toast.error("Error", "An unexpected error occurred");
     } finally {
       setWirelessSaving(false);
+    }
+  };
+
+  // System Options handler
+  const handleSaveOptions = async () => {
+    setOptsSaving(true);
+    setOptsError(null);
+    try {
+      const prev = opts;
+      const ops: Array<() => Promise<{ success: boolean; error?: string | null }>> = [];
+
+      // Keyboard layout
+      const kb = optKeyboard.trim();
+      if (kb !== (prev?.keyboard_layout ?? "")) {
+        ops.push(() => kb ? systemSettingsService.setKeyboardLayout(kb) : systemSettingsService.deleteKeyboardLayout());
+      }
+      // Time format
+      const tf = optTimeFormat.trim();
+      if (tf !== (prev?.time_format ?? "")) {
+        ops.push(() => tf ? systemSettingsService.setTimeFormat(tf) : systemSettingsService.deleteTimeFormat());
+      }
+      // Ctrl-alt-delete
+      const ca = optCtrlAlt.trim();
+      if (ca !== (prev?.ctrl_alt_delete ?? "")) {
+        ops.push(() => ca ? systemSettingsService.setCtrlAltDelete(ca) : systemSettingsService.deleteCtrlAltDelete());
+      }
+      // Boolean flags
+      if (optStartupBeep !== (prev?.startup_beep ?? false))
+        ops.push(() => systemSettingsService.setStartupBeep(optStartupBeep));
+      if (optUsbAutosuspend !== (prev?.disable_usb_autosuspend ?? false))
+        ops.push(() => systemSettingsService.setDisableUsbAutosuspend(optUsbAutosuspend));
+      if (optRebootOnPanic !== (prev?.reboot_on_panic ?? false))
+        ops.push(() => systemSettingsService.setRebootOnPanic(optRebootOnPanic));
+      if (optRootResize !== (prev?.root_partition_auto_resize ?? false))
+        ops.push(() => systemSettingsService.setRootPartitionAutoResize(optRootResize));
+      if (optRebootUpgrade !== (prev?.reboot_on_upgrade_failure ?? false))
+        ops.push(() => systemSettingsService.setRebootOnUpgradeFailure(optRebootUpgrade));
+
+      // HTTP client source
+      const httpAddrChanged = optHttpAddr.trim() !== (prev?.http_client?.source_address ?? "");
+      const httpIfaceChanged = optHttpIface.trim() !== (prev?.http_client?.source_interface ?? "");
+      if (httpAddrChanged || httpIfaceChanged) {
+        ops.push(() => systemSettingsService.updateHttpClientSource({
+          address: optHttpAddr.trim() || undefined,
+          clearAddress: !optHttpAddr.trim() && httpAddrChanged,
+          iface: optHttpIface.trim() || undefined,
+          clearIface: !optHttpIface.trim() && httpIfaceChanged,
+        }));
+      }
+      // SSH client source
+      const sshAddrChanged = optSshAddr.trim() !== (prev?.ssh_client?.source_address ?? "");
+      const sshIfaceChanged = optSshIface.trim() !== (prev?.ssh_client?.source_interface ?? "");
+      if (sshAddrChanged || sshIfaceChanged) {
+        ops.push(() => systemSettingsService.updateSshClientSource({
+          address: optSshAddr.trim() || undefined,
+          clearAddress: !optSshAddr.trim() && sshAddrChanged,
+          iface: optSshIface.trim() || undefined,
+          clearIface: !optSshIface.trim() && sshIfaceChanged,
+        }));
+      }
+
+      for (const op of ops) {
+        const r = await op();
+        if (!r.success) { setOptsError(r.error ?? "Failed"); return; }
+      }
+      toast.success("System options saved");
+      setEditingOpts(false);
+      onRefresh();
+    } catch {
+      setOptsError("An unexpected error occurred");
+    } finally {
+      setOptsSaving(false);
+    }
+  };
+
+  // Proxy handler
+  const handleSaveProxy = async () => {
+    setProxySaving(true);
+    setProxyError(null);
+    try {
+      const url = proxyUrl.trim();
+      const port = proxyPort.trim() ? parseInt(proxyPort.trim(), 10) : null;
+      const user = proxyUsername.trim();
+
+      if (url !== (px?.url ?? "")) {
+        const r = url ? await systemSettingsService.setProxyUrl(url) : await systemSettingsService.deleteProxyUrl();
+        if (!r.success) { setProxyError(r.error ?? "Failed"); return; }
+      }
+      if (port !== (px?.port ?? null)) {
+        const r = port ? await systemSettingsService.setProxyPort(port) : await systemSettingsService.deleteProxyPort();
+        if (!r.success) { setProxyError(r.error ?? "Failed"); return; }
+      }
+      if (user !== (px?.username ?? "")) {
+        const r = user ? await systemSettingsService.setProxyUsername(user) : await systemSettingsService.deleteProxyUsername();
+        if (!r.success) { setProxyError(r.error ?? "Failed"); return; }
+      }
+      toast.success("Proxy settings saved");
+      setEditingProxy(false);
+      onRefresh();
+    } catch {
+      setProxyError("An unexpected error occurred");
+    } finally {
+      setProxySaving(false);
+    }
+  };
+
+  const handleAddNoProxy = async () => {
+    const host = proxyNoProxyInput.trim();
+    if (!host) return;
+    try {
+      const r = await systemSettingsService.addProxyNoProxy(host);
+      if (!r.success) { toast.error("Failed", r.error ?? "Could not add entry"); return; }
+      setProxyNoProxyInput("");
+      onRefresh();
+    } catch {
+      toast.error("Error", "An unexpected error occurred");
+    }
+  };
+
+  // Logs handler
+  const handleSaveLogs = async () => {
+    setLogsSaving(true);
+    setLogsError(null);
+    try {
+      const prevAtop = config.logs?.atop;
+      const prevMsg = config.logs?.messages;
+      const atopSize = logAtopSize.trim() ? parseInt(logAtopSize.trim(), 10) : null;
+      const atopRotate = logAtopRotate.trim() ? parseInt(logAtopRotate.trim(), 10) : null;
+      const msgSize = logMsgSize.trim() ? parseInt(logMsgSize.trim(), 10) : null;
+      const msgRotate = logMsgRotate.trim() ? parseInt(logMsgRotate.trim(), 10) : null;
+
+      const atopSizeChanged = atopSize !== (prevAtop?.max_size ?? null);
+      const atopRotateChanged = atopRotate !== (prevAtop?.rotate_count ?? null);
+      const msgSizeChanged = msgSize !== (prevMsg?.max_size ?? null);
+      const msgRotateChanged = msgRotate !== (prevMsg?.rotate_count ?? null);
+
+      if (atopSizeChanged || atopRotateChanged) {
+        const r = await systemSettingsService.updateLogrotateAtop({
+          maxSize: atopSizeChanged ? atopSize : undefined,
+          clearMaxSize: atopSizeChanged && atopSize === null,
+          rotate: atopRotateChanged ? atopRotate : undefined,
+          clearRotate: atopRotateChanged && atopRotate === null,
+        });
+        if (!r.success) { setLogsError(r.error ?? "Failed"); return; }
+      }
+      if (msgSizeChanged || msgRotateChanged) {
+        const r = await systemSettingsService.updateLogrotateMessages({
+          maxSize: msgSizeChanged ? msgSize : undefined,
+          clearMaxSize: msgSizeChanged && msgSize === null,
+          rotate: msgRotateChanged ? msgRotate : undefined,
+          clearRotate: msgRotateChanged && msgRotate === null,
+        });
+        if (!r.success) { setLogsError(r.error ?? "Failed"); return; }
+      }
+      toast.success("Log rotation settings saved");
+      setEditingLogs(false);
+      onRefresh();
+    } catch {
+      setLogsError("An unexpected error occurred");
+    } finally {
+      setLogsSaving(false);
+    }
+  };
+
+  // Update check handler
+  const handleSaveUc = async () => {
+    setUcSaving(true);
+    setUcError(null);
+    try {
+      const url = ucUrl.trim();
+      if (url !== (config.update_check?.url ?? "")) {
+        const r = url ? await systemSettingsService.setUpdateCheckUrl(url) : await systemSettingsService.deleteUpdateCheckUrl();
+        if (!r.success) { setUcError(r.error ?? "Failed"); return; }
+      }
+      if (ucAuto !== (config.update_check?.auto_install ?? false)) {
+        const r = await systemSettingsService.setUpdateCheckAutoInstall(ucAuto);
+        if (!r.success) { setUcError(r.error ?? "Failed"); return; }
+      }
+      toast.success("Update check settings saved");
+      setEditingUc(false);
+      onRefresh();
+    } catch {
+      setUcError("An unexpected error occurred");
+    } finally {
+      setUcSaving(false);
     }
   };
 
@@ -797,6 +1027,403 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
           )}
         </div>
       )}
+
+      {/* System Options */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>System Options</CardTitle>
+              <CardDescription>Keyboard layout, boot behaviour, and network client bindings.</CardDescription>
+            </div>
+            {!isReadOnly && !editingOpts && (
+              <Button variant="outline" size="sm" onClick={() => {
+                setOptKeyboard(opts?.keyboard_layout ?? "");
+                setOptTimeFormat(opts?.time_format ?? "");
+                setOptCtrlAlt(opts?.ctrl_alt_delete ?? "");
+                setOptStartupBeep(opts?.startup_beep ?? false);
+                setOptUsbAutosuspend(opts?.disable_usb_autosuspend ?? false);
+                setOptRebootOnPanic(opts?.reboot_on_panic ?? false);
+                setOptRootResize(opts?.root_partition_auto_resize ?? false);
+                setOptRebootUpgrade(opts?.reboot_on_upgrade_failure ?? false);
+                setOptHttpAddr(opts?.http_client?.source_address ?? "");
+                setOptHttpIface(opts?.http_client?.source_interface ?? "");
+                setOptSshAddr(opts?.ssh_client?.source_address ?? "");
+                setOptSshIface(opts?.ssh_client?.source_interface ?? "");
+                setOptsError(null);
+                setEditingOpts(true);
+              }}>
+                <Edit2 className="h-4 w-4 mr-2" />Edit
+              </Button>
+            )}
+            {editingOpts && (
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => { setEditingOpts(false); setOptsError(null); }} disabled={optsSaving}>Cancel</Button>
+                <Button size="sm" onClick={handleSaveOptions} disabled={optsSaving}>{optsSaving ? "Saving…" : "Save"}</Button>
+              </div>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {optsError && (
+            <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+                <pre className="text-sm text-destructive whitespace-pre-wrap font-mono">{optsError}</pre>
+              </div>
+            </div>
+          )}
+
+          {/* Select-style options */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="space-y-1.5">
+              <Label>Keyboard Layout</Label>
+              {editingOpts ? (
+                <Input value={optKeyboard} onChange={(e) => setOptKeyboard(e.target.value)} placeholder="us" />
+              ) : (
+                <p className="text-sm font-medium">{opts?.keyboard_layout ?? <span className="text-muted-foreground">Default</span>}</p>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label>Time Format</Label>
+              {editingOpts ? (
+                <Select value={optTimeFormat || "unset"} onValueChange={(v) => setOptTimeFormat(v === "unset" ? "" : v)}>
+                  <SelectTrigger><SelectValue placeholder="Default" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unset">Default</SelectItem>
+                    <SelectItem value="24-hour">24-hour</SelectItem>
+                    <SelectItem value="12-hour">12-hour</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : (
+                <p className="text-sm font-medium">{opts?.time_format ?? <span className="text-muted-foreground">Default</span>}</p>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label>Ctrl-Alt-Delete</Label>
+              {editingOpts ? (
+                <Select value={optCtrlAlt || "unset"} onValueChange={(v) => setOptCtrlAlt(v === "unset" ? "" : v)}>
+                  <SelectTrigger><SelectValue placeholder="Default" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unset">Default</SelectItem>
+                    <SelectItem value="ignore">Ignore</SelectItem>
+                    <SelectItem value="reboot">Reboot</SelectItem>
+                    <SelectItem value="poweroff">Poweroff</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : (
+                <p className="text-sm font-medium">{opts?.ctrl_alt_delete ?? <span className="text-muted-foreground">Default</span>}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Boolean flags */}
+          <div>
+            <p className="text-sm font-medium text-muted-foreground mb-3">System behaviour</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-8">
+              {([
+                { label: "Startup beep", key: "startup_beep", state: optStartupBeep, setter: setOptStartupBeep },
+                { label: "Disable USB autosuspend", key: "disable_usb_autosuspend", state: optUsbAutosuspend, setter: setOptUsbAutosuspend },
+                { label: "Reboot on kernel panic", key: "reboot_on_panic", state: optRebootOnPanic, setter: setOptRebootOnPanic },
+                { label: "Root partition auto-resize", key: "root_partition_auto_resize", state: optRootResize, setter: setOptRootResize },
+                ...(features.watchdog.supported ? [{ label: "Reboot on upgrade failure", key: "reboot_on_upgrade_failure", state: optRebootUpgrade, setter: setOptRebootUpgrade }] : []),
+              ] as { label: string; key: string; state: boolean; setter: (v: boolean) => void }[]).map(({ label, key, state, setter }) => (
+                <div key={key} className="flex items-center gap-3">
+                  {editingOpts ? (
+                    <Checkbox
+                      checked={state}
+                      onCheckedChange={(v) => setter(!!v)}
+                      id={`opt-${key}`}
+                    />
+                  ) : (
+                    <div className={`h-4 w-4 rounded-sm border flex items-center justify-center ${state ? "bg-primary border-primary" : "border-input"}`}>
+                      {state && <span className="text-primary-foreground text-xs">✓</span>}
+                    </div>
+                  )}
+                  <Label htmlFor={`opt-${key}`} className="cursor-pointer font-normal">{label}</Label>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* HTTP / SSH client source bindings */}
+          <div>
+            <p className="text-sm font-medium text-muted-foreground mb-3">Network client source binding</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2 rounded-lg border p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">HTTP client</p>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Source address</Label>
+                  {editingOpts ? (
+                    <Input value={optHttpAddr} onChange={(e) => setOptHttpAddr(e.target.value)} placeholder="192.168.1.1" className="text-sm" />
+                  ) : (
+                    <p className="text-sm">{opts?.http_client?.source_address ?? <span className="text-muted-foreground">Not set</span>}</p>
+                  )}
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Source interface</Label>
+                  {editingOpts ? (
+                    <Input value={optHttpIface} onChange={(e) => setOptHttpIface(e.target.value)} placeholder="eth0" className="text-sm" />
+                  ) : (
+                    <p className="text-sm">{opts?.http_client?.source_interface ?? <span className="text-muted-foreground">Not set</span>}</p>
+                  )}
+                </div>
+              </div>
+              <div className="space-y-2 rounded-lg border p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">SSH client</p>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Source address</Label>
+                  {editingOpts ? (
+                    <Input value={optSshAddr} onChange={(e) => setOptSshAddr(e.target.value)} placeholder="192.168.1.1" className="text-sm" />
+                  ) : (
+                    <p className="text-sm">{opts?.ssh_client?.source_address ?? <span className="text-muted-foreground">Not set</span>}</p>
+                  )}
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Source interface</Label>
+                  {editingOpts ? (
+                    <Input value={optSshIface} onChange={(e) => setOptSshIface(e.target.value)} placeholder="eth0" className="text-sm" />
+                  ) : (
+                    <p className="text-sm">{opts?.ssh_client?.source_interface ?? <span className="text-muted-foreground">Not set</span>}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Logs / Logrotate */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Log Rotation</CardTitle>
+              <CardDescription>Configure log size limits and rotation counts for system logs.</CardDescription>
+            </div>
+            {!isReadOnly && !editingLogs && (
+              <Button variant="outline" size="sm" onClick={() => {
+                setLogAtopSize(config.logs?.atop?.max_size ? String(config.logs.atop.max_size) : "");
+                setLogAtopRotate(config.logs?.atop?.rotate_count ? String(config.logs.atop.rotate_count) : "");
+                setLogMsgSize(config.logs?.messages?.max_size ? String(config.logs.messages.max_size) : "");
+                setLogMsgRotate(config.logs?.messages?.rotate_count ? String(config.logs.messages.rotate_count) : "");
+                setLogsError(null);
+                setEditingLogs(true);
+              }}>
+                <Edit2 className="h-4 w-4 mr-2" />Edit
+              </Button>
+            )}
+            {editingLogs && (
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => { setEditingLogs(false); setLogsError(null); }} disabled={logsSaving}>Cancel</Button>
+                <Button size="sm" onClick={handleSaveLogs} disabled={logsSaving}>{logsSaving ? "Saving…" : "Save"}</Button>
+              </div>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {logsError && (
+            <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+                <pre className="text-sm text-destructive whitespace-pre-wrap font-mono">{logsError}</pre>
+              </div>
+            </div>
+          )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {[
+              { label: "atop", size: logAtopSize, setSize: setLogAtopSize, rotate: logAtopRotate, setRotate: setLogAtopRotate, current: config.logs?.atop },
+              { label: "messages", size: logMsgSize, setSize: setLogMsgSize, rotate: logMsgRotate, setRotate: setLogMsgRotate, current: config.logs?.messages },
+            ].map(({ label, size, setSize, rotate, setRotate, current }) => (
+              <div key={label} className="rounded-lg border p-3 space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Max size (KB)</Label>
+                    {editingLogs ? (
+                      <Input type="number" min="0" value={size} onChange={(e) => setSize(e.target.value)} placeholder="Default" className="text-sm" />
+                    ) : (
+                      <p className="text-sm font-medium">{current?.max_size ?? <span className="text-muted-foreground">Default</span>}</p>
+                    )}
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Rotate count</Label>
+                    {editingLogs ? (
+                      <Input type="number" min="0" value={rotate} onChange={(e) => setRotate(e.target.value)} placeholder="Default" className="text-sm" />
+                    ) : (
+                      <p className="text-sm font-medium">{current?.rotate_count ?? <span className="text-muted-foreground">Default</span>}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Update Check & Proxy — side-by-side on wide screens */}
+      <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
+
+        {/* Update check */}
+        <Card className="flex flex-col">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Update Check</CardTitle>
+                <CardDescription>Automatic package update notifications.</CardDescription>
+              </div>
+              {!isReadOnly && !editingUc && (
+                <Button variant="outline" size="sm" onClick={() => {
+                  setUcUrl(config.update_check?.url ?? "");
+                  setUcAuto(config.update_check?.auto_install ?? false);
+                  setUcError(null);
+                  setEditingUc(true);
+                }}>
+                  <Edit2 className="h-4 w-4 mr-2" />Edit
+                </Button>
+              )}
+              {editingUc && (
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => { setEditingUc(false); setUcError(null); }} disabled={ucSaving}>Cancel</Button>
+                  <Button size="sm" onClick={handleSaveUc} disabled={ucSaving}>{ucSaving ? "Saving…" : "Save"}</Button>
+                </div>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4 flex-1">
+            {ucError && (
+              <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+                  <pre className="text-sm text-destructive whitespace-pre-wrap font-mono">{ucError}</pre>
+                </div>
+              </div>
+            )}
+            <div className="space-y-1.5">
+              <Label>Check URL</Label>
+              {editingUc ? (
+                <Input value={ucUrl} onChange={(e) => setUcUrl(e.target.value)} placeholder="https://packages.vyos.net/…" />
+              ) : (
+                <p className="text-sm font-medium break-all">{config.update_check?.url ?? <span className="text-muted-foreground">Default</span>}</p>
+              )}
+            </div>
+            <div className="flex items-center gap-3">
+              {editingUc ? (
+                <Checkbox checked={ucAuto} onCheckedChange={(v) => setUcAuto(!!v)} id="uc-auto" />
+              ) : (
+                <div className={`h-4 w-4 rounded-sm border flex items-center justify-center ${ucAuto ? "bg-primary border-primary" : "border-input"}`}>
+                  {ucAuto && <span className="text-primary-foreground text-xs">✓</span>}
+                </div>
+              )}
+              <Label htmlFor="uc-auto" className="cursor-pointer font-normal">Auto-install packages</Label>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Proxy */}
+        <Card className="flex flex-col">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Proxy</CardTitle>
+                <CardDescription>Outbound HTTP proxy for system traffic.</CardDescription>
+              </div>
+              {!isReadOnly && !editingProxy && (
+                <Button variant="outline" size="sm" onClick={() => {
+                  setProxyUrl(px?.url ?? "");
+                  setProxyPort(px?.port ? String(px.port) : "");
+                  setProxyUsername(px?.username ?? "");
+                  setProxyError(null);
+                  setEditingProxy(true);
+                }}>
+                  <Edit2 className="h-4 w-4 mr-2" />Edit
+                </Button>
+              )}
+              {editingProxy && (
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => { setEditingProxy(false); setProxyError(null); }} disabled={proxySaving}>Cancel</Button>
+                  <Button size="sm" onClick={handleSaveProxy} disabled={proxySaving}>{proxySaving ? "Saving…" : "Save"}</Button>
+                </div>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4 flex-1">
+            {proxyError && (
+              <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+                  <pre className="text-sm text-destructive whitespace-pre-wrap font-mono">{proxyError}</pre>
+                </div>
+              </div>
+            )}
+            <div className="grid grid-cols-3 gap-3">
+              <div className="col-span-2 space-y-1.5">
+                <Label>URL</Label>
+                {editingProxy ? (
+                  <Input value={proxyUrl} onChange={(e) => setProxyUrl(e.target.value)} placeholder="http://proxy.example.com" />
+                ) : (
+                  <p className="text-sm font-medium break-all">{px?.url ?? <span className="text-muted-foreground">Not set</span>}</p>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <Label>Port</Label>
+                {editingProxy ? (
+                  <Input type="number" value={proxyPort} onChange={(e) => setProxyPort(e.target.value)} placeholder="3128" />
+                ) : (
+                  <p className="text-sm font-medium">{px?.port ?? <span className="text-muted-foreground">—</span>}</p>
+                )}
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Username</Label>
+              {editingProxy ? (
+                <Input value={proxyUsername} onChange={(e) => setProxyUsername(e.target.value)} placeholder="Optional" />
+              ) : (
+                <p className="text-sm font-medium">{px?.username ?? <span className="text-muted-foreground">Not set</span>}</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label>No-proxy hosts</Label>
+              <div className="flex flex-wrap gap-1.5 min-h-[2rem]">
+                {(px?.no_proxy ?? []).map((h) => (
+                  <div key={h} className="flex items-center gap-1 bg-muted rounded px-2 py-0.5 text-xs font-mono">
+                    {h}
+                    {!isReadOnly && (
+                      <button
+                        type="button"
+                        className="ml-1 text-muted-foreground hover:text-destructive"
+                        onClick={async () => {
+                          await systemSettingsService.deleteProxyNoProxy(h);
+                          onRefresh();
+                        }}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                {(px?.no_proxy ?? []).length === 0 && (
+                  <span className="text-sm text-muted-foreground">None configured</span>
+                )}
+              </div>
+              {!isReadOnly && (
+                <div className="flex gap-2">
+                  <Input
+                    value={proxyNoProxyInput}
+                    onChange={(e) => setProxyNoProxyInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddNoProxy(); } }}
+                    placeholder="example.com"
+                    className="flex-1 text-sm"
+                  />
+                  <Button variant="outline" size="sm" onClick={handleAddNoProxy}>
+                    <Plus className="h-4 w-4 mr-1" />Add
+                  </Button>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Delete archive confirm */}
       <AlertDialog open={!!deleteArchiveTarget} onOpenChange={(o: boolean) => { if (!o) setDeleteArchiveTarget(null); }}>

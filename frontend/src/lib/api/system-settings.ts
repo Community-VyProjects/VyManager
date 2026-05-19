@@ -147,6 +147,45 @@ export interface WatchdogConfig {
   reboot_timeout: number | null;
 }
 
+export interface FrrConfig {
+  profile: string | null;
+}
+
+export interface SystemOptions {
+  keyboard_layout: string | null;
+  time_format: string | null;
+  ctrl_alt_delete: string | null;
+  startup_beep: boolean;
+  disable_usb_autosuspend: boolean;
+  reboot_on_panic: boolean;
+  root_partition_auto_resize: boolean;
+  reboot_on_upgrade_failure: boolean;
+  http_client: { source_address: string | null; source_interface: string | null } | null;
+  ssh_client: { source_address: string | null; source_interface: string | null } | null;
+}
+
+export interface ProxyConfig {
+  url: string | null;
+  port: number | null;
+  username: string | null;
+  no_proxy: string[];
+}
+
+export interface LogrotateConfig {
+  max_size: number | null;
+  rotate_count: number | null;
+}
+
+export interface LogsConfig {
+  atop: LogrotateConfig | null;
+  messages: LogrotateConfig | null;
+}
+
+export interface UpdateCheckConfig {
+  url: string | null;
+  auto_install: boolean;
+}
+
 export interface SystemConfig {
   hostname: string | null;
   domain_name: string | null;
@@ -155,6 +194,7 @@ export interface SystemConfig {
   time_zone: string | null;
   performance: string | null;
   login: LoginConfig;
+  max_login_session: number | null;
   syslog: SyslogConfig;
   conntrack: ConntrackConfig;
   config_management: ConfigManagement;
@@ -163,7 +203,11 @@ export interface SystemConfig {
   sysctl_parameters: SysctlParameter[];
   watchdog: WatchdogConfig | null;
   wireless_country_code: string | null;
-  frr_profile: string | null;
+  frr: FrrConfig | null;
+  options: SystemOptions | null;
+  proxy: ProxyConfig | null;
+  logs: LogsConfig | null;
+  update_check: UpdateCheckConfig | null;
 }
 
 // ============================================================================
@@ -549,6 +593,174 @@ class SystemSettingsService {
   /** Powersave is a global console setting (not per-device) */
   async setConsolePowersave(enabled: boolean): Promise<VyOSResponse> {
     return this.batch("_", [{ op: enabled ? "set_console_powersave" : "delete_console_powersave" }]);
+  }
+
+  // --------------------------------------------------------------------------
+  // System Options
+  // --------------------------------------------------------------------------
+
+  async setKeyboardLayout(layout: string): Promise<VyOSResponse> {
+    return this.batch("_", [{ op: "set_option_keyboard_layout", value: layout }]);
+  }
+
+  async deleteKeyboardLayout(): Promise<VyOSResponse> {
+    return this.batch("_", [{ op: "delete_option_keyboard_layout" }]);
+  }
+
+  async setTimeFormat(format: string): Promise<VyOSResponse> {
+    return this.batch("_", [{ op: "set_option_time_format", value: format }]);
+  }
+
+  async deleteTimeFormat(): Promise<VyOSResponse> {
+    return this.batch("_", [{ op: "delete_option_time_format" }]);
+  }
+
+  async setCtrlAltDelete(action: string): Promise<VyOSResponse> {
+    return this.batch("_", [{ op: "set_option_ctrl_alt_delete", value: action }]);
+  }
+
+  async deleteCtrlAltDelete(): Promise<VyOSResponse> {
+    return this.batch("_", [{ op: "delete_option_ctrl_alt_delete" }]);
+  }
+
+  async setStartupBeep(enabled: boolean): Promise<VyOSResponse> {
+    return this.batch("_", [{ op: enabled ? "set_option_startup_beep" : "delete_option_startup_beep" }]);
+  }
+
+  async setDisableUsbAutosuspend(enabled: boolean): Promise<VyOSResponse> {
+    return this.batch("_", [{ op: enabled ? "set_option_disable_usb_autosuspend" : "delete_option_disable_usb_autosuspend" }]);
+  }
+
+  async setRebootOnPanic(enabled: boolean): Promise<VyOSResponse> {
+    return this.batch("_", [{ op: enabled ? "set_option_reboot_on_panic" : "delete_option_reboot_on_panic" }]);
+  }
+
+  async setRootPartitionAutoResize(enabled: boolean): Promise<VyOSResponse> {
+    return this.batch("_", [{ op: enabled ? "set_option_root_partition_auto_resize" : "delete_option_root_partition_auto_resize" }]);
+  }
+
+  async setRebootOnUpgradeFailure(enabled: boolean): Promise<VyOSResponse> {
+    return this.batch("_", [{ op: enabled ? "set_option_reboot_on_upgrade_failure" : "delete_option_reboot_on_upgrade_failure" }]);
+  }
+
+  async updateHttpClientSource(changes: {
+    address?: string;
+    clearAddress?: boolean;
+    iface?: string;
+    clearIface?: boolean;
+  }): Promise<VyOSResponse> {
+    const ops: BatchOp[] = [];
+    if (changes.address) ops.push({ op: "set_option_http_client_source_address", value: changes.address });
+    else if (changes.clearAddress) ops.push({ op: "delete_option_http_client_source_address" });
+    if (changes.iface) ops.push({ op: "set_option_http_client_source_interface", value: changes.iface });
+    else if (changes.clearIface) ops.push({ op: "delete_option_http_client_source_interface" });
+    if (ops.length === 0) return { success: true };
+    return this.batch("_", ops);
+  }
+
+  async updateSshClientSource(changes: {
+    address?: string;
+    clearAddress?: boolean;
+    iface?: string;
+    clearIface?: boolean;
+  }): Promise<VyOSResponse> {
+    const ops: BatchOp[] = [];
+    if (changes.address) ops.push({ op: "set_option_ssh_client_source_address", value: changes.address });
+    else if (changes.clearAddress) ops.push({ op: "delete_option_ssh_client_source_address" });
+    if (changes.iface) ops.push({ op: "set_option_ssh_client_source_interface", value: changes.iface });
+    else if (changes.clearIface) ops.push({ op: "delete_option_ssh_client_source_interface" });
+    if (ops.length === 0) return { success: true };
+    return this.batch("_", ops);
+  }
+
+  // --------------------------------------------------------------------------
+  // Proxy
+  // --------------------------------------------------------------------------
+
+  async setProxyUrl(url: string): Promise<VyOSResponse> {
+    return this.batch("_", [{ op: "set_proxy_url", value: url }]);
+  }
+
+  async deleteProxyUrl(): Promise<VyOSResponse> {
+    return this.batch("_", [{ op: "delete_proxy_url" }]);
+  }
+
+  async setProxyPort(port: number): Promise<VyOSResponse> {
+    return this.batch("_", [{ op: "set_proxy_port", value: String(port) }]);
+  }
+
+  async deleteProxyPort(): Promise<VyOSResponse> {
+    return this.batch("_", [{ op: "delete_proxy_port" }]);
+  }
+
+  async setProxyUsername(username: string): Promise<VyOSResponse> {
+    return this.batch("_", [{ op: "set_proxy_username", value: username }]);
+  }
+
+  async deleteProxyUsername(): Promise<VyOSResponse> {
+    return this.batch("_", [{ op: "delete_proxy_username" }]);
+  }
+
+  async deleteProxy(): Promise<VyOSResponse> {
+    return this.batch("_", [{ op: "delete_proxy" }]);
+  }
+
+  async addProxyNoProxy(host: string): Promise<VyOSResponse> {
+    return this.batch(host, [{ op: "add_proxy_no_proxy" }]);
+  }
+
+  async deleteProxyNoProxy(host: string): Promise<VyOSResponse> {
+    return this.batch(host, [{ op: "delete_proxy_no_proxy" }]);
+  }
+
+  // --------------------------------------------------------------------------
+  // Logs / logrotate
+  // --------------------------------------------------------------------------
+
+  async updateLogrotateAtop(changes: {
+    maxSize?: number | null;
+    clearMaxSize?: boolean;
+    rotate?: number | null;
+    clearRotate?: boolean;
+  }): Promise<VyOSResponse> {
+    const ops: BatchOp[] = [];
+    if (changes.maxSize != null) ops.push({ op: "set_logrotate_atop_max_size", value: String(changes.maxSize) });
+    else if (changes.clearMaxSize) ops.push({ op: "delete_logrotate_atop_max_size" });
+    if (changes.rotate != null) ops.push({ op: "set_logrotate_atop_rotate", value: String(changes.rotate) });
+    else if (changes.clearRotate) ops.push({ op: "delete_logrotate_atop_rotate" });
+    if (ops.length === 0) return { success: true };
+    return this.batch("_", ops);
+  }
+
+  async updateLogrotateMessages(changes: {
+    maxSize?: number | null;
+    clearMaxSize?: boolean;
+    rotate?: number | null;
+    clearRotate?: boolean;
+  }): Promise<VyOSResponse> {
+    const ops: BatchOp[] = [];
+    if (changes.maxSize != null) ops.push({ op: "set_logrotate_messages_max_size", value: String(changes.maxSize) });
+    else if (changes.clearMaxSize) ops.push({ op: "delete_logrotate_messages_max_size" });
+    if (changes.rotate != null) ops.push({ op: "set_logrotate_messages_rotate", value: String(changes.rotate) });
+    else if (changes.clearRotate) ops.push({ op: "delete_logrotate_messages_rotate" });
+    if (ops.length === 0) return { success: true };
+    return this.batch("_", ops);
+  }
+
+  // --------------------------------------------------------------------------
+  // Update check
+  // --------------------------------------------------------------------------
+
+  async setUpdateCheckUrl(url: string): Promise<VyOSResponse> {
+    return this.batch("_", [{ op: "set_update_check_url", value: url }]);
+  }
+
+  async deleteUpdateCheckUrl(): Promise<VyOSResponse> {
+    return this.batch("_", [{ op: "delete_update_check_url" }]);
+  }
+
+  async setUpdateCheckAutoInstall(enabled: boolean): Promise<VyOSResponse> {
+    return this.batch("_", [{ op: enabled ? "set_update_check_auto_check" : "delete_update_check_auto_check" }]);
   }
 }
 

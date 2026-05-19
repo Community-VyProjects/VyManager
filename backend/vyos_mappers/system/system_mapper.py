@@ -757,6 +757,12 @@ class SystemMapper(BaseFeatureMapper):
     def get_delete_proxy_path(self) -> List[str]:
         return ["system", "proxy"]
 
+    def get_proxy_no_proxy_path(self, host: str) -> List[str]:
+        return ["system", "proxy", "no-proxy", host]
+
+    def get_delete_proxy_no_proxy_path(self, host: str) -> List[str]:
+        return ["system", "proxy", "no-proxy", host]
+
     # =========================================================================
     # Flow accounting (1.5: interface under netflow; 1.4 overrides)
     # =========================================================================

@@ -278,7 +278,8 @@ class LogrotateConfig(BaseModel):
 
 
 class LogsConfig(BaseModel):
-    logrotate: Optional[LogrotateConfig] = None
+    atop: Optional[LogrotateConfig] = None
+    messages: Optional[LogrotateConfig] = None
 
 
 class KernelCpuOptions(BaseModel):
@@ -318,6 +319,13 @@ class SshClientOptions(BaseModel):
 
 
 class SystemOptions(BaseModel):
+    keyboard_layout: Optional[str] = None
+    time_format: Optional[str] = None
+    ctrl_alt_delete: Optional[str] = None
+    startup_beep: bool = False
+    disable_usb_autosuspend: bool = False
+    reboot_on_panic: bool = False
+    root_partition_auto_resize: bool = False
     reboot_on_upgrade_failure: bool = False
     resource_limits: Optional[ResourceLimits] = None
     kernel: Optional[KernelOptions] = None
@@ -1019,26 +1027,42 @@ def _parse_lcd(system_config: dict) -> Optional[LcdConfig]:
     )
 
 
+def _parse_logrotate_entry(raw: dict) -> Optional[LogrotateConfig]:
+    if not raw:
+        return None
+    max_size = raw.get("max-size")
+    rotate = raw.get("rotate")
+    if max_size is None and rotate is None:
+        return None
+    return LogrotateConfig(
+        max_size=int(max_size) if max_size else None,
+        rotate_count=int(rotate) if rotate else None,
+    )
+
+
 def _parse_logs(system_config: dict) -> Optional[LogsConfig]:
     logs_raw = system_config.get("logs", {}) or {}
     if not logs_raw:
         return None
     logrotate_raw = logs_raw.get("logrotate", {}) or {}
-    logrotate = None
-    if logrotate_raw:
-        max_size = logrotate_raw.get("max-size")
-        rotate = logrotate_raw.get("rotate")
-        logrotate = LogrotateConfig(
-            max_size=int(max_size) if max_size else None,
-            rotate_count=int(rotate) if rotate else None,
-        )
-    return LogsConfig(logrotate=logrotate)
+    atop = _parse_logrotate_entry(logrotate_raw.get("atop", {}) or {})
+    messages = _parse_logrotate_entry(logrotate_raw.get("messages", {}) or {})
+    if atop is None and messages is None:
+        return None
+    return LogsConfig(atop=atop, messages=messages)
 
 
 def _parse_options(system_config: dict) -> Optional[SystemOptions]:
     option_raw = system_config.get("option", {}) or {}
     if not option_raw:
         return None
+    keyboard_layout = option_raw.get("keyboard-layout")
+    time_format = option_raw.get("time-format")
+    ctrl_alt_delete = option_raw.get("ctrl-alt-delete")
+    startup_beep = "startup-beep" in option_raw
+    disable_usb_autosuspend = "disable-usb-autosuspend" in option_raw
+    reboot_on_panic = "reboot-on-panic" in option_raw
+    root_partition_auto_resize = "root-partition-auto-resize" in option_raw
     reboot_on_upgrade = "reboot-on-upgrade-failure" in option_raw
     rl_raw = option_raw.get("resource-limits", {}) or {}
     resource_limits = ResourceLimits(
@@ -1078,9 +1102,20 @@ def _parse_options(system_config: dict) -> Optional[SystemOptions]:
         source_address=ssh_raw.get("source-address"),
         source_interface=ssh_raw.get("source-interface"),
     ) if ssh_raw else None
-    if not any([reboot_on_upgrade, resource_limits, kernel, http_client, ssh_client]):
+    if not any([
+        keyboard_layout, time_format, ctrl_alt_delete, startup_beep,
+        disable_usb_autosuspend, reboot_on_panic, root_partition_auto_resize,
+        reboot_on_upgrade, resource_limits, kernel, http_client, ssh_client,
+    ]):
         return None
     return SystemOptions(
+        keyboard_layout=keyboard_layout,
+        time_format=time_format,
+        ctrl_alt_delete=ctrl_alt_delete,
+        startup_beep=startup_beep,
+        disable_usb_autosuspend=disable_usb_autosuspend,
+        reboot_on_panic=reboot_on_panic,
+        root_partition_auto_resize=root_partition_auto_resize,
         reboot_on_upgrade_failure=reboot_on_upgrade,
         resource_limits=resource_limits,
         kernel=kernel,
