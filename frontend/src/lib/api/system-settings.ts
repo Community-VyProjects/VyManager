@@ -28,6 +28,7 @@ export interface SystemCapabilities {
     supports_console: boolean;
     supports_file: boolean;
     supports_user: boolean;
+    supports_marker_disable: boolean;
     facilities: string[];
     levels: string[];
   };
@@ -43,6 +44,8 @@ export interface SystemCapabilities {
     wireless: { supported: boolean };
     frr_profile: { supported: boolean };
     operator_group: { supported: boolean };
+    standalone_sflow: { supported: boolean };
+    resource_limits: { supported: boolean };
   };
   performance_options: PerformanceOption[];
   version_info: {
@@ -108,6 +111,131 @@ export interface SyslogConfig {
   console_facilities: SyslogFacility[];
   files: SyslogFileEntry[];
   users: SyslogUserEntry[];
+}
+
+export interface SyslogMarker {
+  interval: number | null;
+  disabled: boolean;
+}
+
+export interface RadiusServer {
+  server: string;
+  port: number | null;
+  timeout: number | null;
+}
+
+export interface RadiusConfig {
+  servers: RadiusServer[];
+  source_address: string | null;
+  timeout: number | null;
+}
+
+export interface TacacsServer {
+  server: string;
+  port: number | null;
+  timeout: number | null;
+}
+
+export interface TacacsConfig {
+  servers: TacacsServer[];
+  source_address: string | null;
+  timeout: number | null;
+}
+
+export interface IpSettings {
+  arp_ndp_table_size: number | null;
+  disable_forwarding: boolean;
+  multipath_ignore_unreachable: boolean;
+  multipath_layer4_hashing: boolean;
+  nht_no_resolve_via_default: boolean;
+}
+
+export interface Ipv6Settings {
+  disable_forwarding: boolean;
+  multipath_layer4_hashing: boolean;
+  nht_no_resolve_via_default: boolean;
+  strict_dad: boolean;
+  neighbor_table_size: number | null;
+}
+
+export interface ConntrackLogEntry {
+  event: string;
+  protocol: string;
+}
+
+export interface ConntrackLog {
+  entries: ConntrackLogEntry[];
+}
+
+export interface ConntrackTcpTimeouts {
+  close: number | null;
+  close_wait: number | null;
+  established: number | null;
+  fin_wait: number | null;
+  last_ack: number | null;
+  syn_recv: number | null;
+  syn_sent: number | null;
+  time_wait: number | null;
+}
+
+export interface ConntrackUdpTimeouts {
+  other: number | null;
+  stream: number | null;
+}
+
+export interface ConntrackGlobalTimeouts {
+  icmp: number | null;
+  other: number | null;
+  tcp: ConntrackTcpTimeouts;
+  udp: ConntrackUdpTimeouts;
+}
+
+export interface ConntrackTimeoutCustomRule {
+  rule_id: number;
+  protocol: string | null;
+  source_address: string | null;
+  destination_address: string | null;
+  tcp: { established: number | null; close: number | null } | null;
+  udp: { stream: number | null; other: number | null } | null;
+}
+
+export interface NetflowServer {
+  server: string;
+  port: number | null;
+}
+
+export interface NetflowConfig {
+  engine_id: number | null;
+  max_flows: number | null;
+  sampling_rate: number | null;
+  source_address: string | null;
+  version: string | null;
+  servers: NetflowServer[];
+}
+
+export interface SflowServer {
+  server: string;
+  port: number | null;
+}
+
+export interface SflowConfig {
+  agent_address: string | null;
+  sampling_rate: number | null;
+  servers: SflowServer[];
+}
+
+export interface FlowAccountingConfig {
+  interfaces: string[];
+  netflow: NetflowConfig | null;
+  sflow: SflowConfig | null;
+}
+
+export interface TaskSchedulerTask {
+  name: string;
+  crontab_spec: string | null;
+  interval: string | null;
+  executable_path: string | null;
+  executable_arguments: string | null;
 }
 
 export interface ConntrackConfig {
@@ -195,8 +323,16 @@ export interface SystemConfig {
   performance: string | null;
   login: LoginConfig;
   max_login_session: number | null;
+  login_radius: RadiusConfig | null;
+  login_tacacs: TacacsConfig | null;
   syslog: SyslogConfig;
+  syslog_marker: SyslogMarker | null;
   conntrack: ConntrackConfig;
+  conntrack_log: ConntrackLog | null;
+  conntrack_global_timeouts: ConntrackGlobalTimeouts | null;
+  conntrack_timeout_custom: ConntrackTimeoutCustomRule[];
+  ip: IpSettings | null;
+  ipv6: Ipv6Settings | null;
   config_management: ConfigManagement;
   static_host_mapping: StaticHostEntry[];
   console_devices: ConsoleDevice[];
@@ -208,6 +344,8 @@ export interface SystemConfig {
   proxy: ProxyConfig | null;
   logs: LogsConfig | null;
   update_check: UpdateCheckConfig | null;
+  flow_accounting: FlowAccountingConfig | null;
+  task_scheduler: TaskSchedulerTask[];
 }
 
 // ============================================================================
@@ -761,6 +899,213 @@ class SystemSettingsService {
 
   async setUpdateCheckAutoInstall(enabled: boolean): Promise<VyOSResponse> {
     return this.batch("_", [{ op: enabled ? "set_update_check_auto_check" : "delete_update_check_auto_check" }]);
+  }
+
+  // --------------------------------------------------------------------------
+  // RADIUS
+  // --------------------------------------------------------------------------
+
+  async addRadiusServer(server: string, port?: number | null, timeout?: number | null, key?: string | null): Promise<VyOSResponse> {
+    const ops: BatchOp[] = [{ op: "set_radius_server" }];
+    if (port) ops.push({ op: "set_radius_server_port", value: String(port) });
+    if (timeout) ops.push({ op: "set_radius_server_timeout", value: String(timeout) });
+    if (key) ops.push({ op: "set_radius_server_key", value: key });
+    return this.batch(server, ops);
+  }
+
+  async deleteRadiusServer(server: string): Promise<VyOSResponse> {
+    return this.batch(server, [{ op: "delete_radius_server" }]);
+  }
+
+  async setRadiusSourceAddress(addr: string): Promise<VyOSResponse> {
+    return this.batch("_", [{ op: "set_radius_source_address", value: addr }]);
+  }
+
+  async deleteRadiusSourceAddress(): Promise<VyOSResponse> {
+    return this.batch("_", [{ op: "delete_radius_source_address" }]);
+  }
+
+  // --------------------------------------------------------------------------
+  // TACACS
+  // --------------------------------------------------------------------------
+
+  async addTacacsServer(server: string, port?: number | null, timeout?: number | null, key?: string | null): Promise<VyOSResponse> {
+    const ops: BatchOp[] = [{ op: "set_tacacs_server" }];
+    if (port) ops.push({ op: "set_tacacs_server_port", value: String(port) });
+    if (timeout) ops.push({ op: "set_tacacs_server_timeout", value: String(timeout) });
+    if (key) ops.push({ op: "set_tacacs_server_key", value: key });
+    return this.batch(server, ops);
+  }
+
+  async deleteTacacsServer(server: string): Promise<VyOSResponse> {
+    return this.batch(server, [{ op: "delete_tacacs_server" }]);
+  }
+
+  async setTacacsSourceAddress(addr: string): Promise<VyOSResponse> {
+    return this.batch("_", [{ op: "set_tacacs_source_address", value: addr }]);
+  }
+
+  async deleteTacacsSourceAddress(): Promise<VyOSResponse> {
+    return this.batch("_", [{ op: "delete_tacacs_source_address" }]);
+  }
+
+  async setTacacsTimeout(timeout: number): Promise<VyOSResponse> {
+    return this.batch("_", [{ op: "set_tacacs_timeout", value: String(timeout) }]);
+  }
+
+  async deleteTacacsTimeout(): Promise<VyOSResponse> {
+    return this.batch("_", [{ op: "delete_tacacs_timeout" }]);
+  }
+
+  // --------------------------------------------------------------------------
+  // Syslog Marker
+  // --------------------------------------------------------------------------
+
+  async setSyslogMarkerInterval(interval: number): Promise<VyOSResponse> {
+    return this.batch("_", [{ op: "set_syslog_marker_interval", value: String(interval) }]);
+  }
+
+  async deleteSyslogMarkerInterval(): Promise<VyOSResponse> {
+    return this.batch("_", [{ op: "delete_syslog_marker_interval" }]);
+  }
+
+  async setSyslogMarkerDisable(disabled: boolean): Promise<VyOSResponse> {
+    return this.batch("_", [{ op: disabled ? "set_syslog_marker_disable" : "delete_syslog_marker_disable" }]);
+  }
+
+  // --------------------------------------------------------------------------
+  // IP Settings
+  // --------------------------------------------------------------------------
+
+  async updateIpSettings(changes: {
+    arpNdpTableSize?: number | null;
+    clearArpNdpTableSize?: boolean;
+    disableForwarding?: boolean;
+    multipathIgnoreUnreachable?: boolean;
+    multipathLayer4Hashing?: boolean;
+    nhtNoResolveViaDefault?: boolean;
+  }): Promise<VyOSResponse> {
+    const ops: BatchOp[] = [];
+    if (changes.arpNdpTableSize != null) ops.push({ op: "set_ip_arp_table_size", value: String(changes.arpNdpTableSize) });
+    else if (changes.clearArpNdpTableSize) ops.push({ op: "delete_ip_arp_table_size" });
+    if (changes.disableForwarding !== undefined) ops.push({ op: changes.disableForwarding ? "set_ip_disable_forwarding" : "delete_ip_disable_forwarding" });
+    if (changes.multipathIgnoreUnreachable !== undefined) ops.push({ op: changes.multipathIgnoreUnreachable ? "set_ip_multipath_ignore_unreachable" : "delete_ip_multipath_ignore_unreachable" });
+    if (changes.multipathLayer4Hashing !== undefined) ops.push({ op: changes.multipathLayer4Hashing ? "set_ip_multipath_layer4_hashing" : "delete_ip_multipath_layer4_hashing" });
+    if (changes.nhtNoResolveViaDefault !== undefined) ops.push({ op: changes.nhtNoResolveViaDefault ? "set_ip_nht_no_resolve_via_default" : "delete_ip_nht_no_resolve_via_default" });
+    if (ops.length === 0) return { success: true };
+    return this.batch("_", ops);
+  }
+
+  async updateIpv6Settings(changes: {
+    neighborTableSize?: number | null;
+    clearNeighborTableSize?: boolean;
+    disableForwarding?: boolean;
+    multipathLayer4Hashing?: boolean;
+    nhtNoResolveViaDefault?: boolean;
+    strictDad?: boolean;
+  }): Promise<VyOSResponse> {
+    const ops: BatchOp[] = [];
+    if (changes.neighborTableSize != null) ops.push({ op: "set_ipv6_neighbor_table_size", value: String(changes.neighborTableSize) });
+    else if (changes.clearNeighborTableSize) ops.push({ op: "delete_ipv6_neighbor_table_size" });
+    if (changes.disableForwarding !== undefined) ops.push({ op: changes.disableForwarding ? "set_ipv6_disable_forwarding" : "delete_ipv6_disable_forwarding" });
+    if (changes.multipathLayer4Hashing !== undefined) ops.push({ op: changes.multipathLayer4Hashing ? "set_ipv6_multipath_layer4_hashing" : "delete_ipv6_multipath_layer4_hashing" });
+    if (changes.nhtNoResolveViaDefault !== undefined) ops.push({ op: changes.nhtNoResolveViaDefault ? "set_ipv6_nht_no_resolve_via_default" : "delete_ipv6_nht_no_resolve_via_default" });
+    if (changes.strictDad !== undefined) ops.push({ op: changes.strictDad ? "set_ipv6_strict_dad" : "delete_ipv6_strict_dad" });
+    if (ops.length === 0) return { success: true };
+    return this.batch("_", ops);
+  }
+
+  // --------------------------------------------------------------------------
+  // Conntrack Log
+  // --------------------------------------------------------------------------
+
+  async addConntrackLogEvent(event: string, protocol: string): Promise<VyOSResponse> {
+    return this.batch(event, [{ op: "set_conntrack_log_event", value: protocol }]);
+  }
+
+  async deleteConntrackLogEvent(event: string, protocol: string): Promise<VyOSResponse> {
+    return this.batch(event, [{ op: "delete_conntrack_log_event", value: protocol }]);
+  }
+
+  // --------------------------------------------------------------------------
+  // Conntrack Global Timeouts (1.4 only)
+  // --------------------------------------------------------------------------
+
+  async setConntrackGlobalTcpTimeout(state: string, value: number): Promise<VyOSResponse> {
+    return this.batch(state, [{ op: "set_conntrack_timeout_tcp", value: String(value) }]);
+  }
+
+  async setConntrackGlobalUdpTimeout(subtype: string, value: number): Promise<VyOSResponse> {
+    return this.batch(subtype, [{ op: "set_conntrack_timeout_udp", value: String(value) }]);
+  }
+
+  async setConntrackGlobalIcmpTimeout(value: number): Promise<VyOSResponse> {
+    return this.batch("_", [{ op: "set_conntrack_timeout_icmp", value: String(value) }]);
+  }
+
+  async setConntrackGlobalOtherTimeout(value: number): Promise<VyOSResponse> {
+    return this.batch("_", [{ op: "set_conntrack_timeout_other", value: String(value) }]);
+  }
+
+  // --------------------------------------------------------------------------
+  // Flow Accounting
+  // --------------------------------------------------------------------------
+
+  async addFlowAccountingInterface(iface: string): Promise<VyOSResponse> {
+    return this.batch(iface, [{ op: "set_flow_accounting_interface" }]);
+  }
+
+  async deleteFlowAccountingInterface(iface: string): Promise<VyOSResponse> {
+    return this.batch(iface, [{ op: "delete_flow_accounting_interface" }]);
+  }
+
+  // --------------------------------------------------------------------------
+  // Task Scheduler
+  // --------------------------------------------------------------------------
+
+  async createTask(
+    name: string,
+    cronSpec?: string | null,
+    interval?: string | null,
+    execPath?: string | null,
+    execArgs?: string | null,
+  ): Promise<VyOSResponse> {
+    const ops: BatchOp[] = [{ op: "set_task_scheduler_task" }];
+    if (cronSpec) ops.push({ op: "set_task_crontab_spec", value: cronSpec });
+    if (interval) ops.push({ op: "set_task_interval", value: interval });
+    if (execPath) ops.push({ op: "set_task_executable_path", value: execPath });
+    if (execArgs) ops.push({ op: "set_task_executable_arguments", value: execArgs });
+    return this.batch(name, ops);
+  }
+
+  async deleteTask(name: string): Promise<VyOSResponse> {
+    return this.batch(name, [{ op: "delete_task_scheduler_task" }]);
+  }
+
+  async updateTask(
+    name: string,
+    changes: {
+      cronSpec?: string | null;
+      clearCronSpec?: boolean;
+      interval?: string | null;
+      clearInterval?: boolean;
+      execPath?: string | null;
+      clearExecPath?: boolean;
+      execArgs?: string | null;
+      clearExecArgs?: boolean;
+    },
+  ): Promise<VyOSResponse> {
+    const ops: BatchOp[] = [];
+    if (changes.cronSpec) ops.push({ op: "set_task_crontab_spec", value: changes.cronSpec });
+    else if (changes.clearCronSpec) ops.push({ op: "delete_task_crontab_spec" });
+    if (changes.interval) ops.push({ op: "set_task_interval", value: changes.interval });
+    else if (changes.clearInterval) ops.push({ op: "delete_task_interval" });
+    if (changes.execPath) ops.push({ op: "set_task_executable_path", value: changes.execPath });
+    else if (changes.clearExecPath) ops.push({ op: "delete_task_executable_path" });
+    if (changes.execArgs) ops.push({ op: "set_task_executable_arguments", value: changes.execArgs });
+    else if (changes.clearExecArgs) ops.push({ op: "delete_task_executable_arguments" });
+    if (ops.length === 0) return { success: true };
+    return this.batch(name, ops);
   }
 }
 

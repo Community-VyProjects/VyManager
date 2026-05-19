@@ -35,7 +35,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { AlertCircle, Plus, Trash2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { AlertCircle, Edit2, Plus, Trash2 } from "lucide-react";
 import {
   systemSettingsService,
   type SystemConfig,
@@ -53,7 +56,7 @@ interface Props {
 
 export function SyslogPanel({ config, capabilities, isReadOnly, onRefresh }: Props) {
   const { toast } = useToast();
-  const { syslog: { facilities, levels, supports_console, supports_file, supports_user } } =
+  const { syslog: { facilities, levels, supports_console, supports_file, supports_user, supports_marker_disable } } =
     capabilities;
 
   // Local facility add
@@ -76,6 +79,15 @@ export function SyslogPanel({ config, capabilities, isReadOnly, onRefresh }: Pro
   // Delete remote
   const [deleteRemoteTarget, setDeleteRemoteTarget] = useState<string | null>(null);
   const [deletingRemote, setDeletingRemote] = useState(false);
+
+  // Syslog marker
+  const [editingMarker, setEditingMarker] = useState(false);
+  const [markerInterval, setMarkerInterval] = useState(
+    config.syslog_marker?.interval ? String(config.syslog_marker.interval) : ""
+  );
+  const [markerDisabled, setMarkerDisabled] = useState(config.syslog_marker?.disabled ?? false);
+  const [markerSaving, setMarkerSaving] = useState(false);
+  const [markerError, setMarkerError] = useState<string | null>(null);
 
   const handleAddLocalFacility = async () => {
     setLocalSaving(true);
@@ -113,6 +125,27 @@ export function SyslogPanel({ config, capabilities, isReadOnly, onRefresh }: Pro
     } finally {
       setConsoleSaving(false);
     }
+  };
+
+  const handleSaveMarker = async () => {
+    setMarkerSaving(true);
+    setMarkerError(null);
+    try {
+      const ops: Promise<unknown>[] = [];
+      if (markerInterval.trim()) {
+        ops.push(systemSettingsService.setSyslogMarkerInterval(parseInt(markerInterval, 10)));
+      } else {
+        ops.push(systemSettingsService.deleteSyslogMarkerInterval());
+      }
+      if (supports_marker_disable) {
+        ops.push(systemSettingsService.setSyslogMarkerDisable(markerDisabled));
+      }
+      await Promise.all(ops);
+      toast.success("Syslog marker saved");
+      setEditingMarker(false);
+      onRefresh();
+    } catch { setMarkerError("An unexpected error occurred"); }
+    finally { setMarkerSaving(false); }
   };
 
   const handleDeleteRemoteHost = async () => {
@@ -418,6 +451,80 @@ export function SyslogPanel({ config, capabilities, isReadOnly, onRefresh }: Pro
           </CardContent>
         </Card>
       )}
+
+      {/* Syslog Marker */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Syslog Marker</CardTitle>
+              <CardDescription>
+                Periodically emit a mark message to syslog. Helps confirm the syslog daemon is alive.
+              </CardDescription>
+            </div>
+            {!isReadOnly && (
+              editingMarker ? (
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => { setEditingMarker(false); setMarkerError(null); }} disabled={markerSaving}>Cancel</Button>
+                  <Button size="sm" onClick={handleSaveMarker} disabled={markerSaving}>{markerSaving ? "Saving…" : "Save"}</Button>
+                </div>
+              ) : (
+                <Button variant="outline" size="sm" onClick={() => {
+                  setMarkerInterval(config.syslog_marker?.interval ? String(config.syslog_marker.interval) : "");
+                  setMarkerDisabled(config.syslog_marker?.disabled ?? false);
+                  setMarkerError(null);
+                  setEditingMarker(true);
+                }}>
+                  <Edit2 className="h-4 w-4 mr-2" />Edit
+                </Button>
+              )
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {markerError && (
+            <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+                <pre className="text-sm text-destructive whitespace-pre-wrap font-mono">{markerError}</pre>
+              </div>
+            </div>
+          )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Interval (minutes)</Label>
+              {editingMarker ? (
+                <Input
+                  type="number"
+                  min="1"
+                  value={markerInterval}
+                  onChange={(e) => setMarkerInterval(e.target.value)}
+                  placeholder="Leave blank to disable"
+                  className="max-w-xs"
+                />
+              ) : (
+                <p className="text-sm font-medium">
+                  {config.syslog_marker?.interval != null
+                    ? `${config.syslog_marker.interval} min`
+                    : <span className="text-muted-foreground">Not configured</span>}
+                </p>
+              )}
+            </div>
+            {supports_marker_disable && (
+              <div className="flex items-center justify-between">
+                <Label>Disable Marker</Label>
+                {editingMarker ? (
+                  <Checkbox checked={markerDisabled} onCheckedChange={(v) => setMarkerDisabled(!!v)} />
+                ) : (
+                  <span className={`text-sm font-medium ${config.syslog_marker?.disabled ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"}`}>
+                    {config.syslog_marker?.disabled ? "Disabled" : "Active"}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Modals */}
       <SyslogRemoteModal
