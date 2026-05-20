@@ -39,6 +39,12 @@ import {
 import { cn } from "@/lib/utils";
 import { CreateTableRouteModal } from "./CreateTableRouteModal";
 import { EditTableRouteModal } from "./EditTableRouteModal";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface RoutingTablesAccordionProps {
   tables: RoutingTable[];
@@ -370,7 +376,7 @@ function RouteRow({ route, tableId, onEdit, onDelete, isDeleting }: RouteRowProp
               Reject
             </Badge>
           )}
-          {route.next_hops.slice(0, 2).map((nh, idx) => (
+          {route.next_hops.slice(0, 5).map((nh, idx) => (
             <Badge
               key={`nh-${idx}`}
               variant="secondary"
@@ -383,7 +389,7 @@ function RouteRow({ route, tableId, onEdit, onDelete, isDeleting }: RouteRowProp
               {nh.address}
             </Badge>
           ))}
-          {route.interfaces.slice(0, 2).map((iface, idx) => (
+          {route.interfaces.slice(0, 5).map((iface, idx) => (
             <Badge
               key={`iface-${idx}`}
               variant="outline"
@@ -395,10 +401,30 @@ function RouteRow({ route, tableId, onEdit, onDelete, isDeleting }: RouteRowProp
               {iface.interface}
             </Badge>
           ))}
-          {(route.next_hops.length > 2 || route.interfaces.length > 2) && (
-            <Badge variant="secondary" className="text-xs">
-              +{Math.max(0, route.next_hops.length - 2) + Math.max(0, route.interfaces.length - 2)}
-            </Badge>
+          {(route.next_hops.length > 5 || route.interfaces.length > 5) && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge variant="secondary" className="text-xs cursor-default">
+                    +{Math.max(0, route.next_hops.length - 5) + Math.max(0, route.interfaces.length - 5)}
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <div className="flex flex-col gap-1 text-xs">
+                    {route.next_hops.slice(5).map((nh, idx) => (
+                      <span key={`nh-${idx}`} className={cn("font-mono", nh.disable && "opacity-50 line-through")}>
+                        → {nh.address}
+                      </span>
+                    ))}
+                    {route.interfaces.slice(5).map((iface, idx) => (
+                      <span key={`iface-${idx}`} className={cn(iface.disable && "opacity-50 line-through")}>
+                        {iface.interface}
+                      </span>
+                    ))}
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           )}
           {!route.blackhole && !route.reject && route.next_hops.length === 0 && route.interfaces.length === 0 && (
             <span className="text-muted-foreground text-sm">—</span>
