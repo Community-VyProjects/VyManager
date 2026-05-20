@@ -7,7 +7,7 @@ import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Server, Users, FileText, Shield, Map, Settings2 } from "lucide-react";
+import { Server, Users, FileText, Shield, Map, Settings2, Network, Clock, Activity } from "lucide-react";
 import {
   systemSettingsService,
   type SystemConfig,
@@ -21,6 +21,10 @@ import { SyslogPanel } from "@/components/system/settings/SyslogPanel";
 import { ConntrackPanel } from "@/components/system/settings/ConntrackPanel";
 import { HostMappingPanel } from "@/components/system/settings/HostMappingPanel";
 import { AdvancedPanel } from "@/components/system/settings/AdvancedPanel";
+import { LoginAuthPanel } from "@/components/system/settings/LoginAuthPanel";
+import { IpSettingsPanel } from "@/components/system/settings/IpSettingsPanel";
+import { TaskSchedulerPanel } from "@/components/system/settings/TaskSchedulerPanel";
+import { FlowAccountingPanel } from "@/components/system/settings/FlowAccountingPanel";
 
 function SystemSettingsPageInner() {
   const searchParams = useSearchParams();
@@ -110,6 +114,18 @@ function SystemSettingsPageInner() {
                 <Map className="h-4 w-4" />
                 Host Mapping
               </TabsTrigger>
+              <TabsTrigger value="ipsettings" className="flex items-center gap-2">
+                <Network className="h-4 w-4" />
+                IP Settings
+              </TabsTrigger>
+              <TabsTrigger value="scheduler" className="flex items-center gap-2">
+                <Clock className="h-4 w-4" />
+                Scheduler
+              </TabsTrigger>
+              <TabsTrigger value="flowaccounting" className="flex items-center gap-2">
+                <Activity className="h-4 w-4" />
+                Flow Accounting
+              </TabsTrigger>
               <TabsTrigger value="advanced" className="flex items-center gap-2">
                 <Settings2 className="h-4 w-4" />
                 Advanced
@@ -126,12 +142,20 @@ function SystemSettingsPageInner() {
             </TabsContent>
 
             <TabsContent value="users">
-              <UserManagementPanel
-                config={config}
-                capabilities={capabilities}
-                isReadOnly={isReadOnly}
-                onRefresh={refresh}
-              />
+              <div className="space-y-6">
+                <UserManagementPanel
+                  config={config}
+                  capabilities={capabilities}
+                  isReadOnly={isReadOnly}
+                  onRefresh={refresh}
+                />
+                <LoginAuthPanel
+                  config={config}
+                  capabilities={capabilities}
+                  isReadOnly={isReadOnly}
+                  onRefresh={refresh}
+                />
+              </div>
             </TabsContent>
 
             <TabsContent value="syslog">
@@ -155,6 +179,33 @@ function SystemSettingsPageInner() {
             <TabsContent value="hostmap">
               <HostMappingPanel
                 config={config}
+                isReadOnly={isReadOnly}
+                onRefresh={refresh}
+              />
+            </TabsContent>
+
+            <TabsContent value="ipsettings">
+              <IpSettingsPanel
+                config={config}
+                capabilities={capabilities}
+                isReadOnly={isReadOnly}
+                onRefresh={refresh}
+              />
+            </TabsContent>
+
+            <TabsContent value="scheduler">
+              <TaskSchedulerPanel
+                config={config}
+                capabilities={capabilities}
+                isReadOnly={isReadOnly}
+                onRefresh={refresh}
+              />
+            </TabsContent>
+
+            <TabsContent value="flowaccounting">
+              <FlowAccountingPanel
+                config={config}
+                capabilities={capabilities}
                 isReadOnly={isReadOnly}
                 onRefresh={refresh}
               />

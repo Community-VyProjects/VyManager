@@ -4,9 +4,12 @@ System Mapper - VyOS 1.4 (Sagitta) Overrides
 Key differences from 1.5:
 - Syslog uses 'global' instead of 'local' for main target
 - Syslog uses 'host' instead of 'remote' for remote targets
+- Syslog marker lives under syslog/global/marker (no disable flag)
 - Syslog supports 'file' and 'user' targets (not in 1.5)
-- Conntrack has global timeout settings
-- No watchdog, wireless, operator-group, frr profile
+- Conntrack has global timeout settings (not just custom per-rule)
+- Flow-accounting: interface at root level, sflow nested under it, per-server source-address absent
+- No standalone top-level sflow (it lives under flow-accounting/sflow)
+- No watchdog, wireless, operator-group, frr profile, resource-limits
 """
 
 from typing import List
@@ -65,6 +68,19 @@ class SystemMapperV1_4:
     def get_delete_syslog_preserve_fqdn_path(self) -> List[str]:
         return ["system", "syslog", "global", "preserve-fqdn"]
 
+    # Syslog marker — 1.4: under global
+    def get_syslog_marker_interval_path(self, interval: str) -> List[str]:
+        return ["system", "syslog", "global", "marker", "interval", interval]
+
+    def get_delete_syslog_marker_interval_path(self) -> List[str]:
+        return ["system", "syslog", "global", "marker", "interval"]
+
+    def get_syslog_marker_disable_path(self) -> List[str]:
+        return []  # 1.4 has no marker disable flag
+
+    def get_delete_syslog_marker_disable_path(self) -> List[str]:
+        return []
+
     # Config parsing helpers
     def get_syslog_local_config_key(self) -> str:
         return "global"
@@ -81,6 +97,9 @@ class SystemMapperV1_4:
     def supports_syslog_user(self) -> bool:
         return True
 
+    def supports_syslog_marker_disable(self) -> bool:
+        return False
+
     # =========================================================================
     # Conntrack - 1.4 global timeouts
     # =========================================================================
@@ -89,8 +108,87 @@ class SystemMapperV1_4:
         """1.4: system conntrack timeout <protocol> <state> <value>"""
         return ["system", "conntrack", "timeout", protocol, state, value]
 
+    def get_conntrack_timeout_icmp_path(self, value: str) -> List[str]:
+        return ["system", "conntrack", "timeout", "icmp", value]
+
+    def get_delete_conntrack_timeout_icmp_path(self) -> List[str]:
+        return ["system", "conntrack", "timeout", "icmp"]
+
+    def get_conntrack_timeout_other_path(self, value: str) -> List[str]:
+        return ["system", "conntrack", "timeout", "other", value]
+
+    def get_delete_conntrack_timeout_other_path(self) -> List[str]:
+        return ["system", "conntrack", "timeout", "other"]
+
+    def get_conntrack_timeout_tcp_path(self, state: str, value: str) -> List[str]:
+        return ["system", "conntrack", "timeout", "tcp", state, value]
+
+    def get_delete_conntrack_timeout_tcp_path(self, state: str) -> List[str]:
+        return ["system", "conntrack", "timeout", "tcp", state]
+
+    def get_conntrack_timeout_udp_path(self, subtype: str, value: str) -> List[str]:
+        return ["system", "conntrack", "timeout", "udp", subtype, value]
+
+    def get_delete_conntrack_timeout_udp_path(self, subtype: str) -> List[str]:
+        return ["system", "conntrack", "timeout", "udp", subtype]
+
     def get_available_conntrack_modules(self) -> List[str]:
         return ["ftp", "h323", "nfs", "pptp", "sip", "sqlnet", "tftp"]
+
+    def supports_conntrack_global_timeouts(self) -> bool:
+        return True
+
+    # =========================================================================
+    # Flow accounting - 1.4 differences
+    # =========================================================================
+
+    def get_flow_accounting_interface_path(self, iface: str) -> List[str]:
+        """1.4: interface at root of flow-accounting, not under netflow."""
+        return ["system", "flow-accounting", "interface", iface]
+
+    def get_delete_flow_accounting_interface_path(self, iface: str) -> List[str]:
+        return ["system", "flow-accounting", "interface", iface]
+
+    def get_flow_accounting_netflow_source_address_path(self, addr: str) -> List[str]:
+        """1.4: global source-address under netflow (not per-server)."""
+        return ["system", "flow-accounting", "netflow", "source-address", addr]
+
+    def get_delete_flow_accounting_netflow_source_address_path(self) -> List[str]:
+        return ["system", "flow-accounting", "netflow", "source-address"]
+
+    def get_flow_accounting_interface_config_key(self) -> str:
+        return "root"  # signals parser to look at flow-accounting root, not netflow
+
+    # =========================================================================
+    # sFlow — 1.4: nested under flow-accounting
+    # =========================================================================
+
+    def get_sflow_agent_address_path(self, addr: str) -> List[str]:
+        return ["system", "flow-accounting", "sflow", "agent-address", addr]
+
+    def get_delete_sflow_agent_address_path(self) -> List[str]:
+        return ["system", "flow-accounting", "sflow", "agent-address"]
+
+    def get_sflow_sampling_rate_path(self, rate: str) -> List[str]:
+        return ["system", "flow-accounting", "sflow", "sampling-rate", rate]
+
+    def get_delete_sflow_sampling_rate_path(self) -> List[str]:
+        return ["system", "flow-accounting", "sflow", "sampling-rate"]
+
+    def get_sflow_server_path(self, server: str) -> List[str]:
+        return ["system", "flow-accounting", "sflow", "server", server]
+
+    def get_delete_sflow_server_path(self, server: str) -> List[str]:
+        return ["system", "flow-accounting", "sflow", "server", server]
+
+    def get_sflow_server_port_path(self, server: str, port: str) -> List[str]:
+        return ["system", "flow-accounting", "sflow", "server", server, "port", port]
+
+    def get_sflow_config_root(self) -> str:
+        return "flow-accounting-sflow"  # signals parser to look inside flow-accounting
+
+    def supports_standalone_sflow(self) -> bool:
+        return False
 
     # =========================================================================
     # 1.4-only capability flags
@@ -106,4 +204,7 @@ class SystemMapperV1_4:
         return False
 
     def supports_frr_profile(self) -> bool:
+        return False
+
+    def supports_resource_limits(self) -> bool:
         return False
