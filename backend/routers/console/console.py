@@ -12,10 +12,10 @@ WebSocket protocol:
     {"type": "resize", "cols": N, "rows": N}      — terminal resize
 
   Server → Client:
-    {"type": "output", "data": "<text>"}          — PTY stdout/stderr
-    {"type": "connected"}                          — SSH session ready
-    {"type": "error", "message": "..."}           — fatal error (connection closed)
-    {"type": "disconnected", "reason": "..."}     — session ended normally
+    {"type": "output", "data": "<text>"}        — PTY stdout/stderr
+    {"type": "connected"}                       — SSH session ready
+    {"type": "error", "message": "..."}         — fatal error (connection closed)
+    {"type": "disconnected", "reason": "..."}  — session ended normally
 """
 
 import asyncio
@@ -78,6 +78,7 @@ class ConsoleStatusResponse(BaseModel):
 async def get_console_status(request: Request):
     """Check if the active instance has SSH configured for console access."""
     await require_read_permission(request, FeatureGroup.SSH_CONSOLE)
+
     db_pool = _get_db_pool(request)
     user_id = request.state.user_id
 
@@ -86,13 +87,15 @@ async def get_console_status(request: Request):
             'SELECT "instanceId" FROM active_sessions WHERE "userId" = $1',
             user_id,
         )
+
         if not active:
             raise HTTPException(status_code=404, detail="No active instance")
 
         instance = await conn.fetchrow(
             """
             SELECT "sshKeyConfigured", "sshPort", "sshUsername"
-            FROM instances WHERE id = $1
+            FROM instances
+            WHERE id = $1
             """,
             active["instanceId"],
         )
@@ -121,20 +124,28 @@ async def websocket_console(websocket: WebSocket):
     """
     # Origin allowlist (defense against Cross-Site WebSocket Hijacking). Done
     # BEFORE accept() so a forged cross-origin handshake never gets upgraded.
+
     origin = websocket.headers.get("origin")
+
     if _TRUSTED_ORIGINS and (not origin or origin not in _TRUSTED_ORIGINS):
-        logger.warning("Rejected console WebSocket from untrusted origin: %r", origin)
-        await websocket.close(code=1008)  # Policy Violation
+        logger.warning(
+            "Rejected console WebSocket from untrusted origin: %r",
+            origin,
+        )
+
+        await websocket.close(code=1008)
         return
 
     await websocket.accept()
 
     user_info = await _authenticate_websocket(websocket)
+
     if not user_info:
         return
 
     user_id = user_info["user_id"]
     instance_id = user_info["instance_id"]
+
     db_pool = websocket.app.state.db_pool
 
     # If the user has an existing console session, cancel it so this new one can
@@ -142,25 +153,39 @@ async def websocket_console(websocket: WebSocket):
     # dev, navigating away and back, etc. — all of which would otherwise hit a
     # race where the previous task hasn't cleaned up yet.
     existing = _active_console_sessions.get(user_id)
+
     if existing is not None and not existing.done():
         existing.cancel()
+
         try:
             await existing
+
         except asyncio.CancelledError:
             pass
+
         except Exception:
-            logger.exception("Console: error while cancelling existing session for user %s", user_id)
+            logger.exception(
+                "Console: error while cancelling existing session for user %s",
+                user_id,
+            )
+
     _active_console_sessions.pop(user_id, None)
 
     # RBAC: require SSH_CONSOLE WRITE permission
     has_perm = await check_permission(
-        db_pool, user_id, instance_id, FeatureGroup.SSH_CONSOLE, PermissionLevel.WRITE
+        db_pool,
+        user_id,
+        instance_id,
+        FeatureGroup.SSH_CONSOLE,
+        PermissionLevel.WRITE,
     )
+
     if not has_perm:
         await websocket.send_json({
             "type": "error",
             "message": "You do not have permission to access the SSH console.",
         })
+
         await websocket.close()
         return
 
@@ -171,31 +196,48 @@ async def websocket_console(websocket: WebSocket):
         async with db_pool.acquire() as conn:
             instance = await conn.fetchrow(
                 """
-                SELECT host, "sshPort", "sshUsername", "sshEncryptedPrivKey",
-                       "sshKeyNonce", "sshKeyConfigured"
-                FROM instances WHERE id = $1
+                SELECT host,
+                       "sshPort",
+                       "sshUsername",
+                       "sshEncryptedPrivKey",
+                       "sshKeyNonce",
+                       "sshKeyConfigured"
+                FROM instances
+                WHERE id = $1
                 """,
                 instance_id,
             )
 
         if not instance:
-            await websocket.send_json({"type": "error", "message": "Instance not found"})
+            await websocket.send_json({
+                "type": "error",
+                "message": "Instance not found",
+            })
+
             await websocket.close()
             return
 
         if not instance["sshKeyConfigured"]:
             await websocket.send_json({
                 "type": "error",
-                "message": "SSH key not configured. Set it up via Sites > Edit Instance > SSH / Monitoring.",
+                "message": (
+                    "SSH key not configured. "
+                    "Set it up via Sites > Edit Instance > SSH / Monitoring."
+                ),
             })
+
             await websocket.close()
             return
 
         if not instance["sshEncryptedPrivKey"] or not instance["sshKeyNonce"]:
             await websocket.send_json({
                 "type": "error",
-                "message": "SSH private key not found. Regenerate the SSH key in instance settings.",
+                "message": (
+                    "SSH private key not found. "
+                    "Regenerate the SSH key in instance settings."
+                ),
             })
+
             await websocket.close()
             return
 
@@ -206,13 +248,25 @@ async def websocket_console(websocket: WebSocket):
                 instance["sshEncryptedPrivKey"],
                 instance["sshKeyNonce"],
             )
-            private_key = asyncssh.import_private_key(private_key_pem.decode("utf-8"))
+
+            private_key = asyncssh.import_private_key(
+                private_key_pem.decode("utf-8")
+            )
+
         except Exception:
-            logger.exception("Console: failed to decrypt SSH private key for instance %s", instance_id)
+            logger.exception(
+                "Console: failed to decrypt SSH private key for instance %s",
+                instance_id,
+            )
+
             await websocket.send_json({
                 "type": "error",
-                "message": "SSH key could not be loaded. Regenerate the SSH key in instance settings.",
+                "message": (
+                    "SSH key could not be loaded. "
+                    "Regenerate the SSH key in instance settings."
+                ),
             })
+
             await websocket.close()
             return
 
@@ -227,13 +281,27 @@ async def websocket_console(websocket: WebSocket):
                 ),
                 timeout=15,
             )
+
         except asyncio.TimeoutError:
-            await websocket.send_json({"type": "error", "message": "SSH connection timed out"})
+            await websocket.send_json({
+                "type": "error",
+                "message": "SSH connection timed out",
+            })
+
             await websocket.close()
             return
+
         except (OSError, asyncssh.Error):
-            logger.exception("Console: SSH connection failed for instance %s", instance_id)
-            await websocket.send_json({"type": "error", "message": "SSH connection failed"})
+            logger.exception(
+                "Console: SSH connection failed for instance %s",
+                instance_id,
+            )
+
+            await websocket.send_json({
+                "type": "error",
+                "message": "SSH connection failed",
+            })
+
             await websocket.close()
             return
 
@@ -246,101 +314,268 @@ async def websocket_console(websocket: WebSocket):
                 term_size=(DEFAULT_COLS, DEFAULT_ROWS),
                 request_pty=True,
             )
+
         except asyncssh.Error:
-            logger.exception("Console: failed to open shell on instance %s", instance_id)
-            await websocket.send_json({"type": "error", "message": "Failed to open shell"})
+            logger.exception(
+                "Console: failed to open shell on instance %s",
+                instance_id,
+            )
+
+            await websocket.send_json({
+                "type": "error",
+                "message": "Failed to open shell",
+            })
+
             await websocket.close()
             return
 
         await websocket.send_json({"type": "connected"})
 
         start_time = asyncio.get_event_loop().time()
+        last_activity = start_time
+
         _active_console_sessions[user_id] = asyncio.current_task()
 
         async def stream_output():
             """Forward SSH stdout to WebSocket."""
+            nonlocal last_activity
+
             try:
                 while True:
                     data = await asyncio.wait_for(
                         ssh_process.stdout.read(4096),
                         timeout=IDLE_TIMEOUT_SECONDS,
                     )
+
                     if not data:
                         break
+
+                    last_activity = asyncio.get_event_loop().time()
+
                     if isinstance(data, bytes):
                         data = data.decode("utf-8", errors="replace")
-                    await websocket.send_json({"type": "output", "data": data})
+
+                    await websocket.send_json({
+                        "type": "output",
+                        "data": data,
+                    })
+
             except asyncio.TimeoutError:
                 await _safe_send(websocket, {
                     "type": "disconnected",
-                    "reason": "Session timed out due to inactivity (10 minutes)",
+                    "reason": (
+                        "Session timed out due to inactivity (10 minutes)"
+                    ),
                 })
+
             except (ConnectionError, WebSocketDisconnect):
                 return  # Client disconnected normally; stop forwarding output.
 
         async def forward_input():
-            """Forward WebSocket messages to SSH stdin or handle resize."""
+            nonlocal last_activity
+
             while True:
                 try:
                     msg = await websocket.receive_json()
+
                 except WebSocketDisconnect:
                     return
+
                 except Exception:
                     # Malformed JSON or transport hiccup — drop this frame, keep session alive.
                     continue
 
+                last_activity = asyncio.get_event_loop().time()
+
                 if not isinstance(msg, dict):
                     continue
+
                 msg_type = msg.get("type")
 
                 if msg_type == "input":
                     data = msg.get("data")
+
                     if not isinstance(data, str) or not data:
                         continue
                     # Reject absurd payloads to prevent memory abuse by an
                     # authenticated-but-malicious client.
+
                     if len(data.encode("utf-8", errors="replace")) > MAX_INPUT_BYTES:
                         logger.warning(
-                            "Console: dropped oversized input from user %s", user_id
+                            "Console: dropped oversized input from user %s",
+                            user_id,
                         )
+
                         continue
+
                     try:
                         ssh_process.stdin.write(data)
+
                     except Exception:
                         # SSH channel closed — let stream_output detect EOF and end the session.
                         return
 
                 elif msg_type == "resize":
                     try:
-                        cols = max(1, min(int(msg.get("cols", DEFAULT_COLS)), MAX_COLS))
-                        rows = max(1, min(int(msg.get("rows", DEFAULT_ROWS)), MAX_ROWS))
+                        cols = max(
+                            1,
+                            min(int(msg.get("cols", DEFAULT_COLS)), MAX_COLS),
+                        )
+
+                        rows = max(
+                            1,
+                            min(int(msg.get("rows", DEFAULT_ROWS)), MAX_ROWS),
+                        )
+
                     except (TypeError, ValueError):
                         continue
+
                     try:
                         ssh_process.change_terminal_size(cols, rows)
+
                     except (OSError, asyncssh.Error):
                         # Terminal resize is best-effort; ignore if the channel is already closing.
                         pass
                 # Unknown msg_type: silently ignore (forwards-compat).
 
+        async def monitor_auth():
+            """
+            Continuously verify:
+            - session still exists
+            - session not expired
+            - active instance still exists
+            - user still has SSH_CONSOLE WRITE permission
+            """
+
+            while True:
+                await asyncio.sleep(30)
+               
+                try:
+                    async with db_pool.acquire() as conn:
+                        session = await conn.fetchrow(
+                            """
+                            SELECT s."expiresAt"
+                            FROM sessions s
+                            WHERE s.token = $1
+                            """,
+                            verify_session_cookie(
+                                websocket.cookies.get("better-auth.session_token")
+                                or websocket.cookies.get("__Secure-better-auth.session_token")
+                                or ""
+                            ),
+                        )
+
+                        if not session:
+                            logger.warning(
+                                "Console: session revoked for user %s",
+                                user_id,
+                            )
+
+                            await _safe_send(websocket, {
+                                "type": "disconnected",
+                                "reason": "Session revoked",
+                            })
+
+                            return
+
+                        if session["expiresAt"] < datetime.utcnow():
+                            logger.warning(
+                                "Console: session expired for user %s",
+                                user_id,
+                            )
+
+                            await _safe_send(websocket, {
+                                "type": "disconnected",
+                                "reason": "Session expired",
+                            })
+
+                            return
+
+                        active = await conn.fetchrow(
+                            """
+                            SELECT "instanceId"
+                            FROM active_sessions
+                            WHERE "userId" = $1
+                            """,
+                            user_id,
+                        )
+
+                        if not active:
+                            logger.warning(
+                                "Console: active instance removed for user %s",
+                                user_id,
+                            )
+
+                            await _safe_send(websocket, {
+                                "type": "disconnected",
+                                "reason": "Active instance removed",
+                            })
+
+                            return
+
+                    still_allowed = await check_permission(
+                        db_pool,
+                        user_id,
+                        instance_id,
+                        FeatureGroup.SSH_CONSOLE,
+                        PermissionLevel.WRITE,
+                    )
+
+                    if not still_allowed:
+                        logger.warning(
+                            "Console: permissions revoked for user %s",
+                            user_id,
+                        )
+
+                        await _safe_send(websocket, {
+                            "type": "disconnected",
+                            "reason": "Permissions revoked",
+                        })
+
+                        return
+
+                except Exception:
+                    logger.exception(
+                        "Console: auth revalidation failed for user %s",
+                        user_id,
+                    )
+
+                    await _safe_send(websocket, {
+                        "type": "disconnected",
+                        "reason": "Authorization check failed",
+                    })
+
+                    return
+        
         async def check_max_duration():
             """Enforce the maximum session duration hard cap."""
             while True:
                 await asyncio.sleep(60)
+
                 elapsed = asyncio.get_event_loop().time() - start_time
+
                 if elapsed >= MAX_DURATION_SECONDS:
                     await _safe_send(websocket, {
                         "type": "disconnected",
-                        "reason": "Maximum session duration reached (4 hours)",
+                        "reason": (
+                            "Maximum session duration reached (4 hours)"
+                        ),
                     })
+
                     return
 
         output_task = asyncio.create_task(stream_output())
         input_task = asyncio.create_task(forward_input())
         duration_task = asyncio.create_task(check_max_duration())
+        auth_task = asyncio.create_task(monitor_auth())
 
         done, pending = await asyncio.wait(
-            [output_task, input_task, duration_task],
+            [
+                output_task,
+                input_task,
+                duration_task,
+                auth_task,
+            ],
             return_when=asyncio.FIRST_COMPLETED,
         )
 
@@ -350,37 +585,100 @@ async def websocket_console(websocket: WebSocket):
 
         for task in pending:
             task.cancel()
+
             try:
                 await task
+
             except asyncio.CancelledError:
                 pass
+
             except Exception:
-                logger.exception("Console: error while cancelling pending task")
+                logger.exception(
+                    "Console: error while cancelling pending task",
+                )
+
+        for task in done:
+            exc = task.exception()
+
+            if exc and not isinstance(exc, asyncio.CancelledError):
+                raise exc
 
     except WebSocketDisconnect:
-        pass  # Normal client disconnect; cleanup runs in finally.
+        pass
+
     except Exception:
         logger.exception("Unexpected error in console WebSocket")
-        await _safe_send(websocket, {"type": "error", "message": "Internal server error"})
+
+        await _safe_send(websocket, {
+            "type": "error",
+            "message": "Internal server error",
+        })
+
     finally:
         _active_console_sessions.pop(user_id, None)
 
         if ssh_process:
             try:
                 ssh_process.terminate()
+
+                try:
+                    await asyncio.wait_for(
+                        ssh_process.wait_closed(),
+                        timeout=5,
+                    )
+
+                except asyncio.TimeoutError:
+                    logger.warning(
+                        "Console: forcing zombie shell kill for user %s",
+                        user_id,
+                    )
+
+                    ssh_process.kill()
+
+                    try:
+                        await asyncio.wait_for(
+                            ssh_process.wait_closed(),
+                            timeout=5,
+                        )
+
+                    except asyncio.TimeoutError:
+                        logger.warning(
+                            "Console: shell still not closed after SIGKILL",
+                        )
+
             except Exception:
-                pass
+                logger.exception(
+                    "Console: failed during SSH process cleanup",
+                )
 
         if ssh_conn:
             try:
                 ssh_conn.close()
-            except Exception:
-                pass
 
-        await _safe_send(websocket, {"type": "disconnected", "reason": "Session ended"})
+                try:
+                    await asyncio.wait_for(
+                        ssh_conn.wait_closed(),
+                        timeout=5,
+                    )
+
+                except asyncio.TimeoutError:
+                    logger.warning(
+                        "Console: SSH connection close timed out",
+                    )
+
+            except Exception:
+                logger.exception(
+                    "Console: failed during SSH connection cleanup",
+                )
+
+        await _safe_send(websocket, {
+            "type": "disconnected",
+            "reason": "Session ended",
+        })
 
         try:
             await websocket.close()
+
         except Exception:
             pass
 
@@ -391,14 +689,20 @@ async def websocket_console(websocket: WebSocket):
 
 def _get_db_pool(request: Request) -> asyncpg.Pool:
     db_pool = getattr(request.app.state, "db_pool", None)
+
     if not db_pool:
-        raise HTTPException(status_code=503, detail="Database not available")
+        raise HTTPException(
+            status_code=503,
+            detail="Database not available",
+        )
+
     return db_pool
 
 
 async def _safe_send(websocket: WebSocket, data: dict) -> None:
     try:
         await websocket.send_json(data)
+
     except Exception:
         pass
 
@@ -408,46 +712,75 @@ async def _authenticate_websocket(websocket: WebSocket) -> Optional[dict]:
     Authenticate a WebSocket connection via session cookie.
     Returns {user_id, instance_id, email} or None if auth fails (connection closed).
     """
+
     db_pool = getattr(websocket.app.state, "db_pool", None)
+
     if not db_pool:
-        await websocket.send_json({"type": "error", "message": "Database not available"})
+        await websocket.send_json({
+            "type": "error",
+            "message": "Database not available",
+        })
+
         await websocket.close()
         return None
 
     cookies = websocket.cookies
-    session_token = cookies.get("better-auth.session_token") or cookies.get(
-        "__Secure-better-auth.session_token"
+
+    session_token = (
+        cookies.get("better-auth.session_token")
+        or cookies.get("__Secure-better-auth.session_token")
     )
 
     if not session_token:
-        await websocket.send_json({"type": "error", "message": "Not authenticated"})
+        await websocket.send_json({
+            "type": "error",
+            "message": "Not authenticated",
+        })
+
         await websocket.close()
         return None
 
     token_id = verify_session_cookie(session_token)
+
     if not token_id:
-        await websocket.send_json({"type": "error", "message": "Invalid session token"})
+        await websocket.send_json({
+            "type": "error",
+            "message": "Invalid session token",
+        })
+
         await websocket.close()
         return None
 
     async with db_pool.acquire() as conn:
         session = await conn.fetchrow(
             """
-            SELECT s.id, s."userId", s."expiresAt", u.email
+            SELECT s.id,
+                   s."userId",
+                   s."expiresAt",
+                   u.email
             FROM sessions s
-            JOIN users u ON s."userId" = u.id
+            JOIN users u
+              ON s."userId" = u.id
             WHERE s.token = $1
             """,
             token_id,
         )
 
         if not session:
-            await websocket.send_json({"type": "error", "message": "Session not found"})
+            await websocket.send_json({
+                "type": "error",
+                "message": "Session not found",
+            })
+
             await websocket.close()
             return None
 
         if session["expiresAt"] < datetime.utcnow():
-            await websocket.send_json({"type": "error", "message": "Session expired"})
+            await websocket.send_json({
+                "type": "error",
+                "message": "Session expired",
+            })
+
             await websocket.close()
             return None
 
@@ -459,8 +792,12 @@ async def _authenticate_websocket(websocket: WebSocket) -> Optional[dict]:
         if not active:
             await websocket.send_json({
                 "type": "error",
-                "message": "No active instance. Connect to an instance first.",
+                "message": (
+                    "No active instance. "
+                    "Connect to an instance first."
+                ),
             })
+
             await websocket.close()
             return None
 
