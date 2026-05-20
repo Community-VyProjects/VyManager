@@ -33,6 +33,8 @@ import { useEffect, useState } from "react";
 import { DndContext, closestCenter, DragOverlay, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { natService, type NATConfigResponse, type NATCapabilities, type SourceNATRule, type DestinationNATRule, type StaticNATRule } from "@/lib/api/nat";
+import { firewallGroupsService } from "@/lib/api/firewall-groups";
+import type { FirewallGroup } from "@/lib/api/types/firewall-groups";
 import { cn } from "@/lib/utils";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { CreateSourceNATModal } from "@/components/network/CreateSourceNATModal";
@@ -54,6 +56,7 @@ export default function NATPage() {
   const { canRead, canWrite, isLoading: permissionsLoading } = usePermissions();
   const [config, setConfig] = useState<NATConfigResponse | null>(null);
   const [capabilities, setCapabilities] = useState<NATCapabilities | null>(null);
+  const [groups, setGroups] = useState<FirewallGroup[]>([]);
   const [selectedType, setSelectedType] = useState<RuleType>("source");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -106,6 +109,14 @@ export default function NATPage() {
   useEffect(() => {
     fetchConfig();
     natService.getCapabilities().then(setCapabilities).catch(console.error);
+    firewallGroupsService.getConfig().then((gc) => {
+      setGroups([
+        ...gc.address_groups,
+        ...gc.network_groups,
+        ...gc.port_groups,
+        ...gc.domain_groups,
+      ]);
+    }).catch(console.error);
   }, []);
 
   const sourceRules = config ? config.source_rules : [];
@@ -724,6 +735,7 @@ export default function NATPage() {
                           ) : selectedType === "destination" ? (
                             <>
                               <TableHead className="w-[100px]">Protocol</TableHead>
+                              <TableHead>Source</TableHead>
                               <TableHead>Destination</TableHead>
                               <TableHead>Translation</TableHead>
                               <TableHead className="w-[150px]">Inbound Interface</TableHead>
@@ -748,7 +760,7 @@ export default function NATPage() {
                         >
                           {filteredRules.length === 0 ? (
                             <TableRow>
-                              <TableCell colSpan={selectedType === "source" ? 10 : selectedType === "destination" ? 9 : 6} className="h-32">
+                              <TableCell colSpan={selectedType === "source" ? 10 : selectedType === "destination" ? 10 : 6} className="h-32">
                                 <div className="flex flex-col items-center justify-center text-center">
                                   <AlertCircle className="h-8 w-8 text-muted-foreground mb-2" />
                                   <p className="text-sm font-medium text-foreground">
@@ -781,6 +793,7 @@ export default function NATPage() {
                                 }}
                                 isDragging={activeId === rule.rule_number}
                                 canWrite={canWrite(FeatureGroup.NAT)}
+                                groups={groups}
                               />
                             ))
                           )}
@@ -848,6 +861,11 @@ export default function NATPage() {
                                             <span className="text-sm font-medium uppercase">
                                               {dRule.protocol || "all"}
                                             </span>
+                                          </TableCell>
+                                          <TableCell>
+                                            <code className="text-xs bg-muted/50 px-2 py-1 rounded font-mono">
+                                              {dRule.source?.address || "any"}
+                                            </code>
                                           </TableCell>
                                           <TableCell>
                                             <code className="text-xs bg-muted/50 px-2 py-1 rounded font-mono">
