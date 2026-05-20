@@ -6,7 +6,14 @@ import { GripVertical, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TableCell, TableRow } from "@/components/ui/table";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import type { SourceNATRule, DestinationNATRule, StaticNATRule } from "@/lib/api/nat";
+import type { FirewallGroup } from "@/lib/api/types/firewall-groups";
 import { cn } from "@/lib/utils";
 
 type RuleType = "source" | "destination" | "static";
@@ -18,9 +25,10 @@ interface NATRuleRowProps {
   onDelete: () => void;
   isDragging?: boolean;
   canWrite?: boolean;
+  groups?: FirewallGroup[];
 }
 
-export function NATRuleRow({ rule, ruleType, onEdit, onDelete, isDragging, canWrite = true }: NATRuleRowProps) {
+export function NATRuleRow({ rule, ruleType, onEdit, onDelete, isDragging, canWrite = true, groups = [] }: NATRuleRowProps) {
   const {
     attributes,
     listeners,
@@ -72,8 +80,8 @@ export function NATRuleRow({ rule, ruleType, onEdit, onDelete, isDragging, canWr
       </TableCell>
 
       {/* Rule Type Specific Content */}
-      {ruleType === "source" && <SourceNATContent rule={rule as SourceNATRule} />}
-      {ruleType === "destination" && <DestinationNATContent rule={rule as DestinationNATRule} />}
+      {ruleType === "source" && <SourceNATContent rule={rule as SourceNATRule} groups={groups} />}
+      {ruleType === "destination" && <DestinationNATContent rule={rule as DestinationNATRule} groups={groups} />}
       {ruleType === "static" && <StaticNATContent rule={rule as StaticNATRule} />}
 
       {/* Actions */}
@@ -103,8 +111,86 @@ export function NATRuleRow({ rule, ruleType, onEdit, onDelete, isDragging, canWr
   );
 }
 
-function SourceNATContent({ rule }: { rule: SourceNATRule }) {
+function GroupTooltipBadge({ name, inv, members, isPort }: { name: string; inv: boolean; members: string[]; isPort?: boolean }) {
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Badge
+            variant="outline"
+            className={cn(
+              "text-xs cursor-help",
+              inv && "bg-orange-500/10 text-orange-500 border-orange-500/20",
+              !inv && isPort && "bg-blue-500/10 text-blue-500 border-blue-500/20"
+            )}
+          >
+            {inv && "!"}{name}
+          </Badge>
+        </TooltipTrigger>
+        <TooltipContent>
+          <div className="max-w-xs">
+            <p className="font-semibold text-xs mb-2">{inv ? `NOT ${name}` : name}</p>
+            {members.length > 0 ? (
+              <div className="flex flex-wrap gap-1 max-h-40 overflow-y-auto">
+                {members.map((m, i) => (
+                  <code key={i} className="text-xs font-mono px-1.5 py-0.5 rounded bg-muted/60 whitespace-nowrap">{m}</code>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">No members</p>
+            )}
+          </div>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+interface NATEndpointCellProps {
+  address?: string | null;
+  port?: string | null;
+  group?: Record<string, string> | null;
+  getGroupMembers: (name: string) => string[];
+}
+
+function NATEndpointCell({ address, port, group, getGroupMembers }: NATEndpointCellProps) {
+  const addressGroups = group ? Object.entries(group).filter(([t]) => t !== "port-group") : [];
+  const portGroupEntry = group?.["port-group"];
+  const hasAnything = address || addressGroups.length > 0 || port || portGroupEntry;
+
+  if (!hasAnything) {
+    return <span className="text-sm text-muted-foreground">any</span>;
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      {address && (
+        <code className="text-xs bg-muted/50 px-2 py-1 rounded font-mono">{address}</code>
+      )}
+      {addressGroups.map(([t, name]) => {
+        const inv = name.startsWith("!");
+        const display = inv ? name.substring(1) : name;
+        return <GroupTooltipBadge key={t} name={display} inv={inv} members={getGroupMembers(name)} />;
+      })}
+      {port && (
+        <code className="text-xs bg-blue-500/10 text-blue-500 px-2 py-1 rounded font-mono">{port}</code>
+      )}
+      {portGroupEntry && (() => {
+        const inv = portGroupEntry.startsWith("!");
+        const display = inv ? portGroupEntry.substring(1) : portGroupEntry;
+        return <GroupTooltipBadge name={display} inv={inv} members={getGroupMembers(portGroupEntry)} isPort />;
+      })()}
+    </div>
+  );
+}
+
+function SourceNATContent({ rule, groups }: { rule: SourceNATRule; groups: FirewallGroup[] }) {
   const isMasquerade = rule.translation?.address === "masquerade";
+
+  const getGroupMembers = (groupName: string): string[] => {
+    const cleanName = groupName.startsWith("!") ? groupName.substring(1) : groupName;
+    return groups.find((g) => g.name === cleanName)?.members || [];
+  };
 
   return (
     <>
@@ -118,16 +204,20 @@ function SourceNATContent({ rule }: { rule: SourceNATRule }) {
         )}
       </TableCell>
       <TableCell>
-        <code className="text-xs bg-muted/50 px-2 py-1 rounded font-mono">
-          {rule.source?.address || "any"}
-          {rule.source?.port && `:${rule.source.port}`}
-        </code>
+        <NATEndpointCell
+          address={rule.source?.address}
+          port={rule.source?.port}
+          group={rule.source?.group}
+          getGroupMembers={getGroupMembers}
+        />
       </TableCell>
       <TableCell>
-        <code className="text-xs bg-muted/50 px-2 py-1 rounded font-mono">
-          {rule.destination?.address || "any"}
-          {rule.destination?.port && `:${rule.destination.port}`}
-        </code>
+        <NATEndpointCell
+          address={rule.destination?.address}
+          port={rule.destination?.port}
+          group={rule.destination?.group}
+          getGroupMembers={getGroupMembers}
+        />
       </TableCell>
       <TableCell>
         {isMasquerade ? (
@@ -167,7 +257,12 @@ function SourceNATContent({ rule }: { rule: SourceNATRule }) {
   );
 }
 
-function DestinationNATContent({ rule }: { rule: DestinationNATRule }) {
+function DestinationNATContent({ rule, groups }: { rule: DestinationNATRule; groups: FirewallGroup[] }) {
+  const getGroupMembers = (groupName: string): string[] => {
+    const cleanName = groupName.startsWith("!") ? groupName.substring(1) : groupName;
+    return groups.find((g) => g.name === cleanName)?.members || [];
+  };
+
   return (
     <>
       <TableCell>
@@ -180,10 +275,20 @@ function DestinationNATContent({ rule }: { rule: DestinationNATRule }) {
         )}
       </TableCell>
       <TableCell>
-        <code className="text-xs bg-muted/50 px-2 py-1 rounded font-mono">
-          {rule.destination?.address || "any"}
-          {rule.destination?.port && `:${rule.destination.port}`}
-        </code>
+        <NATEndpointCell
+          address={rule.source?.address}
+          port={rule.source?.port}
+          group={rule.source?.group}
+          getGroupMembers={getGroupMembers}
+        />
+      </TableCell>
+      <TableCell>
+        <NATEndpointCell
+          address={rule.destination?.address}
+          port={rule.destination?.port}
+          group={rule.destination?.group}
+          getGroupMembers={getGroupMembers}
+        />
       </TableCell>
       <TableCell>
         <code className="text-xs bg-green-500/10 text-green-600 dark:text-green-400 px-2 py-1 rounded font-mono">
