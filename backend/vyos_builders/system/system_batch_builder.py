@@ -519,6 +519,24 @@ class SystemBatchBuilder:
     def delete_frr_bmp(self, module: str) -> "SystemBatchBuilder":
         return self.add_delete(self.mapper.get_delete_frr_bmp_path())
 
+    def set_frr_bmp_target(self, name: str) -> "SystemBatchBuilder":
+        return self.add_set(self.mapper.get_frr_bmp_target_path(name))
+
+    def delete_frr_bmp_target(self, name: str) -> "SystemBatchBuilder":
+        return self.add_delete(self.mapper.get_delete_frr_bmp_target_path(name))
+
+    def set_frr_bmp_target_address(self, name: str, address: str) -> "SystemBatchBuilder":
+        return self.add_set(self.mapper.get_frr_bmp_target_address_path(name, address))
+
+    def delete_frr_bmp_target_address(self, name: str) -> "SystemBatchBuilder":
+        return self.add_delete(self.mapper.get_delete_frr_bmp_target_address_path(name))
+
+    def set_frr_bmp_target_port(self, name: str, port: str) -> "SystemBatchBuilder":
+        return self.add_set(self.mapper.get_frr_bmp_target_port_path(name, port))
+
+    def delete_frr_bmp_target_port(self, name: str) -> "SystemBatchBuilder":
+        return self.add_delete(self.mapper.get_delete_frr_bmp_target_port_path(name))
+
     def set_frr_descriptors(self, module: str, count: str) -> "SystemBatchBuilder":
         return self.add_set(self.mapper.get_frr_descriptors_path(count))
 

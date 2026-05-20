@@ -51,6 +51,7 @@ import {
   type ArchiveFile,
   type SystemConfig,
   type SystemCapabilities,
+  type FrrBmpTarget,
 } from "@/lib/api/system-settings";
 import { useToast } from "@/hooks/useToast";
 
@@ -129,6 +130,35 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
   // FRR profile (1.5)
   const [frrProfile, setFrrProfile] = useState(config.frr?.profile ?? "");
   const [frrSaving, setFrrSaving] = useState(false);
+
+  // FRR BMP targets
+  const [addingBmpTarget, setAddingBmpTarget] = useState(false);
+  const [bmpName, setBmpName] = useState("");
+  const [bmpAddress, setBmpAddress] = useState("");
+  const [bmpPort, setBmpPort] = useState("");
+  const [bmpSaving, setBmpSaving] = useState(false);
+  const [bmpError, setBmpError] = useState<string | null>(null);
+  const [deleteBmpTarget, setDeleteBmpTarget] = useState<FrrBmpTarget | null>(null);
+  const [deletingBmp, setDeletingBmp] = useState(false);
+
+  // Kernel Options
+  const kern = config.options?.kernel;
+  const resLimits = config.options?.resource_limits;
+  const [editingKernel, setEditingKernel] = useState(false);
+  const [kDisableHpet, setKDisableHpet] = useState(kern?.disable_hpet ?? false);
+  const [kDisableMce, setKDisableMce] = useState(kern?.disable_mce ?? false);
+  const [kDisableSoftlockup, setKDisableSoftlockup] = useState(kern?.disable_softlockup ?? false);
+  const [kDisableNmiWatchdog, setKDisableNmiWatchdog] = useState(kern?.cpu?.disable_nmi_watchdog ?? false);
+  const [kIsolateCpus, setKIsolateCpus] = useState(kern?.cpu?.isolate_cpus ?? "");
+  const [kNohzFull, setKNohzFull] = useState(kern?.cpu?.nohz_full ?? "");
+  const [kRcuNoCbs, setKRcuNoCbs] = useState(kern?.cpu?.rcu_no_cbs ?? "");
+  const [kDisableNumaBalancing, setKDisableNumaBalancing] = useState(kern?.memory?.disable_numa_balancing ?? false);
+  const [kDefaultHugepageSize, setKDefaultHugepageSize] = useState(kern?.memory?.default_hugepage_size ?? "");
+  const [kHugepageSize, setKHugepageSize] = useState(kern?.memory?.hugepage_size ?? "");
+  const [kMaxMapCount, setKMaxMapCount] = useState(resLimits?.max_map_count ? String(resLimits.max_map_count) : "");
+  const [kShmmax, setKShmmax] = useState(resLimits?.shmmax ? String(resLimits.shmmax) : "");
+  const [kernelSaving, setKernelSaving] = useState(false);
+  const [kernelError, setKernelError] = useState<string | null>(null);
 
   // System Options
   const opts = config.options;
@@ -617,6 +647,79 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
     }
   };
 
+  // Kernel handler
+  const startEditKernel = () => {
+    setKDisableHpet(kern?.disable_hpet ?? false);
+    setKDisableMce(kern?.disable_mce ?? false);
+    setKDisableSoftlockup(kern?.disable_softlockup ?? false);
+    setKDisableNmiWatchdog(kern?.cpu?.disable_nmi_watchdog ?? false);
+    setKIsolateCpus(kern?.cpu?.isolate_cpus ?? "");
+    setKNohzFull(kern?.cpu?.nohz_full ?? "");
+    setKRcuNoCbs(kern?.cpu?.rcu_no_cbs ?? "");
+    setKDisableNumaBalancing(kern?.memory?.disable_numa_balancing ?? false);
+    setKDefaultHugepageSize(kern?.memory?.default_hugepage_size ?? "");
+    setKHugepageSize(kern?.memory?.hugepage_size ?? "");
+    setKMaxMapCount(resLimits?.max_map_count ? String(resLimits.max_map_count) : "");
+    setKShmmax(resLimits?.shmmax ? String(resLimits.shmmax) : "");
+    setKernelError(null);
+    setEditingKernel(true);
+  };
+
+  const handleSaveKernel = async () => {
+    setKernelSaving(true);
+    setKernelError(null);
+    try {
+      const r1 = await systemSettingsService.saveKernelOptions(kern ?? null, {
+        disableHpet: kDisableHpet, disableMce: kDisableMce, disableSoftlockup: kDisableSoftlockup,
+        disableNmiWatchdog: kDisableNmiWatchdog,
+        isolateCpus: kIsolateCpus, nohzFull: kNohzFull, rcuNoCbs: kRcuNoCbs,
+        defaultHugepageSize: kDefaultHugepageSize, disableNumaBalancing: kDisableNumaBalancing, hugepageSize: kHugepageSize,
+      });
+      if (!r1.success) { setKernelError(r1.error ?? "Failed to save kernel options"); return; }
+      const r2 = await systemSettingsService.saveResourceLimits(resLimits ?? null, {
+        maxMapCount: kMaxMapCount, shmmax: kShmmax,
+      });
+      if (!r2.success) { setKernelError(r2.error ?? "Failed to save resource limits"); return; }
+      toast.success("Kernel options saved");
+      setEditingKernel(false);
+      onRefresh();
+    } catch {
+      setKernelError("An unexpected error occurred");
+    } finally {
+      setKernelSaving(false);
+    }
+  };
+
+  // FRR BMP handlers
+  const handleAddBmpTarget = async () => {
+    if (!bmpName.trim()) { setBmpError("Name is required"); return; }
+    setBmpSaving(true); setBmpError(null);
+    try {
+      const r = await systemSettingsService.addFrrBmpTarget(
+        bmpName.trim(),
+        bmpAddress.trim() || null,
+        bmpPort.trim() ? parseInt(bmpPort.trim(), 10) : null,
+      );
+      if (!r.success) { setBmpError(r.error ?? "Failed to add target"); return; }
+      toast.success("BMP target added");
+      setAddingBmpTarget(false);
+      setBmpName(""); setBmpAddress(""); setBmpPort("");
+      onRefresh();
+    } catch { setBmpError("An unexpected error occurred"); }
+    finally { setBmpSaving(false); }
+  };
+
+  const handleDeleteBmpTarget = async () => {
+    if (!deleteBmpTarget) return;
+    setDeletingBmp(true);
+    try {
+      const r = await systemSettingsService.deleteFrrBmpTarget(deleteBmpTarget.name);
+      if (!r.success) toast.error("Delete failed", r.error ?? "Could not remove target");
+      else { toast.success("BMP target removed"); onRefresh(); }
+    } catch { toast.error("Error", "An unexpected error occurred"); }
+    finally { setDeletingBmp(false); setDeleteBmpTarget(null); }
+  };
+
   // FRR handler
   const handleSaveFrr = async () => {
     setFrrSaving(true);
@@ -995,12 +1098,12 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
           )}
 
           {features.frr_profile.supported && (
-            <Card className="flex flex-col">
+            <Card className="flex flex-col md:col-span-2 xl:col-span-1">
               <CardHeader>
-                <CardTitle>FRR Profile</CardTitle>
-                <CardDescription>FRRouting configuration profile.</CardDescription>
+                <CardTitle>FRR</CardTitle>
+                <CardDescription>FRRouting configuration profile and BMP monitoring targets.</CardDescription>
               </CardHeader>
-              <CardContent className="flex-1">
+              <CardContent className="flex-1 space-y-4">
                 <div className="space-y-2">
                   <Label>Profile</Label>
                   <div className="flex gap-2">
@@ -1021,6 +1124,79 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
                       </Button>
                     )}
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label>BMP Targets</Label>
+                    {!isReadOnly && !addingBmpTarget && (
+                      <Button size="sm" variant="outline" onClick={() => { setBmpName(""); setBmpAddress(""); setBmpPort(""); setBmpError(null); setAddingBmpTarget(true); }}>
+                        <Plus className="h-4 w-4 mr-1" />Add
+                      </Button>
+                    )}
+                  </div>
+
+                  {addingBmpTarget && (
+                    <div className="rounded-lg border p-3 space-y-3 bg-muted/30">
+                      {bmpError && (
+                        <div className="rounded border border-destructive/20 bg-destructive/10 p-2">
+                          <div className="flex items-start gap-2">
+                            <AlertCircle className="h-4 w-4 text-destructive mt-0.5 flex-shrink-0" />
+                            <pre className="text-xs text-destructive whitespace-pre-wrap font-mono">{bmpError}</pre>
+                          </div>
+                        </div>
+                      )}
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Name</Label>
+                          <Input value={bmpName} onChange={(e) => setBmpName(e.target.value)} placeholder="my-target" className="text-sm" />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Address</Label>
+                          <Input value={bmpAddress} onChange={(e) => setBmpAddress(e.target.value)} placeholder="10.0.0.1" className="font-mono text-sm" />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Port</Label>
+                          <Input type="number" value={bmpPort} onChange={(e) => setBmpPort(e.target.value)} placeholder="11019" className="text-sm" />
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={handleAddBmpTarget} disabled={bmpSaving}>{bmpSaving ? "Adding…" : "Add"}</Button>
+                        <Button size="sm" variant="outline" onClick={() => { setAddingBmpTarget(false); setBmpError(null); }}>Cancel</Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {(config.frr?.bmp?.targets ?? []).length === 0 && !addingBmpTarget ? (
+                    <p className="text-sm text-muted-foreground">No BMP targets configured.</p>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Address</TableHead>
+                          <TableHead>Port</TableHead>
+                          {!isReadOnly && <TableHead className="text-right">Actions</TableHead>}
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {(config.frr?.bmp?.targets ?? []).map((t) => (
+                          <TableRow key={t.name}>
+                            <TableCell className="font-medium">{t.name}</TableCell>
+                            <TableCell className="font-mono text-sm">{t.address ?? <span className="text-muted-foreground">—</span>}</TableCell>
+                            <TableCell>{t.port ?? <span className="text-muted-foreground">—</span>}</TableCell>
+                            {!isReadOnly && (
+                              <TableCell className="text-right">
+                                <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteBmpTarget(t)}>
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
+                            )}
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -1190,6 +1366,156 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
               </div>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Kernel Options */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Kernel Options</CardTitle>
+              <CardDescription>Boot-time kernel flags, CPU isolation, memory settings, and resource limits.</CardDescription>
+            </div>
+            {!isReadOnly && (
+              editingKernel ? (
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => { setEditingKernel(false); setKernelError(null); }} disabled={kernelSaving}>Cancel</Button>
+                  <Button size="sm" onClick={handleSaveKernel} disabled={kernelSaving}>{kernelSaving ? "Saving…" : "Save"}</Button>
+                </div>
+              ) : (
+                <Button variant="outline" size="sm" onClick={startEditKernel}>
+                  <Edit2 className="h-4 w-4 mr-2" />Edit
+                </Button>
+              )
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {kernelError && (
+            <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+                <pre className="text-sm text-destructive whitespace-pre-wrap font-mono">{kernelError}</pre>
+              </div>
+            </div>
+          )}
+
+          {/* General flags */}
+          <div>
+            <p className="text-xs font-semibold uppercase text-muted-foreground mb-3">General</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-y-3 gap-x-8">
+              {([
+                { label: "Disable HPET", key: "hpet", state: editingKernel ? kDisableHpet : (kern?.disable_hpet ?? false), setter: setKDisableHpet },
+                { label: "Disable MCE", key: "mce", state: editingKernel ? kDisableMce : (kern?.disable_mce ?? false), setter: setKDisableMce },
+                { label: "Disable softlockup", key: "softlockup", state: editingKernel ? kDisableSoftlockup : (kern?.disable_softlockup ?? false), setter: setKDisableSoftlockup },
+              ] as { label: string; key: string; state: boolean; setter: (v: boolean) => void }[]).map(({ label, key, state, setter }) => (
+                <div key={key} className="flex items-center gap-3">
+                  {editingKernel ? (
+                    <Checkbox checked={state} onCheckedChange={(v) => setter(!!v)} id={`kern-${key}`} />
+                  ) : (
+                    <div className={`h-4 w-4 rounded-sm border flex items-center justify-center ${state ? "bg-primary border-primary" : "border-input"}`}>
+                      {state && <span className="text-primary-foreground text-xs">✓</span>}
+                    </div>
+                  )}
+                  <Label htmlFor={`kern-${key}`} className="cursor-pointer font-normal">{label}</Label>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* CPU */}
+          <div>
+            <p className="text-xs font-semibold uppercase text-muted-foreground mb-3">CPU</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-6">
+              <div className="flex items-center gap-3 sm:col-span-2">
+                {editingKernel ? (
+                  <Checkbox checked={kDisableNmiWatchdog} onCheckedChange={(v) => setKDisableNmiWatchdog(!!v)} id="kern-nmi" />
+                ) : (
+                  <div className={`h-4 w-4 rounded-sm border flex items-center justify-center ${(kern?.cpu?.disable_nmi_watchdog ?? false) ? "bg-primary border-primary" : "border-input"}`}>
+                    {(kern?.cpu?.disable_nmi_watchdog ?? false) && <span className="text-primary-foreground text-xs">✓</span>}
+                  </div>
+                )}
+                <Label htmlFor="kern-nmi" className="cursor-pointer font-normal">Disable NMI watchdog</Label>
+              </div>
+              {([
+                { label: "Isolate CPUs", val: editingKernel ? kIsolateCpus : (kern?.cpu?.isolate_cpus ?? ""), set: setKIsolateCpus, placeholder: "0-3" },
+                { label: "nohz_full CPUs", val: editingKernel ? kNohzFull : (kern?.cpu?.nohz_full ?? ""), set: setKNohzFull, placeholder: "1-3" },
+                { label: "rcu_no_cbs CPUs", val: editingKernel ? kRcuNoCbs : (kern?.cpu?.rcu_no_cbs ?? ""), set: setKRcuNoCbs, placeholder: "1-3" },
+              ] as { label: string; val: string; set: (v: string) => void; placeholder: string }[]).map(({ label, val, set, placeholder }) => (
+                <div key={label} className="space-y-1">
+                  <Label className="text-xs">{label}</Label>
+                  {editingKernel ? (
+                    <Input value={val} onChange={(e) => set(e.target.value)} placeholder={placeholder} className="font-mono text-sm" />
+                  ) : (
+                    <p className="text-sm font-mono">{val || <span className="text-muted-foreground">Not set</span>}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Memory */}
+          <div>
+            <p className="text-xs font-semibold uppercase text-muted-foreground mb-3">Memory</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-y-3 gap-x-6">
+              <div className="flex items-center gap-3 sm:col-span-3">
+                {editingKernel ? (
+                  <Checkbox checked={kDisableNumaBalancing} onCheckedChange={(v) => setKDisableNumaBalancing(!!v)} id="kern-numa" />
+                ) : (
+                  <div className={`h-4 w-4 rounded-sm border flex items-center justify-center ${(kern?.memory?.disable_numa_balancing ?? false) ? "bg-primary border-primary" : "border-input"}`}>
+                    {(kern?.memory?.disable_numa_balancing ?? false) && <span className="text-primary-foreground text-xs">✓</span>}
+                  </div>
+                )}
+                <Label htmlFor="kern-numa" className="cursor-pointer font-normal">Disable NUMA balancing</Label>
+              </div>
+              {([
+                { label: "Default hugepage size", val: editingKernel ? kDefaultHugepageSize : (kern?.memory?.default_hugepage_size ?? ""), set: setKDefaultHugepageSize },
+                { label: "Hugepage size", val: editingKernel ? kHugepageSize : (kern?.memory?.hugepage_size ?? ""), set: setKHugepageSize },
+              ] as { label: string; val: string; set: (v: string) => void }[]).map(({ label, val, set }) => (
+                <div key={label} className="space-y-1">
+                  <Label className="text-xs">{label}</Label>
+                  {editingKernel ? (
+                    <Select value={val || "unset"} onValueChange={(v) => set(v === "unset" ? "" : v)}>
+                      <SelectTrigger><SelectValue placeholder="Not set" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="unset">Not set</SelectItem>
+                        <SelectItem value="2M">2M</SelectItem>
+                        <SelectItem value="1G">1G</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <p className="text-sm font-mono">{val || <span className="text-muted-foreground">Not set</span>}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Resource Limits (1.5 only) */}
+          {features.resource_limits.supported && (
+            <div>
+              <p className="text-xs font-semibold uppercase text-muted-foreground mb-3">Resource Limits</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-xs">Max map count</Label>
+                  {editingKernel ? (
+                    <Input type="number" min="0" value={kMaxMapCount} onChange={(e) => setKMaxMapCount(e.target.value)} placeholder="Default" />
+                  ) : (
+                    <p className="text-sm font-medium">{resLimits?.max_map_count ?? <span className="text-muted-foreground">Default</span>}</p>
+                  )}
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Shared memory max (bytes)</Label>
+                  {editingKernel ? (
+                    <Input type="number" min="0" value={kShmmax} onChange={(e) => setKShmmax(e.target.value)} placeholder="Default" />
+                  ) : (
+                    <p className="text-sm font-medium">{resLimits?.shmmax ?? <span className="text-muted-foreground">Default</span>}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -1438,6 +1764,24 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
             <AlertDialogCancel disabled={deletingArchive}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteArchive} disabled={deletingArchive} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               {deletingArchive ? "Removing…" : "Remove"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete BMP target confirm */}
+      <AlertDialog open={!!deleteBmpTarget} onOpenChange={(o: boolean) => { if (!o) setDeleteBmpTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove BMP Target</AlertDialogTitle>
+            <AlertDialogDescription>
+              Remove BMP target <strong>{deleteBmpTarget?.name}</strong>?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingBmp}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteBmpTarget} disabled={deletingBmp} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {deletingBmp ? "Removing…" : "Remove"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

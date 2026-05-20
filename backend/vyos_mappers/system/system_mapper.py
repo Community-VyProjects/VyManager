@@ -499,6 +499,24 @@ class SystemMapper(BaseFeatureMapper):
     def get_delete_frr_bmp_path(self) -> List[str]:
         return ["system", "frr", "bmp"]
 
+    def get_frr_bmp_target_path(self, name: str) -> List[str]:
+        return ["system", "frr", "bmp", "target", name]
+
+    def get_delete_frr_bmp_target_path(self, name: str) -> List[str]:
+        return ["system", "frr", "bmp", "target", name]
+
+    def get_frr_bmp_target_address_path(self, name: str, address: str) -> List[str]:
+        return ["system", "frr", "bmp", "target", name, "address", address]
+
+    def get_delete_frr_bmp_target_address_path(self, name: str) -> List[str]:
+        return ["system", "frr", "bmp", "target", name, "address"]
+
+    def get_frr_bmp_target_port_path(self, name: str, port: str) -> List[str]:
+        return ["system", "frr", "bmp", "target", name, "port", port]
+
+    def get_delete_frr_bmp_target_port_path(self, name: str) -> List[str]:
+        return ["system", "frr", "bmp", "target", name, "port"]
+
     def get_frr_descriptors_path(self, count: str) -> List[str]:
         return ["system", "frr", "descriptors", count]
 

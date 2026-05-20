@@ -311,8 +311,41 @@ export interface WatchdogConfig {
   reboot_timeout: number | null;
 }
 
+export interface FrrBmpTarget {
+  name: string;
+  address: string | null;
+  port: number | null;
+}
+
 export interface FrrConfig {
   profile: string | null;
+  bmp: { targets: FrrBmpTarget[] } | null;
+}
+
+export interface KernelCpuOptions {
+  disable_nmi_watchdog: boolean;
+  isolate_cpus: string | null;
+  nohz_full: string | null;
+  rcu_no_cbs: string | null;
+}
+
+export interface KernelMemoryOptions {
+  default_hugepage_size: string | null;
+  disable_numa_balancing: boolean;
+  hugepage_size: string | null;
+}
+
+export interface KernelOptions {
+  disable_hpet: boolean;
+  disable_mce: boolean;
+  disable_softlockup: boolean;
+  cpu: KernelCpuOptions | null;
+  memory: KernelMemoryOptions | null;
+}
+
+export interface ResourceLimits {
+  max_map_count: number | null;
+  shmmax: number | null;
 }
 
 export interface SystemOptions {
@@ -324,6 +357,8 @@ export interface SystemOptions {
   reboot_on_panic: boolean;
   root_partition_auto_resize: boolean;
   reboot_on_upgrade_failure: boolean;
+  kernel: KernelOptions | null;
+  resource_limits: ResourceLimits | null;
   http_client: { source_address: string | null; source_interface: string | null } | null;
   ssh_client: { source_address: string | null; source_interface: string | null } | null;
 }
@@ -754,6 +789,17 @@ class SystemSettingsService {
     return this.batch("_", [{ op: "delete_frr_profile" }]);
   }
 
+  async addFrrBmpTarget(name: string, address?: string | null, port?: number | null): Promise<VyOSResponse> {
+    const ops: BatchOp[] = [{ op: "set_frr_bmp_target" }];
+    if (address) ops.push({ op: "set_frr_bmp_target_address", value: address });
+    if (port) ops.push({ op: "set_frr_bmp_target_port", value: String(port) });
+    return this.batch(name, ops);
+  }
+
+  async deleteFrrBmpTarget(name: string): Promise<VyOSResponse> {
+    return this.batch(name, [{ op: "delete_frr_bmp_target" }]);
+  }
+
   // --------------------------------------------------------------------------
   // Console devices
   // --------------------------------------------------------------------------
@@ -1150,6 +1196,57 @@ class SystemSettingsService {
 
   async deleteSflowServer(server: string): Promise<VyOSResponse> {
     return this.batch(server, [{ op: "delete_sflow_server" }]);
+  }
+
+  // --------------------------------------------------------------------------
+  // Kernel Options
+  // --------------------------------------------------------------------------
+
+  async saveKernelOptions(prev: KernelOptions | null, next: {
+    disableHpet: boolean; disableMce: boolean; disableSoftlockup: boolean;
+    disableNmiWatchdog: boolean;
+    isolateCpus: string; nohzFull: string; rcuNoCbs: string;
+    defaultHugepageSize: string; disableNumaBalancing: boolean; hugepageSize: string;
+  }): Promise<VyOSResponse> {
+    const ops: BatchOp[] = [];
+    const p = prev;
+
+    const boolFlag = (cur: boolean, was: boolean, setOp: string, delOp: string) => {
+      if (cur && !was) ops.push({ op: setOp });
+      else if (!cur && was) ops.push({ op: delOp });
+    };
+    const valField = (cur: string, was: string | null | undefined, setOp: string, delOp: string) => {
+      if (cur && cur !== (was ?? "")) ops.push({ op: setOp, value: cur });
+      else if (!cur && was) ops.push({ op: delOp });
+    };
+
+    boolFlag(next.disableHpet, p?.disable_hpet ?? false, "set_option_kernel_disable_hpet", "delete_option_kernel_disable_hpet");
+    boolFlag(next.disableMce, p?.disable_mce ?? false, "set_option_kernel_disable_mce", "delete_option_kernel_disable_mce");
+    boolFlag(next.disableSoftlockup, p?.disable_softlockup ?? false, "set_option_kernel_disable_softlockup", "delete_option_kernel_disable_softlockup");
+    boolFlag(next.disableNmiWatchdog, p?.cpu?.disable_nmi_watchdog ?? false, "set_option_kernel_cpu_disable_nmi_watchdog", "delete_option_kernel_cpu_disable_nmi_watchdog");
+    valField(next.isolateCpus, p?.cpu?.isolate_cpus, "set_option_kernel_cpu_isolate", "delete_option_kernel_cpu_isolate");
+    valField(next.nohzFull, p?.cpu?.nohz_full, "set_option_kernel_cpu_nohz_full", "delete_option_kernel_cpu_nohz_full");
+    valField(next.rcuNoCbs, p?.cpu?.rcu_no_cbs, "set_option_kernel_cpu_rcu_no_cbs", "delete_option_kernel_cpu_rcu_no_cbs");
+    boolFlag(next.disableNumaBalancing, p?.memory?.disable_numa_balancing ?? false, "set_option_kernel_memory_disable_numa_balancing", "delete_option_kernel_memory_disable_numa_balancing");
+    valField(next.defaultHugepageSize, p?.memory?.default_hugepage_size, "set_option_kernel_memory_default_hugepage_size", "delete_option_kernel_memory_default_hugepage_size");
+    valField(next.hugepageSize, p?.memory?.hugepage_size, "set_option_kernel_memory_hugepage_size", "delete_option_kernel_memory_hugepage_size");
+
+    if (ops.length === 0) return { success: true };
+    return this.batch("_", ops);
+  }
+
+  async saveResourceLimits(prev: ResourceLimits | null, next: {
+    maxMapCount: string; shmmax: string;
+  }): Promise<VyOSResponse> {
+    const ops: BatchOp[] = [];
+    const prevMax = prev?.max_map_count ? String(prev.max_map_count) : "";
+    const prevShm = prev?.shmmax ? String(prev.shmmax) : "";
+    if (next.maxMapCount && next.maxMapCount !== prevMax) ops.push({ op: "set_option_resource_limits_max_map_count", value: next.maxMapCount });
+    else if (!next.maxMapCount && prevMax) ops.push({ op: "delete_option_resource_limits_max_map_count" });
+    if (next.shmmax && next.shmmax !== prevShm) ops.push({ op: "set_option_resource_limits_shmmax", value: next.shmmax });
+    else if (!next.shmmax && prevShm) ops.push({ op: "delete_option_resource_limits_shmmax" });
+    if (ops.length === 0) return { success: true };
+    return this.batch("_", ops);
   }
 
   // --------------------------------------------------------------------------
