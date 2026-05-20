@@ -197,6 +197,7 @@ class ConntrackLog(BaseModel):
 
 class ConntrackIgnoreRule(BaseModel):
     rule_id: int
+    ip_version: str = "ipv4"
     protocol: Optional[str] = None
     source_address: Optional[str] = None
     source_port: Optional[str] = None
@@ -243,6 +244,7 @@ class ConntrackTimeoutRuleProtocol(BaseModel):
 
 class ConntrackTimeoutCustomRule(BaseModel):
     rule_id: int
+    ip_version: str = "ipv4"
     protocol: Optional[str] = None
     source_address: Optional[str] = None
     destination_address: Optional[str] = None
@@ -889,23 +891,25 @@ def _parse_conntrack_log(system_config: dict) -> Optional[ConntrackLog]:
 def _parse_conntrack_ignore(system_config: dict) -> List[ConntrackIgnoreRule]:
     ct_raw = system_config.get("conntrack", {}) or {}
     ignore_raw = ct_raw.get("ignore", {}) or {}
-    rules_raw = ignore_raw.get("rule", {}) or {}
     rules = []
-    if isinstance(rules_raw, dict):
-        for rule_id_str, rule_cfg in sorted(rules_raw.items(), key=lambda x: int(x[0])):
-            if rule_cfg is None:
-                rule_cfg = {}
-            src_raw = rule_cfg.get("source", {}) or {}
-            dst_raw = rule_cfg.get("destination", {}) or {}
-            rules.append(ConntrackIgnoreRule(
-                rule_id=int(rule_id_str),
-                protocol=rule_cfg.get("protocol"),
-                source_address=src_raw.get("address"),
-                source_port=str(src_raw["port"]) if src_raw.get("port") else None,
-                destination_address=dst_raw.get("address"),
-                destination_port=str(dst_raw["port"]) if dst_raw.get("port") else None,
-                inbound_interface=rule_cfg.get("inbound-interface"),
-            ))
+    for ip_version in ("ipv4", "ipv6"):
+        rules_raw = (ignore_raw.get(ip_version, {}) or {}).get("rule", {}) or {}
+        if isinstance(rules_raw, dict):
+            for rule_id_str, rule_cfg in sorted(rules_raw.items(), key=lambda x: int(x[0])):
+                if rule_cfg is None:
+                    rule_cfg = {}
+                src_raw = rule_cfg.get("source", {}) or {}
+                dst_raw = rule_cfg.get("destination", {}) or {}
+                rules.append(ConntrackIgnoreRule(
+                    rule_id=int(rule_id_str),
+                    ip_version=ip_version,
+                    protocol=rule_cfg.get("protocol"),
+                    source_address=src_raw.get("address"),
+                    source_port=str(src_raw["port"]) if src_raw.get("port") else None,
+                    destination_address=dst_raw.get("address"),
+                    destination_port=str(dst_raw["port"]) if dst_raw.get("port") else None,
+                    inbound_interface=rule_cfg.get("inbound-interface"),
+                ))
     return rules
 
 
@@ -946,40 +950,42 @@ def _parse_conntrack_timeout_custom(system_config: dict) -> List[ConntrackTimeou
     ct_raw = system_config.get("conntrack", {}) or {}
     timeout_raw = ct_raw.get("timeout", {}) or {}
     custom_raw = timeout_raw.get("custom", {}) or {}
-    rules_raw = custom_raw.get("rule", {}) or {}
     rules = []
-    if isinstance(rules_raw, dict):
-        for rule_id_str, rule_cfg in sorted(rules_raw.items(), key=lambda x: int(x[0])):
-            if rule_cfg is None:
-                rule_cfg = {}
-            protocol_raw = rule_cfg.get("protocol", {}) or {}
-            tcp_raw = protocol_raw.get("tcp", {}) or {}
-            udp_raw = protocol_raw.get("udp", {}) or {}
-            src_raw = rule_cfg.get("source", {}) or {}
-            dst_raw = rule_cfg.get("destination", {}) or {}
-            protocol = next(iter(protocol_raw)) if protocol_raw else None
-            tcp = ConntrackTimeoutRuleProtocol(
-                close=int(tcp_raw["close"]) if tcp_raw.get("close") else None,
-                close_wait=int(tcp_raw["close-wait"]) if tcp_raw.get("close-wait") else None,
-                established=int(tcp_raw["established"]) if tcp_raw.get("established") else None,
-                fin_wait=int(tcp_raw["fin-wait"]) if tcp_raw.get("fin-wait") else None,
-                last_ack=int(tcp_raw["last-ack"]) if tcp_raw.get("last-ack") else None,
-                syn_recv=int(tcp_raw["syn-recv"]) if tcp_raw.get("syn-recv") else None,
-                syn_sent=int(tcp_raw["syn-sent"]) if tcp_raw.get("syn-sent") else None,
-                time_wait=int(tcp_raw["time-wait"]) if tcp_raw.get("time-wait") else None,
-            ) if tcp_raw else None
-            udp = ConntrackTimeoutRuleProtocol(
-                other=int(udp_raw["other"]) if udp_raw.get("other") else None,
-                stream=int(udp_raw["stream"]) if udp_raw.get("stream") else None,
-            ) if udp_raw else None
-            rules.append(ConntrackTimeoutCustomRule(
-                rule_id=int(rule_id_str),
-                protocol=protocol,
-                source_address=src_raw.get("address"),
-                destination_address=dst_raw.get("address"),
-                tcp=tcp,
-                udp=udp,
-            ))
+    for ip_version in ("ipv4", "ipv6"):
+        rules_raw = (custom_raw.get(ip_version, {}) or {}).get("rule", {}) or {}
+        if isinstance(rules_raw, dict):
+            for rule_id_str, rule_cfg in sorted(rules_raw.items(), key=lambda x: int(x[0])):
+                if rule_cfg is None:
+                    rule_cfg = {}
+                protocol_raw = rule_cfg.get("protocol", {}) or {}
+                tcp_raw = protocol_raw.get("tcp", {}) or {}
+                udp_raw = protocol_raw.get("udp", {}) or {}
+                src_raw = rule_cfg.get("source", {}) or {}
+                dst_raw = rule_cfg.get("destination", {}) or {}
+                protocol = next(iter(protocol_raw)) if protocol_raw else None
+                tcp = ConntrackTimeoutRuleProtocol(
+                    close=int(tcp_raw["close"]) if tcp_raw.get("close") else None,
+                    close_wait=int(tcp_raw["close-wait"]) if tcp_raw.get("close-wait") else None,
+                    established=int(tcp_raw["established"]) if tcp_raw.get("established") else None,
+                    fin_wait=int(tcp_raw["fin-wait"]) if tcp_raw.get("fin-wait") else None,
+                    last_ack=int(tcp_raw["last-ack"]) if tcp_raw.get("last-ack") else None,
+                    syn_recv=int(tcp_raw["syn-recv"]) if tcp_raw.get("syn-recv") else None,
+                    syn_sent=int(tcp_raw["syn-sent"]) if tcp_raw.get("syn-sent") else None,
+                    time_wait=int(tcp_raw["time-wait"]) if tcp_raw.get("time-wait") else None,
+                ) if tcp_raw else None
+                udp = ConntrackTimeoutRuleProtocol(
+                    other=int(udp_raw["other"]) if udp_raw.get("other") else None,
+                    stream=int(udp_raw["stream"]) if udp_raw.get("stream") else None,
+                ) if udp_raw else None
+                rules.append(ConntrackTimeoutCustomRule(
+                    rule_id=int(rule_id_str),
+                    ip_version=ip_version,
+                    protocol=protocol,
+                    source_address=src_raw.get("address"),
+                    destination_address=dst_raw.get("address"),
+                    tcp=tcp,
+                    udp=udp,
+                ))
     return rules
 
 

@@ -158,6 +158,30 @@ export interface Ipv6Settings {
   neighbor_table_size: number | null;
 }
 
+export interface ConntrackIgnoreRule {
+  rule_id: number;
+  ip_version: string;
+  protocol: string | null;
+  source_address: string | null;
+  source_port: string | null;
+  destination_address: string | null;
+  destination_port: string | null;
+  inbound_interface: string | null;
+}
+
+export interface ConntrackTimeoutRuleProtocol {
+  close: number | null;
+  close_wait: number | null;
+  established: number | null;
+  fin_wait: number | null;
+  last_ack: number | null;
+  syn_recv: number | null;
+  syn_sent: number | null;
+  time_wait: number | null;
+  other: number | null;
+  stream: number | null;
+}
+
 export interface ConntrackLogEntry {
   event: string;
   protocol: string;
@@ -192,11 +216,12 @@ export interface ConntrackGlobalTimeouts {
 
 export interface ConntrackTimeoutCustomRule {
   rule_id: number;
+  ip_version: string;
   protocol: string | null;
   source_address: string | null;
   destination_address: string | null;
-  tcp: { established: number | null; close: number | null } | null;
-  udp: { stream: number | null; other: number | null } | null;
+  tcp: ConntrackTimeoutRuleProtocol | null;
+  udp: ConntrackTimeoutRuleProtocol | null;
 }
 
 export interface NetflowServer {
@@ -329,6 +354,7 @@ export interface SystemConfig {
   syslog_marker: SyslogMarker | null;
   conntrack: ConntrackConfig;
   conntrack_log: ConntrackLog | null;
+  conntrack_ignore: ConntrackIgnoreRule[];
   conntrack_global_timeouts: ConntrackGlobalTimeouts | null;
   conntrack_timeout_custom: ConntrackTimeoutCustomRule[];
   ip: IpSettings | null;
@@ -1080,6 +1106,160 @@ class SystemSettingsService {
 
   async deleteTask(name: string): Promise<VyOSResponse> {
     return this.batch(name, [{ op: "delete_task_scheduler_task" }]);
+  }
+
+  // --------------------------------------------------------------------------
+  // Conntrack Ignore Rules
+  // --------------------------------------------------------------------------
+
+  async createIgnoreRule(
+    ipVersion: string,
+    ruleId: number,
+    opts: {
+      protocol?: string;
+      srcAddress?: string;
+      srcPort?: string;
+      dstAddress?: string;
+      dstPort?: string;
+      inboundInterface?: string;
+    } = {},
+  ): Promise<VyOSResponse> {
+    const ruleStr = String(ruleId);
+    const ops: BatchOp[] = [{ op: "set_conntrack_ignore_rule", value: ruleStr }];
+    if (opts.protocol) ops.push({ op: "set_conntrack_ignore_rule_protocol", value: `${ruleStr},${opts.protocol}` });
+    if (opts.srcAddress) ops.push({ op: "set_conntrack_ignore_rule_src_address", value: `${ruleStr},${opts.srcAddress}` });
+    if (opts.srcPort) ops.push({ op: "set_conntrack_ignore_rule_src_port", value: `${ruleStr},${opts.srcPort}` });
+    if (opts.dstAddress) ops.push({ op: "set_conntrack_ignore_rule_dst_address", value: `${ruleStr},${opts.dstAddress}` });
+    if (opts.dstPort) ops.push({ op: "set_conntrack_ignore_rule_dst_port", value: `${ruleStr},${opts.dstPort}` });
+    if (opts.inboundInterface) ops.push({ op: "set_conntrack_ignore_rule_inbound_interface", value: `${ruleStr},${opts.inboundInterface}` });
+    return this.batch(ipVersion, ops);
+  }
+
+  async deleteIgnoreRuleAndRenumber(
+    ipVersion: string,
+    ruleId: number,
+    allRules: ConntrackIgnoreRule[],
+  ): Promise<VyOSResponse> {
+    const sorted = allRules
+      .filter((r) => r.ip_version === ipVersion)
+      .sort((a, b) => a.rule_id - b.rule_id);
+    const ops: BatchOp[] = [{ op: "delete_conntrack_ignore_rule", value: String(ruleId) }];
+    for (const r of sorted) {
+      if (r.rule_id > ruleId) {
+        const newId = r.rule_id - 1;
+        ops.push({ op: "delete_conntrack_ignore_rule", value: String(r.rule_id) });
+        ops.push({ op: "set_conntrack_ignore_rule", value: String(newId) });
+        if (r.protocol) ops.push({ op: "set_conntrack_ignore_rule_protocol", value: `${newId},${r.protocol}` });
+        if (r.source_address) ops.push({ op: "set_conntrack_ignore_rule_src_address", value: `${newId},${r.source_address}` });
+        if (r.source_port) ops.push({ op: "set_conntrack_ignore_rule_src_port", value: `${newId},${r.source_port}` });
+        if (r.destination_address) ops.push({ op: "set_conntrack_ignore_rule_dst_address", value: `${newId},${r.destination_address}` });
+        if (r.destination_port) ops.push({ op: "set_conntrack_ignore_rule_dst_port", value: `${newId},${r.destination_port}` });
+        if (r.inbound_interface) ops.push({ op: "set_conntrack_ignore_rule_inbound_interface", value: `${newId},${r.inbound_interface}` });
+      }
+    }
+    return this.batch(ipVersion, ops);
+  }
+
+  // --------------------------------------------------------------------------
+  // Conntrack Custom Timeout Rules
+  // --------------------------------------------------------------------------
+
+  async createTimeoutCustomRule(
+    ipVersion: string,
+    ruleId: number,
+    opts: {
+      srcAddress?: string;
+      dstAddress?: string;
+      tcpStates?: Partial<Record<string, number>>;
+      udpStates?: Partial<Record<string, number>>;
+    } = {},
+  ): Promise<VyOSResponse> {
+    const ruleStr = String(ruleId);
+    const ops: BatchOp[] = [{ op: "set_conntrack_timeout_custom_rule", value: ruleStr }];
+    if (opts.srcAddress) ops.push({ op: "set_conntrack_timeout_custom_rule_src_address", value: `${ruleStr},${opts.srcAddress}` });
+    if (opts.dstAddress) ops.push({ op: "set_conntrack_timeout_custom_rule_dst_address", value: `${ruleStr},${opts.dstAddress}` });
+    for (const [state, val] of Object.entries(opts.tcpStates ?? {})) {
+      if (val != null) ops.push({ op: "set_conntrack_timeout_custom_rule_tcp_state", value: `${ruleStr},${state},${val}` });
+    }
+    for (const [subtype, val] of Object.entries(opts.udpStates ?? {})) {
+      if (val != null) ops.push({ op: "set_conntrack_timeout_custom_rule_udp_state", value: `${ruleStr},${subtype},${val}` });
+    }
+    return this.batch(ipVersion, ops);
+  }
+
+  async deleteTimeoutCustomRuleAndRenumber(
+    ipVersion: string,
+    ruleId: number,
+    allRules: ConntrackTimeoutCustomRule[],
+  ): Promise<VyOSResponse> {
+    const sorted = allRules
+      .filter((r) => r.ip_version === ipVersion)
+      .sort((a, b) => a.rule_id - b.rule_id);
+    const ops: BatchOp[] = [{ op: "delete_conntrack_timeout_custom_rule", value: String(ruleId) }];
+    for (const r of sorted) {
+      if (r.rule_id > ruleId) {
+        const newId = r.rule_id - 1;
+        ops.push({ op: "delete_conntrack_timeout_custom_rule", value: String(r.rule_id) });
+        ops.push({ op: "set_conntrack_timeout_custom_rule", value: String(newId) });
+        if (r.source_address) ops.push({ op: "set_conntrack_timeout_custom_rule_src_address", value: `${newId},${r.source_address}` });
+        if (r.destination_address) ops.push({ op: "set_conntrack_timeout_custom_rule_dst_address", value: `${newId},${r.destination_address}` });
+        if (r.tcp) {
+          for (const [state, val] of Object.entries(r.tcp)) {
+            if (val != null) ops.push({ op: "set_conntrack_timeout_custom_rule_tcp_state", value: `${newId},${state},${val}` });
+          }
+        }
+        if (r.udp) {
+          for (const [subtype, val] of Object.entries(r.udp)) {
+            if (val != null) ops.push({ op: "set_conntrack_timeout_custom_rule_udp_state", value: `${newId},${subtype},${val}` });
+          }
+        }
+      }
+    }
+    return this.batch(ipVersion, ops);
+  }
+
+  async reorderIgnoreRules(ipVersion: string, rules: ConntrackIgnoreRule[]): Promise<VyOSResponse> {
+    if (rules.length === 0) return { success: true };
+    const ops: BatchOp[] = [];
+    for (const r of rules) {
+      ops.push({ op: "delete_conntrack_ignore_rule", value: String(r.rule_id) });
+    }
+    rules.forEach((r, idx) => {
+      const newId = idx + 1;
+      ops.push({ op: "set_conntrack_ignore_rule", value: String(newId) });
+      if (r.protocol) ops.push({ op: "set_conntrack_ignore_rule_protocol", value: `${newId},${r.protocol}` });
+      if (r.source_address) ops.push({ op: "set_conntrack_ignore_rule_src_address", value: `${newId},${r.source_address}` });
+      if (r.source_port) ops.push({ op: "set_conntrack_ignore_rule_src_port", value: `${newId},${r.source_port}` });
+      if (r.destination_address) ops.push({ op: "set_conntrack_ignore_rule_dst_address", value: `${newId},${r.destination_address}` });
+      if (r.destination_port) ops.push({ op: "set_conntrack_ignore_rule_dst_port", value: `${newId},${r.destination_port}` });
+      if (r.inbound_interface) ops.push({ op: "set_conntrack_ignore_rule_inbound_interface", value: `${newId},${r.inbound_interface}` });
+    });
+    return this.batch(ipVersion, ops);
+  }
+
+  async reorderTimeoutCustomRules(ipVersion: string, rules: ConntrackTimeoutCustomRule[]): Promise<VyOSResponse> {
+    if (rules.length === 0) return { success: true };
+    const ops: BatchOp[] = [];
+    for (const r of rules) {
+      ops.push({ op: "delete_conntrack_timeout_custom_rule", value: String(r.rule_id) });
+    }
+    rules.forEach((r, idx) => {
+      const newId = idx + 1;
+      ops.push({ op: "set_conntrack_timeout_custom_rule", value: String(newId) });
+      if (r.source_address) ops.push({ op: "set_conntrack_timeout_custom_rule_src_address", value: `${newId},${r.source_address}` });
+      if (r.destination_address) ops.push({ op: "set_conntrack_timeout_custom_rule_dst_address", value: `${newId},${r.destination_address}` });
+      if (r.tcp) {
+        for (const [state, val] of Object.entries(r.tcp)) {
+          if (val != null) ops.push({ op: "set_conntrack_timeout_custom_rule_tcp_state", value: `${newId},${state},${val}` });
+        }
+      }
+      if (r.udp) {
+        for (const [subtype, val] of Object.entries(r.udp)) {
+          if (val != null) ops.push({ op: "set_conntrack_timeout_custom_rule_udp_state", value: `${newId},${subtype},${val}` });
+        }
+      }
+    });
+    return this.batch(ipVersion, ops);
   }
 
   async updateTask(
