@@ -13,3 +13,4 @@ passlib==1.7.4
 email-validator==2.3.0
 asyncssh==2.22.0
 cryptography==46.0.7
+tzdata==2026.2
