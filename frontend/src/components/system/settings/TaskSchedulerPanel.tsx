@@ -53,14 +53,6 @@ interface Props {
   onRefresh: () => void;
 }
 
-const EMPTY_TASK: Omit<TaskSchedulerTask, "name"> & { name: string } = {
-  name: "",
-  crontab_spec: null,
-  interval: null,
-  executable_path: null,
-  executable_arguments: null,
-};
-
 export function TaskSchedulerPanel({ config, capabilities: _cap, isReadOnly, onRefresh }: Props) {
   const { toast } = useToast();
 
