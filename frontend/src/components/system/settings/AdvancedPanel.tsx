@@ -1005,9 +1005,9 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
         </Card>
       )}
 
-      {/* Watchdog / Wireless / FRR — small cards in a responsive grid */}
-      {(features.watchdog.supported || features.wireless.supported || features.frr_profile.supported) && (
-        <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+      {/* Watchdog / Wireless — small cards in a responsive grid */}
+      {(features.watchdog.supported || features.wireless.supported) && (
+        <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
           {features.watchdog.supported && (
             <Card className="flex flex-col">
               <CardHeader>
@@ -1097,111 +1097,113 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
             </Card>
           )}
 
-          {features.frr_profile.supported && (
-            <Card className="flex flex-col md:col-span-2 xl:col-span-1">
-              <CardHeader>
-                <CardTitle>FRR</CardTitle>
-                <CardDescription>FRRouting configuration profile and BMP monitoring targets.</CardDescription>
-              </CardHeader>
-              <CardContent className="flex-1 space-y-4">
-                <div className="space-y-2">
-                  <Label>Profile</Label>
-                  <div className="flex gap-2">
-                    <Select value={frrProfile || "unset"} onValueChange={(v) => setFrrProfile(v === "unset" ? "" : v)} disabled={isReadOnly}>
-                      <SelectTrigger className="flex-1">
-                        <SelectValue placeholder="Not set" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="unset">Not set</SelectItem>
-                        {FRR_PROFILES.map((p) => (
-                          <SelectItem key={p} value={p}>{p}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {!isReadOnly && (
-                      <Button size="sm" onClick={handleSaveFrr} disabled={frrSaving}>
-                        {frrSaving ? "Saving…" : "Save"}
-                      </Button>
-                    )}
-                  </div>
-                </div>
+        </div>
+      )}
 
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label>BMP Targets</Label>
-                    {!isReadOnly && !addingBmpTarget && (
-                      <Button size="sm" variant="outline" onClick={() => { setBmpName(""); setBmpAddress(""); setBmpPort(""); setBmpError(null); setAddingBmpTarget(true); }}>
-                        <Plus className="h-4 w-4 mr-1" />Add
-                      </Button>
-                    )}
-                  </div>
+      {/* FRR */}
+      {features.frr_profile.supported && (
+        <Card>
+          <CardHeader>
+            <CardTitle>FRR</CardTitle>
+            <CardDescription>FRRouting configuration profile and BMP monitoring targets.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-2 max-w-xs">
+              <Label>Profile</Label>
+              <div className="flex gap-2">
+                <Select value={frrProfile || "unset"} onValueChange={(v) => setFrrProfile(v === "unset" ? "" : v)} disabled={isReadOnly}>
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="Not set" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unset">Not set</SelectItem>
+                    {FRR_PROFILES.map((p) => (
+                      <SelectItem key={p} value={p}>{p}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {!isReadOnly && (
+                  <Button size="sm" onClick={handleSaveFrr} disabled={frrSaving}>
+                    {frrSaving ? "Saving…" : "Save"}
+                  </Button>
+                )}
+              </div>
+            </div>
 
-                  {addingBmpTarget && (
-                    <div className="rounded-lg border p-3 space-y-3 bg-muted/30">
-                      {bmpError && (
-                        <div className="rounded border border-destructive/20 bg-destructive/10 p-2">
-                          <div className="flex items-start gap-2">
-                            <AlertCircle className="h-4 w-4 text-destructive mt-0.5 flex-shrink-0" />
-                            <pre className="text-xs text-destructive whitespace-pre-wrap font-mono">{bmpError}</pre>
-                          </div>
-                        </div>
-                      )}
-                      <div className="grid grid-cols-3 gap-2">
-                        <div className="space-y-1">
-                          <Label className="text-xs">Name</Label>
-                          <Input value={bmpName} onChange={(e) => setBmpName(e.target.value)} placeholder="my-target" className="text-sm" />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs">Address</Label>
-                          <Input value={bmpAddress} onChange={(e) => setBmpAddress(e.target.value)} placeholder="10.0.0.1" className="font-mono text-sm" />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs">Port</Label>
-                          <Input type="number" value={bmpPort} onChange={(e) => setBmpPort(e.target.value)} placeholder="11019" className="text-sm" />
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button size="sm" onClick={handleAddBmpTarget} disabled={bmpSaving}>{bmpSaving ? "Adding…" : "Add"}</Button>
-                        <Button size="sm" variant="outline" onClick={() => { setAddingBmpTarget(false); setBmpError(null); }}>Cancel</Button>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium">BMP Targets</p>
+                {!isReadOnly && !addingBmpTarget && (
+                  <Button size="sm" variant="outline" onClick={() => { setBmpName(""); setBmpAddress(""); setBmpPort(""); setBmpError(null); setAddingBmpTarget(true); }}>
+                    <Plus className="h-4 w-4 mr-1" />Add Target
+                  </Button>
+                )}
+              </div>
+
+              {addingBmpTarget && (
+                <div className="rounded-lg border p-4 space-y-3 bg-muted/30">
+                  {bmpError && (
+                    <div className="rounded border border-destructive/20 bg-destructive/10 p-2">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="h-4 w-4 text-destructive mt-0.5 flex-shrink-0" />
+                        <pre className="text-xs text-destructive whitespace-pre-wrap font-mono">{bmpError}</pre>
                       </div>
                     </div>
                   )}
-
-                  {(config.frr?.bmp?.targets ?? []).length === 0 && !addingBmpTarget ? (
-                    <p className="text-sm text-muted-foreground">No BMP targets configured.</p>
-                  ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Address</TableHead>
-                          <TableHead>Port</TableHead>
-                          {!isReadOnly && <TableHead className="text-right">Actions</TableHead>}
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {(config.frr?.bmp?.targets ?? []).map((t) => (
-                          <TableRow key={t.name}>
-                            <TableCell className="font-medium">{t.name}</TableCell>
-                            <TableCell className="font-mono text-sm">{t.address ?? <span className="text-muted-foreground">—</span>}</TableCell>
-                            <TableCell>{t.port ?? <span className="text-muted-foreground">—</span>}</TableCell>
-                            {!isReadOnly && (
-                              <TableCell className="text-right">
-                                <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteBmpTarget(t)}>
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </TableCell>
-                            )}
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  )}
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Name</Label>
+                      <Input value={bmpName} onChange={(e) => setBmpName(e.target.value)} placeholder="my-target" className="text-sm" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Address</Label>
+                      <Input value={bmpAddress} onChange={(e) => setBmpAddress(e.target.value)} placeholder="10.0.0.1" className="font-mono text-sm" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Port</Label>
+                      <Input type="number" value={bmpPort} onChange={(e) => setBmpPort(e.target.value)} placeholder="11019" className="text-sm" />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={handleAddBmpTarget} disabled={bmpSaving}>{bmpSaving ? "Adding…" : "Add"}</Button>
+                    <Button size="sm" variant="outline" onClick={() => { setAddingBmpTarget(false); setBmpError(null); }}>Cancel</Button>
+                  </div>
                 </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+              )}
+
+              {(config.frr?.bmp?.targets ?? []).length === 0 && !addingBmpTarget ? (
+                <p className="text-sm text-muted-foreground">No BMP targets configured.</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Address</TableHead>
+                      <TableHead>Port</TableHead>
+                      {!isReadOnly && <TableHead className="text-right">Actions</TableHead>}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(config.frr?.bmp?.targets ?? []).map((t) => (
+                      <TableRow key={t.name}>
+                        <TableCell className="font-medium">{t.name}</TableCell>
+                        <TableCell className="font-mono text-sm">{t.address ?? <span className="text-muted-foreground">—</span>}</TableCell>
+                        <TableCell>{t.port ?? <span className="text-muted-foreground">—</span>}</TableCell>
+                        {!isReadOnly && (
+                          <TableCell className="text-right">
+                            <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteBmpTarget(t)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* System Options */}
