@@ -41,7 +41,7 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
   const [description, setDescription] = useState("");
 
   // Source fields
-  const [sourceType, setSourceType] = useState<"address" | "group">("address");
+  const [sourceType, setSourceType] = useState<"address" | "group" | "fqdn">("address");
   const [sourceAddress, setSourceAddress] = useState("");
   const [sourceInvert, setSourceInvert] = useState(false);
   const [sourcePort, setSourcePort] = useState("");
@@ -53,7 +53,7 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
   const [sourcePortGroupName, setSourcePortGroupName] = useState("");
 
   // Destination fields
-  const [destinationType, setDestinationType] = useState<"address" | "group">("address");
+  const [destinationType, setDestinationType] = useState<"address" | "group" | "fqdn">("address");
   const [destinationAddress, setDestinationAddress] = useState("");
   const [destinationInvert, setDestinationInvert] = useState(false);
   const [destinationPort, setDestinationPort] = useState("");
@@ -77,11 +77,18 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
   // Translation
   const [translationAddress, setTranslationAddress] = useState("");
   const [translationPort, setTranslationPort] = useState("");
+  const [translationPortMapping, setTranslationPortMapping] = useState(false);
+  const [translationAddressMapping, setTranslationAddressMapping] = useState(false);
 
   // Load balance
   const [loadBalancingEnabled, setLoadBalancingEnabled] = useState(false);
   const [loadBalanceHash, setLoadBalanceHash] = useState("");
   const [loadBalanceBackend, setLoadBalanceBackend] = useState("");
+  const [loadBalanceBackendWeight, setLoadBalanceBackendWeight] = useState("");
+
+  // FQDN
+  const [sourceFqdn, setSourceFqdn] = useState("");
+  const [destinationFqdn, setDestinationFqdn] = useState("");
 
   // Flags
   const [disable, setDisable] = useState(false);
@@ -92,12 +99,16 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
   const [originalSourceAddress, setOriginalSourceAddress] = useState("");
   const [originalSourcePort, setOriginalSourcePort] = useState("");
   const [originalSourceGroup, setOriginalSourceGroup] = useState(false);
+  const [originalSourceFqdn, setOriginalSourceFqdn] = useState("");
   const [originalDestinationAddress, setOriginalDestinationAddress] = useState("");
   const [originalDestinationPort, setOriginalDestinationPort] = useState("");
   const [originalDestinationGroup, setOriginalDestinationGroup] = useState(false);
+  const [originalDestinationFqdn, setOriginalDestinationFqdn] = useState("");
   const [originalInboundInterfaceType, setOriginalInboundInterfaceType] = useState<"name" | "group" | null>(null);
   const [originalSourcePortGroup, setOriginalSourcePortGroup] = useState(false);
   const [originalDestPortGroup, setOriginalDestPortGroup] = useState(false);
+  const [originalTranslationPortMapping, setOriginalTranslationPortMapping] = useState(false);
+  const [originalTranslationAddressMapping, setOriginalTranslationAddressMapping] = useState(false);
 
   // Reset all form fields to defaults
   const resetForm = () => {
@@ -122,9 +133,14 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
     setPacketType("");
     setTranslationAddress("");
     setTranslationPort("");
+    setTranslationPortMapping(false);
+    setTranslationAddressMapping(false);
     setLoadBalancingEnabled(false);
     setLoadBalanceHash("");
     setLoadBalanceBackend("");
+    setLoadBalanceBackendWeight("");
+    setSourceFqdn("");
+    setDestinationFqdn("");
     setDisable(false);
     setExclude(false);
     setLog(false);
@@ -132,9 +148,11 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
     setOriginalSourceAddress("");
     setOriginalSourcePort("");
     setOriginalSourceGroup(false);
+    setOriginalSourceFqdn("");
     setOriginalDestinationAddress("");
     setOriginalDestinationPort("");
     setOriginalDestinationGroup(false);
+    setOriginalDestinationFqdn("");
     setOriginalInboundInterfaceType(null);
     setSourcePortType("input");
     setSourcePortGroupName("");
@@ -142,6 +160,8 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
     setDestPortGroupName("");
     setOriginalSourcePortGroup(false);
     setOriginalDestPortGroup(false);
+    setOriginalTranslationPortMapping(false);
+    setOriginalTranslationAddressMapping(false);
     setError(null);
   };
 
@@ -199,6 +219,11 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
         setSourceGroupName(srcGrpInverted ? name.substring(1) : name);
         setOriginalSourceGroup(true);
       }
+    } else if (rule.source?.fqdn) {
+      setSourceType("fqdn");
+      setSourceFqdn(rule.source.fqdn);
+      setOriginalSourceFqdn(rule.source.fqdn);
+      setSourceInvert(false);
     } else {
       setSourceInvert(false);
       setOriginalSourceAddress("");
@@ -237,6 +262,11 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
         setDestinationGroupName(dstGrpInverted ? name.substring(1) : name);
         setOriginalDestinationGroup(true);
       }
+    } else if (rule.destination?.fqdn) {
+      setDestinationType("fqdn");
+      setDestinationFqdn(rule.destination.fqdn);
+      setOriginalDestinationFqdn(rule.destination.fqdn);
+      setDestinationInvert(false);
     } else {
       setDestinationInvert(false);
       setOriginalDestinationAddress("");
@@ -284,12 +314,19 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
     // Translation
     setTranslationAddress(rule.translation?.address || "");
     setTranslationPort(rule.translation?.port || "");
+    const pm = rule.translation?.options?.port_mapping === "random";
+    setTranslationPortMapping(pm);
+    setOriginalTranslationPortMapping(pm);
+    const am = rule.translation?.options?.address_mapping === "persistent";
+    setTranslationAddressMapping(am);
+    setOriginalTranslationAddressMapping(am);
 
     // Load balance
     const hasLoadBalancing = !!(rule.load_balance?.hash || rule.load_balance?.backends?.[0]);
     setLoadBalancingEnabled(hasLoadBalancing);
     setLoadBalanceHash(rule.load_balance?.hash || "");
     setLoadBalanceBackend(rule.load_balance?.backends?.[0]?.name || "");
+    setLoadBalanceBackendWeight(rule.load_balance?.backends?.[0]?.weight || "");
 
     // Flags
     setDisable(rule.disable);
@@ -404,6 +441,9 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
         if (originalSourceGroup) {
           config.delete_source_group = true;
         }
+        if (originalSourceFqdn) {
+          config.delete_source_fqdn = true;
+        }
       } else if (sourceType === "group") {
         if (sourceGroupType && sourceGroupName) {
           config.source_group_type = sourceGroupType;
@@ -417,6 +457,17 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
         if (originalSourceAddress) {
           config.delete_source_address = true;
         }
+        if (originalSourceFqdn) {
+          config.delete_source_fqdn = true;
+        }
+      } else if (sourceType === "fqdn") {
+        if (sourceFqdn.trim()) {
+          config.source_fqdn = sourceFqdn.trim();
+        } else if (originalSourceFqdn) {
+          config.delete_source_fqdn = true;
+        }
+        if (originalSourceAddress) config.delete_source_address = true;
+        if (originalSourceGroup) config.delete_source_group = true;
       }
 
       if (sourcePortType === "input") {
@@ -450,6 +501,9 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
         if (originalDestinationGroup) {
           config.delete_destination_group = true;
         }
+        if (originalDestinationFqdn) {
+          config.delete_destination_fqdn = true;
+        }
       } else if (destinationType === "group") {
         if (destinationGroupType && destinationGroupName) {
           config.destination_group_type = destinationGroupType;
@@ -463,6 +517,17 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
         if (originalDestinationAddress) {
           config.delete_destination_address = true;
         }
+        if (originalDestinationFqdn) {
+          config.delete_destination_fqdn = true;
+        }
+      } else if (destinationType === "fqdn") {
+        if (destinationFqdn.trim()) {
+          config.destination_fqdn = destinationFqdn.trim();
+        } else if (originalDestinationFqdn) {
+          config.delete_destination_fqdn = true;
+        }
+        if (originalDestinationAddress) config.delete_destination_address = true;
+        if (originalDestinationGroup) config.delete_destination_group = true;
       }
 
       if (destPortType === "input") {
@@ -521,6 +586,18 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
         config.translation_port = translationPort.trim();
       }
 
+      if (!translationPortMapping && originalTranslationPortMapping) {
+        config.delete_translation_port_mapping = true;
+      } else if (translationPortMapping) {
+        config.translation_port_mapping = true;
+      }
+
+      if (!translationAddressMapping && originalTranslationAddressMapping) {
+        config.delete_translation_address_mapping = true;
+      } else if (translationAddressMapping) {
+        config.translation_address_mapping = true;
+      }
+
       // Load balance
       if (loadBalancingEnabled) {
         if (loadBalanceHash) {
@@ -528,6 +605,9 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
         }
         if (loadBalanceBackend.trim()) {
           config.load_balance_backend = loadBalanceBackend.trim();
+        }
+        if (loadBalanceBackendWeight.trim()) {
+          config.load_balance_backend_weight = loadBalanceBackendWeight.trim();
         }
       }
 
@@ -683,6 +763,42 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
                 </div>
               </div>
 
+              {/* Translation Options */}
+              <div className="space-y-2">
+                <div className="flex items-start space-x-2">
+                  <Checkbox
+                    id="translation-port-mapping"
+                    checked={translationPortMapping}
+                    onCheckedChange={(checked) => setTranslationPortMapping(checked === true)}
+                    className="mt-1"
+                  />
+                  <div className="space-y-1">
+                    <Label htmlFor="translation-port-mapping" className="text-sm font-medium cursor-pointer">
+                      Randomize source port (port-mapping random)
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Randomizes the outbound source port for privacy and security
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-2">
+                  <Checkbox
+                    id="translation-address-mapping"
+                    checked={translationAddressMapping}
+                    onCheckedChange={(checked) => setTranslationAddressMapping(checked === true)}
+                    className="mt-1"
+                  />
+                  <div className="space-y-1">
+                    <Label htmlFor="translation-address-mapping" className="text-sm font-medium cursor-pointer">
+                      Persistent address mapping
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      The same internal IP always maps to the same external IP
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               {/* Protocol */}
               <div className="space-y-2">
                 <Label htmlFor="protocol">Protocol</Label>
@@ -772,7 +888,7 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
             <TabsContent value="source" className="space-y-4">
               <div className="space-y-2">
                 <Label>Source Type</Label>
-                <RadioGroup value={sourceType} onValueChange={(v) => setSourceType(v as "address" | "group")}>
+                <RadioGroup value={sourceType} onValueChange={(v) => setSourceType(v as "address" | "group" | "fqdn")}>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="address" id="source-address" />
                     <Label htmlFor="source-address">Address/Network</Label>
@@ -780,6 +896,10 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="group" id="source-group" />
                     <Label htmlFor="source-group">Firewall Group</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="fqdn" id="source-fqdn" />
+                    <Label htmlFor="source-fqdn">FQDN</Label>
                   </div>
                 </RadioGroup>
               </div>
@@ -792,6 +912,17 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
                     value={sourceAddress}
                     onChange={(e) => setSourceAddress(e.target.value)}
                     placeholder="e.g., 192.168.1.0/24 or 10.0.0.1"
+                    className="font-mono"
+                  />
+                </div>
+              ) : sourceType === "fqdn" ? (
+                <div className="space-y-2">
+                  <Label htmlFor="source-fqdn-input">Source FQDN</Label>
+                  <Input
+                    id="source-fqdn-input"
+                    value={sourceFqdn}
+                    onChange={(e) => setSourceFqdn(e.target.value)}
+                    placeholder="e.g., example.com"
                     className="font-mono"
                   />
                 </div>
@@ -887,7 +1018,7 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
             <TabsContent value="destination" className="space-y-4">
               <div className="space-y-2">
                 <Label>Destination Type</Label>
-                <RadioGroup value={destinationType} onValueChange={(v) => setDestinationType(v as "address" | "group")}>
+                <RadioGroup value={destinationType} onValueChange={(v) => setDestinationType(v as "address" | "group" | "fqdn")}>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="address" id="dest-address" />
                     <Label htmlFor="dest-address">Address/Network</Label>
@@ -895,6 +1026,10 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="group" id="dest-group" />
                     <Label htmlFor="dest-group">Firewall Group</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="fqdn" id="dest-fqdn" />
+                    <Label htmlFor="dest-fqdn">FQDN</Label>
                   </div>
                 </RadioGroup>
               </div>
@@ -907,6 +1042,17 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
                     value={destinationAddress}
                     onChange={(e) => setDestinationAddress(e.target.value)}
                     placeholder="e.g., 203.0.113.10"
+                    className="font-mono"
+                  />
+                </div>
+              ) : destinationType === "fqdn" ? (
+                <div className="space-y-2">
+                  <Label htmlFor="destination-fqdn-input">Destination FQDN</Label>
+                  <Input
+                    id="destination-fqdn-input"
+                    value={destinationFqdn}
+                    onChange={(e) => setDestinationFqdn(e.target.value)}
+                    placeholder="e.g., example.com"
                     className="font-mono"
                   />
                 </div>
@@ -1072,6 +1218,19 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
                       />
                       <p className="text-xs text-muted-foreground">
                         Internal IP address of the backend server to receive translated traffic
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="load-balance-weight">Backend Weight (optional)</Label>
+                      <Input
+                        id="load-balance-weight"
+                        value={loadBalanceBackendWeight}
+                        onChange={(e) => setLoadBalanceBackendWeight(e.target.value)}
+                        placeholder="e.g., 10 (relative weight)"
+                        className="font-mono"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Relative weight for this backend in load balancing
                       </p>
                     </div>
                   </div>

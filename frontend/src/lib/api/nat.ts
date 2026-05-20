@@ -219,6 +219,7 @@ class NATService {
       source_group_name?: string;
       source_group_invert?: boolean;
       source_port_group_name?: string;
+      source_fqdn?: string;
       destination_address?: string;
       destination_address_invert?: boolean;
       destination_port?: string;
@@ -226,6 +227,7 @@ class NATService {
       destination_group_name?: string;
       destination_group_invert?: boolean;
       destination_port_group_name?: string;
+      destination_fqdn?: string;
       outbound_interface_type?: "name" | "group";
       outbound_interface_value?: string;
       outbound_interface_invert?: boolean;
@@ -233,8 +235,12 @@ class NATService {
       packet_type?: string;
       translation_type?: "ip" | "cidr" | "range" | "masquerade";
       translation_address?: string;
+      translation_port?: string;
+      translation_port_mapping?: boolean;
+      translation_address_mapping?: boolean;
       load_balance_hash?: string;
       load_balance_backend?: string;
+      load_balance_backend_weight?: string;
       disable?: boolean;
       exclude?: boolean;
       log?: boolean;
@@ -322,6 +328,23 @@ class NATService {
     if (config.translation_address) {
       operations.push({ op: "set_source_rule_translation_address", value: config.translation_address });
     }
+    if (config.translation_port) {
+      operations.push({ op: "set_source_rule_translation_port", value: config.translation_port });
+    }
+    if (config.translation_port_mapping) {
+      operations.push({ op: "set_source_rule_translation_options_port_mapping", value: "random" });
+    }
+    if (config.translation_address_mapping) {
+      operations.push({ op: "set_source_rule_translation_options_address_mapping", value: "persistent" });
+    }
+
+    // FQDN matching
+    if (config.source_fqdn) {
+      operations.push({ op: "set_source_rule_source_fqdn", value: config.source_fqdn });
+    }
+    if (config.destination_fqdn) {
+      operations.push({ op: "set_source_rule_destination_fqdn", value: config.destination_fqdn });
+    }
 
     // Load balance
     if (config.load_balance_hash) {
@@ -329,6 +352,12 @@ class NATService {
     }
     if (config.load_balance_backend) {
       operations.push({ op: "set_source_rule_load_balance_backend", value: config.load_balance_backend });
+    }
+    if (config.load_balance_backend && config.load_balance_backend_weight) {
+      operations.push({
+        op: "set_source_rule_load_balance_backend_weight",
+        value: JSON.stringify({ backend: config.load_balance_backend, weight: config.load_balance_backend_weight })
+      });
     }
 
     // Flags
@@ -371,6 +400,7 @@ class NATService {
       source_group_name?: string;
       source_group_invert?: boolean;
       source_port_group_name?: string;
+      source_fqdn?: string;
       destination_address?: string;
       destination_address_invert?: boolean;
       destination_port?: string;
@@ -378,6 +408,7 @@ class NATService {
       destination_group_name?: string;
       destination_group_invert?: boolean;
       destination_port_group_name?: string;
+      destination_fqdn?: string;
       inbound_interface_type?: "name" | "group";
       inbound_interface_value?: string;
       inbound_interface_invert?: boolean;
@@ -385,8 +416,11 @@ class NATService {
       packet_type?: string;
       translation_address?: string;
       translation_port?: string;
+      translation_port_mapping?: boolean;
+      translation_address_mapping?: boolean;
       load_balance_hash?: string;
       load_balance_backend?: string;
+      load_balance_backend_weight?: string;
       disable?: boolean;
       exclude?: boolean;
       log?: boolean;
@@ -423,6 +457,9 @@ class NATService {
         value: JSON.stringify({ group_type: "port-group", group_name: config.source_port_group_name })
       });
     }
+    if (config.source_fqdn) {
+      operations.push({ op: "set_destination_rule_source_fqdn", value: config.source_fqdn });
+    }
 
     // Destination
     if (config.destination_address) {
@@ -444,6 +481,9 @@ class NATService {
         op: "set_destination_rule_destination_group",
         value: JSON.stringify({ group_type: "port-group", group_name: config.destination_port_group_name })
       });
+    }
+    if (config.destination_fqdn) {
+      operations.push({ op: "set_destination_rule_destination_fqdn", value: config.destination_fqdn });
     }
 
     // Inbound interface
@@ -477,6 +517,12 @@ class NATService {
     if (config.translation_port) {
       operations.push({ op: "set_destination_rule_translation_port", value: config.translation_port });
     }
+    if (config.translation_port_mapping) {
+      operations.push({ op: "set_destination_rule_translation_options_port_mapping", value: "random" });
+    }
+    if (config.translation_address_mapping) {
+      operations.push({ op: "set_destination_rule_translation_options_address_mapping", value: "persistent" });
+    }
 
     // Load balance
     if (config.load_balance_hash) {
@@ -484,6 +530,12 @@ class NATService {
     }
     if (config.load_balance_backend) {
       operations.push({ op: "set_destination_rule_load_balance_backend", value: config.load_balance_backend });
+    }
+    if (config.load_balance_backend && config.load_balance_backend_weight) {
+      operations.push({
+        op: "set_destination_rule_load_balance_backend_weight",
+        value: JSON.stringify({ backend: config.load_balance_backend, weight: config.load_balance_backend_weight })
+      });
     }
 
     // Flags
@@ -582,6 +634,7 @@ class NATService {
       source_group_name?: string;
       source_group_invert?: boolean;
       source_port_group_name?: string;
+      source_fqdn?: string;
       destination_address?: string;
       destination_address_invert?: boolean;
       destination_port?: string;
@@ -589,6 +642,7 @@ class NATService {
       destination_group_name?: string;
       destination_group_invert?: boolean;
       destination_port_group_name?: string;
+      destination_fqdn?: string;
       outbound_interface_type?: "name" | "group";
       outbound_interface_value?: string;
       outbound_interface_invert?: boolean;
@@ -597,8 +651,12 @@ class NATService {
       packet_type?: string;
       translation_type?: "ip" | "cidr" | "range" | "masquerade";
       translation_address?: string;
+      translation_port?: string;
+      translation_port_mapping?: boolean;
+      translation_address_mapping?: boolean;
       load_balance_hash?: string;
       load_balance_backend?: string;
+      load_balance_backend_weight?: string;
       disable?: boolean;
       exclude?: boolean;
       log?: boolean;
@@ -607,12 +665,17 @@ class NATService {
       delete_source_port?: boolean;
       delete_source_group?: boolean;
       delete_source_port_group?: boolean;
+      delete_source_fqdn?: boolean;
       delete_destination_address?: boolean;
       delete_destination_port?: boolean;
       delete_destination_group?: boolean;
       delete_destination_port_group?: boolean;
+      delete_destination_fqdn?: boolean;
       delete_outbound_interface_name?: boolean;
       delete_outbound_interface_group?: boolean;
+      delete_translation_port?: boolean;
+      delete_translation_port_mapping?: boolean;
+      delete_translation_address_mapping?: boolean;
     }
   ): Promise<VyOSResponse> {
     // Build operations just like createSourceRule
@@ -663,6 +726,12 @@ class NATService {
       });
     }
 
+    if (config.delete_source_fqdn) {
+      operations.push({ op: "delete_source_rule_source_fqdn" });
+    } else if (config.source_fqdn) {
+      operations.push({ op: "set_source_rule_source_fqdn", value: config.source_fqdn });
+    }
+
     // Destination - handle deletions first, then sets
     if (config.delete_destination_address) {
       operations.push({ op: "delete_source_rule_destination_address" });
@@ -697,6 +766,12 @@ class NATService {
         op: "set_source_rule_destination_group",
         value: JSON.stringify({ group_type: "port-group", group_name: config.destination_port_group_name })
       });
+    }
+
+    if (config.delete_destination_fqdn) {
+      operations.push({ op: "delete_source_rule_destination_fqdn" });
+    } else if (config.destination_fqdn) {
+      operations.push({ op: "set_source_rule_destination_fqdn", value: config.destination_fqdn });
     }
 
     // Outbound interface - handle deletions first when switching types
@@ -737,12 +812,36 @@ class NATService {
       operations.push({ op: "set_source_rule_translation_address", value: config.translation_address });
     }
 
+    if (config.delete_translation_port) {
+      operations.push({ op: "delete_source_rule_translation_port" });
+    } else if (config.translation_port) {
+      operations.push({ op: "set_source_rule_translation_port", value: config.translation_port });
+    }
+
+    if (config.delete_translation_port_mapping) {
+      operations.push({ op: "delete_source_rule_translation_options_port_mapping" });
+    } else if (config.translation_port_mapping) {
+      operations.push({ op: "set_source_rule_translation_options_port_mapping", value: "random" });
+    }
+
+    if (config.delete_translation_address_mapping) {
+      operations.push({ op: "delete_source_rule_translation_options_address_mapping" });
+    } else if (config.translation_address_mapping) {
+      operations.push({ op: "set_source_rule_translation_options_address_mapping", value: "persistent" });
+    }
+
     // Load balance
     if (config.load_balance_hash) {
       operations.push({ op: "set_source_rule_load_balance_hash", value: config.load_balance_hash });
     }
     if (config.load_balance_backend) {
       operations.push({ op: "set_source_rule_load_balance_backend", value: config.load_balance_backend });
+    }
+    if (config.load_balance_backend && config.load_balance_backend_weight) {
+      operations.push({
+        op: "set_source_rule_load_balance_backend_weight",
+        value: JSON.stringify({ backend: config.load_balance_backend, weight: config.load_balance_backend_weight })
+      });
     }
 
     // Flags
@@ -784,6 +883,7 @@ class NATService {
       source_group_name?: string;
       source_group_invert?: boolean;
       source_port_group_name?: string;
+      source_fqdn?: string;
       destination_address?: string;
       destination_address_invert?: boolean;
       destination_port?: string;
@@ -791,6 +891,7 @@ class NATService {
       destination_group_name?: string;
       destination_group_invert?: boolean;
       destination_port_group_name?: string;
+      destination_fqdn?: string;
       inbound_interface_type?: "name" | "group";
       inbound_interface_value?: string;
       inbound_interface_invert?: boolean;
@@ -799,8 +900,11 @@ class NATService {
       packet_type?: string;
       translation_address?: string;
       translation_port?: string;
+      translation_port_mapping?: boolean;
+      translation_address_mapping?: boolean;
       load_balance_hash?: string;
       load_balance_backend?: string;
+      load_balance_backend_weight?: string;
       disable?: boolean;
       exclude?: boolean;
       log?: boolean;
@@ -809,12 +913,16 @@ class NATService {
       delete_source_port?: boolean;
       delete_source_group?: boolean;
       delete_source_port_group?: boolean;
+      delete_source_fqdn?: boolean;
       delete_destination_address?: boolean;
       delete_destination_port?: boolean;
       delete_destination_group?: boolean;
       delete_destination_port_group?: boolean;
+      delete_destination_fqdn?: boolean;
       delete_inbound_interface_name?: boolean;
       delete_inbound_interface_group?: boolean;
+      delete_translation_port_mapping?: boolean;
+      delete_translation_address_mapping?: boolean;
     }
   ): Promise<VyOSResponse> {
     // Build operations just like createDestinationRule
@@ -865,6 +973,12 @@ class NATService {
       });
     }
 
+    if (config.delete_source_fqdn) {
+      operations.push({ op: "delete_destination_rule_source_fqdn" });
+    } else if (config.source_fqdn) {
+      operations.push({ op: "set_destination_rule_source_fqdn", value: config.source_fqdn });
+    }
+
     // Destination - handle deletions first, then sets
     if (config.delete_destination_address) {
       operations.push({ op: "delete_destination_rule_destination_address" });
@@ -899,6 +1013,12 @@ class NATService {
         op: "set_destination_rule_destination_group",
         value: JSON.stringify({ group_type: "port-group", group_name: config.destination_port_group_name })
       });
+    }
+
+    if (config.delete_destination_fqdn) {
+      operations.push({ op: "delete_destination_rule_destination_fqdn" });
+    } else if (config.destination_fqdn) {
+      operations.push({ op: "set_destination_rule_destination_fqdn", value: config.destination_fqdn });
     }
 
     // Inbound interface - handle deletions first when switching types
@@ -942,12 +1062,30 @@ class NATService {
       operations.push({ op: "set_destination_rule_translation_port", value: config.translation_port });
     }
 
+    if (config.delete_translation_port_mapping) {
+      operations.push({ op: "delete_destination_rule_translation_options_port_mapping" });
+    } else if (config.translation_port_mapping) {
+      operations.push({ op: "set_destination_rule_translation_options_port_mapping", value: "random" });
+    }
+
+    if (config.delete_translation_address_mapping) {
+      operations.push({ op: "delete_destination_rule_translation_options_address_mapping" });
+    } else if (config.translation_address_mapping) {
+      operations.push({ op: "set_destination_rule_translation_options_address_mapping", value: "persistent" });
+    }
+
     // Load balance
     if (config.load_balance_hash) {
       operations.push({ op: "set_destination_rule_load_balance_hash", value: config.load_balance_hash });
     }
     if (config.load_balance_backend) {
       operations.push({ op: "set_destination_rule_load_balance_backend", value: config.load_balance_backend });
+    }
+    if (config.load_balance_backend && config.load_balance_backend_weight) {
+      operations.push({
+        op: "set_destination_rule_load_balance_backend_weight",
+        value: JSON.stringify({ backend: config.load_balance_backend, weight: config.load_balance_backend_weight })
+      });
     }
 
     // Flags

@@ -42,7 +42,7 @@ export function CreateDestinationNATModal({ open, onOpenChange, onSuccess }: Cre
   const [description, setDescription] = useState("");
 
   // Source
-  const [sourceType, setSourceType] = useState<"address" | "group">("address");
+  const [sourceType, setSourceType] = useState<"address" | "group" | "fqdn">("address");
   const [sourceAddress, setSourceAddress] = useState("");
   const [sourceInvert, setSourceInvert] = useState(false);
   const [sourceGroupType, setSourceGroupType] = useState("");
@@ -50,7 +50,7 @@ export function CreateDestinationNATModal({ open, onOpenChange, onSuccess }: Cre
   const [sourcePort, setSourcePort] = useState("");
 
   // Destination
-  const [destinationType, setDestinationType] = useState<"address" | "group">("address");
+  const [destinationType, setDestinationType] = useState<"address" | "group" | "fqdn">("address");
   const [destinationAddress, setDestinationAddress] = useState("");
   const [destinationInvert, setDestinationInvert] = useState(false);
   const [destinationGroupType, setDestinationGroupType] = useState("");
@@ -74,11 +74,18 @@ export function CreateDestinationNATModal({ open, onOpenChange, onSuccess }: Cre
   // Translation
   const [translationAddress, setTranslationAddress] = useState("");
   const [translationPort, setTranslationPort] = useState("");
+  const [translationPortMapping, setTranslationPortMapping] = useState(false);
+  const [translationAddressMapping, setTranslationAddressMapping] = useState(false);
 
   // Load Balance
   const [loadBalancingEnabled, setLoadBalancingEnabled] = useState(false);
   const [loadBalanceHash, setLoadBalanceHash] = useState("");
   const [loadBalanceBackend, setLoadBalanceBackend] = useState("");
+  const [loadBalanceBackendWeight, setLoadBalanceBackendWeight] = useState("");
+
+  // FQDN
+  const [sourceFqdn, setSourceFqdn] = useState("");
+  const [destinationFqdn, setDestinationFqdn] = useState("");
 
   // Flags
   const [disable, setDisable] = useState(false);
@@ -232,8 +239,13 @@ export function CreateDestinationNATModal({ open, onOpenChange, onSuccess }: Cre
     setPacketType("");
     setTranslationAddress("");
     setTranslationPort("");
+    setTranslationPortMapping(false);
+    setTranslationAddressMapping(false);
     setLoadBalanceHash("");
     setLoadBalanceBackend("");
+    setLoadBalanceBackendWeight("");
+    setSourceFqdn("");
+    setDestinationFqdn("");
     setDisable(false);
     setExclude(false);
     setLog(false);
@@ -264,6 +276,8 @@ export function CreateDestinationNATModal({ open, onOpenChange, onSuccess }: Cre
         config.source_group_type = sourceGroupType;
         config.source_group_name = sourceGroupName;
         config.source_group_invert = sourceInvert;
+      } else if (sourceType === "fqdn" && sourceFqdn.trim()) {
+        config.source_fqdn = sourceFqdn.trim();
       }
       if (sourcePortType === "input" && sourcePort.trim()) {
         config.source_port = sourcePort.trim();
@@ -279,6 +293,8 @@ export function CreateDestinationNATModal({ open, onOpenChange, onSuccess }: Cre
         config.destination_group_type = destinationGroupType;
         config.destination_group_name = destinationGroupName;
         config.destination_group_invert = destinationInvert;
+      } else if (destinationType === "fqdn" && destinationFqdn.trim()) {
+        config.destination_fqdn = destinationFqdn.trim();
       }
       if (destPortType === "input" && destinationPort.trim()) {
         config.destination_port = destinationPort.trim();
@@ -314,6 +330,8 @@ export function CreateDestinationNATModal({ open, onOpenChange, onSuccess }: Cre
       if (translationPort.trim()) {
         config.translation_port = translationPort.trim();
       }
+      if (translationPortMapping) config.translation_port_mapping = true;
+      if (translationAddressMapping) config.translation_address_mapping = true;
 
       // Load balance
       if (loadBalancingEnabled) {
@@ -322,6 +340,9 @@ export function CreateDestinationNATModal({ open, onOpenChange, onSuccess }: Cre
         }
         if (loadBalanceBackend.trim()) {
           config.load_balance_backend = loadBalanceBackend.trim();
+        }
+        if (loadBalanceBackendWeight.trim()) {
+          config.load_balance_backend_weight = loadBalanceBackendWeight.trim();
         }
       }
 
@@ -370,14 +391,9 @@ export function CreateDestinationNATModal({ open, onOpenChange, onSuccess }: Cre
           )}
 
           {/* Rule Number (Auto-calculated) */}
-          <div className="space-y-2 bg-muted/30 border border-muted rounded-lg p-4">
-            <Label htmlFor="rule-number">Rule Number (Auto-assigned)</Label>
-            <div className="text-2xl font-mono font-bold text-primary">
-              {ruleNumber}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              This rule will be automatically assigned number {ruleNumber}
-            </p>
+          <div className="flex items-center gap-2 bg-muted/30 border border-muted rounded-md px-3 py-2">
+            <span className="text-xs text-muted-foreground">Rule number (auto-assigned):</span>
+            <span className="font-mono font-semibold text-sm text-primary">{ruleNumber}</span>
           </div>
 
           {/* Description */}
@@ -486,6 +502,42 @@ export function CreateDestinationNATModal({ open, onOpenChange, onSuccess }: Cre
                 </div>
               </div>
 
+              {/* Translation Options */}
+              <div className="space-y-2">
+                <div className="flex items-start space-x-2">
+                  <Checkbox
+                    id="translation-port-mapping"
+                    checked={translationPortMapping}
+                    onCheckedChange={(checked) => setTranslationPortMapping(checked === true)}
+                    className="mt-1"
+                  />
+                  <div className="space-y-1">
+                    <Label htmlFor="translation-port-mapping" className="text-sm font-medium cursor-pointer">
+                      Randomize source port (port-mapping random)
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Randomizes the outbound source port for privacy and security
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-2">
+                  <Checkbox
+                    id="translation-address-mapping"
+                    checked={translationAddressMapping}
+                    onCheckedChange={(checked) => setTranslationAddressMapping(checked === true)}
+                    className="mt-1"
+                  />
+                  <div className="space-y-1">
+                    <Label htmlFor="translation-address-mapping" className="text-sm font-medium cursor-pointer">
+                      Persistent address mapping
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      The same internal IP always maps to the same external IP
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               {/* Protocol */}
               <div className="space-y-2">
                 <Label htmlFor="protocol">Protocol</Label>
@@ -575,7 +627,7 @@ export function CreateDestinationNATModal({ open, onOpenChange, onSuccess }: Cre
             <TabsContent value="source" className="space-y-4">
               <div className="space-y-2">
                 <Label>Source Type</Label>
-                <RadioGroup value={sourceType} onValueChange={(v) => setSourceType(v as "address" | "group")}>
+                <RadioGroup value={sourceType} onValueChange={(v) => setSourceType(v as "address" | "group" | "fqdn")}>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="address" id="source-address" />
                     <Label htmlFor="source-address">Address/Network</Label>
@@ -584,8 +636,25 @@ export function CreateDestinationNATModal({ open, onOpenChange, onSuccess }: Cre
                     <RadioGroupItem value="group" id="source-group" />
                     <Label htmlFor="source-group">Firewall Group</Label>
                   </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="fqdn" id="source-fqdn" />
+                    <Label htmlFor="source-fqdn">FQDN</Label>
+                  </div>
                 </RadioGroup>
               </div>
+
+              {sourceType === "fqdn" && (
+                <div className="space-y-2">
+                  <Label htmlFor="source-fqdn-input">Source FQDN</Label>
+                  <Input
+                    id="source-fqdn-input"
+                    value={sourceFqdn}
+                    onChange={(e) => setSourceFqdn(e.target.value)}
+                    placeholder="e.g., example.com"
+                    className="font-mono"
+                  />
+                </div>
+              )}
 
               {sourceType === "address" ? (
                 <div className="space-y-2">
@@ -598,7 +667,7 @@ export function CreateDestinationNATModal({ open, onOpenChange, onSuccess }: Cre
                     className="font-mono"
                   />
                 </div>
-              ) : (
+              ) : sourceType === "fqdn" ? null : (
                 <>
                   <div className="space-y-2">
                     <Label htmlFor="source-group-type">Source Group Type</Label>
@@ -690,7 +759,7 @@ export function CreateDestinationNATModal({ open, onOpenChange, onSuccess }: Cre
             <TabsContent value="destination" className="space-y-4">
               <div className="space-y-2">
                 <Label>Destination Type</Label>
-                <RadioGroup value={destinationType} onValueChange={(v) => setDestinationType(v as "address" | "group")}>
+                <RadioGroup value={destinationType} onValueChange={(v) => setDestinationType(v as "address" | "group" | "fqdn")}>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="address" id="dest-address" />
                     <Label htmlFor="dest-address">Address/Network</Label>
@@ -699,8 +768,25 @@ export function CreateDestinationNATModal({ open, onOpenChange, onSuccess }: Cre
                     <RadioGroupItem value="group" id="dest-group" />
                     <Label htmlFor="dest-group">Firewall Group</Label>
                   </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="fqdn" id="dest-fqdn" />
+                    <Label htmlFor="dest-fqdn">FQDN</Label>
+                  </div>
                 </RadioGroup>
               </div>
+
+              {destinationType === "fqdn" && (
+                <div className="space-y-2">
+                  <Label htmlFor="destination-fqdn-input">Destination FQDN</Label>
+                  <Input
+                    id="destination-fqdn-input"
+                    value={destinationFqdn}
+                    onChange={(e) => setDestinationFqdn(e.target.value)}
+                    placeholder="e.g., example.com"
+                    className="font-mono"
+                  />
+                </div>
+              )}
 
               {destinationType === "address" ? (
                 <div className="space-y-2">
@@ -713,7 +799,7 @@ export function CreateDestinationNATModal({ open, onOpenChange, onSuccess }: Cre
                     className="font-mono"
                   />
                 </div>
-              ) : (
+              ) : destinationType === "fqdn" ? null : (
                 <>
                   <div className="space-y-2">
                     <Label htmlFor="destination-group-type">Destination Group Type</Label>
@@ -875,6 +961,19 @@ export function CreateDestinationNATModal({ open, onOpenChange, onSuccess }: Cre
                       />
                       <p className="text-xs text-muted-foreground">
                         Internal IP address of the backend server to receive translated traffic
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="load-balance-weight">Backend Weight</Label>
+                      <Input
+                        id="load-balance-weight"
+                        value={loadBalanceBackendWeight}
+                        onChange={(e) => setLoadBalanceBackendWeight(e.target.value)}
+                        placeholder="e.g., 10 (optional, relative weight)"
+                        className="font-mono"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Relative weight for this backend in load balancing
                       </p>
                     </div>
                   </div>
