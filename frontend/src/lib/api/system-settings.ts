@@ -229,6 +229,16 @@ export interface NetflowServer {
   port: number | null;
 }
 
+export interface NetflowTimeouts {
+  expiry_interval: number | null;
+  flow_generic: number | null;
+  icmp: number | null;
+  max_active_life: number | null;
+  tcp_fin: number | null;
+  tcp_generic: number | null;
+  udp: number | null;
+}
+
 export interface NetflowConfig {
   engine_id: number | null;
   max_flows: number | null;
@@ -236,6 +246,7 @@ export interface NetflowConfig {
   source_address: string | null;
   version: string | null;
   servers: NetflowServer[];
+  timeouts: NetflowTimeouts | null;
 }
 
 export interface SflowServer {
@@ -371,6 +382,7 @@ export interface SystemConfig {
   logs: LogsConfig | null;
   update_check: UpdateCheckConfig | null;
   flow_accounting: FlowAccountingConfig | null;
+  sflow: SflowConfig | null;
   task_scheduler: TaskSchedulerTask[];
 }
 
@@ -1083,6 +1095,61 @@ class SystemSettingsService {
 
   async deleteFlowAccountingInterface(iface: string): Promise<VyOSResponse> {
     return this.batch(iface, [{ op: "delete_flow_accounting_interface" }]);
+  }
+
+  async saveNetflowConfig(changes: {
+    version?: string | null; clearVersion?: boolean;
+    engineId?: number | null; clearEngineId?: boolean;
+    maxFlows?: number | null; clearMaxFlows?: boolean;
+    samplingRate?: number | null; clearSamplingRate?: boolean;
+    sourceAddress?: string | null; clearSourceAddress?: boolean;
+  }): Promise<VyOSResponse> {
+    const ops: BatchOp[] = [];
+    if (changes.version) ops.push({ op: "set_flow_accounting_netflow_version", value: changes.version });
+    else if (changes.clearVersion) ops.push({ op: "delete_flow_accounting_netflow_version" });
+    if (changes.engineId != null) ops.push({ op: "set_flow_accounting_netflow_engine_id", value: String(changes.engineId) });
+    else if (changes.clearEngineId) ops.push({ op: "delete_flow_accounting_netflow_engine_id" });
+    if (changes.maxFlows != null) ops.push({ op: "set_flow_accounting_netflow_max_flows", value: String(changes.maxFlows) });
+    else if (changes.clearMaxFlows) ops.push({ op: "delete_flow_accounting_netflow_max_flows" });
+    if (changes.samplingRate != null) ops.push({ op: "set_flow_accounting_netflow_sampling_rate", value: String(changes.samplingRate) });
+    else if (changes.clearSamplingRate) ops.push({ op: "delete_flow_accounting_netflow_sampling_rate" });
+    if (changes.sourceAddress) ops.push({ op: "set_flow_accounting_netflow_source_address", value: changes.sourceAddress });
+    else if (changes.clearSourceAddress) ops.push({ op: "delete_flow_accounting_netflow_source_address" });
+    if (ops.length === 0) return { success: true };
+    return this.batch("_", ops);
+  }
+
+  async addNetflowServer(server: string, port?: number | null): Promise<VyOSResponse> {
+    const ops: BatchOp[] = [{ op: "set_flow_accounting_netflow_server" }];
+    if (port) ops.push({ op: "set_flow_accounting_netflow_server_port", value: String(port) });
+    return this.batch(server, ops);
+  }
+
+  async deleteNetflowServer(server: string): Promise<VyOSResponse> {
+    return this.batch(server, [{ op: "delete_flow_accounting_netflow_server" }]);
+  }
+
+  async saveSflowConfig(changes: {
+    agentAddress?: string | null; clearAgentAddress?: boolean;
+    samplingRate?: number | null; clearSamplingRate?: boolean;
+  }): Promise<VyOSResponse> {
+    const ops: BatchOp[] = [];
+    if (changes.agentAddress) ops.push({ op: "set_sflow_agent_address", value: changes.agentAddress });
+    else if (changes.clearAgentAddress) ops.push({ op: "delete_sflow_agent_address" });
+    if (changes.samplingRate != null) ops.push({ op: "set_sflow_sampling_rate", value: String(changes.samplingRate) });
+    else if (changes.clearSamplingRate) ops.push({ op: "delete_sflow_sampling_rate" });
+    if (ops.length === 0) return { success: true };
+    return this.batch("_", ops);
+  }
+
+  async addSflowServer(server: string, port?: number | null): Promise<VyOSResponse> {
+    const ops: BatchOp[] = [{ op: "set_sflow_server" }];
+    if (port) ops.push({ op: "set_sflow_server_port", value: String(port) });
+    return this.batch(server, ops);
+  }
+
+  async deleteSflowServer(server: string): Promise<VyOSResponse> {
+    return this.batch(server, [{ op: "delete_sflow_server" }]);
   }
 
   // --------------------------------------------------------------------------

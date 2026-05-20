@@ -198,14 +198,6 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
   const [tcpSaving, setTcpSaving] = useState(false);
   const [tcpError, setTcpError] = useState<string | null>(null);
 
-  // Flow accounting
-  const [addingFlowIface, setAddingFlowIface] = useState(false);
-  const [flowIface, setFlowIface] = useState("");
-  const [flowIfaceSaving, setFlowIfaceSaving] = useState(false);
-  const [flowIfaceError, setFlowIfaceError] = useState<string | null>(null);
-  const [deleteFlowIface, setDeleteFlowIface] = useState<string | null>(null);
-  const [deletingFlowIface, setDeletingFlowIface] = useState(false);
-
   // Conntrack log
   const [addingLogEvent, setAddingLogEvent] = useState(false);
   const [logEvent, setLogEvent] = useState("new");
@@ -403,32 +395,6 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
       else { toast.success("Timeout rule deleted"); onRefresh(); }
     } catch { toast.error("Error", "An unexpected error occurred"); }
     finally { setDeletingCt(false); setDeleteCtTarget(null); }
-  };
-
-  const handleAddFlowIface = async () => {
-    if (!flowIface.trim()) { setFlowIfaceError("Interface name is required"); return; }
-    setFlowIfaceSaving(true);
-    setFlowIfaceError(null);
-    try {
-      const result = await systemSettingsService.addFlowAccountingInterface(flowIface.trim());
-      if (!result.success) { setFlowIfaceError(result.error ?? "Failed to add interface"); return; }
-      toast.success("Interface added to flow accounting");
-      setAddingFlowIface(false);
-      setFlowIface("");
-      onRefresh();
-    } catch { setFlowIfaceError("An unexpected error occurred"); }
-    finally { setFlowIfaceSaving(false); }
-  };
-
-  const handleDeleteFlowIface = async () => {
-    if (!deleteFlowIface) return;
-    setDeletingFlowIface(true);
-    try {
-      const result = await systemSettingsService.deleteFlowAccountingInterface(deleteFlowIface);
-      if (!result.success) toast.error("Delete failed", result.error ?? "Could not remove interface");
-      else { toast.success("Interface removed"); onRefresh(); }
-    } catch { toast.error("Error", "An unexpected error occurred"); }
-    finally { setDeletingFlowIface(false); setDeleteFlowIface(null); }
   };
 
   const handleAddLogEvent = async () => {
@@ -630,7 +596,6 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
   };
 
   const enabledModules = new Set(config.conntrack.modules);
-  const flowIfaces = config.flow_accounting?.interfaces ?? [];
   const logEntries = config.conntrack_log?.entries ?? [];
   const LOG_EVENTS = ["destroy", "new", "update"];
   const LOG_PROTOCOLS = ["all", "icmp", "tcp", "udp"];
@@ -834,65 +799,6 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
           </div>
         </CardContent>
       </Card>
-      {/* Flow Accounting */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Flow Accounting</CardTitle>
-              <CardDescription>Interfaces monitored for flow accounting (NetFlow/sFlow).</CardDescription>
-            </div>
-            {!isReadOnly && !addingFlowIface && (
-              <Button size="sm" variant="outline" onClick={() => setAddingFlowIface(true)}>
-                <Plus className="h-4 w-4 mr-2" />Add Interface
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {addingFlowIface && (
-            <div className="rounded-lg border p-4 space-y-3 bg-muted/30">
-              {flowIfaceError && (
-                <div className="rounded border border-destructive/20 bg-destructive/10 p-2">
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className="h-4 w-4 text-destructive mt-0.5" />
-                    <pre className="text-xs text-destructive whitespace-pre-wrap font-mono">{flowIfaceError}</pre>
-                  </div>
-                </div>
-              )}
-              <div className="flex gap-2 items-end">
-                <div className="space-y-1">
-                  <Label className="text-xs">Interface</Label>
-                  <Input value={flowIface} onChange={(e) => setFlowIface(e.target.value)} placeholder="eth0" className="w-40" />
-                </div>
-                <Button size="sm" onClick={handleAddFlowIface} disabled={flowIfaceSaving}>{flowIfaceSaving ? "Adding…" : "Add"}</Button>
-                <Button size="sm" variant="outline" onClick={() => { setAddingFlowIface(false); setFlowIfaceError(null); }}>Cancel</Button>
-              </div>
-            </div>
-          )}
-          {flowIfaces.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No interfaces configured for flow accounting.</p>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {flowIfaces.map((iface) => (
-                <div key={iface} className="flex items-center gap-1">
-                  <Badge variant="secondary" className="font-mono">{iface}</Badge>
-                  {!isReadOnly && (
-                    <button
-                      className="text-destructive hover:text-destructive/80 ml-1"
-                      onClick={() => setDeleteFlowIface(iface)}
-                      title={`Remove ${iface}`}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
       {/* Conntrack Log */}
       <Card>
         <CardHeader>
@@ -1372,22 +1278,6 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
             <AlertDialogCancel disabled={deletingCt}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteCtRule} disabled={deletingCt} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               {deletingCt ? "Deleting…" : "Delete"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Delete dialogs */}
-      <AlertDialog open={!!deleteFlowIface} onOpenChange={(o) => { if (!o) setDeleteFlowIface(null); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remove Interface</AlertDialogTitle>
-            <AlertDialogDescription>Remove <strong>{deleteFlowIface}</strong> from flow accounting?</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deletingFlowIface}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteFlowIface} disabled={deletingFlowIface} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {deletingFlowIface ? "Removing…" : "Remove"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
