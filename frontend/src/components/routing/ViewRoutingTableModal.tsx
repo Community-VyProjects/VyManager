@@ -21,6 +21,12 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Trash2, Network, Shield, ArrowRight } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { type RoutingTable, type StaticRoute } from "@/lib/api/static-routes";
 import { cn } from "@/lib/utils";
 import { CreateTableRouteModal } from "./CreateTableRouteModal";
@@ -189,7 +195,7 @@ function RouteTable({ routes, onDelete }: RouteTableProps) {
                         Reject
                       </Badge>
                     )}
-                    {hasNextHops && route.next_hops.slice(0, 2).map((nh, idx) => (
+                    {hasNextHops && route.next_hops.slice(0, 5).map((nh, idx) => (
                       <Badge
                         key={`nh-${idx}`}
                         variant="secondary"
@@ -202,7 +208,7 @@ function RouteTable({ routes, onDelete }: RouteTableProps) {
                         {nh.address}
                       </Badge>
                     ))}
-                    {hasInterfaces && route.interfaces.slice(0, 2).map((iface, idx) => (
+                    {hasInterfaces && route.interfaces.slice(0, 5).map((iface, idx) => (
                       <Badge
                         key={`iface-${idx}`}
                         variant="outline"
@@ -214,10 +220,30 @@ function RouteTable({ routes, onDelete }: RouteTableProps) {
                         {iface.interface}
                       </Badge>
                     ))}
-                    {(route.next_hops.length > 2 || route.interfaces.length > 2) && (
-                      <Badge variant="secondary" className="text-xs">
-                        +{Math.max(0, route.next_hops.length - 2) + Math.max(0, route.interfaces.length - 2)}
-                      </Badge>
+                    {(route.next_hops.length > 5 || route.interfaces.length > 5) && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Badge variant="secondary" className="text-xs cursor-default">
+                              +{Math.max(0, route.next_hops.length - 5) + Math.max(0, route.interfaces.length - 5)}
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <div className="flex flex-col gap-1 text-xs">
+                              {route.next_hops.slice(5).map((nh, idx) => (
+                                <span key={`nh-${idx}`} className={cn("font-mono", nh.disable && "opacity-50 line-through")}>
+                                  → {nh.address}
+                                </span>
+                              ))}
+                              {route.interfaces.slice(5).map((iface, idx) => (
+                                <span key={`iface-${idx}`} className={cn(iface.disable && "opacity-50 line-through")}>
+                                  {iface.interface}
+                                </span>
+                              ))}
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     )}
                     {!isBlackhole && !isReject && !hasNextHops && !hasInterfaces && (
                       <span className="text-muted-foreground">—</span>
