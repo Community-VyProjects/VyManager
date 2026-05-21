@@ -70,6 +70,7 @@ import {
   Package,
   Terminal,
   RefreshCw,
+  ArrowLeftRight,
 } from "lucide-react";
 import {
   userManagementService,
@@ -105,6 +106,7 @@ const FEATURE_ICONS: Record<FeatureGroup, any> = {
   [FeatureGroup.SERVICE]: Package,
   [FeatureGroup.BROADCAST_RELAY]: Radio,
   [FeatureGroup.CONFIG_SYNC]: RefreshCw,
+  [FeatureGroup.CONNTRACK_SYNC]: ArrowLeftRight,
   [FeatureGroup.CONTAINER]: Box,
   [FeatureGroup.DHCP]: Wifi,
   [FeatureGroup.INTERFACES]: Router,
@@ -195,6 +197,7 @@ const FEATURE_NAMES: Record<FeatureGroup, string> = {
   [FeatureGroup.SERVICE]: "Service",
   [FeatureGroup.BROADCAST_RELAY]: "Broadcast Relay",
   [FeatureGroup.CONFIG_SYNC]: "Config Sync",
+  [FeatureGroup.CONNTRACK_SYNC]: "Conntrack Sync",
   [FeatureGroup.CONTAINER]: "Containers",
   [FeatureGroup.DHCP]: "DHCP",
   [FeatureGroup.INTERFACES]: "Interfaces",
@@ -358,6 +361,7 @@ const FEATURE_CATEGORIES: FeatureCategory[] = [
         children: [
           { feature: FeatureGroup.BROADCAST_RELAY },
           { feature: FeatureGroup.CONFIG_SYNC },
+          { feature: FeatureGroup.CONNTRACK_SYNC },
           { feature: FeatureGroup.DHCP },
         ],
       },

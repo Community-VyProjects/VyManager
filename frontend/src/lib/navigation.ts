@@ -112,6 +112,7 @@ export const navigation: NavItem[] = [
     children: [
       { title: "Broadcast Relay", href: "/service/broadcast-relay", requiredPermission: FeatureGroup.BROADCAST_RELAY },
       { title: "Config Sync", href: "/service/config-sync", requiredPermission: FeatureGroup.CONFIG_SYNC },
+      { title: "Conntrack Sync", href: "/service/conntrack-sync", requiredPermission: FeatureGroup.CONNTRACK_SYNC },
       { title: "DHCP", href: "/network/dhcp", requiredPermission: FeatureGroup.DHCP, sections: [
             { id: "subnets", title: "Subnets", href: "/network/dhcp", description: "Manage DHCP subnets", searchParams: { section: "subnets" } },
               { id: "servers", title: "Servers", href: "/network/dhcp", description: "DHCP server instances", searchParams: { section: "servers" } },

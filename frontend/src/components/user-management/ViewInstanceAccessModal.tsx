@@ -47,6 +47,7 @@ import {
   GitBranch,
   Package,
   Terminal,
+  ArrowLeftRight,
 } from "lucide-react";
 import { userManagementService, FeatureGroup, InstanceUserListItem } from "@/lib/api/user-management";
 import { ApiError } from "@/lib/types/api";
@@ -77,6 +78,7 @@ const FEATURE_ICONS: Record<FeatureGroup, any> = {
   [FeatureGroup.SERVICE]: Package,
   [FeatureGroup.BROADCAST_RELAY]: Radio,
   [FeatureGroup.CONFIG_SYNC]: RefreshCw,
+  [FeatureGroup.CONNTRACK_SYNC]: ArrowLeftRight,
   [FeatureGroup.CONTAINER]: Box,
   [FeatureGroup.DHCP]: Wifi,
   [FeatureGroup.INTERFACES]: Router,
@@ -167,6 +169,7 @@ const FEATURE_NAMES: Record<FeatureGroup, string> = {
   [FeatureGroup.SERVICE]: "Service",
   [FeatureGroup.BROADCAST_RELAY]: "Broadcast Relay",
   [FeatureGroup.CONFIG_SYNC]: "Config Sync",
+  [FeatureGroup.CONNTRACK_SYNC]: "Conntrack Sync",
   [FeatureGroup.CONTAINER]: "Containers",
   [FeatureGroup.DHCP]: "DHCP",
   [FeatureGroup.INTERFACES]: "Interfaces",
