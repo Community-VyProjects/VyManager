@@ -115,6 +115,8 @@ from .config_sync import ConfigSyncMapper
 from .config_sync.config_sync_versions import get_config_sync_mapper
 from .container import ContainerMapper
 from .container.container_versions import get_container_mapper
+from .conntrack_sync import ConntrackSyncMapper
+from .conntrack_sync.conntrack_sync_versions import get_conntrack_sync_mapper
 
 # Auto-register all mappers
 # Ethernet uses factory for version-specific mappers
@@ -259,6 +261,8 @@ CommandMapperRegistry.register_feature("broadcast_relay", get_broadcast_relay_ma
 CommandMapperRegistry.register_feature("config_sync", get_config_sync_mapper)
 # Container uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("container", get_container_mapper)
+# Conntrack-Sync uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("conntrack_sync", get_conntrack_sync_mapper)
 
 __all__ = [
     "BaseFeatureMapper",
@@ -327,4 +331,5 @@ __all__ = [
     "PppoeInterfaceMapper",
     "ContainerMapper",
     "ConfigSyncMapper",
+    "ConntrackSyncMapper",
 ]

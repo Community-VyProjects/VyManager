@@ -65,6 +65,7 @@ class FeatureGroup(str, Enum):
     SERVICE = "SERVICE"
     BROADCAST_RELAY = "BROADCAST_RELAY"
     CONFIG_SYNC = "CONFIG_SYNC"
+    CONNTRACK_SYNC = "CONNTRACK_SYNC"
 
     # VPN features
     VPN = "VPN"
@@ -168,6 +169,7 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.SERVICE: PermissionLevel.WRITE,
         FeatureGroup.BROADCAST_RELAY: PermissionLevel.WRITE,
         FeatureGroup.CONFIG_SYNC: PermissionLevel.WRITE,
+        FeatureGroup.CONNTRACK_SYNC: PermissionLevel.WRITE,
         FeatureGroup.DHCP: PermissionLevel.WRITE,
         FeatureGroup.INTERFACES: PermissionLevel.WRITE,
         FeatureGroup.TUNNEL: PermissionLevel.WRITE,
@@ -257,6 +259,7 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.SERVICE: PermissionLevel.WRITE,
         FeatureGroup.BROADCAST_RELAY: PermissionLevel.WRITE,
         FeatureGroup.CONFIG_SYNC: PermissionLevel.WRITE,
+        FeatureGroup.CONNTRACK_SYNC: PermissionLevel.WRITE,
         FeatureGroup.DHCP: PermissionLevel.WRITE,
         FeatureGroup.INTERFACES: PermissionLevel.WRITE,
         FeatureGroup.TUNNEL: PermissionLevel.WRITE,
@@ -347,6 +350,7 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.SERVICE: PermissionLevel.READ,
         FeatureGroup.BROADCAST_RELAY: PermissionLevel.READ,
         FeatureGroup.CONFIG_SYNC: PermissionLevel.READ,
+        FeatureGroup.CONNTRACK_SYNC: PermissionLevel.READ,
         FeatureGroup.DHCP: PermissionLevel.READ,
         FeatureGroup.INTERFACES: PermissionLevel.READ,
         FeatureGroup.TUNNEL: PermissionLevel.READ,
@@ -478,6 +482,7 @@ async def get_user_permissions(
                 FeatureGroup.SERVICE,
                 FeatureGroup.BROADCAST_RELAY,
                 FeatureGroup.CONFIG_SYNC,
+                FeatureGroup.CONNTRACK_SYNC,
                 FeatureGroup.DHCP,
                 FeatureGroup.INTERFACES,
                 FeatureGroup.VRF,
@@ -586,6 +591,7 @@ async def get_user_permissions(
                 FeatureGroup.SERVICE,
                 FeatureGroup.BROADCAST_RELAY,
                 FeatureGroup.CONFIG_SYNC,
+                FeatureGroup.CONNTRACK_SYNC,
                 FeatureGroup.DHCP,
                 FeatureGroup.INTERFACES,
                 FeatureGroup.VRF,
@@ -987,7 +993,7 @@ def _apply_parent_child_permissions(permissions: Dict[FeatureGroup, PermissionLe
     # SERVICE grants permissions to all service features
     service_perm = permissions.get(FeatureGroup.SERVICE, PermissionLevel.NONE)
     if service_perm != PermissionLevel.NONE:
-        for child in [FeatureGroup.BROADCAST_RELAY, FeatureGroup.CONFIG_SYNC, FeatureGroup.DHCP]:
+        for child in [FeatureGroup.BROADCAST_RELAY, FeatureGroup.CONFIG_SYNC, FeatureGroup.CONNTRACK_SYNC, FeatureGroup.DHCP]:
             current = permissions.get(child, PermissionLevel.NONE)
             if service_perm == PermissionLevel.WRITE:
                 permissions[child] = PermissionLevel.WRITE

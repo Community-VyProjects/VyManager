@@ -76,6 +76,7 @@ from routers.rpki import rpki as rpki_router
 from routers.traffic_engineering import traffic_engineering as te_router
 from routers.broadcast_relay import broadcast_relay as broadcast_relay_router
 from routers.config_sync import config_sync as config_sync_router
+from routers.conntrack_sync import conntrack_sync as conntrack_sync_router
 from routers.container import container as container_router
 from routers.console import console as console_router
 from routers import version as version_router
@@ -368,6 +369,7 @@ app.include_router(rpki_router.router)
 app.include_router(te_router.router)
 app.include_router(broadcast_relay_router.router)
 app.include_router(config_sync_router.router)
+app.include_router(conntrack_sync_router.router)
 app.include_router(container_router.router)
 app.include_router(console_router.router)
 app.include_router(version_router.router)
