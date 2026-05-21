@@ -13,7 +13,9 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import type { BridgeRule } from "@/lib/api/firewall-bridge";
+import type { FirewallGroup } from "@/lib/api/types/firewall-groups";
 import type { ColumnDef } from "@/hooks/useColumnVisibility";
+import { cn } from "@/lib/utils";
 
 const DEFAULT_BRIDGE_COLUMNS: ColumnDef[] = [
   { id: "source",      label: "Source" },
@@ -28,9 +30,52 @@ interface BridgeRuleRowProps {
   onEdit: (rule: BridgeRule) => void;
   onDelete: (rule: BridgeRule) => void;
   visibleOrderedColumns?: ColumnDef[];
+  groups?: FirewallGroup[];
 }
 
-export function BridgeRuleRow({ rule, isV15, onEdit, onDelete, visibleOrderedColumns = DEFAULT_BRIDGE_COLUMNS }: BridgeRuleRowProps) {
+export function BridgeRuleRow({ rule, isV15, onEdit, onDelete, visibleOrderedColumns = DEFAULT_BRIDGE_COLUMNS, groups = [] }: BridgeRuleRowProps) {
+  const getGroupMembers = (groupName: string): string[] => {
+    const cleanName = groupName.startsWith("!") ? groupName.substring(1) : groupName;
+    return groups.find((g) => g.name === cleanName)?.members || [];
+  };
+
+  const renderGroupBadge = (name: string, isPort?: boolean) => {
+    const inv = name.startsWith("!");
+    const display = inv ? name.substring(1) : name;
+    const members = getGroupMembers(name);
+    return (
+      <TooltipProvider key={name}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Badge
+              variant="outline"
+              className={cn(
+                "text-xs cursor-help",
+                inv && "bg-orange-500/10 text-orange-500 border-orange-500/20",
+                !inv && isPort && "bg-blue-500/10 text-blue-500 border-blue-500/20"
+              )}
+            >
+              {inv && "!"}{display}
+            </Badge>
+          </TooltipTrigger>
+          <TooltipContent>
+            <div className="max-w-xs">
+              <p className="font-semibold text-xs mb-2">{inv ? `NOT ${display}` : display}</p>
+              {members.length > 0 ? (
+                <div className="flex flex-wrap gap-1 max-h-40 overflow-y-auto">
+                  {members.map((m, i) => (
+                    <code key={i} className="text-xs font-mono px-1.5 py-0.5 rounded bg-muted/60 whitespace-nowrap">{m}</code>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">No members</p>
+              )}
+            </div>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  };
   const {
     attributes,
     listeners,
@@ -88,6 +133,10 @@ export function BridgeRuleRow({ rule, isV15, onEdit, onDelete, visibleOrderedCol
       );
     }
 
+    if (rule.source_group_address) items.push(renderGroupBadge(rule.source_group_address));
+    if (rule.source_group_network) items.push(renderGroupBadge(rule.source_group_network));
+    if (rule.source_group_mac) items.push(renderGroupBadge(rule.source_group_mac));
+
     if (rule.source_port) {
       items.push(
         <div key="port" className="text-xs text-muted-foreground">
@@ -95,6 +144,8 @@ export function BridgeRuleRow({ rule, isV15, onEdit, onDelete, visibleOrderedCol
         </div>
       );
     }
+
+    if (rule.source_group_port) items.push(renderGroupBadge(rule.source_group_port, true));
 
     if (rule.vlan_id) {
       items.push(
@@ -134,6 +185,10 @@ export function BridgeRuleRow({ rule, isV15, onEdit, onDelete, visibleOrderedCol
       );
     }
 
+    if (rule.destination_group_address) items.push(renderGroupBadge(rule.destination_group_address));
+    if (rule.destination_group_network) items.push(renderGroupBadge(rule.destination_group_network));
+    if (rule.destination_group_mac) items.push(renderGroupBadge(rule.destination_group_mac));
+
     if (rule.destination_port) {
       items.push(
         <div key="port" className="text-xs text-muted-foreground">
@@ -141,6 +196,8 @@ export function BridgeRuleRow({ rule, isV15, onEdit, onDelete, visibleOrderedCol
         </div>
       );
     }
+
+    if (rule.destination_group_port) items.push(renderGroupBadge(rule.destination_group_port, true));
 
     if (items.length === 0) {
       return <span className="text-muted-foreground text-sm">Any</span>;
@@ -163,15 +220,24 @@ export function BridgeRuleRow({ rule, isV15, onEdit, onDelete, visibleOrderedCol
 
   // Format interfaces
   const formatInterfaces = () => {
-    if (!rule.inbound_interface && !rule.outbound_interface) {
+    const hasAny = rule.inbound_interface || rule.inbound_interface_group || rule.outbound_interface || rule.outbound_interface_group;
+    if (!hasAny) {
       return <span className="text-muted-foreground text-sm">Any</span>;
     }
 
+    const inbound = rule.inbound_interface_group
+      ? renderGroupBadge(rule.inbound_interface_group)
+      : <span className="font-mono">{rule.inbound_interface || "*"}</span>;
+
+    const outbound = rule.outbound_interface_group
+      ? renderGroupBadge(rule.outbound_interface_group)
+      : <span className="font-mono">{rule.outbound_interface || "*"}</span>;
+
     return (
       <div className="flex items-center gap-1 text-xs">
-        <span className="font-mono">{rule.inbound_interface || "*"}</span>
+        {inbound}
         <ArrowRight className="h-3 w-3 text-muted-foreground" />
-        <span className="font-mono">{rule.outbound_interface || "*"}</span>
+        {outbound}
       </div>
     );
   };
