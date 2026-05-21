@@ -111,6 +111,8 @@ from .traffic_engineering import TrafficEngineeringMapper
 from .traffic_engineering.traffic_engineering_versions import get_traffic_engineering_mapper
 from .broadcast_relay import BroadcastRelayMapper
 from .broadcast_relay.broadcast_relay_versions import get_broadcast_relay_mapper
+from .dhcp_relay import DHCPRelayMapper
+from .dhcp_relay.dhcp_relay_versions import get_dhcp_relay_mapper
 from .config_sync import ConfigSyncMapper
 from .config_sync.config_sync_versions import get_config_sync_mapper
 from .container import ContainerMapper
@@ -259,6 +261,8 @@ CommandMapperRegistry.register_feature("rpki", get_rpki_mapper)
 CommandMapperRegistry.register_feature("traffic_engineering", get_traffic_engineering_mapper)
 # Broadcast Relay uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("broadcast_relay", get_broadcast_relay_mapper)
+# DHCP Relay uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("dhcp_relay", get_dhcp_relay_mapper)
 # Config-Sync uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("config_sync", get_config_sync_mapper)
 # Container uses factory for version-specific mappers
@@ -337,4 +341,5 @@ __all__ = [
     "ConfigSyncMapper",
     "ConntrackSyncMapper",
     "ConsoleServerMapper",
+    "DHCPRelayMapper",
 ]
