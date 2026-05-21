@@ -40,6 +40,39 @@ POLL_INTERVAL = 10  # seconds
 
 
 # ============================================================================
+# Session helpers
+# ============================================================================
+
+async def _has_active_session(db_pool, user_id: str, instance_id: str) -> bool:
+    """Return True if the user still has an active VyOS instance session."""
+    try:
+        async with db_pool.acquire() as conn:
+            row = await conn.fetchrow(
+                'SELECT 1 FROM active_sessions WHERE "userId" = $1 AND "instanceId" = $2',
+                user_id,
+                instance_id,
+            )
+            return row is not None
+    except Exception:
+        return True  # assume valid when DB is unavailable
+
+
+async def _get_instance_ids_with_active_sessions(db_pool, instance_ids: list[str]) -> list[str]:
+    """Return the subset of instance_ids that have at least one active session."""
+    if not instance_ids:
+        return []
+    try:
+        async with db_pool.acquire() as conn:
+            rows = await conn.fetch(
+                'SELECT DISTINCT "instanceId" FROM active_sessions WHERE "instanceId" = ANY($1)',
+                instance_ids,
+            )
+            return [row["instanceId"] for row in rows]
+    except Exception:
+        return instance_ids  # assume all valid when DB is unavailable
+
+
+# ============================================================================
 # SSE Endpoint
 # ============================================================================
 
@@ -55,6 +88,8 @@ async def banner_events(request: Request):
     await require_read_permission(request, FeatureGroup.CONFIGURATION)
 
     instance_id = request.state.instance["id"]
+    user_id = request.state.user["id"]
+    db_pool = request.app.state.db_pool
     queue = event_manager.subscribe(instance_id)
 
     async def event_stream():
@@ -69,7 +104,9 @@ async def banner_events(request: Request):
                     payload = await asyncio.wait_for(queue.get(), timeout=30)
                     yield f"data: {payload}\n\n"
                 except asyncio.TimeoutError:
-                    # Send keepalive comment to prevent connection timeout
+                    # Close the stream if the user's session has expired
+                    if db_pool and not await _has_active_session(db_pool, user_id, instance_id):
+                        break
                     yield ": keepalive\n\n"
                 except asyncio.CancelledError:
                     break
@@ -338,6 +375,14 @@ async def start_banner_poller(app_state: Any) -> None:
             await asyncio.sleep(POLL_INTERVAL)
 
             instance_ids = event_manager.get_subscribed_instance_ids()
+            if not instance_ids:
+                continue
+
+            # Skip instances that have no active VyOS sessions so we never hit
+            # the VyOS API (and its FUSE filesystem) for signed-out users.
+            db_pool = getattr(app_state, "db_pool", None)
+            if db_pool:
+                instance_ids = await _get_instance_ids_with_active_sessions(db_pool, instance_ids)
             if not instance_ids:
                 continue
 
