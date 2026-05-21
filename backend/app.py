@@ -75,6 +75,7 @@ from routers.ripng import ripng as ripng_router
 from routers.rpki import rpki as rpki_router
 from routers.traffic_engineering import traffic_engineering as te_router
 from routers.broadcast_relay import broadcast_relay as broadcast_relay_router
+from routers.dhcp_relay import dhcp_relay as dhcp_relay_router
 from routers.config_sync import config_sync as config_sync_router
 from routers.conntrack_sync import conntrack_sync as conntrack_sync_router
 from routers.console_server import console_server as console_server_router
@@ -369,6 +370,7 @@ app.include_router(ripng_router.router)
 app.include_router(rpki_router.router)
 app.include_router(te_router.router)
 app.include_router(broadcast_relay_router.router)
+app.include_router(dhcp_relay_router.router)
 app.include_router(config_sync_router.router)
 app.include_router(conntrack_sync_router.router)
 app.include_router(console_server_router.router)
