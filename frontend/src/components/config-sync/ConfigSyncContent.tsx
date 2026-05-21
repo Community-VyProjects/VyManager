@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, Pencil, RefreshCwOff, Key, CheckCircle2, AlertTriangle, Loader2 } from "lucide-react";
+import { RefreshCw, Pencil, RefreshCwOff, Key, CheckCircle2 } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { configSyncService, ConfigSyncConfig, ConfigSyncSections } from "@/lib/api/config-sync";
 import { ConfigSyncModal } from "./ConfigSyncModal";
