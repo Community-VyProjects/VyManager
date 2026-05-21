@@ -22,9 +22,11 @@ from vyos_mappers import CommandMapperRegistry
 from vyos_builders import SystemBatchBuilder
 from utils.archive_url import (
     list_archive_files as _list_archive_files,
+    fetch_archive_file_content,
     transform_archive_to_load_url,
     validate_filename,
 )
+from utils.vyos_config_parser import parse_vyos_config
 
 logger = logging.getLogger(__name__)
 
@@ -1495,7 +1497,104 @@ async def list_archive_files_endpoint(request: Request, archive_location: str):
 
 
 # =============================================================================
-# Endpoint 0e: Restore config from archive
+# Endpoint 0e: Diff current config vs a remote archive backup
+# =============================================================================
+
+
+def _normalize(v: Any) -> Any:
+    """Unwrap single-element lists so ["us"] == "us" when diffing."""
+    if isinstance(v, list) and len(v) == 1:
+        return v[0]
+    return v
+
+
+def _deep_diff(current: Dict, saved: Dict, path: str = "") -> tuple:
+    """Recursively compare two configuration dicts. Returns (added, removed, modified)."""
+    added: Dict[str, Any] = {}
+    removed: Dict[str, Any] = {}
+    modified: Dict[str, Any] = {}
+
+    for key in current:
+        full = f"{path}.{key}" if path else key
+        if key not in saved:
+            added[full] = current[key]
+        elif isinstance(current[key], dict) and isinstance(saved[key], dict):
+            a, r, m = _deep_diff(current[key], saved[key], full)
+            added.update(a)
+            removed.update(r)
+            modified.update(m)
+        elif _normalize(current[key]) != _normalize(saved[key]):
+            modified[full] = {"old": saved[key], "new": current[key]}
+
+    for key in saved:
+        if key not in current:
+            full = f"{path}.{key}" if path else key
+            removed[full] = saved[key]
+
+    return added, removed, modified
+
+
+@router.get("/config/archive-diff")
+async def get_archive_diff(request: Request, archive_location: str, filename: str):
+    """
+    Compare current running config with a remote archive backup file.
+
+    Returns the same ConfigDiffResponse shape as /vyos/config/diff so the
+    frontend can reuse the same diff-rendering component.
+    """
+    await require_read_permission(request, FeatureGroup.CONFIGURATION)
+    try:
+        if not validate_filename(filename):
+            raise HTTPException(status_code=400, detail="Invalid filename format")
+
+        service = get_session_vyos_service(request)
+        full_config = await run_in_threadpool(service.get_full_config, refresh=False)
+        system_config = full_config.get("system", {}) or {}
+        cm = _parse_config_management(system_config)
+
+        if archive_location not in cm.archive_locations:
+            raise HTTPException(
+                status_code=400,
+                detail="Archive location not found in device configuration",
+            )
+
+        validated_location = cm.archive_locations[
+            cm.archive_locations.index(archive_location)
+        ]
+
+        try:
+            content = await fetch_archive_file_content(validated_location, filename)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+
+        try:
+            backup_config = parse_vyos_config(content)
+        except Exception as exc:
+            raise HTTPException(status_code=422, detail=f"Failed to parse backup file: {exc}")
+
+        current_config = await run_in_threadpool(service.get_full_config, refresh=False)
+        added, removed, modified = _deep_diff(backup_config, current_config)
+
+        return {
+            "has_changes": bool(added or removed or modified),
+            "added": added,
+            "removed": removed,
+            "modified": modified,
+            "summary": {
+                "added": len(added),
+                "removed": len(removed),
+                "modified": len(modified),
+            },
+        }
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Unhandled error in get_archive_diff")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+# =============================================================================
+# Endpoint 0f: Restore config from archive
 # =============================================================================
 
 

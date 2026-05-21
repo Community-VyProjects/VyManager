@@ -4,6 +4,7 @@ Archive URL utilities for config restore from remote archive locations.
 Handles:
   - Parsing archive URLs into components
   - Listing backup files at archive locations (SFTP, FTP, HTTP/S)
+  - Fetching individual backup file content (SFTP, FTP, HTTP/S)
   - Transforming archive (save) URLs to load URLs (protocol-specific)
 """
 
@@ -282,6 +283,126 @@ async def _list_http(archive_url: str) -> List[Dict]:
 
     files.sort(key=lambda f: f["filename"], reverse=True)
     return files
+
+
+async def fetch_archive_file_content(archive_url: str, filename: str) -> str:
+    """
+    Fetch the text content of a specific backup file from an archive location.
+
+    Supports SCP/SFTP, FTP, and HTTP/HTTPS. Raises ValueError for unsupported
+    protocols (TFTP, git+https) or invalid filenames.
+    """
+    if not validate_filename(filename):
+        raise ValueError(f"Invalid filename: {filename}")
+
+    parsed = urlparse(archive_url)
+    scheme = (parsed.scheme or "").lower().rstrip("+")
+    hostname = parsed.hostname or ""
+    port = parsed.port
+    username = parsed.username
+    password = parsed.password
+    path = parsed.path
+    if not path.endswith("/"):
+        path += "/"
+
+    if scheme in ("scp", "sftp"):
+        return await _fetch_sftp_content(
+            hostname=hostname,
+            port=port or 22,
+            username=username or "vyos",
+            password=password,
+            path=path,
+            filename=filename,
+        )
+    elif scheme == "ftp":
+        return await _fetch_ftp_content(
+            hostname=hostname,
+            port=port or 21,
+            username=username or "anonymous",
+            password=password or "",
+            path=path,
+            filename=filename,
+        )
+    elif scheme in ("http", "https"):
+        return await _fetch_http_content(archive_url, filename)
+    else:
+        raise ValueError(f"Unsupported protocol for file fetch: {scheme}")
+
+
+async def _fetch_sftp_content(
+    *, hostname: str, port: int, username: str,
+    password: Optional[str], path: str, filename: str,
+) -> str:
+    connect_kwargs: Dict = {
+        "host": hostname,
+        "port": port,
+        "username": username,
+        "known_hosts": None,
+    }
+    if password:
+        connect_kwargs["password"] = password
+
+    try:
+        conn = await asyncio.wait_for(
+            asyncssh.connect(**connect_kwargs),
+            timeout=_CONNECTION_TIMEOUT,
+        )
+    except asyncio.TimeoutError:
+        raise ValueError("SFTP connection timed out")
+    except (OSError, asyncssh.Error) as exc:
+        raise ValueError(f"SFTP connection failed: {exc}") from exc
+
+    try:
+        async with conn:
+            async with conn.start_sftp_client() as sftp:
+                full_path = path + filename
+                async with sftp.open(full_path, "r") as f:
+                    data = await f.read()
+                    return data if isinstance(data, str) else data.decode("utf-8", errors="replace")
+    except (asyncssh.SFTPError, OSError) as exc:
+        raise ValueError(f"SFTP file read failed: {exc}") from exc
+
+
+async def _fetch_ftp_content(
+    *, hostname: str, port: int, username: str,
+    password: str, path: str, filename: str,
+) -> str:
+    import io
+
+    def _do_ftp() -> str:
+        buf = io.BytesIO()
+        ftp = ftplib.FTP()
+        ftp.connect(hostname, port, timeout=_CONNECTION_TIMEOUT)
+        ftp.login(username, password)
+        ftp.retrbinary(f"RETR {path}{filename}", buf.write)
+        ftp.quit()
+        return buf.getvalue().decode("utf-8", errors="replace")
+
+    try:
+        return await asyncio.get_event_loop().run_in_executor(None, _do_ftp)
+    except ftplib.Error as exc:
+        raise ValueError(f"FTP file read failed: {exc}") from exc
+
+
+async def _fetch_http_content(archive_url: str, filename: str) -> str:
+    parsed = urlparse(archive_url)
+    auth = None
+    if parsed.username:
+        auth = (parsed.username, parsed.password or "")
+
+    try:
+        safe_url = _validate_http_url(archive_url)
+    except ValueError:
+        raise
+
+    file_url = safe_url.rstrip("/") + "/" + filename
+    try:
+        async with httpx.AsyncClient(timeout=30, verify=True) as client:
+            resp = await client.get(file_url, auth=auth)
+            resp.raise_for_status()
+            return resp.text
+    except httpx.HTTPError as exc:
+        raise ValueError(f"HTTP file read failed: {exc}") from exc
 
 
 def transform_archive_to_load_url(archive_url: str, filename: str) -> str:
