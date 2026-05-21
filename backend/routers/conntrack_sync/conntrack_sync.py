@@ -256,7 +256,11 @@ def _parse_interfaces(raw) -> List[ConntrackSyncInterface]:
             try:
                 port = int(port_raw)
             except (ValueError, TypeError):
-                pass
+                logger.debug(
+                    "Invalid conntrack-sync interface port '%s' for interface '%s'; defaulting to None",
+                    port_raw,
+                    iface_name,
+                )
         interfaces.append(ConntrackSyncInterface(
             name=iface_name,
             peer=iface_cfg.get("peer"),
