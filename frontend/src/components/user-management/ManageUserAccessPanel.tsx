@@ -69,6 +69,7 @@ import {
   GitBranch,
   Package,
   Terminal,
+  RefreshCw,
 } from "lucide-react";
 import {
   userManagementService,
@@ -103,6 +104,7 @@ const FEATURE_ICONS: Record<FeatureGroup, any> = {
   [FeatureGroup.NAT66]: Globe,
   [FeatureGroup.SERVICE]: Package,
   [FeatureGroup.BROADCAST_RELAY]: Radio,
+  [FeatureGroup.CONFIG_SYNC]: RefreshCw,
   [FeatureGroup.CONTAINER]: Box,
   [FeatureGroup.DHCP]: Wifi,
   [FeatureGroup.INTERFACES]: Router,
@@ -192,6 +194,7 @@ const FEATURE_NAMES: Record<FeatureGroup, string> = {
   [FeatureGroup.NAT66]: "NAT66",
   [FeatureGroup.SERVICE]: "Service",
   [FeatureGroup.BROADCAST_RELAY]: "Broadcast Relay",
+  [FeatureGroup.CONFIG_SYNC]: "Config Sync",
   [FeatureGroup.CONTAINER]: "Containers",
   [FeatureGroup.DHCP]: "DHCP",
   [FeatureGroup.INTERFACES]: "Interfaces",
@@ -354,6 +357,7 @@ const FEATURE_CATEGORIES: FeatureCategory[] = [
         feature: FeatureGroup.SERVICE,
         children: [
           { feature: FeatureGroup.BROADCAST_RELAY },
+          { feature: FeatureGroup.CONFIG_SYNC },
           { feature: FeatureGroup.DHCP },
         ],
       },

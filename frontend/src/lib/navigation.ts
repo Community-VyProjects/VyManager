@@ -1,4 +1,4 @@
-import { Activity, Shield, ShieldAlert, ShieldCheck, Network, Lock, FileText, LayoutDashboard, Server, Settings, HeartPulse, Route as RouteIcon, Scale, ArrowLeftRight, Package, Box, Waypoints, KeyRound, Globe, Globe2, ListTree, Link2, Radio, Phone, Key, Layers, Terminal } from "lucide-react";
+import { Activity, Shield, ShieldAlert, Network, Lock, LayoutDashboard, Server, Settings, HeartPulse, Route as RouteIcon, Scale, ArrowLeftRight, Box, Waypoints, KeyRound, Globe, Globe2, ListTree, Link2, Radio, Phone, Key, Terminal } from "lucide-react";
 import { FeatureGroup } from "@/lib/api/user-management";
 
 export interface NavSection {
@@ -111,6 +111,7 @@ export const navigation: NavItem[] = [
     icon: Radio,
     children: [
       { title: "Broadcast Relay", href: "/service/broadcast-relay", requiredPermission: FeatureGroup.BROADCAST_RELAY },
+      { title: "Config Sync", href: "/service/config-sync", requiredPermission: FeatureGroup.CONFIG_SYNC },
       { title: "DHCP", href: "/network/dhcp", requiredPermission: FeatureGroup.DHCP, sections: [
             { id: "subnets", title: "Subnets", href: "/network/dhcp", description: "Manage DHCP subnets", searchParams: { section: "subnets" } },
               { id: "servers", title: "Servers", href: "/network/dhcp", description: "DHCP server instances", searchParams: { section: "servers" } },
