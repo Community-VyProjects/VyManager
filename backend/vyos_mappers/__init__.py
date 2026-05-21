@@ -113,6 +113,8 @@ from .broadcast_relay import BroadcastRelayMapper
 from .broadcast_relay.broadcast_relay_versions import get_broadcast_relay_mapper
 from .dhcp_relay import DHCPRelayMapper
 from .dhcp_relay.dhcp_relay_versions import get_dhcp_relay_mapper
+from .dhcpv6_relay import DHCPv6RelayMapper
+from .dhcpv6_relay.dhcpv6_relay_versions import get_dhcpv6_relay_mapper
 from .config_sync import ConfigSyncMapper
 from .config_sync.config_sync_versions import get_config_sync_mapper
 from .container import ContainerMapper
@@ -263,6 +265,8 @@ CommandMapperRegistry.register_feature("traffic_engineering", get_traffic_engine
 CommandMapperRegistry.register_feature("broadcast_relay", get_broadcast_relay_mapper)
 # DHCP Relay uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("dhcp_relay", get_dhcp_relay_mapper)
+# DHCPv6 Relay uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("dhcpv6_relay", get_dhcpv6_relay_mapper)
 # Config-Sync uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("config_sync", get_config_sync_mapper)
 # Container uses factory for version-specific mappers
@@ -342,4 +346,5 @@ __all__ = [
     "ConntrackSyncMapper",
     "ConsoleServerMapper",
     "DHCPRelayMapper",
+    "DHCPv6RelayMapper",
 ]
