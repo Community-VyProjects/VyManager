@@ -117,6 +117,8 @@ from .container import ContainerMapper
 from .container.container_versions import get_container_mapper
 from .conntrack_sync import ConntrackSyncMapper
 from .conntrack_sync.conntrack_sync_versions import get_conntrack_sync_mapper
+from .console_server import ConsoleServerMapper
+from .console_server.console_server_versions import get_console_server_mapper
 
 # Auto-register all mappers
 # Ethernet uses factory for version-specific mappers
@@ -263,6 +265,8 @@ CommandMapperRegistry.register_feature("config_sync", get_config_sync_mapper)
 CommandMapperRegistry.register_feature("container", get_container_mapper)
 # Conntrack-Sync uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("conntrack_sync", get_conntrack_sync_mapper)
+# Console Server uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("console_server", get_console_server_mapper)
 
 __all__ = [
     "BaseFeatureMapper",
@@ -332,4 +336,5 @@ __all__ = [
     "ContainerMapper",
     "ConfigSyncMapper",
     "ConntrackSyncMapper",
+    "ConsoleServerMapper",
 ]
