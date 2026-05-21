@@ -232,9 +232,18 @@ function SourceNATContent({ rule, groups }: { rule: SourceNATRule; groups: Firew
         )}
       </TableCell>
       <TableCell>
-        <Badge variant="outline" className="font-mono text-xs">
-          {rule.outbound_interface?.name || rule.outbound_interface?.group || "any"}
-        </Badge>
+        {rule.outbound_interface?.group ? (
+          (() => {
+            const g = rule.outbound_interface.group;
+            const inv = g.startsWith("!");
+            const display = inv ? g.substring(1) : g;
+            return <GroupTooltipBadge name={display} inv={inv} members={getGroupMembers(g)} />;
+          })()
+        ) : (
+          <Badge variant="outline" className="font-mono text-xs">
+            {rule.outbound_interface?.name || "any"}
+          </Badge>
+        )}
       </TableCell>
       <TableCell>
         <span className="text-sm text-muted-foreground">
@@ -297,9 +306,18 @@ function DestinationNATContent({ rule, groups }: { rule: DestinationNATRule; gro
         </code>
       </TableCell>
       <TableCell>
-        <Badge variant="outline" className="font-mono text-xs">
-          {rule.inbound_interface?.name || rule.inbound_interface?.group || "any"}
-        </Badge>
+        {rule.inbound_interface?.group ? (
+          (() => {
+            const g = rule.inbound_interface.group;
+            const inv = g.startsWith("!");
+            const display = inv ? g.substring(1) : g;
+            return <GroupTooltipBadge name={display} inv={inv} members={getGroupMembers(g)} />;
+          })()
+        ) : (
+          <Badge variant="outline" className="font-mono text-xs">
+            {rule.inbound_interface?.name || "any"}
+          </Badge>
+        )}
       </TableCell>
       <TableCell>
         <span className="text-sm text-muted-foreground">

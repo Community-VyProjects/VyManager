@@ -114,6 +114,8 @@ export default function NATPage() {
         ...gc.address_groups,
         ...gc.network_groups,
         ...gc.port_groups,
+        ...gc.interface_groups,
+        ...gc.mac_groups,
         ...gc.domain_groups,
       ]);
     }).catch(console.error);

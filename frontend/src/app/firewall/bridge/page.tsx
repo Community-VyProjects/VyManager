@@ -63,6 +63,7 @@ import { DeleteBridgeRuleModal } from "@/components/firewall/DeleteBridgeRuleMod
 import { CreateCustomBridgeChainModal } from "@/components/firewall/CreateCustomBridgeChainModal";
 import { DeleteCustomBridgeChainModal } from "@/components/firewall/DeleteCustomBridgeChainModal";
 import { BridgeRuleRow } from "@/components/firewall/BridgeRuleRow";
+import { firewallGroupsService, type FirewallGroup } from "@/lib/api/firewall-groups";
 import { BridgeReorderBanner } from "@/components/firewall/BridgeReorderBanner";
 import { ColumnToggleButton } from "@/components/firewall/ColumnToggleButton";
 import { useColumnVisibility, type ColumnDef } from "@/hooks/useColumnVisibility";
@@ -88,6 +89,7 @@ const BRIDGE_COLUMNS: ColumnDef[] = [
 export default function BridgeFirewallPage() {
   const [config, setConfig] = useState<BridgeConfigResponse | null>(null);
   const [capabilities, setCapabilities] = useState<BridgeCapabilities | null>(null);
+  const [groups, setGroups] = useState<FirewallGroup[]>([]);
   const [selectedChain, setSelectedChain] = useState<string>("forward");
   const [isCustomChain, setIsCustomChain] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -132,12 +134,21 @@ export default function BridgeFirewallPage() {
     try {
       setLoading(true);
       setError(null);
-      const [configData, capabilitiesData] = await Promise.all([
+      const [configData, capabilitiesData, groupsConfig] = await Promise.all([
         bridgeFirewallService.getConfig(refresh),
         bridgeFirewallService.getCapabilities(),
+        firewallGroupsService.getConfig(),
       ]);
       setConfig(configData);
       setCapabilities(capabilitiesData);
+      setGroups([
+        ...groupsConfig.address_groups,
+        ...groupsConfig.network_groups,
+        ...groupsConfig.port_groups,
+        ...groupsConfig.interface_groups,
+        ...groupsConfig.mac_groups,
+        ...groupsConfig.domain_groups,
+      ]);
       // Reset reorder state when data is loaded
       setHasChanges(false);
       setReorderedRules([]);
@@ -771,6 +782,7 @@ export default function BridgeFirewallPage() {
                             onEdit={(r) => setEditingRule({ chain: selectedChain, rule: r, openedAt: Date.now() })}
                             onDelete={(r) => setDeletingRule({ chain: selectedChain, rule: r })}
                             visibleOrderedColumns={visibleOrderedColumns}
+                            groups={groups}
                           />
                         ))}
                       </SortableContext>
