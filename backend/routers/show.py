@@ -1033,7 +1033,12 @@ async def dashboard_stream(request: Request):
     include_wireguard = await has_permission(request, FeatureGroup.WIREGUARD, PermissionLevel.READ)
     broadcaster = _get_broadcaster(service)
 
+    instance_id: str = service.config.instance_id
+    user_id: str = request.state.user["id"]
+    db_pool = request.app.state.db_pool
+
     async def event_generator():
+        from routers.events import _has_active_session
         queue = broadcaster.subscribe()
         try:
             yield 'event: connected\ndata: {"message":"Dashboard stream connected"}\n\n'
@@ -1043,6 +1048,9 @@ async def dashboard_stream(request: Request):
                 try:
                     event = await asyncio.wait_for(queue.get(), timeout=30.0)
                 except asyncio.TimeoutError:
+                    # Close the stream if the user's session has expired
+                    if db_pool and not await _has_active_session(db_pool, user_id, instance_id):
+                        break
                     yield ": keep-alive\n\n"
                     continue
                 if event["type"] == "wireguard-peers" and not include_wireguard:
