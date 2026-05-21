@@ -1,4 +1,5 @@
 import { apiClient } from "./client";
+import type { ConfigDiff } from "./config";
 
 // ============================================================================
 // Response types
@@ -713,6 +714,13 @@ class SystemSettingsService {
   async listArchiveFiles(archiveLocation: string): Promise<ArchiveFilesResponse> {
     return apiClient.get<ArchiveFilesResponse>("/vyos/system/config/archive-files", {
       archive_location: archiveLocation,
+    });
+  }
+
+  async getArchiveDiff(archiveLocation: string, filename: string): Promise<ConfigDiff> {
+    return apiClient.get<ConfigDiff>("/vyos/system/config/archive-diff", {
+      archive_location: archiveLocation,
+      filename,
     });
   }
 

@@ -36,24 +36,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { AlertCircle, Edit2, FolderOpen, Info, Loader2, Plus, Search, Trash2, X } from "lucide-react";
+import { AlertCircle, Edit2, FolderOpen, Info, Plus, Trash2, X } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   systemSettingsService,
-  type ArchiveFile,
   type SystemConfig,
   type SystemCapabilities,
   type FrrBmpTarget,
 } from "@/lib/api/system-settings";
 import { useToast } from "@/hooks/useToast";
+import { ArchiveRestoreModal } from "./ArchiveRestoreModal";
 
 const FRR_PROFILES = ["datacenter", "traditional"];
 
@@ -87,14 +79,6 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
 
   // Archive restore
   const [browseArchiveTarget, setBrowseArchiveTarget] = useState<string | null>(null);
-  const [archiveFiles, setArchiveFiles] = useState<ArchiveFile[]>([]);
-  const [archiveFilesLoading, setArchiveFilesLoading] = useState(false);
-  const [archiveFilesError, setArchiveFilesError] = useState<string | null>(null);
-  const [selectedArchiveFile, setSelectedArchiveFile] = useState<string | null>(null);
-  const [archiveSearch, setArchiveSearch] = useState("");
-  const [manualFilename, setManualFilename] = useState("");
-  const [confirmRestore, setConfirmRestore] = useState(false);
-  const [restoring, setRestoring] = useState(false);
 
   // Sysctl
   const [addingSysctl, setAddingSysctl] = useState(false);
@@ -262,56 +246,6 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
     }
   };
 
-  // Archive restore handlers
-  const handleBrowseArchive = async (location: string) => {
-    setBrowseArchiveTarget(location);
-    setArchiveFiles([]);
-    setArchiveFilesError(null);
-    setSelectedArchiveFile(null);
-    setArchiveSearch("");
-    setManualFilename("");
-    setConfirmRestore(false);
-    setArchiveFilesLoading(true);
-    try {
-      const resp = await systemSettingsService.listArchiveFiles(location);
-      setArchiveFiles(resp.files);
-      if (resp.files.length === 0) {
-        setArchiveFilesError("No backup files found or directory listing not supported for this protocol.");
-      }
-    } catch {
-      setArchiveFilesError("Failed to list files at this archive location.");
-    } finally {
-      setArchiveFilesLoading(false);
-    }
-  };
-
-  const getRestoreFilename = (): string | null => {
-    if (selectedArchiveFile) return selectedArchiveFile;
-    const manual = manualFilename.trim();
-    if (manual && /^config\.boot[\w.\-]*$/.test(manual)) return manual;
-    return null;
-  };
-
-  const handleRestore = async () => {
-    const filename = getRestoreFilename();
-    if (!browseArchiveTarget || !filename) return;
-    setRestoring(true);
-    try {
-      const r = await systemSettingsService.restoreFromArchive(browseArchiveTarget, filename);
-      if (!r.success) {
-        toast.error("Restore failed", r.error ?? "Could not restore configuration");
-      } else {
-        toast.success("Configuration restored successfully");
-        setBrowseArchiveTarget(null);
-        onRefresh();
-      }
-    } catch {
-      toast.error("Error", "An unexpected error occurred during restore");
-    } finally {
-      setRestoring(false);
-      setConfirmRestore(false);
-    }
-  };
 
   const maskCredentials = (url: string): string => {
     try {
@@ -801,7 +735,7 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
                 <div key={loc} className="flex items-center justify-between bg-muted/30 rounded px-3 py-2">
                   <span className="font-mono text-sm truncate flex-1 mr-2">{maskCredentials(loc)}</span>
                   <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0" title="Browse backups" onClick={() => handleBrowseArchive(loc)}>
+                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0" title="Browse backups" onClick={() => setBrowseArchiveTarget(loc)}>
                       <FolderOpen className="h-3.5 w-3.5" />
                     </Button>
                     {!isReadOnly && (
@@ -1807,158 +1741,12 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Archive restore dialog */}
-      <Dialog open={!!browseArchiveTarget} onOpenChange={(o) => { if (!o && !restoring) { setBrowseArchiveTarget(null); setConfirmRestore(false); } }}>
-        <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Restore from Archive</DialogTitle>
-            <DialogDescription>
-              {browseArchiveTarget && maskCredentials(browseArchiveTarget)}
-            </DialogDescription>
-          </DialogHeader>
-
-          {!confirmRestore ? (
-            <div className="space-y-4">
-              {archiveFilesLoading && (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                  <span className="ml-2 text-sm text-muted-foreground">Loading backup files...</span>
-                </div>
-              )}
-
-              {!archiveFilesLoading && archiveFilesError && archiveFiles.length === 0 && (
-                <div className="rounded-lg border border-muted p-4 text-center">
-                  <p className="text-sm text-muted-foreground">{archiveFilesError}</p>
-                </div>
-              )}
-
-              {!archiveFilesLoading && archiveFiles.length > 0 && (() => {
-                const filtered = archiveSearch
-                  ? archiveFiles.filter((f) => f.filename.toLowerCase().includes(archiveSearch.toLowerCase()))
-                  : archiveFiles;
-                return (
-                  <div className="space-y-2">
-                    <div className="relative">
-                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                      <Input
-                        value={archiveSearch}
-                        onChange={(e) => setArchiveSearch(e.target.value)}
-                        placeholder="Filter backups..."
-                        className="pl-8 text-xs"
-                      />
-                    </div>
-                    <div className="rounded border">
-                      <Table>
-                        <TableHeader className="sticky top-0 z-10 bg-background">
-                          <TableRow>
-                            <TableHead className="w-8"></TableHead>
-                            <TableHead>Filename</TableHead>
-                            <TableHead className="text-right w-20">Size</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                      </Table>
-                      <div className="max-h-[220px] overflow-y-auto">
-                        <Table>
-                          <TableBody>
-                            {filtered.length === 0 ? (
-                              <TableRow>
-                                <TableCell colSpan={3} className="text-center text-sm text-muted-foreground py-4">
-                                  No matching files
-                                </TableCell>
-                              </TableRow>
-                            ) : (
-                              filtered.map((f) => (
-                                <TableRow
-                                  key={f.filename}
-                                  className={`cursor-pointer ${selectedArchiveFile === f.filename ? "bg-accent" : "hover:bg-muted/50"}`}
-                                  onClick={() => { setSelectedArchiveFile(f.filename); setManualFilename(""); }}
-                                >
-                                  <TableCell className="w-8">
-                                    <input
-                                      type="radio"
-                                      name="archive-file"
-                                      checked={selectedArchiveFile === f.filename}
-                                      onChange={() => { setSelectedArchiveFile(f.filename); setManualFilename(""); }}
-                                      className="h-3.5 w-3.5"
-                                    />
-                                  </TableCell>
-                                  <TableCell>
-                                    <div className="font-mono text-xs">{f.filename}</div>
-                                    {f.modified && (
-                                      <div className="text-xs text-muted-foreground">
-                                        {new Date(f.modified).toLocaleString()}
-                                      </div>
-                                    )}
-                                  </TableCell>
-                                  <TableCell className="text-right text-xs text-muted-foreground w-20">
-                                    {f.size != null ? `${(f.size / 1024).toFixed(1)} KB` : "—"}
-                                  </TableCell>
-                                </TableRow>
-                              ))
-                            )}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
-
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Or enter filename manually</Label>
-                <Input
-                  value={manualFilename}
-                  onChange={(e) => { setManualFilename(e.target.value); setSelectedArchiveFile(null); }}
-                  placeholder="config.boot-hostname.20250101_120000"
-                  className="font-mono text-xs"
-                />
-              </div>
-
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setBrowseArchiveTarget(null)}>Cancel</Button>
-                <Button
-                  disabled={!getRestoreFilename() || isReadOnly}
-                  onClick={() => setConfirmRestore(true)}
-                >
-                  Restore
-                </Button>
-              </DialogFooter>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 p-4 space-y-2">
-                <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
-                  This will replace the running configuration
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  The current running config will be replaced with the selected backup. This action takes effect immediately.
-                </p>
-              </div>
-              <div className="rounded border p-3 bg-muted/30">
-                <p className="text-xs text-muted-foreground">Restoring file:</p>
-                <p className="font-mono text-sm font-medium">{getRestoreFilename()}</p>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setConfirmRestore(false)} disabled={restoring}>Back</Button>
-                <Button
-                  variant="destructive"
-                  onClick={handleRestore}
-                  disabled={restoring}
-                >
-                  {restoring ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      Restoring...
-                    </>
-                  ) : (
-                    "Confirm Restore"
-                  )}
-                </Button>
-              </DialogFooter>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <ArchiveRestoreModal
+        location={browseArchiveTarget}
+        onClose={() => setBrowseArchiveTarget(null)}
+        onRestored={onRefresh}
+        isReadOnly={isReadOnly}
+      />
     </div>
   );
 }
