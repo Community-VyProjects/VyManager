@@ -1,4 +1,4 @@
-import { Activity, Shield, ShieldAlert, ShieldCheck, Network, Lock, FileText, LayoutDashboard, Server, Settings, HeartPulse, Route as RouteIcon, Scale, ArrowLeftRight, Package, Box, Waypoints, KeyRound, Globe, Globe2, ListTree, Link2, Radio, Phone, Key, Layers, Terminal, RefreshCw } from "lucide-react";
+import { Activity, Shield, ShieldAlert, Network, Lock, LayoutDashboard, Server, Settings, HeartPulse, Route as RouteIcon, Scale, ArrowLeftRight, Box, Waypoints, KeyRound, Globe, Globe2, ListTree, Link2, Radio, Phone, Key, Terminal } from "lucide-react";
 import { FeatureGroup } from "@/lib/api/user-management";
 
 export interface NavSection {
