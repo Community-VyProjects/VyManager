@@ -189,7 +189,8 @@ async def get_dhcpv6_server_config(http_request: Request, refresh: bool = False)
             try:
                 preference = int(raw_pref)
             except (ValueError, TypeError):
-                pass
+                logger.debug("Ignoring invalid DHCPv6 preference value: %r", raw_pref)
+                preference = None
 
         global_name_servers = _parse_multi_value(
             raw.get("global-parameters", {}).get("name-server") if isinstance(raw.get("global-parameters"), dict) else None
