@@ -393,8 +393,7 @@ async def get_nat_config(http_request: Request, refresh: bool = False):
                     options = None
                     if "options" in trans_data:
                         options = NATRuleTranslationOptions(
-                            address_mapping=trans_data["options"].get("address-mapping"),
-                            port_mapping=trans_data["options"].get("port-mapping")
+                            address_mapping=trans_data["options"].get("address-mapping")
                         )
                     redirect = None
                     if "redirect" in trans_data:
@@ -844,8 +843,6 @@ async def reorder_nat_rules(http_request: Request, request: ReorderNATRequest):
                     batch.set_destination_rule_translation_port(new_num, rule_data["translation_port"])
                 if rule_data.get("translation_options_address_mapping"):
                     batch.set_destination_rule_translation_options_address_mapping(new_num, rule_data["translation_options_address_mapping"])
-                if rule_data.get("translation_options_port_mapping"):
-                    batch.set_destination_rule_translation_options_port_mapping(new_num, rule_data["translation_options_port_mapping"])
                 if rule_data.get("translation_redirect_port"):
                     batch.set_destination_rule_translation_redirect_port(new_num, rule_data["translation_redirect_port"])
                 # Source groups

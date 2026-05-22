@@ -349,14 +349,6 @@ class NATMapper(BaseFeatureMapper):
         """Get command path for destination rule translation options address-mapping (for deletion)."""
         return ["nat", "destination", "rule", str(rule_number), "translation", "options", "address-mapping"]
 
-    def get_destination_rule_translation_options_port_mapping(self, rule_number: int, value: str) -> List[str]:
-        """Get command path for destination rule translation options port-mapping."""
-        return ["nat", "destination", "rule", str(rule_number), "translation", "options", "port-mapping", value]
-
-    def get_destination_rule_translation_options_port_mapping_path(self, rule_number: int) -> List[str]:
-        """Get command path for destination rule translation options port-mapping (for deletion)."""
-        return ["nat", "destination", "rule", str(rule_number), "translation", "options", "port-mapping"]
-
     def get_destination_rule_translation_redirect_port(self, rule_number: int, port: str) -> List[str]:
         """Get command path for destination rule translation redirect port."""
         return ["nat", "destination", "rule", str(rule_number), "translation", "redirect", "port", port]

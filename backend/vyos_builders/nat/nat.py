@@ -756,24 +756,6 @@ class NATBatchBuilder:
         )
         return self.add_delete(path)
 
-    def set_destination_rule_translation_options_port_mapping(
-        self, rule_number: int, value: str
-    ) -> "NATBatchBuilder":
-        """Set destination rule translation options port-mapping."""
-        path = self.mappers[self.mapper_key].get_destination_rule_translation_options_port_mapping(
-            rule_number, value
-        )
-        return self.add_set(path)
-
-    def delete_destination_rule_translation_options_port_mapping(
-        self, rule_number: int
-    ) -> "NATBatchBuilder":
-        """Delete destination rule translation options port-mapping."""
-        path = self.mappers[self.mapper_key].get_destination_rule_translation_options_port_mapping_path(
-            rule_number
-        )
-        return self.add_delete(path)
-
     def set_destination_rule_translation_redirect_port(
         self, rule_number: int, port: str
     ) -> "NATBatchBuilder":
@@ -1178,8 +1160,6 @@ class NATBatchBuilder:
                     "delete_destination_rule_translation_port",
                     "set_destination_rule_translation_options_address_mapping",
                     "delete_destination_rule_translation_options_address_mapping",
-                    "set_destination_rule_translation_options_port_mapping",
-                    "delete_destination_rule_translation_options_port_mapping",
                     "set_destination_rule_translation_redirect_port",
                     "delete_destination_rule_translation_redirect_port",
                 ],

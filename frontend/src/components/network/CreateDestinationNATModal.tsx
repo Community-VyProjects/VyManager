@@ -74,7 +74,6 @@ export function CreateDestinationNATModal({ open, onOpenChange, onSuccess }: Cre
   // Translation
   const [translationAddress, setTranslationAddress] = useState("");
   const [translationPort, setTranslationPort] = useState("");
-  const [translationPortMapping, setTranslationPortMapping] = useState(false);
   const [translationAddressMapping, setTranslationAddressMapping] = useState(false);
 
   // Load Balance
@@ -239,7 +238,6 @@ export function CreateDestinationNATModal({ open, onOpenChange, onSuccess }: Cre
     setPacketType("");
     setTranslationAddress("");
     setTranslationPort("");
-    setTranslationPortMapping(false);
     setTranslationAddressMapping(false);
     setLoadBalanceHash("");
     setLoadBalanceBackend("");
@@ -330,7 +328,6 @@ export function CreateDestinationNATModal({ open, onOpenChange, onSuccess }: Cre
       if (translationPort.trim()) {
         config.translation_port = translationPort.trim();
       }
-      if (translationPortMapping) config.translation_port_mapping = true;
       if (translationAddressMapping) config.translation_address_mapping = true;
 
       // Load balance
@@ -504,22 +501,6 @@ export function CreateDestinationNATModal({ open, onOpenChange, onSuccess }: Cre
 
               {/* Translation Options */}
               <div className="space-y-2">
-                <div className="flex items-start space-x-2">
-                  <Checkbox
-                    id="translation-port-mapping"
-                    checked={translationPortMapping}
-                    onCheckedChange={(checked) => setTranslationPortMapping(checked === true)}
-                    className="mt-1"
-                  />
-                  <div className="space-y-1">
-                    <Label htmlFor="translation-port-mapping" className="text-sm font-medium cursor-pointer">
-                      Randomize source port (port-mapping random)
-                    </Label>
-                    <p className="text-xs text-muted-foreground">
-                      Randomizes the outbound source port for privacy and security
-                    </p>
-                  </div>
-                </div>
                 <div className="flex items-start space-x-2">
                   <Checkbox
                     id="translation-address-mapping"
