@@ -116,6 +116,7 @@ export const navigation: NavItem[] = [
       { title: "Console Server", href: "/service/console-server", requiredPermission: FeatureGroup.CONSOLE_SERVER },
       { title: "DHCP Relay", href: "/service/dhcp-relay", requiredPermission: FeatureGroup.DHCP_RELAY },
       { title: "DHCPv6 Relay", href: "/service/dhcpv6-relay", requiredPermission: FeatureGroup.DHCPV6_RELAY },
+      { title: "DHCPv6 Server", href: "/service/dhcpv6-server", requiredPermission: FeatureGroup.DHCPV6_SERVER },
       { title: "DHCP", href: "/network/dhcp", requiredPermission: FeatureGroup.DHCP, sections: [
             { id: "subnets", title: "Subnets", href: "/network/dhcp", description: "Manage DHCP subnets", searchParams: { section: "subnets" } },
               { id: "servers", title: "Servers", href: "/network/dhcp", description: "DHCP server instances", searchParams: { section: "servers" } },
