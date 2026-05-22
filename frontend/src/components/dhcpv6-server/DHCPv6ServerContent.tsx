@@ -373,9 +373,9 @@ export function DHCPv6ServerContent() {
             {config?.shared_networks.length === 0 ? (
               <div className="px-3 py-8 text-center">
                 <Server className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">No networks configured</p>
+                <p className="text-sm text-muted-foreground">No servers configured</p>
                 {hasWrite && (
-                  <p className="text-xs text-muted-foreground mt-1">Click "New Network" to create one</p>
+                  <p className="text-xs text-muted-foreground mt-1">Click "New Server" to create one</p>
                 )}
               </div>
             ) : (
@@ -1049,14 +1049,14 @@ export function DHCPv6ServerContent() {
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center space-y-4">
               <Server className="h-16 w-16 text-muted-foreground mx-auto" />
-              <h2 className="text-xl font-semibold">No DHCPv6 Networks</h2>
+              <h2 className="text-xl font-semibold">No DHCPv6 Servers</h2>
               <p className="text-muted-foreground max-w-md">
-                Get started by creating your first shared network to manage DHCPv6 address allocation.
+                Get started by creating your first DHCPv6 server to manage IPv6 address allocation.
               </p>
               {hasWrite && (
                 <Button onClick={() => { setEditingNetwork(null); setNetworkModalOpen(true); }}>
                   <Plus className="h-4 w-4 mr-2" />
-                  Create Network
+                  New Server
                 </Button>
               )}
             </div>
