@@ -416,7 +416,6 @@ class NATService {
       packet_type?: string;
       translation_address?: string;
       translation_port?: string;
-      translation_port_mapping?: boolean;
       translation_address_mapping?: boolean;
       load_balance_hash?: string;
       load_balance_backend?: string;
@@ -516,9 +515,6 @@ class NATService {
     }
     if (config.translation_port) {
       operations.push({ op: "set_destination_rule_translation_port", value: config.translation_port });
-    }
-    if (config.translation_port_mapping) {
-      operations.push({ op: "set_destination_rule_translation_options_port_mapping", value: "random" });
     }
     if (config.translation_address_mapping) {
       operations.push({ op: "set_destination_rule_translation_options_address_mapping", value: "persistent" });
@@ -900,7 +896,6 @@ class NATService {
       packet_type?: string;
       translation_address?: string;
       translation_port?: string;
-      translation_port_mapping?: boolean;
       translation_address_mapping?: boolean;
       load_balance_hash?: string;
       load_balance_backend?: string;
@@ -921,7 +916,6 @@ class NATService {
       delete_destination_fqdn?: boolean;
       delete_inbound_interface_name?: boolean;
       delete_inbound_interface_group?: boolean;
-      delete_translation_port_mapping?: boolean;
       delete_translation_address_mapping?: boolean;
     }
   ): Promise<VyOSResponse> {
@@ -1060,12 +1054,6 @@ class NATService {
     }
     if (config.translation_port) {
       operations.push({ op: "set_destination_rule_translation_port", value: config.translation_port });
-    }
-
-    if (config.delete_translation_port_mapping) {
-      operations.push({ op: "delete_destination_rule_translation_options_port_mapping" });
-    } else if (config.translation_port_mapping) {
-      operations.push({ op: "set_destination_rule_translation_options_port_mapping", value: "random" });
     }
 
     if (config.delete_translation_address_mapping) {
@@ -1290,7 +1278,6 @@ class NATService {
     if (rule.translation?.address) data.translation_address = rule.translation.address;
     if (rule.translation?.port) data.translation_port = rule.translation.port;
     if (rule.translation?.options?.address_mapping) data.translation_options_address_mapping = rule.translation.options.address_mapping;
-    if (rule.translation?.options?.port_mapping) data.translation_options_port_mapping = rule.translation.options.port_mapping;
     if (rule.translation?.redirect?.port) data.translation_redirect_port = rule.translation.redirect.port;
     if (rule.load_balance?.hash) data.load_balance_hash = rule.load_balance.hash;
     if (rule.load_balance?.backends?.length) data.load_balance_backends = rule.load_balance.backends;
