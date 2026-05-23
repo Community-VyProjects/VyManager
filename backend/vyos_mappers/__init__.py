@@ -125,6 +125,10 @@ from .console_server import ConsoleServerMapper
 from .console_server.console_server_versions import get_console_server_mapper
 from .dhcpv6_server import DHCPv6ServerMapper
 from .dhcpv6_server.dhcpv6_server_versions import get_dhcpv6_server_mapper
+from .dns_forwarding import DNSForwardingMapper
+from .dns_forwarding.dns_forwarding_versions import get_dns_forwarding_mapper
+from .dns_dynamic import DNSDynamicMapper
+from .dns_dynamic.dns_dynamic_versions import get_dns_dynamic_mapper
 
 # Auto-register all mappers
 # Ethernet uses factory for version-specific mappers
@@ -279,6 +283,10 @@ CommandMapperRegistry.register_feature("conntrack_sync", get_conntrack_sync_mapp
 CommandMapperRegistry.register_feature("console_server", get_console_server_mapper)
 # DHCPv6 Server uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("dhcpv6_server", get_dhcpv6_server_mapper)
+# DNS Forwarding uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("dns_forwarding", get_dns_forwarding_mapper)
+# DNS Dynamic uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("dns_dynamic", get_dns_dynamic_mapper)
 
 __all__ = [
     "BaseFeatureMapper",
@@ -352,4 +360,6 @@ __all__ = [
     "ConsoleServerMapper",
     "DHCPRelayMapper",
     "DHCPv6RelayMapper",
+    "DNSForwardingMapper",
+    "DNSDynamicMapper",
 ]
