@@ -131,6 +131,8 @@ from .dns_dynamic import DNSDynamicMapper
 from .dns_dynamic.dns_dynamic_versions import get_dns_dynamic_mapper
 from .event_handler import EventHandlerMapper
 from .event_handler.event_handler_versions import get_event_handler_mapper
+from .https import HTTPSMapper
+from .https.https_versions import get_https_mapper
 
 # Auto-register all mappers
 # Ethernet uses factory for version-specific mappers
@@ -290,6 +292,8 @@ CommandMapperRegistry.register_feature("dns_forwarding", get_dns_forwarding_mapp
 # DNS Dynamic uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("dns_dynamic", get_dns_dynamic_mapper)
 CommandMapperRegistry.register_feature("event_handler", get_event_handler_mapper)
+# HTTPS uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("https", get_https_mapper)
 
 __all__ = [
     "BaseFeatureMapper",
@@ -366,4 +370,5 @@ __all__ = [
     "DNSForwardingMapper",
     "DNSDynamicMapper",
     "EventHandlerMapper",
+    "HTTPSMapper",
 ]
