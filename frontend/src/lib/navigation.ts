@@ -119,6 +119,7 @@ export const navigation: NavItem[] = [
       { title: "DHCPv6 Server", href: "/service/dhcpv6-server", requiredPermission: FeatureGroup.DHCPV6_SERVER },
       { title: "DNS Forwarding", href: "/service/dns-forwarding", requiredPermission: FeatureGroup.DNS_FORWARDING },
       { title: "DNS Dynamic", href: "/service/dns-dynamic", requiredPermission: FeatureGroup.DNS_DYNAMIC },
+      { title: "Event Handler", href: "/service/event-handler", requiredPermission: FeatureGroup.EVENT_HANDLER },
       { title: "DHCP", href: "/network/dhcp", requiredPermission: FeatureGroup.DHCP, sections: [
             { id: "subnets", title: "Subnets", href: "/network/dhcp", description: "Manage DHCP subnets", searchParams: { section: "subnets" } },
               { id: "servers", title: "Servers", href: "/network/dhcp", description: "DHCP server instances", searchParams: { section: "servers" } },

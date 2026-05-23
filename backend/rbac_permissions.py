@@ -72,6 +72,7 @@ class FeatureGroup(str, Enum):
     DHCPV6_SERVER = "DHCPV6_SERVER"
     DNS_FORWARDING = "DNS_FORWARDING"
     DNS_DYNAMIC = "DNS_DYNAMIC"
+    EVENT_HANDLER = "EVENT_HANDLER"
 
     # VPN features
     VPN = "VPN"
@@ -167,6 +168,7 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.FIREWALL_ZONES: PermissionLevel.WRITE,
         FeatureGroup.FIREWALL_GLOBAL_OPTIONS: PermissionLevel.WRITE,
         FeatureGroup.FIREWALL_BRIDGE: PermissionLevel.WRITE,
+        FeatureGroup.EVENT_HANDLER: PermissionLevel.WRITE,
         FeatureGroup.FIREWALL_FLOWTABLES: PermissionLevel.WRITE,
         FeatureGroup.NETWORK: PermissionLevel.WRITE,
         FeatureGroup.NAT: PermissionLevel.WRITE,
@@ -263,6 +265,7 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.FIREWALL_ZONES: PermissionLevel.WRITE,
         FeatureGroup.FIREWALL_GLOBAL_OPTIONS: PermissionLevel.WRITE,
         FeatureGroup.FIREWALL_BRIDGE: PermissionLevel.WRITE,
+        FeatureGroup.EVENT_HANDLER: PermissionLevel.WRITE,
         FeatureGroup.FIREWALL_FLOWTABLES: PermissionLevel.WRITE,
         FeatureGroup.NETWORK: PermissionLevel.WRITE,
         FeatureGroup.NAT: PermissionLevel.WRITE,
@@ -360,6 +363,7 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.FIREWALL_ZONES: PermissionLevel.READ,
         FeatureGroup.FIREWALL_GLOBAL_OPTIONS: PermissionLevel.READ,
         FeatureGroup.FIREWALL_BRIDGE: PermissionLevel.READ,
+        FeatureGroup.EVENT_HANDLER: PermissionLevel.READ,
         FeatureGroup.FIREWALL_FLOWTABLES: PermissionLevel.READ,
         FeatureGroup.NETWORK: PermissionLevel.READ,
         FeatureGroup.NAT: PermissionLevel.READ,
@@ -513,6 +517,7 @@ async def get_user_permissions(
                 FeatureGroup.DHCPV6_SERVER,
                 FeatureGroup.DNS_FORWARDING,
                 FeatureGroup.DNS_DYNAMIC,
+                FeatureGroup.EVENT_HANDLER,
                 FeatureGroup.DHCP,
                 FeatureGroup.INTERFACES,
                 FeatureGroup.VRF,
@@ -628,6 +633,7 @@ async def get_user_permissions(
                 FeatureGroup.DHCPV6_SERVER,
                 FeatureGroup.DNS_FORWARDING,
                 FeatureGroup.DNS_DYNAMIC,
+                FeatureGroup.EVENT_HANDLER,
                 FeatureGroup.DHCP,
                 FeatureGroup.INTERFACES,
                 FeatureGroup.VRF,
@@ -1029,7 +1035,7 @@ def _apply_parent_child_permissions(permissions: Dict[FeatureGroup, PermissionLe
     # SERVICE grants permissions to all service features
     service_perm = permissions.get(FeatureGroup.SERVICE, PermissionLevel.NONE)
     if service_perm != PermissionLevel.NONE:
-        for child in [FeatureGroup.BROADCAST_RELAY, FeatureGroup.CONFIG_SYNC, FeatureGroup.CONNTRACK_SYNC, FeatureGroup.CONSOLE_SERVER, FeatureGroup.DHCP_RELAY, FeatureGroup.DHCPV6_RELAY, FeatureGroup.DHCPV6_SERVER, FeatureGroup.DNS_FORWARDING, FeatureGroup.DNS_DYNAMIC, FeatureGroup.DHCP]:
+        for child in [FeatureGroup.BROADCAST_RELAY, FeatureGroup.CONFIG_SYNC, FeatureGroup.CONNTRACK_SYNC, FeatureGroup.CONSOLE_SERVER, FeatureGroup.DHCP_RELAY, FeatureGroup.DHCPV6_RELAY, FeatureGroup.DHCPV6_SERVER, FeatureGroup.DNS_FORWARDING, FeatureGroup.DNS_DYNAMIC, FeatureGroup.EVENT_HANDLER, FeatureGroup.DHCP]:
             current = permissions.get(child, PermissionLevel.NONE)
             if service_perm == PermissionLevel.WRITE:
                 permissions[child] = PermissionLevel.WRITE
