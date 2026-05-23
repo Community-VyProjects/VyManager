@@ -42,9 +42,7 @@ import {
   DNSForwardingConfig,
   DNSForwardingCapabilities,
   DomainForwarder,
-  NameServerEntry,
   AuthoritativeDomain,
-  AuthDomainRecords,
   ZoneCache,
 } from "@/lib/api/dns-forwarding";
 import { DNSForwardingSettingsModal } from "./DNSForwardingSettingsModal";
