@@ -334,6 +334,14 @@ def _parse_int(value) -> Optional[int]:
         return None
 
 
+def _parse_scalar(value) -> Optional[str]:
+    if value is None:
+        return None
+    if isinstance(value, list):
+        return str(value[0]) if value else None
+    return str(value)
+
+
 def _parse_name_servers(raw) -> List[NameServerEntry]:
     if not raw or not isinstance(raw, dict):
         return []
@@ -379,7 +387,7 @@ def _parse_a_records(raw: dict) -> List[ARecord]:
             attrs = {}
         result.append(ARecord(
             hostname=hostname,
-            address=attrs.get("address"),
+            address=_parse_scalar(attrs.get("address")),
             ttl=_parse_int(attrs.get("ttl")),
             disabled="disable" in attrs,
         ))
@@ -395,7 +403,7 @@ def _parse_aaaa_records(raw: dict) -> List[AAAARecord]:
             attrs = {}
         result.append(AAAARecord(
             hostname=hostname,
-            address=attrs.get("address"),
+            address=_parse_scalar(attrs.get("address")),
             ttl=_parse_int(attrs.get("ttl")),
             disabled="disable" in attrs,
         ))
@@ -411,7 +419,7 @@ def _parse_cname_records(raw: dict) -> List[CNAMERecord]:
             attrs = {}
         result.append(CNAMERecord(
             hostname=hostname,
-            target=attrs.get("target"),
+            target=_parse_scalar(attrs.get("target")),
             ttl=_parse_int(attrs.get("ttl")),
             disabled="disable" in attrs,
         ))
@@ -451,7 +459,7 @@ def _parse_txt_records(raw: dict) -> List[TXTRecord]:
             attrs = {}
         result.append(TXTRecord(
             hostname=hostname,
-            value=attrs.get("value"),
+            value=_parse_scalar(attrs.get("value")),
             ttl=_parse_int(attrs.get("ttl")),
             disabled="disable" in attrs,
         ))
@@ -467,7 +475,7 @@ def _parse_ns_records(raw: dict) -> List[NSRecord]:
             attrs = {}
         result.append(NSRecord(
             hostname=hostname,
-            target=attrs.get("target"),
+            target=_parse_scalar(attrs.get("target")),
             ttl=_parse_int(attrs.get("ttl")),
             disabled="disable" in attrs,
         ))
@@ -483,7 +491,7 @@ def _parse_ptr_records(raw: dict) -> List[PTRRecord]:
             attrs = {}
         result.append(PTRRecord(
             hostname=hostname,
-            target=attrs.get("target"),
+            target=_parse_scalar(attrs.get("target")),
             ttl=_parse_int(attrs.get("ttl")),
             disabled="disable" in attrs,
         ))
