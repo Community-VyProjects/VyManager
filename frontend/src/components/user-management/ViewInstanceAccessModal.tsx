@@ -49,6 +49,7 @@ import {
   Terminal,
   ArrowLeftRight,
   MonitorSpeaker,
+  Zap,
 } from "lucide-react";
 import { userManagementService, FeatureGroup, InstanceUserListItem } from "@/lib/api/user-management";
 import { ApiError } from "@/lib/types/api";
@@ -86,6 +87,7 @@ const FEATURE_ICONS: Record<FeatureGroup, any> = {
   [FeatureGroup.DHCPV6_SERVER]: Server,
   [FeatureGroup.DNS_FORWARDING]: Globe,
   [FeatureGroup.DNS_DYNAMIC]: RefreshCw,
+  [FeatureGroup.EVENT_HANDLER]: Zap,
   [FeatureGroup.CONTAINER]: Box,
   [FeatureGroup.DHCP]: Wifi,
   [FeatureGroup.INTERFACES]: Router,
@@ -183,6 +185,7 @@ const FEATURE_NAMES: Record<FeatureGroup, string> = {
   [FeatureGroup.DHCPV6_SERVER]: "DHCPv6 Server",
   [FeatureGroup.DNS_FORWARDING]: "DNS Forwarding",
   [FeatureGroup.DNS_DYNAMIC]: "DNS Dynamic",
+  [FeatureGroup.EVENT_HANDLER]: "Event Handler",
   [FeatureGroup.CONTAINER]: "Containers",
   [FeatureGroup.DHCP]: "DHCP",
   [FeatureGroup.INTERFACES]: "Interfaces",
