@@ -331,6 +331,6 @@ def _parse_api(raw: dict, is_1_4: bool) -> HTTPSApi:
         rest_enabled = bool(rest_raw) or isinstance(rest_raw, dict)
         debug = "debug" in rest_raw if isinstance(rest_raw, dict) else False
         strict = "strict" in rest_raw if isinstance(rest_raw, dict) else False
-        rest = HTTPSRestAPI(enabled=isinstance(rest_raw, dict), debug=debug, strict=strict)
+        rest = HTTPSRestAPI(enabled=rest_enabled, debug=debug, strict=strict)
 
     return HTTPSApi(keys=keys, graphql=graphql, rest=rest)
