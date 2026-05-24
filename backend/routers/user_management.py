@@ -4,6 +4,7 @@ User Management Router
 API endpoints for managing users, roles, and permissions.
 ADMIN only.
 """
+import os
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field, EmailStr
@@ -21,6 +22,8 @@ from rbac_permissions import (
 from fastapi_permissions import require_super_admin
 
 router = APIRouter(prefix="/user-management", tags=["user-management"])
+
+FRONTEND_INTERNAL_URL = os.getenv("FRONTEND_INTERNAL_URL", "http://frontend:3000")
 
 
 # ============================================================================
@@ -321,7 +324,7 @@ async def create_user(request: Request, body: CreateUserRequest):
         raise HTTPException(status_code=400, detail="site_role must be ADMIN or VIEWER")
 
     # Call Better Auth's internal user creation endpoint
-    frontend_url = "http://frontend:3000"
+    frontend_url = FRONTEND_INTERNAL_URL.rstrip("/")
     create_user_url = f"{frontend_url}/api/internal/create-user"
 
     async with httpx.AsyncClient(timeout=10.0, follow_redirects=False) as client:
