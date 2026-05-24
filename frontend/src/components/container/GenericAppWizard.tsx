@@ -270,8 +270,8 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
 
       const ports = (hasNetwork && networkMode === "host") ? [] : (ic.ports ?? []).map(p => ({
         name: p.name,
-        source: String(p.source),
-        destination: String(p.destination),
+        source: resolve(String(p.source), resolvedValues),
+        destination: resolve(String(p.destination), resolvedValues),
         protocol: p.protocol ?? "tcp",
         listen_addresses: p.listenAddresses ?? [],
       }));

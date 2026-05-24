@@ -586,11 +586,6 @@ export const APP_CATALOG: AppDef[] = [
       restart: "always",
       logDriver: "journald",
       memory: "${memory}",
-      ports: [
-        { name: "dns-tcp", source: 53, destination: 53, protocol: "tcp" },
-        { name: "dns-udp", source: 53, destination: 53, protocol: "udp" },
-        { name: "web", source: "${webPort}", destination: "${webPort}", protocol: "tcp" },
-      ],
       environment: [
         { name: "TZ", value: "${timezone}" },
         { name: "FTLCONF_webserver_api_password", value: "${password}" },
