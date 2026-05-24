@@ -290,7 +290,7 @@ export const APP_CATALOG: AppDef[] = [
     name: "AdGuard DNS Proxy DoQ",
     tagline: "Local DNS-over-QUIC upstream proxy for VyOS PowerDNS",
     description:
-      "Runs AdGuard dnsproxy locally on VyOS so the built-in PowerDNS Recursor can forward queries to an encrypted DNS-over-QUIC upstream. Intended for deployments where VyOS PowerDNS remains the LAN DNS server.",
+      "Runs AdGuard dnsproxy locally on VyOS so the built-in PowerDNS Recursor can forward queries to an encrypted DNS-over-QUIC upstream for deployments where PowerDNS remains the LAN DNS server.",
     category: "DNS",
     tags: ["dns", "doq", "dns-over-quic", "encrypted-dns", "privacy"],
     dockerImage: "docker.io/adguard/dnsproxy:latest",
@@ -401,7 +401,7 @@ export const APP_CATALOG: AppDef[] = [
     name: "nProbe",
     tagline: "NetFlow/IPFIX collector with embedded IPS",
     description:
-      "ntop nProbe is a high-performance NetFlow v5/v9/IPFIX probe and collector with embedded IPS capabilities. Runs in host networking mode and mounts /config/containers/nprobe/data into the container at /data/nprobe — place your IPS rules at ips-config/ips-rules.conf within that directory.",
+      "ntop nProbe is a high-performance NetFlow v5/v9/IPFIX probe and collector with embedded IPS capabilities.",
     category: "Network Monitoring",
     tags: ["netflow", "ipfix", "ips", "monitoring", "ntop", "network-probe"],
     dockerImage: "ntop/nprobe:latest",
@@ -448,6 +448,52 @@ export const APP_CATALOG: AppDef[] = [
         { path: "/config/containers/${containerName}/data/ips-rules.conf", label: "IPS Rules" },
       ],
       labels: [{ name: "com.vymanager.app", value: "nprobe" }],
+    },
+  },
+  {
+    id: "technitium-dns",
+    name: "Technitium DNS Server",
+    tagline: "Feature-rich self-hosted DNS server with web console",
+    description:
+      "A fully-featured open source DNS server with a web console on port 5380. Supports DNS-over-HTTPS, DNS-over-TLS, DNSSEC, zone management, ad blocking, and query logging.",
+    category: "DNS",
+    tags: ["dns", "dns-server", "self-hosted", "doh", "dot", "dnssec", "ad-blocking", "technitium"],
+    dockerImage: "technitium/dns-server:latest",
+    defaultContainerName: "technitium-dns",
+    iconPath: "/app-icons/technitium.png",
+    installConfig: {
+      fields: [
+        {
+          name: "serverDomain",
+          label: "Server Domain",
+          type: "text",
+          default: "dns-server",
+          placeholder: "dns-server",
+          description: "Primary domain name this DNS server uses to identify itself.",
+          required: true,
+        },
+      ],
+      network: {
+        allowHost: true,
+        allowExisting: true,
+        allowNew: true,
+        defaultMode: "existing",
+        allowStaticIp: true,
+        allowMac: true,
+      },
+      description: "Technitium DNS Server — self-hosted DNS with web console",
+      restart: "always",
+      environment: [
+        { name: "DNS_SERVER_DOMAIN",          value: "${serverDomain}" },
+        { name: "DNS_SERVER_LOG_FOLDER_PATH", value: "/var/log/technitium/dns" },
+      ],
+      volumes: [
+        { name: "config", destination: "/etc/dns" },
+        { name: "logs",   destination: "/var/log/technitium/dns" },
+      ],
+      sysctl: [
+        { name: "net.ipv4.ip_local_port_range", value: "1024 65535" },
+      ],
     },
   },
   {
