@@ -511,8 +511,19 @@ export const APP_CATALOG: AppDef[] = [
       memory: "${memory}",
       privileged: false,
       capabilities: ["net-admin", "net-raw", "sys-admin"],
-      arguments: "-i ${interface} -w ${webPort} --data-dir /var/lib/ntopng",
-      volumes: [{ name: "data", destination: "/var/lib/ntopng" }],
+      arguments:
+        "-i ${interface} -w ${webPort} --data-dir /var/lib/ntopng --license-file /etc/ntopng-license/ntopng.license",
+      volumes: [
+        { name: "data", destination: "/var/lib/ntopng" },
+        { name: "license", destination: "/etc/ntopng-license" },
+      ],
+      initFiles: ["/config/containers/${containerName}/license/ntopng.license"],
+      editableFiles: [
+        {
+          path: "/config/containers/${containerName}/license/ntopng.license",
+          label: "License File",
+        },
+      ],
       labels: [{ name: "com.vymanager.app", value: "ntopng" }],
     },
   },
