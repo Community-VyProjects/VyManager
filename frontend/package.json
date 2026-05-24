@@ -41,8 +41,8 @@
     "dotenv": "^17.4.2",
     "lucide-react": "^0.562.0",
     "next": "^16.2.6",
-    "react": "19.2.3",
-    "react-dom": "19.2.3",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
     "recharts": "^3.6.0",
     "tailwind-merge": "^3.3.1",
     "zustand": "^5.0.2"
@@ -64,6 +64,7 @@
     "typescript": "^5.9.3"
   },
   "overrides": {
-    "minimatch": ">=9.0.7"
+    "minimatch": ">=9.0.7",
+    "postcss": "8.5.10"
   }
 }
