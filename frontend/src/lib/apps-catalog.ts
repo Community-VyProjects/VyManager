@@ -451,6 +451,33 @@ export const APP_CATALOG: AppDef[] = [
     },
   },
   {
+    id: "nginx-proxy-manager",
+    name: "Nginx Proxy Manager",
+    tagline: "Reverse proxy with a beautiful UI",
+    description:
+      "Expose web services on your network with free SSL, powered by Let's Encrypt. Manage proxy hosts, redirections, and streams through a clean web interface.",
+    category: "Proxy",
+    tags: ["proxy", "ssl", "nginx", "letsencrypt", "reverse-proxy"],
+    dockerImage: "docker.io/jc21/nginx-proxy-manager",
+    defaultContainerName: "npm",
+    iconPath: "/app-icons/nginx-proxy-manager.svg",
+    installConfig: {
+      network: {
+        allowExisting: true,
+        allowNew: true,
+        defaultMode: "existing",
+        allowStaticIp: true,
+        allowMac: true,
+      },
+      description: "Nginx Proxy Manager",
+      restart: "always",
+      volumes: [
+        { name: "data",        destination: "/data" },
+        { name: "letsencrypt", destination: "/etc/letsencrypt" },
+      ],
+    },
+  },
+  {
     id: "technitium-dns",
     name: "Technitium DNS Server",
     tagline: "Feature-rich self-hosted DNS server with web console",
@@ -493,33 +520,6 @@ export const APP_CATALOG: AppDef[] = [
       ],
       sysctl: [
         { name: "net.ipv4.ip_local_port_range", value: "1024 65535" },
-      ],
-    },
-  },
-  {
-    id: "nginx-proxy-manager",
-    name: "Nginx Proxy Manager",
-    tagline: "Reverse proxy with a beautiful UI",
-    description:
-      "Expose web services on your network with free SSL, powered by Let's Encrypt. Manage proxy hosts, redirections, and streams through a clean web interface.",
-    category: "Proxy",
-    tags: ["proxy", "ssl", "nginx", "letsencrypt", "reverse-proxy"],
-    dockerImage: "docker.io/jc21/nginx-proxy-manager",
-    defaultContainerName: "npm",
-    iconPath: "/app-icons/nginx-proxy-manager.svg",
-    installConfig: {
-      network: {
-        allowExisting: true,
-        allowNew: true,
-        defaultMode: "existing",
-        allowStaticIp: true,
-        allowMac: true,
-      },
-      description: "Nginx Proxy Manager",
-      restart: "always",
-      volumes: [
-        { name: "data",        destination: "/data" },
-        { name: "letsencrypt", destination: "/etc/letsencrypt" },
       ],
     },
   },
