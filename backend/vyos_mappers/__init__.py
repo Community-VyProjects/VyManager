@@ -133,6 +133,8 @@ from .event_handler import EventHandlerMapper
 from .event_handler.event_handler_versions import get_event_handler_mapper
 from .https import HTTPSMapper
 from .https.https_versions import get_https_mapper
+from .ipoe_server import IPoEServerMapper
+from .ipoe_server.ipoe_server_versions import get_ipoe_server_mapper
 
 # Auto-register all mappers
 # Ethernet uses factory for version-specific mappers
@@ -294,6 +296,8 @@ CommandMapperRegistry.register_feature("dns_dynamic", get_dns_dynamic_mapper)
 CommandMapperRegistry.register_feature("event_handler", get_event_handler_mapper)
 # HTTPS uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("https", get_https_mapper)
+# IPoE Server uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("ipoe_server", get_ipoe_server_mapper)
 
 __all__ = [
     "BaseFeatureMapper",
@@ -371,4 +375,5 @@ __all__ = [
     "DNSDynamicMapper",
     "EventHandlerMapper",
     "HTTPSMapper",
+    "IPoEServerMapper",
 ]
