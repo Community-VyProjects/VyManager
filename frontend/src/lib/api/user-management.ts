@@ -138,6 +138,7 @@ export enum FeatureGroup {
   DNS_DYNAMIC = "DNS_DYNAMIC",
   EVENT_HANDLER = "EVENT_HANDLER",
   HTTPS = "HTTPS",
+  IPOE_SERVER = "IPOE_SERVER",
   CONTAINER = "CONTAINER",
 
   // VPN features
