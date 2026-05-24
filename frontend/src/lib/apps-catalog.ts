@@ -589,7 +589,7 @@ export const APP_CATALOG: AppDef[] = [
       ports: [
         { name: "dns-tcp", source: 53, destination: 53, protocol: "tcp" },
         { name: "dns-udp", source: 53, destination: 53, protocol: "udp" },
-        { name: "web", source: 8080, destination: 8080, protocol: "tcp" },
+        { name: "web", source: "${webPort}", destination: "${webPort}", protocol: "tcp" },
       ],
       environment: [
         { name: "TZ", value: "${timezone}" },
