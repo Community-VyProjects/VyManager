@@ -51,6 +51,14 @@ export function AppsTab({ config, capabilities, hasWritePermission, onReload }: 
     app.tags.some(t => t.includes(q))
   );
 
+  const categoryOrder = Array.from(new Set(APP_CATALOG.map(app => app.category)));
+  const groupedApps = filtered.reduce<Record<string, AppDef[]>>((groups, app) => {
+    groups[app.category] = groups[app.category] ?? [];
+    groups[app.category].push(app);
+    return groups;
+  }, {});
+  const orderedCategories = categoryOrder.filter(category => (groupedApps[category]?.length ?? 0) > 0);
+
   return (
     <>
       <div className="space-y-4">
@@ -70,41 +78,64 @@ export function AppsTab({ config, capabilities, hasWritePermission, onReload }: 
             <p className="text-sm">No apps match your search.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filtered.map(app => {
-              const installed = isAppInstalled(app, config);
-              return (
-                <Card key={app.id} className="flex flex-col">
-                  <CardContent className="flex-1 p-5 space-y-3">
-                    <div className="flex items-center gap-3">
-                      <AppIcon app={app} />
-                      <div className="min-w-0">
-                        <h3 className="font-semibold text-base leading-tight">{app.name}</h3>
-                        <Badge variant="outline" className="text-xs mt-1">{app.category}</Badge>
-                      </div>
-                    </div>
-                    <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed">
-                      {app.description}
-                    </p>
-                  </CardContent>
+          <div className="space-y-8">
+            {orderedCategories.map(category => {
+              const apps = (groupedApps[category] ?? []).slice().sort((a, b) => {
+                return (a.order ?? 0) - (b.order ?? 0);
+              });
 
-                  <CardFooter className="p-4 pt-0">
-                    {installed ? (
-                      <Button variant="outline" className="w-full" disabled>
-                        <CheckCircle2 className="h-4 w-4 mr-2 text-green-500" />
-                        Installed
-                      </Button>
-                    ) : (
-                      <Button
-                        className="w-full"
-                        disabled={!hasWritePermission}
-                        onClick={() => setInstallingApp(app)}
-                      >
-                        Install
-                      </Button>
-                    )}
-                  </CardFooter>
-                </Card>
+              return (
+                <div key={category}>
+                  <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2 mb-3">
+                    <div>
+                      <p className="text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                        {category}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {apps.length} app{apps.length === 1 ? "" : "s"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {apps.map(app => {
+                      const installed = isAppInstalled(app, config);
+                      return (
+                        <Card key={app.id} className="flex flex-col">
+                          <CardContent className="flex-1 p-5 space-y-3">
+                            <div className="flex items-center gap-3">
+                              <AppIcon app={app} />
+                              <div className="min-w-0">
+                                <h3 className="font-semibold text-base leading-tight">{app.name}</h3>
+                                <Badge variant="outline" className="text-xs mt-1">{app.category}</Badge>
+                              </div>
+                            </div>
+                            <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed">
+                              {app.description}
+                            </p>
+                          </CardContent>
+
+                          <CardFooter className="p-4 pt-0">
+                            {installed ? (
+                              <Button variant="outline" className="w-full" disabled>
+                                <CheckCircle2 className="h-4 w-4 mr-2 text-green-500" />
+                                Installed
+                              </Button>
+                            ) : (
+                              <Button
+                                className="w-full"
+                                disabled={!hasWritePermission}
+                                onClick={() => setInstallingApp(app)}
+                              >
+                                Install
+                              </Button>
+                            )}
+                          </CardFooter>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </div>
               );
             })}
           </div>

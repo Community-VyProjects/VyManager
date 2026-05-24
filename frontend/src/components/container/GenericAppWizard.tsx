@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { systemSettingsService } from "@/lib/api/system-settings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -90,9 +91,45 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
   const [step, setStep] = useState(0);
   const [containerName, setContainerName] = useState(app.defaultContainerName);
 
-  const [fieldValues, setFieldValues] = useState<Record<string, string>>(() =>
-    Object.fromEntries((ic.fields ?? []).map(f => [f.name, String(f.default ?? "")]))
+  const defaultFieldValues = useMemo(
+    () => Object.fromEntries((ic.fields ?? []).map(f => [f.name, String(f.default ?? "")])),
+    [ic.fields]
   );
+
+  const [fieldValues, setFieldValues] = useState<Record<string, string>>(defaultFieldValues);
+
+  useEffect(() => {
+    if (!open) return;
+
+    type SystemTimeConfig = { time_zone?: string | null; timezone?: string | null };
+    let active = true;
+
+    systemSettingsService
+      .getConfig()
+      .then((config) => {
+        if (!active) return;
+        const tz = (config as SystemTimeConfig).time_zone ?? (config as SystemTimeConfig).timezone;
+        if (!tz) return;
+
+        setFieldValues((current) => {
+          const field = ic.fields?.find((f) => f.name === "timezone");
+          if (!field) return current;
+          const previousValue = current["timezone"] ?? "";
+          const defaultValue = String(field.default ?? "");
+          if (previousValue === "" || previousValue === defaultValue) {
+            return { ...current, timezone: tz };
+          }
+          return current;
+        });
+      })
+      .catch(() => {
+        // ignore config fetch errors; just keep existing defaults
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [open, ic.fields]);
 
   const initialMode: NetworkMode = (netCfg?.defaultMode as NetworkMode | undefined) ?? availableModes[0] ?? "existing";
   const [networkMode, setNetworkMode] = useState<NetworkMode>(initialMode);
@@ -272,6 +309,9 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
         size: t.size ?? null,
       })) : [];
 
+      const supportedCapabilities = capabilities?.features?.capabilities?.values ?? [];
+      const requestedCapabilities = (ic.capabilities ?? []).filter((cap) => supportedCapabilities.includes(cap));
+
       await containerService.createContainer({
         name,
         image: app.dockerImage,
@@ -291,7 +331,7 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
         gid: ic.gid ? resolve(ic.gid, resolvedValues) : null,
         host_name: ic.hostname ? resolve(ic.hostname, resolvedValues) : null,
         log_driver: logDriver,
-        capabilities: ic.capabilities ?? [],
+        capabilities: requestedCapabilities,
         name_servers: ic.nameServers ?? [],
         devices: (ic.devices ?? []).map(d => ({ name: d.name, source: d.source, destination: d.destination })),
         labels: (ic.labels ?? []).map(l => ({ name: l.name, value: resolve(l.value, resolvedValues) })),

@@ -195,8 +195,8 @@ export interface AppInstallConfig {
 
   ports?: Array<{
     name: string;
-    source: number;
-    destination: number;
+    source: number | string;
+    destination: number | string;
     protocol?: "tcp" | "udp";
     listenAddresses?: string[];
   }>;
@@ -230,6 +230,7 @@ export interface AppDef {
   dockerImage: string;
   defaultContainerName: string;
   iconPath?: string;
+  order?: number;
   installConfig?: AppInstallConfig;
 }
 
@@ -304,7 +305,8 @@ export const APP_CATALOG: AppDef[] = [
           type: "number",
           default: 128,
           placeholder: "128",
-          description: "dnsproxy is lightweight; increase only for unusually high query volume.",
+          description:
+            "dnsproxy is lightweight; increase only for unusually high query volume.",
         },
         {
           name: "listenAddress",
@@ -441,13 +443,153 @@ export const APP_CATALOG: AppDef[] = [
       privileged: false,
       allowHostPid: false,
       capabilities: ["net-admin", "sys-admin"],
-      arguments: "-i nf:${nfqueue} --ips-mode /data/nprobe/ips-config/ips-rules.conf -n none -b 1",
+      arguments:
+        "-i nf:${nfqueue} --ips-mode /data/nprobe/ips-config/ips-rules.conf -n none -b 1",
       volumes: [{ name: "data", destination: "/data/nprobe" }],
       initFiles: ["/config/containers/${containerName}/data/ips-rules.conf"],
       editableFiles: [
-        { path: "/config/containers/${containerName}/data/ips-rules.conf", label: "IPS Rules" },
+        {
+          path: "/config/containers/${containerName}/data/ips-rules.conf",
+          label: "IPS Rules",
+        },
       ],
       labels: [{ name: "com.vymanager.app", value: "nprobe" }],
+    },
+  },
+  {
+    id: "ntopng",
+    name: "ntopng",
+    tagline: "High‑performance web‑based network traffic monitoring",
+    description:
+      "ntop ntopng is a network traffic probe that shows network usage, supports NetFlow/sFlow, packet analysis, and provides a modern web interface. Ideal for deep inspection of your VyOS router traffic.",
+    category: "Network Monitoring",
+    tags: ["monitoring", "netflow", "traffic-analysis", "ntop", "packet"],
+    dockerImage: "ntop/ntopng:latest",
+    defaultContainerName: "ntopng",
+    iconPath: "/app-icons/ntopng.png",
+    installConfig: {
+      fields: [
+        {
+          name: "memory",
+          label: "Memory (MB)",
+          type: "number",
+          default: 1024,
+          placeholder: "1024",
+          description:
+            "ntopng can use significant memory when tracking many flows.",
+        },
+        {
+          name: "interface",
+          label: "Network Interface",
+          type: "text",
+          default: "eth0",
+          placeholder: "eth0",
+          description: "Interface to monitor (e.g., eth0, bond0, eth1).",
+          required: true,
+        },
+        {
+          name: "webPort",
+          label: "Web Interface Port",
+          type: "number",
+          default: 3000,
+          placeholder: "3000",
+          description: "Port for the ntopng web UI.",
+          required: true,
+        },
+      ],
+      network: {
+        allowHost: true,
+        allowExisting: false,
+        allowNew: false,
+        defaultMode: "host",
+        allowStaticIp: false,
+        allowMac: false,
+      },
+      description: "ntopng — realtime network traffic analysis",
+      restart: "always",
+      logDriver: "journald",
+      memory: "${memory}",
+      privileged: false,
+      capabilities: ["net-admin", "net-raw", "sys-admin"],
+      arguments: "-i ${interface} -w ${webPort} --data-dir /var/lib/ntopng",
+      volumes: [{ name: "data", destination: "/var/lib/ntopng" }],
+      labels: [{ name: "com.vymanager.app", value: "ntopng" }],
+    },
+  },
+  {
+    id: "pihole",
+    name: "Pi‑hole",
+    tagline: "Network‑wide ad blocking",
+    description:
+      "Block ads and trackers for all devices on your network using DNS‑based filtering. Pi‑hole includes a web interface.",
+    category: "DNS",
+    tags: ["dns", "ad-blocking", "privacy", "pihole", "filtering"],
+    dockerImage: "pihole/pihole:latest",
+    defaultContainerName: "pihole",
+    iconPath: "/app-icons/pihole.svg",
+    installConfig: {
+      fields: [
+        {
+          name: "password",
+          label: "Admin Password",
+          type: "text",
+          default: "",
+          placeholder: "set a secure password",
+          description: "Password for the web admin interface.",
+          required: false,
+        },
+        {
+          name: "timezone",
+          label: "Timezone",
+          type: "text",
+          default: "UTC",
+          placeholder: "America/New_York",
+          description: "e.g., America/Chicago, Europe/London",
+        },
+        {
+          name: "memory",
+          label: "Memory (MB)",
+          type: "number",
+          default: 512,
+          placeholder: "512",
+        },
+        {
+          name: "webPort",
+          label: "Web Interface Port",
+          type: "number",
+          default: 80,
+          placeholder: "80",
+          description: "Port for the Pi‑hole web UI.",
+          required: true,
+        },
+      ],
+      network: {
+        allowHost: true,
+        allowExisting: true,
+        allowNew: true,
+        defaultMode: "existing",
+        allowStaticIp: true,
+        allowMac: true,
+      },
+      description: "Pi‑hole – network‑wide ad blocking",
+      restart: "always",
+      logDriver: "journald",
+      memory: "${memory}",
+      ports: [
+        { name: "dns-tcp", source: 53, destination: 53, protocol: "tcp" },
+        { name: "dns-udp", source: 53, destination: 53, protocol: "udp" },
+        { name: "web", source: 8080, destination: 8080, protocol: "tcp" },
+      ],
+      environment: [
+        { name: "TZ", value: "${timezone}" },
+        { name: "FTLCONF_webserver_api_password", value: "${password}" },
+        { name: "FTLCONF_webserver_port", value: "${webPort}" },
+      ],
+      volumes: [
+        { name: "etc-pihole", destination: "/etc/pihole" },
+        { name: "etc-dnsmasq", destination: "/etc/dnsmasq.d" },
+      ],
+      labels: [{ name: "com.vymanager.app", value: "pihole" }],
     },
   },
   {
@@ -472,7 +614,7 @@ export const APP_CATALOG: AppDef[] = [
       description: "Nginx Proxy Manager",
       restart: "always",
       volumes: [
-        { name: "data",        destination: "/data" },
+        { name: "data", destination: "/data" },
         { name: "letsencrypt", destination: "/etc/letsencrypt" },
       ],
     },
@@ -484,7 +626,16 @@ export const APP_CATALOG: AppDef[] = [
     description:
       "A fully-featured open source DNS server with a web console on port 5380. Supports DNS-over-HTTPS, DNS-over-TLS, DNSSEC, zone management, ad blocking, and query logging.",
     category: "DNS",
-    tags: ["dns", "dns-server", "self-hosted", "doh", "dot", "dnssec", "ad-blocking", "technitium"],
+    tags: [
+      "dns",
+      "dns-server",
+      "self-hosted",
+      "doh",
+      "dot",
+      "dnssec",
+      "ad-blocking",
+      "technitium",
+    ],
     dockerImage: "technitium/dns-server:latest",
     defaultContainerName: "technitium-dns",
     iconPath: "/app-icons/technitium.png",
@@ -496,7 +647,8 @@ export const APP_CATALOG: AppDef[] = [
           type: "text",
           default: "dns-server",
           placeholder: "dns-server",
-          description: "Primary domain name this DNS server uses to identify itself.",
+          description:
+            "Primary domain name this DNS server uses to identify itself.",
           required: true,
         },
       ],
@@ -511,16 +663,17 @@ export const APP_CATALOG: AppDef[] = [
       description: "Technitium DNS Server — self-hosted DNS with web console",
       restart: "always",
       environment: [
-        { name: "DNS_SERVER_DOMAIN",          value: "${serverDomain}" },
-        { name: "DNS_SERVER_LOG_FOLDER_PATH", value: "/var/log/technitium/dns" },
+        { name: "DNS_SERVER_DOMAIN", value: "${serverDomain}" },
+        {
+          name: "DNS_SERVER_LOG_FOLDER_PATH",
+          value: "/var/log/technitium/dns",
+        },
       ],
       volumes: [
         { name: "config", destination: "/etc/dns" },
-        { name: "logs",   destination: "/var/log/technitium/dns" },
+        { name: "logs", destination: "/var/log/technitium/dns" },
       ],
-      sysctl: [
-        { name: "net.ipv4.ip_local_port_range", value: "1024 65535" },
-      ],
+      sysctl: [{ name: "net.ipv4.ip_local_port_range", value: "1024 65535" }],
     },
   },
 ];
