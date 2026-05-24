@@ -23,7 +23,7 @@ from fastapi_permissions import require_super_admin
 
 router = APIRouter(prefix="/user-management", tags=["user-management"])
 
-FRONTEND_URL = os.getenv("NEXT_PUBLIC_APP_URL", "http://frontend:3000")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://frontend:3000")
 
 # ============================================================================
 # Pydantic Models
