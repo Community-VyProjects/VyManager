@@ -19,7 +19,17 @@ import { AlertCircle, Loader2, Trash2, X } from "lucide-react";
 import { firewallZonesService } from "@/lib/api/firewall-zones";
 import { showService } from "@/lib/api/show";
 import type { InterfaceName } from "@/lib/api/show";
-import type { FirewallZone, ZonesCapabilities } from "@/lib/api/types/firewall-zones";
+import type { FirewallZone, ZoneIntraFiltering, ZonesCapabilities } from "@/lib/api/types/firewall-zones";
+
+type IntraMode = "chain" | "accept" | "drop" | "none";
+
+function getIntraMode(intra: ZoneIntraFiltering | null | undefined): IntraMode {
+  if (!intra) return "none";
+  if (intra.action === "accept") return "accept";
+  if (intra.action === "drop") return "drop";
+  if (intra.firewall_name || intra.firewall_ipv6_name) return "chain";
+  return "none";
+}
 
 interface EditZoneModalProps {
   open: boolean;
@@ -58,6 +68,7 @@ export function EditZoneModal({
   const [interfaces, setInterfaces] = useState<string[]>([...zone.interfaces]);
   const [vrfs, setVrfs] = useState<string[]>([...zone.vrfs]);
   const [vrfInput, setVrfInput] = useState("");
+  const [intraMode, setIntraMode] = useState<IntraMode>(getIntraMode(zone.intra_zone_filtering));
 
   // Sync when zone prop changes
   useEffect(() => {
@@ -68,6 +79,7 @@ export function EditZoneModal({
     setInterfaces([...zone.interfaces]);
     setVrfs([...zone.vrfs]);
     setVrfInput("");
+    setIntraMode(getIntraMode(zone.intra_zone_filtering));
     setError(null);
     setConfirmDelete(false);
 
@@ -117,6 +129,21 @@ export function EditZoneModal({
         },
         capabilities
       );
+
+      if (!zone.local_zone && intraMode !== getIntraMode(zone.intra_zone_filtering)) {
+        const intraIpv4 = zone.intra_zone_filtering?.firewall_name ?? `${zone.name}-${zone.name}`;
+        const intraIpv6 = zone.intra_zone_filtering?.firewall_ipv6_name ?? `${zone.name}-${zone.name}-V6`;
+        if (intraMode === "chain") {
+          await firewallZonesService.setIntraZone(zone.name, { action: null, firewallName: intraIpv4, firewallIpv6Name: intraIpv6 });
+        } else if (intraMode === "accept") {
+          await firewallZonesService.setIntraZone(zone.name, { action: "accept", firewallName: null, firewallIpv6Name: null });
+        } else if (intraMode === "drop") {
+          await firewallZonesService.setIntraZone(zone.name, { action: "drop", firewallName: null, firewallIpv6Name: null });
+        } else {
+          await firewallZonesService.setIntraZone(zone.name, { action: null, firewallName: null, firewallIpv6Name: null });
+        }
+      }
+
       handleClose();
       onSuccess();
     } catch (err) {
@@ -301,6 +328,47 @@ export function EditZoneModal({
                   )}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Intra-Zone Filtering (non-local zones only) */}
+          {!zone.local_zone && (
+            <div className="space-y-3">
+              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Intra-Zone Filtering</p>
+              <div className="space-y-2">
+                <Label>Mode</Label>
+                <Select value={intraMode} onValueChange={(v) => setIntraMode(v as IntraMode)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="chain">Firewall Chains</SelectItem>
+                    <SelectItem value="accept">Accept All</SelectItem>
+                    <SelectItem value="drop">Drop All</SelectItem>
+                    <SelectItem value="none">Default</SelectItem>
+                  </SelectContent>
+                </Select>
+                {intraMode === "chain" && (
+                  <div className="text-xs text-muted-foreground space-y-1 rounded-md border px-3 py-2 bg-muted/30">
+                    <p>Intra-zone traffic is filtered by dedicated ruleset chains.</p>
+                    <p className="mt-1">
+                      IPv4: <span className="font-mono text-foreground">{zone.intra_zone_filtering?.firewall_name ?? `${zone.name}-${zone.name}`}</span>
+                    </p>
+                    <p>
+                      IPv6: <span className="font-mono text-foreground">{zone.intra_zone_filtering?.firewall_ipv6_name ?? `${zone.name}-${zone.name}-V6`}</span>
+                    </p>
+                  </div>
+                )}
+                {intraMode === "accept" && (
+                  <p className="text-xs text-muted-foreground">All intra-zone traffic is accepted without inspection.</p>
+                )}
+                {intraMode === "drop" && (
+                  <p className="text-xs text-muted-foreground">All intra-zone traffic is dropped.</p>
+                )}
+                {intraMode === "none" && (
+                  <p className="text-xs text-muted-foreground">No explicit intra-zone filtering. Zone default action applies.</p>
+                )}
+              </div>
             </div>
           )}
 

@@ -301,23 +301,6 @@ function SortableRuleRow({
       <TableCell>{renderAddr(row.rule.destination)}</TableCell>
       <TableCell>{renderPort(row.rule.destination)}</TableCell>
 
-      <TableCell>
-        <div className="flex flex-wrap gap-1">
-          {row.rule.state?.established && <Badge variant="outline" className="text-xs bg-green-500/10 text-green-500 border-green-500/20">EST</Badge>}
-          {row.rule.state?.new && <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-500 border-blue-500/20">NEW</Badge>}
-          {row.rule.state?.related && <Badge variant="outline" className="text-xs bg-purple-500/10 text-purple-500 border-purple-500/20">REL</Badge>}
-          {row.rule.state?.invalid && <Badge variant="outline" className="text-xs bg-red-500/10 text-red-500 border-red-500/20">INV</Badge>}
-          {row.rule.connection_status?.nat && (
-            <Badge variant="outline" className="text-xs bg-cyan-500/10 text-cyan-500 border-cyan-500/20 uppercase">
-              {row.rule.connection_status.nat}
-            </Badge>
-          )}
-          {!row.rule.state?.established && !row.rule.state?.new && !row.rule.state?.related && !row.rule.state?.invalid && !row.rule.connection_status?.nat && (
-            <span className="text-muted-foreground">any</span>
-          )}
-        </div>
-      </TableCell>
-
       {/* Actions */}
       <TableCell>
         {!isReordering && (
@@ -1052,14 +1035,13 @@ export default function FirewallZonesPage() {
                       <TableHead>Dst. Zone</TableHead>
                       <TableHead>Destination</TableHead>
                       <TableHead>Dst. Port</TableHead>
-                      <TableHead>Conn Status</TableHead>
                       <TableHead className="w-12" />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {displayRows.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={13} className="text-center py-8 text-muted-foreground text-sm">
+                        <TableCell colSpan={12} className="text-center py-8 text-muted-foreground text-sm">
                           {selectedPair !== "all"
                             ? `No firewall rules for ${selectedPair.source} → ${selectedPair.dest}`
                             : "No firewall rules found for any zone pair"}
