@@ -316,27 +316,17 @@ class VyOSService:
         if batch.is_empty():
             raise ValueError("Cannot execute empty batch")
 
-        # Use the per-instance configured confirm time
         confirm_time_minutes = self.config.commit_confirm_minutes
-
         operations = batch.get_operations()
 
-        # Step 1: Execute all operations as a normal atomic batch.
-        batch_response = self.device.configure_multiple_op(op_path=operations)
-        if batch_response.status != 200:
-            return batch_response
-
-        # Step 2: Arm the commit-confirm rollback timer.
-        #
-        # VyOS only arms the rollback when confirm_time is inside a SINGLE
-        # operation JSON object (not an array). Sending the last operation again
-        # as a single object with confirm_time is idempotent (set is a no-op if
-        # already set; delete is a no-op if already deleted) and properly arms
-        # the timer so VyOS will revert if the user doesn't confirm in time.
-        last_op = {**operations[-1], "confirm_time": confirm_time_minutes}
+        # VyOS ConfigureListModel format: {"commands": [...], "confirm_time": N}
+        # pyvyos's configure_multiple_op sends a raw JSON array, which VyOS wraps
+        # internally as {"commands": [...], "confirm_time": 0} — discarding any
+        # confirm_time we'd try to include. We must build this payload manually so
+        # the timer is armed atomically with the same commit that applies the ops.
         url = f"{self.config.protocol}://{self.config.hostname}:{self.config.port}/configure"
         payload = {
-            "data": json.dumps(last_op),
+            "data": json.dumps({"commands": operations, "confirm_time": confirm_time_minutes}),
             "key": self.config.apikey,
         }
 
@@ -349,18 +339,18 @@ class VyOSService:
             )
             resp.raise_for_status()
             body = resp.json()
-            if body.get("success"):
-                commit_confirm_state.set_active(instance_id, confirm_time_minutes, action)
-                event_manager.emit(instance_id, EVENT_CONFIG_DIFF, None)
-                event_manager.emit(instance_id, EVENT_COMMIT_CONFIRM, None)
-                return ApiResponse(status=200, request={}, result=body.get("data") or {}, error=False)
-            else:
+            if not body.get("success"):
                 error_msg = body.get("error", "Unknown error from VyOS API")
                 return ApiResponse(status=400, request={}, result={}, error=error_msg)
         except _requests.exceptions.Timeout:
             return ApiResponse(status=504, request={}, result={}, error="Request timed out")
         except _requests.exceptions.RequestException as exc:
             return ApiResponse(status=503, request={}, result={}, error=str(exc))
+
+        commit_confirm_state.set_active(instance_id, confirm_time_minutes, action)
+        event_manager.emit(instance_id, EVENT_CONFIG_DIFF, None)
+        event_manager.emit(instance_id, EVENT_COMMIT_CONFIRM, None)
+        return ApiResponse(status=200, request={}, result=body.get("data") or {}, error=False)
 
     def confirm_commit(self, instance_id: str) -> ApiResponse:
         """
