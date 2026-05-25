@@ -118,7 +118,7 @@ async def check_version() -> VersionCheckResponse:
     if not release:
         return VersionCheckResponse(
             current_version=current_version,
-            update_available=False,
+            update_available=True,
             environment=environment,
         )
 
