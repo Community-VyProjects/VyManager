@@ -167,6 +167,10 @@ async def get_user_feature_permissions(request: Request) -> dict:
 
     db_pool: asyncpg.Pool = request.app.state.db_pool
 
+    # Site ADMINs get full permissions regardless of active instance
+    if await is_super_admin(db_pool, user["id"]):
+        return {feature.value: PermissionLevel.WRITE.value for feature in FeatureGroup}
+
     # Get user's active instance
     async with db_pool.acquire() as conn:
         result = await conn.fetchrow(

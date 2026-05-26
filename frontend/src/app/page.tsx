@@ -5,11 +5,13 @@ import { useRouter } from "next/navigation";
 import { Loader2, Plus, Save, Edit3, X } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
-import { Github, Globe, MessageCircle, Sparkles, ArrowUpCircle, Tag } from "lucide-react";
+import { Github, Globe, MessageCircle, Sparkles, ArrowUpCircle, Tag, RefreshCw, CheckCircle2, AlertCircle } from "lucide-react";
 import { useSession } from "@/lib/auth-client";
 import { useSessionStore } from "@/store/session-store";
 import { dashboardService, DashboardCard, DashboardLayout } from "@/lib/api/dashboard";
-import { versionService, VersionCheckResponse } from "@/lib/api/version";
+import { versionService, VersionCheckResponse, UpdatePhase, UpdateStatusResponse, RollbackStatusResponse } from "@/lib/api/version";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Progress } from "@/components/ui/progress";
 import { InterfaceStatisticsCard } from "@/components/dashboard/InterfaceStatisticsCard";
 import { SystemInfoCard } from "@/components/dashboard/SystemInfoCard";
 import { WireGuardPeersCard } from "@/components/dashboard/WireGuardPeersCard";
@@ -121,6 +123,15 @@ export default function Home() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [canEditDashboard, setCanEditDashboard] = useState(false);
   const [versionInfo, setVersionInfo] = useState<VersionCheckResponse | null>(null);
+  const [canUpdate, setCanUpdate] = useState(false);
+  const [showUpdateDialog, setShowUpdateDialog] = useState(false);
+  const [updateStatus, setUpdateStatus] = useState<UpdateStatusResponse | null>(null);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+  const [isReconnecting, setIsReconnecting] = useState(false);
+  const [rollbackStatus, setRollbackStatus] = useState<RollbackStatusResponse | null>(null);
+  const [showRollbackDialog, setShowRollbackDialog] = useState(false);
+  const [rollbackError, setRollbackError] = useState<string | null>(null);
+  const [isRollbackReconnecting, setIsRollbackReconnecting] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -198,12 +209,16 @@ export default function Home() {
       // Check for version updates
       versionService.checkVersion().then(setVersionInfo).catch(() => {});
 
+      // Check if a rollback image is available
+      versionService.getRollbackStatus().then(setRollbackStatus).catch(() => {});
+
       // Check if user has permission to edit the dashboard layout
       try {
         const perms = await fetch("/api/vyos/permissions", { credentials: "include" });
         if (perms.ok) {
           const data = await perms.json();
           setCanEditDashboard(data["DASHBOARD"] === "WRITE");
+          setCanUpdate(data["USER_MANAGEMENT"] === "WRITE");
         }
       } catch {
         // If permissions check fails, default to no edit access
@@ -456,6 +471,114 @@ export default function Home() {
     setHasUnsavedChanges(true);
   };
 
+  const handleStartUpdate = async () => {
+    setUpdateError(null);
+    setUpdateStatus(null);
+    setIsReconnecting(false);
+    setShowUpdateDialog(true);
+    try {
+      await versionService.startUpdate();
+      pollUpdateStatus();
+    } catch (err: unknown) {
+      setUpdateError((err as { message?: string })?.message ?? "Failed to start update");
+    }
+  };
+
+  const pollUpdateStatus = () => {
+    const poll = async () => {
+      try {
+        const status = await versionService.getUpdateStatus();
+        setUpdateStatus(status);
+        if (status.phase === "error") return;
+        if (status.phase === "applying" || status.phase === "complete") {
+          setIsReconnecting(true);
+          waitForReconnect();
+          return;
+        }
+        setTimeout(poll, 1500);
+      } catch {
+        setIsReconnecting(true);
+        waitForReconnect();
+      }
+    };
+    setTimeout(poll, 1500);
+  };
+
+  const waitForReconnect = () => {
+    const check = async () => {
+      try {
+        await versionService.checkVersion();
+        window.location.reload();
+      } catch {
+        setTimeout(check, 2500);
+      }
+    };
+    setTimeout(check, 8000);
+  };
+
+  const handleStartRollback = async () => {
+    setRollbackError(null);
+    setIsRollbackReconnecting(false);
+    setShowRollbackDialog(true);
+    try {
+      await versionService.startRollback();
+      pollRollbackStatus();
+    } catch (err: unknown) {
+      setRollbackError((err as { message?: string })?.message ?? "Failed to start rollback");
+    }
+  };
+
+  const pollRollbackStatus = () => {
+    const poll = async () => {
+      try {
+        const status = await versionService.getRollbackStatus();
+        setRollbackStatus(status);
+        if (status.phase === "error") return;
+        if (status.phase === "applying" || status.phase === "complete") {
+          setIsRollbackReconnecting(true);
+          waitForRollbackReconnect();
+          return;
+        }
+        setTimeout(poll, 1500);
+      } catch {
+        setIsRollbackReconnecting(true);
+        waitForRollbackReconnect();
+      }
+    };
+    setTimeout(poll, 1500);
+  };
+
+  const waitForRollbackReconnect = () => {
+    const check = async () => {
+      try {
+        await versionService.checkVersion();
+        window.location.reload();
+      } catch {
+        setTimeout(check, 2500);
+      }
+    };
+    setTimeout(check, 8000);
+  };
+
+  const updateProgressValue = (phase: UpdatePhase | undefined): number => {
+    switch (phase) {
+      case "pulling_frontend": return 20;
+      case "pulling_backend":  return 50;
+      case "applying":         return 80;
+      case "complete":         return 100;
+      default:                 return 5;
+    }
+  };
+
+  const rollbackProgressValue = (phase: UpdatePhase | undefined): number => {
+    switch (phase) {
+      case "rolling_back": return 40;
+      case "applying":     return 75;
+      case "complete":     return 100;
+      default:             return 10;
+    }
+  };
+
   const renderCard = (card: DashboardCard) => {
     const baseProps = {
       config: card.config,
@@ -582,15 +705,35 @@ export default function Home() {
                 )}
 
                 {versionInfo?.update_available && (
-                  <a
-                    href={versionInfo.release_url ?? "#"}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 font-medium transition-colors"
+                  canUpdate ? (
+                    <button
+                      onClick={handleStartUpdate}
+                      className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 font-medium transition-colors"
+                    >
+                      <ArrowUpCircle className="h-4 w-4" />
+                      v{versionInfo.latest_version} available — Update now
+                    </button>
+                  ) : (
+                    <a
+                      href={versionInfo.release_url ?? "#"}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 font-medium transition-colors"
+                    >
+                      <ArrowUpCircle className="h-4 w-4" />
+                      v{versionInfo.latest_version} available
+                    </a>
+                  )
+                )}
+
+                {canUpdate && rollbackStatus?.available && (
+                  <button
+                    onClick={handleStartRollback}
+                    className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 hover:text-amber-500 font-medium transition-colors"
                   >
-                    <ArrowUpCircle className="h-4 w-4" />
-                    v{versionInfo.latest_version} available
-                  </a>
+                    <RefreshCw className="h-4 w-4" />
+                    Rollback to previous version
+                  </button>
                 )}
 
                 <div className="flex items-center gap-2">
@@ -728,6 +871,101 @@ export default function Home() {
         />
         </DashboardDataProvider>
       </div>
+      <Dialog open={showUpdateDialog} onOpenChange={(open) => {
+        if (!open && updateStatus && !["idle", "complete", "error"].includes(updateStatus.phase) && !isReconnecting) return;
+        setShowUpdateDialog(open);
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Updating VyManager</DialogTitle>
+            <DialogDescription>
+              {isReconnecting
+                ? "Containers are restarting with the new version. Please wait..."
+                : updateError
+                ? "The update encountered an error."
+                : updateStatus?.phase === "complete"
+                ? "Update applied successfully."
+                : `Pulling v${versionInfo?.latest_version ?? "latest"} from registry…`}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            {updateError ? (
+              <div className="flex items-start gap-3 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+                <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                <span className="break-words">{updateError}</span>
+              </div>
+            ) : isReconnecting ? (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  Waiting for services to come back online...
+                </div>
+                <Progress value={90} className="h-2 animate-pulse" />
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <Progress value={updateProgressValue(updateStatus?.phase)} className="h-2 transition-all duration-700" />
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  {updateStatus?.phase === "complete" ? (
+                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                  )}
+                  <span>{updateStatus?.message ?? "Starting update..."}</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showRollbackDialog} onOpenChange={(open) => {
+        if (!open && rollbackStatus && !["idle", "complete", "error"].includes(rollbackStatus.phase) && !isRollbackReconnecting) return;
+        setShowRollbackDialog(open);
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Rolling Back VyManager</DialogTitle>
+            <DialogDescription>
+              {isRollbackReconnecting
+                ? "Containers are restarting with the previous version. Please wait..."
+                : rollbackError
+                ? "The rollback encountered an error."
+                : rollbackStatus?.phase === "complete"
+                ? "Rollback applied successfully."
+                : "Reverting to the previous version..."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            {rollbackError ? (
+              <div className="flex items-start gap-3 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+                <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                <span className="break-words">{rollbackError}</span>
+              </div>
+            ) : isRollbackReconnecting ? (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  Waiting for services to come back online...
+                </div>
+                <Progress value={90} className="h-2 animate-pulse" />
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <Progress value={rollbackProgressValue(rollbackStatus?.phase)} className="h-2 transition-all duration-700" />
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  {rollbackStatus?.phase === "complete" ? (
+                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                  )}
+                  <span>{rollbackStatus?.message ?? "Starting rollback..."}</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }

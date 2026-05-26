@@ -89,6 +89,7 @@ from routers.console_server import console_server as console_server_router
 from routers.container import container as container_router
 from routers.console import console as console_router
 from routers import version as version_router
+from routers import update as update_router
 from routers import events as events_router
 from routers.events import start_poller, stop_poller
 
@@ -391,6 +392,7 @@ app.include_router(console_server_router.router)
 app.include_router(container_router.router)
 app.include_router(console_router.router)
 app.include_router(version_router.router)
+app.include_router(update_router.router)
 app.include_router(events_router.router)
 
 
