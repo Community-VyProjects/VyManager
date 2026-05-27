@@ -123,6 +123,7 @@ export const navigation: NavItem[] = [
       { title: "Event Handler", href: "/service/event-handler", requiredPermission: FeatureGroup.EVENT_HANDLER },
       { title: "HTTPS", href: "/service/https", requiredPermission: FeatureGroup.HTTPS },
       { title: "IPoE Server", href: "/service/ipoe-server", requiredPermission: FeatureGroup.IPOE_SERVER },
+      { title: "LLDP", href: "/service/lldp", requiredPermission: FeatureGroup.LLDP },
     ],
   },
   {
