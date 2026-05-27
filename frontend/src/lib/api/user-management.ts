@@ -139,6 +139,7 @@ export enum FeatureGroup {
   EVENT_HANDLER = "EVENT_HANDLER",
   HTTPS = "HTTPS",
   IPOE_SERVER = "IPOE_SERVER",
+  LLDP = "LLDP",
   CONTAINER = "CONTAINER",
 
   // VPN features

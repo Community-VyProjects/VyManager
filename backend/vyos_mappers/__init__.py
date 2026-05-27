@@ -135,6 +135,8 @@ from .https import HTTPSMapper
 from .https.https_versions import get_https_mapper
 from .ipoe_server import IPoEServerMapper
 from .ipoe_server.ipoe_server_versions import get_ipoe_server_mapper
+from .lldp import LLDPMapper
+from .lldp.lldp_versions import get_lldp_mapper
 
 # Auto-register all mappers
 # Ethernet uses factory for version-specific mappers
@@ -298,6 +300,8 @@ CommandMapperRegistry.register_feature("event_handler", get_event_handler_mapper
 CommandMapperRegistry.register_feature("https", get_https_mapper)
 # IPoE Server uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("ipoe_server", get_ipoe_server_mapper)
+# LLDP uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("lldp", get_lldp_mapper)
 
 __all__ = [
     "BaseFeatureMapper",
@@ -376,4 +380,5 @@ __all__ = [
     "EventHandlerMapper",
     "HTTPSMapper",
     "IPoEServerMapper",
+    "LLDPMapper",
 ]
