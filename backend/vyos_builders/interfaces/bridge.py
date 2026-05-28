@@ -88,6 +88,9 @@ class BridgeInterfaceBuilderMixin:
     def delete_interface_disable_link_detect(self, interface: str) -> "BridgeInterfaceBuilderMixin":
         return self.add_delete(self.mappers[self.interface_mapper_key].get_disable_link_detect(interface))
 
+    def set_interface(self, interface: str) -> "BridgeInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].get_interface(interface))
+
     def set_interface_mac(self, interface: str, mac: str) -> "BridgeInterfaceBuilderMixin":
         return self.add_set(self.mappers[self.interface_mapper_key].get_mac(interface, mac))
 
