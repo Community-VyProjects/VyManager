@@ -280,7 +280,7 @@ _VALUE_REQUIRED_OPS = frozenset({
     "set_ipv6_dup_addr_detect_transmits", "set_ipv6_source_validation",
     "set_ipv6_address_eui64",
     "set_dhcp_options_client_id", "set_dhcp_options_default_route_distance",
-    "set_dhcp_options_host_name", "set_dhcp_options_reject",
+    "set_dhcp_options_host_name", "set_dhcp_options_reject", "delete_dhcp_options_reject",
     "set_dhcp_options_user_class", "set_dhcp_options_vendor_class_id",
     "set_dhcpv6_options_duid",
     "set_ipv6_address_interface_identifier",
@@ -288,6 +288,7 @@ _VALUE_REQUIRED_OPS = frozenset({
 
 # Operations that require NO value (flag-style)
 _NO_VALUE_OPS = frozenset({
+    "set_interface",
     "delete_description", "delete_mtu", "delete_vrf", "delete_redirect",
     "delete_mac", "delete_interface",
     "disable", "enable", "set_disable_link_detect", "delete_disable_link_detect",
@@ -316,7 +317,8 @@ _NO_VALUE_OPS = frozenset({
     "set_dhcp_options_mtu", "delete_dhcp_options_mtu",
     "set_dhcp_options_no_default_route", "delete_dhcp_options_no_default_route",
     "delete_dhcp_options_client_id", "delete_dhcp_options_default_route_distance",
-    "delete_dhcp_options_host_name", "delete_all_dhcp_options",
+    "delete_dhcp_options_host_name", "delete_dhcp_options_user_class",
+    "delete_dhcp_options_vendor_class_id", "delete_all_dhcp_options",
     "set_dhcpv6_options_no_release", "delete_dhcpv6_options_no_release",
     "set_dhcpv6_options_parameters_only", "delete_dhcpv6_options_parameters_only",
     "set_dhcpv6_options_rapid_commit", "delete_dhcpv6_options_rapid_commit",
@@ -325,7 +327,6 @@ _NO_VALUE_OPS = frozenset({
     "set_dhcpv6_options_no_request_dns", "delete_dhcpv6_options_no_request_dns",
     "set_dhcpv6_options_no_request_domain_name", "delete_dhcpv6_options_no_request_domain_name",
     "delete_ipv6_address_interface_identifier",
-    "delete_dhcp_options_reject",
 })
 
 # Member operations requiring member + value
@@ -358,6 +359,25 @@ _VIF_NO_VALUE_OPS = frozenset({
     "delete_vif_mtu", "delete_vif_vrf",
 })
 
+# Maps frontend op names to builder method names where they differ
+_OP_TO_METHOD = {
+    "set_interface": "set_interface",
+    "set_description": "set_interface_description",
+    "delete_description": "delete_interface_description",
+    "set_address": "set_interface_address",
+    "delete_address": "delete_interface_address",
+    "set_mtu": "set_interface_mtu",
+    "delete_mtu": "delete_interface_mtu",
+    "set_mac": "set_interface_mac",
+    "delete_mac": "delete_interface_mac",
+    "set_vrf": "set_interface_vrf",
+    "delete_vrf": "delete_interface_vrf",
+    "set_redirect": "set_interface_redirect",
+    "delete_redirect": "delete_interface_redirect",
+    "set_disable_link_detect": "set_interface_disable_link_detect",
+    "delete_disable_link_detect": "delete_interface_disable_link_detect",
+}
+
 
 @router.post("/batch", response_model=VyOSResponse)
 async def configure_bridge_batch(http_request: Request, request: BridgeBatchRequest) -> VyOSResponse:
@@ -384,7 +404,7 @@ async def configure_bridge_batch(http_request: Request, request: BridgeBatchRequ
             if op in _VALUE_REQUIRED_OPS:
                 if not val:
                     raise HTTPException(status_code=400, detail=f"'{op}' requires a value")
-                method = getattr(batch, op, None)
+                method = getattr(batch, _OP_TO_METHOD.get(op, op), None)
                 if method is None:
                     raise HTTPException(status_code=400, detail=f"Unsupported operation: {op}")
                 method(iface, val)
@@ -396,7 +416,7 @@ async def configure_bridge_batch(http_request: Request, request: BridgeBatchRequ
                 elif op == "enable":
                     batch.delete_interface_disable(iface)
                 else:
-                    method = getattr(batch, op, None)
+                    method = getattr(batch, _OP_TO_METHOD.get(op, op), None)
                     if method is None:
                         raise HTTPException(status_code=400, detail=f"Unsupported operation: {op}")
                     method(iface)

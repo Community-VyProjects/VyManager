@@ -259,7 +259,7 @@ class BridgeService {
       no_request_domain_name?: boolean;
     };
   }): Promise<VyOSResponse> {
-    const operations: BridgeBatchOperation[] = [];
+    const operations: BridgeBatchOperation[] = [{ op: "set_interface" }];
 
     // Bridge-specific settings first
     if (config.stp) operations.push({ op: "set_stp" });
