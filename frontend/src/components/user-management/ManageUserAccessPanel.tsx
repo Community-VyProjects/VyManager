@@ -73,6 +73,7 @@ import {
   ArrowLeftRight,
   MonitorSpeaker,
   Zap,
+  Clock,
 } from "lucide-react";
 import {
   userManagementService,
@@ -120,6 +121,7 @@ const FEATURE_ICONS: Record<FeatureGroup, any> = {
   [FeatureGroup.IPOE_SERVER]: Wifi,
   [FeatureGroup.LLDP]: Network,
   [FeatureGroup.NDP_PROXY]: Network,
+  [FeatureGroup.NTP]: Clock,
   [FeatureGroup.SERVICE_MONITORING]: Activity,
   [FeatureGroup.CONTAINER]: Box,
   [FeatureGroup.DHCP]: Wifi,
@@ -223,6 +225,7 @@ const FEATURE_NAMES: Record<FeatureGroup, string> = {
   [FeatureGroup.IPOE_SERVER]: "IPoE Server",
   [FeatureGroup.LLDP]: "LLDP",
   [FeatureGroup.NDP_PROXY]: "NDP Proxy",
+  [FeatureGroup.NTP]: "NTP",
   [FeatureGroup.SERVICE_MONITORING]: "Service Monitoring",
   [FeatureGroup.CONTAINER]: "Containers",
   [FeatureGroup.DHCP]: "DHCP",
@@ -399,6 +402,7 @@ const FEATURE_CATEGORIES: FeatureCategory[] = [
           { feature: FeatureGroup.IPOE_SERVER },
           { feature: FeatureGroup.LLDP },
           { feature: FeatureGroup.NDP_PROXY },
+          { feature: FeatureGroup.NTP },
           { feature: FeatureGroup.SERVICE_MONITORING },
           { feature: FeatureGroup.DHCP },
         ],

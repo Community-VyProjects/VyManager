@@ -126,6 +126,7 @@ export const navigation: NavItem[] = [
       { title: "LLDP", href: "/service/lldp", requiredPermission: FeatureGroup.LLDP },
       { title: "Monitoring", href: "/service/monitoring", requiredPermission: FeatureGroup.SERVICE_MONITORING },
       { title: "NDP Proxy", href: "/service/ndp-proxy", requiredPermission: FeatureGroup.NDP_PROXY },
+      { title: "NTP", href: "/service/ntp", requiredPermission: FeatureGroup.NTP },
     ],
   },
   {
