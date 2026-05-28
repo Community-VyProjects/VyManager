@@ -87,6 +87,7 @@ from routers.dns_dynamic import dns_dynamic as dns_dynamic_router
 from routers.event_handler import event_handler as event_handler_router
 from routers.https import https as https_router
 from routers.ipoe_server import ipoe_server as ipoe_server_router
+from routers.pppoe_server import pppoe_server as pppoe_server_router
 from routers.config_sync import config_sync as config_sync_router
 from routers.conntrack_sync import conntrack_sync as conntrack_sync_router
 from routers.console_server import console_server as console_server_router
@@ -393,6 +394,7 @@ app.include_router(dns_dynamic_router.router)
 app.include_router(event_handler_router.router)
 app.include_router(https_router.router)
 app.include_router(ipoe_server_router.router)
+app.include_router(pppoe_server_router.router)
 app.include_router(config_sync_router.router)
 app.include_router(conntrack_sync_router.router)
 app.include_router(console_server_router.router)
