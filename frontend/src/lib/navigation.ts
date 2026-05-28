@@ -125,6 +125,7 @@ export const navigation: NavItem[] = [
       { title: "IPoE Server", href: "/service/ipoe-server", requiredPermission: FeatureGroup.IPOE_SERVER },
       { title: "LLDP", href: "/service/lldp", requiredPermission: FeatureGroup.LLDP },
       { title: "Monitoring", href: "/service/monitoring", requiredPermission: FeatureGroup.SERVICE_MONITORING },
+      { title: "NDP Proxy", href: "/service/ndp-proxy", requiredPermission: FeatureGroup.NDP_PROXY },
     ],
   },
   {
