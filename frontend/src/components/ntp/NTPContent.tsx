@@ -24,7 +24,7 @@ import {
   Server,
 } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { ntpService, NTPConfig, NTPCapabilities, NTPServer } from "@/lib/api/ntp";
+import { ntpService, NTPConfig, NTPServer } from "@/lib/api/ntp";
 import { NTPGlobalSettingsModal } from "./NTPGlobalSettingsModal";
 import { NTPServerModal } from "./NTPServerModal";
 import { DeleteNTPServerModal } from "./DeleteNTPServerModal";
@@ -88,7 +88,6 @@ export function NTPContent() {
   const hasWrite = canWrite(FeatureGroup.NTP);
 
   const [config, setConfig] = useState<NTPConfig | null>(null);
-  const [capabilities, setCapabilities] = useState<NTPCapabilities | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -101,12 +100,8 @@ export function NTPContent() {
     try {
       setLoading(true);
       setError(null);
-      const [cfg, caps] = await Promise.all([
-        ntpService.getConfig(refresh),
-        ntpService.getCapabilities(),
-      ]);
+      const cfg = await ntpService.getConfig(refresh);
       setConfig(cfg);
-      setCapabilities(caps);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to load NTP configuration"
