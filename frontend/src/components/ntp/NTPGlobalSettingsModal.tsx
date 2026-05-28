@@ -38,16 +38,17 @@ function isValidIPOrCIDR(value: string): boolean {
   return ipv4.test(value) || ipv6.test(value);
 }
 
+// "default" is a UI sentinel meaning "delete the leap-second node" (let VyOS use its default)
 const LEAP_SECOND_OPTIONS: { value: string; label: string; description: string }[] = [
   {
-    value: "",
+    value: "default",
     label: "Default",
-    description: "Use UTC timezone database (default behaviour)",
+    description: "Use UTC timezone database (VyOS default behaviour)",
   },
   {
     value: "timezone",
     label: "Timezone",
-    description: "Use UTC timezone database to determine leap second",
+    description: "Explicitly set: use UTC timezone database to determine leap second",
   },
   {
     value: "ignore",
@@ -167,7 +168,7 @@ export function NTPGlobalSettingsModal({
   );
   const [allowClients, setAllowClients] = useState<string[]>(config.allow_clients);
   const [interfaces, setInterfaces] = useState<string[]>(config.interfaces);
-  const [leapSecond, setLeapSecond] = useState<string>(config.leap_second ?? "");
+  const [leapSecond, setLeapSecond] = useState<string>(config.leap_second ?? "default");
   const [vrf, setVrf] = useState(config.vrf ?? "");
 
   const [submitting, setSubmitting] = useState(false);
@@ -181,7 +182,7 @@ export function NTPGlobalSettingsModal({
       listenAddresses,
       allowClients,
       interfaces,
-      leapSecond,
+      leapSecond: leapSecond === "default" ? "" : leapSecond,
       vrf,
     };
     try {
