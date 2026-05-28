@@ -124,6 +124,7 @@ export const navigation: NavItem[] = [
       { title: "HTTPS", href: "/service/https", requiredPermission: FeatureGroup.HTTPS },
       { title: "IPoE Server", href: "/service/ipoe-server", requiredPermission: FeatureGroup.IPOE_SERVER },
       { title: "LLDP", href: "/service/lldp", requiredPermission: FeatureGroup.LLDP },
+      { title: "Monitoring", href: "/service/monitoring", requiredPermission: FeatureGroup.SERVICE_MONITORING },
     ],
   },
   {
