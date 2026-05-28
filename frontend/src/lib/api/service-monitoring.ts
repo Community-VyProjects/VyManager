@@ -538,7 +538,7 @@ class ServiceMonitoringService {
 
     const origActiveMap = new Map((orig?.servers_active ?? []).map((s) => [s.address, s]));
     const newActiveMap = new Map(data.servers_active.map((s) => [s.address, s]));
-    for (const [addr, origEntry] of origActiveMap) {
+    for (const addr of origActiveMap.keys()) {
       if (!newActiveMap.has(addr)) {
         ops.push({ op: "delete_zabbix_server_active", value: addr });
       }
