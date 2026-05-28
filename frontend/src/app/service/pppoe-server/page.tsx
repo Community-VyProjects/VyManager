@@ -27,10 +27,8 @@ import {
   Trash2,
   Server,
   Network,
-  Shield,
   Key,
   User,
-  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
