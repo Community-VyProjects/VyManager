@@ -137,6 +137,8 @@ from .ipoe_server import IPoEServerMapper
 from .ipoe_server.ipoe_server_versions import get_ipoe_server_mapper
 from .lldp import LLDPMapper
 from .lldp.lldp_versions import get_lldp_mapper
+from .service_monitoring import ServiceMonitoringMapper
+from .service_monitoring.service_monitoring_versions import get_service_monitoring_mapper
 
 # Auto-register all mappers
 # Ethernet uses factory for version-specific mappers
@@ -302,6 +304,8 @@ CommandMapperRegistry.register_feature("https", get_https_mapper)
 CommandMapperRegistry.register_feature("ipoe_server", get_ipoe_server_mapper)
 # LLDP uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("lldp", get_lldp_mapper)
+# Service Monitoring uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("service_monitoring", get_service_monitoring_mapper)
 
 __all__ = [
     "BaseFeatureMapper",
@@ -381,4 +385,5 @@ __all__ = [
     "HTTPSMapper",
     "IPoEServerMapper",
     "LLDPMapper",
+    "ServiceMonitoringMapper",
 ]

@@ -76,6 +76,7 @@ from routers.rpki import rpki as rpki_router
 from routers.traffic_engineering import traffic_engineering as te_router
 from routers.broadcast_relay import broadcast_relay as broadcast_relay_router
 from routers.lldp import lldp as lldp_router
+from routers.service_monitoring import service_monitoring as service_monitoring_router
 from routers.dhcp_relay import dhcp_relay as dhcp_relay_router
 from routers.dhcpv6_relay import dhcpv6_relay as dhcpv6_relay_router
 from routers.dhcpv6_server import dhcpv6_server as dhcpv6_server_router
@@ -379,6 +380,7 @@ app.include_router(rpki_router.router)
 app.include_router(te_router.router)
 app.include_router(broadcast_relay_router.router)
 app.include_router(lldp_router.router)
+app.include_router(service_monitoring_router.router)
 app.include_router(dhcp_relay_router.router)
 app.include_router(dhcpv6_relay_router.router)
 app.include_router(dhcpv6_server_router.router)
