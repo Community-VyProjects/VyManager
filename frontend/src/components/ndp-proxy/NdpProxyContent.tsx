@@ -20,14 +20,12 @@ import {
   Plus,
   ChevronDown,
   ChevronRight,
-  Loader2,
   AlertTriangle,
 } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import {
   ndpProxyService,
   NdpProxyConfig,
-  NdpProxyCapabilities,
   NdpProxyInterface,
 } from "@/lib/api/ndp-proxy";
 import { NdpProxyGlobalModal } from "./NdpProxyGlobalModal";
@@ -46,7 +44,6 @@ export function NdpProxyContent() {
   const hasWrite = canWrite(FeatureGroup.NDP_PROXY);
 
   const [config, setConfig] = useState<NdpProxyConfig | null>(null);
-  const [capabilities, setCapabilities] = useState<NdpProxyCapabilities | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedInterface, setExpandedInterface] = useState<string | null>(null);
@@ -60,12 +57,8 @@ export function NdpProxyContent() {
     try {
       setLoading(true);
       setError(null);
-      const [cfg, caps] = await Promise.all([
-        ndpProxyService.getConfig(refresh),
-        ndpProxyService.getCapabilities(),
-      ]);
+      const cfg = await ndpProxyService.getConfig(refresh);
       setConfig(cfg);
-      setCapabilities(caps);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to load NDP proxy configuration"
