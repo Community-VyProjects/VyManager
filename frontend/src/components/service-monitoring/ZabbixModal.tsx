@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, KeyboardEvent } from "react";
+import { useState, KeyboardEvent } from "react";
 import {
   Dialog,
   DialogContent,
