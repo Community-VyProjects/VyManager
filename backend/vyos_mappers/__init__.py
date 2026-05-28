@@ -139,6 +139,8 @@ from .lldp import LLDPMapper
 from .lldp.lldp_versions import get_lldp_mapper
 from .ndp_proxy import NdpProxyMapper
 from .ndp_proxy.ndp_proxy_versions import get_ndp_proxy_mapper
+from .ntp import NTPMapper
+from .ntp.ntp_versions import get_ntp_mapper
 from .service_monitoring import ServiceMonitoringMapper
 from .service_monitoring.service_monitoring_versions import get_service_monitoring_mapper
 
@@ -308,6 +310,8 @@ CommandMapperRegistry.register_feature("ipoe_server", get_ipoe_server_mapper)
 CommandMapperRegistry.register_feature("lldp", get_lldp_mapper)
 # NDP Proxy uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("ndp_proxy", get_ndp_proxy_mapper)
+# NTP uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("ntp", get_ntp_mapper)
 # Service Monitoring uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("service_monitoring", get_service_monitoring_mapper)
 
@@ -390,5 +394,6 @@ __all__ = [
     "IPoEServerMapper",
     "LLDPMapper",
     "NdpProxyMapper",
+    "NTPMapper",
     "ServiceMonitoringMapper",
 ]
