@@ -135,6 +135,8 @@ from .https import HTTPSMapper
 from .https.https_versions import get_https_mapper
 from .ipoe_server import IPoEServerMapper
 from .ipoe_server.ipoe_server_versions import get_ipoe_server_mapper
+from .pppoe_server import PPPoEServerMapper
+from .pppoe_server.pppoe_server_versions import get_pppoe_server_mapper
 from .lldp import LLDPMapper
 from .lldp.lldp_versions import get_lldp_mapper
 from .ndp_proxy import NdpProxyMapper
@@ -306,6 +308,8 @@ CommandMapperRegistry.register_feature("event_handler", get_event_handler_mapper
 CommandMapperRegistry.register_feature("https", get_https_mapper)
 # IPoE Server uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("ipoe_server", get_ipoe_server_mapper)
+# PPPoE Server uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("pppoe_server", get_pppoe_server_mapper)
 # LLDP uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("lldp", get_lldp_mapper)
 # NDP Proxy uses factory for version-specific mappers
@@ -392,6 +396,7 @@ __all__ = [
     "EventHandlerMapper",
     "HTTPSMapper",
     "IPoEServerMapper",
+    "PPPoEServerMapper",
     "LLDPMapper",
     "NdpProxyMapper",
     "NTPMapper",
