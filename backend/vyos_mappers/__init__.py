@@ -149,6 +149,8 @@ from .router_advert import RouterAdvertMapper
 from .router_advert.router_advert_versions import get_router_advert_mapper
 from .salt_minion import SaltMinionMapper
 from .salt_minion.salt_minion_versions import get_salt_minion_mapper
+from .sla import SLAMapper
+from .sla.sla_versions import get_sla_mapper
 
 # Auto-register all mappers
 # Ethernet uses factory for version-specific mappers
@@ -326,6 +328,8 @@ CommandMapperRegistry.register_feature("service_monitoring", get_service_monitor
 CommandMapperRegistry.register_feature("router_advert", get_router_advert_mapper)
 # Salt Minion uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("salt_minion", get_salt_minion_mapper)
+# SLA uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("sla", get_sla_mapper)
 
 __all__ = [
     "BaseFeatureMapper",
@@ -411,4 +415,5 @@ __all__ = [
     "ServiceMonitoringMapper",
     "RouterAdvertMapper",
     "SaltMinionMapper",
+    "SLAMapper",
 ]
