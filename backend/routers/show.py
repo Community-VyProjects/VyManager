@@ -438,6 +438,7 @@ class InterfaceName(BaseModel):
     """Model for interface name from config."""
     name: str
     type: str
+    description: Optional[str] = None
 
 
 class AllInterfacesResponse(BaseModel):
@@ -473,31 +474,39 @@ async def get_all_interfaces(request: Request):
 
             # Each interface type contains interface names as keys
             for iface_name, iface_config in iface_data.items():
-                interfaces.append(InterfaceName(name=iface_name, type=iface_type))
+                cfg = iface_config if isinstance(iface_config, dict) else {}
+                interfaces.append(InterfaceName(
+                    name=iface_name,
+                    type=iface_type,
+                    description=cfg.get("description") or None,
+                ))
 
                 # Handle VLANs (vif) - 802.1q sub-interfaces
-                if isinstance(iface_config, dict) and "vif" in iface_config:
-                    vif_data = iface_config["vif"]
+                if "vif" in cfg:
+                    vif_data = cfg["vif"]
                     if isinstance(vif_data, dict):
-                        for vlan_id in vif_data.keys():
+                        for vlan_id, vlan_cfg in vif_data.items():
                             vif_name = f"{iface_name}.{vlan_id}"
-                            interfaces.append(InterfaceName(name=vif_name, type="vif"))
+                            vlan_desc = vlan_cfg.get("description") or None if isinstance(vlan_cfg, dict) else None
+                            interfaces.append(InterfaceName(name=vif_name, type="vif", description=vlan_desc))
 
                 # Handle VIF-S (QinQ service VLANs)
-                if isinstance(iface_config, dict) and "vif-s" in iface_config:
-                    vif_s_data = iface_config["vif-s"]
+                if "vif-s" in cfg:
+                    vif_s_data = cfg["vif-s"]
                     if isinstance(vif_s_data, dict):
                         for s_vlan_id, s_vlan_config in vif_s_data.items():
                             vif_s_name = f"{iface_name}.{s_vlan_id}"
-                            interfaces.append(InterfaceName(name=vif_s_name, type="vif-s"))
+                            s_desc = s_vlan_config.get("description") or None if isinstance(s_vlan_config, dict) else None
+                            interfaces.append(InterfaceName(name=vif_s_name, type="vif-s", description=s_desc))
 
                             # Handle VIF-C (QinQ customer VLANs) nested in VIF-S
                             if isinstance(s_vlan_config, dict) and "vif-c" in s_vlan_config:
                                 vif_c_data = s_vlan_config["vif-c"]
                                 if isinstance(vif_c_data, dict):
-                                    for c_vlan_id in vif_c_data.keys():
+                                    for c_vlan_id, c_vlan_cfg in vif_c_data.items():
                                         vif_c_name = f"{iface_name}.{s_vlan_id}.{c_vlan_id}"
-                                        interfaces.append(InterfaceName(name=vif_c_name, type="vif-c"))
+                                        c_desc = c_vlan_cfg.get("description") or None if isinstance(c_vlan_cfg, dict) else None
+                                        interfaces.append(InterfaceName(name=vif_c_name, type="vif-c", description=c_desc))
 
         # Sort interfaces by name for consistent ordering
         interfaces.sort(key=lambda x: x.name)

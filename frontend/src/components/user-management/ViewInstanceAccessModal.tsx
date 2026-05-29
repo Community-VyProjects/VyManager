@@ -51,6 +51,7 @@ import {
   MonitorSpeaker,
   Zap,
   Clock,
+  Bot,
 } from "lucide-react";
 import { userManagementService, FeatureGroup, InstanceUserListItem } from "@/lib/api/user-management";
 import { ApiError } from "@/lib/types/api";
@@ -95,6 +96,7 @@ const FEATURE_ICONS: Record<FeatureGroup, any> = {
   [FeatureGroup.NDP_PROXY]: Network,
   [FeatureGroup.NTP]: Clock,
   [FeatureGroup.ROUTER_ADVERT]: Radio,
+  [FeatureGroup.SALT_MINION]: Bot,
   [FeatureGroup.SERVICE_MONITORING]: Activity,
   [FeatureGroup.CONTAINER]: Box,
   [FeatureGroup.DHCP]: Wifi,
@@ -200,6 +202,7 @@ const FEATURE_NAMES: Record<FeatureGroup, string> = {
   [FeatureGroup.NDP_PROXY]: "NDP Proxy",
   [FeatureGroup.NTP]: "NTP",
   [FeatureGroup.ROUTER_ADVERT]: "Router Advertisement",
+  [FeatureGroup.SALT_MINION]: "Salt Minion",
   [FeatureGroup.SERVICE_MONITORING]: "Service Monitoring",
   [FeatureGroup.CONTAINER]: "Containers",
   [FeatureGroup.DHCP]: "DHCP",

@@ -129,6 +129,7 @@ export const navigation: NavItem[] = [
       { title: "NTP", href: "/service/ntp", requiredPermission: FeatureGroup.NTP },
       { title: "PPPoE Server", href: "/service/pppoe-server", requiredPermission: FeatureGroup.PPPOE },
       { title: "Router Advert", href: "/service/router-advert", requiredPermission: FeatureGroup.ROUTER_ADVERT },
+      { title: "Salt Minion", href: "/service/salt-minion", requiredPermission: FeatureGroup.SALT_MINION },
     ],
   },
   {

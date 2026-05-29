@@ -147,6 +147,8 @@ from .service_monitoring import ServiceMonitoringMapper
 from .service_monitoring.service_monitoring_versions import get_service_monitoring_mapper
 from .router_advert import RouterAdvertMapper
 from .router_advert.router_advert_versions import get_router_advert_mapper
+from .salt_minion import SaltMinionMapper
+from .salt_minion.salt_minion_versions import get_salt_minion_mapper
 
 # Auto-register all mappers
 # Ethernet uses factory for version-specific mappers
@@ -322,6 +324,8 @@ CommandMapperRegistry.register_feature("ntp", get_ntp_mapper)
 CommandMapperRegistry.register_feature("service_monitoring", get_service_monitoring_mapper)
 # Router Advertisement uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("router_advert", get_router_advert_mapper)
+# Salt Minion uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("salt_minion", get_salt_minion_mapper)
 
 __all__ = [
     "BaseFeatureMapper",
@@ -406,4 +410,5 @@ __all__ = [
     "NTPMapper",
     "ServiceMonitoringMapper",
     "RouterAdvertMapper",
+    "SaltMinionMapper",
 ]

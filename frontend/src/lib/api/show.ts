@@ -24,6 +24,7 @@ export interface InterfaceCountersResponse {
 export interface InterfaceName {
   name: string;
   type: string;
+  description: string | null;
 }
 
 export interface AllInterfacesResponse {
