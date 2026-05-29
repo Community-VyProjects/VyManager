@@ -145,6 +145,8 @@ from .ntp import NTPMapper
 from .ntp.ntp_versions import get_ntp_mapper
 from .service_monitoring import ServiceMonitoringMapper
 from .service_monitoring.service_monitoring_versions import get_service_monitoring_mapper
+from .router_advert import RouterAdvertMapper
+from .router_advert.router_advert_versions import get_router_advert_mapper
 
 # Auto-register all mappers
 # Ethernet uses factory for version-specific mappers
@@ -318,6 +320,8 @@ CommandMapperRegistry.register_feature("ndp_proxy", get_ndp_proxy_mapper)
 CommandMapperRegistry.register_feature("ntp", get_ntp_mapper)
 # Service Monitoring uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("service_monitoring", get_service_monitoring_mapper)
+# Router Advertisement uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("router_advert", get_router_advert_mapper)
 
 __all__ = [
     "BaseFeatureMapper",
@@ -401,4 +405,5 @@ __all__ = [
     "NdpProxyMapper",
     "NTPMapper",
     "ServiceMonitoringMapper",
+    "RouterAdvertMapper",
 ]

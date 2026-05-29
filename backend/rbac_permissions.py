@@ -78,6 +78,7 @@ class FeatureGroup(str, Enum):
     LLDP = "LLDP"
     NDP_PROXY = "NDP_PROXY"
     NTP = "NTP"
+    ROUTER_ADVERT = "ROUTER_ADVERT"
     SERVICE_MONITORING = "SERVICE_MONITORING"
 
     # VPN features
@@ -195,6 +196,7 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.LLDP: PermissionLevel.WRITE,
         FeatureGroup.NDP_PROXY: PermissionLevel.WRITE,
         FeatureGroup.NTP: PermissionLevel.WRITE,
+        FeatureGroup.ROUTER_ADVERT: PermissionLevel.WRITE,
         FeatureGroup.SERVICE_MONITORING: PermissionLevel.WRITE,
         FeatureGroup.DHCP: PermissionLevel.WRITE,
         FeatureGroup.INTERFACES: PermissionLevel.WRITE,
@@ -298,6 +300,7 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.LLDP: PermissionLevel.WRITE,
         FeatureGroup.NDP_PROXY: PermissionLevel.WRITE,
         FeatureGroup.NTP: PermissionLevel.WRITE,
+        FeatureGroup.ROUTER_ADVERT: PermissionLevel.WRITE,
         FeatureGroup.SERVICE_MONITORING: PermissionLevel.WRITE,
         FeatureGroup.DHCP: PermissionLevel.WRITE,
         FeatureGroup.INTERFACES: PermissionLevel.WRITE,
@@ -402,6 +405,7 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.LLDP: PermissionLevel.READ,
         FeatureGroup.NDP_PROXY: PermissionLevel.READ,
         FeatureGroup.NTP: PermissionLevel.READ,
+        FeatureGroup.ROUTER_ADVERT: PermissionLevel.READ,
         FeatureGroup.SERVICE_MONITORING: PermissionLevel.READ,
         FeatureGroup.DHCP: PermissionLevel.READ,
         FeatureGroup.INTERFACES: PermissionLevel.READ,
@@ -547,6 +551,7 @@ async def get_user_permissions(
                 FeatureGroup.LLDP,
                 FeatureGroup.NDP_PROXY,
                 FeatureGroup.NTP,
+                FeatureGroup.ROUTER_ADVERT,
                 FeatureGroup.SERVICE_MONITORING,
                 FeatureGroup.DHCP,
                 FeatureGroup.INTERFACES,
@@ -669,6 +674,7 @@ async def get_user_permissions(
                 FeatureGroup.LLDP,
                 FeatureGroup.NDP_PROXY,
                 FeatureGroup.NTP,
+                FeatureGroup.ROUTER_ADVERT,
                 FeatureGroup.SERVICE_MONITORING,
                 FeatureGroup.DHCP,
                 FeatureGroup.INTERFACES,
@@ -1071,7 +1077,7 @@ def _apply_parent_child_permissions(permissions: Dict[FeatureGroup, PermissionLe
     # SERVICE grants permissions to all service features
     service_perm = permissions.get(FeatureGroup.SERVICE, PermissionLevel.NONE)
     if service_perm != PermissionLevel.NONE:
-        for child in [FeatureGroup.BROADCAST_RELAY, FeatureGroup.CONFIG_SYNC, FeatureGroup.CONNTRACK_SYNC, FeatureGroup.CONSOLE_SERVER, FeatureGroup.DHCP_RELAY, FeatureGroup.DHCPV6_RELAY, FeatureGroup.DHCPV6_SERVER, FeatureGroup.DNS_FORWARDING, FeatureGroup.DNS_DYNAMIC, FeatureGroup.EVENT_HANDLER, FeatureGroup.HTTPS, FeatureGroup.IPOE_SERVER, FeatureGroup.LLDP, FeatureGroup.NDP_PROXY, FeatureGroup.NTP, FeatureGroup.SERVICE_MONITORING, FeatureGroup.DHCP]:
+        for child in [FeatureGroup.BROADCAST_RELAY, FeatureGroup.CONFIG_SYNC, FeatureGroup.CONNTRACK_SYNC, FeatureGroup.CONSOLE_SERVER, FeatureGroup.DHCP_RELAY, FeatureGroup.DHCPV6_RELAY, FeatureGroup.DHCPV6_SERVER, FeatureGroup.DNS_FORWARDING, FeatureGroup.DNS_DYNAMIC, FeatureGroup.EVENT_HANDLER, FeatureGroup.HTTPS, FeatureGroup.IPOE_SERVER, FeatureGroup.LLDP, FeatureGroup.NDP_PROXY, FeatureGroup.NTP, FeatureGroup.ROUTER_ADVERT, FeatureGroup.SERVICE_MONITORING, FeatureGroup.DHCP]:
             current = permissions.get(child, PermissionLevel.NONE)
             if service_perm == PermissionLevel.WRITE:
                 permissions[child] = PermissionLevel.WRITE
