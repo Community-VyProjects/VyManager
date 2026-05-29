@@ -128,6 +128,7 @@ export const navigation: NavItem[] = [
       { title: "NDP Proxy", href: "/service/ndp-proxy", requiredPermission: FeatureGroup.NDP_PROXY },
       { title: "NTP", href: "/service/ntp", requiredPermission: FeatureGroup.NTP },
       { title: "PPPoE Server", href: "/service/pppoe-server", requiredPermission: FeatureGroup.PPPOE },
+      { title: "Router Advert", href: "/service/router-advert", requiredPermission: FeatureGroup.ROUTER_ADVERT },
     ],
   },
   {
