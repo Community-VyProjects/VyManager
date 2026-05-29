@@ -30,7 +30,6 @@ import {
   RouterAdvertInterface,
   RouterAdvertCapabilities,
   RAPrefix,
-  NAT64Prefix,
   RARoute,
 } from "@/lib/api/router-advert";
 import { showService } from "@/lib/api/show";
