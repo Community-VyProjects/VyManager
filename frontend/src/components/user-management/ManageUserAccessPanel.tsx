@@ -75,6 +75,7 @@ import {
   Zap,
   Clock,
   Bot,
+  Gauge,
 } from "lucide-react";
 import {
   userManagementService,
@@ -126,6 +127,7 @@ const FEATURE_ICONS: Record<FeatureGroup, any> = {
   [FeatureGroup.ROUTER_ADVERT]: Radio,
   [FeatureGroup.SALT_MINION]: Bot,
   [FeatureGroup.SERVICE_MONITORING]: Activity,
+  [FeatureGroup.SLA]: Gauge,
   [FeatureGroup.CONTAINER]: Box,
   [FeatureGroup.DHCP]: Wifi,
   [FeatureGroup.INTERFACES]: Router,
@@ -232,6 +234,7 @@ const FEATURE_NAMES: Record<FeatureGroup, string> = {
   [FeatureGroup.ROUTER_ADVERT]: "Router Advertisement",
   [FeatureGroup.SALT_MINION]: "Salt Minion",
   [FeatureGroup.SERVICE_MONITORING]: "Service Monitoring",
+  [FeatureGroup.SLA]: "SLA",
   [FeatureGroup.CONTAINER]: "Containers",
   [FeatureGroup.DHCP]: "DHCP",
   [FeatureGroup.INTERFACES]: "Interfaces",
@@ -411,6 +414,7 @@ const FEATURE_CATEGORIES: FeatureCategory[] = [
           { feature: FeatureGroup.ROUTER_ADVERT },
           { feature: FeatureGroup.SALT_MINION },
           { feature: FeatureGroup.SERVICE_MONITORING },
+          { feature: FeatureGroup.SLA },
           { feature: FeatureGroup.DHCP },
         ],
       },
