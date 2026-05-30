@@ -1,7 +1,7 @@
 import { betterAuth } from "better-auth";
 import { genericOAuth } from "better-auth/plugins";
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { PrismaClient, FeatureGroup } from "@prisma/client";
+import { PrismaClient, type InstanceRole } from "@prisma/client";
 import {
   extractClaimValues,
   resolveRoleMapping,
@@ -9,6 +9,7 @@ import {
   type ProviderMappingConfig,
   type InstanceFeaturePermission,
   type ResolvedInstanceGrant,
+  type ResolvedSiteGrant,
 } from "./sso-role-mapping";
 
 const prisma = new PrismaClient();
@@ -18,37 +19,100 @@ const prisma = new PrismaClient();
 // instance access an admin granted manually.
 const SSO_ASSIGNED_BY = "sso";
 
-const VALID_FEATURE_GROUPS = new Set<string>(Object.values(FeatureGroup));
-
 // New users don't exist yet when mapProfileToUser runs, so their resolved
-// instance grants are stashed by email and consumed in the user.create.after
-// hook once the row exists. Keyed by email; entries are short-lived (set and
-// consumed within the same login request).
-const pendingInstanceGrants = new Map<string, ResolvedInstanceGrant[]>();
+// grants are stashed by email and consumed in the user.create.after hook once
+// the row exists. Keyed by email; entries are short-lived (set and consumed
+// within the same login request).
+const pendingGrants = new Map<
+  string,
+  { instanceGrants: ResolvedInstanceGrant[]; siteGrants: ResolvedSiteGrant[] }
+>();
+
+// Most-privileged role wins when an instance is granted more than once (e.g. via
+// a whole-site grant plus an explicit instance grant).
+const INSTANCE_ROLE_RANK: Record<string, number> = {
+  ADMIN: 3,
+  OPERATOR: 2,
+  EDITOR: 2,
+  VIEWER: 1,
+};
+
+function mergePerms(
+  base: InstanceFeaturePermission[],
+  extra: InstanceFeaturePermission[],
+): InstanceFeaturePermission[] {
+  const byFeature = new Map<string, InstanceFeaturePermission>();
+  for (const p of [...base, ...extra]) {
+    const ex = byFeature.get(p.feature);
+    if (!ex) byFeature.set(p.feature, { ...p });
+    else {
+      ex.canEdit = ex.canEdit || p.canEdit;
+      ex.canView = ex.canView || p.canView;
+    }
+  }
+  return Array.from(byFeature.values());
+}
+
+interface DesiredGrant {
+  instanceRole: InstanceRole;
+  featurePermissions: InstanceFeaturePermission[];
+}
 
 /**
- * Reconcile a user's SSO-managed instance assignments to exactly match the
- * resolved grants (issue #359, Phase 2). The IdP is authoritative: grants the
- * user no longer has are removed; granted instances are upserted with their
- * role and feature permissions. Manual (non-SSO) assignments are left intact
- * unless the same instance is also granted by SSO, in which case SSO wins.
+ * Reconcile a user's SSO-managed instance assignments (issue #359). Site grants
+ * are expanded to every instance in the site, then explicit instance grants are
+ * merged on top (most-privileged role + union of feature permissions). The IdP
+ * is authoritative: SSO-managed rows not in the desired set are removed. Manual
+ * (non-SSO) assignments are left intact unless SSO also grants that instance.
  */
-async function reconcileInstanceGrants(
+async function reconcileGrants(
   userId: string,
-  grants: ResolvedInstanceGrant[],
+  instanceGrants: ResolvedInstanceGrant[],
+  siteGrants: ResolvedSiteGrant[],
 ): Promise<void> {
-  const desiredByInstance = new Map(grants.map((g) => [g.instanceId, g]));
+  const desired = new Map<string, DesiredGrant>();
+  const add = (
+    instanceId: string,
+    role: InstanceRole,
+    perms: InstanceFeaturePermission[],
+  ) => {
+    const ex = desired.get(instanceId);
+    if (!ex) {
+      desired.set(instanceId, { instanceRole: role, featurePermissions: mergePerms([], perms) });
+      return;
+    }
+    if ((INSTANCE_ROLE_RANK[role] ?? 0) > (INSTANCE_ROLE_RANK[ex.instanceRole] ?? 0)) {
+      ex.instanceRole = role;
+    }
+    ex.featurePermissions = mergePerms(ex.featurePermissions, perms);
+  };
+
+  // Expand whole-site grants to each instance in the site.
+  if (siteGrants.length) {
+    const bySite = new Map(siteGrants.map((g) => [g.siteId, g]));
+    const instances = await prisma.instance.findMany({
+      where: { siteId: { in: [...bySite.keys()] } },
+      select: { id: true, siteId: true },
+    });
+    for (const inst of instances) {
+      const g = bySite.get(inst.siteId);
+      if (g) add(inst.id, g.instanceRole, g.featurePermissions);
+    }
+  }
+  for (const g of instanceGrants) add(g.instanceId, g.instanceRole, g.featurePermissions);
 
   // Only act on instances that still exist (avoids FK errors on stale rules).
-  const existingInstances = desiredByInstance.size
-    ? await prisma.instance.findMany({
-        where: { id: { in: [...desiredByInstance.keys()] } },
-        select: { id: true },
-      })
-    : [];
-  const validInstanceIds = new Set(existingInstances.map((i) => i.id));
+  const validInstanceIds = new Set<string>();
+  if (desired.size) {
+    const rows = await prisma.instance.findMany({
+      where: { id: { in: [...desired.keys()] } },
+      select: { id: true },
+    });
+    for (const r of rows) validInstanceIds.add(r.id);
+  }
 
-  // Remove SSO-managed assignments that are no longer desired.
+  // Remove SSO-managed assignments no longer desired (validInstanceIds is the
+  // intersection of desired and existing).
   const ssoAssignments = await prisma.userInstanceRole.findMany({
     where: { userId, assignedBy: SSO_ASSIGNED_BY },
     select: { id: true, instanceId: true },
@@ -61,7 +125,7 @@ async function reconcileInstanceGrants(
   }
 
   // Upsert each desired assignment and rebuild its feature permissions.
-  for (const [instanceId, grant] of desiredByInstance) {
+  for (const [instanceId, grant] of desired) {
     if (!validInstanceIds.has(instanceId)) continue;
 
     const assignment = await prisma.userInstanceRole.upsert({
@@ -80,20 +144,17 @@ async function reconcileInstanceGrants(
       where: { userInstanceRoleId: assignment.id },
     });
     if (grant.instanceRole !== "ADMIN" && grant.featurePermissions.length) {
-      const valid = grant.featurePermissions.filter((fp) =>
-        VALID_FEATURE_GROUPS.has(fp.feature),
-      );
-      if (valid.length) {
-        await prisma.userFeaturePermission.createMany({
-          data: valid.map((fp) => ({
-            userInstanceRoleId: assignment.id,
-            feature: fp.feature as FeatureGroup,
-            canEdit: fp.canEdit,
-            canView: fp.canView,
-          })),
-          skipDuplicates: true,
-        });
-      }
+      // `feature` is a free-text column; values come from the frontend
+      // FeatureGroup taxonomy and are validated by the UI / API, not here.
+      await prisma.userFeaturePermission.createMany({
+        data: grant.featurePermissions.map((fp) => ({
+          userInstanceRoleId: assignment.id,
+          feature: fp.feature,
+          canEdit: fp.canEdit,
+          canView: fp.canView,
+        })),
+        skipDuplicates: true,
+      });
     }
   }
 }
@@ -151,6 +212,7 @@ async function buildAuth() {
           claimValue: m.claimValue,
           siteRole: m.siteRole,
           instanceId: m.instanceId,
+          siteId: m.siteId,
           instanceRole: m.instanceRole,
           featurePermissions:
             (m.featurePermissions as InstanceFeaturePermission[] | null) ?? null,
@@ -193,10 +255,16 @@ async function buildAuth() {
           data: { role: resolved.siteRole },
         });
       }
-      await reconcileInstanceGrants(existing.id, resolved.instanceGrants);
-    } else if (email && resolved.instanceGrants.length > 0) {
+      await reconcileGrants(existing.id, resolved.instanceGrants, resolved.siteGrants);
+    } else if (
+      email &&
+      (resolved.instanceGrants.length > 0 || resolved.siteGrants.length > 0)
+    ) {
       // New user: reconcile once the row exists (see user.create.after).
-      pendingInstanceGrants.set(email, resolved.instanceGrants);
+      pendingGrants.set(email, {
+        instanceGrants: resolved.instanceGrants,
+        siteGrants: resolved.siteGrants,
+      });
     }
 
     return resolved.siteRole ? { role: resolved.siteRole } : {};
@@ -248,10 +316,10 @@ async function buildAuth() {
           after: async (user) => {
             const email = (user as { email?: string }).email;
             if (!email) return;
-            const grants = pendingInstanceGrants.get(email);
+            const grants = pendingGrants.get(email);
             if (!grants) return;
-            pendingInstanceGrants.delete(email);
-            await reconcileInstanceGrants(user.id, grants);
+            pendingGrants.delete(email);
+            await reconcileGrants(user.id, grants.instanceGrants, grants.siteGrants);
           },
         },
       },

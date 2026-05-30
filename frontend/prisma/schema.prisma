@@ -294,9 +294,11 @@ model OAuthRoleMapping {
   // Site-level grant (optional). Highest-ranked match across rules wins.
   siteRole Role?
 
-  // Instance-level grant (optional, Phase 2). When set, the user is assigned
-  // to this instance with instanceRole. featurePermissions scopes OPERATOR/VIEWER.
+  // A grant targets EITHER one instance (instanceId) OR a whole site (siteId,
+  // expanded to all of its instances at login), with instanceRole +
+  // featurePermissions. A pure site-role row leaves both null.
   instanceId         String?
+  siteId             String?
   instanceRole       InstanceRole?
   featurePermissions Json? // [{ feature, canEdit, canView }] for OPERATOR/VIEWER
 
@@ -309,6 +311,7 @@ model OAuthRoleMapping {
   provider OAuthProvider @relation(fields: [providerId], references: [providerId], onDelete: Cascade)
 
   @@unique([providerId, claimValue, instanceId])
+  @@unique([providerId, claimValue, siteId])
   @@index([providerId])
   @@map("oauth_role_mappings")
 }
@@ -332,13 +335,21 @@ model DashboardLayout {
 // New RBAC System - Fine-Grained Per-Instance Permissions
 // ============================================================================
 
-// Feature Groups - Logical groupings of VyOS features
-// Stage 1: Core features (expandable later)
+// Feature Groups - Logical groupings of VyOS features.
+// NOTE: kept in sync with the live Postgres `FeatureGroup` enum (values were
+// added over time via ALTER TYPE migrations). Order matches the DB.
 enum FeatureGroup {
   FIREWALL // Firewall rules and groups
-  INTERFACES // Network interfaces
-  DHCP // DHCP server
   NAT // NAT rules
+  DHCP // DHCP server
+  INTERFACES // Network interfaces
+  STATIC_ROUTES // Static routing
+  ROUTING_POLICIES // Routing policy (route-maps, prefix-lists, etc.)
+  SYSTEM // System settings
+  CONFIGURATION // Raw configuration access
+  DASHBOARD // Dashboard
+  SITES_INSTANCES // Sites & instances management
+  USER_MANAGEMENT // User management
   MONITORING // SSH monitoring / live traffic
   SSH_CONSOLE // Interactive SSH shell console
 }
@@ -372,12 +383,15 @@ model UserInstanceRole {
 // Only applies when UserInstanceRole.role is EDITOR or VIEWER
 // If role is ADMIN, this table is ignored (full access)
 model UserFeaturePermission {
-  id                 String       @id @default(cuid())
+  id                 String  @id @default(cuid())
   userInstanceRoleId String
-  feature            FeatureGroup
-  canEdit            Boolean      @default(false) // For EDITOR role
-  canView            Boolean      @default(false) // For VIEWER role
-  createdAt          DateTime     @default(now())
+  // Free-text feature key (DB column is TEXT). Values come from the full
+  // frontend FeatureGroup taxonomy (parents + children), NOT the narrow
+  // `FeatureGroup` enum below — that enum predates this table and is vestigial.
+  feature            String
+  canEdit            Boolean @default(false) // For EDITOR role
+  canView            Boolean @default(false) // For VIEWER role
+  createdAt          DateTime @default(now())
 
   // Relations
   userInstanceRole UserInstanceRole @relation(fields: [userInstanceRoleId], references: [id], onDelete: Cascade)

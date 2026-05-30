@@ -23,6 +23,7 @@ function rule(partial: Partial<RoleMappingRule> & { claimValue: string }): RoleM
   return {
     siteRole: null,
     instanceId: null,
+    siteId: null,
     instanceRole: null,
     featurePermissions: null,
     priority: 0,
@@ -95,6 +96,17 @@ test("ADMIN outranks VIEWER when both match", () => {
   );
   assert.equal(r.siteRole, ADMIN);
 });
+test("site ADMIN drops instance grants (admins get full access)", () => {
+  const r = resolveRoleMapping(
+    config([
+      rule({ claimValue: "admins", siteRole: ADMIN }),
+      rule({ claimValue: "admins", instanceId: "inst1", instanceRole: I_OPERATOR }),
+    ]),
+    ["admins"],
+  );
+  assert.equal(r.siteRole, ADMIN);
+  assert.deepEqual(r.instanceGrants, []);
+});
 test("matched rule with only instance grant leaves site role null but allows", () => {
   const r = resolveRoleMapping(
     config([rule({ claimValue: "ops", instanceId: "inst1", instanceRole: I_VIEWER })]),
@@ -103,6 +115,31 @@ test("matched rule with only instance grant leaves site role null but allows", (
   assert.equal(r.denied, false);
   assert.equal(r.siteRole, null);
   assert.equal(r.instanceGrants.length, 1);
+});
+
+console.log("resolveRoleMapping — site grants");
+test("collects site grants separately from instance grants", () => {
+  const r = resolveRoleMapping(
+    config([
+      rule({ claimValue: "ops", siteId: "site1", instanceRole: I_OPERATOR }),
+      rule({ claimValue: "ops", instanceId: "inst1", instanceRole: I_VIEWER }),
+    ]),
+    ["ops"],
+  );
+  assert.equal(r.siteGrants.length, 1);
+  assert.equal(r.siteGrants[0].siteId, "site1");
+  assert.equal(r.instanceGrants.length, 1);
+});
+test("site ADMIN drops site grants too", () => {
+  const r = resolveRoleMapping(
+    config([
+      rule({ claimValue: "a", siteRole: ADMIN }),
+      rule({ claimValue: "a", siteId: "site1", instanceRole: I_OPERATOR }),
+    ]),
+    ["a"],
+  );
+  assert.deepEqual(r.siteGrants, []);
+  assert.deepEqual(r.instanceGrants, []);
 });
 
 console.log("resolveRoleMapping — instance grant union");

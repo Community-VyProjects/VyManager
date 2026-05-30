@@ -33,7 +33,7 @@ export async function GET(
   const { providerId } = await params;
   const mappings = await prisma.oAuthRoleMapping.findMany({
     where: { providerId },
-    orderBy: [{ priority: "desc" }, { claimValue: "asc" }],
+    orderBy: [{ claimValue: "asc" }, { priority: "desc" }, { createdAt: "asc" }],
   });
 
   return NextResponse.json({ mappings });
@@ -61,31 +61,21 @@ export async function POST(
     claimValue,
     siteRole = null,
     instanceId = null,
+    siteId = null,
     instanceRole = null,
     featurePermissions = null,
     priority = 0,
   } = body;
 
-  if (!claimValue || typeof claimValue !== "string") {
-    return NextResponse.json({ error: "claimValue is required" }, { status: 400 });
-  }
-  if (siteRole && !SITE_ROLES.includes(siteRole)) {
-    return NextResponse.json({ error: `Invalid siteRole: ${siteRole}` }, { status: 400 });
-  }
-  if (instanceRole && !INSTANCE_ROLES.includes(instanceRole)) {
-    return NextResponse.json({ error: `Invalid instanceRole: ${instanceRole}` }, { status: 400 });
-  }
-  if (instanceId && !instanceRole) {
-    return NextResponse.json(
-      { error: "instanceRole is required when instanceId is set" },
-      { status: 400 }
-    );
-  }
-  if (!siteRole && !instanceId) {
-    return NextResponse.json(
-      { error: "A rule must grant a siteRole and/or an instance role" },
-      { status: 400 }
-    );
+  const validation = await validateGrant({
+    claimValue,
+    siteRole,
+    instanceId,
+    siteId,
+    instanceRole,
+  });
+  if (validation) {
+    return NextResponse.json({ error: validation }, { status: 400 });
   }
 
   try {
@@ -95,6 +85,7 @@ export async function POST(
         claimValue,
         siteRole: siteRole || null,
         instanceId: instanceId || null,
+        siteId: siteId || null,
         instanceRole: instanceRole || null,
         featurePermissions: featurePermissions ?? Prisma.JsonNull,
         priority: typeof priority === "number" ? priority : 0,
@@ -106,10 +97,41 @@ export async function POST(
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
       return NextResponse.json(
-        { error: "A rule for this claim value and instance already exists" },
+        { error: "A rule for this claim value and target already exists" },
         { status: 409 }
       );
     }
     throw err;
   }
+}
+
+// Returns an error string if the grant shape is invalid, otherwise null.
+async function validateGrant(g: {
+  claimValue: unknown;
+  siteRole: string | null;
+  instanceId: string | null;
+  siteId: string | null;
+  instanceRole: string | null;
+}): Promise<string | null> {
+  if (!g.claimValue || typeof g.claimValue !== "string") return "claimValue is required";
+  if (g.siteRole && !SITE_ROLES.includes(g.siteRole)) return `Invalid siteRole: ${g.siteRole}`;
+  if (g.instanceRole && !INSTANCE_ROLES.includes(g.instanceRole))
+    return `Invalid instanceRole: ${g.instanceRole}`;
+  if (g.instanceId && g.siteId) return "A grant targets an instance or a site, not both";
+  if ((g.instanceId || g.siteId) && !g.instanceRole)
+    return "instanceRole is required for an instance/site grant";
+  if (!g.siteRole && !g.instanceId && !g.siteId)
+    return "A rule must grant a site role and/or an instance/site role";
+  if (g.siteId) {
+    const site = await prisma.site.findUnique({ where: { id: g.siteId }, select: { id: true } });
+    if (!site) return "Site not found";
+  }
+  if (g.instanceId) {
+    const inst = await prisma.instance.findUnique({
+      where: { id: g.instanceId },
+      select: { id: true },
+    });
+    if (!inst) return "Instance not found";
+  }
+  return null;
 }

@@ -52,6 +52,7 @@ export async function PUT(
         claimValue: body.claimValue ?? existing.claimValue,
         siteRole: body.siteRole !== undefined ? (body.siteRole || null) : existing.siteRole,
         instanceId: body.instanceId !== undefined ? (body.instanceId || null) : existing.instanceId,
+        siteId: body.siteId !== undefined ? (body.siteId || null) : existing.siteId,
         instanceRole:
           body.instanceRole !== undefined ? (body.instanceRole || null) : existing.instanceRole,
         // Only rewrite the JSON column when the caller supplies it.

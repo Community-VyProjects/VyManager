@@ -13,6 +13,8 @@ export interface OAuthProviderConfig {
   userInfoUrl?: string | null;
   scopes?: string | null;
   pkce: boolean;
+  roleMappingEnabled?: boolean;
+  groupsClaim?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -29,6 +31,8 @@ export interface SaveProviderInput {
   userInfoUrl?: string;
   scopes?: string;
   pkce?: boolean;
+  roleMappingEnabled?: boolean;
+  groupsClaim?: string;
 }
 
 export interface UpdateProviderInput {
@@ -42,6 +46,45 @@ export interface UpdateProviderInput {
   userInfoUrl?: string;
   scopes?: string;
   pkce?: boolean;
+  roleMappingEnabled?: boolean;
+  groupsClaim?: string;
+}
+
+// ---------------------------------------------------------------------------
+// SSO Group/Role Mapping (issue #359)
+// ---------------------------------------------------------------------------
+
+export type SiteRoleValue = "ADMIN" | "VIEWER";
+export type InstanceRoleValue = "ADMIN" | "OPERATOR" | "VIEWER";
+
+export interface RoleMappingFeaturePermission {
+  feature: string;
+  canEdit: boolean;
+  canView: boolean;
+}
+
+export interface RoleMapping {
+  id: string;
+  providerId: string;
+  claimValue: string;
+  siteRole: SiteRoleValue | null;
+  instanceId: string | null;
+  siteId: string | null;
+  instanceRole: InstanceRoleValue | null;
+  featurePermissions: RoleMappingFeaturePermission[] | null;
+  priority: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SaveRoleMappingInput {
+  claimValue: string;
+  siteRole?: SiteRoleValue | null;
+  instanceId?: string | null;
+  siteId?: string | null;
+  instanceRole?: InstanceRoleValue | null;
+  featurePermissions?: RoleMappingFeaturePermission[] | null;
+  priority?: number;
 }
 
 class OAuthConfigService {
@@ -109,6 +152,44 @@ class OAuthConfigService {
 
   async deleteProvider(providerId: string): Promise<void> {
     await this.request(`/api/oauth-config/${providerId}`, { method: "DELETE" });
+  }
+
+  // --- Role mappings ---
+
+  async listMappings(providerId: string): Promise<RoleMapping[]> {
+    const data = await this.request<{ mappings: RoleMapping[] }>(
+      `/api/oauth-config/${providerId}/role-mappings`
+    );
+    return data.mappings;
+  }
+
+  async createMapping(
+    providerId: string,
+    input: SaveRoleMappingInput
+  ): Promise<RoleMapping> {
+    const data = await this.request<{ mapping: RoleMapping }>(
+      `/api/oauth-config/${providerId}/role-mappings`,
+      { method: "POST", body: JSON.stringify(input) }
+    );
+    return data.mapping;
+  }
+
+  async updateMapping(
+    providerId: string,
+    id: string,
+    input: SaveRoleMappingInput
+  ): Promise<RoleMapping> {
+    const data = await this.request<{ mapping: RoleMapping }>(
+      `/api/oauth-config/${providerId}/role-mappings/${id}`,
+      { method: "PUT", body: JSON.stringify(input) }
+    );
+    return data.mapping;
+  }
+
+  async deleteMapping(providerId: string, id: string): Promise<void> {
+    await this.request(`/api/oauth-config/${providerId}/role-mappings/${id}`, {
+      method: "DELETE",
+    });
   }
 }
 

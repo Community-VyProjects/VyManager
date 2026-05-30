@@ -16,8 +16,10 @@ import type { Role, InstanceRole } from "@prisma/client";
 export interface RoleMappingRule {
   claimValue: string;
   siteRole: Role | null;
-  // Instance-level grant — consumed in Phase 2 reconciliation.
+  // A grant targets one instance (instanceId) or a whole site (siteId), with
+  // instanceRole + featurePermissions. A pure site-role rule leaves both null.
   instanceId: string | null;
+  siteId: string | null;
   instanceRole: InstanceRole | null;
   featurePermissions: InstanceFeaturePermission[] | null;
   priority: number;
@@ -44,13 +46,22 @@ export interface ResolvedInstanceGrant {
   featurePermissions: InstanceFeaturePermission[];
 }
 
+/** Resolved site-wide grant; expanded to its instances at reconcile time. */
+export interface ResolvedSiteGrant {
+  siteId: string;
+  instanceRole: InstanceRole;
+  featurePermissions: InstanceFeaturePermission[];
+}
+
 export interface ResolvedMapping {
   /** True when mapping is enabled and the user matched no rule. */
   denied: boolean;
   /** Highest-ranked site role among matched rules, or null to leave unchanged. */
   siteRole: Role | null;
-  /** Instance assignments the user should have (Phase 2). */
+  /** Per-instance assignments the user should have. */
   instanceGrants: ResolvedInstanceGrant[];
+  /** Site-wide assignments (apply to every instance in the site). */
+  siteGrants: ResolvedSiteGrant[];
 }
 
 export const DEFAULT_GROUPS_CLAIM = "groups";
@@ -101,14 +112,14 @@ export function resolveRoleMapping(
   claimValues: string[],
 ): ResolvedMapping {
   if (!config.enabled) {
-    return { denied: false, siteRole: null, instanceGrants: [] };
+    return { denied: false, siteRole: null, instanceGrants: [], siteGrants: [] };
   }
 
   const claimSet = new Set(claimValues);
   const matched = config.rules.filter((rule) => claimSet.has(rule.claimValue));
 
   if (matched.length === 0) {
-    return { denied: true, siteRole: null, instanceGrants: [] };
+    return { denied: true, siteRole: null, instanceGrants: [], siteGrants: [] };
   }
 
   // Highest-ranked site role across all matched rules.
@@ -123,24 +134,58 @@ export function resolveRoleMapping(
     }
   }
 
-  // Union of instance grants; if the same instance appears twice, keep the
-  // most-privileged role and the union of its feature permissions.
-  const grantsByInstance = new Map<string, ResolvedInstanceGrant>();
+  // Site admins implicitly have full access to every instance and all features,
+  // so per-instance/site grants are redundant — drop them. Granular access only
+  // applies to site viewers.
+  const isAdmin = siteRole === "ADMIN";
+
+  return {
+    denied: false,
+    siteRole,
+    instanceGrants: isAdmin
+      ? []
+      : buildGrants(matched, "instanceId").map(({ id, ...g }) => ({
+          instanceId: id,
+          ...g,
+        })),
+    siteGrants: isAdmin
+      ? []
+      : buildGrants(matched, "siteId").map(({ id, ...g }) => ({
+          siteId: id,
+          ...g,
+        })),
+  };
+}
+
+interface MergedGrant {
+  id: string;
+  instanceRole: InstanceRole;
+  featurePermissions: InstanceFeaturePermission[];
+}
+
+/**
+ * Group matched rules by `instanceId` or `siteId`, keeping the most-privileged
+ * role and the union of feature permissions when a target appears more than once.
+ */
+function buildGrants(
+  matched: RoleMappingRule[],
+  key: "instanceId" | "siteId",
+): MergedGrant[] {
+  const byId = new Map<string, MergedGrant>();
   for (const rule of matched) {
-    if (!rule.instanceId || !rule.instanceRole) continue;
-    const existing = grantsByInstance.get(rule.instanceId);
+    const id = rule[key];
+    if (!id || !rule.instanceRole) continue;
     const incomingPerms = rule.featurePermissions ?? [];
+    const existing = byId.get(id);
     if (!existing) {
-      grantsByInstance.set(rule.instanceId, {
-        instanceId: rule.instanceId,
+      byId.set(id, {
+        id,
         instanceRole: rule.instanceRole,
         featurePermissions: mergeFeaturePermissions([], incomingPerms),
       });
       continue;
     }
-    const existingRank = INSTANCE_ROLE_RANK[existing.instanceRole] ?? 0;
-    const incomingRank = INSTANCE_ROLE_RANK[rule.instanceRole] ?? 0;
-    if (incomingRank > existingRank) {
+    if ((INSTANCE_ROLE_RANK[rule.instanceRole] ?? 0) > (INSTANCE_ROLE_RANK[existing.instanceRole] ?? 0)) {
       existing.instanceRole = rule.instanceRole;
     }
     existing.featurePermissions = mergeFeaturePermissions(
@@ -148,12 +193,7 @@ export function resolveRoleMapping(
       incomingPerms,
     );
   }
-
-  return {
-    denied: false,
-    siteRole,
-    instanceGrants: Array.from(grantsByInstance.values()),
-  };
+  return Array.from(byId.values());
 }
 
 /** Merge two feature-permission lists, OR-ing the canEdit/canView flags. */
