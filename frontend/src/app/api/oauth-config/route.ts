@@ -39,6 +39,8 @@ export async function GET(request: NextRequest) {
       userInfoUrl: true,
       scopes: true,
       pkce: true,
+      roleMappingEnabled: true,
+      groupsClaim: true,
       createdAt: true,
       updatedAt: true,
     },
@@ -67,6 +69,8 @@ export async function POST(request: NextRequest) {
     userInfoUrl,
     scopes,
     pkce = true,
+    roleMappingEnabled = false,
+    groupsClaim,
   } = body;
 
   if (!providerId || !displayName || !clientId || !clientSecret) {
@@ -89,6 +93,8 @@ export async function POST(request: NextRequest) {
       userInfoUrl: userInfoUrl || null,
       scopes: scopes || null,
       pkce,
+      roleMappingEnabled,
+      groupsClaim: groupsClaim || null,
     },
     create: {
       id: crypto.randomUUID(),
@@ -103,6 +109,8 @@ export async function POST(request: NextRequest) {
       userInfoUrl: userInfoUrl || null,
       scopes: scopes || null,
       pkce,
+      roleMappingEnabled,
+      groupsClaim: groupsClaim || null,
     },
   });
 

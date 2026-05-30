@@ -266,10 +266,51 @@ model OAuthProvider {
   scopes   String? // space-separated scopes
   pkce     Boolean @default(true)
 
+  // SSO Group/Role Mapping (issue #359)
+  // When enabled, the user's site + instance roles are derived from IdP claims
+  // on EVERY login. Users whose claims match no rule are denied access.
+  roleMappingEnabled Boolean @default(false)
+  groupsClaim        String? // Claim that carries group/role names (default "groups")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Relations
+  roleMappings OAuthRoleMapping[]
+
   @@map("oauth_providers")
+}
+
+// OAuthRoleMapping - Maps a single IdP claim value (e.g. a group name) to a
+// VyManager role. A claim may map to a site-level role and/or a specific
+// instance role. Multiple rows can target the same claimValue (e.g. one site
+// role + several instances).
+model OAuthRoleMapping {
+  id         String @id @default(cuid())
+  providerId String // -> OAuthProvider.providerId
+
+  claimValue String // The group/role string to match against the IdP claim
+
+  // Site-level grant (optional). Highest-ranked match across rules wins.
+  siteRole Role?
+
+  // Instance-level grant (optional, Phase 2). When set, the user is assigned
+  // to this instance with instanceRole. featurePermissions scopes OPERATOR/VIEWER.
+  instanceId         String?
+  instanceRole       InstanceRole?
+  featurePermissions Json? // [{ feature, canEdit, canView }] for OPERATOR/VIEWER
+
+  priority Int @default(0) // Tie-breaker / ordering hint
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  provider OAuthProvider @relation(fields: [providerId], references: [providerId], onDelete: Cascade)
+
+  @@unique([providerId, claimValue, instanceId])
+  @@index([providerId])
+  @@map("oauth_role_mappings")
 }
 
 // DashboardLayout - Stores user's custom dashboard layout per instance

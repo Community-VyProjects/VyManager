@@ -68,6 +68,8 @@ export async function PUT(
       userInfoUrl: body.userInfoUrl !== undefined ? (body.userInfoUrl || null) : existing.userInfoUrl,
       scopes: body.scopes !== undefined ? (body.scopes || null) : existing.scopes,
       pkce: body.pkce ?? existing.pkce,
+      roleMappingEnabled: body.roleMappingEnabled ?? existing.roleMappingEnabled,
+      groupsClaim: body.groupsClaim !== undefined ? (body.groupsClaim || null) : existing.groupsClaim,
     },
   });
 
