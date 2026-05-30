@@ -19,51 +19,55 @@ import {
 } from "@/components/ui/select";
 import { Loader2, AlertCircle } from "lucide-react";
 import {
-  oauthConfigService,
-  RoleMapping,
-  InstanceRoleValue,
-} from "@/lib/api/oauth";
-import { FeaturePermissionTree } from "./FeaturePermissionTree";
+  userManagementService,
+  UserInstanceAssignment,
+  InstanceRole,
+  FeaturePermission,
+} from "@/lib/api/user-management";
+import {
+  FeaturePermissionTree,
+  FeaturePermsMap,
+} from "@/components/authentication/FeaturePermissionTree";
 import {
   TargetSelector,
   InstanceOption,
   SiteOption,
   TargetType,
-} from "./TargetSelector";
+} from "@/components/authentication/TargetSelector";
 
-export type { InstanceOption, SiteOption };
-
-type Perms = Record<string, { canEdit: boolean; canView: boolean }>;
-
-interface GrantEditorDialogProps {
+interface UserGrantDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  providerId: string;
-  claimValue: string;
-  /** When set, edit this single grant; otherwise add (multi-target). */
-  existing: RoleMapping | null;
-  /** When set, apply one role/feature set to all of these existing grants. */
-  bulkEdit?: RoleMapping[] | null;
+  userId: string;
+  /** Edit this single grant; otherwise add (multi-target). */
+  existing: UserInstanceAssignment | null;
+  /** Apply one role/feature set to all of these existing grants. */
+  bulkEdit?: UserInstanceAssignment[] | null;
   sites: SiteOption[];
   instances: InstanceOption[];
   onSaved: () => void;
 }
 
-export function GrantEditorDialog({
+function permsToList(perms: FeaturePermsMap): FeaturePermission[] {
+  return Object.entries(perms)
+    .filter(([, p]) => p.canEdit || p.canView)
+    .map(([feature, p]) => ({ feature: feature as FeaturePermission["feature"], can_edit: p.canEdit, can_view: p.canView }));
+}
+
+export function UserGrantDialog({
   open,
   onOpenChange,
-  providerId,
-  claimValue,
+  userId,
   existing,
   bulkEdit,
   sites,
   instances,
   onSaved,
-}: GrantEditorDialogProps) {
+}: UserGrantDialogProps) {
   const [targetType, setTargetType] = useState<TargetType>("instance");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [role, setRole] = useState<InstanceRoleValue>("VIEWER");
-  const [perms, setPerms] = useState<Perms>({});
+  const [role, setRole] = useState<InstanceRole>(InstanceRole.VIEWER);
+  const [perms, setPerms] = useState<FeaturePermsMap>({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -76,72 +80,60 @@ export function GrantEditorDialog({
     setSaving(false);
     const seed = bulkEdit?.[0] ?? existing;
     if (seed) {
-      const tt: TargetType = seed.siteId ? "site" : "instance";
-      setTargetType(tt);
-      setSelectedIds(isBulk ? [] : [seed.siteId ?? seed.instanceId ?? ""]);
-      setRole((seed.instanceRole as InstanceRoleValue) ?? "VIEWER");
-      const p: Perms = {};
-      for (const fp of seed.featurePermissions ?? [])
-        p[fp.feature] = { canEdit: fp.canEdit, canView: fp.canView };
+      setTargetType(seed.is_site_grant ? "site" : "instance");
+      setSelectedIds(isBulk ? [] : [seed.is_site_grant ? seed.site_id : seed.instance_id ?? ""]);
+      setRole((seed.role as InstanceRole) ?? InstanceRole.VIEWER);
+      const p: FeaturePermsMap = {};
+      for (const fp of seed.feature_permissions ?? [])
+        p[fp.feature] = { canEdit: fp.can_edit, canView: fp.can_view };
       setPerms(p);
     } else {
       setTargetType("instance");
       setSelectedIds([]);
-      setRole("VIEWER");
+      setRole(InstanceRole.VIEWER);
       setPerms({});
     }
   }, [open, existing, bulkEdit, isBulk]);
 
-  const usesPerms = role === "OPERATOR" || role === "VIEWER";
+  const usesPerms = role === InstanceRole.OPERATOR || role === InstanceRole.VIEWER;
 
   const toggleTarget = (id: string) =>
-    setSelectedIds((ids) =>
-      ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]
-    );
+    setSelectedIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
 
   const save = async () => {
     if (!isBulk && selectedIds.length === 0) {
       setError(`Select at least one ${targetType}`);
       return;
     }
-    const featurePermissions = usesPerms
-      ? Object.entries(perms)
-          .filter(([, p]) => p.canEdit || p.canView)
-          .map(([feature, p]) => ({ feature, canEdit: p.canEdit, canView: p.canView }))
-      : null;
+    const feature_permissions = usesPerms ? permsToList(perms) : undefined;
 
     setSaving(true);
     setError(null);
     try {
-      if (isBulk && bulkEdit) {
-        // Apply the same role/features to each selected grant; keep its target.
-        for (const g of bulkEdit) {
-          await oauthConfigService.updateMapping(providerId, g.id, {
-            claimValue,
-            instanceRole: role,
-            featurePermissions,
-          });
-        }
-      } else if (isEditing && existing) {
-        const id = selectedIds[0];
-        await oauthConfigService.updateMapping(providerId, existing.id, {
-          claimValue,
-          instanceId: targetType === "instance" ? id : null,
-          siteId: targetType === "site" ? id : null,
-          instanceRole: role,
-          featurePermissions,
+      // No update endpoint: editing = remove the old row(s), then re-create.
+      const reassign = async (a: UserInstanceAssignment) => {
+        await userManagementService.removeAssignment(a.id);
+        await userManagementService.assignUser({
+          user_id: userId,
+          instance_ids: a.is_site_grant ? [] : [a.instance_id!],
+          site_ids: a.is_site_grant ? [a.site_id] : [],
+          role,
+          feature_permissions,
         });
+      };
+
+      if (isBulk && bulkEdit) {
+        for (const a of bulkEdit) await reassign(a);
+      } else if (isEditing && existing) {
+        await reassign(existing);
       } else {
-        // One row per selected target.
-        for (const id of selectedIds) {
-          await oauthConfigService.createMapping(providerId, {
-            claimValue,
-            instanceId: targetType === "instance" ? id : null,
-            siteId: targetType === "site" ? id : null,
-            instanceRole: role,
-            featurePermissions,
-          });
-        }
+        await userManagementService.assignUser({
+          user_id: userId,
+          instance_ids: targetType === "instance" ? selectedIds : [],
+          site_ids: targetType === "site" ? selectedIds : [],
+          role,
+          feature_permissions,
+        });
       }
       onSaved();
       onOpenChange(false);
@@ -156,14 +148,14 @@ export function GrantEditorDialog({
     <div className="space-y-4">
       <div className="space-y-1.5">
         <Label>Role</Label>
-        <Select value={role} onValueChange={(v) => setRole(v as InstanceRoleValue)}>
+        <Select value={role} onValueChange={(v) => setRole(v as InstanceRole)}>
           <SelectTrigger>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="ADMIN">Admin (full access)</SelectItem>
-            <SelectItem value="OPERATOR">Operator (edit selected)</SelectItem>
-            <SelectItem value="VIEWER">Viewer (view selected)</SelectItem>
+            <SelectItem value={InstanceRole.ADMIN}>Admin (full access)</SelectItem>
+            <SelectItem value={InstanceRole.OPERATOR}>Operator (edit selected)</SelectItem>
+            <SelectItem value={InstanceRole.VIEWER}>Viewer (view selected)</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -184,16 +176,9 @@ export function GrantEditorDialog({
             {isBulk ? `Edit ${bulkEdit!.length} grants` : isEditing ? "Edit grant" : "Add grant"}
           </DialogTitle>
           <DialogDescription>
-            {isBulk ? (
-              <>
-                Apply one role and feature set to the selected grants for{" "}
-                <strong>{claimValue}</strong>.
-              </>
-            ) : (
-              <>
-                Grant <strong>{claimValue}</strong> access to instances or whole sites.
-              </>
-            )}
+            {isBulk
+              ? "Apply one role and feature set to the selected grants."
+              : "Grant access to specific instances or whole sites."}
           </DialogDescription>
         </DialogHeader>
 
@@ -235,7 +220,7 @@ export function GrantEditorDialog({
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Saving…
                 </>
-              ) : isEditing ? (
+              ) : isBulk || isEditing ? (
                 "Save grant"
               ) : (
                 "Add grant"

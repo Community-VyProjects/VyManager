@@ -306,8 +306,14 @@ async def connect_to_instance(request: Request, body: ConnectRequest):
                            uir.role as role
                     FROM instances i
                     JOIN sites s ON i."siteId" = s.id
-                    JOIN user_instance_roles uir ON i.id = uir."instanceId" AND uir."userId" = $1
+                    JOIN user_instance_roles uir
+                        ON (uir."instanceId" = i.id OR uir."siteId" = i."siteId")
+                        AND uir."userId" = $1
                     WHERE i.id = $2
+                    ORDER BY CASE uir.role
+                        WHEN 'ADMIN' THEN 3 WHEN 'OPERATOR' THEN 2 WHEN 'VIEWER' THEN 1 ELSE 0
+                    END DESC
+                    LIMIT 1
                     """,
                     user_id,
                     instance_id,
@@ -526,7 +532,9 @@ async def list_user_sites(request: Request):
                                END DESC))[1] as role
                     FROM sites s
                     JOIN instances i ON s.id = i."siteId"
-                    JOIN user_instance_roles uir ON i.id = uir."instanceId" AND uir."userId" = $1
+                    JOIN user_instance_roles uir
+                        ON (uir."instanceId" = i.id OR uir."siteId" = s.id)
+                        AND uir."userId" = $1
                     GROUP BY s.id, s.name, s.description, s."createdAt", s."updatedAt"
                     ORDER BY s.name
                     """,
@@ -609,8 +617,10 @@ async def list_site_instances(request: Request, site_id: str):
                            i."commitConfirmEnabled", i."commitConfirmMinutes", i.timeout,
                            i."createdAt", i."updatedAt"
                     FROM instances i
-                    JOIN user_instance_roles uir ON i.id = uir."instanceId"
-                    WHERE i."siteId" = $1 AND uir."userId" = $2
+                    JOIN user_instance_roles uir
+                        ON (uir."instanceId" = i.id OR uir."siteId" = i."siteId")
+                        AND uir."userId" = $2
+                    WHERE i."siteId" = $1
                     ORDER BY i.name
                     """,
                     site_id,

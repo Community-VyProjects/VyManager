@@ -118,7 +118,7 @@ async function reconcileGrants(
     select: { id: true, instanceId: true },
   });
   for (const assignment of ssoAssignments) {
-    if (!validInstanceIds.has(assignment.instanceId)) {
+    if (!assignment.instanceId || !validInstanceIds.has(assignment.instanceId)) {
       // Cascade deletes the assignment's UserFeaturePermission rows.
       await prisma.userInstanceRole.delete({ where: { id: assignment.id } });
     }

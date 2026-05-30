@@ -155,7 +155,8 @@ model Site {
   updatedAt   DateTime @updatedAt
 
   // Relations
-  instances Instance[]
+  instances         Instance[]
+  userInstanceRoles UserInstanceRole[] // whole-site grants
 
   @@map("sites")
 }
@@ -357,12 +358,15 @@ enum FeatureGroup {
 // Note: CustomRole and FeaturePermission models removed in favor of simplified
 // UserFeaturePermission model that directly ties to UserInstanceRole
 
-// UserInstanceRole - Assigns users to instances with specific roles
-// Simplified: ADMIN (all access), EDITOR (feature-specific write), VIEWER (feature-specific read)
+// UserInstanceRole - Assigns users to instances (or whole sites) with roles.
+// A row grants EITHER one instance (instanceId) OR a whole site (siteId, which
+// covers every instance in the site, including ones added later). Feature
+// permissions attach via UserFeaturePermission for OPERATOR/VIEWER either way.
 model UserInstanceRole {
   id         String       @id @default(cuid())
   userId     String
-  instanceId String
+  instanceId String? // set for an instance grant
+  siteId     String? // set for a whole-site grant
   role       InstanceRole // ADMIN, EDITOR, or VIEWER
   createdAt  DateTime     @default(now())
   updatedAt  DateTime     @updatedAt
@@ -370,12 +374,15 @@ model UserInstanceRole {
 
   // Relations
   user               User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  instance           Instance                @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  instance           Instance?               @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  site               Site?                   @relation(fields: [siteId], references: [id], onDelete: Cascade)
   featurePermissions UserFeaturePermission[] // Only used for EDITOR/VIEWER roles
 
   @@unique([userId, instanceId])
+  @@unique([userId, siteId])
   @@index([userId])
   @@index([instanceId])
+  @@index([siteId])
   @@map("user_instance_roles")
 }
 
