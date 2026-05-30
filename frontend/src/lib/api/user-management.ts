@@ -13,6 +13,7 @@ export interface UserListItem {
   created_at: string;
   site_role: SiteRole; // ADMIN or VIEWER
   instance_count: number;
+  sso_role_managed?: boolean; // signs in via a role-mapping-enabled provider
 }
 
 export interface UserDetail {
@@ -47,10 +48,11 @@ export interface FeaturePermission {
 export interface UserInstanceAssignment {
   id: string;
   user_id: string;
-  instance_id: string;
-  instance_name: string;
-  site_id: string;
+  instance_id: string | null; // null for a whole-site grant
+  instance_name: string | null;
+  site_id: string; // instance's site, or the granted site
   site_name: string;
+  is_site_grant: boolean; // true when this grants the whole site
   role: InstanceRole; // ADMIN, OPERATOR, or VIEWER
   feature_permissions: FeaturePermission[]; // Only used for OPERATOR/VIEWER
   assigned_at: string;
@@ -59,7 +61,8 @@ export interface UserInstanceAssignment {
 
 export interface AssignUserRequest {
   user_id: string;
-  instance_ids: string[]; // Can assign to multiple instances at once
+  instance_ids?: string[]; // specific instances
+  site_ids?: string[]; // whole sites (cover all instances, incl. future)
   role: InstanceRole; // ADMIN, OPERATOR, or VIEWER
   feature_permissions?: FeaturePermission[]; // Only for OPERATOR/VIEWER roles
 }

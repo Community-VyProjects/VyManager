@@ -155,7 +155,8 @@ model Site {
   updatedAt   DateTime @updatedAt
 
   // Relations
-  instances Instance[]
+  instances         Instance[]
+  userInstanceRoles UserInstanceRole[] // whole-site grants
 
   @@map("sites")
 }
@@ -266,10 +267,54 @@ model OAuthProvider {
   scopes   String? // space-separated scopes
   pkce     Boolean @default(true)
 
+  // SSO Group/Role Mapping (issue #359)
+  // When enabled, the user's site + instance roles are derived from IdP claims
+  // on EVERY login. Users whose claims match no rule are denied access.
+  roleMappingEnabled Boolean @default(false)
+  groupsClaim        String? // Claim that carries group/role names (default "groups")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Relations
+  roleMappings OAuthRoleMapping[]
+
   @@map("oauth_providers")
+}
+
+// OAuthRoleMapping - Maps a single IdP claim value (e.g. a group name) to a
+// VyManager role. A claim may map to a site-level role and/or a specific
+// instance role. Multiple rows can target the same claimValue (e.g. one site
+// role + several instances).
+model OAuthRoleMapping {
+  id         String @id @default(cuid())
+  providerId String // -> OAuthProvider.providerId
+
+  claimValue String // The group/role string to match against the IdP claim
+
+  // Site-level grant (optional). Highest-ranked match across rules wins.
+  siteRole Role?
+
+  // A grant targets EITHER one instance (instanceId) OR a whole site (siteId,
+  // expanded to all of its instances at login), with instanceRole +
+  // featurePermissions. A pure site-role row leaves both null.
+  instanceId         String?
+  siteId             String?
+  instanceRole       InstanceRole?
+  featurePermissions Json? // [{ feature, canEdit, canView }] for OPERATOR/VIEWER
+
+  priority Int @default(0) // Tie-breaker / ordering hint
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  provider OAuthProvider @relation(fields: [providerId], references: [providerId], onDelete: Cascade)
+
+  @@unique([providerId, claimValue, instanceId])
+  @@unique([providerId, claimValue, siteId])
+  @@index([providerId])
+  @@map("oauth_role_mappings")
 }
 
 // DashboardLayout - Stores user's custom dashboard layout per instance
@@ -291,13 +336,21 @@ model DashboardLayout {
 // New RBAC System - Fine-Grained Per-Instance Permissions
 // ============================================================================
 
-// Feature Groups - Logical groupings of VyOS features
-// Stage 1: Core features (expandable later)
+// Feature Groups - Logical groupings of VyOS features.
+// NOTE: kept in sync with the live Postgres `FeatureGroup` enum (values were
+// added over time via ALTER TYPE migrations). Order matches the DB.
 enum FeatureGroup {
   FIREWALL // Firewall rules and groups
-  INTERFACES // Network interfaces
-  DHCP // DHCP server
   NAT // NAT rules
+  DHCP // DHCP server
+  INTERFACES // Network interfaces
+  STATIC_ROUTES // Static routing
+  ROUTING_POLICIES // Routing policy (route-maps, prefix-lists, etc.)
+  SYSTEM // System settings
+  CONFIGURATION // Raw configuration access
+  DASHBOARD // Dashboard
+  SITES_INSTANCES // Sites & instances management
+  USER_MANAGEMENT // User management
   MONITORING // SSH monitoring / live traffic
   SSH_CONSOLE // Interactive SSH shell console
 }
@@ -305,12 +358,15 @@ enum FeatureGroup {
 // Note: CustomRole and FeaturePermission models removed in favor of simplified
 // UserFeaturePermission model that directly ties to UserInstanceRole
 
-// UserInstanceRole - Assigns users to instances with specific roles
-// Simplified: ADMIN (all access), EDITOR (feature-specific write), VIEWER (feature-specific read)
+// UserInstanceRole - Assigns users to instances (or whole sites) with roles.
+// A row grants EITHER one instance (instanceId) OR a whole site (siteId, which
+// covers every instance in the site, including ones added later). Feature
+// permissions attach via UserFeaturePermission for OPERATOR/VIEWER either way.
 model UserInstanceRole {
   id         String       @id @default(cuid())
   userId     String
-  instanceId String
+  instanceId String? // set for an instance grant
+  siteId     String? // set for a whole-site grant
   role       InstanceRole // ADMIN, EDITOR, or VIEWER
   createdAt  DateTime     @default(now())
   updatedAt  DateTime     @updatedAt
@@ -318,12 +374,15 @@ model UserInstanceRole {
 
   // Relations
   user               User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  instance           Instance                @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  instance           Instance?               @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  site               Site?                   @relation(fields: [siteId], references: [id], onDelete: Cascade)
   featurePermissions UserFeaturePermission[] // Only used for EDITOR/VIEWER roles
 
   @@unique([userId, instanceId])
+  @@unique([userId, siteId])
   @@index([userId])
   @@index([instanceId])
+  @@index([siteId])
   @@map("user_instance_roles")
 }
 
@@ -331,12 +390,15 @@ model UserInstanceRole {
 // Only applies when UserInstanceRole.role is EDITOR or VIEWER
 // If role is ADMIN, this table is ignored (full access)
 model UserFeaturePermission {
-  id                 String       @id @default(cuid())
+  id                 String  @id @default(cuid())
   userInstanceRoleId String
-  feature            FeatureGroup
-  canEdit            Boolean      @default(false) // For EDITOR role
-  canView            Boolean      @default(false) // For VIEWER role
-  createdAt          DateTime     @default(now())
+  // Free-text feature key (DB column is TEXT). Values come from the full
+  // frontend FeatureGroup taxonomy (parents + children), NOT the narrow
+  // `FeatureGroup` enum below — that enum predates this table and is vestigial.
+  feature            String
+  canEdit            Boolean @default(false) // For EDITOR role
+  canView            Boolean @default(false) // For VIEWER role
+  createdAt          DateTime @default(now())
 
   // Relations
   userInstanceRole UserInstanceRole @relation(fields: [userInstanceRoleId], references: [id], onDelete: Cascade)

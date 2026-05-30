@@ -39,6 +39,7 @@ class UserListItem(BaseModel):
     created_at: datetime
     instance_count: int
     site_role: str  # ADMIN or VIEWER
+    sso_role_managed: bool = False  # signs in via a role-mapping-enabled provider
 
 
 class UserDetail(BaseModel):
@@ -75,13 +76,14 @@ class FeaturePermissionItem(BaseModel):
 
 
 class UserInstanceAssignment(BaseModel):
-    """User assignment to an instance"""
+    """User assignment to an instance or a whole site."""
     id: str
     user_id: str
-    instance_id: str
-    instance_name: str
-    site_id: str
+    instance_id: Optional[str] = None   # null for a whole-site grant
+    instance_name: Optional[str] = None
+    site_id: str                        # instance's site, or the granted site
     site_name: str
+    is_site_grant: bool = False         # True when this grants the whole site
     role: str  # InstanceRole: ADMIN, OPERATOR, or VIEWER
     feature_permissions: List[FeaturePermissionItem]  # Only used for OPERATOR/VIEWER
     assigned_at: datetime
@@ -89,9 +91,10 @@ class UserInstanceAssignment(BaseModel):
 
 
 class AssignUserRequest(BaseModel):
-    """Request to assign user to instance(s) with role"""
+    """Request to assign a user to instance(s) and/or whole site(s) with a role."""
     user_id: str
-    instance_ids: List[str]  # Can assign to multiple instances at once
+    instance_ids: List[str] = []  # Specific instances
+    site_ids: List[str] = []      # Whole sites (cover all instances, incl. future)
     role: str  # InstanceRole: ADMIN, OPERATOR, or VIEWER
     feature_permissions: Optional[List[FeaturePermissionItem]] = None  # Only for OPERATOR/VIEWER
 
@@ -199,7 +202,12 @@ async def list_users(request: Request):
                 u."emailVerified" as email_verified,
                 u."createdAt" as created_at,
                 u.role as site_role,
-                COUNT(DISTINCT uir."instanceId") as instance_count
+                COUNT(DISTINCT uir."instanceId") as instance_count,
+                EXISTS (
+                    SELECT 1 FROM accounts acc
+                    JOIN oauth_providers op ON op."providerId" = acc."providerId"
+                    WHERE acc."userId" = u.id AND op."roleMappingEnabled" = true
+                ) as sso_role_managed
             FROM users u
             LEFT JOIN user_instance_roles uir ON u.id = uir."userId"
             GROUP BY u.id, u.name, u.email, u."emailVerified", u."createdAt", u.role
@@ -214,7 +222,8 @@ async def list_users(request: Request):
             email_verified=user["email_verified"],
             created_at=user["created_at"],
             instance_count=user["instance_count"],
-            site_role=user["site_role"]
+            site_role=user["site_role"],
+            sso_role_managed=user["sso_role_managed"]
         ) for user in users]
 
 
@@ -257,16 +266,18 @@ async def get_user_assignments(request: Request, user_id: str):
                 uir."userId" as user_id,
                 uir."instanceId" as instance_id,
                 i.name as instance_name,
-                i."siteId" as site_id,
-                s.name as site_name,
+                COALESCE(uir."siteId", i."siteId") as site_id,
+                COALESCE(sg.name, s.name) as site_name,
+                (uir."siteId" IS NOT NULL) as is_site_grant,
                 uir.role,
                 uir."createdAt" as assigned_at,
                 uir."assignedBy" as assigned_by
             FROM user_instance_roles uir
-            JOIN instances i ON uir."instanceId" = i.id
-            JOIN sites s ON i."siteId" = s.id
+            LEFT JOIN instances i ON uir."instanceId" = i.id
+            LEFT JOIN sites s ON i."siteId" = s.id
+            LEFT JOIN sites sg ON uir."siteId" = sg.id
             WHERE uir."userId" = $1
-            ORDER BY s.name, i.name
+            ORDER BY COALESCE(sg.name, s.name), i.name NULLS FIRST
             """,
             user_id
         )
@@ -299,6 +310,7 @@ async def get_user_assignments(request: Request, user_id: str):
                 instance_name=assignment["instance_name"],
                 site_id=assignment["site_id"],
                 site_name=assignment["site_name"],
+                is_site_grant=assignment["is_site_grant"],
                 role=assignment["role"],
                 feature_permissions=permissions,
                 assigned_at=assignment["assigned_at"],
@@ -518,60 +530,74 @@ async def assign_user_to_instances(request: Request, body: AssignUserRequest):
 
         # Verify instances exist
         for instance_id in body.instance_ids:
-            instance_exists = await conn.fetchval("SELECT id FROM instances WHERE id = $1", instance_id)
-            if not instance_exists:
+            if not await conn.fetchval("SELECT id FROM instances WHERE id = $1", instance_id):
                 raise HTTPException(status_code=404, detail=f"Instance {instance_id} not found")
+
+        # Verify sites exist
+        for site_id in body.site_ids:
+            if not await conn.fetchval("SELECT id FROM sites WHERE id = $1", site_id):
+                raise HTTPException(status_code=404, detail=f"Site {site_id} not found")
+
+        async def insert_feature_perms(assignment_id: str):
+            # Feature permissions only apply to OPERATOR/VIEWER.
+            if not body.feature_permissions:
+                return
+            for perm in body.feature_permissions:
+                await conn.execute(
+                    """
+                    INSERT INTO user_feature_permissions
+                    (id, "userInstanceRoleId", feature, "canEdit", "canView", "createdAt")
+                    VALUES (gen_random_uuid()::text, $1, $2, $3, $4, NOW())
+                    """,
+                    assignment_id, perm.feature, perm.can_edit, perm.can_view,
+                )
 
         assignments_created = 0
 
-        # Create assignments
+        # Per-instance grants
         for instance_id in body.instance_ids:
-            # Check if assignment already exists for this user and instance
             existing = await conn.fetchval(
-                """
-                SELECT id FROM user_instance_roles
-                WHERE "userId" = $1 AND "instanceId" = $2
-                """,
-                body.user_id,
-                instance_id
+                'SELECT id FROM user_instance_roles WHERE "userId" = $1 AND "instanceId" = $2',
+                body.user_id, instance_id,
             )
+            if existing:
+                continue
+            assignment_id = await conn.fetchval(
+                """
+                INSERT INTO user_instance_roles
+                (id, "userId", "instanceId", role, "createdAt", "updatedAt", "assignedBy")
+                VALUES (gen_random_uuid()::text, $1, $2, $3, NOW(), NOW(), $4)
+                RETURNING id
+                """,
+                body.user_id, instance_id, body.role, current_user["id"],
+            )
+            await insert_feature_perms(assignment_id)
+            assignments_created += 1
 
-            if not existing:
-                # Create new assignment
-                assignment_id = await conn.fetchval(
-                    """
-                    INSERT INTO user_instance_roles
-                    (id, "userId", "instanceId", role, "createdAt", "updatedAt", "assignedBy")
-                    VALUES (gen_random_uuid()::text, $1, $2, $3, NOW(), NOW(), $4)
-                    RETURNING id
-                    """,
-                    body.user_id,
-                    instance_id,
-                    body.role,
-                    current_user["id"]
-                )
-
-                # Create feature permissions if provided (for OPERATOR/VIEWER roles)
-                if body.feature_permissions:
-                    for perm in body.feature_permissions:
-                        await conn.execute(
-                            """
-                            INSERT INTO user_feature_permissions
-                            (id, "userInstanceRoleId", feature, "canEdit", "canView", "createdAt")
-                            VALUES (gen_random_uuid()::text, $1, $2, $3, $4, NOW())
-                            """,
-                            assignment_id,
-                            perm.feature,
-                            perm.can_edit,
-                            perm.can_view
-                        )
-
-                assignments_created += 1
+        # Whole-site grants (cover every instance in the site, incl. future ones)
+        for site_id in body.site_ids:
+            existing = await conn.fetchval(
+                'SELECT id FROM user_instance_roles WHERE "userId" = $1 AND "siteId" = $2',
+                body.user_id, site_id,
+            )
+            if existing:
+                continue
+            assignment_id = await conn.fetchval(
+                """
+                INSERT INTO user_instance_roles
+                (id, "userId", "siteId", role, "createdAt", "updatedAt", "assignedBy")
+                VALUES (gen_random_uuid()::text, $1, $2, $3, NOW(), NOW(), $4)
+                RETURNING id
+                """,
+                body.user_id, site_id, body.role, current_user["id"],
+            )
+            await insert_feature_perms(assignment_id)
+            assignments_created += 1
 
         return AssignmentResponse(
             success=True,
             assignments_created=assignments_created,
-            message=f"User assigned to {assignments_created} instance(s) successfully",
+            message=f"Created {assignments_created} grant(s) successfully",
         )
 
 

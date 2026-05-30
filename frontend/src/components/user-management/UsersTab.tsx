@@ -33,7 +33,7 @@ import { userManagementService, UserListItem } from "@/lib/api/user-management";
 import { CreateUserModal } from "./CreateUserModal";
 import { EditUserModal } from "./EditUserModal";
 import { DeleteUserModal } from "./DeleteUserModal";
-import { ManageUserAccessPanel } from "./ManageUserAccessPanel";
+import { ManageUserAccessView } from "./ManageUserAccessView";
 import { ApiError } from "@/lib/types/api";
 
 export function UsersTab() {
@@ -127,6 +127,16 @@ export function UsersTab() {
           Retry
         </Button>
       </div>
+    );
+  }
+
+  if (manageAccessOpen && selectedUser) {
+    return (
+      <ManageUserAccessView
+        user={selectedUser}
+        onBack={() => setManageAccessOpen(false)}
+        onChanged={loadUsers}
+      />
     );
   }
 
@@ -284,12 +294,6 @@ export function UsersTab() {
             onSuccess={handleSuccess}
           />
 
-          <ManageUserAccessPanel
-            open={manageAccessOpen}
-            onOpenChange={setManageAccessOpen}
-            user={selectedUser}
-            onSuccess={handleSuccess}
-          />
         </>
       )}
     </>

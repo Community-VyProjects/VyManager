@@ -496,6 +496,135 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
 # Permission Helper Functions
 # ============================================================================
 
+# VyOS features an instance-level ADMIN role grants full WRITE on.
+_INSTANCE_ADMIN_FEATURES = [
+    FeatureGroup.FIREWALL,
+    FeatureGroup.FIREWALL_GROUPS,
+    FeatureGroup.FIREWALL_POLICIES,
+    FeatureGroup.FIREWALL_ZONES,
+    FeatureGroup.FIREWALL_GLOBAL_OPTIONS,
+    FeatureGroup.NETWORK,
+    FeatureGroup.NAT,
+    FeatureGroup.NAT64,
+    FeatureGroup.NAT66,
+    FeatureGroup.SERVICE,
+    FeatureGroup.BROADCAST_RELAY,
+    FeatureGroup.CONFIG_SYNC,
+    FeatureGroup.CONNTRACK_SYNC,
+    FeatureGroup.CONSOLE_SERVER,
+    FeatureGroup.DHCP_RELAY,
+    FeatureGroup.DHCPV6_RELAY,
+    FeatureGroup.DHCPV6_SERVER,
+    FeatureGroup.DNS_FORWARDING,
+    FeatureGroup.DNS_DYNAMIC,
+    FeatureGroup.EVENT_HANDLER,
+    FeatureGroup.HTTPS,
+    FeatureGroup.IPOE_SERVER,
+    FeatureGroup.LLDP,
+    FeatureGroup.NDP_PROXY,
+    FeatureGroup.NTP,
+    FeatureGroup.ROUTER_ADVERT,
+    FeatureGroup.SALT_MINION,
+    FeatureGroup.SERVICE_MONITORING,
+    FeatureGroup.SLA,
+    FeatureGroup.DHCP,
+    FeatureGroup.INTERFACES,
+    FeatureGroup.VRF,
+    FeatureGroup.LOAD_BALANCING,
+    FeatureGroup.VPN,
+    FeatureGroup.IPSEC,
+    FeatureGroup.WIREGUARD,
+    FeatureGroup.L2TP,
+    FeatureGroup.OPENVPN,
+    FeatureGroup.PPPOE,
+    FeatureGroup.SSTPC,
+    FeatureGroup.PKI,
+    FeatureGroup.VXLAN,
+    FeatureGroup.BONDING,
+    FeatureGroup.BRIDGE,
+    FeatureGroup.DUMMY,
+    FeatureGroup.ETHERNET,
+    FeatureGroup.VLAN,
+    FeatureGroup.GENEVE,
+    FeatureGroup.INPUT_IFACE,
+    FeatureGroup.LOOPBACK,
+    FeatureGroup.MACSEC,
+    FeatureGroup.PSEUDO_ETHERNET,
+    FeatureGroup.VIRTUAL_ETHERNET,
+    FeatureGroup.VPP,
+    FeatureGroup.VTI,
+    FeatureGroup.WIRELESS,
+    FeatureGroup.WWAN,
+    FeatureGroup.ROUTING,  # Added for three-level hierarchy
+    FeatureGroup.UNICAST_PROTOCOLS,  # Added for three-level hierarchy
+    FeatureGroup.BGP,
+    FeatureGroup.OSPF,
+    FeatureGroup.OSPFV3,
+    FeatureGroup.ISIS,
+    FeatureGroup.OPENFABRIC,
+    FeatureGroup.RIP,
+    FeatureGroup.RIPNG,
+    FeatureGroup.BABEL,
+    FeatureGroup.STATIC_ROUTES,
+    FeatureGroup.FAILOVER,
+    FeatureGroup.ROUTING_INFRASTRUCTURE,
+    FeatureGroup.BFD,
+    FeatureGroup.MPLS,
+    FeatureGroup.SEGMENT_ROUTING,
+    FeatureGroup.NHRP,
+    FeatureGroup.RPKI,
+    FeatureGroup.TRAFFIC_ENGINEERING,
+    FeatureGroup.ROUTING_POLICIES,
+    FeatureGroup.ACCESS_LIST,
+    FeatureGroup.PREFIX_LIST,
+    FeatureGroup.ROUTE_POLICY,
+    FeatureGroup.ROUTE_MAP,
+    FeatureGroup.LOCAL_ROUTE,
+    FeatureGroup.BGP_AS_PATH,
+    FeatureGroup.BGP_COMMUNITY,
+    FeatureGroup.BGP_EXTENDED_COMMUNITY,
+    FeatureGroup.BGP_LARGE_COMMUNITY,
+    FeatureGroup.MULTICAST,
+    FeatureGroup.IGMP_PROXY,
+    FeatureGroup.PIM,
+    FeatureGroup.PIM6,
+    FeatureGroup.HIGH_AVAILABILITY,
+    FeatureGroup.CONTAINER,
+    FeatureGroup.SYSTEM,
+    FeatureGroup.POWER,
+    FeatureGroup.CONFIGURATION,
+    FeatureGroup.MONITORING,
+    FeatureGroup.SSH_CONSOLE,
+    FeatureGroup.DASHBOARD,
+]
+
+
+async def _apply_instance_grant(conn, role, assignment_id, permissions):
+    """Merge one user_instance_roles grant into `permissions` (upgrade-only,
+    so the most-privileged of an instance grant and a whole-site grant wins)."""
+    if role == "ADMIN":
+        for feature in _INSTANCE_ADMIN_FEATURES:
+            permissions[feature] = PermissionLevel.WRITE
+        return
+    feature_perms = await conn.fetch(
+        '''
+        SELECT feature, "canEdit", "canView"
+        FROM user_feature_permissions
+        WHERE "userInstanceRoleId" = $1
+        ''',
+        assignment_id,
+    )
+    for fp in feature_perms:
+        try:
+            feature = FeatureGroup(fp["feature"])
+        except ValueError:
+            continue
+        if fp["canEdit"]:
+            permissions[feature] = PermissionLevel.WRITE
+        elif fp["canView"] and permissions[feature] != PermissionLevel.WRITE:
+            permissions[feature] = PermissionLevel.READ
+
+
 async def get_user_permissions(
     db_pool: asyncpg.Pool,
     user_id: str,
@@ -639,152 +768,31 @@ async def get_user_permissions(
                 permissions[feature] = PermissionLevel.WRITE
             return permissions
 
-        # Not a site ADMIN - check instance-level role
-        user_role = await conn.fetchrow(
+        # Not a site ADMIN - gather the instance grant AND any whole-site
+        # grant covering this instance's site, then merge them (most-
+        # privileged per feature wins).
+        grants = await conn.fetch(
             """
-            SELECT uir.role, uir.id as assignment_id
+            SELECT uir.role, uir.id AS assignment_id
             FROM user_instance_roles uir
-            WHERE uir."userId" = $1 AND uir."instanceId" = $2
+            WHERE uir."userId" = $1
+              AND (
+                uir."instanceId" = $2
+                OR uir."siteId" = (SELECT "siteId" FROM instances WHERE id = $2)
+              )
             """,
             user_id,
-            instance_id
+            instance_id,
         )
 
-        if not user_role:
+        if not grants:
             # User has no access to this instance
             return permissions
 
-        role = user_role["role"]
-
-        if role == "ADMIN":
-            # ADMIN has full WRITE access to all VyOS features
-            vyos_features = [
-                FeatureGroup.FIREWALL,
-                FeatureGroup.FIREWALL_GROUPS,
-                FeatureGroup.FIREWALL_POLICIES,
-                FeatureGroup.FIREWALL_ZONES,
-                FeatureGroup.FIREWALL_GLOBAL_OPTIONS,
-                FeatureGroup.NETWORK,
-                FeatureGroup.NAT,
-                FeatureGroup.NAT64,
-                FeatureGroup.NAT66,
-                FeatureGroup.SERVICE,
-                FeatureGroup.BROADCAST_RELAY,
-                FeatureGroup.CONFIG_SYNC,
-                FeatureGroup.CONNTRACK_SYNC,
-                FeatureGroup.CONSOLE_SERVER,
-                FeatureGroup.DHCP_RELAY,
-                FeatureGroup.DHCPV6_RELAY,
-                FeatureGroup.DHCPV6_SERVER,
-                FeatureGroup.DNS_FORWARDING,
-                FeatureGroup.DNS_DYNAMIC,
-                FeatureGroup.EVENT_HANDLER,
-                FeatureGroup.HTTPS,
-                FeatureGroup.IPOE_SERVER,
-                FeatureGroup.LLDP,
-                FeatureGroup.NDP_PROXY,
-                FeatureGroup.NTP,
-                FeatureGroup.ROUTER_ADVERT,
-                FeatureGroup.SALT_MINION,
-                FeatureGroup.SERVICE_MONITORING,
-                FeatureGroup.SLA,
-                FeatureGroup.DHCP,
-                FeatureGroup.INTERFACES,
-                FeatureGroup.VRF,
-                FeatureGroup.LOAD_BALANCING,
-                FeatureGroup.VPN,
-                FeatureGroup.IPSEC,
-                FeatureGroup.WIREGUARD,
-                FeatureGroup.L2TP,
-                FeatureGroup.OPENVPN,
-                FeatureGroup.PPPOE,
-                FeatureGroup.SSTPC,
-                FeatureGroup.PKI,
-                FeatureGroup.VXLAN,
-                FeatureGroup.BONDING,
-                FeatureGroup.BRIDGE,
-                FeatureGroup.DUMMY,
-                FeatureGroup.ETHERNET,
-                FeatureGroup.VLAN,
-                FeatureGroup.GENEVE,
-                FeatureGroup.INPUT_IFACE,
-                FeatureGroup.LOOPBACK,
-                FeatureGroup.MACSEC,
-                FeatureGroup.PSEUDO_ETHERNET,
-                FeatureGroup.VIRTUAL_ETHERNET,
-                FeatureGroup.VPP,
-                FeatureGroup.VTI,
-                FeatureGroup.WIRELESS,
-                FeatureGroup.WWAN,
-                FeatureGroup.ROUTING,  # Added for three-level hierarchy
-                FeatureGroup.UNICAST_PROTOCOLS,  # Added for three-level hierarchy
-                FeatureGroup.BGP,
-                FeatureGroup.OSPF,
-                FeatureGroup.OSPFV3,
-                FeatureGroup.ISIS,
-                FeatureGroup.OPENFABRIC,
-                FeatureGroup.RIP,
-                FeatureGroup.RIPNG,
-                FeatureGroup.BABEL,
-                FeatureGroup.STATIC_ROUTES,
-                FeatureGroup.FAILOVER,
-                FeatureGroup.ROUTING_INFRASTRUCTURE,
-                FeatureGroup.BFD,
-                FeatureGroup.MPLS,
-                FeatureGroup.SEGMENT_ROUTING,
-                FeatureGroup.NHRP,
-                FeatureGroup.RPKI,
-                FeatureGroup.TRAFFIC_ENGINEERING,
-                FeatureGroup.ROUTING_POLICIES,
-                FeatureGroup.ACCESS_LIST,
-                FeatureGroup.PREFIX_LIST,
-                FeatureGroup.ROUTE_POLICY,
-                FeatureGroup.ROUTE_MAP,
-                FeatureGroup.LOCAL_ROUTE,
-                FeatureGroup.BGP_AS_PATH,
-                FeatureGroup.BGP_COMMUNITY,
-                FeatureGroup.BGP_EXTENDED_COMMUNITY,
-                FeatureGroup.BGP_LARGE_COMMUNITY,
-                FeatureGroup.MULTICAST,
-                FeatureGroup.IGMP_PROXY,
-                FeatureGroup.PIM,
-                FeatureGroup.PIM6,
-                FeatureGroup.HIGH_AVAILABILITY,
-                FeatureGroup.CONTAINER,
-                FeatureGroup.SYSTEM,
-                FeatureGroup.POWER,
-                FeatureGroup.CONFIGURATION,
-                FeatureGroup.MONITORING,
-                FeatureGroup.SSH_CONSOLE,
-                FeatureGroup.DASHBOARD,
-            ]
-            for feature in vyos_features:
-                permissions[feature] = PermissionLevel.WRITE
-
-        else:
-            # OPERATOR or VIEWER: check feature permissions
-            feature_perms = await conn.fetch(
-                """
-                SELECT feature, "canEdit", "canView"
-                FROM user_feature_permissions
-                WHERE "userInstanceRoleId" = $1
-                """,
-                user_role["assignment_id"]
+        for grant in grants:
+            await _apply_instance_grant(
+                conn, grant["role"], grant["assignment_id"], permissions
             )
-
-            for fp in feature_perms:
-                feature_name = fp["feature"]
-                # Convert string to FeatureGroup enum
-                try:
-                    feature = FeatureGroup(feature_name)
-
-                    if fp["canEdit"]:
-                        permissions[feature] = PermissionLevel.WRITE
-                    elif fp["canView"]:
-                        permissions[feature] = PermissionLevel.READ
-                except ValueError:
-                    # Invalid feature name, skip it
-                    continue
 
     # Apply backward compatibility: Parent permissions grant child permissions
     _apply_parent_child_permissions(permissions)
@@ -882,12 +890,20 @@ async def get_user_accessible_instances(
                 """
             )
         else:
-            # Get instances user has explicit access to
+            # Instances the user can reach via a direct instance grant OR a
+            # whole-site grant (every instance in a granted site).
             instances = await conn.fetch(
                 """
-                SELECT DISTINCT "instanceId" as id
-                FROM user_instance_roles
-                WHERE "userId" = $1
+                SELECT DISTINCT i.id
+                FROM instances i
+                WHERE i.id IN (
+                        SELECT "instanceId" FROM user_instance_roles
+                        WHERE "userId" = $1 AND "instanceId" IS NOT NULL
+                    )
+                   OR i."siteId" IN (
+                        SELECT "siteId" FROM user_instance_roles
+                        WHERE "userId" = $1 AND "siteId" IS NOT NULL
+                    )
                 """,
                 user_id
             )

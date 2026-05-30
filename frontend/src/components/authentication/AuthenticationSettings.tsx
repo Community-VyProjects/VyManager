@@ -12,6 +12,7 @@ import {
   XCircle,
   Plus,
   KeyRound,
+  Users,
 } from "lucide-react";
 import {
   oauthConfigService,
@@ -21,6 +22,7 @@ import {
 import { ProviderIcon } from "./ProviderIcon";
 import { AddProviderModal } from "./AddProviderModal";
 import { ConfigureProviderModal } from "./ConfigureProviderModal";
+import { RoleMappingManager } from "./RoleMappingManager";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,6 +42,7 @@ export function AuthenticationSettings() {
 
   const [addOpen, setAddOpen] = useState(false);
   const [editProvider, setEditProvider] = useState<OAuthProviderConfig | null>(null);
+  const [roleMappingProvider, setRoleMappingProvider] = useState<OAuthProviderConfig | null>(null);
   const [deleteProvider, setDeleteProvider] = useState<OAuthProviderConfig | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
@@ -93,6 +96,16 @@ export function AuthenticationSettings() {
         iconKey: "custom",
       })
     : null;
+
+  if (roleMappingProvider) {
+    return (
+      <RoleMappingManager
+        provider={roleMappingProvider}
+        onBack={() => setRoleMappingProvider(null)}
+        onProviderChanged={loadConfigs}
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -223,6 +236,16 @@ export function AuthenticationSettings() {
                     ) : (
                       "Enable"
                     )}
+                  </Button>
+
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="px-2 text-muted-foreground hover:text-foreground"
+                    onClick={() => setRoleMappingProvider(provider)}
+                    title="Role mapping"
+                  >
+                    <Users className="h-3.5 w-3.5" />
                   </Button>
 
                   <Button

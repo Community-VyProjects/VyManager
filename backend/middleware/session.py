@@ -169,8 +169,14 @@ class SessionMiddleware(BaseHTTPMiddleware):
                         FROM active_sessions a
                         JOIN instances i ON a."instanceId" = i.id
                         JOIN sites s ON i."siteId" = s.id
-                        JOIN user_instance_roles uir ON i.id = uir."instanceId" AND uir."userId" = $1
+                        JOIN user_instance_roles uir
+                            ON (uir."instanceId" = i.id OR uir."siteId" = i."siteId")
+                            AND uir."userId" = $1
                         WHERE a."userId" = $1
+                        ORDER BY CASE uir.role
+                            WHEN 'ADMIN' THEN 3 WHEN 'OPERATOR' THEN 2 WHEN 'VIEWER' THEN 1 ELSE 0
+                        END DESC
+                        LIMIT 1
                         """,
                         user_id,
                     )
