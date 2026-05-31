@@ -173,7 +173,6 @@ You **must** change these values before starting:
 ```env
 # ── Shared Variables ─────────────────────────────────────
 # CHANGE THIS — use a long random string (e.g. openssl rand -base64 32)
-# Must match the BETTER_AUTH_SECRET value below — both services use this file
 BETTER_AUTH_SECRET=Change-This-To-Something-Secret
 
 # ── Backend ──────────────────────────────────────────────
