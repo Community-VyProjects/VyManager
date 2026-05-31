@@ -171,14 +171,15 @@ You **must** change these values before starting:
 5. **`TRUSTED_ORIGINS`** — Comma-separated list of every URL users will access VyManager from.
 
 ```env
+# ── Shared Variables ─────────────────────────────────────
+# CHANGE THIS — use a long random string (e.g. openssl rand -base64 32)
+# Must match the BETTER_AUTH_SECRET value below — both services use this file
+BETTER_AUTH_SECRET=Change-This-To-Something-Secret
+
 # ── Backend ──────────────────────────────────────────────
 # CHANGE_ME_POSTGRES_PASSWORD must match POSTGRES_PASSWORD in docker-compose.yml
 DATABASE_URL=postgresql://vymanager:CHANGE_ME_POSTGRES_PASSWORD@postgres:5432/vymanager
 FRONTEND_URL=http://frontend:3000
-
-# CHANGE THIS — use a long random string (e.g. openssl rand -base64 32)
-# Must match the BETTER_AUTH_SECRET value below — both services use this file
-BETTER_AUTH_SECRET=Change-This-To-Something-Secret
 
 # CHANGE THIS — use a long random hex string (e.g. openssl rand -hex 32)
 SSH_ENCRYPTION_KEY=Change-This-To-A-Hex-String
@@ -187,8 +188,6 @@ SSH_ENCRYPTION_KEY=Change-This-To-A-Hex-String
 NODE_ENV=production
 VYMANAGER_ENV=production
 
-# Must be the same value as BETTER_AUTH_SECRET above
-BETTER_AUTH_SECRET=Change-This-To-Something-Secret
 
 # CHANGE THIS — set to the URL where users access VyManager in their browser
 BETTER_AUTH_URL=http://<YOUR_SERVER_IP>:3000
