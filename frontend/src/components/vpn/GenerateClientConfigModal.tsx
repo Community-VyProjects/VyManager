@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import QRCode from "qrcode.react";
+import { QRCodeSVG } from "qrcode.react";
 import {
   Dialog,
   DialogContent,
@@ -429,7 +429,7 @@ PersistentKeepalive = 25`;
             <div className="flex justify-center">
               <div className="rounded-lg border bg-white p-4">
                 {config ? (
-                  <QRCode value={config} size={192} level="H" />
+                  <QRCodeSVG value={config} size={192} level="H" />
                 ) : (
                   <div className="h-48 w-48 flex items-center justify-center bg-muted rounded">
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />

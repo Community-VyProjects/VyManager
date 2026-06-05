@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import QRCode from "qrcode.react";
+import { QRCodeSVG } from "qrcode.react";
 import {
   Dialog,
   DialogContent,
@@ -630,7 +630,7 @@ PersistentKeepalive = 25`;
                 {result.clientConfig && (
                   <div className="flex justify-center">
                     <div className="rounded-lg border bg-white p-3">
-                      <QRCode value={result.clientConfig} size={192} level="H" />
+                      <QRCodeSVG value={result.clientConfig} size={192} level="H" />
                     </div>
                   </div>
                 )}
