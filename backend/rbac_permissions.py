@@ -83,6 +83,7 @@ class FeatureGroup(str, Enum):
     SERVICE_MONITORING = "SERVICE_MONITORING"
     SLA = "SLA"
     SNMP = "SNMP"
+    SSH = "SSH"
 
     # VPN features
     VPN = "VPN"
@@ -204,6 +205,7 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.SERVICE_MONITORING: PermissionLevel.WRITE,
         FeatureGroup.SLA: PermissionLevel.WRITE,
         FeatureGroup.SNMP: PermissionLevel.WRITE,
+        FeatureGroup.SSH: PermissionLevel.WRITE,
         FeatureGroup.DHCP: PermissionLevel.WRITE,
         FeatureGroup.INTERFACES: PermissionLevel.WRITE,
         FeatureGroup.TUNNEL: PermissionLevel.WRITE,
@@ -311,6 +313,7 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.SERVICE_MONITORING: PermissionLevel.WRITE,
         FeatureGroup.SLA: PermissionLevel.WRITE,
         FeatureGroup.SNMP: PermissionLevel.WRITE,
+        FeatureGroup.SSH: PermissionLevel.WRITE,
         FeatureGroup.DHCP: PermissionLevel.WRITE,
         FeatureGroup.INTERFACES: PermissionLevel.WRITE,
         FeatureGroup.TUNNEL: PermissionLevel.WRITE,
@@ -419,6 +422,7 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.SERVICE_MONITORING: PermissionLevel.READ,
         FeatureGroup.SLA: PermissionLevel.READ,
         FeatureGroup.SNMP: PermissionLevel.READ,
+        FeatureGroup.SSH: PermissionLevel.READ,
         FeatureGroup.DHCP: PermissionLevel.READ,
         FeatureGroup.INTERFACES: PermissionLevel.READ,
         FeatureGroup.TUNNEL: PermissionLevel.READ,
@@ -532,6 +536,7 @@ _INSTANCE_ADMIN_FEATURES = [
     FeatureGroup.SERVICE_MONITORING,
     FeatureGroup.SLA,
     FeatureGroup.SNMP,
+    FeatureGroup.SSH,
     FeatureGroup.DHCP,
     FeatureGroup.INTERFACES,
     FeatureGroup.VRF,
@@ -698,6 +703,7 @@ async def get_user_permissions(
                 FeatureGroup.SERVICE_MONITORING,
                 FeatureGroup.SLA,
                 FeatureGroup.SNMP,
+                FeatureGroup.SSH,
                 FeatureGroup.DHCP,
                 FeatureGroup.INTERFACES,
                 FeatureGroup.VRF,
@@ -1111,7 +1117,7 @@ def _apply_parent_child_permissions(permissions: Dict[FeatureGroup, PermissionLe
     # SERVICE grants permissions to all service features
     service_perm = permissions.get(FeatureGroup.SERVICE, PermissionLevel.NONE)
     if service_perm != PermissionLevel.NONE:
-        for child in [FeatureGroup.BROADCAST_RELAY, FeatureGroup.CONFIG_SYNC, FeatureGroup.CONNTRACK_SYNC, FeatureGroup.CONSOLE_SERVER, FeatureGroup.DHCP_RELAY, FeatureGroup.DHCPV6_RELAY, FeatureGroup.DHCPV6_SERVER, FeatureGroup.DNS_FORWARDING, FeatureGroup.DNS_DYNAMIC, FeatureGroup.EVENT_HANDLER, FeatureGroup.HTTPS, FeatureGroup.IPOE_SERVER, FeatureGroup.LLDP, FeatureGroup.NDP_PROXY, FeatureGroup.NTP, FeatureGroup.ROUTER_ADVERT, FeatureGroup.SALT_MINION, FeatureGroup.SERVICE_MONITORING, FeatureGroup.SLA, FeatureGroup.SNMP, FeatureGroup.DHCP]:
+        for child in [FeatureGroup.BROADCAST_RELAY, FeatureGroup.CONFIG_SYNC, FeatureGroup.CONNTRACK_SYNC, FeatureGroup.CONSOLE_SERVER, FeatureGroup.DHCP_RELAY, FeatureGroup.DHCPV6_RELAY, FeatureGroup.DHCPV6_SERVER, FeatureGroup.DNS_FORWARDING, FeatureGroup.DNS_DYNAMIC, FeatureGroup.EVENT_HANDLER, FeatureGroup.HTTPS, FeatureGroup.IPOE_SERVER, FeatureGroup.LLDP, FeatureGroup.NDP_PROXY, FeatureGroup.NTP, FeatureGroup.ROUTER_ADVERT, FeatureGroup.SALT_MINION, FeatureGroup.SERVICE_MONITORING, FeatureGroup.SLA, FeatureGroup.SNMP, FeatureGroup.SSH, FeatureGroup.DHCP]:
             current = permissions.get(child, PermissionLevel.NONE)
             if service_perm == PermissionLevel.WRITE:
                 permissions[child] = PermissionLevel.WRITE
