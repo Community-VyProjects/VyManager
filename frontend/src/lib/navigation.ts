@@ -1,4 +1,4 @@
-import { Activity, Shield, ShieldAlert, Network, Lock, LayoutDashboard, Server, Settings, HeartPulse, Route as RouteIcon, Scale, ArrowLeftRight, Box, Waypoints, KeyRound, Globe, Globe2, ListTree, Link2, Radio, Phone, Key, Terminal } from "lucide-react";
+import { Activity, Shield, ShieldAlert, Network, Lock, LayoutDashboard, Server, Settings, HeartPulse, Route as RouteIcon, Scale, ArrowLeftRight, Box, Waypoints, KeyRound, Globe, Globe2, ListTree, Link2, Radio, Phone, Key, Terminal, Gauge } from "lucide-react";
 import { FeatureGroup } from "@/lib/api/user-management";
 
 export interface NavSection {
@@ -144,6 +144,12 @@ export const navigation: NavItem[] = [
     sections: [
       { id: "vrf-instances", title: "VRF Instances", href: "/network/vrf", description: "List and manage VRF instances", searchParams: { tab: "instances" } },
     ],
+  },
+  {
+    title: "QoS",
+    href: "/qos",
+    icon: Gauge,
+    requiredPermission: FeatureGroup.QOS,
   },
   {
     title: "Routing",

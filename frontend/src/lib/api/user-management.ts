@@ -152,6 +152,7 @@ export enum FeatureGroup {
   SNMP = "SNMP",
   SSH = "SSH",
   TFTP_SERVER = "TFTP_SERVER",
+  QOS = "QOS",
   CONTAINER = "CONTAINER",
 
   // VPN features

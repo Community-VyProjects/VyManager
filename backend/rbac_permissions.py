@@ -86,6 +86,9 @@ class FeatureGroup(str, Enum):
     SSH = "SSH"
     TFTP_SERVER = "TFTP_SERVER"
 
+    # QoS (top-level)
+    QOS = "QOS"
+
     # VPN features
     VPN = "VPN"
     IPSEC = "IPSEC"
@@ -208,6 +211,7 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.SNMP: PermissionLevel.WRITE,
         FeatureGroup.SSH: PermissionLevel.WRITE,
         FeatureGroup.TFTP_SERVER: PermissionLevel.WRITE,
+        FeatureGroup.QOS: PermissionLevel.WRITE,
         FeatureGroup.DHCP: PermissionLevel.WRITE,
         FeatureGroup.INTERFACES: PermissionLevel.WRITE,
         FeatureGroup.TUNNEL: PermissionLevel.WRITE,
@@ -317,6 +321,7 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.SNMP: PermissionLevel.WRITE,
         FeatureGroup.SSH: PermissionLevel.WRITE,
         FeatureGroup.TFTP_SERVER: PermissionLevel.WRITE,
+        FeatureGroup.QOS: PermissionLevel.WRITE,
         FeatureGroup.DHCP: PermissionLevel.WRITE,
         FeatureGroup.INTERFACES: PermissionLevel.WRITE,
         FeatureGroup.TUNNEL: PermissionLevel.WRITE,
@@ -427,6 +432,7 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.SNMP: PermissionLevel.READ,
         FeatureGroup.SSH: PermissionLevel.READ,
         FeatureGroup.TFTP_SERVER: PermissionLevel.READ,
+        FeatureGroup.QOS: PermissionLevel.READ,
         FeatureGroup.DHCP: PermissionLevel.READ,
         FeatureGroup.INTERFACES: PermissionLevel.READ,
         FeatureGroup.TUNNEL: PermissionLevel.READ,
@@ -542,6 +548,7 @@ _INSTANCE_ADMIN_FEATURES = [
     FeatureGroup.SNMP,
     FeatureGroup.SSH,
     FeatureGroup.TFTP_SERVER,
+    FeatureGroup.QOS,
     FeatureGroup.DHCP,
     FeatureGroup.INTERFACES,
     FeatureGroup.VRF,
@@ -710,6 +717,7 @@ async def get_user_permissions(
                 FeatureGroup.SNMP,
                 FeatureGroup.SSH,
                 FeatureGroup.TFTP_SERVER,
+                FeatureGroup.QOS,
                 FeatureGroup.DHCP,
                 FeatureGroup.INTERFACES,
                 FeatureGroup.VRF,

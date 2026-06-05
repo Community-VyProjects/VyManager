@@ -99,6 +99,7 @@ export const FEATURE_CATEGORIES: FeatureCategory[] = [
       { feature: FeatureGroup.VRF },
       { feature: FeatureGroup.LOAD_BALANCING },
       { feature: FeatureGroup.HIGH_AVAILABILITY },
+      { feature: FeatureGroup.QOS },
       {
         feature: FeatureGroup.ROUTING,
         children: [
@@ -206,6 +207,7 @@ export const FEATURE_DISPLAY_NAMES: Record<FeatureGroup, string> = {
   [FeatureGroup.SNMP]: "SNMP",
   [FeatureGroup.SSH]: "SSH",
   [FeatureGroup.TFTP_SERVER]: "TFTP Server",
+  [FeatureGroup.QOS]: "QoS",
   [FeatureGroup.CONTAINER]: "Containers",
   [FeatureGroup.DHCP]: "DHCP",
   [FeatureGroup.INTERFACES]: "Interfaces",
