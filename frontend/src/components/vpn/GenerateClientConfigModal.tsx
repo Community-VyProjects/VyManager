@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import QRCode from "qrcode.react";
 import {
   Dialog,
   DialogContent,
@@ -54,7 +55,6 @@ export function GenerateClientConfigModal({
 
   // Result state
   const [config, setConfig] = useState<string | null>(null);
-  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
 
   // UI state
   const [loading, setLoading] = useState(false);
@@ -130,7 +130,6 @@ export function GenerateClientConfigModal({
     setDns("");
     setServerPublicKey(null);
     setConfig(null);
-    setQrDataUrl(null);
     setError(null);
     setStep("input");
     setShowPrivateKey(false);
@@ -219,12 +218,6 @@ PersistentKeepalive = 25`;
       const clientConfig = buildClientConfig(serverPublicKey!);
 
       setConfig(clientConfig);
-
-      // Generate QR code
-      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(
-        clientConfig
-      )}`;
-      setQrDataUrl(qrUrl);
 
       setStep("result");
       onSuccess(); // Refresh the interface list
@@ -435,13 +428,8 @@ PersistentKeepalive = 25`;
             {/* QR Code */}
             <div className="flex justify-center">
               <div className="rounded-lg border bg-white p-4">
-                {qrDataUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={qrDataUrl}
-                    alt="WireGuard QR Code"
-                    className="h-48 w-48"
-                  />
+                {config ? (
+                  <QRCode value={config} size={192} level="H" />
                 ) : (
                   <div className="h-48 w-48 flex items-center justify-center bg-muted rounded">
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />

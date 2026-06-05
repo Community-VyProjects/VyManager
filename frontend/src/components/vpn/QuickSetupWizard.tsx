@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import QRCode from "qrcode.react";
 import {
   Dialog,
   DialogContent,
@@ -81,7 +82,6 @@ export function QuickSetupWizard({
 
   // Result
   const [result, setResult] = useState<SetupResult | null>(null);
-  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState<"server" | "client" | null>(null);
   const [showServerKey, setShowServerKey] = useState(false);
 
@@ -137,7 +137,6 @@ export function QuickSetupWizard({
     setClientName("my-device");
     setClientAddress("10.10.0.2/32");
     setResult(null);
-    setQrDataUrl(null);
     setCopied(null);
     setShowServerKey(false);
   };
@@ -295,12 +294,6 @@ PersistentKeepalive = 25`;
         setupResult.clientConfig = clientConfig;
         setupResult.clientName = clientName.trim();
         setupResult.clientPublicKey = clientKeypair.public_key;
-
-        // Generate QR code
-        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(
-          clientConfig
-        )}`;
-        setQrDataUrl(qrUrl);
       }
 
       setResult(setupResult);
@@ -634,15 +627,10 @@ PersistentKeepalive = 25`;
                 </h4>
 
                 {/* QR Code */}
-                {qrDataUrl && (
+                {result.clientConfig && (
                   <div className="flex justify-center">
                     <div className="rounded-lg border bg-white p-3">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={qrDataUrl}
-                        alt="WireGuard QR Code"
-                        className="h-48 w-48"
-                      />
+                      <QRCode value={result.clientConfig} size={192} level="H" />
                     </div>
                   </div>
                 )}
