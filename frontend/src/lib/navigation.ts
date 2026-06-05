@@ -132,6 +132,7 @@ export const navigation: NavItem[] = [
       { title: "Salt Minion", href: "/service/salt-minion", requiredPermission: FeatureGroup.SALT_MINION },
       { title: "SLA", href: "/service/sla", requiredPermission: FeatureGroup.SLA },
       { title: "SNMP", href: "/service/snmp", requiredPermission: FeatureGroup.SNMP },
+      { title: "SSH", href: "/service/ssh", requiredPermission: FeatureGroup.SSH },
     ],
   },
   {

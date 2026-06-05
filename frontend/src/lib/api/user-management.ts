@@ -150,6 +150,7 @@ export enum FeatureGroup {
   SERVICE_MONITORING = "SERVICE_MONITORING",
   SLA = "SLA",
   SNMP = "SNMP",
+  SSH = "SSH",
   CONTAINER = "CONTAINER",
 
   // VPN features
