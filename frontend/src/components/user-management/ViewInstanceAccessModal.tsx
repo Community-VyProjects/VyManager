@@ -53,6 +53,7 @@ import {
   Clock,
   Bot,
   Gauge,
+  FolderUp,
 } from "lucide-react";
 import { userManagementService, FeatureGroup, InstanceUserListItem } from "@/lib/api/user-management";
 import { ApiError } from "@/lib/types/api";
@@ -102,6 +103,7 @@ const FEATURE_ICONS: Record<FeatureGroup, any> = {
   [FeatureGroup.SLA]: Gauge,
   [FeatureGroup.SNMP]: Network,
   [FeatureGroup.SSH]: Terminal,
+  [FeatureGroup.TFTP_SERVER]: FolderUp,
   [FeatureGroup.CONTAINER]: Box,
   [FeatureGroup.DHCP]: Wifi,
   [FeatureGroup.INTERFACES]: Router,
@@ -211,6 +213,7 @@ const FEATURE_NAMES: Record<FeatureGroup, string> = {
   [FeatureGroup.SLA]: "SLA",
   [FeatureGroup.SNMP]: "SNMP",
   [FeatureGroup.SSH]: "SSH",
+  [FeatureGroup.TFTP_SERVER]: "TFTP Server",
   [FeatureGroup.CONTAINER]: "Containers",
   [FeatureGroup.DHCP]: "DHCP",
   [FeatureGroup.INTERFACES]: "Interfaces",

@@ -80,6 +80,7 @@ from routers.ndp_proxy import ndp_proxy as ndp_proxy_router
 from routers.ntp import ntp as ntp_router
 from routers.snmp import snmp as snmp_router
 from routers.ssh import ssh as ssh_router
+from routers.tftp_server import tftp_server as tftp_server_router
 from routers.router_advert import router_advert as router_advert_router
 from routers.salt_minion import salt_minion as salt_minion_router
 from routers.sla import sla as sla_router
@@ -392,6 +393,7 @@ app.include_router(ndp_proxy_router.router)
 app.include_router(ntp_router.router)
 app.include_router(snmp_router.router)
 app.include_router(ssh_router.router)
+app.include_router(tftp_server_router.router)
 app.include_router(router_advert_router.router)
 app.include_router(salt_minion_router.router)
 app.include_router(sla_router.router)

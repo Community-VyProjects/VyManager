@@ -147,6 +147,8 @@ from .snmp import SNMPMapper
 from .snmp.snmp_versions import get_snmp_mapper
 from .ssh import SSHMapper
 from .ssh.ssh_versions import get_ssh_mapper
+from .tftp_server import TFTPServerMapper
+from .tftp_server.tftp_server_versions import get_tftp_server_mapper
 from .service_monitoring import ServiceMonitoringMapper
 from .service_monitoring.service_monitoring_versions import get_service_monitoring_mapper
 from .router_advert import RouterAdvertMapper
@@ -330,6 +332,8 @@ CommandMapperRegistry.register_feature("ntp", get_ntp_mapper)
 CommandMapperRegistry.register_feature("snmp", get_snmp_mapper)
 # SSH uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("ssh", get_ssh_mapper)
+# TFTP server uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("tftp_server", get_tftp_server_mapper)
 # Service Monitoring uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("service_monitoring", get_service_monitoring_mapper)
 # Router Advertisement uses factory for version-specific mappers
@@ -422,6 +426,7 @@ __all__ = [
     "NTPMapper",
     "SNMPMapper",
     "SSHMapper",
+    "TFTPServerMapper",
     "ServiceMonitoringMapper",
     "RouterAdvertMapper",
     "SaltMinionMapper",
