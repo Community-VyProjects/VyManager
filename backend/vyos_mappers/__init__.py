@@ -143,6 +143,8 @@ from .ndp_proxy import NdpProxyMapper
 from .ndp_proxy.ndp_proxy_versions import get_ndp_proxy_mapper
 from .ntp import NTPMapper
 from .ntp.ntp_versions import get_ntp_mapper
+from .snmp import SNMPMapper
+from .snmp.snmp_versions import get_snmp_mapper
 from .service_monitoring import ServiceMonitoringMapper
 from .service_monitoring.service_monitoring_versions import get_service_monitoring_mapper
 from .router_advert import RouterAdvertMapper
@@ -322,6 +324,8 @@ CommandMapperRegistry.register_feature("lldp", get_lldp_mapper)
 CommandMapperRegistry.register_feature("ndp_proxy", get_ndp_proxy_mapper)
 # NTP uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("ntp", get_ntp_mapper)
+# SNMP uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("snmp", get_snmp_mapper)
 # Service Monitoring uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("service_monitoring", get_service_monitoring_mapper)
 # Router Advertisement uses factory for version-specific mappers
@@ -412,6 +416,7 @@ __all__ = [
     "LLDPMapper",
     "NdpProxyMapper",
     "NTPMapper",
+    "SNMPMapper",
     "ServiceMonitoringMapper",
     "RouterAdvertMapper",
     "SaltMinionMapper",
