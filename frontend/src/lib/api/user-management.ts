@@ -149,6 +149,7 @@ export enum FeatureGroup {
   SALT_MINION = "SALT_MINION",
   SERVICE_MONITORING = "SERVICE_MONITORING",
   SLA = "SLA",
+  SNMP = "SNMP",
   CONTAINER = "CONTAINER",
 
   // VPN features

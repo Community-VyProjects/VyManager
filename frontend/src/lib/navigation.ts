@@ -131,6 +131,7 @@ export const navigation: NavItem[] = [
       { title: "Router Advert", href: "/service/router-advert", requiredPermission: FeatureGroup.ROUTER_ADVERT },
       { title: "Salt Minion", href: "/service/salt-minion", requiredPermission: FeatureGroup.SALT_MINION },
       { title: "SLA", href: "/service/sla", requiredPermission: FeatureGroup.SLA },
+      { title: "SNMP", href: "/service/snmp", requiredPermission: FeatureGroup.SNMP },
     ],
   },
   {
