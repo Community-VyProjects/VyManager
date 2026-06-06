@@ -59,6 +59,9 @@ class VrfStaticMapper:
     def get_static_route_interface_vrf(self, name: str, destination: str, iface: str, vrf: str) -> List[str]:
         return self._base(name) + ["route", destination, "interface", iface, "vrf", vrf]
 
+    def get_static_route_interface_segments(self, name: str, destination: str, iface: str, segments: str) -> List[str]:
+        return self._base(name) + ["route", destination, "interface", iface, "segments", segments]
+
     # Blackhole
     def get_static_route_blackhole(self, name: str, destination: str) -> List[str]:
         return self._base(name) + ["route", destination, "blackhole"]

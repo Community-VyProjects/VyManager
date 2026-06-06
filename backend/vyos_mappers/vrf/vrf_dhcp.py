@@ -414,3 +414,145 @@ class VrfDhcpMapper:
 
     def get_dhcp_static_mapping_option_vendor_option(self, name: str, network: str, prefix: str, host: str) -> List[str]:
         return self._base(name) + ["shared-network-name", network, "subnet", prefix, "static-mapping", host, "option", "vendor-option"]
+
+    # ========================================================================
+    # Scope base helpers (for extended coverage)
+    # ========================================================================
+
+    def _sn(self, name: str, network: str) -> List[str]:
+        return self._base(name) + ["shared-network-name", network]
+
+    def _subnet(self, name: str, network: str, prefix: str) -> List[str]:
+        return self._sn(name, network) + ["subnet", prefix]
+
+    def _range(self, name: str, network: str, prefix: str, rng: str) -> List[str]:
+        return self._subnet(name, network, prefix) + ["range", rng]
+
+    def _sm(self, name: str, network: str, prefix: str, host: str) -> List[str]:
+        return self._subnet(name, network, prefix) + ["static-mapping", host]
+
+    # ========================================================================
+    # Root extras: hostfile-update, HA certificates
+    # ========================================================================
+
+    def get_dhcp_hostfile_update(self, name: str) -> List[str]:
+        return self._base(name) + ["hostfile-update"]
+
+    def get_dhcp_ha_ca_certificate(self, name: str, value: str) -> List[str]:
+        return self._base(name) + ["high-availability", "ca-certificate", value]
+
+    def get_dhcp_ha_certificate(self, name: str, value: str) -> List[str]:
+        return self._base(name) + ["high-availability", "certificate", value]
+
+    # ========================================================================
+    # Client Class
+    # ========================================================================
+
+    def get_dhcp_client_class(self, name: str, client_class: str) -> List[str]:
+        return self._base(name) + ["client-class", client_class]
+
+    def get_dhcp_client_class_disable(self, name: str, client_class: str) -> List[str]:
+        return self._base(name) + ["client-class", client_class, "disable"]
+
+    def get_dhcp_client_class_relay_agent_information_circuit_id(self, name: str, client_class: str, value: str) -> List[str]:
+        return self._base(name) + ["client-class", client_class, "relay-agent-information", "circuit-id", value]
+
+    def get_dhcp_client_class_relay_agent_information_remote_id(self, name: str, client_class: str, value: str) -> List[str]:
+        return self._base(name) + ["client-class", client_class, "relay-agent-information", "remote-id", value]
+
+    # ========================================================================
+    # Dynamic DNS Update — flat fields (generic) at each scope
+    #   fields: conflict-resolution, generated-prefix, hostname-char-replacement,
+    #   hostname-char-set, override-client-update, override-no-update,
+    #   qualifying-suffix, replace-client-name, send-updates, ttl-percent, update-on-renew
+    # ========================================================================
+
+    def get_dhcp_ddns_field(self, name: str, field: str, value: str) -> List[str]:
+        return self._base(name) + ["dynamic-dns-update", field, value]
+
+    def get_dhcp_shared_network_ddns_field(self, name: str, network: str, field: str, value: str) -> List[str]:
+        return self._sn(name, network) + ["dynamic-dns-update", field, value]
+
+    def get_dhcp_subnet_ddns_field(self, name: str, network: str, prefix: str, field: str, value: str) -> List[str]:
+        return self._subnet(name, network, prefix) + ["dynamic-dns-update", field, value]
+
+    # Dynamic DNS Update — global nested (forward/reverse domain, tsig-key)
+    def get_dhcp_ddns_domain_dns_server_address(self, name: str, direction: str, domain: str, server: str, value: str) -> List[str]:
+        return self._base(name) + ["dynamic-dns-update", direction, domain, "dns-server", server, "address", value]
+
+    def get_dhcp_ddns_domain_dns_server_port(self, name: str, direction: str, domain: str, server: str, value: str) -> List[str]:
+        return self._base(name) + ["dynamic-dns-update", direction, domain, "dns-server", server, "port", value]
+
+    def get_dhcp_ddns_domain_key_name(self, name: str, direction: str, domain: str, value: str) -> List[str]:
+        return self._base(name) + ["dynamic-dns-update", direction, domain, "key-name", value]
+
+    def get_dhcp_ddns_tsig_key_algorithm(self, name: str, key: str, value: str) -> List[str]:
+        return self._base(name) + ["dynamic-dns-update", "tsig-key", key, "algorithm", value]
+
+    def get_dhcp_ddns_tsig_key_secret(self, name: str, key: str, value: str) -> List[str]:
+        return self._base(name) + ["dynamic-dns-update", "tsig-key", key, "secret", value]
+
+    # ========================================================================
+    # Generic option setters (cover all value options incl. ones without
+    # an explicit method, and the range scope which has none)
+    # ========================================================================
+
+    def get_dhcp_shared_network_option(self, name: str, network: str, opt: str, value: str) -> List[str]:
+        return self._sn(name, network) + ["option", opt, value]
+
+    def get_dhcp_subnet_option(self, name: str, network: str, prefix: str, opt: str, value: str) -> List[str]:
+        return self._subnet(name, network, prefix) + ["option", opt, value]
+
+    def get_dhcp_subnet_range_option(self, name: str, network: str, prefix: str, rng: str, opt: str, value: str) -> List[str]:
+        return self._range(name, network, prefix, rng) + ["option", opt, value]
+
+    def get_dhcp_static_mapping_option(self, name: str, network: str, prefix: str, host: str, opt: str, value: str) -> List[str]:
+        return self._sm(name, network, prefix, host) + ["option", opt, value]
+
+    # Option static-route next-hop (nested) per scope
+    def get_dhcp_shared_network_option_static_route_next_hop(self, name: str, network: str, route: str, value: str) -> List[str]:
+        return self._sn(name, network) + ["option", "static-route", route, "next-hop", value]
+
+    def get_dhcp_subnet_option_static_route_next_hop(self, name: str, network: str, prefix: str, route: str, value: str) -> List[str]:
+        return self._subnet(name, network, prefix) + ["option", "static-route", route, "next-hop", value]
+
+    def get_dhcp_subnet_range_option_static_route_next_hop(self, name: str, network: str, prefix: str, rng: str, route: str, value: str) -> List[str]:
+        return self._range(name, network, prefix, rng) + ["option", "static-route", route, "next-hop", value]
+
+    def get_dhcp_static_mapping_option_static_route_next_hop(self, name: str, network: str, prefix: str, host: str, route: str, value: str) -> List[str]:
+        return self._sm(name, network, prefix, host) + ["option", "static-route", route, "next-hop", value]
+
+    # Option vendor-option ubiquiti unifi-controller per scope
+    def get_dhcp_shared_network_option_unifi_controller(self, name: str, network: str, value: str) -> List[str]:
+        return self._sn(name, network) + ["option", "vendor-option", "ubiquiti", "unifi-controller", value]
+
+    def get_dhcp_subnet_option_unifi_controller(self, name: str, network: str, prefix: str, value: str) -> List[str]:
+        return self._subnet(name, network, prefix) + ["option", "vendor-option", "ubiquiti", "unifi-controller", value]
+
+    def get_dhcp_subnet_range_option_unifi_controller(self, name: str, network: str, prefix: str, rng: str, value: str) -> List[str]:
+        return self._range(name, network, prefix, rng) + ["option", "vendor-option", "ubiquiti", "unifi-controller", value]
+
+    def get_dhcp_static_mapping_option_unifi_controller(self, name: str, network: str, prefix: str, host: str, value: str) -> List[str]:
+        return self._sm(name, network, prefix, host) + ["option", "vendor-option", "ubiquiti", "unifi-controller", value]
+
+    # ========================================================================
+    # Subnet extras / range client-class / static-mapping duid
+    # ========================================================================
+
+    def get_dhcp_subnet_client_class(self, name: str, network: str, prefix: str, value: str) -> List[str]:
+        return self._subnet(name, network, prefix) + ["client-class", value]
+
+    def get_dhcp_subnet_ignore_client_id(self, name: str, network: str, prefix: str) -> List[str]:
+        return self._subnet(name, network, prefix) + ["ignore-client-id"]
+
+    def get_dhcp_subnet_ping_check(self, name: str, network: str, prefix: str) -> List[str]:
+        return self._subnet(name, network, prefix) + ["ping-check"]
+
+    def get_dhcp_subnet_id(self, name: str, network: str, prefix: str, value: str) -> List[str]:
+        return self._subnet(name, network, prefix) + ["subnet-id", value]
+
+    def get_dhcp_subnet_range_client_class(self, name: str, network: str, prefix: str, rng: str, value: str) -> List[str]:
+        return self._range(name, network, prefix, rng) + ["client-class", value]
+
+    def get_dhcp_static_mapping_duid(self, name: str, network: str, prefix: str, host: str, value: str) -> List[str]:
+        return self._sm(name, network, prefix, host) + ["duid", value]

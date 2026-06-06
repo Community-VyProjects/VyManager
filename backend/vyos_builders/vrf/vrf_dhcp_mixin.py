@@ -1541,3 +1541,432 @@ class VrfDhcpMixin:
             path = self.mappers["vrf_dhcp"].get_dhcp_static_mapping_option_vendor_option(name, parts[0], parts[1], parts[2])
             return self.add_delete(path)
         return self
+
+    # ========================================================================
+    # Extended Coverage Operations
+    # ========================================================================
+
+    # --- Root extras ---
+    def set_vrf_dhcp_hostfile_update(self, name: str) -> "VrfDhcpMixin":
+        """Enable hostfile-update."""
+        return self.add_set(self.mappers["vrf_dhcp"].get_dhcp_hostfile_update(name))
+
+    def delete_vrf_dhcp_hostfile_update(self, name: str) -> "VrfDhcpMixin":
+        """Disable hostfile-update."""
+        return self.add_delete(self.mappers["vrf_dhcp"].get_dhcp_hostfile_update(name))
+
+    def set_vrf_dhcp_ha_ca_certificate(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Set high-availability ca-certificate."""
+        return self.add_set(self.mappers["vrf_dhcp"].get_dhcp_ha_ca_certificate(name, value))
+
+    def delete_vrf_dhcp_ha_ca_certificate(self, name: str) -> "VrfDhcpMixin":
+        """Delete high-availability ca-certificate."""
+        return self.add_delete(self.mappers["vrf_dhcp"].get_dhcp(name) + ["high-availability", "ca-certificate"])
+
+    def set_vrf_dhcp_ha_certificate(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Set high-availability certificate."""
+        return self.add_set(self.mappers["vrf_dhcp"].get_dhcp_ha_certificate(name, value))
+
+    def delete_vrf_dhcp_ha_certificate(self, name: str) -> "VrfDhcpMixin":
+        """Delete high-availability certificate."""
+        return self.add_delete(self.mappers["vrf_dhcp"].get_dhcp(name) + ["high-availability", "certificate"])
+
+    # --- Client class ---
+    def set_vrf_dhcp_client_class(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Add a client-class. Value is the class name."""
+        return self.add_set(self.mappers["vrf_dhcp"].get_dhcp_client_class(name, value))
+
+    def delete_vrf_dhcp_client_class(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Delete a client-class. Value is the class name."""
+        return self.add_delete(self.mappers["vrf_dhcp"].get_dhcp_client_class(name, value))
+
+    def set_vrf_dhcp_client_class_disable(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Disable a client-class. Value is the class name."""
+        return self.add_set(self.mappers["vrf_dhcp"].get_dhcp_client_class_disable(name, value))
+
+    def delete_vrf_dhcp_client_class_disable(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Re-enable a client-class. Value is the class name."""
+        return self.add_delete(self.mappers["vrf_dhcp"].get_dhcp_client_class_disable(name, value))
+
+    def set_vrf_dhcp_client_class_relay_agent_information_circuit_id(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value format: 'class,circuit-id'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            return self.add_set(self.mappers["vrf_dhcp"].get_dhcp_client_class_relay_agent_information_circuit_id(name, parts[0], parts[1]))
+        return self
+
+    def delete_vrf_dhcp_client_class_relay_agent_information_circuit_id(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value is the class name."""
+        return self.add_delete(self.mappers["vrf_dhcp"].get_dhcp_client_class(name, value) + ["relay-agent-information", "circuit-id"])
+
+    def set_vrf_dhcp_client_class_relay_agent_information_remote_id(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value format: 'class,remote-id'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            return self.add_set(self.mappers["vrf_dhcp"].get_dhcp_client_class_relay_agent_information_remote_id(name, parts[0], parts[1]))
+        return self
+
+    def delete_vrf_dhcp_client_class_relay_agent_information_remote_id(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value is the class name."""
+        return self.add_delete(self.mappers["vrf_dhcp"].get_dhcp_client_class(name, value) + ["relay-agent-information", "remote-id"])
+
+    # --- Dynamic DNS update: flat fields (generic) at each scope ---
+    def set_vrf_dhcp_ddns_field(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value format: 'field,value'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            return self.add_set(self.mappers["vrf_dhcp"].get_dhcp_ddns_field(name, parts[0], parts[1]))
+        return self
+
+    def delete_vrf_dhcp_ddns_field(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value is the field name."""
+        return self.add_delete(self.mappers["vrf_dhcp"].get_dhcp(name) + ["dynamic-dns-update", value])
+
+    def set_vrf_dhcp_shared_network_ddns_field(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value format: 'network,field,value'."""
+        parts = value.split(",", 2)
+        if len(parts) == 3:
+            return self.add_set(self.mappers["vrf_dhcp"].get_dhcp_shared_network_ddns_field(name, parts[0], parts[1], parts[2]))
+        return self
+
+    def delete_vrf_dhcp_shared_network_ddns_field(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value format: 'network,field'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            return self.add_delete(self.mappers["vrf_dhcp"].get_dhcp_shared_network(name, parts[0]) + ["dynamic-dns-update", parts[1]])
+        return self
+
+    def set_vrf_dhcp_subnet_ddns_field(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value format: 'network,prefix,field,value'."""
+        parts = value.split(",", 3)
+        if len(parts) == 4:
+            return self.add_set(self.mappers["vrf_dhcp"].get_dhcp_subnet_ddns_field(name, parts[0], parts[1], parts[2], parts[3]))
+        return self
+
+    def delete_vrf_dhcp_subnet_ddns_field(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value format: 'network,prefix,field'."""
+        parts = value.split(",", 2)
+        if len(parts) == 3:
+            return self.add_delete(self.mappers["vrf_dhcp"].get_dhcp_subnet(name, parts[0], parts[1]) + ["dynamic-dns-update", parts[2]])
+        return self
+
+    # --- Dynamic DNS update: global nested (forward/reverse domain, tsig-key) ---
+    def set_vrf_dhcp_ddns_domain_dns_server_address(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value format: 'direction,domain,server,address'. direction: forward-domain|reverse-domain."""
+        parts = value.split(",", 3)
+        if len(parts) == 4:
+            return self.add_set(self.mappers["vrf_dhcp"].get_dhcp_ddns_domain_dns_server_address(name, parts[0], parts[1], parts[2], parts[3]))
+        return self
+
+    def delete_vrf_dhcp_ddns_domain_dns_server_address(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value format: 'direction,domain,server'."""
+        parts = value.split(",", 2)
+        if len(parts) == 3:
+            path = self.mappers["vrf_dhcp"].get_dhcp(name) + ["dynamic-dns-update", parts[0], parts[1], "dns-server", parts[2], "address"]
+            return self.add_delete(path)
+        return self
+
+    def set_vrf_dhcp_ddns_domain_dns_server_port(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value format: 'direction,domain,server,port'."""
+        parts = value.split(",", 3)
+        if len(parts) == 4:
+            return self.add_set(self.mappers["vrf_dhcp"].get_dhcp_ddns_domain_dns_server_port(name, parts[0], parts[1], parts[2], parts[3]))
+        return self
+
+    def delete_vrf_dhcp_ddns_domain_dns_server_port(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value format: 'direction,domain,server'."""
+        parts = value.split(",", 2)
+        if len(parts) == 3:
+            path = self.mappers["vrf_dhcp"].get_dhcp(name) + ["dynamic-dns-update", parts[0], parts[1], "dns-server", parts[2], "port"]
+            return self.add_delete(path)
+        return self
+
+    def set_vrf_dhcp_ddns_domain_key_name(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value format: 'direction,domain,key-name'."""
+        parts = value.split(",", 2)
+        if len(parts) == 3:
+            return self.add_set(self.mappers["vrf_dhcp"].get_dhcp_ddns_domain_key_name(name, parts[0], parts[1], parts[2]))
+        return self
+
+    def delete_vrf_dhcp_ddns_domain_key_name(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value format: 'direction,domain'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            path = self.mappers["vrf_dhcp"].get_dhcp(name) + ["dynamic-dns-update", parts[0], parts[1], "key-name"]
+            return self.add_delete(path)
+        return self
+
+    def set_vrf_dhcp_ddns_tsig_key_algorithm(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value format: 'key,algorithm'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            return self.add_set(self.mappers["vrf_dhcp"].get_dhcp_ddns_tsig_key_algorithm(name, parts[0], parts[1]))
+        return self
+
+    def delete_vrf_dhcp_ddns_tsig_key_algorithm(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value is the key name."""
+        return self.add_delete(self.mappers["vrf_dhcp"].get_dhcp(name) + ["dynamic-dns-update", "tsig-key", value, "algorithm"])
+
+    def set_vrf_dhcp_ddns_tsig_key_secret(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value format: 'key,secret'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            return self.add_set(self.mappers["vrf_dhcp"].get_dhcp_ddns_tsig_key_secret(name, parts[0], parts[1]))
+        return self
+
+    def delete_vrf_dhcp_ddns_tsig_key_secret(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value is the key name."""
+        return self.add_delete(self.mappers["vrf_dhcp"].get_dhcp(name) + ["dynamic-dns-update", "tsig-key", value, "secret"])
+
+    # --- Generic option setters (cover all value options + the range scope) ---
+    def set_vrf_dhcp_shared_network_option(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value format: 'network,option,value'."""
+        parts = value.split(",", 2)
+        if len(parts) == 3:
+            return self.add_set(self.mappers["vrf_dhcp"].get_dhcp_shared_network_option(name, parts[0], parts[1], parts[2]))
+        return self
+
+    def delete_vrf_dhcp_shared_network_option(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value format: 'network,option'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            return self.add_delete(self.mappers["vrf_dhcp"].get_dhcp_shared_network(name, parts[0]) + ["option", parts[1]])
+        return self
+
+    def set_vrf_dhcp_subnet_option(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value format: 'network,prefix,option,value'."""
+        parts = value.split(",", 3)
+        if len(parts) == 4:
+            return self.add_set(self.mappers["vrf_dhcp"].get_dhcp_subnet_option(name, parts[0], parts[1], parts[2], parts[3]))
+        return self
+
+    def delete_vrf_dhcp_subnet_option(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value format: 'network,prefix,option'."""
+        parts = value.split(",", 2)
+        if len(parts) == 3:
+            return self.add_delete(self.mappers["vrf_dhcp"].get_dhcp_subnet(name, parts[0], parts[1]) + ["option", parts[2]])
+        return self
+
+    def set_vrf_dhcp_subnet_range_option(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value format: 'network,prefix,range,option,value'."""
+        parts = value.split(",", 4)
+        if len(parts) == 5:
+            return self.add_set(self.mappers["vrf_dhcp"].get_dhcp_subnet_range_option(name, parts[0], parts[1], parts[2], parts[3], parts[4]))
+        return self
+
+    def delete_vrf_dhcp_subnet_range_option(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value format: 'network,prefix,range,option'."""
+        parts = value.split(",", 3)
+        if len(parts) == 4:
+            return self.add_delete(self.mappers["vrf_dhcp"].get_dhcp_subnet_range(name, parts[0], parts[1], parts[2]) + ["option", parts[3]])
+        return self
+
+    def set_vrf_dhcp_static_mapping_option(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value format: 'network,prefix,host,option,value'."""
+        parts = value.split(",", 4)
+        if len(parts) == 5:
+            return self.add_set(self.mappers["vrf_dhcp"].get_dhcp_static_mapping_option(name, parts[0], parts[1], parts[2], parts[3], parts[4]))
+        return self
+
+    def delete_vrf_dhcp_static_mapping_option(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value format: 'network,prefix,host,option'."""
+        parts = value.split(",", 3)
+        if len(parts) == 4:
+            return self.add_delete(self.mappers["vrf_dhcp"].get_dhcp_static_mapping(name, parts[0], parts[1], parts[2]) + ["option", parts[3]])
+        return self
+
+    # --- Option static-route next-hop per scope ---
+    def set_vrf_dhcp_shared_network_option_static_route_next_hop(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value format: 'network,route,next-hop'."""
+        parts = value.split(",", 2)
+        if len(parts) == 3:
+            return self.add_set(self.mappers["vrf_dhcp"].get_dhcp_shared_network_option_static_route_next_hop(name, parts[0], parts[1], parts[2]))
+        return self
+
+    def delete_vrf_dhcp_shared_network_option_static_route_next_hop(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value format: 'network,route'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            return self.add_delete(self.mappers["vrf_dhcp"].get_dhcp_shared_network(name, parts[0]) + ["option", "static-route", parts[1]])
+        return self
+
+    def set_vrf_dhcp_subnet_option_static_route_next_hop(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value format: 'network,prefix,route,next-hop'."""
+        parts = value.split(",", 3)
+        if len(parts) == 4:
+            return self.add_set(self.mappers["vrf_dhcp"].get_dhcp_subnet_option_static_route_next_hop(name, parts[0], parts[1], parts[2], parts[3]))
+        return self
+
+    def delete_vrf_dhcp_subnet_option_static_route_next_hop(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value format: 'network,prefix,route'."""
+        parts = value.split(",", 2)
+        if len(parts) == 3:
+            return self.add_delete(self.mappers["vrf_dhcp"].get_dhcp_subnet(name, parts[0], parts[1]) + ["option", "static-route", parts[2]])
+        return self
+
+    def set_vrf_dhcp_subnet_range_option_static_route_next_hop(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value format: 'network,prefix,range,route,next-hop'."""
+        parts = value.split(",", 4)
+        if len(parts) == 5:
+            return self.add_set(self.mappers["vrf_dhcp"].get_dhcp_subnet_range_option_static_route_next_hop(name, parts[0], parts[1], parts[2], parts[3], parts[4]))
+        return self
+
+    def delete_vrf_dhcp_subnet_range_option_static_route_next_hop(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value format: 'network,prefix,range,route'."""
+        parts = value.split(",", 3)
+        if len(parts) == 4:
+            return self.add_delete(self.mappers["vrf_dhcp"].get_dhcp_subnet_range(name, parts[0], parts[1], parts[2]) + ["option", "static-route", parts[3]])
+        return self
+
+    def set_vrf_dhcp_static_mapping_option_static_route_next_hop(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value format: 'network,prefix,host,route,next-hop'."""
+        parts = value.split(",", 4)
+        if len(parts) == 5:
+            return self.add_set(self.mappers["vrf_dhcp"].get_dhcp_static_mapping_option_static_route_next_hop(name, parts[0], parts[1], parts[2], parts[3], parts[4]))
+        return self
+
+    def delete_vrf_dhcp_static_mapping_option_static_route_next_hop(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value format: 'network,prefix,host,route'."""
+        parts = value.split(",", 3)
+        if len(parts) == 4:
+            return self.add_delete(self.mappers["vrf_dhcp"].get_dhcp_static_mapping(name, parts[0], parts[1], parts[2]) + ["option", "static-route", parts[3]])
+        return self
+
+    # --- Option vendor-option ubiquiti unifi-controller per scope ---
+    def set_vrf_dhcp_shared_network_option_unifi_controller(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value format: 'network,address'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            return self.add_set(self.mappers["vrf_dhcp"].get_dhcp_shared_network_option_unifi_controller(name, parts[0], parts[1]))
+        return self
+
+    def delete_vrf_dhcp_shared_network_option_unifi_controller(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value is the network name."""
+        return self.add_delete(self.mappers["vrf_dhcp"].get_dhcp_shared_network(name, value) + ["option", "vendor-option", "ubiquiti", "unifi-controller"])
+
+    def set_vrf_dhcp_subnet_option_unifi_controller(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value format: 'network,prefix,address'."""
+        parts = value.split(",", 2)
+        if len(parts) == 3:
+            return self.add_set(self.mappers["vrf_dhcp"].get_dhcp_subnet_option_unifi_controller(name, parts[0], parts[1], parts[2]))
+        return self
+
+    def delete_vrf_dhcp_subnet_option_unifi_controller(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value format: 'network,prefix'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            return self.add_delete(self.mappers["vrf_dhcp"].get_dhcp_subnet(name, parts[0], parts[1]) + ["option", "vendor-option", "ubiquiti", "unifi-controller"])
+        return self
+
+    def set_vrf_dhcp_subnet_range_option_unifi_controller(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value format: 'network,prefix,range,address'."""
+        parts = value.split(",", 3)
+        if len(parts) == 4:
+            return self.add_set(self.mappers["vrf_dhcp"].get_dhcp_subnet_range_option_unifi_controller(name, parts[0], parts[1], parts[2], parts[3]))
+        return self
+
+    def delete_vrf_dhcp_subnet_range_option_unifi_controller(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value format: 'network,prefix,range'."""
+        parts = value.split(",", 2)
+        if len(parts) == 3:
+            return self.add_delete(self.mappers["vrf_dhcp"].get_dhcp_subnet_range(name, parts[0], parts[1], parts[2]) + ["option", "vendor-option", "ubiquiti", "unifi-controller"])
+        return self
+
+    def set_vrf_dhcp_static_mapping_option_unifi_controller(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value format: 'network,prefix,host,address'."""
+        parts = value.split(",", 3)
+        if len(parts) == 4:
+            return self.add_set(self.mappers["vrf_dhcp"].get_dhcp_static_mapping_option_unifi_controller(name, parts[0], parts[1], parts[2], parts[3]))
+        return self
+
+    def delete_vrf_dhcp_static_mapping_option_unifi_controller(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value format: 'network,prefix,host'."""
+        parts = value.split(",", 2)
+        if len(parts) == 3:
+            return self.add_delete(self.mappers["vrf_dhcp"].get_dhcp_static_mapping(name, parts[0], parts[1], parts[2]) + ["option", "vendor-option", "ubiquiti", "unifi-controller"])
+        return self
+
+    # --- Subnet extras / range client-class / static-mapping duid ---
+    def set_vrf_dhcp_subnet_client_class(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value format: 'network,prefix,class'."""
+        parts = value.split(",", 2)
+        if len(parts) == 3:
+            return self.add_set(self.mappers["vrf_dhcp"].get_dhcp_subnet_client_class(name, parts[0], parts[1], parts[2]))
+        return self
+
+    def delete_vrf_dhcp_subnet_client_class(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value format: 'network,prefix,class'."""
+        parts = value.split(",", 2)
+        if len(parts) == 3:
+            return self.add_delete(self.mappers["vrf_dhcp"].get_dhcp_subnet_client_class(name, parts[0], parts[1], parts[2]))
+        return self
+
+    def set_vrf_dhcp_subnet_ignore_client_id(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value format: 'network,prefix'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            return self.add_set(self.mappers["vrf_dhcp"].get_dhcp_subnet_ignore_client_id(name, parts[0], parts[1]))
+        return self
+
+    def delete_vrf_dhcp_subnet_ignore_client_id(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value format: 'network,prefix'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            return self.add_delete(self.mappers["vrf_dhcp"].get_dhcp_subnet_ignore_client_id(name, parts[0], parts[1]))
+        return self
+
+    def set_vrf_dhcp_subnet_ping_check(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value format: 'network,prefix'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            return self.add_set(self.mappers["vrf_dhcp"].get_dhcp_subnet_ping_check(name, parts[0], parts[1]))
+        return self
+
+    def delete_vrf_dhcp_subnet_ping_check(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value format: 'network,prefix'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            return self.add_delete(self.mappers["vrf_dhcp"].get_dhcp_subnet_ping_check(name, parts[0], parts[1]))
+        return self
+
+    def set_vrf_dhcp_subnet_id(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value format: 'network,prefix,id'."""
+        parts = value.split(",", 2)
+        if len(parts) == 3:
+            return self.add_set(self.mappers["vrf_dhcp"].get_dhcp_subnet_id(name, parts[0], parts[1], parts[2]))
+        return self
+
+    def delete_vrf_dhcp_subnet_id(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value format: 'network,prefix'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            return self.add_delete(self.mappers["vrf_dhcp"].get_dhcp_subnet(name, parts[0], parts[1]) + ["subnet-id"])
+        return self
+
+    def set_vrf_dhcp_subnet_range_client_class(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value format: 'network,prefix,range,class'."""
+        parts = value.split(",", 3)
+        if len(parts) == 4:
+            return self.add_set(self.mappers["vrf_dhcp"].get_dhcp_subnet_range_client_class(name, parts[0], parts[1], parts[2], parts[3]))
+        return self
+
+    def delete_vrf_dhcp_subnet_range_client_class(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value format: 'network,prefix,range,class'."""
+        parts = value.split(",", 3)
+        if len(parts) == 4:
+            return self.add_delete(self.mappers["vrf_dhcp"].get_dhcp_subnet_range_client_class(name, parts[0], parts[1], parts[2], parts[3]))
+        return self
+
+    def set_vrf_dhcp_static_mapping_duid(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value format: 'network,prefix,host,duid'."""
+        parts = value.split(",", 3)
+        if len(parts) == 4:
+            return self.add_set(self.mappers["vrf_dhcp"].get_dhcp_static_mapping_duid(name, parts[0], parts[1], parts[2], parts[3]))
+        return self
+
+    def delete_vrf_dhcp_static_mapping_duid(self, name: str, value: str) -> "VrfDhcpMixin":
+        """Value format: 'network,prefix,host'."""
+        parts = value.split(",", 2)
+        if len(parts) == 3:
+            return self.add_delete(self.mappers["vrf_dhcp"].get_dhcp_static_mapping(name, parts[0], parts[1], parts[2]) + ["duid"])
+        return self

@@ -243,6 +243,22 @@ class VrfStaticMixin:
             return self.add_delete(path)
         return self
 
+    def set_vrf_static_route_interface_segments(self, name: str, value: str) -> "VrfStaticMixin":
+        """Value format: 'destination,interface,segments'."""
+        parts = value.split(",", 2)
+        if len(parts) == 3:
+            path = self.mappers["vrf_static"].get_static_route_interface_segments(name, parts[0], parts[1], parts[2])
+            return self.add_set(path)
+        return self
+
+    def delete_vrf_static_route_interface_segments(self, name: str, value: str) -> "VrfStaticMixin":
+        """Value format: 'destination,interface'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            path = self.mappers["vrf_static"].get_static_route_interface(name, parts[0], parts[1]) + ["segments"]
+            return self.add_delete(path)
+        return self
+
     # --- Blackhole ---
 
     def set_vrf_static_route_blackhole(self, name: str, value: str) -> "VrfStaticMixin":

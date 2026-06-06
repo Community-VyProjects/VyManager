@@ -202,6 +202,16 @@ class VrfOspfv3Mixin:
         path = self.mappers["vrf_ospfv3"].get_ospfv3_area_area_type_nssa_no_summary(name, value)
         return self.add_delete(path)
 
+    def set_vrf_ospfv3_area_type_nssa_default_information_originate(self, name: str, value: str) -> "VrfOspfv3Mixin":
+        """Set NSSA area default-information-originate. Value is the area ID."""
+        path = self.mappers["vrf_ospfv3"].get_ospfv3_area_area_type_nssa_default_information_originate(name, value)
+        return self.add_set(path)
+
+    def delete_vrf_ospfv3_area_type_nssa_default_information_originate(self, name: str, value: str) -> "VrfOspfv3Mixin":
+        """Delete NSSA area default-information-originate. Value is the area ID."""
+        path = self.mappers["vrf_ospfv3"].get_ospfv3_area_area_type_nssa_default_information_originate(name, value)
+        return self.add_delete(path)
+
     # ========================================================================
     # Auto-Cost
     # ========================================================================
@@ -328,6 +338,16 @@ class VrfOspfv3Mixin:
         path = self.mappers["vrf_ospfv3"].get_ospfv3_graceful_restart(name)
         return self.add_delete(path)
 
+    def set_vrf_ospfv3_graceful_restart_grace_period(self, name: str, value: str) -> "VrfOspfv3Mixin":
+        """Set graceful restart grace-period."""
+        path = self.mappers["vrf_ospfv3"].get_ospfv3_graceful_restart_grace_period(name, value)
+        return self.add_set(path)
+
+    def delete_vrf_ospfv3_graceful_restart_grace_period(self, name: str) -> "VrfOspfv3Mixin":
+        """Delete graceful restart grace-period."""
+        path = self.mappers["vrf_ospfv3"].get_ospfv3_graceful_restart(name) + ["grace-period"]
+        return self.add_delete(path)
+
     def set_vrf_ospfv3_graceful_restart_helper_enable(self, name: str) -> "VrfOspfv3Mixin":
         """Enable graceful restart helper."""
         path = self.mappers["vrf_ospfv3"].get_ospfv3_graceful_restart_helper_enable(name)
@@ -336,6 +356,16 @@ class VrfOspfv3Mixin:
     def delete_vrf_ospfv3_graceful_restart_helper_enable(self, name: str) -> "VrfOspfv3Mixin":
         """Delete graceful restart helper enable."""
         path = self.mappers["vrf_ospfv3"].get_ospfv3_graceful_restart_helper_enable(name)
+        return self.add_delete(path)
+
+    def set_vrf_ospfv3_graceful_restart_helper_enable_router_id(self, name: str, value: str) -> "VrfOspfv3Mixin":
+        """Enable graceful restart helper for a specific router-id. Value is the router-id."""
+        path = self.mappers["vrf_ospfv3"].get_ospfv3_graceful_restart_helper_enable_router_id(name, value)
+        return self.add_set(path)
+
+    def delete_vrf_ospfv3_graceful_restart_helper_enable_router_id(self, name: str, value: str) -> "VrfOspfv3Mixin":
+        """Disable graceful restart helper for a specific router-id. Value is the router-id."""
+        path = self.mappers["vrf_ospfv3"].get_ospfv3_graceful_restart_helper_enable_router_id(name, value)
         return self.add_delete(path)
 
     def set_vrf_ospfv3_graceful_restart_helper_planned_only(self, name: str) -> "VrfOspfv3Mixin":
@@ -618,6 +648,32 @@ class VrfOspfv3Mixin:
     def delete_vrf_ospfv3_redistribute_route_map(self, name: str, value: str) -> "VrfOspfv3Mixin":
         """Delete redistribute route-map. Value is the protocol name."""
         path = self.mappers["vrf_ospfv3"].get_ospfv3_redistribute(name, value) + ["route-map"]
+        return self.add_delete(path)
+
+    def set_vrf_ospfv3_redistribute_metric(self, name: str, value: str) -> "VrfOspfv3Mixin":
+        """Set redistribute metric. Value format: 'protocol,metric'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            path = self.mappers["vrf_ospfv3"].get_ospfv3_redistribute_metric(name, parts[0], parts[1])
+            return self.add_set(path)
+        return self
+
+    def delete_vrf_ospfv3_redistribute_metric(self, name: str, value: str) -> "VrfOspfv3Mixin":
+        """Delete redistribute metric. Value is the protocol name."""
+        path = self.mappers["vrf_ospfv3"].get_ospfv3_redistribute(name, value) + ["metric"]
+        return self.add_delete(path)
+
+    def set_vrf_ospfv3_redistribute_metric_type(self, name: str, value: str) -> "VrfOspfv3Mixin":
+        """Set redistribute metric-type. Value format: 'protocol,metric_type'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            path = self.mappers["vrf_ospfv3"].get_ospfv3_redistribute_metric_type(name, parts[0], parts[1])
+            return self.add_set(path)
+        return self
+
+    def delete_vrf_ospfv3_redistribute_metric_type(self, name: str, value: str) -> "VrfOspfv3Mixin":
+        """Delete redistribute metric-type. Value is the protocol name."""
+        path = self.mappers["vrf_ospfv3"].get_ospfv3_redistribute(name, value) + ["metric-type"]
         return self.add_delete(path)
 
     # ========================================================================

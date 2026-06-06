@@ -1493,3 +1493,175 @@ class VrfDhcpv6Mixin:
             ) + ["vendor-option", "cisco", "bootfile"]
             return self.add_delete(path)
         return self
+
+    # ========================================================================
+    # Extended Coverage Operations
+    # ========================================================================
+
+    # --- Generic option setters ---
+    def set_vrf_dhcpv6_shared_network_option(self, name: str, value: str) -> "VrfDhcpv6Mixin":
+        """Value format: 'network,option,value'."""
+        parts = value.split(",", 2)
+        if len(parts) == 3:
+            return self.add_set(self.mappers["vrf_dhcpv6"].get_dhcpv6_shared_network_option(name, parts[0], parts[1], parts[2]))
+        return self
+
+    def delete_vrf_dhcpv6_shared_network_option(self, name: str, value: str) -> "VrfDhcpv6Mixin":
+        """Value format: 'network,option'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            return self.add_delete(self.mappers["vrf_dhcpv6"].get_dhcpv6_shared_network(name, parts[0]) + ["option", parts[1]])
+        return self
+
+    def set_vrf_dhcpv6_subnet_option(self, name: str, value: str) -> "VrfDhcpv6Mixin":
+        """Value format: 'network,prefix,option,value'."""
+        parts = value.split(",", 3)
+        if len(parts) == 4:
+            return self.add_set(self.mappers["vrf_dhcpv6"].get_dhcpv6_subnet_option(name, parts[0], parts[1], parts[2], parts[3]))
+        return self
+
+    def delete_vrf_dhcpv6_subnet_option(self, name: str, value: str) -> "VrfDhcpv6Mixin":
+        """Value format: 'network,prefix,option'."""
+        parts = value.split(",", 2)
+        if len(parts) == 3:
+            return self.add_delete(self.mappers["vrf_dhcpv6"].get_dhcpv6_subnet(name, parts[0], parts[1]) + ["option", parts[2]])
+        return self
+
+    def set_vrf_dhcpv6_subnet_range_option(self, name: str, value: str) -> "VrfDhcpv6Mixin":
+        """Value format: 'network,prefix,range,option,value'."""
+        parts = value.split(",", 4)
+        if len(parts) == 5:
+            return self.add_set(self.mappers["vrf_dhcpv6"].get_dhcpv6_subnet_range_option(name, parts[0], parts[1], parts[2], parts[3], parts[4]))
+        return self
+
+    def delete_vrf_dhcpv6_subnet_range_option(self, name: str, value: str) -> "VrfDhcpv6Mixin":
+        """Value format: 'network,prefix,range,option'."""
+        parts = value.split(",", 3)
+        if len(parts) == 4:
+            return self.add_delete(self.mappers["vrf_dhcpv6"].get_dhcpv6_subnet_range(name, parts[0], parts[1], parts[2]) + ["option", parts[3]])
+        return self
+
+    def set_vrf_dhcpv6_static_mapping_option(self, name: str, value: str) -> "VrfDhcpv6Mixin":
+        """Value format: 'network,prefix,host,option,value'."""
+        parts = value.split(",", 4)
+        if len(parts) == 5:
+            return self.add_set(self.mappers["vrf_dhcpv6"].get_dhcpv6_static_mapping_option(name, parts[0], parts[1], parts[2], parts[3], parts[4]))
+        return self
+
+    def delete_vrf_dhcpv6_static_mapping_option(self, name: str, value: str) -> "VrfDhcpv6Mixin":
+        """Value format: 'network,prefix,host,option'."""
+        parts = value.split(",", 3)
+        if len(parts) == 4:
+            return self.add_delete(self.mappers["vrf_dhcpv6"].get_dhcpv6_subnet_static_mapping(name, parts[0], parts[1], parts[2]) + ["option", parts[3]])
+        return self
+
+    # --- Option vendor-option cisco tftp-server per scope ---
+    def set_vrf_dhcpv6_shared_network_option_vendor_cisco_tftp_server(self, name: str, value: str) -> "VrfDhcpv6Mixin":
+        """Value format: 'network,tftp-server'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            return self.add_set(self.mappers["vrf_dhcpv6"].get_dhcpv6_shared_network_option_vendor_cisco_tftp_server(name, parts[0], parts[1]))
+        return self
+
+    def delete_vrf_dhcpv6_shared_network_option_vendor_cisco_tftp_server(self, name: str, value: str) -> "VrfDhcpv6Mixin":
+        """Value is the network name."""
+        return self.add_delete(self.mappers["vrf_dhcpv6"].get_dhcpv6_shared_network(name, value) + ["option", "vendor-option", "cisco", "tftp-server"])
+
+    def set_vrf_dhcpv6_subnet_option_vendor_cisco_tftp_server(self, name: str, value: str) -> "VrfDhcpv6Mixin":
+        """Value format: 'network,prefix,tftp-server'."""
+        parts = value.split(",", 2)
+        if len(parts) == 3:
+            return self.add_set(self.mappers["vrf_dhcpv6"].get_dhcpv6_subnet_option_vendor_cisco_tftp_server(name, parts[0], parts[1], parts[2]))
+        return self
+
+    def delete_vrf_dhcpv6_subnet_option_vendor_cisco_tftp_server(self, name: str, value: str) -> "VrfDhcpv6Mixin":
+        """Value format: 'network,prefix'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            return self.add_delete(self.mappers["vrf_dhcpv6"].get_dhcpv6_subnet(name, parts[0], parts[1]) + ["option", "vendor-option", "cisco", "tftp-server"])
+        return self
+
+    def set_vrf_dhcpv6_subnet_range_option_vendor_cisco_tftp_server(self, name: str, value: str) -> "VrfDhcpv6Mixin":
+        """Value format: 'network,prefix,range,tftp-server'."""
+        parts = value.split(",", 3)
+        if len(parts) == 4:
+            return self.add_set(self.mappers["vrf_dhcpv6"].get_dhcpv6_subnet_range_option_vendor_cisco_tftp_server(name, parts[0], parts[1], parts[2], parts[3]))
+        return self
+
+    def delete_vrf_dhcpv6_subnet_range_option_vendor_cisco_tftp_server(self, name: str, value: str) -> "VrfDhcpv6Mixin":
+        """Value format: 'network,prefix,range'."""
+        parts = value.split(",", 2)
+        if len(parts) == 3:
+            return self.add_delete(self.mappers["vrf_dhcpv6"].get_dhcpv6_subnet_range(name, parts[0], parts[1], parts[2]) + ["option", "vendor-option", "cisco", "tftp-server"])
+        return self
+
+    def set_vrf_dhcpv6_static_mapping_option_vendor_cisco_tftp_server(self, name: str, value: str) -> "VrfDhcpv6Mixin":
+        """Value format: 'network,prefix,host,tftp-server'."""
+        parts = value.split(",", 3)
+        if len(parts) == 4:
+            return self.add_set(self.mappers["vrf_dhcpv6"].get_dhcpv6_static_mapping_option_vendor_cisco_tftp_server(name, parts[0], parts[1], parts[2], parts[3]))
+        return self
+
+    def delete_vrf_dhcpv6_static_mapping_option_vendor_cisco_tftp_server(self, name: str, value: str) -> "VrfDhcpv6Mixin":
+        """Value format: 'network,prefix,host'."""
+        parts = value.split(",", 2)
+        if len(parts) == 3:
+            return self.add_delete(self.mappers["vrf_dhcpv6"].get_dhcpv6_subnet_static_mapping(name, parts[0], parts[1], parts[2]) + ["option", "vendor-option", "cisco", "tftp-server"])
+        return self
+
+    # --- Subnet interface / subnet-id; static-mapping duid / mac ---
+    def set_vrf_dhcpv6_subnet_interface(self, name: str, value: str) -> "VrfDhcpv6Mixin":
+        """Value format: 'network,prefix,interface'."""
+        parts = value.split(",", 2)
+        if len(parts) == 3:
+            return self.add_set(self.mappers["vrf_dhcpv6"].get_dhcpv6_subnet_interface(name, parts[0], parts[1], parts[2]))
+        return self
+
+    def delete_vrf_dhcpv6_subnet_interface(self, name: str, value: str) -> "VrfDhcpv6Mixin":
+        """Value format: 'network,prefix'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            return self.add_delete(self.mappers["vrf_dhcpv6"].get_dhcpv6_subnet(name, parts[0], parts[1]) + ["interface"])
+        return self
+
+    def set_vrf_dhcpv6_subnet_id(self, name: str, value: str) -> "VrfDhcpv6Mixin":
+        """Value format: 'network,prefix,id'."""
+        parts = value.split(",", 2)
+        if len(parts) == 3:
+            return self.add_set(self.mappers["vrf_dhcpv6"].get_dhcpv6_subnet_id(name, parts[0], parts[1], parts[2]))
+        return self
+
+    def delete_vrf_dhcpv6_subnet_id(self, name: str, value: str) -> "VrfDhcpv6Mixin":
+        """Value format: 'network,prefix'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            return self.add_delete(self.mappers["vrf_dhcpv6"].get_dhcpv6_subnet(name, parts[0], parts[1]) + ["subnet-id"])
+        return self
+
+    def set_vrf_dhcpv6_subnet_static_mapping_duid(self, name: str, value: str) -> "VrfDhcpv6Mixin":
+        """Value format: 'network,prefix,host,duid'."""
+        parts = value.split(",", 3)
+        if len(parts) == 4:
+            return self.add_set(self.mappers["vrf_dhcpv6"].get_dhcpv6_subnet_static_mapping_duid(name, parts[0], parts[1], parts[2], parts[3]))
+        return self
+
+    def delete_vrf_dhcpv6_subnet_static_mapping_duid(self, name: str, value: str) -> "VrfDhcpv6Mixin":
+        """Value format: 'network,prefix,host'."""
+        parts = value.split(",", 2)
+        if len(parts) == 3:
+            return self.add_delete(self.mappers["vrf_dhcpv6"].get_dhcpv6_subnet_static_mapping(name, parts[0], parts[1], parts[2]) + ["duid"])
+        return self
+
+    def set_vrf_dhcpv6_subnet_static_mapping_mac(self, name: str, value: str) -> "VrfDhcpv6Mixin":
+        """Value format: 'network,prefix,host,mac'."""
+        parts = value.split(",", 3)
+        if len(parts) == 4:
+            return self.add_set(self.mappers["vrf_dhcpv6"].get_dhcpv6_subnet_static_mapping_mac(name, parts[0], parts[1], parts[2], parts[3]))
+        return self
+
+    def delete_vrf_dhcpv6_subnet_static_mapping_mac(self, name: str, value: str) -> "VrfDhcpv6Mixin":
+        """Value format: 'network,prefix,host'."""
+        parts = value.split(",", 2)
+        if len(parts) == 3:
+            return self.add_delete(self.mappers["vrf_dhcpv6"].get_dhcpv6_subnet_static_mapping(name, parts[0], parts[1], parts[2]) + ["mac"])
+        return self

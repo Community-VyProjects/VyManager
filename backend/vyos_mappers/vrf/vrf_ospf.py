@@ -406,3 +406,75 @@ class VrfOspfMapper:
 
     def get_ospf_timers_throttle_spf_max_holdtime(self, name: str, value: str) -> List[str]:
         return self._base(name) + ["timers", "throttle", "spf", "max-holdtime", value]
+
+    # ========================================================================
+    # Additional Coverage
+    # ========================================================================
+
+    def get_ospf_access_list_export(self, name: str, acl: str, value: str) -> List[str]:
+        return self._base(name) + ["access-list", acl, "export", value]
+
+    def get_ospf_aggregation_timer(self, name: str, value: str) -> List[str]:
+        return self._base(name) + ["aggregation", "timer", value]
+
+    def get_ospf_capability_opaque(self, name: str) -> List[str]:
+        return self._base(name) + ["capability", "opaque"]
+
+    def get_ospf_maximum_paths(self, name: str, value: str) -> List[str]:
+        return self._base(name) + ["maximum-paths", value]
+
+    def get_ospf_ldp_sync_holddown(self, name: str, value: str) -> List[str]:
+        return self._base(name) + ["ldp-sync", "holddown", value]
+
+    # Area export-list / import-list / network
+    def get_ospf_area_export_list(self, name: str, area: str, value: str) -> List[str]:
+        return self._base(name) + ["area", area, "export-list", value]
+
+    def get_ospf_area_import_list(self, name: str, area: str, value: str) -> List[str]:
+        return self._base(name) + ["area", area, "import-list", value]
+
+    def get_ospf_area_network(self, name: str, area: str, value: str) -> List[str]:
+        return self._base(name) + ["area", area, "network", value]
+
+    # Virtual-link / interface authentication null
+    def get_ospf_area_virtual_link_authentication_null(self, name: str, area: str, address: str) -> List[str]:
+        return self._base(name) + ["area", area, "virtual-link", address, "authentication", "null"]
+
+    def get_ospf_interface_authentication_null(self, name: str, iface: str) -> List[str]:
+        return self._base(name) + ["interface", iface, "authentication", "null"]
+
+    def get_ospf_interface_retransmit_window(self, name: str, iface: str, value: str) -> List[str]:
+        return self._base(name) + ["interface", iface, "retransmit-window", value]
+
+    def get_ospf_area_virtual_link_retransmit_window(self, name: str, area: str, address: str, value: str) -> List[str]:
+        return self._base(name) + ["area", area, "virtual-link", address, "retransmit-window", value]
+
+    # Graceful-restart additions
+    def get_ospf_graceful_restart_grace_period(self, name: str, value: str) -> List[str]:
+        return self._base(name) + ["graceful-restart", "grace-period", value]
+
+    def get_ospf_graceful_restart_helper_enable_router_id(self, name: str, value: str) -> List[str]:
+        return self._base(name) + ["graceful-restart", "helper", "enable", "router-id", value]
+
+    def get_ospf_graceful_restart_helper_no_strict_lsa_checking(self, name: str) -> List[str]:
+        return self._base(name) + ["graceful-restart", "helper", "no-strict-lsa-checking"]
+
+    # Segment-routing individual block label values
+    def get_ospf_segment_routing_global_block_low(self, name: str, value: str) -> List[str]:
+        return self._base(name) + ["segment-routing", "global-block", "low-label-value", value]
+
+    def get_ospf_segment_routing_global_block_high(self, name: str, value: str) -> List[str]:
+        return self._base(name) + ["segment-routing", "global-block", "high-label-value", value]
+
+    def get_ospf_segment_routing_local_block_low(self, name: str, value: str) -> List[str]:
+        return self._base(name) + ["segment-routing", "local-block", "low-label-value", value]
+
+    def get_ospf_segment_routing_local_block_high(self, name: str, value: str) -> List[str]:
+        return self._base(name) + ["segment-routing", "local-block", "high-label-value", value]
+
+    # Summary-address no-advertise / tag
+    def get_ospf_summary_address_no_advertise(self, name: str, prefix: str) -> List[str]:
+        return self._base(name) + ["summary-address", prefix, "no-advertise"]
+
+    def get_ospf_summary_address_tag(self, name: str, prefix: str, value: str) -> List[str]:
+        return self._base(name) + ["summary-address", prefix, "tag", value]

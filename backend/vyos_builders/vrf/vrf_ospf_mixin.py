@@ -1238,3 +1238,219 @@ class VrfOspfMixin:
         """Delete SPF max holdtime."""
         path = self.mappers["vrf_ospf"].get_ospf(name) + ["timers", "throttle", "spf", "max-holdtime"]
         return self.add_delete(path)
+
+    # ========================================================================
+    # Additional Coverage Operations
+    # ========================================================================
+
+    def set_vrf_ospf_access_list_export(self, name: str, value: str) -> "VrfOspfMixin":
+        """Set access-list export. Value format: 'acl,protocol'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            return self.add_set(self.mappers["vrf_ospf"].get_ospf_access_list_export(name, parts[0], parts[1]))
+        return self
+
+    def delete_vrf_ospf_access_list_export(self, name: str, value: str) -> "VrfOspfMixin":
+        """Delete access-list export. Value format: 'acl,protocol'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            return self.add_delete(self.mappers["vrf_ospf"].get_ospf_access_list_export(name, parts[0], parts[1]))
+        return self
+
+    def set_vrf_ospf_aggregation_timer(self, name: str, value: str) -> "VrfOspfMixin":
+        """Set aggregation timer."""
+        return self.add_set(self.mappers["vrf_ospf"].get_ospf_aggregation_timer(name, value))
+
+    def delete_vrf_ospf_aggregation_timer(self, name: str) -> "VrfOspfMixin":
+        """Delete aggregation timer."""
+        return self.add_delete(self.mappers["vrf_ospf"].get_ospf(name) + ["aggregation", "timer"])
+
+    def set_vrf_ospf_capability_opaque(self, name: str) -> "VrfOspfMixin":
+        """Enable opaque LSA capability."""
+        return self.add_set(self.mappers["vrf_ospf"].get_ospf_capability_opaque(name))
+
+    def delete_vrf_ospf_capability_opaque(self, name: str) -> "VrfOspfMixin":
+        """Disable opaque LSA capability."""
+        return self.add_delete(self.mappers["vrf_ospf"].get_ospf_capability_opaque(name))
+
+    def set_vrf_ospf_maximum_paths(self, name: str, value: str) -> "VrfOspfMixin":
+        """Set maximum paths (ECMP)."""
+        return self.add_set(self.mappers["vrf_ospf"].get_ospf_maximum_paths(name, value))
+
+    def delete_vrf_ospf_maximum_paths(self, name: str) -> "VrfOspfMixin":
+        """Delete maximum paths (ECMP)."""
+        return self.add_delete(self.mappers["vrf_ospf"].get_ospf(name) + ["maximum-paths"])
+
+    def set_vrf_ospf_ldp_sync_holddown(self, name: str, value: str) -> "VrfOspfMixin":
+        """Set global LDP-IGP sync holddown."""
+        return self.add_set(self.mappers["vrf_ospf"].get_ospf_ldp_sync_holddown(name, value))
+
+    def delete_vrf_ospf_ldp_sync_holddown(self, name: str) -> "VrfOspfMixin":
+        """Delete global LDP-IGP sync holddown."""
+        return self.add_delete(self.mappers["vrf_ospf"].get_ospf_ldp_sync(name) + ["holddown"])
+
+    def set_vrf_ospf_area_export_list(self, name: str, value: str) -> "VrfOspfMixin":
+        """Set area export-list. Value format: 'area,acl'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            return self.add_set(self.mappers["vrf_ospf"].get_ospf_area_export_list(name, parts[0], parts[1]))
+        return self
+
+    def delete_vrf_ospf_area_export_list(self, name: str, value: str) -> "VrfOspfMixin":
+        """Delete area export-list. Value is the area ID."""
+        return self.add_delete(self.mappers["vrf_ospf"].get_ospf_area(name, value) + ["export-list"])
+
+    def set_vrf_ospf_area_import_list(self, name: str, value: str) -> "VrfOspfMixin":
+        """Set area import-list. Value format: 'area,acl'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            return self.add_set(self.mappers["vrf_ospf"].get_ospf_area_import_list(name, parts[0], parts[1]))
+        return self
+
+    def delete_vrf_ospf_area_import_list(self, name: str, value: str) -> "VrfOspfMixin":
+        """Delete area import-list. Value is the area ID."""
+        return self.add_delete(self.mappers["vrf_ospf"].get_ospf_area(name, value) + ["import-list"])
+
+    def set_vrf_ospf_area_network(self, name: str, value: str) -> "VrfOspfMixin":
+        """Add a network to an area. Value format: 'area,network'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            return self.add_set(self.mappers["vrf_ospf"].get_ospf_area_network(name, parts[0], parts[1]))
+        return self
+
+    def delete_vrf_ospf_area_network(self, name: str, value: str) -> "VrfOspfMixin":
+        """Remove a network from an area. Value format: 'area,network'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            return self.add_delete(self.mappers["vrf_ospf"].get_ospf_area_network(name, parts[0], parts[1]))
+        return self
+
+    def set_vrf_ospf_area_virtual_link_authentication_null(self, name: str, value: str) -> "VrfOspfMixin":
+        """Set virtual-link null authentication. Value format: 'area,address'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            return self.add_set(self.mappers["vrf_ospf"].get_ospf_area_virtual_link_authentication_null(name, parts[0], parts[1]))
+        return self
+
+    def delete_vrf_ospf_area_virtual_link_authentication_null(self, name: str, value: str) -> "VrfOspfMixin":
+        """Delete virtual-link null authentication. Value format: 'area,address'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            return self.add_delete(self.mappers["vrf_ospf"].get_ospf_area_virtual_link_authentication_null(name, parts[0], parts[1]))
+        return self
+
+    def set_vrf_ospf_interface_authentication_null(self, name: str, value: str) -> "VrfOspfMixin":
+        """Set interface null authentication. Value is the interface name."""
+        return self.add_set(self.mappers["vrf_ospf"].get_ospf_interface_authentication_null(name, value))
+
+    def delete_vrf_ospf_interface_authentication_null(self, name: str, value: str) -> "VrfOspfMixin":
+        """Delete interface null authentication. Value is the interface name."""
+        return self.add_delete(self.mappers["vrf_ospf"].get_ospf_interface_authentication_null(name, value))
+
+    def set_vrf_ospf_interface_retransmit_window(self, name: str, value: str) -> "VrfOspfMixin":
+        """Set interface retransmit-window. Value format: 'iface,window'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            return self.add_set(self.mappers["vrf_ospf"].get_ospf_interface_retransmit_window(name, parts[0], parts[1]))
+        return self
+
+    def delete_vrf_ospf_interface_retransmit_window(self, name: str, value: str) -> "VrfOspfMixin":
+        """Delete interface retransmit-window. Value is the interface name."""
+        return self.add_delete(self.mappers["vrf_ospf"].get_ospf_interface(name, value) + ["retransmit-window"])
+
+    def set_vrf_ospf_area_virtual_link_retransmit_window(self, name: str, value: str) -> "VrfOspfMixin":
+        """Set virtual-link retransmit-window. Value format: 'area,address,window'."""
+        parts = value.split(",", 2)
+        if len(parts) == 3:
+            return self.add_set(self.mappers["vrf_ospf"].get_ospf_area_virtual_link_retransmit_window(name, parts[0], parts[1], parts[2]))
+        return self
+
+    def delete_vrf_ospf_area_virtual_link_retransmit_window(self, name: str, value: str) -> "VrfOspfMixin":
+        """Delete virtual-link retransmit-window. Value format: 'area,address'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            return self.add_delete(self.mappers["vrf_ospf"].get_ospf_area_virtual_link(name, parts[0], parts[1]) + ["retransmit-window"])
+        return self
+
+    def set_vrf_ospf_graceful_restart_grace_period(self, name: str, value: str) -> "VrfOspfMixin":
+        """Set graceful-restart grace-period."""
+        return self.add_set(self.mappers["vrf_ospf"].get_ospf_graceful_restart_grace_period(name, value))
+
+    def delete_vrf_ospf_graceful_restart_grace_period(self, name: str) -> "VrfOspfMixin":
+        """Delete graceful-restart grace-period."""
+        return self.add_delete(self.mappers["vrf_ospf"].get_ospf_graceful_restart(name) + ["grace-period"])
+
+    def set_vrf_ospf_graceful_restart_helper_enable_router_id(self, name: str, value: str) -> "VrfOspfMixin":
+        """Enable graceful-restart helper for a router-id. Value is the router-id."""
+        return self.add_set(self.mappers["vrf_ospf"].get_ospf_graceful_restart_helper_enable_router_id(name, value))
+
+    def delete_vrf_ospf_graceful_restart_helper_enable_router_id(self, name: str, value: str) -> "VrfOspfMixin":
+        """Disable graceful-restart helper for a router-id. Value is the router-id."""
+        return self.add_delete(self.mappers["vrf_ospf"].get_ospf_graceful_restart_helper_enable_router_id(name, value))
+
+    def set_vrf_ospf_graceful_restart_helper_no_strict_lsa_checking(self, name: str) -> "VrfOspfMixin":
+        """Enable graceful-restart helper no-strict-lsa-checking."""
+        return self.add_set(self.mappers["vrf_ospf"].get_ospf_graceful_restart_helper_no_strict_lsa_checking(name))
+
+    def delete_vrf_ospf_graceful_restart_helper_no_strict_lsa_checking(self, name: str) -> "VrfOspfMixin":
+        """Disable graceful-restart helper no-strict-lsa-checking."""
+        return self.add_delete(self.mappers["vrf_ospf"].get_ospf_graceful_restart_helper_no_strict_lsa_checking(name))
+
+    def set_vrf_ospf_segment_routing_global_block_low(self, name: str, value: str) -> "VrfOspfMixin":
+        """Set segment-routing global-block low label value."""
+        return self.add_set(self.mappers["vrf_ospf"].get_ospf_segment_routing_global_block_low(name, value))
+
+    def delete_vrf_ospf_segment_routing_global_block_low(self, name: str) -> "VrfOspfMixin":
+        """Delete segment-routing global-block low label value."""
+        return self.add_delete(self.mappers["vrf_ospf"].get_ospf(name) + ["segment-routing", "global-block", "low-label-value"])
+
+    def set_vrf_ospf_segment_routing_global_block_high(self, name: str, value: str) -> "VrfOspfMixin":
+        """Set segment-routing global-block high label value."""
+        return self.add_set(self.mappers["vrf_ospf"].get_ospf_segment_routing_global_block_high(name, value))
+
+    def delete_vrf_ospf_segment_routing_global_block_high(self, name: str) -> "VrfOspfMixin":
+        """Delete segment-routing global-block high label value."""
+        return self.add_delete(self.mappers["vrf_ospf"].get_ospf(name) + ["segment-routing", "global-block", "high-label-value"])
+
+    def set_vrf_ospf_segment_routing_local_block_low(self, name: str, value: str) -> "VrfOspfMixin":
+        """Set segment-routing local-block low label value."""
+        return self.add_set(self.mappers["vrf_ospf"].get_ospf_segment_routing_local_block_low(name, value))
+
+    def delete_vrf_ospf_segment_routing_local_block_low(self, name: str) -> "VrfOspfMixin":
+        """Delete segment-routing local-block low label value."""
+        return self.add_delete(self.mappers["vrf_ospf"].get_ospf(name) + ["segment-routing", "local-block", "low-label-value"])
+
+    def set_vrf_ospf_segment_routing_local_block_high(self, name: str, value: str) -> "VrfOspfMixin":
+        """Set segment-routing local-block high label value."""
+        return self.add_set(self.mappers["vrf_ospf"].get_ospf_segment_routing_local_block_high(name, value))
+
+    def delete_vrf_ospf_segment_routing_local_block_high(self, name: str) -> "VrfOspfMixin":
+        """Delete segment-routing local-block high label value."""
+        return self.add_delete(self.mappers["vrf_ospf"].get_ospf(name) + ["segment-routing", "local-block", "high-label-value"])
+
+    def set_vrf_ospf_summary_address(self, name: str, value: str) -> "VrfOspfMixin":
+        """Add a summary-address prefix. Value is the prefix."""
+        return self.add_set(self.mappers["vrf_ospf"].get_ospf(name) + ["summary-address", value])
+
+    def delete_vrf_ospf_summary_address(self, name: str, value: str) -> "VrfOspfMixin":
+        """Delete a summary-address prefix. Value is the prefix."""
+        return self.add_delete(self.mappers["vrf_ospf"].get_ospf(name) + ["summary-address", value])
+
+    def set_vrf_ospf_summary_address_no_advertise(self, name: str, value: str) -> "VrfOspfMixin":
+        """Set summary-address no-advertise. Value is the prefix."""
+        return self.add_set(self.mappers["vrf_ospf"].get_ospf_summary_address_no_advertise(name, value))
+
+    def delete_vrf_ospf_summary_address_no_advertise(self, name: str, value: str) -> "VrfOspfMixin":
+        """Delete summary-address no-advertise. Value is the prefix."""
+        return self.add_delete(self.mappers["vrf_ospf"].get_ospf_summary_address_no_advertise(name, value))
+
+    def set_vrf_ospf_summary_address_tag(self, name: str, value: str) -> "VrfOspfMixin":
+        """Set summary-address tag. Value format: 'prefix,tag'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            return self.add_set(self.mappers["vrf_ospf"].get_ospf_summary_address_tag(name, parts[0], parts[1]))
+        return self
+
+    def delete_vrf_ospf_summary_address_tag(self, name: str, value: str) -> "VrfOspfMixin":
+        """Delete summary-address tag. Value is the prefix."""
+        return self.add_delete(self.mappers["vrf_ospf"].get_ospf(name) + ["summary-address", value, "tag"])
