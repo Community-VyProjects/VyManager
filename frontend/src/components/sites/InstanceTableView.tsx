@@ -18,6 +18,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { MoreVertical, Power, PowerOff, Pencil, Trash2, MoveRight } from "lucide-react";
+import { ReachabilityState } from "@/lib/api/system-updates";
+import { ReachabilityDot } from "./ReachabilityDot";
 
 interface Instance {
   id: string;
@@ -33,6 +35,7 @@ interface InstanceTableViewProps {
   instances: Instance[];
   isActiveInstance: (instanceId: string) => boolean;
   userRole: string;
+  reachability?: (instanceId: string) => ReachabilityState;
   onConnect: (instanceId: string) => void;
   onDisconnect: () => void;
   onEdit: (instance: Instance) => void;
@@ -44,6 +47,7 @@ export function InstanceTableView({
   instances,
   isActiveInstance,
   userRole,
+  reachability,
   onConnect,
   onDisconnect,
   onEdit,
@@ -102,10 +106,10 @@ export function InstanceTableView({
                           </span>
                         </>
                       ) : instance.is_active ? (
-                        <>
-                          <div className="h-2 w-2 rounded-full bg-gray-400" />
-                          <span className="text-xs text-muted-foreground">Ready</span>
-                        </>
+                        <ReachabilityDot
+                          state={reachability ? reachability(instance.id) : "unknown"}
+                          showLabel
+                        />
                       ) : (
                         <>
                           <div className="h-2 w-2 rounded-full bg-destructive" />

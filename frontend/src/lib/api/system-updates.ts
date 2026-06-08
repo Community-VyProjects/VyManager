@@ -54,6 +54,32 @@ export interface SiteUpdatesSummary {
   generated_at: string;
 }
 
+/**
+ * Reachability derived from a fan-out result. The site-updates check connects
+ * to each instance via the API with stored creds, so its status doubles as a
+ * reachability signal:
+ *  - ok / not_configured  → the API answered (reachable, creds valid)
+ *  - unreachable / error  → could not be reached / bad response
+ *  - inactive             → instance disabled, not polled
+ *  - undefined            → not checked yet (unknown)
+ */
+export type ReachabilityState =
+  | "reachable"
+  | "unreachable"
+  | "inactive"
+  | "unknown";
+
+export function reachabilityOf(
+  status?: InstanceUpdateStatus
+): ReachabilityState {
+  if (!status) return "unknown";
+  if (status.status === "inactive") return "inactive";
+  if (status.status === "ok" || status.status === "not_configured") {
+    return "reachable";
+  }
+  return "unreachable"; // unreachable | error
+}
+
 class SystemUpdatesService {
   /** Update info for the currently-connected instance. */
   async getActiveInstanceUpdates(): Promise<SystemUpdatesInfo> {

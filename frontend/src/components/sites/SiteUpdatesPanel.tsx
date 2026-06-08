@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -24,12 +24,14 @@ import {
 import {
   InstanceUpdateStatus,
   SiteUpdatesSummary,
-  systemUpdatesService,
 } from "@/lib/api/system-updates";
 import { cn } from "@/lib/utils";
 
 interface SiteUpdatesPanelProps {
-  siteId: string;
+  summary: SiteUpdatesSummary | null;
+  loading: boolean;
+  error: string | null;
+  onRefresh: () => void;
 }
 
 function statusBadge(inst: InstanceUpdateStatus) {
@@ -70,35 +72,14 @@ function statusBadge(inst: InstanceUpdateStatus) {
   }
 }
 
-export function SiteUpdatesPanel({ siteId }: SiteUpdatesPanelProps) {
-  const [summary, setSummary] = useState<SiteUpdatesSummary | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+export function SiteUpdatesPanel({
+  summary,
+  loading,
+  error,
+  onRefresh,
+}: SiteUpdatesPanelProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-
-  const load = useCallback(
-    async (refresh: boolean) => {
-      setLoading(true);
-      setError(null);
-      try {
-        const data = await systemUpdatesService.getSiteUpdates(siteId, refresh);
-        setSummary(data);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to check for updates");
-      } finally {
-        setLoading(false);
-      }
-    },
-    [siteId]
-  );
-
-  useEffect(() => {
-    setSummary(null);
-    setOpen(false);
-    setQuery("");
-    load(false);
-  }, [load]);
 
   const filtered = useMemo(() => {
     if (!summary) return [];
@@ -130,7 +111,7 @@ export function SiteUpdatesPanel({ siteId }: SiteUpdatesPanelProps) {
           <AlertTriangle className="h-4 w-4" />
           {error}
         </div>
-        <Button variant="ghost" size="sm" onClick={() => load(true)} disabled={loading}>
+        <Button variant="ghost" size="sm" onClick={onRefresh} disabled={loading}>
           <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
           Retry
         </Button>
@@ -181,7 +162,7 @@ export function SiteUpdatesPanel({ siteId }: SiteUpdatesPanelProps) {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => load(true)}
+            onClick={onRefresh}
             disabled={loading}
             title="Re-check all instances"
           >
@@ -253,7 +234,7 @@ export function SiteUpdatesPanel({ siteId }: SiteUpdatesPanelProps) {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => load(true)}
+              onClick={onRefresh}
               disabled={loading}
             >
               <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />

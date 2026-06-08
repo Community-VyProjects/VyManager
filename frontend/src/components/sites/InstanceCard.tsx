@@ -13,11 +13,14 @@ import {
 import { Server, Power, PowerOff, Loader2, MoreVertical, Pencil, Trash2, MoveRight } from "lucide-react";
 import { Instance } from "@/lib/api/session";
 import { ApiError } from "@/lib/types/api";
+import { ReachabilityState } from "@/lib/api/system-updates";
+import { ReachabilityDot } from "./ReachabilityDot";
 
 interface InstanceCardProps {
   instance: Instance;
   isActive: boolean;
   userRole: string;
+  reachability?: ReachabilityState;
   onConnect: (instanceId: string) => Promise<void>;
   onDisconnect: () => Promise<void>;
   onEdit: (instance: Instance) => void;
@@ -29,6 +32,7 @@ export function InstanceCard({
   instance,
   isActive,
   userRole,
+  reachability,
   onConnect,
   onDisconnect,
   onEdit,
@@ -95,6 +99,11 @@ export function InstanceCard({
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Reachability (API + creds) — shown for active instances we poll */}
+          {instance.is_active && reachability && (
+            <ReachabilityDot state={reachability} showLabel />
+          )}
+
           {/* Status Badge */}
           {isActive && (
             <Badge variant="default" className="bg-primary">
