@@ -107,7 +107,7 @@ export function CreateOpenvpnModal({
   const [hash, setHash] = useState("");
 
   // TLS
-  const [tlsCa, setTlsCa] = useState("");
+  const [tlsCas, setTlsCas] = useState<string[]>([]);
   const [tlsCert, setTlsCert] = useState("");
   const [tlsDh, setTlsDh] = useState("");
   const [tlsAuthKey, setTlsAuthKey] = useState("");
@@ -224,7 +224,7 @@ export function CreateOpenvpnModal({
     setDataCiphers([]);
     setDataCiphersFallback("");
     setHash("");
-    setTlsCa("");
+    setTlsCas([]);
     setTlsCert("");
     setTlsDh("");
     setTlsAuthKey("");
@@ -342,7 +342,7 @@ export function CreateOpenvpnModal({
     if (sharedSecretKey) config.shared_secret_key = sharedSecretKey;
 
     const tls: NonNullable<OpenvpnCreateConfig["tls"]> = {};
-    if (tlsCa) tls.ca_certificates = [tlsCa];
+    if (tlsCas.length > 0) tls.ca_certificates = tlsCas;
     if (tlsCert) tls.certificate = tlsCert;
     if (tlsDh) tls.dh_params = tlsDh;
     if (tlsAuthKey) tls.auth_key = tlsAuthKey;
@@ -858,19 +858,25 @@ export function CreateOpenvpnModal({
           <TabsContent value="tls" className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="tlsCa">CA Certificate</Label>
-                <Select value={tlsCa} onValueChange={setTlsCa}>
-                  <SelectTrigger id="tlsCa">
-                    <SelectValue placeholder="Select CA" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {pki?.ca.map((c) => (
-                      <SelectItem key={c.name} value={c.name}>
-                        {c.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label>CA Certificate(s)</Label>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Select one or more CAs (e.g. an intermediate CA chain).
+                </p>
+                <div className="grid grid-cols-2 gap-2 rounded-md border p-3">
+                  {pki?.ca.map((c) => (
+                    <label key={c.name} className="flex items-center gap-2 text-sm">
+                      <Checkbox
+                        checked={tlsCas.includes(c.name)}
+                        onCheckedChange={(v) =>
+                          setTlsCas(
+                            v ? [...tlsCas, c.name] : tlsCas.filter((x) => x !== c.name),
+                          )
+                        }
+                      />
+                      <span>{c.name}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
               <div>
                 <Label htmlFor="tlsCert">Certificate</Label>

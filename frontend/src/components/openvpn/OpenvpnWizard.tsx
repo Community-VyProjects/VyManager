@@ -100,7 +100,7 @@ export function OpenvpnWizard({
   const [cipher, setCipher] = useState("");
   const [dataCiphers, setDataCiphers] = useState<string[]>(is15 ? ["aes256gcm"] : []);
   const [hash, setHash] = useState("sha256");
-  const [tlsCa, setTlsCa] = useState("");
+  const [tlsCas, setTlsCas] = useState<string[]>([]);
   const [tlsCert, setTlsCert] = useState("");
   const [tlsDh, setTlsDh] = useState("");
   const [tlsAuthKey, setTlsAuthKey] = useState("");
@@ -133,7 +133,7 @@ export function OpenvpnWizard({
     setCipher("");
     setDataCiphers(is15 ? ["aes256gcm"] : []);
     setHash("sha256");
-    setTlsCa("");
+    setTlsCas([]);
     setTlsCert("");
     setTlsDh("");
     setTlsAuthKey("");
@@ -181,7 +181,7 @@ export function OpenvpnWizard({
     if (sharedSecretKey) config.shared_secret_key = sharedSecretKey;
 
     const tls: NonNullable<OpenvpnCreateConfig["tls"]> = {};
-    if (tlsCa) tls.ca_certificates = [tlsCa];
+    if (tlsCas.length > 0) tls.ca_certificates = tlsCas;
     if (tlsCert) tls.certificate = tlsCert;
     if (tlsDh) tls.dh_params = tlsDh;
     if (tlsAuthKey) tls.auth_key = tlsAuthKey;
@@ -539,19 +539,25 @@ export function OpenvpnWizard({
                 <>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="wca">CA Certificate</Label>
-                      <Select value={tlsCa} onValueChange={setTlsCa}>
-                        <SelectTrigger id="wca">
-                          <SelectValue placeholder="Select CA" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {pki?.ca.map((c) => (
-                            <SelectItem key={c.name} value={c.name}>
-                              {c.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Label>CA Certificate(s)</Label>
+                      <p className="text-xs text-muted-foreground mb-2">
+                        Select one or more CAs (e.g. an intermediate CA chain).
+                      </p>
+                      <div className="grid grid-cols-2 gap-2 rounded-md border p-3">
+                        {pki?.ca.map((c) => (
+                          <label key={c.name} className="flex items-center gap-2 text-sm">
+                            <Checkbox
+                              checked={tlsCas.includes(c.name)}
+                              onCheckedChange={(v) =>
+                                setTlsCas(
+                                  v ? [...tlsCas, c.name] : tlsCas.filter((x) => x !== c.name),
+                                )
+                              }
+                            />
+                            <span>{c.name}</span>
+                          </label>
+                        ))}
+                      </div>
                     </div>
                     <div>
                       <Label htmlFor="wcert">Certificate</Label>
@@ -755,7 +761,7 @@ export function OpenvpnWizard({
                   <ReviewRow label="Data Ciphers" value={dataCiphers.join(", ")} />
                 )}
                 {hash && <ReviewRow label="Hash" value={hash} />}
-                {tlsCa && <ReviewRow label="CA" value={tlsCa} />}
+                {tlsCas.length > 0 && <ReviewRow label="CA" value={tlsCas.join(", ")} />}
                 {tlsCert && <ReviewRow label="Certificate" value={tlsCert} />}
                 {tlsDh && <ReviewRow label="DH Params" value={tlsDh} />}
                 {tlsAuthKey && <ReviewRow label="TLS Auth Key" value={tlsAuthKey} />}
