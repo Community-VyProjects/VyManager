@@ -41,6 +41,7 @@ import { Site, sessionService } from "@/lib/api/session";
 import { useSessionStore } from "@/store/session-store";
 import { InstanceCard } from "@/components/sites/InstanceCard";
 import { InstanceTableView } from "@/components/sites/InstanceTableView";
+import { SiteUpdatesPanel } from "@/components/sites/SiteUpdatesPanel";
 import { CreateSiteModal } from "@/components/sites/CreateSiteModal";
 import { EditSiteModal } from "@/components/sites/EditSiteModal";
 import { DeleteSiteModal } from "@/components/sites/DeleteSiteModal";
@@ -596,6 +597,13 @@ export default function SitesPage() {
                     )}
                   </div>
                 </div>
+
+                {/* Updates rollup */}
+                {instances.length > 0 && (
+                  <div className="mb-3">
+                    <SiteUpdatesPanel siteId={selectedSite.id} />
+                  </div>
+                )}
 
                 {/* Search and View Toggle */}
                 {instances.length > 0 && (
