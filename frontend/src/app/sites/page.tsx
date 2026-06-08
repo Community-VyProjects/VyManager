@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -41,6 +41,9 @@ import { Site, sessionService } from "@/lib/api/session";
 import { useSessionStore } from "@/store/session-store";
 import { InstanceCard } from "@/components/sites/InstanceCard";
 import { InstanceTableView } from "@/components/sites/InstanceTableView";
+import { SiteUpdatesPanel } from "@/components/sites/SiteUpdatesPanel";
+import { useSiteUpdates } from "@/hooks/useSiteUpdates";
+import { reachabilityOf } from "@/lib/api/system-updates";
 import { CreateSiteModal } from "@/components/sites/CreateSiteModal";
 import { EditSiteModal } from "@/components/sites/EditSiteModal";
 import { DeleteSiteModal } from "@/components/sites/DeleteSiteModal";
@@ -82,6 +85,21 @@ export default function SitesPage() {
   // Instance state
   const [instances, setInstances] = useState<any[]>([]);
   const [instancesLoading, setInstancesLoading] = useState(false);
+
+  // Site-wide update/reachability fan-out (shared by the rollup panel and the
+  // per-instance cards/table so the routers are only polled once).
+  const {
+    summary: updatesSummary,
+    loading: updatesLoading,
+    error: updatesError,
+    refresh: refreshUpdates,
+    statusById: updatesStatusById,
+  } = useSiteUpdates(selectedSite?.id ?? null);
+
+  const reachabilityFor = useCallback(
+    (instanceId: string) => reachabilityOf(updatesStatusById.get(instanceId)),
+    [updatesStatusById]
+  );
 
   // Modal states
   const [createSiteOpen, setCreateSiteOpen] = useState(false);
@@ -597,6 +615,18 @@ export default function SitesPage() {
                   </div>
                 </div>
 
+                {/* Updates rollup */}
+                {instances.length > 0 && (
+                  <div className="mb-3">
+                    <SiteUpdatesPanel
+                      summary={updatesSummary}
+                      loading={updatesLoading}
+                      error={updatesError}
+                      onRefresh={refreshUpdates}
+                    />
+                  </div>
+                )}
+
                 {/* Search and View Toggle */}
                 {instances.length > 0 && (
                   <div className="flex items-center gap-3">
@@ -675,6 +705,7 @@ export default function SitesPage() {
                     instances={filteredInstances}
                     isActiveInstance={(id) => activeSession?.instance_id === id}
                     userRole={selectedSite.role}
+                    reachability={reachabilityFor}
                     onConnect={handleConnect}
                     onDisconnect={handleDisconnect}
                     onEdit={handleEditInstance}
@@ -689,6 +720,7 @@ export default function SitesPage() {
                         instance={instance}
                         isActive={activeSession?.instance_id === instance.id}
                         userRole={selectedSite.role}
+                        reachability={reachabilityFor(instance.id)}
                         onConnect={handleConnect}
                         onDisconnect={handleDisconnect}
                         onEdit={handleEditInstance}
