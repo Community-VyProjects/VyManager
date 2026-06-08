@@ -335,7 +335,9 @@ export function EditOpenvpnModal({
     update.encryption = {
       cipher,
       data_ciphers: dataCiphers,
-      data_ciphers_fallback: dataCiphersFallback,
+      // data-ciphers-fallback is a VyOS 1.5-only node; omit it entirely on 1.4
+      // so the diff never emits an unsupported set/delete operation.
+      ...(is15 ? { data_ciphers_fallback: dataCiphersFallback } : {}),
     };
     update.hash = hash;
     update.shared_secret_key = sharedSecretKey;
@@ -422,7 +424,8 @@ export function EditOpenvpnModal({
       base_reachable_time: ipv6BaseReachableTime,
       disable_forwarding: ipv6DisableForwarding,
       dup_addr_detect_transmits: ipv6DupAddrDetectTransmits,
-      address_interface_identifier: ipv6InterfaceIdentifier,
+      // address interface-identifier is a VyOS 1.5-only node; omit it on 1.4.
+      ...(is15 ? { address_interface_identifier: ipv6InterfaceIdentifier } : {}),
       source_validation: ipv6SourceValidation,
     };
 
