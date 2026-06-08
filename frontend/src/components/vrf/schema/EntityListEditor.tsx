@@ -188,9 +188,9 @@ export function EntityListEditor({
       </CardContent>
 
       {/* Per-entity flat-field editor */}
-      {editId !== null && (
+      {editId && (
         <SchemaEditor
-          open={editId !== null}
+          open
           onOpenChange={(o) => !o && setEditId(null)}
           title={`${group.label} ${editId} — ${vrfName}`}
           vrfName={vrfName}
