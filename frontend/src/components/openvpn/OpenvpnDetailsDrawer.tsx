@@ -211,7 +211,7 @@ export function OpenvpnDetailsDrawer({
           <Row label="Data Ciphers Fallback" value={i.encryption?.data_ciphers_fallback} />
           <Row label="Hash" value={i.hash} />
           <Row label="Shared Secret Key" value={i.shared_secret_key} />
-          <Row label="TLS CA Certificate" value={i.tls?.ca_certificate} />
+          <Row label="TLS CA Certificate" value={i.tls?.ca_certificates?.join(", ") || undefined} />
           <Row label="TLS Certificate" value={i.tls?.certificate} />
           <Row label="TLS DH Params" value={i.tls?.dh_params} />
           <Row label="TLS Auth Key" value={i.tls?.auth_key} />

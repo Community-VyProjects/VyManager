@@ -342,7 +342,7 @@ export function CreateOpenvpnModal({
     if (sharedSecretKey) config.shared_secret_key = sharedSecretKey;
 
     const tls: NonNullable<OpenvpnCreateConfig["tls"]> = {};
-    if (tlsCa) tls.ca_certificate = tlsCa;
+    if (tlsCa) tls.ca_certificates = [tlsCa];
     if (tlsCert) tls.certificate = tlsCert;
     if (tlsDh) tls.dh_params = tlsDh;
     if (tlsAuthKey) tls.auth_key = tlsAuthKey;

@@ -345,8 +345,8 @@ class OpenvpnInterfaceBuilderMixin:
     def set_tls_ca_certificate(self, interface: str, cert: str) -> "OpenvpnInterfaceBuilderMixin":
         return self.add_set(self._mapper().get_tls_ca_certificate(interface, cert))
 
-    def delete_tls_ca_certificate(self, interface: str) -> "OpenvpnInterfaceBuilderMixin":
-        return self.add_delete(self._mapper().get_tls_ca_certificate_path(interface))
+    def delete_tls_ca_certificate(self, interface: str, cert: str) -> "OpenvpnInterfaceBuilderMixin":
+        return self.add_delete(self._mapper().get_tls_ca_certificate(interface, cert))
 
     def set_tls_certificate(self, interface: str, cert: str) -> "OpenvpnInterfaceBuilderMixin":
         return self.add_set(self._mapper().get_tls_certificate(interface, cert))

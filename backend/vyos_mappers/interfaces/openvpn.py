@@ -696,7 +696,7 @@ class OpenvpnInterfaceMapper(BaseFeatureMapper):
             "hash": config.get("hash"),
             "tls": {
                 "auth_key": tls_config.get("auth-key"),
-                "ca_certificate": tls_config.get("ca-certificate"),
+                "ca_certificates": _as_list(tls_config.get("ca-certificate")),
                 "certificate": tls_config.get("certificate"),
                 "crypt_key": tls_config.get("crypt-key"),
                 "dh_params": tls_config.get("dh-params"),
