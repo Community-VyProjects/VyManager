@@ -86,6 +86,9 @@ class VrfOspfv3Mapper:
     def get_ospfv3_area_area_type_nssa_no_summary(self, name: str, area: str) -> List[str]:
         return self._base(name) + ["area", area, "area-type", "nssa", "no-summary"]
 
+    def get_ospfv3_area_area_type_nssa_default_information_originate(self, name: str, area: str) -> List[str]:
+        return self._base(name) + ["area", area, "area-type", "nssa", "default-information-originate"]
+
     # ========================================================================
     # Auto-Cost
     # ========================================================================
@@ -135,8 +138,14 @@ class VrfOspfv3Mapper:
     def get_ospfv3_graceful_restart(self, name: str) -> List[str]:
         return self._base(name) + ["graceful-restart"]
 
+    def get_ospfv3_graceful_restart_grace_period(self, name: str, value: str) -> List[str]:
+        return self._base(name) + ["graceful-restart", "grace-period", value]
+
     def get_ospfv3_graceful_restart_helper_enable(self, name: str) -> List[str]:
         return self._base(name) + ["graceful-restart", "helper", "enable"]
+
+    def get_ospfv3_graceful_restart_helper_enable_router_id(self, name: str, value: str) -> List[str]:
+        return self._base(name) + ["graceful-restart", "helper", "enable", "router-id", value]
 
     def get_ospfv3_graceful_restart_helper_planned_only(self, name: str) -> List[str]:
         return self._base(name) + ["graceful-restart", "helper", "planned-only"]
@@ -222,6 +231,12 @@ class VrfOspfv3Mapper:
 
     def get_ospfv3_redistribute_route_map(self, name: str, protocol: str, value: str) -> List[str]:
         return self._base(name) + ["redistribute", protocol, "route-map", value]
+
+    def get_ospfv3_redistribute_metric(self, name: str, protocol: str, value: str) -> List[str]:
+        return self._base(name) + ["redistribute", protocol, "metric", value]
+
+    def get_ospfv3_redistribute_metric_type(self, name: str, protocol: str, value: str) -> List[str]:
+        return self._base(name) + ["redistribute", protocol, "metric-type", value]
 
     # ========================================================================
     # Timers

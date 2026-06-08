@@ -74,6 +74,12 @@ class VrfIsisMapper:
     def get_isis_ldp_sync(self, name: str) -> List[str]:
         return self._base(name) + ["ldp-sync"]
 
+    def get_isis_ldp_sync_holddown(self, name: str, value: str) -> List[str]:
+        return self._base(name) + ["ldp-sync", "holddown", value]
+
+    def get_isis_purge_originator(self, name: str) -> List[str]:
+        return self._base(name) + ["purge-originator"]
+
     # ========================================================================
     # Global Value Settings
     # ========================================================================
@@ -83,6 +89,12 @@ class VrfIsisMapper:
 
     def get_isis_lsp_refresh_interval(self, name: str, value: str) -> List[str]:
         return self._base(name) + ["lsp-refresh-interval", value]
+
+    def get_isis_lsp_gen_interval(self, name: str, value: str) -> List[str]:
+        return self._base(name) + ["lsp-gen-interval", value]
+
+    def get_isis_max_lsp_lifetime(self, name: str, value: str) -> List[str]:
+        return self._base(name) + ["max-lsp-lifetime", value]
 
     def get_isis_metric_style(self, name: str, value: str) -> List[str]:
         return self._base(name) + ["metric-style", value]
@@ -156,7 +168,7 @@ class VrfIsisMapper:
         return self._base(name) + ["interface", iface, "bfd"]
 
     def get_isis_interface_bfd_profile(self, name: str, iface: str, value: str) -> List[str]:
-        return self._base(name) + ["interface", iface, "bfd-profile", value]
+        return self._base(name) + ["interface", iface, "bfd", "profile", value]
 
     def get_isis_interface_circuit_type(self, name: str, iface: str, value: str) -> List[str]:
         return self._base(name) + ["interface", iface, "circuit-type", value]
@@ -201,31 +213,19 @@ class VrfIsisMapper:
         return self._base(name) + ["interface", iface, "psnp-interval", value]
 
     # ========================================================================
-    # Level Settings
-    #   level <LEVEL> [lsp-gen-interval|max-lsp-lifetime|spf-interval|purge-originator]
-    #   LEVEL: all, 1, 2
+    # Level Setting
+    #   level <LEVEL>   (value leaf: level-1, level-2, level-1-2)
     # ========================================================================
 
-    def get_isis_level(self, name: str, level: str) -> List[str]:
-        return self._base(name) + ["level", level]
-
-    def get_isis_level_lsp_gen_interval(self, name: str, level: str, value: str) -> List[str]:
-        return self._base(name) + ["level", level, "lsp-gen-interval", value]
-
-    def get_isis_level_max_lsp_lifetime(self, name: str, level: str, value: str) -> List[str]:
-        return self._base(name) + ["level", level, "max-lsp-lifetime", value]
-
-    def get_isis_level_spf_interval(self, name: str, level: str, value: str) -> List[str]:
-        return self._base(name) + ["level", level, "spf-interval", value]
-
-    def get_isis_level_purge_originator(self, name: str, level: str) -> List[str]:
-        return self._base(name) + ["level", level, "purge-originator"]
+    def get_isis_level(self, name: str, value: str) -> List[str]:
+        return self._base(name) + ["level", value]
 
     # ========================================================================
     # Redistribute
-    #   redistribute <af> <protocol> [level-1|level-2|metric <val>|route-map <val>]
+    #   redistribute <af> <protocol> <level> [metric <val>|route-map <val>]
     #   af: ipv4, ipv6
-    #   protocol: babel, bgp, connected, isis, kernel, ospf, rip, static, table
+    #   protocol: babel, bgp, connected, isis, kernel, ospf, ospf6, rip, ripng, static
+    #   level: level-1, level-2
     # ========================================================================
 
     def get_isis_redistribute(self, name: str, af: str, protocol: str) -> List[str]:
@@ -234,11 +234,103 @@ class VrfIsisMapper:
     def get_isis_redistribute_level(self, name: str, af: str, protocol: str, level: str) -> List[str]:
         return self._base(name) + ["redistribute", af, protocol, level]
 
-    def get_isis_redistribute_metric(self, name: str, af: str, protocol: str, value: str) -> List[str]:
-        return self._base(name) + ["redistribute", af, protocol, "metric", value]
+    def get_isis_redistribute_metric(self, name: str, af: str, protocol: str, level: str, value: str) -> List[str]:
+        return self._base(name) + ["redistribute", af, protocol, level, "metric", value]
 
-    def get_isis_redistribute_route_map(self, name: str, af: str, protocol: str, value: str) -> List[str]:
-        return self._base(name) + ["redistribute", af, protocol, "route-map", value]
+    def get_isis_redistribute_route_map(self, name: str, af: str, protocol: str, level: str, value: str) -> List[str]:
+        return self._base(name) + ["redistribute", af, protocol, level, "route-map", value]
+
+    # ========================================================================
+    # Fast Reroute (global)
+    #   fast-reroute lfa local load-sharing disable [level-1|level-2]
+    #   fast-reroute lfa local priority-limit <critical|high|medium> [level-1|level-2]
+    #   fast-reroute lfa local tiebreaker <type> index <N> [level-1|level-2]
+    #     type: downstream, lowest-backup-metric, node-protecting
+    #   fast-reroute lfa remote prefix-list <PL> [level-1|level-2]
+    # ========================================================================
+
+    def _fr_lfa(self, name: str) -> List[str]:
+        return self._base(name) + ["fast-reroute", "lfa"]
+
+    def get_isis_fr_lfa_local_load_sharing_disable(self, name: str) -> List[str]:
+        return self._fr_lfa(name) + ["local", "load-sharing", "disable"]
+
+    def get_isis_fr_lfa_local_load_sharing_disable_level(self, name: str, level: str) -> List[str]:
+        return self._fr_lfa(name) + ["local", "load-sharing", "disable", level]
+
+    def get_isis_fr_lfa_local_priority_limit(self, name: str, priority: str) -> List[str]:
+        return self._fr_lfa(name) + ["local", "priority-limit", priority]
+
+    def get_isis_fr_lfa_local_priority_limit_level(self, name: str, priority: str, level: str) -> List[str]:
+        return self._fr_lfa(name) + ["local", "priority-limit", priority, level]
+
+    def get_isis_fr_lfa_local_tiebreaker_index(self, name: str, tb_type: str, index: str) -> List[str]:
+        return self._fr_lfa(name) + ["local", "tiebreaker", tb_type, "index", index]
+
+    def get_isis_fr_lfa_local_tiebreaker_index_level(self, name: str, tb_type: str, index: str, level: str) -> List[str]:
+        return self._fr_lfa(name) + ["local", "tiebreaker", tb_type, "index", index, level]
+
+    def get_isis_fr_lfa_remote_prefix_list(self, name: str, prefix_list: str) -> List[str]:
+        return self._fr_lfa(name) + ["remote", "prefix-list", prefix_list]
+
+    def get_isis_fr_lfa_remote_prefix_list_level(self, name: str, prefix_list: str, level: str) -> List[str]:
+        return self._fr_lfa(name) + ["remote", "prefix-list", prefix_list, level]
+
+    # ========================================================================
+    # Interface Fast Reroute / LDP Sync Disable
+    # ========================================================================
+
+    def _iface_fr(self, name: str, iface: str) -> List[str]:
+        return self._base(name) + ["interface", iface, "fast-reroute"]
+
+    def get_isis_interface_fr_lfa_level_enable(self, name: str, iface: str, level: str) -> List[str]:
+        return self._iface_fr(name, iface) + ["lfa", level, "enable"]
+
+    def get_isis_interface_fr_lfa_level_exclude_interface(self, name: str, iface: str, level: str, exclude: str) -> List[str]:
+        return self._iface_fr(name, iface) + ["lfa", level, "exclude", "interface", exclude]
+
+    def get_isis_interface_fr_remote_lfa_level_maximum_metric(self, name: str, iface: str, level: str, value: str) -> List[str]:
+        return self._iface_fr(name, iface) + ["remote-lfa", level, "maximum-metric", value]
+
+    def get_isis_interface_fr_remote_lfa_level_tunnel_mpls_ldp(self, name: str, iface: str, level: str) -> List[str]:
+        return self._iface_fr(name, iface) + ["remote-lfa", level, "tunnel", "mpls-ldp"]
+
+    def get_isis_interface_fr_ti_lfa_level(self, name: str, iface: str, level: str) -> List[str]:
+        return self._iface_fr(name, iface) + ["ti-lfa", level]
+
+    def get_isis_interface_fr_ti_lfa_level_node_protection(self, name: str, iface: str, level: str) -> List[str]:
+        return self._iface_fr(name, iface) + ["ti-lfa", level, "node-protection"]
+
+    def get_isis_interface_fr_ti_lfa_level_node_protection_link_fallback(self, name: str, iface: str, level: str) -> List[str]:
+        return self._iface_fr(name, iface) + ["ti-lfa", level, "node-protection", "link-fallback"]
+
+    def get_isis_interface_ldp_sync_disable(self, name: str, iface: str) -> List[str]:
+        return self._base(name) + ["interface", iface, "ldp-sync", "disable"]
+
+    # ========================================================================
+    # Segment Routing SRv6
+    #   segment-routing srv6 interface <IFACE>
+    #   segment-routing srv6 node-msd <max-end-d|max-end-pop|max-h-encaps|max-segs-left> <val>
+    # ========================================================================
+
+    def get_isis_segment_routing_srv6_interface(self, name: str, value: str) -> List[str]:
+        return self._base(name) + ["segment-routing", "srv6", "interface", value]
+
+    def get_isis_segment_routing_srv6_node_msd(self, name: str, msd_type: str, value: str) -> List[str]:
+        return self._base(name) + ["segment-routing", "srv6", "node-msd", msd_type, value]
+
+    # ========================================================================
+    # Traffic Engineering address
+    # ========================================================================
+
+    def get_isis_traffic_engineering_address(self, name: str, value: str) -> List[str]:
+        return self._base(name) + ["traffic-engineering", "address", value]
+
+    def get_isis_traffic_engineering_export(self, name: str) -> List[str]:
+        return self._base(name) + ["traffic-engineering", "export"]
+
+    def get_isis_segment_routing_srv6_locator(self, name: str, value: str) -> List[str]:
+        return self._base(name) + ["segment-routing", "srv6", "locator", value]
 
     # ========================================================================
     # Segment Routing

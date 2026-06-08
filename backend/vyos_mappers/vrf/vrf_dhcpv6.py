@@ -550,3 +550,65 @@ class VrfDhcpv6Mapper:
             "shared-network-name", network, "subnet", prefix,
             "vendor-option", "cisco", "bootfile", value,
         ]
+
+    # ========================================================================
+    # Extended coverage — scope helpers
+    # ========================================================================
+
+    def _sn(self, name: str, network: str) -> List[str]:
+        return self._base(name) + ["shared-network-name", network]
+
+    def _subnet(self, name: str, network: str, prefix: str) -> List[str]:
+        return self._sn(name, network) + ["subnet", prefix]
+
+    def _range(self, name: str, network: str, prefix: str, rng: str) -> List[str]:
+        return self._subnet(name, network, prefix) + ["range", rng]
+
+    def _sm(self, name: str, network: str, prefix: str, host: str) -> List[str]:
+        return self._subnet(name, network, prefix) + ["static-mapping", host]
+
+    # ========================================================================
+    # Generic option setters (cover captive-portal, capwap-controller,
+    # info-refresh-time, and the range scope which has no option methods)
+    # ========================================================================
+
+    def get_dhcpv6_shared_network_option(self, name: str, network: str, opt: str, value: str) -> List[str]:
+        return self._sn(name, network) + ["option", opt, value]
+
+    def get_dhcpv6_subnet_option(self, name: str, network: str, prefix: str, opt: str, value: str) -> List[str]:
+        return self._subnet(name, network, prefix) + ["option", opt, value]
+
+    def get_dhcpv6_subnet_range_option(self, name: str, network: str, prefix: str, rng: str, opt: str, value: str) -> List[str]:
+        return self._range(name, network, prefix, rng) + ["option", opt, value]
+
+    def get_dhcpv6_static_mapping_option(self, name: str, network: str, prefix: str, host: str, opt: str, value: str) -> List[str]:
+        return self._sm(name, network, prefix, host) + ["option", opt, value]
+
+    # Option vendor-option cisco tftp-server (nested under option) per scope
+    def get_dhcpv6_shared_network_option_vendor_cisco_tftp_server(self, name: str, network: str, value: str) -> List[str]:
+        return self._sn(name, network) + ["option", "vendor-option", "cisco", "tftp-server", value]
+
+    def get_dhcpv6_subnet_option_vendor_cisco_tftp_server(self, name: str, network: str, prefix: str, value: str) -> List[str]:
+        return self._subnet(name, network, prefix) + ["option", "vendor-option", "cisco", "tftp-server", value]
+
+    def get_dhcpv6_subnet_range_option_vendor_cisco_tftp_server(self, name: str, network: str, prefix: str, rng: str, value: str) -> List[str]:
+        return self._range(name, network, prefix, rng) + ["option", "vendor-option", "cisco", "tftp-server", value]
+
+    def get_dhcpv6_static_mapping_option_vendor_cisco_tftp_server(self, name: str, network: str, prefix: str, host: str, value: str) -> List[str]:
+        return self._sm(name, network, prefix, host) + ["option", "vendor-option", "cisco", "tftp-server", value]
+
+    # ========================================================================
+    # Subnet interface / subnet-id; static-mapping duid / mac (direct)
+    # ========================================================================
+
+    def get_dhcpv6_subnet_interface(self, name: str, network: str, prefix: str, value: str) -> List[str]:
+        return self._subnet(name, network, prefix) + ["interface", value]
+
+    def get_dhcpv6_subnet_id(self, name: str, network: str, prefix: str, value: str) -> List[str]:
+        return self._subnet(name, network, prefix) + ["subnet-id", value]
+
+    def get_dhcpv6_subnet_static_mapping_duid(self, name: str, network: str, prefix: str, host: str, value: str) -> List[str]:
+        return self._sm(name, network, prefix, host) + ["duid", value]
+
+    def get_dhcpv6_subnet_static_mapping_mac(self, name: str, network: str, prefix: str, host: str, value: str) -> List[str]:
+        return self._sm(name, network, prefix, host) + ["mac", value]

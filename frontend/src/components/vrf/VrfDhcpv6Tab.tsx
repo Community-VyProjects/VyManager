@@ -1,17 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -19,11 +11,15 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Code, Server } from "lucide-react";
+import { Code, Server, Settings2 } from "lucide-react";
 import {
   VrfInstance,
   VrfCapabilities,
 } from "@/lib/api/vrf";
+import { SchemaEditor } from "./schema/SchemaEditor";
+import { DHCPV6_SCHEMA } from "./schema/schemas";
+import { EntityListEditor } from "./schema/EntityListEditor";
+import { DHCPV6_SHARED_NETWORK_GROUP } from "./schema/dhcpv6Entities";
 
 interface VrfDhcpv6TabProps {
   vrf: VrfInstance;
@@ -34,13 +30,36 @@ interface VrfDhcpv6TabProps {
 
 export function VrfDhcpv6Tab({ vrf, capabilities, canWrite, onRefresh }: VrfDhcpv6TabProps) {
   const [rawConfigOpen, setRawConfigOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const dhcpv6 = vrf.dhcpv6;
+
+  const editor = (
+    <SchemaEditor
+      open={editOpen}
+      onOpenChange={setEditOpen}
+      title={`DHCPv6 Server Settings — ${vrf.name}`}
+      vrfName={vrf.name}
+      sections={DHCPV6_SCHEMA}
+      rawConfig={dhcpv6?.raw_config}
+      capabilities={capabilities}
+      canWrite={canWrite}
+      onSaved={onRefresh}
+    />
+  );
 
   if (!dhcpv6 || !dhcpv6.configured) {
     return (
       <div className="flex flex-col items-center justify-center py-16">
+        <Server className="h-12 w-12 text-muted-foreground mb-4" />
         <h3 className="text-lg font-semibold mb-2">DHCPv6 Server</h3>
-        <p className="text-sm text-muted-foreground">Coming soon</p>
+        <p className="text-sm text-muted-foreground mb-4">Not configured</p>
+        {canWrite && (
+          <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+            <Settings2 className="h-3.5 w-3.5 mr-1.5" />
+            Configure DHCPv6
+          </Button>
+        )}
+        {editor}
       </div>
     );
   }
@@ -86,97 +105,31 @@ export function VrfDhcpv6Tab({ vrf, capabilities, canWrite, onRefresh }: VrfDhcp
         </Card>
       </div>
 
-      {/* Shared Networks */}
-      {dhcpv6.shared_networks.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Shared Networks</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead>Name</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Subnets</TableHead>
-                  <TableHead>Ranges</TableHead>
-                  <TableHead>Static Mappings</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {dhcpv6.shared_networks.map((net) => (
-                  <TableRow key={net.name}>
-                    <TableCell className="font-medium">{net.name}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {net.description || "—"}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={net.disabled ? "outline" : "secondary"} className="text-[10px]">
-                        {net.disabled ? "disabled" : "active"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{net.subnets.length}</TableCell>
-                    <TableCell>
-                      {net.subnets.reduce((s, sub) => s + sub.ranges, 0)}
-                    </TableCell>
-                    <TableCell>
-                      {net.subnets.reduce((s, sub) => s + sub.static_mappings, 0)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      )}
+      <EntityListEditor
+        vrfName={vrf.name}
+        group={DHCPV6_SHARED_NETWORK_GROUP}
+        rawParent={dhcpv6.raw_config}
+        capabilities={capabilities}
+        canWrite={canWrite}
+        onRefresh={onRefresh}
+      />
 
-      {/* Subnets Detail */}
-      {dhcpv6.shared_networks.some((n) => n.subnets.length > 0) && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Subnets</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead>Network</TableHead>
-                  <TableHead>Prefix</TableHead>
-                  <TableHead>Ranges</TableHead>
-                  <TableHead>Static Mappings</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {dhcpv6.shared_networks.flatMap((net) =>
-                  net.subnets.map((sub) => (
-                    <TableRow key={`${net.name}-${sub.prefix}`}>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {net.name}
-                      </TableCell>
-                      <TableCell className="font-mono font-medium">
-                        {sub.prefix}
-                      </TableCell>
-                      <TableCell>{sub.ranges}</TableCell>
-                      <TableCell>{sub.static_mappings}</TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Raw Config */}
-      {dhcpv6.raw_config && (
-        <div className="flex justify-end">
+      {/* Action Buttons */}
+      <div className="flex justify-end gap-2">
+        {canWrite && (
+          <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+            <Settings2 className="h-3.5 w-3.5 mr-1.5" />
+            Edit Settings
+          </Button>
+        )}
+        {dhcpv6.raw_config && (
           <Button variant="outline" size="sm" onClick={() => setRawConfigOpen(true)}>
             <Code className="h-3.5 w-3.5 mr-1.5" />
             View Raw Config
           </Button>
-        </div>
-      )}
+        )}
+      </div>
+      {editor}
 
       <Dialog open={rawConfigOpen} onOpenChange={setRawConfigOpen}>
         <DialogContent className="max-w-2xl max-h-[80vh]">

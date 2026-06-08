@@ -300,7 +300,7 @@ export function VrfContent({
             </ScrollArea>
           </div>
 
-          <ScrollArea className="flex-1">
+          <div className="flex-1 min-h-0 overflow-y-auto">
             <div className="p-6">
               <TabsContent value="settings" className="mt-0">
                 <VrfSettingsTab
@@ -400,7 +400,7 @@ export function VrfContent({
                 </TabsContent>
               )}
             </div>
-          </ScrollArea>
+          </div>
         </Tabs>
       </div>
 

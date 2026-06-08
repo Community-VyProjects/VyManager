@@ -800,6 +800,63 @@ class VrfBgpMapper:
     def get_bgp_peer_group_af_unsuppress_map_delete(self, name: str, pg: str, afi: str) -> List[str]:
         return self._peer_group_af(name, pg, afi) + ["unsuppress-map"]
 
+    # Peer-group AF parity with neighbor AF: distribute-list, maximum-prefix-out,
+    # conditionally-advertise, nexthop-local unchanged, capability ORF
+    def get_bgp_peer_group_af_distribute_list_export(self, name: str, pg: str, afi: str, value: str) -> List[str]:
+        return self._peer_group_af(name, pg, afi) + ["distribute-list", "export", value]
+
+    def get_bgp_peer_group_af_distribute_list_import(self, name: str, pg: str, afi: str, value: str) -> List[str]:
+        return self._peer_group_af(name, pg, afi) + ["distribute-list", "import", value]
+
+    def get_bgp_peer_group_af_distribute_list_delete(self, name: str, pg: str, afi: str) -> List[str]:
+        return self._peer_group_af(name, pg, afi) + ["distribute-list"]
+
+    def get_bgp_peer_group_af_maximum_prefix_out(self, name: str, pg: str, afi: str, value: str) -> List[str]:
+        return self._peer_group_af(name, pg, afi) + ["maximum-prefix-out", value]
+
+    def get_bgp_peer_group_af_maximum_prefix_out_delete(self, name: str, pg: str, afi: str) -> List[str]:
+        return self._peer_group_af(name, pg, afi) + ["maximum-prefix-out"]
+
+    def get_bgp_peer_group_af_conditionally_advertise_advertise_map(self, name: str, pg: str, afi: str, value: str) -> List[str]:
+        return self._peer_group_af(name, pg, afi) + ["conditionally-advertise", "advertise-map", value]
+
+    def get_bgp_peer_group_af_conditionally_advertise_exist_map(self, name: str, pg: str, afi: str, value: str) -> List[str]:
+        return self._peer_group_af(name, pg, afi) + ["conditionally-advertise", "exist-map", value]
+
+    def get_bgp_peer_group_af_conditionally_advertise_non_exist_map(self, name: str, pg: str, afi: str, value: str) -> List[str]:
+        return self._peer_group_af(name, pg, afi) + ["conditionally-advertise", "non-exist-map", value]
+
+    def get_bgp_peer_group_af_conditionally_advertise_delete(self, name: str, pg: str, afi: str) -> List[str]:
+        return self._peer_group_af(name, pg, afi) + ["conditionally-advertise"]
+
+    def get_bgp_peer_group_af_nexthop_local_unchanged(self, name: str, pg: str, afi: str) -> List[str]:
+        return self._peer_group_af(name, pg, afi) + ["nexthop-local", "unchanged"]
+
+    def get_bgp_peer_group_af_capability_orf_prefix_list_receive(self, name: str, pg: str, afi: str) -> List[str]:
+        return self._peer_group_af(name, pg, afi) + ["capability", "orf", "prefix-list", "receive"]
+
+    def get_bgp_peer_group_af_capability_orf_prefix_list_send(self, name: str, pg: str, afi: str) -> List[str]:
+        return self._peer_group_af(name, pg, afi) + ["capability", "orf", "prefix-list", "send"]
+
+    def get_bgp_peer_group_af_capability_orf_delete(self, name: str, pg: str, afi: str) -> List[str]:
+        return self._peer_group_af(name, pg, afi) + ["capability", "orf"]
+
+    # ========================================================================
+    # Neighbor flags / Interface mpls (additional coverage)
+    # ========================================================================
+
+    def get_bgp_neighbor_enforce_first_as(self, name: str, neighbor: str) -> List[str]:
+        return self._neighbor(name, neighbor) + ["enforce-first-as"]
+
+    def get_bgp_neighbor_solo(self, name: str, neighbor: str) -> List[str]:
+        return self._neighbor(name, neighbor) + ["solo"]
+
+    def get_bgp_interface_mpls_forwarding(self, name: str, iface: str) -> List[str]:
+        return self._base(name) + ["interface", iface, "mpls", "forwarding"]
+
+    def get_bgp_peer_group_solo(self, name: str, pg: str) -> List[str]:
+        return self._peer_group(name, pg) + ["solo"]
+
     # ========================================================================
     # Global Address-Family paths
     # ========================================================================

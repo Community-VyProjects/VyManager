@@ -332,7 +332,7 @@ class VrfIsisMixin:
 
     def delete_vrf_isis_interface_bfd_profile(self, name: str, value: str) -> "VrfIsisMixin":
         """Delete BFD profile on an ISIS interface. Value is the interface name."""
-        path = self.mappers["vrf_isis"].get_isis_interface(name, value) + ["bfd-profile"]
+        path = self.mappers["vrf_isis"].get_isis_interface(name, value) + ["bfd", "profile"]
         return self.add_delete(path)
 
     def set_vrf_isis_interface_circuit_type(self, name: str, value: str) -> "VrfIsisMixin":
@@ -479,6 +479,11 @@ class VrfIsisMixin:
         path = self.mappers["vrf_isis"].get_isis_interface(name, value) + ["password", "plaintext-password"]
         return self.add_delete(path)
 
+    def delete_vrf_isis_interface_password(self, name: str, value: str) -> "VrfIsisMixin":
+        """Delete all password config on an ISIS interface. Value is the interface name."""
+        path = self.mappers["vrf_isis"].get_isis_interface(name, value) + ["password"]
+        return self.add_delete(path)
+
     def set_vrf_isis_interface_priority(self, name: str, value: str) -> "VrfIsisMixin":
         """Set priority on an ISIS interface. Value format: 'iface,priority'."""
         parts = value.split(",", 1)
@@ -506,56 +511,57 @@ class VrfIsisMixin:
         return self.add_delete(path)
 
     # ========================================================================
-    # Level Operations
+    # Level & Global Timer Operations
     # ========================================================================
 
-    def set_vrf_isis_level_lsp_gen_interval(self, name: str, value: str) -> "VrfIsisMixin":
-        """Set LSP gen interval for a level. Value format: 'level,interval'."""
-        parts = value.split(",", 1)
-        if len(parts) == 2:
-            path = self.mappers["vrf_isis"].get_isis_level_lsp_gen_interval(name, parts[0], parts[1])
-            return self.add_set(path)
-        return self
-
-    def delete_vrf_isis_level_lsp_gen_interval(self, name: str, value: str) -> "VrfIsisMixin":
-        """Delete LSP gen interval for a level. Value is the level (all, 1, or 2)."""
-        path = self.mappers["vrf_isis"].get_isis_level(name, value) + ["lsp-gen-interval"]
-        return self.add_delete(path)
-
-    def set_vrf_isis_level_max_lsp_lifetime(self, name: str, value: str) -> "VrfIsisMixin":
-        """Set max LSP lifetime for a level. Value format: 'level,lifetime'."""
-        parts = value.split(",", 1)
-        if len(parts) == 2:
-            path = self.mappers["vrf_isis"].get_isis_level_max_lsp_lifetime(name, parts[0], parts[1])
-            return self.add_set(path)
-        return self
-
-    def delete_vrf_isis_level_max_lsp_lifetime(self, name: str, value: str) -> "VrfIsisMixin":
-        """Delete max LSP lifetime for a level. Value is the level (all, 1, or 2)."""
-        path = self.mappers["vrf_isis"].get_isis_level(name, value) + ["max-lsp-lifetime"]
-        return self.add_delete(path)
-
-    def set_vrf_isis_level_spf_interval(self, name: str, value: str) -> "VrfIsisMixin":
-        """Set SPF interval for a level. Value format: 'level,interval'."""
-        parts = value.split(",", 1)
-        if len(parts) == 2:
-            path = self.mappers["vrf_isis"].get_isis_level_spf_interval(name, parts[0], parts[1])
-            return self.add_set(path)
-        return self
-
-    def delete_vrf_isis_level_spf_interval(self, name: str, value: str) -> "VrfIsisMixin":
-        """Delete SPF interval for a level. Value is the level (all, 1, or 2)."""
-        path = self.mappers["vrf_isis"].get_isis_level(name, value) + ["spf-interval"]
-        return self.add_delete(path)
-
-    def set_vrf_isis_level_purge_originator(self, name: str, value: str) -> "VrfIsisMixin":
-        """Enable purge originator for a level. Value is the level (all, 1, or 2)."""
-        path = self.mappers["vrf_isis"].get_isis_level_purge_originator(name, value)
+    def set_vrf_isis_level(self, name: str, value: str) -> "VrfIsisMixin":
+        """Set IS-IS level type. Value: level-1, level-2, or level-1-2."""
+        path = self.mappers["vrf_isis"].get_isis_level(name, value)
         return self.add_set(path)
 
-    def delete_vrf_isis_level_purge_originator(self, name: str, value: str) -> "VrfIsisMixin":
-        """Disable purge originator for a level. Value is the level (all, 1, or 2)."""
-        path = self.mappers["vrf_isis"].get_isis_level_purge_originator(name, value)
+    def delete_vrf_isis_level(self, name: str) -> "VrfIsisMixin":
+        """Delete IS-IS level type."""
+        path = self.mappers["vrf_isis"].get_isis(name) + ["level"]
+        return self.add_delete(path)
+
+    def set_vrf_isis_lsp_gen_interval(self, name: str, value: str) -> "VrfIsisMixin":
+        """Set LSP generation interval (global)."""
+        path = self.mappers["vrf_isis"].get_isis_lsp_gen_interval(name, value)
+        return self.add_set(path)
+
+    def delete_vrf_isis_lsp_gen_interval(self, name: str) -> "VrfIsisMixin":
+        """Delete LSP generation interval (global)."""
+        path = self.mappers["vrf_isis"].get_isis(name) + ["lsp-gen-interval"]
+        return self.add_delete(path)
+
+    def set_vrf_isis_max_lsp_lifetime(self, name: str, value: str) -> "VrfIsisMixin":
+        """Set max LSP lifetime (global)."""
+        path = self.mappers["vrf_isis"].get_isis_max_lsp_lifetime(name, value)
+        return self.add_set(path)
+
+    def delete_vrf_isis_max_lsp_lifetime(self, name: str) -> "VrfIsisMixin":
+        """Delete max LSP lifetime (global)."""
+        path = self.mappers["vrf_isis"].get_isis(name) + ["max-lsp-lifetime"]
+        return self.add_delete(path)
+
+    def set_vrf_isis_purge_originator(self, name: str) -> "VrfIsisMixin":
+        """Enable purge originator (global)."""
+        path = self.mappers["vrf_isis"].get_isis_purge_originator(name)
+        return self.add_set(path)
+
+    def delete_vrf_isis_purge_originator(self, name: str) -> "VrfIsisMixin":
+        """Disable purge originator (global)."""
+        path = self.mappers["vrf_isis"].get_isis_purge_originator(name)
+        return self.add_delete(path)
+
+    def set_vrf_isis_ldp_sync_holddown(self, name: str, value: str) -> "VrfIsisMixin":
+        """Set global LDP-IGP sync holddown timer."""
+        path = self.mappers["vrf_isis"].get_isis_ldp_sync_holddown(name, value)
+        return self.add_set(path)
+
+    def delete_vrf_isis_ldp_sync_holddown(self, name: str) -> "VrfIsisMixin":
+        """Delete global LDP-IGP sync holddown timer."""
+        path = self.mappers["vrf_isis"].get_isis_ldp_sync(name) + ["holddown"]
         return self.add_delete(path)
 
     # ========================================================================
@@ -595,34 +601,34 @@ class VrfIsisMixin:
         return self
 
     def set_vrf_isis_redistribute_metric(self, name: str, value: str) -> "VrfIsisMixin":
-        """Set redistribution metric. Value format: 'af,protocol,metric'."""
-        parts = value.split(",", 2)
-        if len(parts) == 3:
-            path = self.mappers["vrf_isis"].get_isis_redistribute_metric(name, parts[0], parts[1], parts[2])
+        """Set redistribution metric. Value format: 'af,protocol,level,metric'."""
+        parts = value.split(",", 3)
+        if len(parts) == 4:
+            path = self.mappers["vrf_isis"].get_isis_redistribute_metric(name, parts[0], parts[1], parts[2], parts[3])
             return self.add_set(path)
         return self
 
     def delete_vrf_isis_redistribute_metric(self, name: str, value: str) -> "VrfIsisMixin":
-        """Delete redistribution metric. Value format: 'af,protocol'."""
-        parts = value.split(",", 1)
-        if len(parts) == 2:
-            path = self.mappers["vrf_isis"].get_isis_redistribute(name, parts[0], parts[1]) + ["metric"]
+        """Delete redistribution metric. Value format: 'af,protocol,level'."""
+        parts = value.split(",", 2)
+        if len(parts) == 3:
+            path = self.mappers["vrf_isis"].get_isis_redistribute_level(name, parts[0], parts[1], parts[2]) + ["metric"]
             return self.add_delete(path)
         return self
 
     def set_vrf_isis_redistribute_route_map(self, name: str, value: str) -> "VrfIsisMixin":
-        """Set redistribution route-map. Value format: 'af,protocol,route_map'."""
-        parts = value.split(",", 2)
-        if len(parts) == 3:
-            path = self.mappers["vrf_isis"].get_isis_redistribute_route_map(name, parts[0], parts[1], parts[2])
+        """Set redistribution route-map. Value format: 'af,protocol,level,route_map'."""
+        parts = value.split(",", 3)
+        if len(parts) == 4:
+            path = self.mappers["vrf_isis"].get_isis_redistribute_route_map(name, parts[0], parts[1], parts[2], parts[3])
             return self.add_set(path)
         return self
 
     def delete_vrf_isis_redistribute_route_map(self, name: str, value: str) -> "VrfIsisMixin":
-        """Delete redistribution route-map. Value format: 'af,protocol'."""
-        parts = value.split(",", 1)
-        if len(parts) == 2:
-            path = self.mappers["vrf_isis"].get_isis_redistribute(name, parts[0], parts[1]) + ["route-map"]
+        """Delete redistribution route-map. Value format: 'af,protocol,level'."""
+        parts = value.split(",", 2)
+        if len(parts) == 3:
+            path = self.mappers["vrf_isis"].get_isis_redistribute_level(name, parts[0], parts[1], parts[2]) + ["route-map"]
             return self.add_delete(path)
         return self
 
@@ -837,3 +843,268 @@ class VrfIsisMixin:
         """Delete traffic engineering address family. Value: ipv4 or ipv6."""
         path = self.mappers["vrf_isis"].get_isis_traffic_engineering_address_family(name, value)
         return self.add_delete(path)
+
+    def set_vrf_isis_traffic_engineering_address(self, name: str, value: str) -> "VrfIsisMixin":
+        """Set traffic engineering router address."""
+        path = self.mappers["vrf_isis"].get_isis_traffic_engineering_address(name, value)
+        return self.add_set(path)
+
+    def delete_vrf_isis_traffic_engineering_address(self, name: str) -> "VrfIsisMixin":
+        """Delete traffic engineering router address."""
+        path = self.mappers["vrf_isis"].get_isis(name) + ["traffic-engineering", "address"]
+        return self.add_delete(path)
+
+    # ========================================================================
+    # Fast Reroute (global) Operations
+    # ========================================================================
+
+    def set_vrf_isis_fr_lfa_local_load_sharing_disable(self, name: str) -> "VrfIsisMixin":
+        """Disable LFA local load-sharing (all levels)."""
+        return self.add_set(self.mappers["vrf_isis"].get_isis_fr_lfa_local_load_sharing_disable(name))
+
+    def delete_vrf_isis_fr_lfa_local_load_sharing_disable(self, name: str) -> "VrfIsisMixin":
+        """Re-enable LFA local load-sharing (all levels)."""
+        return self.add_delete(self.mappers["vrf_isis"].get_isis_fr_lfa_local_load_sharing_disable(name))
+
+    def set_vrf_isis_fr_lfa_local_load_sharing_disable_level(self, name: str, value: str) -> "VrfIsisMixin":
+        """Disable LFA local load-sharing for a level. Value: level-1 or level-2."""
+        return self.add_set(self.mappers["vrf_isis"].get_isis_fr_lfa_local_load_sharing_disable_level(name, value))
+
+    def delete_vrf_isis_fr_lfa_local_load_sharing_disable_level(self, name: str, value: str) -> "VrfIsisMixin":
+        """Re-enable LFA local load-sharing for a level. Value: level-1 or level-2."""
+        return self.add_delete(self.mappers["vrf_isis"].get_isis_fr_lfa_local_load_sharing_disable_level(name, value))
+
+    def set_vrf_isis_fr_lfa_local_priority_limit(self, name: str, value: str) -> "VrfIsisMixin":
+        """Set LFA local priority-limit (all levels). Value: critical, high, or medium."""
+        return self.add_set(self.mappers["vrf_isis"].get_isis_fr_lfa_local_priority_limit(name, value))
+
+    def delete_vrf_isis_fr_lfa_local_priority_limit(self, name: str, value: str) -> "VrfIsisMixin":
+        """Delete LFA local priority-limit (all levels). Value: critical, high, or medium."""
+        return self.add_delete(self.mappers["vrf_isis"].get_isis_fr_lfa_local_priority_limit(name, value))
+
+    def set_vrf_isis_fr_lfa_local_priority_limit_level(self, name: str, value: str) -> "VrfIsisMixin":
+        """Set LFA local priority-limit for a level. Value format: 'priority,level'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            return self.add_set(self.mappers["vrf_isis"].get_isis_fr_lfa_local_priority_limit_level(name, parts[0], parts[1]))
+        return self
+
+    def delete_vrf_isis_fr_lfa_local_priority_limit_level(self, name: str, value: str) -> "VrfIsisMixin":
+        """Delete LFA local priority-limit for a level. Value format: 'priority,level'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            return self.add_delete(self.mappers["vrf_isis"].get_isis_fr_lfa_local_priority_limit_level(name, parts[0], parts[1]))
+        return self
+
+    def set_vrf_isis_fr_lfa_local_tiebreaker_index(self, name: str, value: str) -> "VrfIsisMixin":
+        """Set LFA local tiebreaker index. Value format: 'type,index'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            return self.add_set(self.mappers["vrf_isis"].get_isis_fr_lfa_local_tiebreaker_index(name, parts[0], parts[1]))
+        return self
+
+    def delete_vrf_isis_fr_lfa_local_tiebreaker_index(self, name: str, value: str) -> "VrfIsisMixin":
+        """Delete LFA local tiebreaker index. Value format: 'type,index'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            return self.add_delete(self.mappers["vrf_isis"].get_isis_fr_lfa_local_tiebreaker_index(name, parts[0], parts[1]))
+        return self
+
+    def set_vrf_isis_fr_lfa_local_tiebreaker_index_level(self, name: str, value: str) -> "VrfIsisMixin":
+        """Set LFA local tiebreaker index for a level. Value format: 'type,index,level'."""
+        parts = value.split(",", 2)
+        if len(parts) == 3:
+            return self.add_set(self.mappers["vrf_isis"].get_isis_fr_lfa_local_tiebreaker_index_level(name, parts[0], parts[1], parts[2]))
+        return self
+
+    def delete_vrf_isis_fr_lfa_local_tiebreaker_index_level(self, name: str, value: str) -> "VrfIsisMixin":
+        """Delete LFA local tiebreaker index for a level. Value format: 'type,index,level'."""
+        parts = value.split(",", 2)
+        if len(parts) == 3:
+            return self.add_delete(self.mappers["vrf_isis"].get_isis_fr_lfa_local_tiebreaker_index_level(name, parts[0], parts[1], parts[2]))
+        return self
+
+    def set_vrf_isis_fr_lfa_remote_prefix_list(self, name: str, value: str) -> "VrfIsisMixin":
+        """Set LFA remote prefix-list. Value is the prefix-list name."""
+        return self.add_set(self.mappers["vrf_isis"].get_isis_fr_lfa_remote_prefix_list(name, value))
+
+    def delete_vrf_isis_fr_lfa_remote_prefix_list(self, name: str, value: str) -> "VrfIsisMixin":
+        """Delete LFA remote prefix-list. Value is the prefix-list name."""
+        return self.add_delete(self.mappers["vrf_isis"].get_isis_fr_lfa_remote_prefix_list(name, value))
+
+    def set_vrf_isis_fr_lfa_remote_prefix_list_level(self, name: str, value: str) -> "VrfIsisMixin":
+        """Set LFA remote prefix-list for a level. Value format: 'prefix_list,level'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            return self.add_set(self.mappers["vrf_isis"].get_isis_fr_lfa_remote_prefix_list_level(name, parts[0], parts[1]))
+        return self
+
+    def delete_vrf_isis_fr_lfa_remote_prefix_list_level(self, name: str, value: str) -> "VrfIsisMixin":
+        """Delete LFA remote prefix-list for a level. Value format: 'prefix_list,level'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            return self.add_delete(self.mappers["vrf_isis"].get_isis_fr_lfa_remote_prefix_list_level(name, parts[0], parts[1]))
+        return self
+
+    # ========================================================================
+    # Interface Fast Reroute Operations
+    # ========================================================================
+
+    def set_vrf_isis_interface_fr_lfa_level_enable(self, name: str, value: str) -> "VrfIsisMixin":
+        """Enable interface LFA for a level. Value format: 'iface,level'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            return self.add_set(self.mappers["vrf_isis"].get_isis_interface_fr_lfa_level_enable(name, parts[0], parts[1]))
+        return self
+
+    def delete_vrf_isis_interface_fr_lfa_level_enable(self, name: str, value: str) -> "VrfIsisMixin":
+        """Disable interface LFA for a level. Value format: 'iface,level'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            return self.add_delete(self.mappers["vrf_isis"].get_isis_interface_fr_lfa_level_enable(name, parts[0], parts[1]))
+        return self
+
+    def set_vrf_isis_interface_fr_lfa_level_exclude_interface(self, name: str, value: str) -> "VrfIsisMixin":
+        """Add an excluded interface for LFA. Value format: 'iface,level,exclude_iface'."""
+        parts = value.split(",", 2)
+        if len(parts) == 3:
+            return self.add_set(self.mappers["vrf_isis"].get_isis_interface_fr_lfa_level_exclude_interface(name, parts[0], parts[1], parts[2]))
+        return self
+
+    def delete_vrf_isis_interface_fr_lfa_level_exclude_interface(self, name: str, value: str) -> "VrfIsisMixin":
+        """Remove an excluded interface for LFA. Value format: 'iface,level,exclude_iface'."""
+        parts = value.split(",", 2)
+        if len(parts) == 3:
+            return self.add_delete(self.mappers["vrf_isis"].get_isis_interface_fr_lfa_level_exclude_interface(name, parts[0], parts[1], parts[2]))
+        return self
+
+    def set_vrf_isis_interface_fr_remote_lfa_level_maximum_metric(self, name: str, value: str) -> "VrfIsisMixin":
+        """Set remote-LFA maximum-metric for a level. Value format: 'iface,level,metric'."""
+        parts = value.split(",", 2)
+        if len(parts) == 3:
+            return self.add_set(self.mappers["vrf_isis"].get_isis_interface_fr_remote_lfa_level_maximum_metric(name, parts[0], parts[1], parts[2]))
+        return self
+
+    def delete_vrf_isis_interface_fr_remote_lfa_level_maximum_metric(self, name: str, value: str) -> "VrfIsisMixin":
+        """Delete remote-LFA maximum-metric for a level. Value format: 'iface,level'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            path = self.mappers["vrf_isis"].get_isis_interface(name, parts[0]) + ["fast-reroute", "remote-lfa", parts[1], "maximum-metric"]
+            return self.add_delete(path)
+        return self
+
+    def set_vrf_isis_interface_fr_remote_lfa_level_tunnel_mpls_ldp(self, name: str, value: str) -> "VrfIsisMixin":
+        """Enable remote-LFA mpls-ldp tunnel for a level. Value format: 'iface,level'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            return self.add_set(self.mappers["vrf_isis"].get_isis_interface_fr_remote_lfa_level_tunnel_mpls_ldp(name, parts[0], parts[1]))
+        return self
+
+    def delete_vrf_isis_interface_fr_remote_lfa_level_tunnel_mpls_ldp(self, name: str, value: str) -> "VrfIsisMixin":
+        """Disable remote-LFA mpls-ldp tunnel for a level. Value format: 'iface,level'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            return self.add_delete(self.mappers["vrf_isis"].get_isis_interface_fr_remote_lfa_level_tunnel_mpls_ldp(name, parts[0], parts[1]))
+        return self
+
+    def set_vrf_isis_interface_fr_ti_lfa_level(self, name: str, value: str) -> "VrfIsisMixin":
+        """Enable TI-LFA for a level. Value format: 'iface,level'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            return self.add_set(self.mappers["vrf_isis"].get_isis_interface_fr_ti_lfa_level(name, parts[0], parts[1]))
+        return self
+
+    def delete_vrf_isis_interface_fr_ti_lfa_level(self, name: str, value: str) -> "VrfIsisMixin":
+        """Disable TI-LFA for a level. Value format: 'iface,level'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            return self.add_delete(self.mappers["vrf_isis"].get_isis_interface_fr_ti_lfa_level(name, parts[0], parts[1]))
+        return self
+
+    def set_vrf_isis_interface_fr_ti_lfa_level_node_protection(self, name: str, value: str) -> "VrfIsisMixin":
+        """Enable TI-LFA node-protection for a level. Value format: 'iface,level'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            return self.add_set(self.mappers["vrf_isis"].get_isis_interface_fr_ti_lfa_level_node_protection(name, parts[0], parts[1]))
+        return self
+
+    def delete_vrf_isis_interface_fr_ti_lfa_level_node_protection(self, name: str, value: str) -> "VrfIsisMixin":
+        """Disable TI-LFA node-protection for a level. Value format: 'iface,level'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            return self.add_delete(self.mappers["vrf_isis"].get_isis_interface_fr_ti_lfa_level_node_protection(name, parts[0], parts[1]))
+        return self
+
+    def set_vrf_isis_interface_fr_ti_lfa_level_node_protection_link_fallback(self, name: str, value: str) -> "VrfIsisMixin":
+        """Enable TI-LFA node-protection link-fallback for a level. Value format: 'iface,level'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            return self.add_set(self.mappers["vrf_isis"].get_isis_interface_fr_ti_lfa_level_node_protection_link_fallback(name, parts[0], parts[1]))
+        return self
+
+    def delete_vrf_isis_interface_fr_ti_lfa_level_node_protection_link_fallback(self, name: str, value: str) -> "VrfIsisMixin":
+        """Disable TI-LFA node-protection link-fallback for a level. Value format: 'iface,level'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            return self.add_delete(self.mappers["vrf_isis"].get_isis_interface_fr_ti_lfa_level_node_protection_link_fallback(name, parts[0], parts[1]))
+        return self
+
+    def set_vrf_isis_interface_ldp_sync_disable(self, name: str, value: str) -> "VrfIsisMixin":
+        """Disable LDP-IGP sync on an interface. Value is the interface name."""
+        return self.add_set(self.mappers["vrf_isis"].get_isis_interface_ldp_sync_disable(name, value))
+
+    def delete_vrf_isis_interface_ldp_sync_disable(self, name: str, value: str) -> "VrfIsisMixin":
+        """Re-enable LDP-IGP sync on an interface. Value is the interface name."""
+        return self.add_delete(self.mappers["vrf_isis"].get_isis_interface_ldp_sync_disable(name, value))
+
+    # ========================================================================
+    # Segment Routing SRv6 Operations
+    # ========================================================================
+
+    def set_vrf_isis_segment_routing_prefix(self, name: str, value: str) -> "VrfIsisMixin":
+        """Create a segment-routing prefix node. Value is the prefix."""
+        path = self.mappers["vrf_isis"].get_isis(name) + ["segment-routing", "prefix", value]
+        return self.add_set(path)
+
+    def delete_vrf_isis_segment_routing_prefix(self, name: str, value: str) -> "VrfIsisMixin":
+        """Delete a segment-routing prefix node. Value is the prefix."""
+        path = self.mappers["vrf_isis"].get_isis(name) + ["segment-routing", "prefix", value]
+        return self.add_delete(path)
+
+    def set_vrf_isis_segment_routing_srv6_interface(self, name: str, value: str) -> "VrfIsisMixin":
+        """Set SRv6 interface. Value is the interface name."""
+        return self.add_set(self.mappers["vrf_isis"].get_isis_segment_routing_srv6_interface(name, value))
+
+    def delete_vrf_isis_segment_routing_srv6_interface(self, name: str) -> "VrfIsisMixin":
+        """Delete SRv6 interface."""
+        path = self.mappers["vrf_isis"].get_isis(name) + ["segment-routing", "srv6", "interface"]
+        return self.add_delete(path)
+
+    def set_vrf_isis_segment_routing_srv6_node_msd(self, name: str, value: str) -> "VrfIsisMixin":
+        """Set SRv6 node-msd value. Value format: 'msd_type,value'."""
+        parts = value.split(",", 1)
+        if len(parts) == 2:
+            return self.add_set(self.mappers["vrf_isis"].get_isis_segment_routing_srv6_node_msd(name, parts[0], parts[1]))
+        return self
+
+    def delete_vrf_isis_segment_routing_srv6_node_msd(self, name: str, value: str) -> "VrfIsisMixin":
+        """Delete SRv6 node-msd value. Value is the msd type."""
+        path = self.mappers["vrf_isis"].get_isis(name) + ["segment-routing", "srv6", "node-msd", value]
+        return self.add_delete(path)
+
+    def set_vrf_isis_segment_routing_srv6_locator(self, name: str, value: str) -> "VrfIsisMixin":
+        """Set SRv6 locator. Value is the locator name."""
+        return self.add_set(self.mappers["vrf_isis"].get_isis_segment_routing_srv6_locator(name, value))
+
+    def delete_vrf_isis_segment_routing_srv6_locator(self, name: str) -> "VrfIsisMixin":
+        """Delete SRv6 locator."""
+        path = self.mappers["vrf_isis"].get_isis(name) + ["segment-routing", "srv6", "locator"]
+        return self.add_delete(path)
+
+    def set_vrf_isis_traffic_engineering_export(self, name: str) -> "VrfIsisMixin":
+        """Enable traffic-engineering export."""
+        return self.add_set(self.mappers["vrf_isis"].get_isis_traffic_engineering_export(name))
+
+    def delete_vrf_isis_traffic_engineering_export(self, name: str) -> "VrfIsisMixin":
+        """Disable traffic-engineering export."""
+        return self.add_delete(self.mappers["vrf_isis"].get_isis_traffic_engineering_export(name))
