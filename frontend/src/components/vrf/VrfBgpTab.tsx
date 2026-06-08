@@ -1,17 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -19,11 +10,15 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Code, Globe, Users, Network } from "lucide-react";
+import { Code, Network, Settings2 } from "lucide-react";
 import {
   VrfInstance,
   VrfCapabilities,
 } from "@/lib/api/vrf";
+import { SchemaEditor } from "./schema/SchemaEditor";
+import { BGP_SCHEMA } from "./schema/schemas";
+import { EntityListEditor } from "./schema/EntityListEditor";
+import { BGP_NEIGHBOR_GROUP, BGP_PEER_GROUP_GROUP, BGP_AF_GROUP } from "./schema/bgpEntities";
 
 interface VrfBgpTabProps {
   vrf: VrfInstance;
@@ -34,14 +29,36 @@ interface VrfBgpTabProps {
 
 export function VrfBgpTab({ vrf, capabilities, canWrite, onRefresh }: VrfBgpTabProps) {
   const [rawConfigOpen, setRawConfigOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const bgp = vrf.bgp;
+
+  const editor = (
+    <SchemaEditor
+      open={editOpen}
+      onOpenChange={setEditOpen}
+      title={`BGP Settings — ${vrf.name}`}
+      vrfName={vrf.name}
+      sections={BGP_SCHEMA}
+      rawConfig={bgp?.raw_config}
+      capabilities={capabilities}
+      canWrite={canWrite}
+      onSaved={onRefresh}
+    />
+  );
 
   if (!bgp || !bgp.configured) {
     return (
       <div className="flex flex-col items-center justify-center py-16">
         <Network className="h-12 w-12 text-muted-foreground mb-4" />
         <h3 className="text-lg font-semibold mb-2">BGP</h3>
-        <p className="text-sm text-muted-foreground">Coming soon</p>
+        <p className="text-sm text-muted-foreground mb-4">Not configured</p>
+        {canWrite && (
+          <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+            <Settings2 className="h-3.5 w-3.5 mr-1.5" />
+            Configure BGP
+          </Button>
+        )}
+        {editor}
       </div>
     );
   }
@@ -81,62 +98,48 @@ export function VrfBgpTab({ vrf, capabilities, canWrite, onRefresh }: VrfBgpTabP
         </Card>
       </div>
 
-      {bgp.neighbors.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              Neighbors
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {bgp.neighbors.map((n) => (
-                <Badge key={n} variant="outline" className="font-mono">{n}</Badge>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      <EntityListEditor
+        vrfName={vrf.name}
+        group={BGP_NEIGHBOR_GROUP}
+        rawParent={bgp.raw_config}
+        capabilities={capabilities}
+        canWrite={canWrite}
+        onRefresh={onRefresh}
+      />
 
-      {bgp.peer_groups.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Peer Groups</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {bgp.peer_groups.map((pg) => (
-                <Badge key={pg} variant="secondary">{pg}</Badge>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      <EntityListEditor
+        vrfName={vrf.name}
+        group={BGP_PEER_GROUP_GROUP}
+        rawParent={bgp.raw_config}
+        capabilities={capabilities}
+        canWrite={canWrite}
+        onRefresh={onRefresh}
+      />
 
-      {bgp.address_families.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Address Families</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {bgp.address_families.map((af) => (
-                <Badge key={af} variant="secondary" className="font-mono">{af}</Badge>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      <EntityListEditor
+        vrfName={vrf.name}
+        group={BGP_AF_GROUP}
+        rawParent={bgp.raw_config}
+        capabilities={capabilities}
+        canWrite={canWrite}
+        onRefresh={onRefresh}
+      />
 
-      {bgp.raw_config && (
-        <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        {canWrite && (
+          <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+            <Settings2 className="h-3.5 w-3.5 mr-1.5" />
+            Edit Settings
+          </Button>
+        )}
+        {bgp.raw_config && (
           <Button variant="outline" size="sm" onClick={() => setRawConfigOpen(true)}>
             <Code className="h-3.5 w-3.5 mr-1.5" />
             View Raw Config
           </Button>
-        </div>
-      )}
+        )}
+      </div>
+      {editor}
 
       <Dialog open={rawConfigOpen} onOpenChange={setRawConfigOpen}>
         <DialogContent className="max-w-2xl max-h-[80vh]">

@@ -91,6 +91,7 @@ export interface VrfRpkiConfig {
   expire_interval: number | null;
   polling_period: number | null;
   retry_interval: number | null;
+  raw_config?: Record<string, unknown> | null;
 }
 
 // ============================================================================
@@ -135,6 +136,7 @@ export interface VrfFailoverRoute {
 
 export interface VrfFailoverConfig {
   routes: VrfFailoverRoute[];
+  raw_config?: Record<string, unknown> | null;
 }
 
 // ============================================================================

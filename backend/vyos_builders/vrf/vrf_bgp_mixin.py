@@ -1966,3 +1966,826 @@ class VrfBgpMixin:
     def delete_vrf_bgp_peer_group_solo(self, name: str, value: str) -> "VrfBgpMixin":
         """Value is the peer-group name."""
         return self.add_delete(self.mappers["vrf_bgp"].get_bgp_peer_group_solo(name, value))
+
+    # ========================================================================
+    # Wiring for previously unwired mapper methods (full API reachability)
+    # ========================================================================
+
+    def _m(self):
+        return self.mappers["vrf_bgp"]
+
+    # --- Neighbor (additional flat) ---
+    def set_vrf_bgp_neighbor_capability_software_version(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value is the neighbor."""
+        return self.add_set(self._m().get_bgp_neighbor_capability_software_version(name, value))
+
+    def delete_vrf_bgp_neighbor_capability_software_version(self, name: str, value: str) -> "VrfBgpMixin":
+        return self.add_delete(self._m().get_bgp_neighbor_capability_software_version(name, value))
+
+    def set_vrf_bgp_neighbor_interface_source_interface(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value is the neighbor."""
+        return self.add_set(self._m().get_bgp_neighbor_interface_source_interface(name, value))
+
+    def delete_vrf_bgp_neighbor_interface_source_interface(self, name: str, value: str) -> "VrfBgpMixin":
+        return self.add_delete(self._m().get_bgp_neighbor_interface_source_interface(name, value))
+
+    def set_vrf_bgp_neighbor_local_role(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'neighbor,role'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_set(self._m().get_bgp_neighbor_local_role(name, p[0], p[1]))
+        return self
+
+    def set_vrf_bgp_neighbor_local_role_strict(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'neighbor,role'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_set(self._m().get_bgp_neighbor_local_role_strict(name, p[0], p[1]))
+        return self
+
+    def delete_vrf_bgp_neighbor_local_role(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value is the neighbor."""
+        return self.add_delete(self._m().get_bgp_neighbor_local_role_delete(name, value))
+
+    # --- Neighbor AF (additional) ---
+    def set_vrf_bgp_neighbor_af_addpath_tx_all(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'neighbor,afi'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_set(self._m().get_bgp_neighbor_af_addpath_tx_all(name, p[0], p[1]))
+        return self
+
+    def delete_vrf_bgp_neighbor_af_addpath_tx_all(self, name: str, value: str) -> "VrfBgpMixin":
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_delete(self._m().get_bgp_neighbor_af_addpath_tx_all(name, p[0], p[1]))
+        return self
+
+    def set_vrf_bgp_neighbor_af_addpath_tx_per_as(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'neighbor,afi'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_set(self._m().get_bgp_neighbor_af_addpath_tx_per_as(name, p[0], p[1]))
+        return self
+
+    def delete_vrf_bgp_neighbor_af_addpath_tx_per_as(self, name: str, value: str) -> "VrfBgpMixin":
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_delete(self._m().get_bgp_neighbor_af_addpath_tx_per_as(name, p[0], p[1]))
+        return self
+
+    def set_vrf_bgp_neighbor_af_as_override(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'neighbor,afi'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_set(self._m().get_bgp_neighbor_af_as_override(name, p[0], p[1]))
+        return self
+
+    def delete_vrf_bgp_neighbor_af_as_override(self, name: str, value: str) -> "VrfBgpMixin":
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_delete(self._m().get_bgp_neighbor_af_as_override(name, p[0], p[1]))
+        return self
+
+    def set_vrf_bgp_neighbor_af_nexthop_self_force(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'neighbor,afi'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_set(self._m().get_bgp_neighbor_af_nexthop_self_force(name, p[0], p[1]))
+        return self
+
+    def delete_vrf_bgp_neighbor_af_nexthop_self_force(self, name: str, value: str) -> "VrfBgpMixin":
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_delete(self._m().get_bgp_neighbor_af_nexthop_self_force(name, p[0], p[1]))
+        return self
+
+    def set_vrf_bgp_neighbor_af_remove_private_as_all(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'neighbor,afi'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_set(self._m().get_bgp_neighbor_af_remove_private_as_all(name, p[0], p[1]))
+        return self
+
+    def delete_vrf_bgp_neighbor_af_remove_private_as_all(self, name: str, value: str) -> "VrfBgpMixin":
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_delete(self._m().get_bgp_neighbor_af_remove_private_as_all(name, p[0], p[1]))
+        return self
+
+    def set_vrf_bgp_neighbor_af_attribute_unchanged_as_path(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'neighbor,afi'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_set(self._m().get_bgp_neighbor_af_attribute_unchanged_as_path(name, p[0], p[1]))
+        return self
+
+    def set_vrf_bgp_neighbor_af_attribute_unchanged_med(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'neighbor,afi'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_set(self._m().get_bgp_neighbor_af_attribute_unchanged_med(name, p[0], p[1]))
+        return self
+
+    def set_vrf_bgp_neighbor_af_attribute_unchanged_next_hop(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'neighbor,afi'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_set(self._m().get_bgp_neighbor_af_attribute_unchanged_next_hop(name, p[0], p[1]))
+        return self
+
+    def delete_vrf_bgp_neighbor_af_attribute_unchanged(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'neighbor,afi'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_delete(self._m().get_bgp_neighbor_af_attribute_unchanged_delete(name, p[0], p[1]))
+        return self
+
+    def set_vrf_bgp_neighbor_af_capability_orf_prefix_list_receive(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'neighbor,afi'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_set(self._m().get_bgp_neighbor_af_capability_orf_prefix_list_receive(name, p[0], p[1]))
+        return self
+
+    def set_vrf_bgp_neighbor_af_capability_orf_prefix_list_send(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'neighbor,afi'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_set(self._m().get_bgp_neighbor_af_capability_orf_prefix_list_send(name, p[0], p[1]))
+        return self
+
+    def delete_vrf_bgp_neighbor_af_capability_orf(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'neighbor,afi'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_delete(self._m().get_bgp_neighbor_af_capability_orf_delete(name, p[0], p[1]))
+        return self
+
+    def set_vrf_bgp_neighbor_af_disable_send_community_extended(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'neighbor,afi'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_set(self._m().get_bgp_neighbor_af_disable_send_community_extended(name, p[0], p[1]))
+        return self
+
+    def set_vrf_bgp_neighbor_af_disable_send_community_standard(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'neighbor,afi'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_set(self._m().get_bgp_neighbor_af_disable_send_community_standard(name, p[0], p[1]))
+        return self
+
+    def delete_vrf_bgp_neighbor_af_disable_send_community(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'neighbor,afi'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_delete(self._m().get_bgp_neighbor_af_disable_send_community_delete(name, p[0], p[1]))
+        return self
+
+    def set_vrf_bgp_neighbor_af_distribute_list_export(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'neighbor,afi,access-list'."""
+        p = value.split(",", 2)
+        if len(p) == 3:
+            return self.add_set(self._m().get_bgp_neighbor_af_distribute_list_export(name, p[0], p[1], p[2]))
+        return self
+
+    def set_vrf_bgp_neighbor_af_distribute_list_import(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'neighbor,afi,access-list'."""
+        p = value.split(",", 2)
+        if len(p) == 3:
+            return self.add_set(self._m().get_bgp_neighbor_af_distribute_list_import(name, p[0], p[1], p[2]))
+        return self
+
+    def delete_vrf_bgp_neighbor_af_distribute_list(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'neighbor,afi'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_delete(self._m().get_bgp_neighbor_af_distribute_list_delete(name, p[0], p[1]))
+        return self
+
+    def set_vrf_bgp_neighbor_af_maximum_prefix_out(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'neighbor,afi,max'."""
+        p = value.split(",", 2)
+        if len(p) == 3:
+            return self.add_set(self._m().get_bgp_neighbor_af_maximum_prefix_out(name, p[0], p[1], p[2]))
+        return self
+
+    def delete_vrf_bgp_neighbor_af_maximum_prefix_out(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'neighbor,afi'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_delete(self._m().get_bgp_neighbor_af_maximum_prefix_out_delete(name, p[0], p[1]))
+        return self
+
+    def set_vrf_bgp_neighbor_af_nexthop_local_unchanged(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'neighbor,afi'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_set(self._m().get_bgp_neighbor_af_nexthop_local_unchanged(name, p[0], p[1]))
+        return self
+
+    def delete_vrf_bgp_neighbor_af_nexthop_local_unchanged(self, name: str, value: str) -> "VrfBgpMixin":
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_delete(self._m().get_bgp_neighbor_af_nexthop_local_unchanged(name, p[0], p[1]))
+        return self
+
+    def set_vrf_bgp_neighbor_af_conditionally_advertise_advertise_map(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'neighbor,afi,route-map'."""
+        p = value.split(",", 2)
+        if len(p) == 3:
+            return self.add_set(self._m().get_bgp_neighbor_af_conditionally_advertise_advertise_map(name, p[0], p[1], p[2]))
+        return self
+
+    def set_vrf_bgp_neighbor_af_conditionally_advertise_exist_map(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'neighbor,afi,route-map'."""
+        p = value.split(",", 2)
+        if len(p) == 3:
+            return self.add_set(self._m().get_bgp_neighbor_af_conditionally_advertise_exist_map(name, p[0], p[1], p[2]))
+        return self
+
+    def set_vrf_bgp_neighbor_af_conditionally_advertise_non_exist_map(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'neighbor,afi,route-map'."""
+        p = value.split(",", 2)
+        if len(p) == 3:
+            return self.add_set(self._m().get_bgp_neighbor_af_conditionally_advertise_non_exist_map(name, p[0], p[1], p[2]))
+        return self
+
+    def delete_vrf_bgp_neighbor_af_conditionally_advertise(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'neighbor,afi'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_delete(self._m().get_bgp_neighbor_af_conditionally_advertise_delete(name, p[0], p[1]))
+        return self
+
+    # --- Peer-group (additional flat) ---
+    def set_vrf_bgp_peer_group_capability_software_version(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value is the peer-group."""
+        return self.add_set(self._m().get_bgp_peer_group_capability_software_version(name, value))
+
+    def delete_vrf_bgp_peer_group_capability_software_version(self, name: str, value: str) -> "VrfBgpMixin":
+        return self.add_delete(self._m().get_bgp_peer_group_capability_software_version(name, value))
+
+    def set_vrf_bgp_peer_group_disable_capability_negotiation(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value is the peer-group."""
+        return self.add_set(self._m().get_bgp_peer_group_disable_capability_negotiation(name, value))
+
+    def delete_vrf_bgp_peer_group_disable_capability_negotiation(self, name: str, value: str) -> "VrfBgpMixin":
+        return self.add_delete(self._m().get_bgp_peer_group_disable_capability_negotiation(name, value))
+
+    def set_vrf_bgp_peer_group_override_capability(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value is the peer-group."""
+        return self.add_set(self._m().get_bgp_peer_group_override_capability(name, value))
+
+    def delete_vrf_bgp_peer_group_override_capability(self, name: str, value: str) -> "VrfBgpMixin":
+        return self.add_delete(self._m().get_bgp_peer_group_override_capability(name, value))
+
+    def set_vrf_bgp_peer_group_local_role(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'peer-group,role'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_set(self._m().get_bgp_peer_group_local_role(name, p[0], p[1]))
+        return self
+
+    def set_vrf_bgp_peer_group_local_role_strict(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'peer-group,role'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_set(self._m().get_bgp_peer_group_local_role_strict(name, p[0], p[1]))
+        return self
+
+    def delete_vrf_bgp_peer_group_local_role(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value is the peer-group."""
+        return self.add_delete(self._m().get_bgp_peer_group_local_role_delete(name, value))
+
+    def set_vrf_bgp_peer_group_path_attribute_discard(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'peer-group,attribute'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_set(self._m().get_bgp_peer_group_path_attribute_discard(name, p[0], p[1]))
+        return self
+
+    def set_vrf_bgp_peer_group_path_attribute_treat_as_withdraw(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'peer-group,attribute'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_set(self._m().get_bgp_peer_group_path_attribute_treat_as_withdraw(name, p[0], p[1]))
+        return self
+
+    def delete_vrf_bgp_peer_group_path_attribute(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value is the peer-group."""
+        return self.add_delete(self._m().get_bgp_peer_group_path_attribute_delete(name, value))
+
+    def set_vrf_bgp_peer_group_port(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'peer-group,port'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_set(self._m().get_bgp_peer_group_port(name, p[0], p[1]))
+        return self
+
+    def delete_vrf_bgp_peer_group_port(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value is the peer-group."""
+        return self.add_delete(self._m().get_bgp_peer_group_port_delete(name, value))
+
+    # --- Peer-group AF (additional) ---
+    def set_vrf_bgp_peer_group_af_addpath_tx_all(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'peer-group,afi'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_set(self._m().get_bgp_peer_group_af_addpath_tx_all(name, p[0], p[1]))
+        return self
+
+    def delete_vrf_bgp_peer_group_af_addpath_tx_all(self, name: str, value: str) -> "VrfBgpMixin":
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_delete(self._m().get_bgp_peer_group_af_addpath_tx_all(name, p[0], p[1]))
+        return self
+
+    def set_vrf_bgp_peer_group_af_addpath_tx_per_as(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'peer-group,afi'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_set(self._m().get_bgp_peer_group_af_addpath_tx_per_as(name, p[0], p[1]))
+        return self
+
+    def delete_vrf_bgp_peer_group_af_addpath_tx_per_as(self, name: str, value: str) -> "VrfBgpMixin":
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_delete(self._m().get_bgp_peer_group_af_addpath_tx_per_as(name, p[0], p[1]))
+        return self
+
+    def set_vrf_bgp_peer_group_af_as_override(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'peer-group,afi'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_set(self._m().get_bgp_peer_group_af_as_override(name, p[0], p[1]))
+        return self
+
+    def delete_vrf_bgp_peer_group_af_as_override(self, name: str, value: str) -> "VrfBgpMixin":
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_delete(self._m().get_bgp_peer_group_af_as_override(name, p[0], p[1]))
+        return self
+
+    def set_vrf_bgp_peer_group_af_nexthop_self_force(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'peer-group,afi'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_set(self._m().get_bgp_peer_group_af_nexthop_self_force(name, p[0], p[1]))
+        return self
+
+    def delete_vrf_bgp_peer_group_af_nexthop_self_force(self, name: str, value: str) -> "VrfBgpMixin":
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_delete(self._m().get_bgp_peer_group_af_nexthop_self_force(name, p[0], p[1]))
+        return self
+
+    def set_vrf_bgp_peer_group_af_route_server_client(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'peer-group,afi'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_set(self._m().get_bgp_peer_group_af_route_server_client(name, p[0], p[1]))
+        return self
+
+    def delete_vrf_bgp_peer_group_af_route_server_client(self, name: str, value: str) -> "VrfBgpMixin":
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_delete(self._m().get_bgp_peer_group_af_route_server_client(name, p[0], p[1]))
+        return self
+
+    def set_vrf_bgp_peer_group_af_allowas_in_number(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'peer-group,afi,number'."""
+        p = value.split(",", 2)
+        if len(p) == 3:
+            return self.add_set(self._m().get_bgp_peer_group_af_allowas_in_number(name, p[0], p[1], p[2]))
+        return self
+
+    def delete_vrf_bgp_peer_group_af_allowas_in(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'peer-group,afi'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_delete(self._m().get_bgp_peer_group_af_allowas_in_delete(name, p[0], p[1]))
+        return self
+
+    def set_vrf_bgp_peer_group_af_attribute_unchanged_as_path(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'peer-group,afi'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_set(self._m().get_bgp_peer_group_af_attribute_unchanged_as_path(name, p[0], p[1]))
+        return self
+
+    def set_vrf_bgp_peer_group_af_attribute_unchanged_med(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'peer-group,afi'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_set(self._m().get_bgp_peer_group_af_attribute_unchanged_med(name, p[0], p[1]))
+        return self
+
+    def set_vrf_bgp_peer_group_af_attribute_unchanged_next_hop(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'peer-group,afi'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_set(self._m().get_bgp_peer_group_af_attribute_unchanged_next_hop(name, p[0], p[1]))
+        return self
+
+    def delete_vrf_bgp_peer_group_af_attribute_unchanged(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'peer-group,afi'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_delete(self._m().get_bgp_peer_group_af_attribute_unchanged_delete(name, p[0], p[1]))
+        return self
+
+    def set_vrf_bgp_peer_group_af_default_originate(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'peer-group,afi'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_set(self._m().get_bgp_peer_group_af_default_originate(name, p[0], p[1]))
+        return self
+
+    def set_vrf_bgp_peer_group_af_default_originate_route_map(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'peer-group,afi,route-map'."""
+        p = value.split(",", 2)
+        if len(p) == 3:
+            return self.add_set(self._m().get_bgp_peer_group_af_default_originate_route_map(name, p[0], p[1], p[2]))
+        return self
+
+    def delete_vrf_bgp_peer_group_af_default_originate(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'peer-group,afi'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_delete(self._m().get_bgp_peer_group_af_default_originate_delete(name, p[0], p[1]))
+        return self
+
+    def set_vrf_bgp_peer_group_af_disable_send_community_extended(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'peer-group,afi'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_set(self._m().get_bgp_peer_group_af_disable_send_community_extended(name, p[0], p[1]))
+        return self
+
+    def set_vrf_bgp_peer_group_af_disable_send_community_standard(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'peer-group,afi'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_set(self._m().get_bgp_peer_group_af_disable_send_community_standard(name, p[0], p[1]))
+        return self
+
+    def delete_vrf_bgp_peer_group_af_disable_send_community(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'peer-group,afi'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_delete(self._m().get_bgp_peer_group_af_disable_send_community_delete(name, p[0], p[1]))
+        return self
+
+    def set_vrf_bgp_peer_group_af_filter_list_export(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'peer-group,afi,as-path-list'."""
+        p = value.split(",", 2)
+        if len(p) == 3:
+            return self.add_set(self._m().get_bgp_peer_group_af_filter_list_export(name, p[0], p[1], p[2]))
+        return self
+
+    def set_vrf_bgp_peer_group_af_filter_list_import(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'peer-group,afi,as-path-list'."""
+        p = value.split(",", 2)
+        if len(p) == 3:
+            return self.add_set(self._m().get_bgp_peer_group_af_filter_list_import(name, p[0], p[1], p[2]))
+        return self
+
+    def delete_vrf_bgp_peer_group_af_filter_list(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'peer-group,afi'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_delete(self._m().get_bgp_peer_group_af_filter_list_delete(name, p[0], p[1]))
+        return self
+
+    def set_vrf_bgp_peer_group_af_prefix_list_export(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'peer-group,afi,prefix-list'."""
+        p = value.split(",", 2)
+        if len(p) == 3:
+            return self.add_set(self._m().get_bgp_peer_group_af_prefix_list_export(name, p[0], p[1], p[2]))
+        return self
+
+    def set_vrf_bgp_peer_group_af_prefix_list_import(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'peer-group,afi,prefix-list'."""
+        p = value.split(",", 2)
+        if len(p) == 3:
+            return self.add_set(self._m().get_bgp_peer_group_af_prefix_list_import(name, p[0], p[1], p[2]))
+        return self
+
+    def delete_vrf_bgp_peer_group_af_prefix_list(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'peer-group,afi'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_delete(self._m().get_bgp_peer_group_af_prefix_list_delete(name, p[0], p[1]))
+        return self
+
+    def set_vrf_bgp_peer_group_af_remove_private_as(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'peer-group,afi'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_set(self._m().get_bgp_peer_group_af_remove_private_as(name, p[0], p[1]))
+        return self
+
+    def set_vrf_bgp_peer_group_af_remove_private_as_all(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'peer-group,afi'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_set(self._m().get_bgp_peer_group_af_remove_private_as_all(name, p[0], p[1]))
+        return self
+
+    def delete_vrf_bgp_peer_group_af_remove_private_as(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'peer-group,afi'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_delete(self._m().get_bgp_peer_group_af_remove_private_as_delete(name, p[0], p[1]))
+        return self
+
+    def set_vrf_bgp_peer_group_af_unsuppress_map(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'peer-group,afi,route-map'."""
+        p = value.split(",", 2)
+        if len(p) == 3:
+            return self.add_set(self._m().get_bgp_peer_group_af_unsuppress_map(name, p[0], p[1], p[2]))
+        return self
+
+    def delete_vrf_bgp_peer_group_af_unsuppress_map(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'peer-group,afi'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_delete(self._m().get_bgp_peer_group_af_unsuppress_map_delete(name, p[0], p[1]))
+        return self
+
+    def set_vrf_bgp_peer_group_af_weight(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'peer-group,afi,weight'."""
+        p = value.split(",", 2)
+        if len(p) == 3:
+            return self.add_set(self._m().get_bgp_peer_group_af_weight(name, p[0], p[1], p[2]))
+        return self
+
+    def delete_vrf_bgp_peer_group_af_weight(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'peer-group,afi'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_delete(self._m().get_bgp_peer_group_af_weight_delete(name, p[0], p[1]))
+        return self
+
+    # --- Granular deletes for fields sharing a combined backend delete ---
+    def delete_vrf_bgp_neighbor_bfd_profile(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value is the neighbor."""
+        return self.add_delete(self._m().get_bgp_neighbor(name, value) + ["bfd", "profile"])
+
+    def delete_vrf_bgp_neighbor_bfd_check_control_plane_failure(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value is the neighbor."""
+        return self.add_delete(self._m().get_bgp_neighbor(name, value) + ["bfd", "check-control-plane-failure"])
+
+    def delete_vrf_bgp_neighbor_timers_connect(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value is the neighbor."""
+        return self.add_delete(self._m().get_bgp_neighbor(name, value) + ["timers", "connect"])
+
+    def delete_vrf_bgp_neighbor_timers_keepalive(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value is the neighbor."""
+        return self.add_delete(self._m().get_bgp_neighbor(name, value) + ["timers", "keepalive"])
+
+    def delete_vrf_bgp_neighbor_timers_holdtime(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value is the neighbor."""
+        return self.add_delete(self._m().get_bgp_neighbor(name, value) + ["timers", "holdtime"])
+
+    def delete_vrf_bgp_neighbor_ttl_security_hops(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value is the neighbor."""
+        return self.add_delete(self._m().get_bgp_neighbor(name, value) + ["ttl-security", "hops"])
+
+    def delete_vrf_bgp_peer_group_bfd_profile(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value is the peer-group."""
+        return self.add_delete(self._m().get_bgp_peer_group(name, value) + ["bfd", "profile"])
+
+    def delete_vrf_bgp_peer_group_bfd_check_control_plane_failure(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value is the peer-group."""
+        return self.add_delete(self._m().get_bgp_peer_group(name, value) + ["bfd", "check-control-plane-failure"])
+
+    def delete_vrf_bgp_peer_group_ttl_security_hops(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value is the peer-group."""
+        return self.add_delete(self._m().get_bgp_peer_group(name, value) + ["ttl-security", "hops"])
+
+    def delete_vrf_bgp_peer_group_af_remove_private_as_all(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'peer-group,afi'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_delete(self._m().get_bgp_peer_group_af(name, p[0], p[1]) + ["remove-private-as", "all"])
+        return self
+
+    def delete_vrf_bgp_af_rd_vpn_export(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value is the afi."""
+        return self.add_delete(self._m()._af(name, value) + ["rd", "vpn", "export"])
+
+    def delete_vrf_bgp_af_route_map_vpn(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value is the afi. Removes route-map vpn export/import."""
+        return self.add_delete(self._m()._af(name, value) + ["route-map", "vpn"])
+
+    # --- Global AF base (create/delete an address-family node) ---
+    def set_vrf_bgp_af(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value is the afi."""
+        return self.add_set(self._m()._af(name, value))
+
+    def delete_vrf_bgp_af(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value is the afi."""
+        return self.add_delete(self._m()._af(name, value))
+
+    # --- Global AF: VPN/label extras ---
+    def set_vrf_bgp_af_local_install_interface(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'afi,interface'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_set(self._m().get_bgp_af_local_install_interface(name, p[0], p[1]))
+        return self
+
+    def delete_vrf_bgp_af_local_install(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value is the afi."""
+        return self.add_delete(self._m().get_bgp_af_local_install_delete(name, value))
+
+    def set_vrf_bgp_af_network_label(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'afi,prefix,label'."""
+        p = value.split(",", 2)
+        if len(p) == 3:
+            return self.add_set(self._m().get_bgp_af_network_label(name, p[0], p[1], p[2]))
+        return self
+
+    def delete_vrf_bgp_af_network_label(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'afi,prefix'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_delete(self._m().get_bgp_af_network(name, p[0], p[1]) + ["label"])
+        return self
+
+    def set_vrf_bgp_af_network_path_limit(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'afi,prefix,limit'."""
+        p = value.split(",", 2)
+        if len(p) == 3:
+            return self.add_set(self._m().get_bgp_af_network_path_limit(name, p[0], p[1], p[2]))
+        return self
+
+    def delete_vrf_bgp_af_network_path_limit(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'afi,prefix'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_delete(self._m().get_bgp_af_network(name, p[0], p[1]) + ["path-limit"])
+        return self
+
+    def set_vrf_bgp_af_network_rd(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'afi,prefix,rd'."""
+        p = value.split(",", 2)
+        if len(p) == 3:
+            return self.add_set(self._m().get_bgp_af_network_rd(name, p[0], p[1], p[2]))
+        return self
+
+    def delete_vrf_bgp_af_network_rd(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'afi,prefix'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_delete(self._m().get_bgp_af_network(name, p[0], p[1]) + ["rd"])
+        return self
+
+    def set_vrf_bgp_af_nexthop_vpn_export(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'afi,value'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_set(self._m().get_bgp_af_nexthop_vpn_export(name, p[0], p[1]))
+        return self
+
+    def delete_vrf_bgp_af_nexthop_vpn_export(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value is the afi."""
+        return self.add_delete(self._m()._af(name, value) + ["nexthop", "vpn", "export"])
+
+    # --- Global AF: l2vpn-evpn ---
+    def _evpn(self, name):
+        return self._m().get_bgp_af_l2vpn_evpn(name)
+
+    def set_vrf_bgp_af_l2vpn_evpn(self, name: str) -> "VrfBgpMixin":
+        return self.add_set(self._m().get_bgp_af_l2vpn_evpn(name))
+
+    def delete_vrf_bgp_af_l2vpn_evpn(self, name: str) -> "VrfBgpMixin":
+        return self.add_delete(self._m().get_bgp_af_l2vpn_evpn(name))
+
+    def set_vrf_bgp_af_l2vpn_evpn_advertise_ipv4_unicast(self, name: str) -> "VrfBgpMixin":
+        return self.add_set(self._m().get_bgp_af_l2vpn_evpn_advertise_ipv4_unicast(name))
+
+    def delete_vrf_bgp_af_l2vpn_evpn_advertise_ipv4_unicast(self, name: str) -> "VrfBgpMixin":
+        return self.add_delete(self._m().get_bgp_af_l2vpn_evpn_advertise_ipv4_unicast(name))
+
+    def set_vrf_bgp_af_l2vpn_evpn_advertise_ipv4_unicast_route_map(self, name: str, value: str) -> "VrfBgpMixin":
+        return self.add_set(self._m().get_bgp_af_l2vpn_evpn_advertise_ipv4_unicast_route_map(name, value))
+
+    def delete_vrf_bgp_af_l2vpn_evpn_advertise_ipv4_unicast_route_map(self, name: str) -> "VrfBgpMixin":
+        return self.add_delete(self._evpn(name) + ["advertise", "ipv4", "unicast", "route-map"])
+
+    def set_vrf_bgp_af_l2vpn_evpn_advertise_ipv6_unicast(self, name: str) -> "VrfBgpMixin":
+        return self.add_set(self._m().get_bgp_af_l2vpn_evpn_advertise_ipv6_unicast(name))
+
+    def delete_vrf_bgp_af_l2vpn_evpn_advertise_ipv6_unicast(self, name: str) -> "VrfBgpMixin":
+        return self.add_delete(self._m().get_bgp_af_l2vpn_evpn_advertise_ipv6_unicast(name))
+
+    def set_vrf_bgp_af_l2vpn_evpn_advertise_ipv6_unicast_route_map(self, name: str, value: str) -> "VrfBgpMixin":
+        return self.add_set(self._m().get_bgp_af_l2vpn_evpn_advertise_ipv6_unicast_route_map(name, value))
+
+    def delete_vrf_bgp_af_l2vpn_evpn_advertise_ipv6_unicast_route_map(self, name: str) -> "VrfBgpMixin":
+        return self.add_delete(self._evpn(name) + ["advertise", "ipv6", "unicast", "route-map"])
+
+    def set_vrf_bgp_af_l2vpn_evpn_default_originate_ipv4(self, name: str) -> "VrfBgpMixin":
+        return self.add_set(self._m().get_bgp_af_l2vpn_evpn_default_originate_ipv4(name))
+
+    def delete_vrf_bgp_af_l2vpn_evpn_default_originate_ipv4(self, name: str) -> "VrfBgpMixin":
+        return self.add_delete(self._m().get_bgp_af_l2vpn_evpn_default_originate_ipv4(name))
+
+    def set_vrf_bgp_af_l2vpn_evpn_default_originate_ipv6(self, name: str) -> "VrfBgpMixin":
+        return self.add_set(self._m().get_bgp_af_l2vpn_evpn_default_originate_ipv6(name))
+
+    def delete_vrf_bgp_af_l2vpn_evpn_default_originate_ipv6(self, name: str) -> "VrfBgpMixin":
+        return self.add_delete(self._m().get_bgp_af_l2vpn_evpn_default_originate_ipv6(name))
+
+    def set_vrf_bgp_af_l2vpn_evpn_ead_es_frag_evi_limit(self, name: str, value: str) -> "VrfBgpMixin":
+        return self.add_set(self._m().get_bgp_af_l2vpn_evpn_ead_es_frag_evi_limit(name, value))
+
+    def delete_vrf_bgp_af_l2vpn_evpn_ead_es_frag_evi_limit(self, name: str) -> "VrfBgpMixin":
+        return self.add_delete(self._evpn(name) + ["ead-es-frag", "evi-limit"])
+
+    def set_vrf_bgp_af_l2vpn_evpn_ead_es_route_target_export(self, name: str, value: str) -> "VrfBgpMixin":
+        return self.add_set(self._m().get_bgp_af_l2vpn_evpn_ead_es_route_target_export(name, value))
+
+    def delete_vrf_bgp_af_l2vpn_evpn_ead_es_route_target_export(self, name: str) -> "VrfBgpMixin":
+        return self.add_delete(self._evpn(name) + ["ead-es-route-target", "export"])
+
+    def set_vrf_bgp_af_l2vpn_evpn_flooding_disable(self, name: str) -> "VrfBgpMixin":
+        return self.add_set(self._m().get_bgp_af_l2vpn_evpn_flooding_disable(name))
+
+    def set_vrf_bgp_af_l2vpn_evpn_flooding_head_end_replication(self, name: str) -> "VrfBgpMixin":
+        return self.add_set(self._m().get_bgp_af_l2vpn_evpn_flooding_head_end_replication(name))
+
+    def delete_vrf_bgp_af_l2vpn_evpn_flooding(self, name: str) -> "VrfBgpMixin":
+        return self.add_delete(self._m().get_bgp_af_l2vpn_evpn_flooding_delete(name))
+
+    def set_vrf_bgp_af_l2vpn_evpn_mac_vrf_soo(self, name: str, value: str) -> "VrfBgpMixin":
+        return self.add_set(self._m().get_bgp_af_l2vpn_evpn_mac_vrf_soo(name, value))
+
+    def delete_vrf_bgp_af_l2vpn_evpn_mac_vrf_soo(self, name: str) -> "VrfBgpMixin":
+        return self.add_delete(self._evpn(name) + ["mac-vrf", "soo"])
+
+    def set_vrf_bgp_af_l2vpn_evpn_rd(self, name: str, value: str) -> "VrfBgpMixin":
+        return self.add_set(self._m().get_bgp_af_l2vpn_evpn_rd(name, value))
+
+    def delete_vrf_bgp_af_l2vpn_evpn_rd(self, name: str) -> "VrfBgpMixin":
+        return self.add_delete(self._m().get_bgp_af_l2vpn_evpn_rd_delete(name))
+
+    def set_vrf_bgp_af_l2vpn_evpn_route_target_both(self, name: str, value: str) -> "VrfBgpMixin":
+        return self.add_set(self._m().get_bgp_af_l2vpn_evpn_route_target_both(name, value))
+
+    def set_vrf_bgp_af_l2vpn_evpn_route_target_export(self, name: str, value: str) -> "VrfBgpMixin":
+        return self.add_set(self._m().get_bgp_af_l2vpn_evpn_route_target_export(name, value))
+
+    def set_vrf_bgp_af_l2vpn_evpn_route_target_import(self, name: str, value: str) -> "VrfBgpMixin":
+        return self.add_set(self._m().get_bgp_af_l2vpn_evpn_route_target_import(name, value))
+
+    def delete_vrf_bgp_af_l2vpn_evpn_route_target(self, name: str) -> "VrfBgpMixin":
+        return self.add_delete(self._m().get_bgp_af_l2vpn_evpn_route_target_delete(name))
+
+    def set_vrf_bgp_af_l2vpn_evpn_vni(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value is the VNI."""
+        return self.add_set(self._m().get_bgp_af_l2vpn_evpn_vni(name, value))
+
+    def delete_vrf_bgp_af_l2vpn_evpn_vni(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value is the VNI."""
+        return self.add_delete(self._m().get_bgp_af_l2vpn_evpn_vni_delete(name, value))
+
+    def set_vrf_bgp_af_l2vpn_evpn_vni_rd(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'vni,rd'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_set(self._m().get_bgp_af_l2vpn_evpn_vni_rd(name, p[0], p[1]))
+        return self
+
+    def delete_vrf_bgp_af_l2vpn_evpn_vni_rd(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value is the VNI."""
+        return self.add_delete(self._m().get_bgp_af_l2vpn_evpn_vni(name, value) + ["rd"])
+
+    def set_vrf_bgp_af_l2vpn_evpn_vni_route_target_both(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'vni,rt'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_set(self._m().get_bgp_af_l2vpn_evpn_vni_route_target_both(name, p[0], p[1]))
+        return self
+
+    def set_vrf_bgp_af_l2vpn_evpn_vni_route_target_export(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'vni,rt'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_set(self._m().get_bgp_af_l2vpn_evpn_vni_route_target_export(name, p[0], p[1]))
+        return self
+
+    def set_vrf_bgp_af_l2vpn_evpn_vni_route_target_import(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value format: 'vni,rt'."""
+        p = value.split(",", 1)
+        if len(p) == 2:
+            return self.add_set(self._m().get_bgp_af_l2vpn_evpn_vni_route_target_import(name, p[0], p[1]))
+        return self
+
+    def delete_vrf_bgp_af_l2vpn_evpn_vni_route_target(self, name: str, value: str) -> "VrfBgpMixin":
+        """Value is the VNI."""
+        return self.add_delete(self._m().get_bgp_af_l2vpn_evpn_vni(name, value) + ["route-target"])

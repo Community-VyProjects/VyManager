@@ -14,6 +14,7 @@ import {
   AlertCircle,
   ToggleLeft,
   ToggleRight,
+  Loader2,
 } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
@@ -36,6 +37,7 @@ export default function VRFPage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedVrf, setSelectedVrf] = useState<string | null>(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [bindingToAll, setBindingToAll] = useState(false);
 
   const loadData = useCallback(async (refresh = false) => {
     try {
@@ -69,12 +71,15 @@ export default function VRFPage() {
   }, [permissionsLoading]);
 
   const handleToggleBindToAll = async () => {
-    if (!config) return;
+    if (!config || bindingToAll) return;
+    setBindingToAll(true);
     try {
       await vrfService.setBindToAll(!config.bind_to_all);
       await loadData(true);
     } catch {
       // Error handled by loadData
+    } finally {
+      setBindingToAll(false);
     }
   };
 
@@ -247,20 +252,26 @@ export default function VRFPage() {
             {/* Bind to All toggle */}
             <button
               onClick={handleToggleBindToAll}
-              disabled={!canWrite(FeatureGroup.VRF)}
+              disabled={!canWrite(FeatureGroup.VRF) || bindingToAll}
               className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-accent/50 transition-all disabled:opacity-50"
             >
-              {config?.bind_to_all ? (
+              {bindingToAll ? (
+                <Loader2 className="h-4 w-4 text-primary animate-spin" />
+              ) : config?.bind_to_all ? (
                 <ToggleRight className="h-4 w-4 text-primary" />
               ) : (
                 <ToggleLeft className="h-4 w-4 text-muted-foreground" />
               )}
               <span className="text-muted-foreground">Bind to all VRFs</span>
-              {config?.bind_to_all && (
+              {bindingToAll ? (
+                <Badge variant="secondary" className="ml-auto text-[10px]">
+                  applying…
+                </Badge>
+              ) : config?.bind_to_all ? (
                 <Badge variant="secondary" className="ml-auto text-[10px]">
                   on
                 </Badge>
-              )}
+              ) : null}
             </button>
 
             {/* Create VRF button */}

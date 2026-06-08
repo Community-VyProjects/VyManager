@@ -479,6 +479,11 @@ class VrfIsisMixin:
         path = self.mappers["vrf_isis"].get_isis_interface(name, value) + ["password", "plaintext-password"]
         return self.add_delete(path)
 
+    def delete_vrf_isis_interface_password(self, name: str, value: str) -> "VrfIsisMixin":
+        """Delete all password config on an ISIS interface. Value is the interface name."""
+        path = self.mappers["vrf_isis"].get_isis_interface(name, value) + ["password"]
+        return self.add_delete(path)
+
     def set_vrf_isis_interface_priority(self, name: str, value: str) -> "VrfIsisMixin":
         """Set priority on an ISIS interface. Value format: 'iface,priority'."""
         parts = value.split(",", 1)
@@ -1055,6 +1060,16 @@ class VrfIsisMixin:
     # ========================================================================
     # Segment Routing SRv6 Operations
     # ========================================================================
+
+    def set_vrf_isis_segment_routing_prefix(self, name: str, value: str) -> "VrfIsisMixin":
+        """Create a segment-routing prefix node. Value is the prefix."""
+        path = self.mappers["vrf_isis"].get_isis(name) + ["segment-routing", "prefix", value]
+        return self.add_set(path)
+
+    def delete_vrf_isis_segment_routing_prefix(self, name: str, value: str) -> "VrfIsisMixin":
+        """Delete a segment-routing prefix node. Value is the prefix."""
+        path = self.mappers["vrf_isis"].get_isis(name) + ["segment-routing", "prefix", value]
+        return self.add_delete(path)
 
     def set_vrf_isis_segment_routing_srv6_interface(self, name: str, value: str) -> "VrfIsisMixin":
         """Set SRv6 interface. Value is the interface name."""

@@ -1347,6 +1347,10 @@ class VrfOspfMixin:
         """Delete interface null authentication. Value is the interface name."""
         return self.add_delete(self.mappers["vrf_ospf"].get_ospf_interface_authentication_null(name, value))
 
+    def delete_vrf_ospf_interface_authentication(self, name: str, value: str) -> "VrfOspfMixin":
+        """Delete all interface authentication. Value is the interface name."""
+        return self.add_delete(self.mappers["vrf_ospf"].get_ospf_interface(name, value) + ["authentication"])
+
     def set_vrf_ospf_interface_retransmit_window(self, name: str, value: str) -> "VrfOspfMixin":
         """Set interface retransmit-window. Value format: 'iface,window'."""
         parts = value.split(",", 1)

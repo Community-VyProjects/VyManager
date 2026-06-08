@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -11,11 +10,15 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Code, Globe } from "lucide-react";
+import { Code, Globe, Settings2 } from "lucide-react";
 import {
   VrfInstance,
   VrfCapabilities,
 } from "@/lib/api/vrf";
+import { SchemaEditor } from "./schema/SchemaEditor";
+import { OSPFV3_SCHEMA } from "./schema/schemas";
+import { EntityListEditor } from "./schema/EntityListEditor";
+import { OSPFV3_AREA_GROUP, OSPFV3_INTERFACE_GROUP, OSPFV3_REDISTRIBUTE_GROUP } from "./schema/ospfv3Entities";
 
 interface VrfOspfv3TabProps {
   vrf: VrfInstance;
@@ -26,14 +29,36 @@ interface VrfOspfv3TabProps {
 
 export function VrfOspfv3Tab({ vrf, capabilities, canWrite, onRefresh }: VrfOspfv3TabProps) {
   const [rawConfigOpen, setRawConfigOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const ospfv3 = vrf.ospfv3;
+
+  const editor = (
+    <SchemaEditor
+      open={editOpen}
+      onOpenChange={setEditOpen}
+      title={`OSPFv3 Settings — ${vrf.name}`}
+      vrfName={vrf.name}
+      sections={OSPFV3_SCHEMA}
+      rawConfig={ospfv3?.raw_config}
+      capabilities={capabilities}
+      canWrite={canWrite}
+      onSaved={onRefresh}
+    />
+  );
 
   if (!ospfv3 || !ospfv3.configured) {
     return (
       <div className="flex flex-col items-center justify-center py-16">
         <Globe className="h-12 w-12 text-muted-foreground mb-4" />
         <h3 className="text-lg font-semibold mb-2">OSPFv3</h3>
-        <p className="text-sm text-muted-foreground">Coming soon</p>
+        <p className="text-sm text-muted-foreground mb-4">Not configured</p>
+        {canWrite && (
+          <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+            <Settings2 className="h-3.5 w-3.5 mr-1.5" />
+            Configure OSPFv3
+          </Button>
+        )}
+        {editor}
       </div>
     );
   }
@@ -67,59 +92,33 @@ export function VrfOspfv3Tab({ vrf, capabilities, canWrite, onRefresh }: VrfOspf
         </Card>
       </div>
 
-      {ospfv3.areas.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Areas</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {ospfv3.areas.map((area) => (
-                <Badge key={area} variant="secondary" className="font-mono">{area}</Badge>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {[OSPFV3_AREA_GROUP, OSPFV3_INTERFACE_GROUP, OSPFV3_REDISTRIBUTE_GROUP].map((group) => (
+        <EntityListEditor
+          key={group.label}
+          vrfName={vrf.name}
+          group={group}
+          rawParent={ospfv3.raw_config}
+          capabilities={capabilities}
+          canWrite={canWrite}
+          onRefresh={onRefresh}
+        />
+      ))}
 
-      {ospfv3.interfaces.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Interfaces</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {ospfv3.interfaces.map((iface) => (
-                <Badge key={iface} variant="outline" className="font-mono">{iface}</Badge>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {ospfv3.redistribute.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Redistribution</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {ospfv3.redistribute.map((proto) => (
-                <Badge key={proto} variant="secondary">{proto}</Badge>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {ospfv3.raw_config && (
-        <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        {canWrite && (
+          <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+            <Settings2 className="h-3.5 w-3.5 mr-1.5" />
+            Edit Settings
+          </Button>
+        )}
+        {ospfv3.raw_config && (
           <Button variant="outline" size="sm" onClick={() => setRawConfigOpen(true)}>
             <Code className="h-3.5 w-3.5 mr-1.5" />
             View Raw Config
           </Button>
-        </div>
-      )}
+        )}
+      </div>
+      {editor}
 
       <Dialog open={rawConfigOpen} onOpenChange={setRawConfigOpen}>
         <DialogContent className="max-w-2xl max-h-[80vh]">

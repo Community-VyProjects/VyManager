@@ -130,6 +130,7 @@ class VrfRpkiConfig(BaseModel):
     expire_interval: Optional[int] = None
     polling_period: Optional[int] = None
     retry_interval: Optional[int] = None
+    raw_config: Optional[Dict[str, Any]] = None
 
 
 # ============================================================================
@@ -181,6 +182,7 @@ class VrfFailoverRoute(BaseModel):
 class VrfFailoverConfig(BaseModel):
     """Failover configuration within a VRF."""
     routes: List[VrfFailoverRoute] = []
+    raw_config: Optional[Dict[str, Any]] = None
 
 
 # ============================================================================
@@ -580,6 +582,7 @@ def parse_rpki_config(protocols_config: dict) -> Optional[VrfRpkiConfig]:
         expire_interval=int(rpki_config["expire-interval"]) if rpki_config.get("expire-interval") else None,
         polling_period=int(rpki_config["polling-period"]) if rpki_config.get("polling-period") else None,
         retry_interval=int(rpki_config["retry-interval"]) if rpki_config.get("retry-interval") else None,
+        raw_config=rpki_config,
     )
 
 
@@ -653,7 +656,7 @@ def parse_failover_config(protocols_config: dict) -> Optional[VrfFailoverConfig]
             dhcp_interfaces=dhcp_interfaces,
         ))
 
-    return VrfFailoverConfig(routes=routes)
+    return VrfFailoverConfig(routes=routes, raw_config=failover_config)
 
 
 # ============================================================================

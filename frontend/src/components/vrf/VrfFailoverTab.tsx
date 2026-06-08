@@ -1,21 +1,23 @@
 "use client";
 
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Activity } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, Code } from "lucide-react";
 import {
   VrfInstance,
   VrfCapabilities,
-  VrfFailoverRoute,
+  vrfService,
 } from "@/lib/api/vrf";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { FailoverRouteModal } from "./FailoverRouteModal";
 
 interface VrfFailoverTabProps {
   vrf: VrfInstance;
@@ -24,102 +26,126 @@ interface VrfFailoverTabProps {
   onRefresh: () => void;
 }
 
-export function VrfFailoverTab({ vrf, capabilities, canWrite, onRefresh }: VrfFailoverTabProps) {
+type Raw = Record<string, unknown>;
+
+export function VrfFailoverTab({ vrf, canWrite, onRefresh }: VrfFailoverTabProps) {
   const failover = vrf.failover;
+  const routes = failover?.routes ?? [];
+  const routeRawMap = (failover?.raw_config?.route ?? {}) as Raw;
 
-  if (!failover || failover.routes.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16">
-        <h3 className="text-lg font-semibold mb-2">Failover</h3>
-        <p className="text-sm text-muted-foreground">Coming soon</p>
-      </div>
-    );
-  }
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editDest, setEditDest] = useState<string | null>(null);
+  const [rawOpen, setRawOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const getTargets = (route: VrfFailoverRoute): string => {
-    const parts: string[] = [];
-    for (const nh of route.next_hops) {
-      let s = nh.address;
-      if (nh.interface) s += ` via ${nh.interface}`;
-      if (nh.check?.type) s += ` (${nh.check.type})`;
-      parts.push(s);
+  const openAdd = () => {
+    setEditDest(null);
+    setModalOpen(true);
+  };
+  const openEdit = (dest: string) => {
+    setEditDest(dest);
+    setModalOpen(true);
+  };
+
+  const handleDelete = async (dest: string) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const r = await vrfService.batchConfigure([
+        { op: "delete_vrf_failover_route", value: `${vrf.name},${dest}` },
+      ]);
+      if (!r.success) setError(r.error || "Delete failed");
+      else onRefresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Delete failed");
+    } finally {
+      setBusy(false);
     }
-    for (const di of route.dhcp_interfaces) {
-      let s = `dhcp:${di.name}`;
-      if (di.check?.type) s += ` (${di.check.type})`;
-      parts.push(s);
-    }
-    return parts.join("; ") || "—";
   };
 
   return (
     <div className="space-y-6">
-      {/* Summary */}
-      <div className="grid grid-cols-3 gap-4">
-        <Card className="border-0 shadow-none bg-muted/50">
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground mb-1">Failover Routes</p>
-            <p className="text-lg font-semibold">{failover.routes.length}</p>
-          </CardContent>
-        </Card>
-        <Card className="border-0 shadow-none bg-muted/50">
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground mb-1">Total Next-hops</p>
-            <p className="text-lg font-semibold">
-              {failover.routes.reduce((sum, r) => sum + r.next_hops.length, 0)}
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="border-0 shadow-none bg-muted/50">
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground mb-1">DHCP Interfaces</p>
-            <p className="text-lg font-semibold">
-              {failover.routes.reduce((sum, r) => sum + r.dhcp_interfaces.length, 0)}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Routes Table */}
       <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Failover Routes</CardTitle>
+        <CardHeader className="pb-3 flex flex-row items-center justify-between">
+          <CardTitle className="text-base">
+            Failover Routes {routes.length > 0 && <Badge variant="secondary" className="ml-1">{routes.length}</Badge>}
+          </CardTitle>
+          {canWrite && (
+            <Button size="sm" variant="outline" onClick={openAdd} disabled={busy}>
+              <Plus className="h-3.5 w-3.5 mr-1" />
+              Add Route
+            </Button>
+          )}
         </CardHeader>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead>Destination</TableHead>
-                <TableHead>Next-hops</TableHead>
-                <TableHead>DHCP Interfaces</TableHead>
-                <TableHead>Targets</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {failover.routes.map((route) => (
-                <TableRow key={route.destination}>
-                  <TableCell className="font-mono font-medium">
-                    {route.destination}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary" className="text-[10px]">
-                      {route.next_hops.length}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="text-[10px]">
-                      {route.dhcp_interfaces.length}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-sm font-mono max-w-[400px] truncate">
-                    {getTargets(route)}
-                  </TableCell>
-                </TableRow>
+        <CardContent>
+          {error && (
+            <pre className="mb-3 whitespace-pre-wrap break-words rounded-md border border-destructive/50 bg-destructive/10 p-2 text-xs text-destructive">
+              {error}
+            </pre>
+          )}
+          {routes.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-2">No failover routes configured.</p>
+          ) : (
+            <div className="space-y-1.5">
+              {routes.map((route) => (
+                <div key={route.destination} className="flex items-center justify-between rounded-md border px-3 py-2">
+                  <div className="flex items-center gap-3">
+                    <span className="font-mono text-sm">{route.destination}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {route.next_hops.length} next-hop{route.next_hops.length !== 1 ? "s" : ""}
+                      {route.dhcp_interfaces.length > 0 && `, ${route.dhcp_interfaces.length} dhcp-iface`}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button size="sm" variant="ghost" onClick={() => openEdit(route.destination)} disabled={busy}>
+                      <Pencil className="h-3.5 w-3.5 mr-1" />
+                      Edit
+                    </Button>
+                    {canWrite && (
+                      <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDelete(route.destination)} disabled={busy}>
+                        {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                      </Button>
+                    )}
+                  </div>
+                </div>
               ))}
-            </TableBody>
-          </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      {failover?.raw_config && (
+        <div className="flex justify-end">
+          <Button variant="outline" size="sm" onClick={() => setRawOpen(true)}>
+            <Code className="h-3.5 w-3.5 mr-1.5" />
+            View Raw Config
+          </Button>
+        </div>
+      )}
+
+      <FailoverRouteModal
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        vrfName={vrf.name}
+        destination={editDest}
+        routeRaw={editDest ? ((routeRawMap[editDest] as Raw) ?? null) : null}
+        canWrite={canWrite}
+        onSaved={onRefresh}
+      />
+
+      <Dialog open={rawOpen} onOpenChange={setRawOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>Failover Raw Configuration — {vrf.name}</DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="max-h-[60vh]">
+            <pre className="text-xs font-mono bg-muted p-4 rounded-lg overflow-x-auto">
+              {JSON.stringify(failover?.raw_config ?? {}, null, 2)}
+            </pre>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
