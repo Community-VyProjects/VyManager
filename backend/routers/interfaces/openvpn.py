@@ -359,6 +359,12 @@ async def batch_configure(http_request: Request, request: BatchRequest) -> VyOSR
         )
     except HTTPException:
         raise
+    except NotImplementedError as e:
+        logger.info("Unsupported operation '%s' for this VyOS version: %s", op.op, e)
+        raise HTTPException(
+            status_code=400,
+            detail=f"Operation '{op.op}' is not supported on this VyOS version",
+        )
     except Exception:
         logger.exception("Unhandled error in batch_configure")
         raise HTTPException(status_code=500, detail="Internal server error")
