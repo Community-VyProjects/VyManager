@@ -18,8 +18,9 @@ import re
 import httpx
 
 from session_vyos_service import get_session_vyos_service
-from fastapi_permissions import has_permission
+from fastapi_permissions import has_permission, require_read_permission
 from rbac_permissions import FeatureGroup, PermissionLevel
+from system_updates import SystemUpdatesInfo, parse_system_updates
 import logging
 logger = logging.getLogger(__name__)
 
@@ -576,6 +577,33 @@ async def get_available_ethernet_interfaces(request: Request):
     except Exception as e:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+# ========================================================================
+# System Updates (op-mode: show system updates)
+# ========================================================================
+
+
+@router.get("/system-updates", response_model=SystemUpdatesInfo)
+async def get_system_updates(request: Request):
+    """
+    Get available-update info for the active instance via ``show system updates``.
+
+    Requires ``set system update-check url <url>`` to be configured on the box;
+    when it is not, ``configured`` is False and the rest of the fields are empty.
+
+    The reported URL is for display only — VyManager never fetches it.
+    """
+    await require_read_permission(request, FeatureGroup.SYSTEM)
+    service = get_session_vyos_service(request)
+
+    response = service.device.show(path=["system", "updates"])
+    if response.status != 200:
+        # A non-200 here usually means the command is unsupported on this version
+        # or update-check is not configured — surface as "not configured", not 500.
+        return SystemUpdatesInfo(configured=False)
+
+    return parse_system_updates(_extract_show_output(response))
 
 
 # ========================================================================
