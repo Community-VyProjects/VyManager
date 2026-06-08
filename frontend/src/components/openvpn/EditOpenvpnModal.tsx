@@ -105,7 +105,7 @@ export function EditOpenvpnModal({
   const [dataCiphersFallback, setDataCiphersFallback] = useState("");
   const [hash, setHash] = useState("");
 
-  const [tlsCa, setTlsCa] = useState("");
+  const [tlsCas, setTlsCas] = useState<string[]>([]);
   const [tlsCert, setTlsCert] = useState("");
   const [tlsDh, setTlsDh] = useState("");
   const [tlsAuthKey, setTlsAuthKey] = useState("");
@@ -216,7 +216,7 @@ export function EditOpenvpnModal({
     setDataCiphersFallback(i.encryption?.data_ciphers_fallback ?? "");
     setHash(i.hash ?? "");
 
-    setTlsCa(i.tls?.ca_certificate ?? "");
+    setTlsCas(i.tls?.ca_certificates ?? []);
     setTlsCert(i.tls?.certificate ?? "");
     setTlsDh(i.tls?.dh_params ?? "");
     setTlsAuthKey(i.tls?.auth_key ?? "");
@@ -341,7 +341,7 @@ export function EditOpenvpnModal({
     update.shared_secret_key = sharedSecretKey;
 
     update.tls = {
-      ca_certificate: tlsCa,
+      ca_certificates: tlsCas,
       certificate: tlsCert,
       dh_params: tlsDh,
       auth_key: tlsAuthKey,
@@ -801,19 +801,25 @@ export function EditOpenvpnModal({
           <TabsContent value="tls" className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="etlsca">CA Certificate</Label>
-                <Select value={tlsCa} onValueChange={setTlsCa}>
-                  <SelectTrigger id="etlsca">
-                    <SelectValue placeholder="Select CA" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {pki?.ca.map((c) => (
-                      <SelectItem key={c.name} value={c.name}>
-                        {c.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label>CA Certificate(s)</Label>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Select one or more CAs (e.g. an intermediate CA chain).
+                </p>
+                <div className="grid grid-cols-2 gap-2 rounded-md border p-3">
+                  {pki?.ca.map((c) => (
+                    <label key={c.name} className="flex items-center gap-2 text-sm">
+                      <Checkbox
+                        checked={tlsCas.includes(c.name)}
+                        onCheckedChange={(v) =>
+                          setTlsCas(
+                            v ? [...tlsCas, c.name] : tlsCas.filter((x) => x !== c.name),
+                          )
+                        }
+                      />
+                      <span>{c.name}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
               <div>
                 <Label htmlFor="etlscert">Certificate</Label>

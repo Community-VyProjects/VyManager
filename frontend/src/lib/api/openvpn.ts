@@ -32,7 +32,7 @@ export interface OpenvpnEncryption {
 
 export interface OpenvpnTls {
   auth_key: string | null;
-  ca_certificate: string | null;
+  ca_certificates: string[];
   certificate: string | null;
   crypt_key: string | null;
   dh_params: string | null;
@@ -224,7 +224,7 @@ export interface OpenvpnCreateConfig {
   hash?: string;
   tls?: {
     auth_key?: string;
-    ca_certificate?: string;
+    ca_certificates?: string[];
     certificate?: string;
     crypt_key?: string;
     dh_params?: string;
@@ -355,7 +355,11 @@ function buildInterfaceOps(
 
   if (config.tls) {
     if (config.tls.auth_key) ops.push({ op: "set_tls_auth_key", value: config.tls.auth_key });
-    if (config.tls.ca_certificate) ops.push({ op: "set_tls_ca_certificate", value: config.tls.ca_certificate });
+    if (config.tls.ca_certificates) {
+      for (const ca of config.tls.ca_certificates) {
+        ops.push({ op: "set_tls_ca_certificate", value: ca });
+      }
+    }
     if (config.tls.certificate) ops.push({ op: "set_tls_certificate", value: config.tls.certificate });
     if (config.tls.crypt_key) ops.push({ op: "set_tls_crypt_key", value: config.tls.crypt_key });
     if (config.tls.dh_params) ops.push({ op: "set_tls_dh_params", value: config.tls.dh_params });
@@ -657,9 +661,14 @@ class OpenvpnService {
         if (updated.tls.auth_key) ops.push({ op: "set_tls_auth_key", value: updated.tls.auth_key });
         else ops.push({ op: "delete_tls_auth_key" });
       }
-      if (updated.tls.ca_certificate !== undefined) {
-        if (updated.tls.ca_certificate) ops.push({ op: "set_tls_ca_certificate", value: updated.tls.ca_certificate });
-        else ops.push({ op: "delete_tls_ca_certificate" });
+      if (updated.tls.ca_certificates !== undefined) {
+        const currentCas = current.tls?.ca_certificates ?? [];
+        for (const old of currentCas) {
+          ops.push({ op: "delete_tls_ca_certificate", value: old });
+        }
+        for (const ca of updated.tls.ca_certificates) {
+          ops.push({ op: "set_tls_ca_certificate", value: ca });
+        }
       }
       if (updated.tls.certificate !== undefined) {
         if (updated.tls.certificate) ops.push({ op: "set_tls_certificate", value: updated.tls.certificate });

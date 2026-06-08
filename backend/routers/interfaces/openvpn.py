@@ -92,7 +92,7 @@ class OpenvpnEncryption(BaseModel):
 
 class OpenvpnTls(BaseModel):
     auth_key: Optional[str] = None
-    ca_certificate: Optional[str] = None
+    ca_certificates: List[str] = Field(default_factory=list)
     certificate: Optional[str] = None
     crypt_key: Optional[str] = None
     dh_params: Optional[str] = None
