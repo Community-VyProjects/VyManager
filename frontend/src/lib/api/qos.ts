@@ -179,7 +179,7 @@ export interface PolicyDraft {
   type: string;
   name: string;
   values: Record<string, string>;
-  flags: string[]; // e.g. "flow-isolation/nat", "flow-isolation/host"
+  flags: string[]; // e.g. "flow-isolation/host", "flow-isolation-nat"
   classes: ClassDraft[];
   default: ClassDraft | null;
   precedences: PrecedenceDraft[];
@@ -295,7 +295,7 @@ export function policyToDraft(p: QoSPolicy): PolicyDraft {
   }
   const flags: string[] = [];
   if (p.flow_isolation) flags.push(`flow-isolation/${p.flow_isolation}`);
-  if (p.flow_isolation_nat) flags.push("flow-isolation/nat");
+  if (p.flow_isolation_nat) flags.push("flow-isolation-nat");
   return {
     type: p.type,
     name: p.name,

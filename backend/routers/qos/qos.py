@@ -444,12 +444,6 @@ def _parse_precedences(raw) -> List[QoSPrecedence]:
     return result
 
 
-def _parse_flow_isolation(raw) -> tuple[Optional[str], bool]:
-    fi = _as_dict(raw)
-    mode = next((m for m in FLOW_ISOLATION_MODES if m in fi), None)
-    return mode, ("nat" in fi)
-
-
 def _parse_policy(ptype: str, name: str, raw) -> QoSPolicy:
     raw = _as_dict(raw)
     policy = QoSPolicy(type=ptype, name=name)
@@ -470,8 +464,11 @@ def _parse_policy(ptype: str, name: str, raw) -> QoSPolicy:
     policy.burst = raw.get("burst")
     policy.latency = raw.get("latency")
 
-    if "flow-isolation" in raw:
-        policy.flow_isolation, policy.flow_isolation_nat = _parse_flow_isolation(raw.get("flow-isolation"))
+    # `flow-isolation` is a leaf node holding a single mode value (e.g.
+    # "src-host"); `flow-isolation-nat` is a separate valueless sibling.
+    fi = raw.get("flow-isolation")
+    policy.flow_isolation = fi if isinstance(fi, str) and fi in FLOW_ISOLATION_MODES else None
+    policy.flow_isolation_nat = "flow-isolation-nat" in raw
 
     classes_raw = _as_dict(raw.get("class"))
     policy.classes = sorted(

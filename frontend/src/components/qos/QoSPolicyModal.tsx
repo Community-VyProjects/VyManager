@@ -83,21 +83,23 @@ export function QoSPolicyModal({
   };
 
   // Flow isolation (cake) ---------------------------------------------------
-  const currentMode = draft.flags.find((fl) => fl.startsWith("flow-isolation/") && fl !== "flow-isolation/nat");
+  // Mode is the leaf `flow-isolation/<mode>`; NAT is the sibling leaf
+  // `flow-isolation-nat` (no slash, so it never matches the mode prefix).
+  const currentMode = draft.flags.find((fl) => fl.startsWith("flow-isolation/"));
   const modeValue = currentMode ? currentMode.split("/")[1] : "";
-  const natOn = draft.flags.includes("flow-isolation/nat");
+  const natOn = draft.flags.includes("flow-isolation-nat");
 
   const setMode = (mode: string) => {
     setDraft((d) => {
-      const flags = d.flags.filter((fl) => !(fl.startsWith("flow-isolation/") && fl !== "flow-isolation/nat"));
+      const flags = d.flags.filter((fl) => !fl.startsWith("flow-isolation/"));
       if (mode) flags.push(`flow-isolation/${mode}`);
       return { ...d, flags };
     });
   };
   const setNat = (on: boolean) => {
     setDraft((d) => {
-      const flags = d.flags.filter((fl) => fl !== "flow-isolation/nat");
-      if (on) flags.push("flow-isolation/nat");
+      const flags = d.flags.filter((fl) => fl !== "flow-isolation-nat");
+      if (on) flags.push("flow-isolation-nat");
       return { ...d, flags };
     });
   };
