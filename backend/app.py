@@ -92,6 +92,7 @@ from routers.dhcpv6_relay import dhcpv6_relay as dhcpv6_relay_router
 from routers.dhcpv6_server import dhcpv6_server as dhcpv6_server_router
 from routers.dns_forwarding import dns_forwarding as dns_forwarding_router
 from routers.dns_dynamic import dns_dynamic as dns_dynamic_router
+from routers.webproxy import webproxy as webproxy_router
 from routers.event_handler import event_handler as event_handler_router
 from routers.https import https as https_router
 from routers.ipoe_server import ipoe_server as ipoe_server_router
@@ -407,6 +408,7 @@ app.include_router(dhcpv6_relay_router.router)
 app.include_router(dhcpv6_server_router.router)
 app.include_router(dns_forwarding_router.router)
 app.include_router(dns_dynamic_router.router)
+app.include_router(webproxy_router.router)
 app.include_router(event_handler_router.router)
 app.include_router(https_router.router)
 app.include_router(ipoe_server_router.router)

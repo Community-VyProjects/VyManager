@@ -85,6 +85,7 @@ class FeatureGroup(str, Enum):
     SNMP = "SNMP"
     SSH = "SSH"
     TFTP_SERVER = "TFTP_SERVER"
+    WEBPROXY = "WEBPROXY"
 
     # QoS (top-level)
     QOS = "QOS"
@@ -199,6 +200,7 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.DHCPV6_SERVER: PermissionLevel.WRITE,
         FeatureGroup.DNS_FORWARDING: PermissionLevel.WRITE,
         FeatureGroup.DNS_DYNAMIC: PermissionLevel.WRITE,
+        FeatureGroup.WEBPROXY: PermissionLevel.WRITE,
         FeatureGroup.HTTPS: PermissionLevel.WRITE,
         FeatureGroup.IPOE_SERVER: PermissionLevel.WRITE,
         FeatureGroup.LLDP: PermissionLevel.WRITE,
@@ -309,6 +311,7 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.DHCPV6_SERVER: PermissionLevel.WRITE,
         FeatureGroup.DNS_FORWARDING: PermissionLevel.WRITE,
         FeatureGroup.DNS_DYNAMIC: PermissionLevel.WRITE,
+        FeatureGroup.WEBPROXY: PermissionLevel.WRITE,
         FeatureGroup.HTTPS: PermissionLevel.WRITE,
         FeatureGroup.IPOE_SERVER: PermissionLevel.WRITE,
         FeatureGroup.LLDP: PermissionLevel.WRITE,
@@ -420,6 +423,7 @@ BUILT_IN_PERMISSIONS: Dict[str, Dict[FeatureGroup, PermissionLevel]] = {
         FeatureGroup.DHCPV6_SERVER: PermissionLevel.READ,
         FeatureGroup.DNS_FORWARDING: PermissionLevel.READ,
         FeatureGroup.DNS_DYNAMIC: PermissionLevel.READ,
+        FeatureGroup.WEBPROXY: PermissionLevel.READ,
         FeatureGroup.HTTPS: PermissionLevel.READ,
         FeatureGroup.IPOE_SERVER: PermissionLevel.READ,
         FeatureGroup.LLDP: PermissionLevel.READ,
@@ -535,6 +539,7 @@ _INSTANCE_ADMIN_FEATURES = [
     FeatureGroup.DHCPV6_SERVER,
     FeatureGroup.DNS_FORWARDING,
     FeatureGroup.DNS_DYNAMIC,
+    FeatureGroup.WEBPROXY,
     FeatureGroup.EVENT_HANDLER,
     FeatureGroup.HTTPS,
     FeatureGroup.IPOE_SERVER,
@@ -704,6 +709,7 @@ async def get_user_permissions(
                 FeatureGroup.DHCPV6_SERVER,
                 FeatureGroup.DNS_FORWARDING,
                 FeatureGroup.DNS_DYNAMIC,
+                FeatureGroup.WEBPROXY,
                 FeatureGroup.EVENT_HANDLER,
                 FeatureGroup.HTTPS,
                 FeatureGroup.IPOE_SERVER,
@@ -1131,7 +1137,7 @@ def _apply_parent_child_permissions(permissions: Dict[FeatureGroup, PermissionLe
     # SERVICE grants permissions to all service features
     service_perm = permissions.get(FeatureGroup.SERVICE, PermissionLevel.NONE)
     if service_perm != PermissionLevel.NONE:
-        for child in [FeatureGroup.BROADCAST_RELAY, FeatureGroup.CONFIG_SYNC, FeatureGroup.CONNTRACK_SYNC, FeatureGroup.CONSOLE_SERVER, FeatureGroup.DHCP_RELAY, FeatureGroup.DHCPV6_RELAY, FeatureGroup.DHCPV6_SERVER, FeatureGroup.DNS_FORWARDING, FeatureGroup.DNS_DYNAMIC, FeatureGroup.EVENT_HANDLER, FeatureGroup.HTTPS, FeatureGroup.IPOE_SERVER, FeatureGroup.LLDP, FeatureGroup.NDP_PROXY, FeatureGroup.NTP, FeatureGroup.ROUTER_ADVERT, FeatureGroup.SALT_MINION, FeatureGroup.SERVICE_MONITORING, FeatureGroup.SLA, FeatureGroup.SNMP, FeatureGroup.SSH, FeatureGroup.TFTP_SERVER, FeatureGroup.DHCP]:
+        for child in [FeatureGroup.BROADCAST_RELAY, FeatureGroup.CONFIG_SYNC, FeatureGroup.CONNTRACK_SYNC, FeatureGroup.CONSOLE_SERVER, FeatureGroup.DHCP_RELAY, FeatureGroup.DHCPV6_RELAY, FeatureGroup.DHCPV6_SERVER, FeatureGroup.DNS_FORWARDING, FeatureGroup.DNS_DYNAMIC, FeatureGroup.EVENT_HANDLER, FeatureGroup.HTTPS, FeatureGroup.IPOE_SERVER, FeatureGroup.LLDP, FeatureGroup.NDP_PROXY, FeatureGroup.NTP, FeatureGroup.ROUTER_ADVERT, FeatureGroup.SALT_MINION, FeatureGroup.SERVICE_MONITORING, FeatureGroup.SLA, FeatureGroup.SNMP, FeatureGroup.SSH, FeatureGroup.TFTP_SERVER, FeatureGroup.WEBPROXY, FeatureGroup.DHCP]:
             current = permissions.get(child, PermissionLevel.NONE)
             if service_perm == PermissionLevel.WRITE:
                 permissions[child] = PermissionLevel.WRITE
