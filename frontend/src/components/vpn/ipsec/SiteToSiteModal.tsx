@@ -85,6 +85,12 @@ export function SiteToSiteModal({
   // Tunnels
   const [tunnels, setTunnels] = useState<TunnelRow[]>([]);
 
+  // VTI
+  const [vtiBind, setVtiBind] = useState("");
+  const [vtiEspGroup, setVtiEspGroup] = useState("");
+  const [vtiTsLocalPrefix, setVtiTsLocalPrefix] = useState("");
+  const [vtiTsRemotePrefix, setVtiTsRemotePrefix] = useState("");
+
   const [allInterfaces, setAllInterfaces] = useState<InterfaceName[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -105,15 +111,16 @@ export function SiteToSiteModal({
         setConnectionType(existingPeer.connection_type || "initiate");
         setDhcpInterface(existingPeer.dhcp_interface || "");
         setForceUdp(existingPeer.force_udp_encapsulation || false);
-        setAuthMode(existingPeer.auth_mode || "pre-shared-secret");
-        setAuthLocalId(existingPeer.auth_local_id || "");
-        setAuthRemoteId(existingPeer.auth_remote_id || "");
-        setAuthX509CaCert(existingPeer.auth_x509_ca_cert || "");
-        setAuthX509Cert(existingPeer.auth_x509_cert || "");
-        setAuthX509Passphrase(existingPeer.auth_x509_passphrase || "");
-        setAuthRsaLocalKey(existingPeer.auth_rsa_local_key || "");
-        setAuthRsaRemoteKey(existingPeer.auth_rsa_remote_key || "");
-        setAuthRsaPassphrase(existingPeer.auth_rsa_passphrase || "");
+        const auth = existingPeer.authentication;
+        setAuthMode(auth?.mode || "pre-shared-secret");
+        setAuthLocalId(auth?.local_id || "");
+        setAuthRemoteId(auth?.remote_id || "");
+        setAuthX509CaCert(auth?.x509?.ca_certificate?.[0] || "");
+        setAuthX509Cert(auth?.x509?.certificate || "");
+        setAuthX509Passphrase(auth?.x509?.passphrase || "");
+        setAuthRsaLocalKey(auth?.rsa?.local_key || "");
+        setAuthRsaRemoteKey(auth?.rsa?.remote_key || "");
+        setAuthRsaPassphrase(auth?.rsa?.passphrase || "");
         setTunnels(
           existingPeer.tunnels.map((t) => ({
             number: t.number,
@@ -123,6 +130,11 @@ export function SiteToSiteModal({
             protocol: t.protocol || "",
           }))
         );
+        const vti = existingPeer.vti;
+        setVtiBind(vti?.bind || "");
+        setVtiEspGroup(vti?.esp_group || "");
+        setVtiTsLocalPrefix((vti?.traffic_selector?.local_prefix || []).join(", "));
+        setVtiTsRemotePrefix((vti?.traffic_selector?.remote_prefix || []).join(", "));
       } else {
         setName("");
         setDescription("");
@@ -143,6 +155,10 @@ export function SiteToSiteModal({
         setAuthRsaRemoteKey("");
         setAuthRsaPassphrase("");
         setTunnels([]);
+        setVtiBind("");
+        setVtiEspGroup("");
+        setVtiTsLocalPrefix("");
+        setVtiTsRemotePrefix("");
       }
       setError(null);
     }
@@ -191,6 +207,14 @@ export function SiteToSiteModal({
         auth_rsa_remote_key: authMode === "rsa" ? (authRsaRemoteKey || undefined) : undefined,
         auth_rsa_passphrase: authMode === "rsa" ? (authRsaPassphrase || undefined) : undefined,
         force_udp_encapsulation: forceUdp || undefined,
+        vti_bind: vtiBind || undefined,
+        vti_esp_group: vtiBind ? (vtiEspGroup || undefined) : undefined,
+        vti_ts_local_prefix: vtiBind
+          ? (vtiTsLocalPrefix.split(",").map((p) => p.trim()).filter(Boolean) || undefined)
+          : undefined,
+        vti_ts_remote_prefix: vtiBind
+          ? (vtiTsRemotePrefix.split(",").map((p) => p.trim()).filter(Boolean) || undefined)
+          : undefined,
       });
 
       if (!result.success) {
@@ -239,10 +263,11 @@ export function SiteToSiteModal({
         </DialogHeader>
 
         <Tabs defaultValue="general" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="general">General</TabsTrigger>
             <TabsTrigger value="auth">Authentication</TabsTrigger>
             <TabsTrigger value="tunnels">Tunnels</TabsTrigger>
+            <TabsTrigger value="vti">VTI</TabsTrigger>
           </TabsList>
 
           <TabsContent value="general" className="space-y-4 mt-4">
@@ -384,7 +409,7 @@ export function SiteToSiteModal({
             </div>
             {tunnels.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground text-sm">
-                No tunnels configured. Add a tunnel or use VTI binding instead.
+                No tunnels configured. Add a tunnel or use VTI binding (see the VTI tab) instead.
               </div>
             ) : (
               tunnels.map((t) => (
@@ -431,6 +456,49 @@ export function SiteToSiteModal({
                 </div>
               ))
             )}
+          </TabsContent>
+
+          <TabsContent value="vti" className="space-y-4 mt-4">
+            <p className="text-xs text-muted-foreground">
+              Bind a Virtual Tunnel Interface (VTI) to this peer for route-based VPN. The interface
+              must already exist under Interfaces &rsaquo; VTI.
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Bound Interface</Label>
+                <Select value={vtiBind || "_none"} onValueChange={(v) => setVtiBind(v === "_none" ? "" : v)}>
+                  <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none">None</SelectItem>
+                    {allInterfaces
+                      .filter((iface) => iface.name.startsWith("vti"))
+                      .map((iface) => <SelectItem key={iface.name} value={iface.name}>{iface.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>ESP Group</Label>
+                <Select value={vtiEspGroup || "_none"} onValueChange={(v) => setVtiEspGroup(v === "_none" ? "" : v)} disabled={!vtiBind}>
+                  <SelectTrigger><SelectValue placeholder="Default" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none">Default</SelectItem>
+                    {espGroups.map((g) => <SelectItem key={g.name} value={g.name}>{g.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Traffic Selector — Local Prefix</Label>
+                <Input value={vtiTsLocalPrefix} onChange={(e) => setVtiTsLocalPrefix(e.target.value)} placeholder="0.0.0.0/0" disabled={!vtiBind} />
+                <p className="text-xs text-muted-foreground">Comma-separated for multiple</p>
+              </div>
+              <div className="space-y-2">
+                <Label>Traffic Selector — Remote Prefix</Label>
+                <Input value={vtiTsRemotePrefix} onChange={(e) => setVtiTsRemotePrefix(e.target.value)} placeholder="0.0.0.0/0" disabled={!vtiBind} />
+                <p className="text-xs text-muted-foreground">Comma-separated for multiple</p>
+              </div>
+            </div>
           </TabsContent>
         </Tabs>
 

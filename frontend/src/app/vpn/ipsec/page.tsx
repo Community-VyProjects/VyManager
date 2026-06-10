@@ -274,6 +274,7 @@ function IPSecPageInner() {
                           <TableHead>Remote Address</TableHead>
                           <TableHead>IKE Group</TableHead>
                           <TableHead>ESP Group</TableHead>
+                          <TableHead>VTI</TableHead>
                           <TableHead>Tunnels</TableHead>
                           <TableHead>Status</TableHead>
                           {hasWrite && <TableHead className="text-right">Actions</TableHead>}
@@ -295,6 +296,13 @@ function IPSecPageInner() {
                             </TableCell>
                             <TableCell>{peer.ike_group || "-"}</TableCell>
                             <TableCell>{peer.default_esp_group || "-"}</TableCell>
+                            <TableCell>
+                              {peer.vti?.bind ? (
+                                <Badge variant="secondary" className="font-mono text-xs">{peer.vti.bind}</Badge>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
                             <TableCell><Badge variant="outline">{peer.tunnels.length}</Badge></TableCell>
                             <TableCell>
                               {peer.disabled ? (
