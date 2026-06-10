@@ -495,7 +495,7 @@ class IPSecMapper:
             for psk_name, psk_data in psk_config.items():
                 result["authentication"]["psk"][psk_name] = {
                     "name": psk_name,
-                    "id": self._normalize_to_list(psk_data.get("id")),
+                    "identities": self._normalize_to_list(psk_data.get("id")),
                     "secret": psk_data.get("secret"),
                     "secret_type": psk_data.get("secret-type"),
                     "dhcp_interface": psk_data.get("dhcp-interface"),

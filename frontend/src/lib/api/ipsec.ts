@@ -50,6 +50,32 @@ export interface S2STunnel {
   protocol?: string | null;
 }
 
+export interface S2SPeerAuth {
+  mode?: string | null;
+  local_id?: string | null;
+  remote_id?: string | null;
+  use_x509_id?: boolean;
+  x509?: {
+    ca_certificate?: string[];
+    certificate?: string | null;
+    passphrase?: string | null;
+  };
+  rsa?: {
+    local_key?: string | null;
+    remote_key?: string | null;
+    passphrase?: string | null;
+  };
+}
+
+export interface S2SPeerVti {
+  bind?: string | null;
+  esp_group?: string | null;
+  traffic_selector?: {
+    local_prefix?: string[];
+    remote_prefix?: string[];
+  };
+}
+
 export interface SiteToSitePeer {
   name: string;
   description?: string | null;
@@ -64,22 +90,9 @@ export interface SiteToSitePeer {
   ikev2_reauth?: boolean;
   replay_window?: string | null;
   virtual_address?: string[];
-  childless?: boolean;
-  auth_mode?: string | null;
-  auth_local_id?: string | null;
-  auth_remote_id?: string | null;
-  auth_use_x509_id?: boolean;
-  auth_x509_ca_cert?: string | null;
-  auth_x509_cert?: string | null;
-  auth_x509_passphrase?: string | null;
-  auth_rsa_local_key?: string | null;
-  auth_rsa_remote_key?: string | null;
-  auth_rsa_passphrase?: string | null;
-  auth_ppk_id?: string | null;
-  auth_ppk_required?: boolean;
+  authentication?: S2SPeerAuth;
   tunnels: S2STunnel[];
-  vti_bind?: string | null;
-  vti_esp_group?: string | null;
+  vti?: S2SPeerVti;
 }
 
 export interface RALocalUser {
@@ -361,6 +374,10 @@ class IPSecService {
     auth_rsa_remote_key?: string;
     auth_rsa_passphrase?: string;
     force_udp_encapsulation?: boolean;
+    vti_bind?: string;
+    vti_esp_group?: string;
+    vti_ts_local_prefix?: string[];
+    vti_ts_remote_prefix?: string[];
   }): Promise<VyOSResponse> {
     const ops: BatchOperation[] = [{ op: "create_s2s_peer" }];
     if (config.description) ops.push({ op: "set_s2s_peer_description", value: config.description });
@@ -384,6 +401,18 @@ class IPSecService {
     if (config.auth_rsa_remote_key) ops.push({ op: "set_s2s_peer_auth_rsa_remote_key", value: config.auth_rsa_remote_key });
     if (config.auth_rsa_passphrase) ops.push({ op: "set_s2s_peer_auth_rsa_passphrase", value: config.auth_rsa_passphrase });
     if (config.force_udp_encapsulation) ops.push({ op: "set_s2s_peer_force_udp_encapsulation" });
+    if (config.vti_bind) ops.push({ op: "set_s2s_peer_vti_bind", value: config.vti_bind });
+    if (config.vti_esp_group) ops.push({ op: "set_s2s_peer_vti_esp_group", value: config.vti_esp_group });
+    if (config.vti_ts_local_prefix) {
+      for (const prefix of config.vti_ts_local_prefix) {
+        ops.push({ op: "set_s2s_peer_vti_ts_local_prefix", value: prefix });
+      }
+    }
+    if (config.vti_ts_remote_prefix) {
+      for (const prefix of config.vti_ts_remote_prefix) {
+        ops.push({ op: "set_s2s_peer_vti_ts_remote_prefix", value: prefix });
+      }
+    }
     return this.batchConfigure(name, ops);
   }
 
