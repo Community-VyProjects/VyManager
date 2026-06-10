@@ -134,6 +134,7 @@ export const navigation: NavItem[] = [
       { title: "SNMP", href: "/service/snmp", requiredPermission: FeatureGroup.SNMP },
       { title: "SSH", href: "/service/ssh", requiredPermission: FeatureGroup.SSH },
       { title: "TFTP Server", href: "/service/tftp-server", requiredPermission: FeatureGroup.TFTP_SERVER },
+      { title: "Web Proxy", href: "/service/webproxy", requiredPermission: FeatureGroup.WEBPROXY },
     ],
   },
   {
