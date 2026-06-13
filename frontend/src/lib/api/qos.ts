@@ -172,9 +172,38 @@ export interface QoSInterfaceStats {
   classes: QoSClassStats[];
 }
 
+export interface QoSCakeTin {
+  name: string;                    // "Bulk", "Best Effort", "Voice", "Tin 0", ...
+  threshold_rate: number | null;   // bits/s
+  sent_bytes: number;
+  sent_packets: number;
+  drops: number;
+  marks: number;
+  backlog_bytes: number;
+}
+
+export interface QoSCakeStats {
+  interface: string;
+  policy_name: string | null;
+  bandwidth: number | null;         // configured shaper rate, bits/s (null = unlimited)
+  diffserv: string | null;          // diffserv3 / besteffort / ...
+  flow_mode: string | null;         // flows / triple-isolate / ...
+  capacity_estimate: number | null; // bits/s
+  memory_used: number | null;       // bytes
+  memory_limit: number | null;      // bytes
+  bytes: number;                     // aggregate counters
+  packets: number;
+  drops: number;
+  overlimits: number;
+  requeues: number;
+  backlog: number;
+  tins: QoSCakeTin[];
+}
+
 export interface QoSStatsResponse {
-  applied: boolean; // false when no QoS is applied to any interface
-  interfaces: QoSInterfaceStats[];
+  applied: boolean;                  // false when no QoS is applied to any interface
+  interfaces: QoSInterfaceStats[];   // shaper / shaper-hfsc policies
+  cake: QoSCakeStats[];              // cake policies
 }
 
 export interface VyOSResponse {

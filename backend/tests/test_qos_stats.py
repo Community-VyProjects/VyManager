@@ -5,7 +5,7 @@ VyOS 1.4.3 box (the HTTP API returns this command as text, not JSON).
 These tests exercise the pure parser only — no VyOS service or builder needed.
 """
 
-from routers.qos.qos import parse_qos_shaper_detail
+from routers.qos.qos import parse_qos_shaper_detail, parse_qos_cake
 
 
 # Captured verbatim from `show qos shaper detail` (4-class shaper on eth3).
@@ -161,3 +161,89 @@ def test_multiple_interfaces_grouped_and_ordered():
     assert res.interfaces[0].classes[0].bytes == 11
     assert res.interfaces[1].policy_name == "POL_B"
     assert res.interfaces[1].classes[0].bytes == 22
+
+
+# ---------------------------------------------------------------------------
+# CAKE — captured verbatim from `show qos cake interface eth3` (diffserv3),
+# with a few counters edited to non-zero to exercise integer parsing.
+# ---------------------------------------------------------------------------
+
+CAKE_DIFFSERV3 = """\
+qdisc cake 1: root refcnt 9 bandwidth 50Mbit diffserv3 flows nonat nowash no-ack-filter split-gso rtt 100ms raw overhead 0
+ Sent 123456 bytes 789 pkt (dropped 4, overlimits 6 requeues 2)
+ backlog 1500b 0p requeues 2
+ memory used: 256Kb of 4Mb
+ capacity estimate: 50Mbit
+ min/max network layer size:        65535 /       0
+ min/max overhead-adjusted size:    65535 /       0
+ average network hdr offset:            0
+
+                   Bulk  Best Effort        Voice
+  thresh       3125Kbit       50Mbit    12500Kbit
+  target         5.81ms          5ms          5ms
+  interval        101ms        100ms        100ms
+  pk_delay          0us          0us          0us
+  av_delay          0us          0us          0us
+  sp_delay          0us          0us          0us
+  backlog            0b          1500b          0b
+  pkts                0          789            0
+  bytes               0       123456            0
+  way_inds            0            0            0
+  way_miss            0            0            0
+  way_cols            0            0            0
+  drops               0            4            0
+  marks               0            3            0
+  ack_drop            0            0            0
+  sp_flows            0            0            0
+  bk_flows            0            0            0
+  un_flows            0            0            0
+  max_len             0            0            0
+  quantum           300         1514          381
+"""
+
+# A non-cake qdisc (e.g. interface running fq_codel, not CAKE).
+NOT_CAKE = "qdisc fq_codel 0: root refcnt 2 limit 10240p flows 1024 quantum 1514\n"
+
+
+def test_parse_cake_qdisc_and_aggregate():
+    res = parse_qos_cake(CAKE_DIFFSERV3, "eth3", "CAKE_PROBE")
+    assert res is not None
+    assert res.interface == "eth3"
+    assert res.policy_name == "CAKE_PROBE"
+    assert res.bandwidth == 50_000_000        # "50Mbit"
+    assert res.diffserv == "diffserv3"
+    assert res.flow_mode == "flows"
+    assert res.capacity_estimate == 50_000_000
+    assert res.memory_used == 256 * 1024      # "256Kb"
+    assert res.memory_limit == 4 * 1024 * 1024  # "4Mb"
+    # Aggregate from the "Sent ..." line.
+    assert res.bytes == 123456
+    assert res.packets == 789
+    assert res.drops == 4
+    assert res.overlimits == 6
+    assert res.requeues == 2
+    assert res.backlog == 1500
+
+
+def test_parse_cake_tins():
+    res = parse_qos_cake(CAKE_DIFFSERV3, "eth3")
+    assert [t.name for t in res.tins] == ["Bulk", "Best Effort", "Voice"]
+
+    be = res.tins[1]  # "Best Effort" carries the non-zero counters
+    assert be.threshold_rate == 50_000_000    # "50Mbit"
+    assert be.sent_bytes == 123456
+    assert be.sent_packets == 789
+    assert be.drops == 4
+    assert be.marks == 3
+    assert be.backlog_bytes == 1500
+
+    assert res.tins[0].sent_bytes == 0        # Bulk
+    assert res.tins[2].sent_bytes == 0        # Voice
+
+
+def test_parse_cake_non_cake_qdisc_returns_none():
+    assert parse_qos_cake(NOT_CAKE, "eth3") is None
+
+
+def test_parse_cake_empty_returns_none():
+    assert parse_qos_cake("", "eth3") is None

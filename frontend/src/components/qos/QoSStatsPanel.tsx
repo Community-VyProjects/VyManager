@@ -25,10 +25,12 @@ import { formatBytes } from "@/lib/utils";
 import {
   QOS_POLL_MS,
   formatBitrate,
+  qosCakeKey,
   qosSampleKey,
   useQoSLiveStats,
 } from "@/hooks/useQoSLiveStats";
 import { QoSInterfaceSelect } from "./QoSInterfaceSelect";
+import { QoSCakeInterfaceView } from "./QoSCakeInterfaceView";
 
 function classRowLabel(c: QoSClassStats): string {
   if (c.class_name === "root") return "root";
@@ -65,18 +67,27 @@ export function QoSStatsPanel() {
     );
   }
 
-  const applied = stats?.applied && stats.interfaces.length > 0;
-  const availableIfaces = stats?.interfaces.map((i) => i.interface) ?? [];
+  const shaperIfaces = stats?.interfaces ?? [];
+  const cakeIfaces = stats?.cake ?? [];
+  const applied = !!stats?.applied && (shaperIfaces.length > 0 || cakeIfaces.length > 0);
+  const availableIfaces = [
+    ...shaperIfaces.map((i) => i.interface),
+    ...cakeIfaces.map((c) => c.interface),
+  ];
   const stale = !!selected && availableIfaces.length > 0 && !availableIfaces.includes(selected);
   const effectiveSelected = selected && !stale ? selected : "";
   const shownInterfaces = effectiveSelected
-    ? (stats?.interfaces ?? []).filter((i) => i.interface === effectiveSelected)
-    : stats?.interfaces ?? [];
+    ? shaperIfaces.filter((i) => i.interface === effectiveSelected)
+    : shaperIfaces;
+  const shownCake = effectiveSelected
+    ? cakeIfaces.filter((c) => c.interface === effectiveSelected)
+    : cakeIfaces;
 
   return (
     <div className="space-y-4">
-      {/* Toolbar */}
-      <div className="flex items-center justify-between">
+      {/* Toolbar — sticky so the selector/Live stay visible while scrolling.
+          Full-bleed (-mx-6/-mt-4) to cover the page body's p-6 pt-4 padding. */}
+      <div className="sticky top-0 z-10 -mx-6 -mt-4 px-6 pt-4 pb-3 bg-background border-b flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Activity className={`h-4 w-4 ${autoRefresh ? "text-emerald-500" : ""}`} />
           {autoRefresh ? (
@@ -193,6 +204,15 @@ export function QoSStatsPanel() {
           );
         })
       )}
+
+      {/* CAKE interfaces */}
+      {shownCake.map((ck) => (
+        <Card key={`cake-${ck.interface}`}>
+          <CardContent className="p-4">
+            <QoSCakeInterfaceView cake={ck} live={rates[qosCakeKey(ck.interface)] ?? 0} />
+          </CardContent>
+        </Card>
+      ))}
     </div>
   );
 }

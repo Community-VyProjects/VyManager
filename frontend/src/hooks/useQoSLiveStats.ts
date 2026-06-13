@@ -8,6 +8,9 @@ export const QOS_POLL_MS = 2000;
 /** Stable key for a class's sample/rate, scoped to its interface. */
 export const qosSampleKey = (iface: string, cls: string) => `${iface}::${cls}`;
 
+/** Rate key for a CAKE interface's aggregate bandwidth. */
+export const qosCakeKey = (iface: string) => `cake::${iface}`;
+
 /** Format a bits-per-second value, e.g. 1_500_000 -> "1.5 Mbps". */
 export function formatBitrate(bps: number): string {
   if (!isFinite(bps) || bps <= 0) return "0 bps";
@@ -52,17 +55,25 @@ export function useQoSLiveStats(active: boolean): QoSLiveStats {
       const nextSamples: Record<string, { bytes: number; ts: number }> = {};
       const nextRates: Record<string, number> = {};
 
+      const sample = (key: string, bytes: number) => {
+        const prev = prevRef.current[key];
+        if (prev && now > prev.ts) {
+          const deltaBytes = bytes - prev.bytes;
+          // Negative delta = counter reset (policy reapplied); treat as 0.
+          nextRates[key] = deltaBytes > 0 ? (deltaBytes * 8) / ((now - prev.ts) / 1000) : 0;
+        }
+        nextSamples[key] = { bytes, ts: now };
+      };
+
+      // Shaper: per-class rates.
       for (const iface of res.interfaces) {
         for (const c of iface.classes) {
-          const key = qosSampleKey(iface.interface, c.class_name);
-          const prev = prevRef.current[key];
-          if (prev && now > prev.ts) {
-            const deltaBytes = c.bytes - prev.bytes;
-            // Negative delta = counter reset (policy reapplied); treat as 0.
-            nextRates[key] = deltaBytes > 0 ? (deltaBytes * 8) / ((now - prev.ts) / 1000) : 0;
-          }
-          nextSamples[key] = { bytes: c.bytes, ts: now };
+          sample(qosSampleKey(iface.interface, c.class_name), c.bytes);
         }
+      }
+      // CAKE: aggregate per-interface rate (single qdisc, no per-class bytes).
+      for (const ck of res.cake ?? []) {
+        sample(qosCakeKey(ck.interface), ck.bytes);
       }
 
       prevRef.current = nextSamples;

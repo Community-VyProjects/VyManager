@@ -22,8 +22,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { QoSClassStats } from "@/lib/api/qos";
 import { formatBytes } from "@/lib/utils";
-import { formatBitrate, qosSampleKey, useQoSLiveStats } from "@/hooks/useQoSLiveStats";
+import { formatBitrate, qosCakeKey, qosSampleKey, useQoSLiveStats } from "@/hooks/useQoSLiveStats";
 import { QoSInterfaceSelect } from "@/components/qos/QoSInterfaceSelect";
+import { QoSCakeInterfaceView } from "@/components/qos/QoSCakeInterfaceView";
 
 interface QoSStatsCardProps {
   onRemove?: () => void;
@@ -44,14 +45,22 @@ export function QoSStatsCard({ onRemove, span = 1, onSpanChange, config, onConfi
   const [selected, setSelected] = useState<string>(() => (config?.interface as string) || "");
   const { stats, rates, loading, error } = useQoSLiveStats(autoRefresh);
 
-  const applied = stats?.applied && stats.interfaces.length > 0;
-  const availableIfaces = stats?.interfaces.map((i) => i.interface) ?? [];
+  const shaperIfaces = stats?.interfaces ?? [];
+  const cakeIfaces = stats?.cake ?? [];
+  const applied = !!stats?.applied && (shaperIfaces.length > 0 || cakeIfaces.length > 0);
+  const availableIfaces = [
+    ...shaperIfaces.map((i) => i.interface),
+    ...cakeIfaces.map((c) => c.interface),
+  ];
   // Fall back to "all" if the saved interface no longer has QoS applied.
   const stale = !!selected && availableIfaces.length > 0 && !availableIfaces.includes(selected);
   const effectiveSelected = selected && !stale ? selected : "";
   const shownInterfaces = effectiveSelected
-    ? (stats?.interfaces ?? []).filter((i) => i.interface === effectiveSelected)
-    : stats?.interfaces ?? [];
+    ? shaperIfaces.filter((i) => i.interface === effectiveSelected)
+    : shaperIfaces;
+  const shownCake = effectiveSelected
+    ? cakeIfaces.filter((c) => c.interface === effectiveSelected)
+    : cakeIfaces;
 
   const handleSelect = (value: string) => {
     setSelected(value);
@@ -191,6 +200,13 @@ export function QoSStatsCard({ onRemove, span = 1, onSpanChange, config, onConfi
                 </div>
               );
             })}
+
+            {/* CAKE interfaces */}
+            {shownCake.map((ck) => (
+              <div key={`cake-${ck.interface}`} className="border-b last:border-0 p-3">
+                <QoSCakeInterfaceView cake={ck} live={rates[qosCakeKey(ck.interface)] ?? 0} />
+              </div>
+            ))}
           </div>
         )}
       </CardContent>
