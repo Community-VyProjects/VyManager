@@ -30,7 +30,7 @@ export interface MatchConditions {
   
   // Protocol
   protocol?: string | null;
-  tcp_flags?: string | null;
+  tcp_flags?: string[] | null; // e.g. ["syn", "not fin"]
   
   // ICMP (IPv4)
   icmp_code?: string | null;
@@ -344,6 +344,9 @@ class RouteService {
       log?: string;
       match?: Partial<MatchConditions>;
       set?: Partial<SetActions>;
+      // The rule's current match conditions, used to clean up additive nodes
+      // (e.g. TCP flags) that delete_match does not cover.
+      originalMatch?: Partial<MatchConditions>;
     }
   ): Promise<VyOSResponse> {
     const operations: RouteBatchOperation[] = [];
@@ -351,6 +354,18 @@ class RouteService {
     // Delete existing match and set (clean slate approach)
     operations.push({ op: "delete_match" });
     operations.push({ op: "delete_set" });
+
+    // delete_match only clears source/destination, so additive nodes that aren't
+    // overwritten by a later set must be cleared explicitly. These are valueless
+    // child nodes (e.g. TCP flags, connection states), so a removed entry would
+    // otherwise linger. Only delete when the node actually exists, to avoid
+    // VyOS 1.5 erroring on a non-existent path.
+    if (config.originalMatch?.tcp_flags && config.originalMatch.tcp_flags.length > 0) {
+      operations.push({ op: "delete_match_tcp_flags" });
+    }
+    if (config.originalMatch?.state) {
+      operations.push({ op: "delete_match_state" });
+    }
 
     // Basic config - Description
     if (config.description !== undefined) {
@@ -442,7 +457,11 @@ class RouteService {
     
     // Protocol
     if (match.protocol) operations.push({ op: "set_match_protocol", value: match.protocol });
-    if (match.tcp_flags) operations.push({ op: "set_match_tcp_flags", value: match.tcp_flags });
+    if (match.tcp_flags) {
+      for (const flag of match.tcp_flags) {
+        if (flag) operations.push({ op: "set_match_tcp_flags", value: flag });
+      }
+    }
     
     // ICMP (IPv4)
     if (match.icmp_code) operations.push({ op: "set_match_icmp_code", value: match.icmp_code });

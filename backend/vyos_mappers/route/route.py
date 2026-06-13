@@ -144,9 +144,18 @@ class RouteMapper(BaseFeatureMapper):
         """Match protocol."""
         return ["policy", policy_type, name, "rule", rule, "protocol", protocol]
 
-    def get_match_tcp_flags(self, policy_type: str, name: str, rule: str, flags: str) -> List[str]:
-        """Match TCP flags."""
-        return ["policy", policy_type, name, "rule", rule, "tcp", "flags", flags]
+    def get_match_tcp_flags(self, policy_type: str, name: str, rule: str, flag: str) -> List[str]:
+        """Match a TCP flag.
+
+        Flags are valueless child nodes, so ``flag`` is a single flag name
+        ("syn") or an inverted flag ("not syn"). VyOS expects:
+        set policy <type> <name> rule <n> tcp flags [not] <flag>
+        """
+        return ["policy", policy_type, name, "rule", rule, "tcp", "flags"] + flag.split()
+
+    def get_match_tcp_flags_delete(self, policy_type: str, name: str, rule: str) -> List[str]:
+        """Delete all matched TCP flags for a rule."""
+        return ["policy", policy_type, name, "rule", rule, "tcp", "flags"]
 
     # ========================================================================
     # Match Conditions - ICMP (IPv4)
@@ -227,6 +236,10 @@ class RouteMapper(BaseFeatureMapper):
     def get_match_state(self, policy_type: str, name: str, rule: str, state: str) -> List[str]:
         """Match connection state."""
         return ["policy", policy_type, name, "rule", rule, "state", state]
+
+    def get_match_state_delete(self, policy_type: str, name: str, rule: str) -> List[str]:
+        """Delete all matched connection states for a rule."""
+        return ["policy", policy_type, name, "rule", rule, "state"]
 
     def get_match_ipsec(self, policy_type: str, name: str, rule: str, value: str) -> List[str]:
         """Match IPsec (match-ipsec or match-none)."""
