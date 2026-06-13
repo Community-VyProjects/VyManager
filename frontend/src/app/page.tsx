@@ -14,6 +14,7 @@ import { InterfaceStatisticsCard } from "@/components/dashboard/InterfaceStatist
 import { SystemInfoCard } from "@/components/dashboard/SystemInfoCard";
 import { WireGuardPeersCard } from "@/components/dashboard/WireGuardPeersCard";
 import { NetworkSpeedCard } from "@/components/dashboard/NetworkSpeedCard";
+import { QoSStatsCard } from "@/components/dashboard/QoSStatsCard";
 import { AddCardModal } from "@/components/dashboard/AddCardModal";
 import {
   DndContext,
@@ -355,6 +356,9 @@ export default function Home() {
     if (cardType === "network-speed") {
       defaultSpan = 2;
     }
+    if (cardType === "qos-statistics") {
+      defaultSpan = 2;
+    }
     // system-info defaults to 1 column (already set above)
 
     // New cards always start at column 0
@@ -476,6 +480,8 @@ export default function Home() {
         return <WireGuardPeersCard {...baseProps} />;
       case "network-speed":
         return <NetworkSpeedCard {...baseProps} />;
+      case "qos-statistics":
+        return <QoSStatsCard {...baseProps} />;
       default:
         return null;
     }

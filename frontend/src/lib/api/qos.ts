@@ -147,6 +147,36 @@ export interface BatchOperation {
   value?: string | null;
 }
 
+// ----- Live statistics (mirror routers/qos/qos.py, from `show qos shaper detail`) -----
+
+export interface QoSClassStats {
+  class_name: string;          // "root", "default", or a class id like "10"
+  queue_type: string | null;   // htb, fq_codel, sfq, ...
+  direction: string | null;    // egress / ingress
+  bandwidth: number | null;    // configured rate, bits/s
+  ceiling: number | null;      // max bandwidth (ceil), bits/s
+  bytes: number;
+  packets: number;
+  drops: number;
+  queued: number;
+  overlimits: number;
+  requeues: number;
+  lended: number;
+  borrowed: number;
+  giants: number;
+}
+
+export interface QoSInterfaceStats {
+  interface: string;
+  policy_name: string | null;
+  classes: QoSClassStats[];
+}
+
+export interface QoSStatsResponse {
+  applied: boolean; // false when no QoS is applied to any interface
+  interfaces: QoSInterfaceStats[];
+}
+
 export interface VyOSResponse {
   success: boolean;
   data?: Record<string, unknown> | null;
@@ -343,6 +373,11 @@ class QoSService {
 
   async getConfig(refresh = false): Promise<QoSConfig> {
     return apiClient.get<QoSConfig>("/vyos/qos/config", { refresh: refresh.toString() });
+  }
+
+  /** Live per-class shaper counters (sampled; poll for real-time bandwidth). */
+  async getStats(): Promise<QoSStatsResponse> {
+    return apiClient.get<QoSStatsResponse>("/vyos/qos/stats");
   }
 
   private async batch(operations: BatchOperation[]): Promise<VyOSResponse> {

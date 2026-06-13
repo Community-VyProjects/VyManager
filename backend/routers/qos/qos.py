@@ -22,6 +22,7 @@ from fastapi_permissions import require_read_permission, require_write_permissio
 from rbac_permissions import FeatureGroup
 import inspect
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -182,6 +183,39 @@ class VyOSResponse(BaseModel):
     error: Optional[str] = None
 
 
+# ----- Live statistics (parsed from `show qos shaper detail`) -----
+
+
+class QoSClassStats(BaseModel):
+    """Per-class shaper counters for one traffic class on one interface."""
+    class_name: str                     # "root", "default", or a class id like "10"
+    queue_type: Optional[str] = None    # htb, fq_codel, sfq, ...
+    direction: Optional[str] = None     # egress / ingress
+    bandwidth: Optional[int] = None     # configured rate, bits/s
+    ceiling: Optional[int] = None       # max bandwidth (ceil), bits/s
+    bytes: int = 0
+    packets: int = 0
+    drops: int = 0
+    queued: int = 0
+    overlimits: int = 0
+    requeues: int = 0
+    lended: int = 0
+    borrowed: int = 0
+    giants: int = 0
+
+
+class QoSInterfaceStats(BaseModel):
+    interface: str
+    policy_name: Optional[str] = None
+    classes: List[QoSClassStats] = []
+
+
+class QoSStatsResponse(BaseModel):
+    # False when VyOS reports "QoS is not applied to any interface!"
+    applied: bool = True
+    interfaces: List[QoSInterfaceStats] = []
+
+
 # ============================================================================
 # Internal builder method denylist
 # ============================================================================
@@ -320,6 +354,133 @@ async def qos_batch_configure(http_request: Request, body: QoSBatchRequest):
         raise HTTPException(status_code=400, detail=f"Unknown operation: {e}")
     except Exception:
         logger.exception("Unhandled error in qos_batch_configure")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+# ============================================================================
+# Endpoint 4: Live statistics
+# ============================================================================
+
+
+# Pipe-form key (in `show qos shaper detail`) -> QoSClassStats integer field.
+_STATS_INT_FIELDS = {
+    "Bandwidth": "bandwidth",
+    "Max. BW": "ceiling",
+    "Bytes": "bytes",
+    "Packets": "packets",
+    "Drops": "drops",
+    "Queued": "queued",
+    "Overlimit": "overlimits",
+    "Requeue": "requeues",
+    "Lended": "lended",
+    "Borrowed": "borrowed",
+    "Giants": "giants",
+}
+
+
+def parse_qos_shaper_detail(output: str) -> QoSStatsResponse:
+    """Parse ``show qos shaper detail`` text into per-interface/per-class stats.
+
+    The VyOS HTTP API returns this op-mode command as plain text (the structured
+    ``--raw`` JSON is not reachable over the API). The detail output is a series
+    of blank-line-separated blocks; each class block is a list of ``key | value``
+    lines::
+
+         Interface   | eth3
+         Policy Name | VYMGR_PROBE
+         Direction   | egress
+         Class       | 10
+         Type        | fq_codel
+         Bandwidth   | 30000000
+         Bytes       | 12345
+         ...
+
+    Decorative ``-----`` rules and colon-form headers (``Interface: eth3``) are
+    ignored; every value is read from the pipe-form lines, so each class is
+    attributed to its own interface regardless of surrounding headers.
+    """
+    text = output or ""
+    if "not applied" in text.lower():
+        return QoSStatsResponse(applied=False, interfaces=[])
+
+    by_iface: Dict[str, QoSInterfaceStats] = {}
+    order: List[str] = []
+
+    for block in re.split(r"\n\s*\n", text):
+        fields: Dict[str, str] = {}
+        for line in block.splitlines():
+            if "|" not in line:
+                continue
+            key, _, val = line.partition("|")
+            key, val = key.strip(), val.strip()
+            if key:
+                fields[key] = val
+
+        # Only class blocks carry a "Class" key; skip headers / blank blocks.
+        if "Class" not in fields:
+            continue
+        iface = fields.get("Interface")
+        if not iface:
+            continue
+
+        def _to_int(name: str) -> int:
+            try:
+                return int(fields.get(name, "0"))
+            except (TypeError, ValueError):
+                return 0
+
+        stats = QoSClassStats(
+            class_name=fields["Class"],
+            queue_type=fields.get("Type") or None,
+            direction=fields.get("Direction") or None,
+            bandwidth=_to_int("Bandwidth") if "Bandwidth" in fields else None,
+            ceiling=_to_int("Max. BW") if "Max. BW" in fields else None,
+            **{field: _to_int(key) for key, field in _STATS_INT_FIELDS.items()
+               if field not in ("bandwidth", "ceiling")},
+        )
+
+        if iface not in by_iface:
+            by_iface[iface] = QoSInterfaceStats(
+                interface=iface,
+                policy_name=fields.get("Policy Name") or None,
+                classes=[],
+            )
+            order.append(iface)
+        by_iface[iface].classes.append(stats)
+
+    interfaces = [by_iface[name] for name in order]
+    return QoSStatsResponse(applied=bool(interfaces), interfaces=interfaces)
+
+
+@router.get("/stats", response_model=QoSStatsResponse)
+async def get_qos_stats(http_request: Request):
+    """Return live per-class QoS shaper counters.
+
+    Sources op-mode ``show qos shaper detail`` (returned by the API as text) and
+    parses it into per-interface/per-class statistics. Real-time bandwidth is
+    derived client-side from byte deltas between successive samples.
+    """
+    await require_read_permission(http_request, FeatureGroup.QOS)
+    try:
+        service = get_session_vyos_service(http_request)
+        response = await run_in_threadpool(
+            service.device.show, path=["qos", "shaper", "detail"]
+        )
+        # A non-200 typically means the command is unsupported or no policy is
+        # applied — surface as "not applied", not a 500.
+        if getattr(response, "status", None) != 200:
+            return QoSStatsResponse(applied=False, interfaces=[])
+
+        result = response.result
+        if isinstance(result, dict):
+            text = result.get("data") or ""
+        elif isinstance(result, str):
+            text = result
+        else:
+            text = ""
+        return parse_qos_shaper_detail(text)
+    except Exception:
+        logger.exception("Unhandled error in get_qos_stats")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
