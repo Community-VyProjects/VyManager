@@ -66,7 +66,9 @@ class MatchConditions(BaseModel):
     
     # Protocol
     protocol: Optional[str] = None
-    tcp_flags: Optional[str] = None
+    # TCP flags are valueless child nodes in VyOS (e.g. "syn", "not fin"),
+    # so this is a normalized list like ["syn", "not fin"], matching the firewall.
+    tcp_flags: Optional[List[str]] = None
     
     # ICMP (IPv4)
     icmp_code: Optional[str] = None
@@ -390,13 +392,23 @@ def parse_match_conditions(rule_data: dict, match: MatchConditions):
     else:
         match.protocol = protocol_value
 
-    # TCP
+    # TCP flags (valueless child nodes: {"syn": {}, "not": {"fin": {}, "rst": {}}})
     if "tcp" in rule_data:
-        tcp_flags_value = rule_data["tcp"].get("flags")
-        if isinstance(tcp_flags_value, list):
-            match.tcp_flags = tcp_flags_value[0] if tcp_flags_value else None
-        else:
-            match.tcp_flags = tcp_flags_value
+        flags_data = rule_data["tcp"].get("flags")
+        tcp_flags: List[str] = []
+        if isinstance(flags_data, dict):
+            for flag_key, flag_value in flags_data.items():
+                if flag_key == "not":
+                    if isinstance(flag_value, dict):
+                        for inverted_flag in flag_value.keys():
+                            tcp_flags.append(f"not {inverted_flag}")
+                else:
+                    tcp_flags.append(flag_key)
+        elif isinstance(flags_data, list):
+            tcp_flags = flags_data
+        elif isinstance(flags_data, str):
+            tcp_flags = [flags_data]
+        match.tcp_flags = tcp_flags if tcp_flags else None
 
     # ICMP (IPv4)
     if "icmp" in rule_data:
@@ -830,13 +842,18 @@ def _recreate_match_conditions(builder, policy_type: str, policy_name: str, rule
         if proto:
             builder.set_match_protocol(policy_type, policy_name, rule_num, proto)
 
-    # TCP
-    if "tcp" in rule_data:
-        tcp = rule_data["tcp"]
-        if "flags" in tcp:
-            flags = _get_value(tcp, "flags")
-            if flags:
-                builder.set_match_tcp_flags(policy_type, policy_name, rule_num, flags)
+    # TCP flags (valueless child nodes; recreate each flag individually)
+    if "tcp" in rule_data and "flags" in rule_data["tcp"]:
+        flags_data = rule_data["tcp"]["flags"]
+        if isinstance(flags_data, dict):
+            for flag_key, flag_value in flags_data.items():
+                if flag_key == "not" and isinstance(flag_value, dict):
+                    for inverted_flag in flag_value.keys():
+                        builder.set_match_tcp_flags(policy_type, policy_name, rule_num, f"not {inverted_flag}")
+                else:
+                    builder.set_match_tcp_flags(policy_type, policy_name, rule_num, flag_key)
+        elif isinstance(flags_data, str) and flags_data:
+            builder.set_match_tcp_flags(policy_type, policy_name, rule_num, flags_data)
 
     # ICMP
     if "icmp" in rule_data:

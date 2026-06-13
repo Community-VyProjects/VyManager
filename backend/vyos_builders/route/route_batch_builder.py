@@ -223,9 +223,14 @@ class RouteBatchBuilder:
         return self.add_set(path)
 
     def set_match_tcp_flags(self, policy_type: str, name: str, rule: str, flags: str) -> "RouteBatchBuilder":
-        """Match TCP flags."""
+        """Match a TCP flag ("syn" or "not syn"). Call once per flag."""
         path = self.mappers[self.mapper_key].get_match_tcp_flags(policy_type, name, rule, flags)
         return self.add_set(path)
+
+    def delete_match_tcp_flags(self, policy_type: str, name: str, rule: str) -> "RouteBatchBuilder":
+        """Delete all matched TCP flags for a rule."""
+        path = self.mappers[self.mapper_key].get_match_tcp_flags_delete(policy_type, name, rule)
+        return self.add_delete(path)
 
     # ========================================================================
     # Match - ICMP (IPv4)
@@ -319,6 +324,11 @@ class RouteBatchBuilder:
         """Match connection state."""
         path = self.mappers[self.mapper_key].get_match_state(policy_type, name, rule, state)
         return self.add_set(path)
+
+    def delete_match_state(self, policy_type: str, name: str, rule: str) -> "RouteBatchBuilder":
+        """Delete all matched connection states for a rule."""
+        path = self.mappers[self.mapper_key].get_match_state_delete(policy_type, name, rule)
+        return self.add_delete(path)
 
     def set_match_ipsec(self, policy_type: str, name: str, rule: str, value: str) -> "RouteBatchBuilder":
         """Match IPsec."""

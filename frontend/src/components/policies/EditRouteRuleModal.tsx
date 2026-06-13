@@ -339,7 +339,7 @@ export function EditRouteRuleModal({
 
     // Match - Protocol
     setProtocol(match.protocol || "");
-    setTcpFlags(match.tcp_flags ? match.tcp_flags.split(",") : []);
+    setTcpFlags(match.tcp_flags ?? []);
 
     // Match - ICMP
     setIcmpType(match.icmp_type || "");
@@ -483,7 +483,7 @@ export function EditRouteRuleModal({
 
       // Match - Protocol
       if (protocol && protocol !== "all") match.protocol = protocol;
-      if (tcpFlags.length > 0) match.tcp_flags = tcpFlags.join(",");
+      if (tcpFlags.length > 0) match.tcp_flags = tcpFlags;
 
       // Match - ICMP
       if (policyType === "route") {
@@ -561,6 +561,7 @@ export function EditRouteRuleModal({
         log: log ? "true" : undefined,
         match: Object.keys(match).length > 0 ? match : undefined,
         set: Object.keys(set).length > 0 ? set : undefined,
+        originalMatch: rule.match,
       });
 
       handleClose();

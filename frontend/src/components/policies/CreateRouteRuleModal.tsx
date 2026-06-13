@@ -270,7 +270,7 @@ export function CreateRouteRuleModal({
 
       // Match - Protocol
       if (protocol && protocol !== "all") match.protocol = protocol;
-      if (tcpFlags.length > 0) match.tcp_flags = tcpFlags.join(",");
+      if (tcpFlags.length > 0) match.tcp_flags = tcpFlags;
 
       // Match - ICMP
       if (policyType === "route") {
