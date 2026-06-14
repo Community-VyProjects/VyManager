@@ -22,7 +22,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { QoSClassStats } from "@/lib/api/qos";
 import { formatBytes } from "@/lib/utils";
-import { formatBitrate, qosCakeKey, qosSampleKey, useQoSLiveStats } from "@/hooks/useQoSLiveStats";
+import { formatBitrate, qosCakeKey, qosSampleKey, useQoSRates } from "@/hooks/useQoSRates";
+import { useDashboardData } from "@/contexts/DashboardDataContext";
 import { QoSInterfaceSelect } from "@/components/qos/QoSInterfaceSelect";
 import { QoSCakeInterfaceView } from "@/components/qos/QoSCakeInterfaceView";
 
@@ -43,7 +44,11 @@ export function QoSStatsCard({ onRemove, span = 1, onSpanChange, config, onConfi
   const [autoRefresh, setAutoRefresh] = useState(true);
   // Watched interface; "" = all. Seeded from saved card config, editable live.
   const [selected, setSelected] = useState<string>(() => (config?.interface as string) || "");
-  const { stats, rates, loading, error } = useQoSLiveStats(autoRefresh);
+  // QoS rides the shared dashboard SSE stream (same call as interface counters).
+  const { status: sseStatus, data: sseData } = useDashboardData();
+  const { stats, rates } = useQoSRates(sseData.qosStats, autoRefresh);
+  const loading = stats === null;
+  const error = sseStatus === "error" ? "Dashboard stream disconnected" : null;
 
   const shaperIfaces = stats?.interfaces ?? [];
   const cakeIfaces = stats?.cake ?? [];
@@ -86,9 +91,9 @@ export function QoSStatsCard({ onRemove, span = 1, onSpanChange, config, onConfi
             variant={autoRefresh ? "default" : "outline"}
             size="sm"
             onClick={() => setAutoRefresh((v) => !v)}
-            title={autoRefresh ? "Polling every 2s" : "Paused"}
+            title={autoRefresh ? `Live via dashboard stream (${sseStatus})` : "Paused"}
           >
-            <RefreshCw className={`h-4 w-4 mr-1 ${autoRefresh ? "animate-spin" : ""}`} />
+            <RefreshCw className={`h-4 w-4 mr-1 ${autoRefresh && sseStatus === "connected" ? "animate-spin" : ""}`} />
             {autoRefresh ? "Live" : "Paused"}
           </Button>
           {onSpanChange && (

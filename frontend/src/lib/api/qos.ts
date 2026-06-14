@@ -404,11 +404,6 @@ class QoSService {
     return apiClient.get<QoSConfig>("/vyos/qos/config", { refresh: refresh.toString() });
   }
 
-  /** Live per-class shaper counters (sampled; poll for real-time bandwidth). */
-  async getStats(): Promise<QoSStatsResponse> {
-    return apiClient.get<QoSStatsResponse>("/vyos/qos/stats");
-  }
-
   private async batch(operations: BatchOperation[]): Promise<VyOSResponse> {
     const result = await apiClient.post<VyOSResponse>("/vyos/qos/batch", { operations });
     if (!result.success) throw new Error(result.error || "Operation failed");
