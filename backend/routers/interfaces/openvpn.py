@@ -5,10 +5,13 @@ All OpenVPN interface endpoints for VyOS configuration.
 OpenVPN provides secure tunneling with site-to-site, client, and server modes.
 """
 
+import base64
 import inspect
 import logging
 from typing import Dict, List, Optional, Any
 
+from cryptography import x509
+from cryptography.x509.oid import NameOID
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field, ConfigDict
 from starlette.concurrency import run_in_threadpool
@@ -245,6 +248,37 @@ class OpenvpnInterfacesConfigResponse(BaseModel):
     total: int = 0
 
 
+class OpenvpnClientExportRequest(BaseModel):
+    interface: str = Field(..., description="Server-mode OpenVPN interface (e.g. vtun0)")
+    ca: Optional[str] = Field(None, description="PKI CA name; defaults to the server's tls ca-certificate")
+    certificate: str = Field(..., description="PKI certificate name issued to the client")
+    key: Optional[str] = Field(None, description="PKI certificate key name; defaults to the certificate name")
+    remote_host: Optional[str] = Field(None, description="Public address/hostname clients connect to (fills the remote line)")
+
+
+class OpenvpnClientExportResponse(BaseModel):
+    success: bool
+    filename: Optional[str] = None
+    config: Optional[str] = None
+    error: Optional[str] = None
+
+
+class OpenvpnExportCertificate(BaseModel):
+    name: str
+    cn: Optional[str] = None
+
+
+class OpenvpnExportOptions(BaseModel):
+    """PKI material available for building a client export, with decoded CNs.
+
+    The certificate CN is what matches a server's per-client (`server client
+    <name>`) settings, so the UI can map an assigned client to a certificate.
+    """
+
+    cas: List[str] = Field(default_factory=list)
+    certificates: List[OpenvpnExportCertificate] = Field(default_factory=list)
+
+
 # ============================================================================
 # Endpoints
 # ============================================================================
@@ -367,4 +401,163 @@ async def batch_configure(http_request: Request, request: BatchRequest) -> VyOSR
         )
     except Exception:
         logger.exception("Unhandled error in batch_configure")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+# ============================================================================
+# Client config export (operational `generate openvpn client-config`)
+# ============================================================================
+
+
+def _certificate_cn(cert_b64: Optional[str]) -> Optional[str]:
+    """Decode the Common Name from a base64 DER certificate (as stored in PKI).
+
+    Returns None for missing/unissued (e.g. ACME) or unparseable certificates.
+    """
+    if not cert_b64:
+        return None
+    try:
+        der = base64.b64decode(cert_b64 + "=" * (-len(cert_b64) % 4))
+        cert = x509.load_der_x509_certificate(der)
+        attrs = cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME)
+        return attrs[0].value if attrs else None
+    except Exception:
+        logger.warning("Could not decode certificate CN", exc_info=True)
+        return None
+
+
+@router.get("/export-options", response_model=OpenvpnExportOptions)
+async def get_export_options(http_request: Request) -> OpenvpnExportOptions:
+    """List PKI CAs and certificates (with decoded CNs) for the export dialog."""
+    await require_read_permission(http_request, FeatureGroup.OPENVPN)
+    service = get_session_vyos_service(http_request)
+    full_config = await run_in_threadpool(service.get_full_config)
+
+    pki = full_config.get("pki", {}) or {}
+    cas = sorted((pki.get("ca", {}) or {}).keys())
+    certificates = [
+        OpenvpnExportCertificate(name=name, cn=_certificate_cn((data or {}).get("certificate")))
+        for name, data in (pki.get("certificate", {}) or {}).items()
+    ]
+    certificates.sort(key=lambda c: c.name)
+    return OpenvpnExportOptions(cas=cas, certificates=certificates)
+
+
+def _apply_remote_host(ovpn: str, remote_host: str) -> str:
+    """Rewrite the `remote <host> <port>` line with the user-supplied host.
+
+    VyOS only fills a real address when the server has `local-host` set;
+    otherwise it emits a `x.x.x.x` placeholder. The port (and any trailing
+    tokens) are preserved.
+    """
+    lines = ovpn.splitlines()
+    for idx, line in enumerate(lines):
+        if line.strip().startswith("remote "):
+            parts = line.split()
+            rest = parts[2:]  # everything after the placeholder host (port, etc.)
+            lines[idx] = " ".join(["remote", remote_host, *rest])
+            break
+    return "\n".join(lines) + ("\n" if ovpn.endswith("\n") else "")
+
+
+def _build_tls_key_block(secret_hex: str, *, is_crypt: bool) -> str:
+    """Build a <tls-auth>/<tls-crypt> inline block from a PKI shared-secret.
+
+    VyOS stores the static key as a single hex line wrapped in the standard
+    OpenVPN Static key V1 markers (matching the on-router .key file). tls-auth
+    additionally needs `key-direction 1` on the client side (server uses 0).
+    """
+    tag = "tls-crypt" if is_crypt else "tls-auth"
+    block = (
+        f"<{tag}>\n"
+        "-----BEGIN OpenVPN Static key V1-----\n"
+        f"{secret_hex}\n"
+        "-----END OpenVPN Static key V1-----\n"
+        f"</{tag}>\n"
+    )
+    if not is_crypt:
+        block += "key-direction 1\n"
+    return block
+
+
+@router.post("/client-export", response_model=OpenvpnClientExportResponse)
+async def client_export(http_request: Request, request: OpenvpnClientExportRequest) -> OpenvpnClientExportResponse:
+    """Generate a ready-to-use client .ovpn for a server-mode OpenVPN interface.
+
+    Wraps VyOS's `generate openvpn client-config` op-mode command, then fills in
+    the public remote host and embeds the server's TLS auth/crypt key so the
+    resulting profile connects without hand-editing. Reveals private key
+    material, so it requires write permission (same as PKI reveal).
+    """
+    await require_write_permission(http_request, FeatureGroup.OPENVPN)
+
+    try:
+        service = get_session_vyos_service(http_request)
+        full_config = await run_in_threadpool(service.get_full_config)
+
+        iface = request.interface
+        ovpn_cfg = full_config.get("interfaces", {}).get("openvpn", {})
+        iface_cfg = ovpn_cfg.get(iface)
+        if iface_cfg is None:
+            raise HTTPException(status_code=404, detail=f"OpenVPN interface '{iface}' not found")
+        if iface_cfg.get("mode") != "server":
+            raise HTTPException(
+                status_code=400,
+                detail="Client export is only available for server-mode interfaces",
+            )
+
+        tls_cfg = iface_cfg.get("tls", {}) or {}
+        ca = request.ca or tls_cfg.get("ca-certificate")
+        if isinstance(ca, list):
+            ca = ca[0] if ca else None
+        if not ca:
+            raise HTTPException(
+                status_code=400,
+                detail="No CA certificate specified and none configured on the interface",
+            )
+
+        cert = request.certificate
+        path = ["openvpn", "client-config", "interface", iface, "ca", ca, "certificate", cert]
+        if request.key:
+            path += ["key", request.key]
+
+        response = await run_in_threadpool(service.generate, path)
+        if response.status != 200 or not isinstance(response.result, str):
+            error_msg = response.error if response.error else "Failed to generate client config"
+            return OpenvpnClientExportResponse(success=False, error=str(error_msg))
+
+        ovpn = response.result
+        # VyOS prints this (and exits 0) when the interface has no openvpn config.
+        if ovpn.strip() in {"", "OpenVPN not configured"} or "does not exist" in ovpn:
+            return OpenvpnClientExportResponse(success=False, error=ovpn.strip() or "Empty client config")
+
+        if request.remote_host:
+            ovpn = _apply_remote_host(ovpn, request.remote_host)
+
+        # Embed the server's TLS auth/crypt key (VyOS's generator omits it).
+        crypt_key = tls_cfg.get("crypt-key")
+        auth_key = tls_cfg.get("auth-key")
+        secret_name = crypt_key or auth_key
+        if secret_name:
+            shared = (
+                full_config.get("pki", {})
+                .get("openvpn", {})
+                .get("shared-secret", {})
+                .get(secret_name, {})
+            )
+            secret_hex = shared.get("key")
+            if secret_hex:
+                ovpn = ovpn.rstrip("\n") + "\n\n" + _build_tls_key_block(
+                    secret_hex, is_crypt=bool(crypt_key)
+                )
+
+        return OpenvpnClientExportResponse(
+            success=True,
+            filename=f"{iface}-{cert}.ovpn",
+            config=ovpn,
+        )
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Unhandled error in client_export")
         raise HTTPException(status_code=500, detail="Internal server error")

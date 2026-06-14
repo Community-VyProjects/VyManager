@@ -541,6 +541,22 @@ class VyOSService:
         """
         return self.device.config_file_save(file=file)
 
+    def generate(self, path: List[str]) -> ApiResponse:
+        """
+        Run an operational-mode ``generate`` command on the device.
+
+        Used for op-mode generators such as ``generate openvpn client-config``
+        which produce a payload (e.g. an .ovpn file) rather than mutating config.
+
+        Args:
+            path: Op-mode path elements after ``generate``
+                  (e.g. ["openvpn", "client-config", "interface", "vtun0", ...])
+
+        Returns:
+            ApiResponse: ``result`` holds the generated text on success.
+        """
+        return self.device.generate(path=path)
+
     def show_config(self, path: Optional[List[str]] = None) -> Dict[str, Any]:
         """
         Retrieve configuration from VyOS using pyvyos.

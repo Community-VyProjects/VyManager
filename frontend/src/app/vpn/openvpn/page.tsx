@@ -36,6 +36,7 @@ import {
   Eye,
   Wand2,
   Search,
+  Download,
 } from "lucide-react";
 import {
   openvpnService,
@@ -50,6 +51,7 @@ import { OpenvpnWizard } from "@/components/openvpn/OpenvpnWizard";
 import { CreateOpenvpnModal } from "@/components/openvpn/CreateOpenvpnModal";
 import { EditOpenvpnModal } from "@/components/openvpn/EditOpenvpnModal";
 import { DeleteOpenvpnModal } from "@/components/openvpn/DeleteOpenvpnModal";
+import { ClientExportModal } from "@/components/openvpn/ClientExportModal";
 
 type ModeFilter = "all" | "server" | "client" | "site-to-site";
 
@@ -83,6 +85,7 @@ export default function OpenvpnPage() {
   const [showAdvancedCreate, setShowAdvancedCreate] = useState(false);
   const [editingInterface, setEditingInterface] = useState<OpenvpnInterface | null>(null);
   const [deletingInterface, setDeletingInterface] = useState<OpenvpnInterface | null>(null);
+  const [exportingInterface, setExportingInterface] = useState<OpenvpnInterface | null>(null);
 
   const fetchConfig = async (refresh = false) => {
     try {
@@ -377,6 +380,16 @@ export default function OpenvpnPage() {
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
+                          {hasWrite && iface.mode === "server" && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="Export client config"
+                              onClick={() => setExportingInterface(iface)}
+                            >
+                              <Download className="h-4 w-4" />
+                            </Button>
+                          )}
                           {hasWrite && (
                             <>
                               <Button
@@ -455,6 +468,15 @@ export default function OpenvpnPage() {
           onOpenChange={(open) => !open && setDeletingInterface(null)}
           onSuccess={handleSuccess}
           interfaceData={deletingInterface}
+        />
+      )}
+
+      {/* Client Config Export */}
+      {hasWrite && exportingInterface && (
+        <ClientExportModal
+          open={true}
+          onOpenChange={(open) => !open && setExportingInterface(null)}
+          interfaceData={exportingInterface}
         />
       )}
     </AppLayout>

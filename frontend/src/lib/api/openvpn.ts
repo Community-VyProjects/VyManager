@@ -220,6 +220,31 @@ export interface OpenvpnBatchOperation {
   value?: string;
 }
 
+export interface OpenvpnClientExportRequest {
+  interface: string;
+  ca?: string;
+  certificate: string;
+  key?: string;
+  remote_host?: string;
+}
+
+export interface OpenvpnClientExportResponse {
+  success: boolean;
+  filename?: string | null;
+  config?: string | null;
+  error?: string | null;
+}
+
+export interface OpenvpnExportCertificate {
+  name: string;
+  cn: string | null;
+}
+
+export interface OpenvpnExportOptions {
+  cas: string[];
+  certificates: OpenvpnExportCertificate[];
+}
+
 // ============================================================================
 // Config shape passed to createInterface (structured from wizard / advanced)
 // ============================================================================
@@ -940,6 +965,19 @@ class OpenvpnService {
 
   async deleteInterface(name: string): Promise<VyOSResponse> {
     return this.batchConfigure(name, [{ op: "delete_interface" }]);
+  }
+
+  async exportClientConfig(
+    request: OpenvpnClientExportRequest
+  ): Promise<OpenvpnClientExportResponse> {
+    return apiClient.post<OpenvpnClientExportResponse>(
+      "/vyos/openvpn/client-export",
+      request
+    );
+  }
+
+  async getExportOptions(): Promise<OpenvpnExportOptions> {
+    return apiClient.get<OpenvpnExportOptions>("/vyos/openvpn/export-options");
   }
 }
 
