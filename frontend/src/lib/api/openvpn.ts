@@ -184,6 +184,37 @@ export interface VyOSResponse {
   error?: string | null;
 }
 
+// ----- Live status (from ShowOpenvpn; delivered over the dashboard SSE stream) -----
+// rx_bytes/tx_bytes are pre-formatted strings (e.g. "2.8 MB"), not raw bytes.
+
+export interface OpenVpnStatusClient {
+  name: string | null;
+  remote_host: string | null;
+  remote_port: string | null;
+  tunnel: string | null;        // VPN-assigned IP
+  rx_bytes: string | null;
+  tx_bytes: string | null;
+  online_since: string | null;
+}
+
+export interface OpenVpnTunnel {
+  mode: string;                 // server / client / site_to_site
+  interface: string;
+  local_host: string | null;
+  local_port: string | null;
+  state: string | null;         // UP / DOWN
+  description: string | null;
+  date: string | null;
+  configured_clients: string[];
+  clients: OpenVpnStatusClient[];
+}
+
+export interface OpenVpnStatus {
+  servers: OpenVpnTunnel[];
+  clients: OpenVpnTunnel[];
+  site_to_site: OpenVpnTunnel[];
+}
+
 export interface OpenvpnBatchOperation {
   op: string;
   value?: string;

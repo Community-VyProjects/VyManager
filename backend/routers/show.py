@@ -29,6 +29,7 @@ from routers.qos.qos import (
     parse_shaper_qos_json,
     parse_cake_qos_json,
 )
+from openvpn_status import openvpn_configured, openvpn_gql_fields, build_openvpn_status
 import logging
 logger = logging.getLogger(__name__)
 
@@ -114,7 +115,7 @@ def _wg_alias(iface_name: str) -> str:
     return f"WGStatus_{safe}"
 
 
-def _build_gql_payload(api_key: str, include_wireguard: bool, cake_targets: Optional[list] = None) -> dict:
+def _build_gql_payload(api_key: str, include_wireguard: bool, cake_targets: Optional[list] = None, include_openvpn: bool = False) -> dict:
     """
     Build the JSON body for the slow dashboard GraphQL query.
 
@@ -132,6 +133,8 @@ def _build_gql_payload(api_key: str, include_wireguard: bool, cake_targets: Opti
         f"InterfaceCounters: ShowCountersInterfaces(data: {{key: {k}}}) {{ data {{ result }} }}",
     ]
     fields += qos_gql_fields(k, cake_targets or [])
+    if include_openvpn:
+        fields += openvpn_gql_fields(k)
     if include_wireguard:
         fields.append(
             f'WireGuardConfig: ShowConfig(data: {{key: {k}, path: ["interfaces", "wireguard"]}}) {{ data {{ result }} }}'
@@ -150,7 +153,7 @@ def _build_gql_wg_status_payload(api_key: str, iface_names: List[str]) -> dict:
     return {"query": "{ " + " ".join(fields) + " }"}
 
 
-async def _fetch_graphql_dashboard(service, include_wireguard: bool, cake_targets: Optional[list] = None) -> Optional[dict]:
+async def _fetch_graphql_dashboard(service, include_wireguard: bool, cake_targets: Optional[list] = None, include_openvpn: bool = False) -> Optional[dict]:
     """
     Fire a single GraphQL POST for the full dashboard data.
 
@@ -159,7 +162,7 @@ async def _fetch_graphql_dashboard(service, include_wireguard: bool, cake_target
     api_key = str(service.config.apikey)
     url = f"{service.config.protocol}://{service.config.hostname}:{service.config.port}/graphql"
     verify = service.config.verify
-    payload = _build_gql_payload(api_key, include_wireguard, cake_targets)
+    payload = _build_gql_payload(api_key, include_wireguard, cake_targets, include_openvpn)
 
     try:
         async with httpx.AsyncClient(verify=verify, timeout=15.0) as client:
@@ -179,25 +182,28 @@ async def _fetch_graphql_dashboard(service, include_wireguard: bool, cake_target
         return None
 
 
-def _build_fast_gql_payload(api_key: str, cake_targets: Optional[list] = None) -> dict:
-    """Build the fast GraphQL payload: interface counters + (gated) QoS stats.
+def _build_fast_gql_payload(api_key: str, cake_targets: Optional[list] = None, include_openvpn: bool = False) -> dict:
+    """Build the fast GraphQL payload: interface counters + (gated) QoS + OpenVPN.
 
     QoS rides this 3 s call so its live bandwidth stays smooth. ``ShowShaperQos``
     is always included (it returns ``success:false`` when nothing is applied, which
     can't break the other fields); per-cake ``ShowCakeQos`` aliases are added only
-    for the cake interfaces discovered from config — none means no cake fields.
+    for the cake interfaces discovered from config. OpenVPN status (3 modes) is
+    added only when OpenVPN is configured.
     """
     k = json.dumps(api_key)
     fields = [f"InterfaceCounters: ShowCountersInterfaces(data: {{key: {k}}}) {{ data {{ result }} }}"]
     fields += qos_gql_fields(k, cake_targets or [])
+    if include_openvpn:
+        fields += openvpn_gql_fields(k)
     return {"query": "{ " + " ".join(fields) + " }"}
 
 
-async def _fetch_graphql_fast(service, cake_targets: Optional[list] = None) -> Optional[dict]:
-    """Fire a minimal GraphQL POST for interface counters + QoS stats."""
+async def _fetch_graphql_fast(service, cake_targets: Optional[list] = None, include_openvpn: bool = False) -> Optional[dict]:
+    """Fire a minimal GraphQL POST for interface counters + QoS + OpenVPN status."""
     api_key = str(service.config.apikey)
     url = f"{service.config.protocol}://{service.config.hostname}:{service.config.port}/graphql"
-    payload = _build_fast_gql_payload(api_key, cake_targets)
+    payload = _build_fast_gql_payload(api_key, cake_targets, include_openvpn)
     try:
         async with httpx.AsyncClient(verify=service.config.verify, timeout=15.0) as client:
             resp = await client.post(url, json=payload, auth=("vyos", api_key))
@@ -903,6 +909,8 @@ class DeviceDataBroadcaster:
         # Cake interfaces (interface, policy) discovered from config; refreshed on
         # the slow cycle and used to build per-cake GraphQL aliases each cycle.
         self._cached_cake_targets: list = []
+        # Whether OpenVPN is configured (gates the ShowOpenvpn fetch).
+        self._openvpn_configured: bool = False
 
     # ------------------------------------------------------------------
     # Public API
@@ -1036,14 +1044,22 @@ class DeviceDataBroadcaster:
             logger.exception("Broadcaster: qos-stats parse error")
             self._push_to_all({"type": "error", "data": {"channel": "qos-stats", "message": "Parse failed"}})
 
-    async def _refresh_cake_targets(self) -> None:
-        """Refresh the cached cake-interface list from the (cached) config."""
+    async def _refresh_config_state(self) -> None:
+        """Refresh config-derived gates (cake interfaces, OpenVPN presence)."""
         try:
-            self._cached_cake_targets = await run_in_threadpool(
-                lambda: find_cake_targets(self._service.get_full_config(refresh=False))
-            )
+            cfg = await run_in_threadpool(self._service.get_full_config, refresh=False)
+            self._cached_cake_targets = find_cake_targets(cfg)
+            self._openvpn_configured = openvpn_configured(cfg)
         except Exception:
-            logger.exception("Broadcaster: cake-target refresh error")
+            logger.exception("Broadcaster: config-state refresh error")
+
+    def _broadcast_openvpn(self, gql: dict) -> None:
+        """Parse OpenVPN status from the shared GraphQL result and push an event."""
+        try:
+            self._push_to_all({"type": "openvpn-status", "data": build_openvpn_status(gql)})
+        except Exception:
+            logger.exception("Broadcaster: openvpn-status parse error")
+            self._push_to_all({"type": "error", "data": {"channel": "openvpn-status", "message": "Parse failed"}})
 
     def _on_task_done(self, fut: asyncio.Future) -> None:
         """Clean up if _run() exits unexpectedly."""
@@ -1065,25 +1081,31 @@ class DeviceDataBroadcaster:
         try:
             while self._subscribers:
                 if cycle % _SLOW_EVERY == 0:
-                    # Refresh which interfaces have cake before building the query.
-                    await self._refresh_cake_targets()
+                    # Refresh config-derived gates before building the query.
+                    await self._refresh_config_state()
                     targets = self._cached_cake_targets
-                    # Full query: counters + system info + QoS + WireGuard config
-                    gql = await _fetch_graphql_dashboard(self._service, include_wireguard=True, cake_targets=targets)
+                    ovpn = self._openvpn_configured
+                    # Full query: counters + system info + QoS + OpenVPN + WireGuard
+                    gql = await _fetch_graphql_dashboard(self._service, include_wireguard=True, cake_targets=targets, include_openvpn=ovpn)
                     if gql is not None:
                         self._broadcast_interface_counters(gql)
                         self._broadcast_system_info(gql)
                         self._handle_wg_cycle(gql)
                         self._broadcast_qos(gql, targets)
+                        if ovpn:
+                            self._broadcast_openvpn(gql)
                     else:
                         self._push_to_all({"type": "error", "data": {"channel": "all", "message": "GraphQL fetch failed"}})
                 else:
-                    # Fast query: interface counters + QoS stats
+                    # Fast query: interface counters + QoS + OpenVPN status
                     targets = self._cached_cake_targets
-                    gql = await _fetch_graphql_fast(self._service, cake_targets=targets)
+                    ovpn = self._openvpn_configured
+                    gql = await _fetch_graphql_fast(self._service, cake_targets=targets, include_openvpn=ovpn)
                     if gql is not None:
                         self._broadcast_interface_counters(gql)
                         self._broadcast_qos(gql, targets)
+                        if ovpn:
+                            self._broadcast_openvpn(gql)
                     else:
                         self._push_to_all({"type": "error", "data": {"channel": "interface-counters", "message": "GraphQL fast fetch failed"}})
 
