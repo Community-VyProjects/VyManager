@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Network, Plus, Server, Shield, Lock, TrendingUp, Gauge } from "lucide-react";
+import { Network, Plus, Server, Shield, Lock, TrendingUp, Gauge, ShieldCheck } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 
@@ -55,6 +55,13 @@ const AVAILABLE_CARDS: AvailableCard[] = [
     description: "Live per-class shaper bandwidth, drops and policy effectiveness for QoS-enabled interfaces",
     icon: Gauge,
     requiredPermission: FeatureGroup.QOS,
+  },
+  {
+    type: "openvpn-status",
+    name: "OpenVPN",
+    description: "Live status of OpenVPN servers, clients and site-to-site tunnels with connected client details",
+    icon: ShieldCheck,
+    requiredPermission: FeatureGroup.OPENVPN,
   },
 ];
 
