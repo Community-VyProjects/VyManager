@@ -17,10 +17,18 @@ import json
 import re
 import httpx
 
+from starlette.concurrency import run_in_threadpool
 from session_vyos_service import get_session_vyos_service
 from fastapi_permissions import has_permission, require_read_permission
 from rbac_permissions import FeatureGroup, PermissionLevel
 from system_updates import SystemUpdatesInfo, parse_system_updates
+from routers.qos.qos import (
+    find_cake_targets,
+    qos_gql_fields,
+    qos_op_result,
+    parse_shaper_qos_json,
+    parse_cake_qos_json,
+)
 import logging
 logger = logging.getLogger(__name__)
 
@@ -106,14 +114,14 @@ def _wg_alias(iface_name: str) -> str:
     return f"WGStatus_{safe}"
 
 
-def _build_gql_payload(api_key: str, include_wireguard: bool) -> dict:
+def _build_gql_payload(api_key: str, include_wireguard: bool, cake_targets: Optional[list] = None) -> dict:
     """
-    Build the JSON body for the fast dashboard GraphQL query.
+    Build the JSON body for the slow dashboard GraphQL query.
 
-    Includes CPU, storage, system status, interface counters, and (when
-    ``include_wireguard``) the static WireGuard config for interface discovery.
-    Per-interface WireGuard *live status* is intentionally excluded — it is
-    fetched concurrently by ``_fetch_gql_wg_status`` so it cannot slow down
+    Includes CPU, storage, system status, interface counters, QoS stats, and
+    (when ``include_wireguard``) the static WireGuard config for interface
+    discovery. Per-interface WireGuard *live status* is intentionally excluded —
+    it is fetched concurrently by ``_fetch_gql_wg_status`` so it cannot slow down
     the fast data path.
     """
     k = json.dumps(api_key)  # safely quoted/escaped string literal
@@ -123,6 +131,7 @@ def _build_gql_payload(api_key: str, include_wireguard: bool) -> dict:
         f"SystemStatus(data: {{key: {k}}}) {{ data {{ result }} }}",
         f"InterfaceCounters: ShowCountersInterfaces(data: {{key: {k}}}) {{ data {{ result }} }}",
     ]
+    fields += qos_gql_fields(k, cake_targets or [])
     if include_wireguard:
         fields.append(
             f'WireGuardConfig: ShowConfig(data: {{key: {k}, path: ["interfaces", "wireguard"]}}) {{ data {{ result }} }}'
@@ -141,16 +150,16 @@ def _build_gql_wg_status_payload(api_key: str, iface_names: List[str]) -> dict:
     return {"query": "{ " + " ".join(fields) + " }"}
 
 
-async def _fetch_graphql_dashboard(service, include_wireguard: bool) -> Optional[dict]:
+async def _fetch_graphql_dashboard(service, include_wireguard: bool, cake_targets: Optional[list] = None) -> Optional[dict]:
     """
-    Fire a single GraphQL POST for the fast dashboard data.
+    Fire a single GraphQL POST for the full dashboard data.
 
     Returns the parsed ``data`` object from the GraphQL response, or None on any error.
     """
     api_key = str(service.config.apikey)
     url = f"{service.config.protocol}://{service.config.hostname}:{service.config.port}/graphql"
     verify = service.config.verify
-    payload = _build_gql_payload(api_key, include_wireguard)
+    payload = _build_gql_payload(api_key, include_wireguard, cake_targets)
 
     try:
         async with httpx.AsyncClient(verify=verify, timeout=15.0) as client:
@@ -170,17 +179,25 @@ async def _fetch_graphql_dashboard(service, include_wireguard: bool) -> Optional
         return None
 
 
-def _build_fast_gql_payload(api_key: str) -> dict:
-    """Build a GraphQL payload that fetches interface counters only."""
+def _build_fast_gql_payload(api_key: str, cake_targets: Optional[list] = None) -> dict:
+    """Build the fast GraphQL payload: interface counters + (gated) QoS stats.
+
+    QoS rides this 3 s call so its live bandwidth stays smooth. ``ShowShaperQos``
+    is always included (it returns ``success:false`` when nothing is applied, which
+    can't break the other fields); per-cake ``ShowCakeQos`` aliases are added only
+    for the cake interfaces discovered from config — none means no cake fields.
+    """
     k = json.dumps(api_key)
-    return {"query": f"{{ InterfaceCounters: ShowCountersInterfaces(data: {{key: {k}}}) {{ data {{ result }} }} }}"}
+    fields = [f"InterfaceCounters: ShowCountersInterfaces(data: {{key: {k}}}) {{ data {{ result }} }}"]
+    fields += qos_gql_fields(k, cake_targets or [])
+    return {"query": "{ " + " ".join(fields) + " }"}
 
 
-async def _fetch_graphql_fast(service) -> Optional[dict]:
-    """Fire a minimal GraphQL POST for interface counters only."""
+async def _fetch_graphql_fast(service, cake_targets: Optional[list] = None) -> Optional[dict]:
+    """Fire a minimal GraphQL POST for interface counters + QoS stats."""
     api_key = str(service.config.apikey)
     url = f"{service.config.protocol}://{service.config.hostname}:{service.config.port}/graphql"
-    payload = _build_fast_gql_payload(api_key)
+    payload = _build_fast_gql_payload(api_key, cake_targets)
     try:
         async with httpx.AsyncClient(verify=service.config.verify, timeout=15.0) as client:
             resp = await client.post(url, json=payload, auth=("vyos", api_key))
@@ -883,6 +900,9 @@ class DeviceDataBroadcaster:
         self._last_wg_status: dict = {}
         self._cached_wg_ifaces: list[str] = []
         self._last_wg_query_time: float = 0.0
+        # Cake interfaces (interface, policy) discovered from config; refreshed on
+        # the slow cycle and used to build per-cake GraphQL aliases each cycle.
+        self._cached_cake_targets: list = []
 
     # ------------------------------------------------------------------
     # Public API
@@ -991,6 +1011,40 @@ class DeviceDataBroadcaster:
             logger.exception("Broadcaster: wireguard-peers error")
             self._push_to_all({"type": "error", "data": {"channel": "wireguard-peers", "message": "Failed to fetch"}})
 
+    def _broadcast_qos(self, gql: dict, cake_targets: list) -> None:
+        """Parse QoS stats from the shared GraphQL result and push a qos-stats event.
+
+        ``cake_targets`` must be the same list the query was built with, so the
+        ``Cake_<i>`` aliases line up by index.
+        """
+        try:
+            shaper = parse_shaper_qos_json(qos_op_result(gql, "Shaper"))
+            cake = []
+            for i, (ifname, policy) in enumerate(cake_targets):
+                parsed = parse_cake_qos_json(qos_op_result(gql, f"Cake_{i}"), ifname, policy)
+                if parsed:
+                    cake.append(parsed)
+            self._push_to_all({
+                "type": "qos-stats",
+                "data": {
+                    "applied": bool(shaper.interfaces) or bool(cake),
+                    "interfaces": [i.dict() for i in shaper.interfaces],
+                    "cake": [c.dict() for c in cake],
+                },
+            })
+        except Exception:
+            logger.exception("Broadcaster: qos-stats parse error")
+            self._push_to_all({"type": "error", "data": {"channel": "qos-stats", "message": "Parse failed"}})
+
+    async def _refresh_cake_targets(self) -> None:
+        """Refresh the cached cake-interface list from the (cached) config."""
+        try:
+            self._cached_cake_targets = await run_in_threadpool(
+                lambda: find_cake_targets(self._service.get_full_config(refresh=False))
+            )
+        except Exception:
+            logger.exception("Broadcaster: cake-target refresh error")
+
     def _on_task_done(self, fut: asyncio.Future) -> None:
         """Clean up if _run() exits unexpectedly."""
         if fut.cancelled():
@@ -1011,19 +1065,25 @@ class DeviceDataBroadcaster:
         try:
             while self._subscribers:
                 if cycle % _SLOW_EVERY == 0:
-                    # Full query: counters + system info + WireGuard config
-                    gql = await _fetch_graphql_dashboard(self._service, include_wireguard=True)
+                    # Refresh which interfaces have cake before building the query.
+                    await self._refresh_cake_targets()
+                    targets = self._cached_cake_targets
+                    # Full query: counters + system info + QoS + WireGuard config
+                    gql = await _fetch_graphql_dashboard(self._service, include_wireguard=True, cake_targets=targets)
                     if gql is not None:
                         self._broadcast_interface_counters(gql)
                         self._broadcast_system_info(gql)
                         self._handle_wg_cycle(gql)
+                        self._broadcast_qos(gql, targets)
                     else:
                         self._push_to_all({"type": "error", "data": {"channel": "all", "message": "GraphQL fetch failed"}})
                 else:
-                    # Fast query: interface counters only
-                    gql = await _fetch_graphql_fast(self._service)
+                    # Fast query: interface counters + QoS stats
+                    targets = self._cached_cake_targets
+                    gql = await _fetch_graphql_fast(self._service, cake_targets=targets)
                     if gql is not None:
                         self._broadcast_interface_counters(gql)
+                        self._broadcast_qos(gql, targets)
                     else:
                         self._push_to_all({"type": "error", "data": {"channel": "interface-counters", "message": "GraphQL fast fetch failed"}})
 

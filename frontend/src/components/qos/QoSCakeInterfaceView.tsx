@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, CheckCircle2, Network } from "lucide-react";
 import { QoSCakeStats } from "@/lib/api/qos";
 import { formatBytes } from "@/lib/utils";
-import { formatBitrate } from "@/hooks/useQoSLiveStats";
+import { formatBitrate } from "@/hooks/useQoSRates";
 
 /**
  * Renders one CAKE interface: header (policy / diffserv / flow mode), an

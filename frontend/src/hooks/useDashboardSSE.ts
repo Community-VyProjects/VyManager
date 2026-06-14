@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { InterfaceCounter } from "@/lib/api/show";
+import { QoSStatsResponse } from "@/lib/api/qos";
 
 // ============================================================================
 // Types
@@ -91,6 +92,7 @@ export interface DashboardSSEData {
   interfaceCounters: InterfaceCountersData | null;
   systemInfo: SystemInfoData | null;
   wireguardPeers: WireGuardPeersData | null;
+  qosStats: QoSStatsResponse | null;
 }
 
 export interface DashboardSSEState {
@@ -105,7 +107,7 @@ export interface DashboardSSEState {
 
 export function useDashboardSSE(): DashboardSSEState {
   const [status, setStatus] = useState<SSEStatus>("disconnected");
-  const [data, setData] = useState<DashboardSSEData>({ interfaceCounters: null, systemInfo: null, wireguardPeers: null });
+  const [data, setData] = useState<DashboardSSEData>({ interfaceCounters: null, systemInfo: null, wireguardPeers: null, qosStats: null });
   const [error, setError] = useState<string | null>(null);
   const esRef = useRef<EventSource | null>(null);
 
@@ -142,6 +144,15 @@ export function useDashboardSSE(): DashboardSSEState {
       try {
         const payload = JSON.parse(event.data) as WireGuardPeersData;
         setData((prev) => ({ ...prev, wireguardPeers: payload }));
+      } catch {
+        // Ignore malformed payloads
+      }
+    });
+
+    es.addEventListener("qos-stats", (event: MessageEvent) => {
+      try {
+        const payload = JSON.parse(event.data) as QoSStatsResponse;
+        setData((prev) => ({ ...prev, qosStats: payload }));
       } catch {
         // Ignore malformed payloads
       }

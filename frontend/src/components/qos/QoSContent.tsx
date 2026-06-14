@@ -23,7 +23,6 @@ import {
   Network,
   Layers,
   Filter,
-  Activity,
 } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import {
@@ -41,7 +40,6 @@ import { QoSPolicyModal } from "./QoSPolicyModal";
 import { QoSInterfaceModal } from "./QoSInterfaceModal";
 import { QoSTrafficMatchGroupModal } from "./QoSTrafficMatchGroupModal";
 import { QoSConfirmDeleteModal } from "./QoSConfirmDeleteModal";
-import { QoSStatsPanel } from "./QoSStatsPanel";
 
 interface DeleteTarget {
   title: string;
@@ -169,10 +167,6 @@ export function QoSContent() {
                   {config.traffic_match_groups.length > 0 && <Badge variant="secondary" className="ml-2">{config.traffic_match_groups.length}</Badge>}
                 </TabsTrigger>
               )}
-              <TabsTrigger value="statistics">
-                <Activity className="h-3.5 w-3.5 mr-1.5" />
-                Statistics
-              </TabsTrigger>
             </TabsList>
 
             {/* Policies */}
@@ -391,11 +385,6 @@ export function QoSContent() {
                 </Card>
               </TabsContent>
             )}
-
-            {/* Statistics */}
-            <TabsContent value="statistics" className="mt-4">
-              <QoSStatsPanel />
-            </TabsContent>
           </Tabs>
         </div>
       </div>

@@ -20,10 +20,9 @@ from session_vyos_service import get_session_vyos_service
 from vyos_builders.qos import QoSBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
-from graphql_show import gql_show_batch
 import inspect
 import logging
-import re
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -401,223 +400,139 @@ async def qos_batch_configure(http_request: Request, body: QoSBatchRequest):
 # ============================================================================
 
 
-# Pipe-form key (in `show qos shaper detail`) -> QoSClassStats integer field.
-_STATS_INT_FIELDS = {
-    "Bandwidth": "bandwidth",
-    "Max. BW": "ceiling",
-    "Bytes": "bytes",
-    "Packets": "packets",
-    "Drops": "drops",
-    "Queued": "queued",
-    "Overlimit": "overlimits",
-    "Requeue": "requeues",
-    "Lended": "lended",
-    "Borrowed": "borrowed",
-    "Giants": "giants",
+# Friendly CAKE tin names per diffserv mode (the raw JSON tins[] are unnamed).
+_CAKE_DIFFSERV_TINS = {
+    "besteffort": ["Best Effort"],
+    "diffserv3": ["Bulk", "Best Effort", "Voice"],
+    "diffserv4": ["Bulk", "Best Effort", "Video", "Voice"],
 }
 
 
-def parse_qos_shaper_detail(output: str) -> QoSStatsResponse:
-    """Parse ``show qos shaper detail`` text into per-interface/per-class stats.
+def _to_int(value, default: int = 0) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
 
-    The VyOS HTTP API returns this op-mode command as plain text (the structured
-    ``--raw`` JSON is not reachable over the API). The detail output is a series
-    of blank-line-separated blocks; each class block is a list of ``key | value``
-    lines::
 
-         Interface   | eth3
-         Policy Name | VYMGR_PROBE
-         Direction   | egress
-         Class       | 10
-         Type        | fq_codel
-         Bandwidth   | 30000000
-         Bytes       | 12345
-         ...
+def _to_int_or_none(value) -> Optional[int]:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
 
-    Decorative ``-----`` rules and colon-form headers (``Interface: eth3``) are
-    ignored; every value is read from the pipe-form lines, so each class is
-    attributed to its own interface regardless of surrounding headers.
+
+def _bytes_per_s_to_bits(value) -> Optional[int]:
+    """tc reports CAKE rates in bytes/s; convert to bits/s for our models."""
+    n = _to_int_or_none(value)
+    return n * 8 if n is not None else None
+
+
+def parse_shaper_qos_json(result: Optional[dict]) -> QoSStatsResponse:
+    """Map ``ShowShaperQos`` structured JSON into per-interface/per-class stats.
+
+    Shape: ``{"qos": {iface: {class_name: {rate, ceil, bytes, packets, drops,
+    queued, overlimits, requeues, lended, borrowed, giants, queue_type,
+    direction, policy_name, ...}}}}``. Shaper ``rate``/``ceil`` are already in
+    bits/s (the op-mode multiplies tc's bytes/s by 8).
     """
-    text = output or ""
-    if "not applied" in text.lower():
-        return QoSStatsResponse(applied=False, interfaces=[])
-
-    by_iface: Dict[str, QoSInterfaceStats] = {}
-    order: List[str] = []
-
-    for block in re.split(r"\n\s*\n", text):
-        fields: Dict[str, str] = {}
-        for line in block.splitlines():
-            if "|" not in line:
+    qos = (result or {}).get("qos", {}) or {}
+    interfaces: List[QoSInterfaceStats] = []
+    for ifname, classes in qos.items():
+        if not isinstance(classes, dict):
+            continue
+        iface = QoSInterfaceStats(interface=ifname, policy_name=None, classes=[])
+        for cls_name, c in classes.items():
+            if not isinstance(c, dict):
                 continue
-            key, _, val = line.partition("|")
-            key, val = key.strip(), val.strip()
-            if key:
-                fields[key] = val
-
-        # Only class blocks carry a "Class" key; skip headers / blank blocks.
-        if "Class" not in fields:
-            continue
-        iface = fields.get("Interface")
-        if not iface:
-            continue
-
-        def _to_int(name: str) -> int:
-            try:
-                return int(fields.get(name, "0"))
-            except (TypeError, ValueError):
-                return 0
-
-        stats = QoSClassStats(
-            class_name=fields["Class"],
-            queue_type=fields.get("Type") or None,
-            direction=fields.get("Direction") or None,
-            bandwidth=_to_int("Bandwidth") if "Bandwidth" in fields else None,
-            ceiling=_to_int("Max. BW") if "Max. BW" in fields else None,
-            **{field: _to_int(key) for key, field in _STATS_INT_FIELDS.items()
-               if field not in ("bandwidth", "ceiling")},
-        )
-
-        if iface not in by_iface:
-            by_iface[iface] = QoSInterfaceStats(
-                interface=iface,
-                policy_name=fields.get("Policy Name") or None,
-                classes=[],
-            )
-            order.append(iface)
-        by_iface[iface].classes.append(stats)
-
-    interfaces = [by_iface[name] for name in order]
+            if iface.policy_name is None:
+                iface.policy_name = c.get("policy_name") or None
+            iface.classes.append(QoSClassStats(
+                class_name=c.get("class_name") or cls_name,
+                queue_type=c.get("queue_type") or None,
+                direction=c.get("direction") or None,
+                bandwidth=_to_int_or_none(c.get("rate")),
+                ceiling=_to_int_or_none(c.get("ceil")),
+                bytes=_to_int(c.get("bytes")),
+                packets=_to_int(c.get("packets")),
+                drops=_to_int(c.get("drops")),
+                queued=_to_int(c.get("queued")),
+                overlimits=_to_int(c.get("overlimits")),
+                requeues=_to_int(c.get("requeues")),
+                lended=_to_int(c.get("lended")),
+                borrowed=_to_int(c.get("borrowed")),
+                giants=_to_int(c.get("giants")),
+            ))
+        # ShowShaperQos lists every QoS-enabled interface, including cake ones
+        # (which carry no shaper classes) — skip those empty entries.
+        if iface.classes:
+            interfaces.append(iface)
     return QoSStatsResponse(applied=bool(interfaces), interfaces=interfaces)
 
 
-# Row labels in CAKE's per-tin table (`tc -s qdisc show`).
-_CAKE_TIN_ROWS = {
-    "thresh", "target", "interval", "pk_delay", "av_delay", "sp_delay",
-    "backlog", "pkts", "bytes", "way_inds", "way_miss", "way_cols",
-    "drops", "marks", "ack_drop", "sp_flows", "bk_flows", "un_flows",
-    "max_len", "quantum",
-}
+def parse_cake_qos_json(result: Optional[dict], interface: str, policy_name: Optional[str] = None) -> Optional[QoSCakeStats]:
+    """Map ``ShowCakeQos`` structured JSON into CAKE stats, or None.
 
-# CAKE flow-isolation modes, longest-first so compound names win.
-_CAKE_FLOW_MODES = [
-    "triple-isolate", "dual-srchost", "dual-dsthost",
-    "flowblind", "srchost", "dsthost", "hosts", "flows",
-]
-
-
-def _parse_rate_to_bps(s: Optional[str]) -> Optional[int]:
-    """Parse a tc rate like '50Mbit' / '3125Kbit' / '1Gbit' into bits/s."""
-    if not s:
-        return None
-    m = re.match(r"^([\d.]+)([KMGT]?)bit$", s.strip(), re.IGNORECASE)
-    if not m:
-        return None
-    mult = {"": 1, "K": 1e3, "M": 1e6, "G": 1e9, "T": 1e12}[m.group(2).upper()]
-    return int(float(m.group(1)) * mult)
-
-
-def _parse_size_to_bytes(s: Optional[str]) -> Optional[int]:
-    """Parse a tc size like '0b' / '4Mb' / '65535b' into bytes (1024-based)."""
-    if not s:
-        return None
-    m = re.match(r"^([\d.]+)([KMGT]?)i?b$", s.strip(), re.IGNORECASE)
-    if not m:
-        return None
-    mult = {"": 1, "K": 1 << 10, "M": 1 << 20, "G": 1 << 30, "T": 1 << 40}[m.group(2).upper()]
-    return int(float(m.group(1)) * mult)
-
-
-def parse_qos_cake(output: str, interface: str, policy_name: Optional[str] = None) -> Optional[QoSCakeStats]:
-    """Parse ``show qos cake interface <if>`` text into CAKE stats, or None.
-
-    The API returns the raw ``tc -s qdisc show dev <if>`` dump: a qdisc line,
-    an aggregate ``Sent N bytes N pkt (dropped .. overlimits .. requeues ..)``
-    summary, then a per-tin column table (diffserv tins, e.g. Bulk / Best
-    Effort / Voice). Returns None when the interface's root qdisc isn't cake.
+    Shape: ``ShowCakeQos`` wraps the ``tc -j -s qdisc`` object as
+    ``{"qos": {ifname: {kind, options{bandwidth, diffserv, flowmode, ...}, bytes,
+    packets, drops, overlimits, requeues, backlog, memory_used, memory_limit,
+    capacity_estimate, tins:[{threshold_rate, sent_bytes, sent_packets, drops,
+    ecn_mark, backlog_bytes, ...}]}}}``. CAKE rates are tc bytes/s, converted to
+    bits/s here. Tin names are derived from the diffserv mode (the JSON tins are
+    unnamed). Returns None if not a cake qdisc.
     """
-    text = output or ""
-    lines = text.splitlines()
-
-    qdisc_line = next((ln for ln in lines if "qdisc cake" in ln), None)
-    if not qdisc_line:
+    if not isinstance(result, dict):
+        return None
+    # Unwrap the {"qos": {ifname: ...}} envelope (fall back to result itself).
+    cake = result
+    if "qos" in result:
+        qos = result.get("qos") or {}
+        cake = qos.get(interface)
+        if cake is None and len(qos) == 1:
+            cake = next(iter(qos.values()))
+    if not isinstance(cake, dict) or cake.get("kind") != "cake":
         return None
 
-    stats = QoSCakeStats(interface=interface, policy_name=policy_name)
+    result = cake
+    options = result.get("options") or {}
+    diffserv = options.get("diffserv")
+    raw_tins = result.get("tins") or []
 
-    m = re.search(r"bandwidth\s+(\S+)", qdisc_line)
-    if m:
-        stats.bandwidth = _parse_rate_to_bps(m.group(1))
-    m = re.search(r"\b(diffserv\d|besteffort|diffserv-llt)\b", qdisc_line)
-    if m:
-        stats.diffserv = m.group(1)
-    for mode in _CAKE_FLOW_MODES:
-        if re.search(rf"\b{re.escape(mode)}\b", qdisc_line):
-            stats.flow_mode = mode
-            break
+    names = _CAKE_DIFFSERV_TINS.get(diffserv or "")
+    if not names or len(names) != len(raw_tins):
+        names = [f"Tin {i}" for i in range(len(raw_tins))]
 
-    m = re.search(
-        r"Sent\s+(\d+)\s+bytes\s+(\d+)\s+pkt\s+\(dropped\s+(\d+),\s+overlimits\s+(\d+)\s+requeues\s+(\d+)\)",
-        text,
-    )
-    if m:
-        stats.bytes, stats.packets = int(m.group(1)), int(m.group(2))
-        stats.drops, stats.overlimits, stats.requeues = int(m.group(3)), int(m.group(4)), int(m.group(5))
-
-    m = re.search(r"backlog\s+(\d+)b\s+\d+p", text)
-    if m:
-        stats.backlog = int(m.group(1))
-
-    m = re.search(r"memory used:\s+(\S+)\s+of\s+(\S+)", text)
-    if m:
-        stats.memory_used = _parse_size_to_bytes(m.group(1))
-        stats.memory_limit = _parse_size_to_bytes(m.group(2))
-
-    m = re.search(r"capacity estimate:\s+(\S+)", text)
-    if m:
-        stats.capacity_estimate = _parse_rate_to_bps(m.group(1))
-
-    # Per-tin table: header line of tin names (just above "thresh"), then rows.
-    rows: Dict[str, List[str]] = {}
-    tin_names: List[str] = []
-    for i, ln in enumerate(lines):
-        stripped = ln.strip()
-        parts = stripped.split()
-        if parts and parts[0] in _CAKE_TIN_ROWS and len(parts) > 1:
-            rows[parts[0]] = parts[1:]
-            if parts[0] == "thresh" and not tin_names:
-                for j in range(i - 1, -1, -1):
-                    if lines[j].strip():
-                        # Columns are separated by 2+ spaces; multi-word tin
-                        # names (e.g. "Best Effort") keep their single space.
-                        tin_names = re.split(r"\s{2,}", lines[j].strip())
-                        break
-
-    if not tin_names and "bytes" in rows:
-        tin_names = [f"Tin {i}" for i in range(len(rows["bytes"]))]
-
-    def _cell(label: str, idx: int) -> Optional[str]:
-        vals = rows.get(label)
-        return vals[idx] if vals and idx < len(vals) else None
-
-    def _cell_int(label: str, idx: int) -> int:
-        try:
-            return int(_cell(label, idx) or 0)
-        except (TypeError, ValueError):
-            return 0
-
-    for idx, name in enumerate(tin_names):
-        stats.tins.append(QoSCakeTin(
-            name=name,
-            threshold_rate=_parse_rate_to_bps(_cell("thresh", idx)),
-            sent_bytes=_cell_int("bytes", idx),
-            sent_packets=_cell_int("pkts", idx),
-            drops=_cell_int("drops", idx),
-            marks=_cell_int("marks", idx),
-            backlog_bytes=_parse_size_to_bytes(_cell("backlog", idx)) or 0,
+    tins: List[QoSCakeTin] = []
+    for i, t in enumerate(raw_tins):
+        if not isinstance(t, dict):
+            continue
+        tins.append(QoSCakeTin(
+            name=names[i],
+            threshold_rate=_bytes_per_s_to_bits(t.get("threshold_rate")),
+            sent_bytes=_to_int(t.get("sent_bytes")),
+            sent_packets=_to_int(t.get("sent_packets")),
+            drops=_to_int(t.get("drops")),
+            marks=_to_int(t.get("ecn_mark")),
+            backlog_bytes=_to_int(t.get("backlog_bytes")),
         ))
 
-    return stats
+    return QoSCakeStats(
+        interface=interface,
+        policy_name=policy_name,
+        bandwidth=_bytes_per_s_to_bits(options.get("bandwidth")),
+        diffserv=diffserv,
+        flow_mode=options.get("flowmode"),
+        capacity_estimate=_bytes_per_s_to_bits(result.get("capacity_estimate")),
+        memory_used=_to_int_or_none(result.get("memory_used")),
+        memory_limit=_to_int_or_none(result.get("memory_limit")),
+        bytes=_to_int(result.get("bytes")),
+        packets=_to_int(result.get("packets")),
+        drops=_to_int(result.get("drops")),
+        overlimits=_to_int(result.get("overlimits")),
+        requeues=_to_int(result.get("requeues")),
+        backlog=_to_int(result.get("backlog")),
+        tins=tins,
+    )
 
 
 def _config_single(value):
@@ -627,9 +542,14 @@ def _config_single(value):
     return value
 
 
-def _find_cake_targets(full_config) -> List[tuple]:
-    """Return ``[(interface, policy)]`` for interfaces bound to a cake policy."""
-    qos = (full_config or {}).get("qos", {}) or {}
+def find_cake_targets(config) -> List[tuple]:
+    """Return ``[(interface, policy)]`` for interfaces bound to a cake policy.
+
+    Accepts either the full config (``{"qos": {...}}``) or the bare qos subtree.
+    """
+    qos = config or {}
+    if isinstance(qos, dict) and "qos" in qos:
+        qos = qos.get("qos") or {}
     cake_policies = set(((qos.get("policy", {}) or {}).get("cake", {}) or {}).keys())
 
     seen: set = set()
@@ -646,49 +566,40 @@ def _find_cake_targets(full_config) -> List[tuple]:
     return targets
 
 
-@router.get("/stats", response_model=QoSStatsResponse)
-async def get_qos_stats(http_request: Request):
-    """Return live QoS statistics for shaper and CAKE policies.
+def qos_op_result(data: dict, alias: str) -> Optional[dict]:
+    """Extract a typed QoS op's structured ``result`` from a GraphQL data dict.
 
-    Both shaper detail (one command, all interfaces) and each CAKE interface's
-    ``show qos cake interface <if>`` are fetched in a SINGLE batched GraphQL
-    request via aliases, rather than one REST call per command. The API returns
-    them as text; real-time bandwidth is derived client-side from byte deltas.
-    The CAKE interface list comes from the in-process config cache, so the
-    steady-state poll costs just one network round-trip.
+    Returns None for "no policy applied" (op returns ``success: false`` / null
+    data) and for the empty-cake case (``result`` is "" on an interface with no
+    cake qdisc) — the parsers treat None as "nothing here".
     """
-    await require_read_permission(http_request, FeatureGroup.QOS)
-    try:
-        service = get_session_vyos_service(http_request)
+    node = (data or {}).get(alias)
+    if not isinstance(node, dict) or not node.get("success"):
+        return None
+    inner = node.get("data")
+    if isinstance(inner, dict) and isinstance(inner.get("result"), dict):
+        return inner["result"]
+    return None
 
-        # Cached config (no round-trip in steady state) to enumerate cake interfaces.
-        full_config = await run_in_threadpool(service.get_full_config, refresh=False)
-        cake_targets = _find_cake_targets(full_config)
 
-        # One batched GraphQL POST: shaper detail + each cake interface.
-        # Interface names can contain '.', so use index-based aliases.
-        alias_paths: Dict[str, List[str]] = {"Shaper": ["qos", "shaper", "detail"]}
-        for idx, (ifname, _policy) in enumerate(cake_targets):
-            alias_paths[f"Cake_{idx}"] = ["qos", "cake", "interface", ifname]
-        results = await gql_show_batch(service, alias_paths)
+def qos_gql_fields(key_literal: str, cake_targets: List[tuple]) -> List[str]:
+    """GraphQL alias fields that fetch QoS stats, for batching into a larger query.
 
-        response = parse_qos_shaper_detail(results.get("Shaper", "") or "")
-
-        cake_stats: List[QoSCakeStats] = []
-        for idx, (ifname, policy) in enumerate(cake_targets):
-            text = results.get(f"Cake_{idx}")
-            if not text:
-                continue
-            parsed = parse_qos_cake(text, ifname, policy)
-            if parsed:
-                cake_stats.append(parsed)
-
-        response.cake = cake_stats
-        response.applied = bool(response.interfaces) or bool(cake_stats)
-        return response
-    except Exception:
-        logger.exception("Unhandled error in get_qos_stats")
-        raise HTTPException(status_code=500, detail="Internal server error")
+    ``key_literal`` must be a JSON-encoded API key (``json.dumps(key)``). Returns a
+    ``Shaper`` field (all shaper interfaces in one op) plus a ``Cake_<i>`` field
+    per cake interface. The typed ops return structured JSON in ``data.result``.
+    Used by the dashboard broadcaster (routers/show.py) to fold QoS into the same
+    GraphQL call as interface counters.
+    """
+    fields = [
+        f"Shaper: ShowShaperQos(data: {{key: {key_literal}, detail: true}}) {{ success data {{ result }} }}"
+    ]
+    for idx, (ifname, _policy) in enumerate(cake_targets):
+        fields.append(
+            f"Cake_{idx}: ShowCakeQos(data: {{key: {key_literal}, ifname: {json.dumps(ifname)}}}) "
+            "{ success data { result } }"
+        )
+    return fields
 
 
 # ============================================================================
