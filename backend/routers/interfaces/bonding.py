@@ -13,6 +13,7 @@ from typing import Dict, List, Optional, Any
 from session_vyos_service import get_session_vyos_service
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
+import inspect
 import logging
 
 logger = logging.getLogger(__name__)
@@ -135,30 +136,34 @@ class Dhcpv6OptionsConfig(BaseModel):
     pd: List[Dhcpv6PdConfig] = Field(default_factory=list)
 
 
-class VifConfig(BaseModel):
+class VifBaseConfig(BaseModel):
+    """Fields common to vif, vif-s and vif-c sub-interfaces."""
     vlan_id: str
     addresses: List[str] = Field(default_factory=list)
     description: Optional[str] = None
     disable: bool = False
+    disable_link_detect: bool = False
     mtu: Optional[str] = None
-    vrf: Optional[str] = None
     mac: Optional[str] = None
+    vrf: Optional[str] = None
+    redirect: Optional[str] = None
+    ip: Optional[IpSettings] = None
+    ipv6: Optional[Ipv6Settings] = None
+    dhcp_options: Optional[DhcpOptionsConfig] = None
+    dhcpv6_options: Optional[Dhcpv6OptionsConfig] = None
+    mirror: Optional[MirrorConfig] = None
+
+
+class VifCConfig(VifBaseConfig):
+    pass
+
+
+class VifConfig(VifBaseConfig):
     egress_qos: Optional[str] = None
     ingress_qos: Optional[str] = None
 
 
-class VifCConfig(BaseModel):
-    vlan_id: str
-    addresses: List[str] = Field(default_factory=list)
-    description: Optional[str] = None
-    disable: bool = False
-
-
-class VifSConfig(BaseModel):
-    vlan_id: str
-    addresses: List[str] = Field(default_factory=list)
-    description: Optional[str] = None
-    disable: bool = False
+class VifSConfig(VifBaseConfig):
     protocol: Optional[str] = None
     vif_c: List[VifCConfig] = Field(default_factory=list)
 
@@ -355,24 +360,6 @@ _NO_VALUE_OPS = frozenset({
     "delete_dhcp_options_reject",
 })
 
-# VIF operations that require vlan_id
-_VIF_VALUE_OPS = frozenset({
-    "set_vif_description", "set_vif_address", "delete_vif_address",
-    "set_vif_mtu", "set_vif_vrf",
-})
-_VIF_NO_VALUE_OPS = frozenset({
-    "set_vif", "delete_vif",
-    "delete_vif_description", "set_vif_disable", "delete_vif_disable",
-    "delete_vif_mtu", "delete_vif_vrf",
-})
-
-# VIF-S operations
-_VIF_S_OPS = frozenset({
-    "set_vif_s", "delete_vif_s",
-    "set_vif_s_address", "delete_vif_s_address",
-    "set_vif_s_vif_c", "delete_vif_s_vif_c",
-})
-
 
 @router.post("/batch", response_model=VyOSResponse)
 async def configure_bonding_batch(http_request: Request, request: BondingBatchRequest) -> VyOSResponse:
@@ -416,39 +403,38 @@ async def configure_bonding_batch(http_request: Request, request: BondingBatchRe
                         raise HTTPException(status_code=400, detail=f"Unsupported operation: {op}")
                     method(iface)
 
-            # VIF operations requiring vlan_id + optional value
-            elif op in _VIF_VALUE_OPS:
-                if not vlan:
-                    raise HTTPException(status_code=400, detail=f"'{op}' requires vlan_id")
-                if not val:
-                    raise HTTPException(status_code=400, detail=f"'{op}' requires a value")
+            # VLAN sub-interface operations (vif / vif-s / vif-c).
+            # Dispatched generically: the builder method signature determines
+            # how many positional args are required. vif-c ops consume both the
+            # outer (vlan_id) and inner (inner_vlan_id) VLAN ids; vif / vif-s ops
+            # consume only vlan_id. Any remaining params are filled from `value`
+            # (comma-separated for multi-arg ops, e.g. PD: "pd_id,iface,addr").
+            elif op.startswith(("set_vif", "delete_vif")):
                 method = getattr(batch, op, None)
                 if method is None:
                     raise HTTPException(status_code=400, detail=f"Unsupported operation: {op}")
-                method(iface, vlan, val)
 
-            elif op in _VIF_NO_VALUE_OPS:
-                if not vlan:
-                    raise HTTPException(status_code=400, detail=f"'{op}' requires vlan_id")
-                method = getattr(batch, op, None)
-                if method is None:
-                    raise HTTPException(status_code=400, detail=f"Unsupported operation: {op}")
-                method(iface, vlan)
+                if op.startswith(("set_vif_c", "delete_vif_c")):
+                    if not vlan or not inner_vlan:
+                        raise HTTPException(status_code=400, detail=f"'{op}' requires vlan_id and inner_vlan_id")
+                    args = [iface, vlan, inner_vlan]
+                else:
+                    if not vlan:
+                        raise HTTPException(status_code=400, detail=f"'{op}' requires vlan_id")
+                    args = [iface, vlan]
 
-            # VIF-S operations
-            elif op in _VIF_S_OPS:
-                if not vlan:
-                    raise HTTPException(status_code=400, detail=f"'{op}' requires vlan_id")
-                if op in ("set_vif_s", "delete_vif_s"):
-                    getattr(batch, op)(iface, vlan)
-                elif op in ("set_vif_s_address", "delete_vif_s_address"):
-                    if not val:
+                extra = len(inspect.signature(method).parameters) - len(args)
+                if extra > 0:
+                    if val is None:
                         raise HTTPException(status_code=400, detail=f"'{op}' requires a value")
-                    getattr(batch, op)(iface, vlan, val)
-                elif op in ("set_vif_s_vif_c", "delete_vif_s_vif_c"):
-                    if not inner_vlan:
-                        raise HTTPException(status_code=400, detail=f"'{op}' requires inner_vlan_id")
-                    getattr(batch, op)(iface, vlan, inner_vlan)
+                    parts = val.split(",")
+                    if len(parts) < extra:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"'{op}' requires {extra} comma-separated value(s)",
+                        )
+                    args.extend(parts[:extra])
+                method(*args)
 
             else:
                 raise HTTPException(status_code=400, detail=f"Unsupported operation: {op}")
