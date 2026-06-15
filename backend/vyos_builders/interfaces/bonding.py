@@ -467,61 +467,653 @@ class BondingInterfaceBuilderMixin:
     def delete_all_dhcpv6_options(self, interface: str) -> "BondingInterfaceBuilderMixin":
         return self.add_delete(self.mappers[self.interface_mapper_key].get_dhcpv6_options_path(interface))
 
-    # --- VIF (VLAN sub-interfaces) ---
+    # ------------------------------------------------------------------
+    # VIF sub-interface operations
+    # ------------------------------------------------------------------
     def set_vif(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
-        return self.add_set(self.mappers[self.interface_mapper_key].get_vif(interface, vlan_id))
-
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id))
     def delete_vif(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
-        return self.add_delete(self.mappers[self.interface_mapper_key].get_vif(interface, vlan_id))
-
-    def set_vif_description(self, interface: str, vlan_id: str, description: str) -> "BondingInterfaceBuilderMixin":
-        return self.add_set(self.mappers[self.interface_mapper_key].get_vif_description(interface, vlan_id, description))
-
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id))
+    def set_vif_address(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "address", value))
+    def delete_vif_address(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "address", value))
+    def set_vif_description(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "description", value))
     def delete_vif_description(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
-        return self.add_delete(self.mappers[self.interface_mapper_key].get_vif_description_path(interface, vlan_id))
-
-    def set_vif_address(self, interface: str, vlan_id: str, address: str) -> "BondingInterfaceBuilderMixin":
-        return self.add_set(self.mappers[self.interface_mapper_key].get_vif_address(interface, vlan_id, address))
-
-    def delete_vif_address(self, interface: str, vlan_id: str, address: str) -> "BondingInterfaceBuilderMixin":
-        return self.add_delete(self.mappers[self.interface_mapper_key].get_vif_address(interface, vlan_id, address))
-
-    def set_vif_disable(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
-        return self.add_set(self.mappers[self.interface_mapper_key].get_vif_disable(interface, vlan_id))
-
-    def delete_vif_disable(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
-        return self.add_delete(self.mappers[self.interface_mapper_key].get_vif_disable(interface, vlan_id))
-
-    def set_vif_mtu(self, interface: str, vlan_id: str, mtu: str) -> "BondingInterfaceBuilderMixin":
-        return self.add_set(self.mappers[self.interface_mapper_key].get_vif_mtu(interface, vlan_id, mtu))
-
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "description"))
+    def set_vif_mtu(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "mtu", value))
     def delete_vif_mtu(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
-        return self.add_delete(self.mappers[self.interface_mapper_key].get_vif_mtu_path(interface, vlan_id))
-
-    def set_vif_vrf(self, interface: str, vlan_id: str, vrf: str) -> "BondingInterfaceBuilderMixin":
-        return self.add_set(self.mappers[self.interface_mapper_key].get_vif_vrf(interface, vlan_id, vrf))
-
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "mtu"))
+    def set_vif_mac(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "mac", value))
+    def delete_vif_mac(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "mac"))
+    def set_vif_vrf(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "vrf", value))
     def delete_vif_vrf(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
-        return self.add_delete(self.mappers[self.interface_mapper_key].get_vif_vrf_path(interface, vlan_id))
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "vrf"))
+    def set_vif_redirect(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "redirect", value))
+    def delete_vif_redirect(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "redirect"))
+    def set_vif_disable(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "disable"))
+    def delete_vif_disable(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "disable"))
+    def set_vif_disable_link_detect(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "disable-link-detect"))
+    def delete_vif_disable_link_detect(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "disable-link-detect"))
+    def set_vif_mirror_ingress(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "mirror", "ingress", value))
+    def delete_vif_mirror_ingress(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "mirror", "ingress"))
+    def set_vif_mirror_egress(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "mirror", "egress", value))
+    def delete_vif_mirror_egress(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "mirror", "egress"))
+    def delete_vif_mirror(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "mirror"))
+    def set_vif_ip_adjust_mss(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "ip", "adjust-mss", value))
+    def delete_vif_ip_adjust_mss(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "ip", "adjust-mss"))
+    def set_vif_ip_arp_cache_timeout(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "ip", "arp-cache-timeout", value))
+    def delete_vif_ip_arp_cache_timeout(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "ip", "arp-cache-timeout"))
+    def set_vif_ip_source_validation(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "ip", "source-validation", value))
+    def delete_vif_ip_source_validation(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "ip", "source-validation"))
+    def set_vif_ip_disable_arp_filter(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "ip", "disable-arp-filter"))
+    def delete_vif_ip_disable_arp_filter(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "ip", "disable-arp-filter"))
+    def set_vif_ip_disable_forwarding(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "ip", "disable-forwarding"))
+    def delete_vif_ip_disable_forwarding(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "ip", "disable-forwarding"))
+    def set_vif_ip_enable_arp_accept(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "ip", "enable-arp-accept"))
+    def delete_vif_ip_enable_arp_accept(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "ip", "enable-arp-accept"))
+    def set_vif_ip_enable_arp_announce(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "ip", "enable-arp-announce"))
+    def delete_vif_ip_enable_arp_announce(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "ip", "enable-arp-announce"))
+    def set_vif_ip_enable_arp_ignore(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "ip", "enable-arp-ignore"))
+    def delete_vif_ip_enable_arp_ignore(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "ip", "enable-arp-ignore"))
+    def set_vif_ip_enable_directed_broadcast(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "ip", "enable-directed-broadcast"))
+    def delete_vif_ip_enable_directed_broadcast(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "ip", "enable-directed-broadcast"))
+    def set_vif_ip_enable_proxy_arp(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "ip", "enable-proxy-arp"))
+    def delete_vif_ip_enable_proxy_arp(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "ip", "enable-proxy-arp"))
+    def set_vif_ip_proxy_arp_pvlan(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "ip", "proxy-arp-pvlan"))
+    def delete_vif_ip_proxy_arp_pvlan(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "ip", "proxy-arp-pvlan"))
+    def delete_vif_ip(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "ip"))
+    def set_vif_ipv6_accept_dad(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "ipv6", "accept-dad", value))
+    def delete_vif_ipv6_accept_dad(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "ipv6", "accept-dad"))
+    def set_vif_ipv6_adjust_mss(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "ipv6", "adjust-mss", value))
+    def delete_vif_ipv6_adjust_mss(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "ipv6", "adjust-mss"))
+    def set_vif_ipv6_base_reachable_time(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "ipv6", "base-reachable-time", value))
+    def delete_vif_ipv6_base_reachable_time(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "ipv6", "base-reachable-time"))
+    def set_vif_ipv6_dup_addr_detect_transmits(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "ipv6", "dup-addr-detect-transmits", value))
+    def delete_vif_ipv6_dup_addr_detect_transmits(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "ipv6", "dup-addr-detect-transmits"))
+    def set_vif_ipv6_source_validation(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "ipv6", "source-validation", value))
+    def delete_vif_ipv6_source_validation(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "ipv6", "source-validation"))
+    def set_vif_ipv6_disable_forwarding(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "ipv6", "disable-forwarding"))
+    def delete_vif_ipv6_disable_forwarding(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "ipv6", "disable-forwarding"))
+    def set_vif_ipv6_address_autoconf(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "ipv6", "address", "autoconf"))
+    def delete_vif_ipv6_address_autoconf(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "ipv6", "address", "autoconf"))
+    def set_vif_ipv6_address_eui64(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "ipv6", "address", "eui64", value))
+    def delete_vif_ipv6_address_eui64(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "ipv6", "address", "eui64", value))
+    def set_vif_ipv6_address_no_default_link_local(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "ipv6", "address", "no-default-link-local"))
+    def delete_vif_ipv6_address_no_default_link_local(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "ipv6", "address", "no-default-link-local"))
+    def set_vif_ipv6_address_interface_identifier(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "ipv6", "address", "interface-identifier", value))
+    def delete_vif_ipv6_address_interface_identifier(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "ipv6", "address", "interface-identifier"))
+    def delete_vif_ipv6(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "ipv6"))
+    def set_vif_dhcp_options_client_id(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "dhcp-options", "client-id", value))
+    def delete_vif_dhcp_options_client_id(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "dhcp-options", "client-id"))
+    def set_vif_dhcp_options_default_route_distance(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "dhcp-options", "default-route-distance", value))
+    def delete_vif_dhcp_options_default_route_distance(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "dhcp-options", "default-route-distance"))
+    def set_vif_dhcp_options_host_name(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "dhcp-options", "host-name", value))
+    def delete_vif_dhcp_options_host_name(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "dhcp-options", "host-name"))
+    def set_vif_dhcp_options_mtu(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "dhcp-options", "mtu"))
+    def delete_vif_dhcp_options_mtu(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "dhcp-options", "mtu"))
+    def set_vif_dhcp_options_no_default_route(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "dhcp-options", "no-default-route"))
+    def delete_vif_dhcp_options_no_default_route(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "dhcp-options", "no-default-route"))
+    def set_vif_dhcp_options_reject(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "dhcp-options", "reject", value))
+    def delete_vif_dhcp_options_reject(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "dhcp-options", "reject", value))
+    def set_vif_dhcp_options_user_class(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "dhcp-options", "user-class", value))
+    def delete_vif_dhcp_options_user_class(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "dhcp-options", "user-class"))
+    def set_vif_dhcp_options_vendor_class_id(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "dhcp-options", "vendor-class-id", value))
+    def delete_vif_dhcp_options_vendor_class_id(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "dhcp-options", "vendor-class-id"))
+    def delete_vif_dhcp_options(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "dhcp-options"))
+    def set_vif_dhcpv6_options_duid(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "dhcpv6-options", "duid", value))
+    def delete_vif_dhcpv6_options_duid(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "dhcpv6-options", "duid"))
+    def set_vif_dhcpv6_options_no_release(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "dhcpv6-options", "no-release"))
+    def delete_vif_dhcpv6_options_no_release(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "dhcpv6-options", "no-release"))
+    def set_vif_dhcpv6_options_parameters_only(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "dhcpv6-options", "parameters-only"))
+    def delete_vif_dhcpv6_options_parameters_only(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "dhcpv6-options", "parameters-only"))
+    def set_vif_dhcpv6_options_rapid_commit(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "dhcpv6-options", "rapid-commit"))
+    def delete_vif_dhcpv6_options_rapid_commit(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "dhcpv6-options", "rapid-commit"))
+    def set_vif_dhcpv6_options_temporary(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "dhcpv6-options", "temporary"))
+    def delete_vif_dhcpv6_options_temporary(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "dhcpv6-options", "temporary"))
+    def set_vif_dhcpv6_options_no_request_dns(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "dhcpv6-options", "no-request-dns"))
+    def delete_vif_dhcpv6_options_no_request_dns(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "dhcpv6-options", "no-request-dns"))
+    def set_vif_dhcpv6_options_no_request_domain_name(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "dhcpv6-options", "no-request-domain-name"))
+    def delete_vif_dhcpv6_options_no_request_domain_name(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "dhcpv6-options", "no-request-domain-name"))
+    def delete_vif_dhcpv6_options(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "dhcpv6-options"))
+    def set_vif_egress_qos(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "egress-qos", value))
+    def delete_vif_egress_qos(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "egress-qos"))
+    def set_vif_ingress_qos(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "ingress-qos", value))
+    def delete_vif_ingress_qos(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "ingress-qos"))
+    def set_vif_dhcpv6_options_pd_length(self, interface: str, vlan_id: str, pd_id: str, length: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "dhcpv6-options", "pd", pd_id, "length", length))
+    def set_vif_dhcpv6_options_pd_interface_address(self, interface: str, vlan_id: str, pd_id: str, pd_iface: str, address: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "dhcpv6-options", "pd", pd_id, "interface", pd_iface, "address", address))
+    def set_vif_dhcpv6_options_pd_interface_sla_id(self, interface: str, vlan_id: str, pd_id: str, pd_iface: str, sla_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "dhcpv6-options", "pd", pd_id, "interface", pd_iface, "sla-id", sla_id))
+    def delete_vif_dhcpv6_options_pd(self, interface: str, vlan_id: str, pd_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "dhcpv6-options", "pd", pd_id))
+    def delete_vif_dhcpv6_options_pd_interface(self, interface: str, vlan_id: str, pd_id: str, pd_iface: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_path(interface, vlan_id, "dhcpv6-options", "pd", pd_id, "interface", pd_iface))
 
-    # --- VIF-S (QinQ) ---
+    # ------------------------------------------------------------------
+    # VIF-S sub-interface operations
+    # ------------------------------------------------------------------
     def set_vif_s(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
-        return self.add_set(self.mappers[self.interface_mapper_key].get_vif_s(interface, vlan_id))
-
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id))
     def delete_vif_s(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
-        return self.add_delete(self.mappers[self.interface_mapper_key].get_vif_s(interface, vlan_id))
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id))
+    def set_vif_s_address(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "address", value))
+    def delete_vif_s_address(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "address", value))
+    def set_vif_s_description(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "description", value))
+    def delete_vif_s_description(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "description"))
+    def set_vif_s_mtu(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "mtu", value))
+    def delete_vif_s_mtu(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "mtu"))
+    def set_vif_s_mac(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "mac", value))
+    def delete_vif_s_mac(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "mac"))
+    def set_vif_s_vrf(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "vrf", value))
+    def delete_vif_s_vrf(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "vrf"))
+    def set_vif_s_redirect(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "redirect", value))
+    def delete_vif_s_redirect(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "redirect"))
+    def set_vif_s_disable(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "disable"))
+    def delete_vif_s_disable(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "disable"))
+    def set_vif_s_disable_link_detect(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "disable-link-detect"))
+    def delete_vif_s_disable_link_detect(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "disable-link-detect"))
+    def set_vif_s_mirror_ingress(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "mirror", "ingress", value))
+    def delete_vif_s_mirror_ingress(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "mirror", "ingress"))
+    def set_vif_s_mirror_egress(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "mirror", "egress", value))
+    def delete_vif_s_mirror_egress(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "mirror", "egress"))
+    def delete_vif_s_mirror(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "mirror"))
+    def set_vif_s_ip_adjust_mss(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "ip", "adjust-mss", value))
+    def delete_vif_s_ip_adjust_mss(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "ip", "adjust-mss"))
+    def set_vif_s_ip_arp_cache_timeout(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "ip", "arp-cache-timeout", value))
+    def delete_vif_s_ip_arp_cache_timeout(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "ip", "arp-cache-timeout"))
+    def set_vif_s_ip_source_validation(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "ip", "source-validation", value))
+    def delete_vif_s_ip_source_validation(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "ip", "source-validation"))
+    def set_vif_s_ip_disable_arp_filter(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "ip", "disable-arp-filter"))
+    def delete_vif_s_ip_disable_arp_filter(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "ip", "disable-arp-filter"))
+    def set_vif_s_ip_disable_forwarding(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "ip", "disable-forwarding"))
+    def delete_vif_s_ip_disable_forwarding(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "ip", "disable-forwarding"))
+    def set_vif_s_ip_enable_arp_accept(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "ip", "enable-arp-accept"))
+    def delete_vif_s_ip_enable_arp_accept(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "ip", "enable-arp-accept"))
+    def set_vif_s_ip_enable_arp_announce(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "ip", "enable-arp-announce"))
+    def delete_vif_s_ip_enable_arp_announce(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "ip", "enable-arp-announce"))
+    def set_vif_s_ip_enable_arp_ignore(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "ip", "enable-arp-ignore"))
+    def delete_vif_s_ip_enable_arp_ignore(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "ip", "enable-arp-ignore"))
+    def set_vif_s_ip_enable_directed_broadcast(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "ip", "enable-directed-broadcast"))
+    def delete_vif_s_ip_enable_directed_broadcast(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "ip", "enable-directed-broadcast"))
+    def set_vif_s_ip_enable_proxy_arp(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "ip", "enable-proxy-arp"))
+    def delete_vif_s_ip_enable_proxy_arp(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "ip", "enable-proxy-arp"))
+    def set_vif_s_ip_proxy_arp_pvlan(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "ip", "proxy-arp-pvlan"))
+    def delete_vif_s_ip_proxy_arp_pvlan(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "ip", "proxy-arp-pvlan"))
+    def delete_vif_s_ip(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "ip"))
+    def set_vif_s_ipv6_accept_dad(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "ipv6", "accept-dad", value))
+    def delete_vif_s_ipv6_accept_dad(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "ipv6", "accept-dad"))
+    def set_vif_s_ipv6_adjust_mss(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "ipv6", "adjust-mss", value))
+    def delete_vif_s_ipv6_adjust_mss(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "ipv6", "adjust-mss"))
+    def set_vif_s_ipv6_base_reachable_time(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "ipv6", "base-reachable-time", value))
+    def delete_vif_s_ipv6_base_reachable_time(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "ipv6", "base-reachable-time"))
+    def set_vif_s_ipv6_dup_addr_detect_transmits(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "ipv6", "dup-addr-detect-transmits", value))
+    def delete_vif_s_ipv6_dup_addr_detect_transmits(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "ipv6", "dup-addr-detect-transmits"))
+    def set_vif_s_ipv6_source_validation(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "ipv6", "source-validation", value))
+    def delete_vif_s_ipv6_source_validation(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "ipv6", "source-validation"))
+    def set_vif_s_ipv6_disable_forwarding(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "ipv6", "disable-forwarding"))
+    def delete_vif_s_ipv6_disable_forwarding(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "ipv6", "disable-forwarding"))
+    def set_vif_s_ipv6_address_autoconf(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "ipv6", "address", "autoconf"))
+    def delete_vif_s_ipv6_address_autoconf(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "ipv6", "address", "autoconf"))
+    def set_vif_s_ipv6_address_eui64(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "ipv6", "address", "eui64", value))
+    def delete_vif_s_ipv6_address_eui64(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "ipv6", "address", "eui64", value))
+    def set_vif_s_ipv6_address_no_default_link_local(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "ipv6", "address", "no-default-link-local"))
+    def delete_vif_s_ipv6_address_no_default_link_local(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "ipv6", "address", "no-default-link-local"))
+    def set_vif_s_ipv6_address_interface_identifier(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "ipv6", "address", "interface-identifier", value))
+    def delete_vif_s_ipv6_address_interface_identifier(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "ipv6", "address", "interface-identifier"))
+    def delete_vif_s_ipv6(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "ipv6"))
+    def set_vif_s_dhcp_options_client_id(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "dhcp-options", "client-id", value))
+    def delete_vif_s_dhcp_options_client_id(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "dhcp-options", "client-id"))
+    def set_vif_s_dhcp_options_default_route_distance(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "dhcp-options", "default-route-distance", value))
+    def delete_vif_s_dhcp_options_default_route_distance(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "dhcp-options", "default-route-distance"))
+    def set_vif_s_dhcp_options_host_name(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "dhcp-options", "host-name", value))
+    def delete_vif_s_dhcp_options_host_name(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "dhcp-options", "host-name"))
+    def set_vif_s_dhcp_options_mtu(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "dhcp-options", "mtu"))
+    def delete_vif_s_dhcp_options_mtu(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "dhcp-options", "mtu"))
+    def set_vif_s_dhcp_options_no_default_route(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "dhcp-options", "no-default-route"))
+    def delete_vif_s_dhcp_options_no_default_route(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "dhcp-options", "no-default-route"))
+    def set_vif_s_dhcp_options_reject(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "dhcp-options", "reject", value))
+    def delete_vif_s_dhcp_options_reject(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "dhcp-options", "reject", value))
+    def set_vif_s_dhcp_options_user_class(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "dhcp-options", "user-class", value))
+    def delete_vif_s_dhcp_options_user_class(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "dhcp-options", "user-class"))
+    def set_vif_s_dhcp_options_vendor_class_id(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "dhcp-options", "vendor-class-id", value))
+    def delete_vif_s_dhcp_options_vendor_class_id(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "dhcp-options", "vendor-class-id"))
+    def delete_vif_s_dhcp_options(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "dhcp-options"))
+    def set_vif_s_dhcpv6_options_duid(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "dhcpv6-options", "duid", value))
+    def delete_vif_s_dhcpv6_options_duid(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "dhcpv6-options", "duid"))
+    def set_vif_s_dhcpv6_options_no_release(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "dhcpv6-options", "no-release"))
+    def delete_vif_s_dhcpv6_options_no_release(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "dhcpv6-options", "no-release"))
+    def set_vif_s_dhcpv6_options_parameters_only(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "dhcpv6-options", "parameters-only"))
+    def delete_vif_s_dhcpv6_options_parameters_only(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "dhcpv6-options", "parameters-only"))
+    def set_vif_s_dhcpv6_options_rapid_commit(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "dhcpv6-options", "rapid-commit"))
+    def delete_vif_s_dhcpv6_options_rapid_commit(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "dhcpv6-options", "rapid-commit"))
+    def set_vif_s_dhcpv6_options_temporary(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "dhcpv6-options", "temporary"))
+    def delete_vif_s_dhcpv6_options_temporary(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "dhcpv6-options", "temporary"))
+    def set_vif_s_dhcpv6_options_no_request_dns(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "dhcpv6-options", "no-request-dns"))
+    def delete_vif_s_dhcpv6_options_no_request_dns(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "dhcpv6-options", "no-request-dns"))
+    def set_vif_s_dhcpv6_options_no_request_domain_name(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "dhcpv6-options", "no-request-domain-name"))
+    def delete_vif_s_dhcpv6_options_no_request_domain_name(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "dhcpv6-options", "no-request-domain-name"))
+    def delete_vif_s_dhcpv6_options(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "dhcpv6-options"))
+    def set_vif_s_protocol(self, interface: str, vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "protocol", value))
+    def delete_vif_s_protocol(self, interface: str, vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "protocol"))
+    def set_vif_s_dhcpv6_options_pd_length(self, interface: str, vlan_id: str, pd_id: str, length: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "dhcpv6-options", "pd", pd_id, "length", length))
+    def set_vif_s_dhcpv6_options_pd_interface_address(self, interface: str, vlan_id: str, pd_id: str, pd_iface: str, address: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "dhcpv6-options", "pd", pd_id, "interface", pd_iface, "address", address))
+    def set_vif_s_dhcpv6_options_pd_interface_sla_id(self, interface: str, vlan_id: str, pd_id: str, pd_iface: str, sla_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "dhcpv6-options", "pd", pd_id, "interface", pd_iface, "sla-id", sla_id))
+    def delete_vif_s_dhcpv6_options_pd(self, interface: str, vlan_id: str, pd_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "dhcpv6-options", "pd", pd_id))
+    def delete_vif_s_dhcpv6_options_pd_interface(self, interface: str, vlan_id: str, pd_id: str, pd_iface: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_s_path(interface, vlan_id, "dhcpv6-options", "pd", pd_id, "interface", pd_iface))
 
-    def set_vif_s_address(self, interface: str, vlan_id: str, address: str) -> "BondingInterfaceBuilderMixin":
-        return self.add_set(self.mappers[self.interface_mapper_key].get_vif_s_address(interface, vlan_id, address))
-
-    def delete_vif_s_address(self, interface: str, vlan_id: str, address: str) -> "BondingInterfaceBuilderMixin":
-        return self.add_delete(self.mappers[self.interface_mapper_key].get_vif_s_address(interface, vlan_id, address))
-
-    def set_vif_s_vif_c(self, interface: str, outer_id: str, inner_id: str) -> "BondingInterfaceBuilderMixin":
-        return self.add_set(self.mappers[self.interface_mapper_key].get_vif_s_vif_c(interface, outer_id, inner_id))
-
-    def delete_vif_s_vif_c(self, interface: str, outer_id: str, inner_id: str) -> "BondingInterfaceBuilderMixin":
-        return self.add_delete(self.mappers[self.interface_mapper_key].get_vif_s_vif_c(interface, outer_id, inner_id))
+    # ------------------------------------------------------------------
+    # VIF-C sub-interface operations
+    # ------------------------------------------------------------------
+    def set_vif_c(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id))
+    def delete_vif_c(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id))
+    def set_vif_c_address(self, interface: str, s_vlan_id: str, c_vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "address", value))
+    def delete_vif_c_address(self, interface: str, s_vlan_id: str, c_vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "address", value))
+    def set_vif_c_description(self, interface: str, s_vlan_id: str, c_vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "description", value))
+    def delete_vif_c_description(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "description"))
+    def set_vif_c_mtu(self, interface: str, s_vlan_id: str, c_vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "mtu", value))
+    def delete_vif_c_mtu(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "mtu"))
+    def set_vif_c_mac(self, interface: str, s_vlan_id: str, c_vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "mac", value))
+    def delete_vif_c_mac(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "mac"))
+    def set_vif_c_vrf(self, interface: str, s_vlan_id: str, c_vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "vrf", value))
+    def delete_vif_c_vrf(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "vrf"))
+    def set_vif_c_redirect(self, interface: str, s_vlan_id: str, c_vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "redirect", value))
+    def delete_vif_c_redirect(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "redirect"))
+    def set_vif_c_disable(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "disable"))
+    def delete_vif_c_disable(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "disable"))
+    def set_vif_c_disable_link_detect(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "disable-link-detect"))
+    def delete_vif_c_disable_link_detect(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "disable-link-detect"))
+    def set_vif_c_mirror_ingress(self, interface: str, s_vlan_id: str, c_vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "mirror", "ingress", value))
+    def delete_vif_c_mirror_ingress(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "mirror", "ingress"))
+    def set_vif_c_mirror_egress(self, interface: str, s_vlan_id: str, c_vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "mirror", "egress", value))
+    def delete_vif_c_mirror_egress(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "mirror", "egress"))
+    def delete_vif_c_mirror(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "mirror"))
+    def set_vif_c_ip_adjust_mss(self, interface: str, s_vlan_id: str, c_vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "ip", "adjust-mss", value))
+    def delete_vif_c_ip_adjust_mss(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "ip", "adjust-mss"))
+    def set_vif_c_ip_arp_cache_timeout(self, interface: str, s_vlan_id: str, c_vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "ip", "arp-cache-timeout", value))
+    def delete_vif_c_ip_arp_cache_timeout(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "ip", "arp-cache-timeout"))
+    def set_vif_c_ip_source_validation(self, interface: str, s_vlan_id: str, c_vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "ip", "source-validation", value))
+    def delete_vif_c_ip_source_validation(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "ip", "source-validation"))
+    def set_vif_c_ip_disable_arp_filter(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "ip", "disable-arp-filter"))
+    def delete_vif_c_ip_disable_arp_filter(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "ip", "disable-arp-filter"))
+    def set_vif_c_ip_disable_forwarding(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "ip", "disable-forwarding"))
+    def delete_vif_c_ip_disable_forwarding(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "ip", "disable-forwarding"))
+    def set_vif_c_ip_enable_arp_accept(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "ip", "enable-arp-accept"))
+    def delete_vif_c_ip_enable_arp_accept(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "ip", "enable-arp-accept"))
+    def set_vif_c_ip_enable_arp_announce(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "ip", "enable-arp-announce"))
+    def delete_vif_c_ip_enable_arp_announce(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "ip", "enable-arp-announce"))
+    def set_vif_c_ip_enable_arp_ignore(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "ip", "enable-arp-ignore"))
+    def delete_vif_c_ip_enable_arp_ignore(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "ip", "enable-arp-ignore"))
+    def set_vif_c_ip_enable_directed_broadcast(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "ip", "enable-directed-broadcast"))
+    def delete_vif_c_ip_enable_directed_broadcast(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "ip", "enable-directed-broadcast"))
+    def set_vif_c_ip_enable_proxy_arp(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "ip", "enable-proxy-arp"))
+    def delete_vif_c_ip_enable_proxy_arp(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "ip", "enable-proxy-arp"))
+    def set_vif_c_ip_proxy_arp_pvlan(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "ip", "proxy-arp-pvlan"))
+    def delete_vif_c_ip_proxy_arp_pvlan(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "ip", "proxy-arp-pvlan"))
+    def delete_vif_c_ip(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "ip"))
+    def set_vif_c_ipv6_accept_dad(self, interface: str, s_vlan_id: str, c_vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "ipv6", "accept-dad", value))
+    def delete_vif_c_ipv6_accept_dad(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "ipv6", "accept-dad"))
+    def set_vif_c_ipv6_adjust_mss(self, interface: str, s_vlan_id: str, c_vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "ipv6", "adjust-mss", value))
+    def delete_vif_c_ipv6_adjust_mss(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "ipv6", "adjust-mss"))
+    def set_vif_c_ipv6_base_reachable_time(self, interface: str, s_vlan_id: str, c_vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "ipv6", "base-reachable-time", value))
+    def delete_vif_c_ipv6_base_reachable_time(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "ipv6", "base-reachable-time"))
+    def set_vif_c_ipv6_dup_addr_detect_transmits(self, interface: str, s_vlan_id: str, c_vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "ipv6", "dup-addr-detect-transmits", value))
+    def delete_vif_c_ipv6_dup_addr_detect_transmits(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "ipv6", "dup-addr-detect-transmits"))
+    def set_vif_c_ipv6_source_validation(self, interface: str, s_vlan_id: str, c_vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "ipv6", "source-validation", value))
+    def delete_vif_c_ipv6_source_validation(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "ipv6", "source-validation"))
+    def set_vif_c_ipv6_disable_forwarding(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "ipv6", "disable-forwarding"))
+    def delete_vif_c_ipv6_disable_forwarding(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "ipv6", "disable-forwarding"))
+    def set_vif_c_ipv6_address_autoconf(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "ipv6", "address", "autoconf"))
+    def delete_vif_c_ipv6_address_autoconf(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "ipv6", "address", "autoconf"))
+    def set_vif_c_ipv6_address_eui64(self, interface: str, s_vlan_id: str, c_vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "ipv6", "address", "eui64", value))
+    def delete_vif_c_ipv6_address_eui64(self, interface: str, s_vlan_id: str, c_vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "ipv6", "address", "eui64", value))
+    def set_vif_c_ipv6_address_no_default_link_local(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "ipv6", "address", "no-default-link-local"))
+    def delete_vif_c_ipv6_address_no_default_link_local(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "ipv6", "address", "no-default-link-local"))
+    def set_vif_c_ipv6_address_interface_identifier(self, interface: str, s_vlan_id: str, c_vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "ipv6", "address", "interface-identifier", value))
+    def delete_vif_c_ipv6_address_interface_identifier(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "ipv6", "address", "interface-identifier"))
+    def delete_vif_c_ipv6(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "ipv6"))
+    def set_vif_c_dhcp_options_client_id(self, interface: str, s_vlan_id: str, c_vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "dhcp-options", "client-id", value))
+    def delete_vif_c_dhcp_options_client_id(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "dhcp-options", "client-id"))
+    def set_vif_c_dhcp_options_default_route_distance(self, interface: str, s_vlan_id: str, c_vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "dhcp-options", "default-route-distance", value))
+    def delete_vif_c_dhcp_options_default_route_distance(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "dhcp-options", "default-route-distance"))
+    def set_vif_c_dhcp_options_host_name(self, interface: str, s_vlan_id: str, c_vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "dhcp-options", "host-name", value))
+    def delete_vif_c_dhcp_options_host_name(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "dhcp-options", "host-name"))
+    def set_vif_c_dhcp_options_mtu(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "dhcp-options", "mtu"))
+    def delete_vif_c_dhcp_options_mtu(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "dhcp-options", "mtu"))
+    def set_vif_c_dhcp_options_no_default_route(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "dhcp-options", "no-default-route"))
+    def delete_vif_c_dhcp_options_no_default_route(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "dhcp-options", "no-default-route"))
+    def set_vif_c_dhcp_options_reject(self, interface: str, s_vlan_id: str, c_vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "dhcp-options", "reject", value))
+    def delete_vif_c_dhcp_options_reject(self, interface: str, s_vlan_id: str, c_vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "dhcp-options", "reject", value))
+    def set_vif_c_dhcp_options_user_class(self, interface: str, s_vlan_id: str, c_vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "dhcp-options", "user-class", value))
+    def delete_vif_c_dhcp_options_user_class(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "dhcp-options", "user-class"))
+    def set_vif_c_dhcp_options_vendor_class_id(self, interface: str, s_vlan_id: str, c_vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "dhcp-options", "vendor-class-id", value))
+    def delete_vif_c_dhcp_options_vendor_class_id(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "dhcp-options", "vendor-class-id"))
+    def delete_vif_c_dhcp_options(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "dhcp-options"))
+    def set_vif_c_dhcpv6_options_duid(self, interface: str, s_vlan_id: str, c_vlan_id: str, value: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "dhcpv6-options", "duid", value))
+    def delete_vif_c_dhcpv6_options_duid(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "dhcpv6-options", "duid"))
+    def set_vif_c_dhcpv6_options_no_release(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "dhcpv6-options", "no-release"))
+    def delete_vif_c_dhcpv6_options_no_release(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "dhcpv6-options", "no-release"))
+    def set_vif_c_dhcpv6_options_parameters_only(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "dhcpv6-options", "parameters-only"))
+    def delete_vif_c_dhcpv6_options_parameters_only(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "dhcpv6-options", "parameters-only"))
+    def set_vif_c_dhcpv6_options_rapid_commit(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "dhcpv6-options", "rapid-commit"))
+    def delete_vif_c_dhcpv6_options_rapid_commit(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "dhcpv6-options", "rapid-commit"))
+    def set_vif_c_dhcpv6_options_temporary(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "dhcpv6-options", "temporary"))
+    def delete_vif_c_dhcpv6_options_temporary(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "dhcpv6-options", "temporary"))
+    def set_vif_c_dhcpv6_options_no_request_dns(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "dhcpv6-options", "no-request-dns"))
+    def delete_vif_c_dhcpv6_options_no_request_dns(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "dhcpv6-options", "no-request-dns"))
+    def set_vif_c_dhcpv6_options_no_request_domain_name(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "dhcpv6-options", "no-request-domain-name"))
+    def delete_vif_c_dhcpv6_options_no_request_domain_name(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "dhcpv6-options", "no-request-domain-name"))
+    def delete_vif_c_dhcpv6_options(self, interface: str, s_vlan_id: str, c_vlan_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "dhcpv6-options"))
+    def set_vif_c_dhcpv6_options_pd_length(self, interface: str, s_vlan_id: str, c_vlan_id: str, pd_id: str, length: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "dhcpv6-options", "pd", pd_id, "length", length))
+    def set_vif_c_dhcpv6_options_pd_interface_address(self, interface: str, s_vlan_id: str, c_vlan_id: str, pd_id: str, pd_iface: str, address: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "dhcpv6-options", "pd", pd_id, "interface", pd_iface, "address", address))
+    def set_vif_c_dhcpv6_options_pd_interface_sla_id(self, interface: str, s_vlan_id: str, c_vlan_id: str, pd_id: str, pd_iface: str, sla_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_set(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "dhcpv6-options", "pd", pd_id, "interface", pd_iface, "sla-id", sla_id))
+    def delete_vif_c_dhcpv6_options_pd(self, interface: str, s_vlan_id: str, c_vlan_id: str, pd_id: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "dhcpv6-options", "pd", pd_id))
+    def delete_vif_c_dhcpv6_options_pd_interface(self, interface: str, s_vlan_id: str, c_vlan_id: str, pd_id: str, pd_iface: str) -> "BondingInterfaceBuilderMixin":
+        return self.add_delete(self.mappers[self.interface_mapper_key].vif_c_path(interface, s_vlan_id, c_vlan_id, "dhcpv6-options", "pd", pd_id, "interface", pd_iface))
 
     # --- EAPoL (version-specific, will only work on 1.5) ---
     def set_eapol_ca_certificate(self, interface: str, value: str) -> "BondingInterfaceBuilderMixin":
@@ -622,6 +1214,7 @@ class BondingInterfaceBuilderMixin:
                 "dhcpv6_options": {"supported": True, "description": "DHCPv6 client options"},
                 "vif": {"supported": True, "description": "VLAN sub-interfaces (802.1Q)"},
                 "vif_s": {"supported": True, "description": "QinQ service VLAN (802.1ad)"},
+                "vif_c": {"supported": True, "description": "QinQ customer VLAN (under vif-s)"},
                 "eapol": {"supported": is_1_5, "description": "802.1X EAPoL authentication (VyOS 1.5+)"},
                 "dhcpv6_no_request_dns": {"supported": is_1_5, "description": "DHCPv6 no-request-dns (VyOS 1.5+)"},
                 "dhcpv6_no_request_domain_name": {"supported": is_1_5, "description": "DHCPv6 no-request-domain-name (VyOS 1.5+)"},

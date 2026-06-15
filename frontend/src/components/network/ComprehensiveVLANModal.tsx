@@ -22,7 +22,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ethernetService } from "@/lib/api/ethernet";
-import type { EthernetInterface, EthernetCapabilities, VIFConfig, BatchOperation } from "@/lib/api/types/ethernet";
+import type { EthernetCapabilities, VIFConfig, BatchOperation, VlanBatchService, VlanParentInterface } from "@/lib/api/types/ethernet";
 import { Loader2, X } from "lucide-react";
 
 interface VLANWithParent extends VIFConfig {
@@ -34,10 +34,12 @@ interface ComprehensiveVLANModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   vlan?: VLANWithParent | null;
-  interfaces: EthernetInterface[];
+  interfaces: VlanParentInterface[];
   capabilities: EthernetCapabilities | null;
   onSuccess: () => void;
   mode: "create" | "edit";
+  /** Defaults to ethernetService; pass the bonding adapter to drive bond VLANs. */
+  service?: VlanBatchService;
 }
 
 export function ComprehensiveVLANModal({
@@ -48,6 +50,7 @@ export function ComprehensiveVLANModal({
   capabilities,
   onSuccess,
   mode,
+  service = ethernetService,
 }: ComprehensiveVLANModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -474,7 +477,7 @@ export function ComprehensiveVLANModal({
 
         const operations = buildOperations();
 
-        await ethernetService.batchConfigure({
+        await service.batchConfigure({
           interface: parentInterface,
           operations,
         });
@@ -487,13 +490,13 @@ export function ComprehensiveVLANModal({
           return;
         }
 
-        await ethernetService.batchConfigure({
+        await service.batchConfigure({
           interface: vlan!.parentInterface,
           operations,
         });
       }
 
-      await ethernetService.refreshConfig();
+      await service.refreshConfig();
 
       onSuccess();
       onOpenChange(false);

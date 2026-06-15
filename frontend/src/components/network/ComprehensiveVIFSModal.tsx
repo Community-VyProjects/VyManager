@@ -22,7 +22,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ethernetService } from "@/lib/api/ethernet";
-import type { EthernetInterface, EthernetCapabilities, VIFSConfig, BatchOperation } from "@/lib/api/types/ethernet";
+import type { EthernetCapabilities, VIFSConfig, BatchOperation, VlanBatchService, VlanParentInterface } from "@/lib/api/types/ethernet";
 import { Loader2, X } from "lucide-react";
 
 interface VIFSWithParent extends VIFSConfig {
@@ -34,10 +34,12 @@ interface ComprehensiveVIFSModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   vlan?: VIFSWithParent | null;
-  interfaces: EthernetInterface[];
+  interfaces: VlanParentInterface[];
   capabilities: EthernetCapabilities | null;
   onSuccess: () => void;
   mode: "create" | "edit";
+  /** Defaults to ethernetService; pass the bonding adapter to drive bond VLANs. */
+  service?: VlanBatchService;
 }
 
 export function ComprehensiveVIFSModal({
@@ -48,6 +50,7 @@ export function ComprehensiveVIFSModal({
   capabilities,
   onSuccess,
   mode,
+  service = ethernetService,
 }: ComprehensiveVIFSModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -300,11 +303,11 @@ export function ComprehensiveVIFSModal({
       addStringOp(operations, vid, "set_vif_s_redirect", "delete_vif_s_redirect", redirect, vlan?.redirect);
     }
 
-    // QoS
-    if (feat?.vif_egress_qos) {
+    // QoS (scope-specific gate; bonds support QoS only on plain vif, not vif-s)
+    if (feat?.vif_s_egress_qos ?? feat?.vif_egress_qos) {
       addStringOp(operations, vid, "set_vif_s_egress_qos", "delete_vif_s_egress_qos", egressQos, vlan?.egress_qos);
     }
-    if (feat?.vif_ingress_qos) {
+    if (feat?.vif_s_ingress_qos ?? feat?.vif_ingress_qos) {
       addStringOp(operations, vid, "set_vif_s_ingress_qos", "delete_vif_s_ingress_qos", ingressQos, vlan?.ingress_qos);
     }
 
@@ -399,13 +402,13 @@ export function ComprehensiveVIFSModal({
         const vlanIdNum = parseInt(vlanId);
         if (isNaN(vlanIdNum) || vlanIdNum < 1 || vlanIdNum > 4094) throw new Error("VLAN ID must be between 1 and 4094");
         const operations = buildOperations();
-        await ethernetService.batchConfigure({ interface: parentInterface, operations });
+        await service.batchConfigure({ interface: parentInterface, operations });
       } else {
         const operations = buildOperations();
         if (operations.length === 0) { setError("No changes detected"); setLoading(false); return; }
-        await ethernetService.batchConfigure({ interface: vlan!.parentInterface, operations });
+        await service.batchConfigure({ interface: vlan!.parentInterface, operations });
       }
-      await ethernetService.refreshConfig();
+      await service.refreshConfig();
       onSuccess();
       onOpenChange(false);
     } catch (err) {
@@ -534,13 +537,13 @@ export function ComprehensiveVIFSModal({
                 )}
               </div>
               <div className="grid grid-cols-2 gap-4">
-                {feat?.vif_egress_qos && (
+                {(feat?.vif_s_egress_qos ?? feat?.vif_egress_qos) && (
                   <div className="space-y-2">
                     <Label htmlFor="egress-qos">Egress QoS</Label>
                     <Input id="egress-qos" placeholder="0:0 1:1 2:2" value={egressQos} onChange={(e) => setEgressQos(e.target.value)} />
                   </div>
                 )}
-                {feat?.vif_ingress_qos && (
+                {(feat?.vif_s_ingress_qos ?? feat?.vif_ingress_qos) && (
                   <div className="space-y-2">
                     <Label htmlFor="ingress-qos">Ingress QoS</Label>
                     <Input id="ingress-qos" placeholder="0:0 1:1 2:2" value={ingressQos} onChange={(e) => setIngressQos(e.target.value)} />

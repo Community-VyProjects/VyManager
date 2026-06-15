@@ -1,4 +1,9 @@
 import { apiClient } from "./client";
+import type {
+  BatchRequest,
+  EthernetCapabilities,
+  VlanBatchService,
+} from "./types/ethernet";
 
 // ============================================================================
 // TypeScript Interfaces
@@ -88,31 +93,32 @@ export interface BondingDhcpv6Options {
   pd: BondingDhcpv6Pd[];
 }
 
-export interface BondingVifConfig {
+export interface BondingVifBaseConfig {
   vlan_id: string;
   addresses: string[];
   description: string | null;
+  disable: boolean;
+  disable_link_detect: boolean;
   mtu: string | null;
-  vrf: string | null;
   mac: string | null;
+  vrf: string | null;
+  redirect: string | null;
+  ip: BondingIpSettings | null;
+  ipv6: BondingIpv6Settings | null;
+  dhcp_options: BondingDhcpOptions | null;
+  dhcpv6_options: BondingDhcpv6Options | null;
+  mirror: BondingMirror | null;
+}
+
+export type BondingVifCConfig = BondingVifBaseConfig;
+
+export interface BondingVifConfig extends BondingVifBaseConfig {
   egress_qos: string | null;
   ingress_qos: string | null;
-  disable: boolean;
 }
 
-export interface BondingVifCConfig {
-  vlan_id: string;
-  addresses: string[];
-  description: string | null;
-  disable: boolean;
-}
-
-export interface BondingVifSConfig {
-  vlan_id: string;
-  addresses: string[];
-  description: string | null;
+export interface BondingVifSConfig extends BondingVifBaseConfig {
   protocol: string | null;
-  disable: boolean;
   vif_c: BondingVifCConfig[];
 }
 
@@ -807,3 +813,73 @@ class BondingService {
 }
 
 export const bondingService = new BondingService();
+
+// ============================================================================
+// VLAN modal integration
+//
+// The shared Comprehensive VLAN/VIF-S/VIF-C modals are written against the
+// ethernet service contract. These adapters let the very same modals drive
+// bond VLANs: the wire format (op + comma-packed value) is identical, so we
+// only need to map the request shape, synthesize a capabilities object, and
+// reconcile the one differing field name in the IPv6 sub-config.
+// ============================================================================
+
+/** Adapter exposing the ethernet `VlanBatchService` contract over bondingService. */
+export const bondingVlanService: VlanBatchService = {
+  // bondingService.batchConfigure already refreshes config internally.
+  batchConfigure: (request: BatchRequest) =>
+    bondingService.batchConfigure(request.interface, request.operations as BondingBatchOperation[]),
+  refreshConfig: async () => ({ success: true }),
+};
+
+const BOND_VLAN_FEATURES = [
+  "vif_address", "vif_description", "vif_mtu", "vif_mac", "vif_vrf", "vif_redirect",
+  "vif_disable", "vif_disable_link_detect", "vif_egress_qos", "vif_ingress_qos",
+  "vif_s_protocol", "vif_mirror",
+  "vif_ip", "vif_ip_adjust_mss", "vif_ip_arp_cache_timeout", "vif_ip_source_validation",
+  "vif_ip_disable_arp_filter", "vif_ip_enable_arp_accept", "vif_ip_enable_arp_announce",
+  "vif_ip_enable_arp_ignore", "vif_ip_enable_directed_broadcast",
+  "vif_ipv6", "vif_ipv6_accept_dad", "vif_ipv6_adjust_mss", "vif_ipv6_base_reachable_time",
+  "vif_ipv6_dup_addr_detect_transmits", "vif_ipv6_source_validation",
+  "vif_ipv6_address_no_default_link_local",
+  "vif_dhcp_options", "vif_dhcp_options_default_route_distance", "vif_dhcp_options_mtu",
+  "vif_dhcp_options_no_default_route", "vif_dhcp_options_reject", "vif_dhcp_options_user_class",
+  "vif_dhcp_options_vendor_class_id", "vif_dhcpv6_options",
+] as const;
+
+/**
+ * Build an ethernet-shaped capabilities object describing what the bond VLAN
+ * template tree supports, so the shared modals render the right fields.
+ * - QoS exists only on `vif` (not vif-s/vif-c), gated per-scope in those modals.
+ * - A few leaves are VyOS 1.5+ only.
+ * - `tcp_mss` is intentionally omitted; the clamp value is reachable via the
+ *   adjust-mss text field instead.
+ */
+export function bondingVlanCapabilities(version: string): EthernetCapabilities {
+  const is15 = !version.includes("1.4");
+  const vlan: Record<string, boolean> = {};
+  for (const key of BOND_VLAN_FEATURES) vlan[key] = true;
+  vlan.vif_ipv6_address_interface_identifier = is15;
+  vlan.vif_dhcpv6_options_no_request_dns = is15;
+  vlan.vif_dhcpv6_options_no_request_domain_name = is15;
+  // QoS is not part of the vif-s / vif-c template subtree.
+  vlan.vif_s_egress_qos = false;
+  vlan.vif_s_ingress_qos = false;
+  vlan.vif_c_egress_qos = false;
+  vlan.vif_c_ingress_qos = false;
+  return { version, features: { vlan } } as unknown as EthernetCapabilities;
+}
+
+/**
+ * Map a bond vif/vif-s/vif-c sub-config onto the ethernet VIFConfig shape the
+ * modals read. Field names already match except the IPv6 "no default
+ * link-local" flag, so reconcile that one for correct edit-mode prefill.
+ */
+export function bondVifToVlanShape<T extends { ipv6?: BondingIpv6Settings | null }>(vif: T) {
+  return {
+    ...vif,
+    ipv6: vif.ipv6
+      ? { ...vif.ipv6, no_default_link_local: vif.ipv6.address_no_default_link_local }
+      : vif.ipv6,
+  };
+}

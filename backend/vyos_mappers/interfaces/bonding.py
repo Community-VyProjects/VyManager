@@ -333,55 +333,19 @@ class BondingInterfaceMapper(BaseFeatureMapper):
     def get_dhcpv6_options_path(self, interface: str) -> List[str]:
         return self._base(interface) + ["dhcpv6-options"]
 
-    # --- VIF (VLAN sub-interfaces) ---
-    def get_vif(self, interface: str, vlan_id: str) -> List[str]:
-        return self._base(interface) + ["vif", vlan_id]
+    # ------------------------------------------------------------------
+    # VLAN sub-interface path helpers (vif / vif-s / vif-c)
+    # Paths are identical across VyOS 1.4 and 1.5; per-version feature
+    # availability is gated via capabilities, not path differences.
+    # ------------------------------------------------------------------
+    def vif_path(self, interface: str, vlan_id: str, *segments: str) -> List[str]:
+        return self._base(interface) + ["vif", vlan_id, *segments]
 
-    def get_vif_description(self, interface: str, vlan_id: str, description: str) -> List[str]:
-        return self._base(interface) + ["vif", vlan_id, "description", description]
+    def vif_s_path(self, interface: str, vlan_id: str, *segments: str) -> List[str]:
+        return self._base(interface) + ["vif-s", vlan_id, *segments]
 
-    def get_vif_description_path(self, interface: str, vlan_id: str) -> List[str]:
-        return self._base(interface) + ["vif", vlan_id, "description"]
-
-    def get_vif_address(self, interface: str, vlan_id: str, address: str) -> List[str]:
-        return self._base(interface) + ["vif", vlan_id, "address", address]
-
-    def get_vif_disable(self, interface: str, vlan_id: str) -> List[str]:
-        return self._base(interface) + ["vif", vlan_id, "disable"]
-
-    def get_vif_mtu(self, interface: str, vlan_id: str, mtu: str) -> List[str]:
-        return self._base(interface) + ["vif", vlan_id, "mtu", mtu]
-
-    def get_vif_mtu_path(self, interface: str, vlan_id: str) -> List[str]:
-        return self._base(interface) + ["vif", vlan_id, "mtu"]
-
-    def get_vif_vrf(self, interface: str, vlan_id: str, vrf: str) -> List[str]:
-        return self._base(interface) + ["vif", vlan_id, "vrf", vrf]
-
-    def get_vif_vrf_path(self, interface: str, vlan_id: str) -> List[str]:
-        return self._base(interface) + ["vif", vlan_id, "vrf"]
-
-    # --- VIF-S (QinQ service VLAN) ---
-    def get_vif_s(self, interface: str, vlan_id: str) -> List[str]:
-        return self._base(interface) + ["vif-s", vlan_id]
-
-    def get_vif_s_description(self, interface: str, vlan_id: str, description: str) -> List[str]:
-        return self._base(interface) + ["vif-s", vlan_id, "description", description]
-
-    def get_vif_s_address(self, interface: str, vlan_id: str, address: str) -> List[str]:
-        return self._base(interface) + ["vif-s", vlan_id, "address", address]
-
-    def get_vif_s_disable(self, interface: str, vlan_id: str) -> List[str]:
-        return self._base(interface) + ["vif-s", vlan_id, "disable"]
-
-    def get_vif_s_vif_c(self, interface: str, outer_id: str, inner_id: str) -> List[str]:
-        return self._base(interface) + ["vif-s", outer_id, "vif-c", inner_id]
-
-    def get_vif_s_vif_c_address(self, interface: str, outer_id: str, inner_id: str, address: str) -> List[str]:
-        return self._base(interface) + ["vif-s", outer_id, "vif-c", inner_id, "address", address]
-
-    def get_vif_s_vif_c_description(self, interface: str, outer_id: str, inner_id: str, description: str) -> List[str]:
-        return self._base(interface) + ["vif-s", outer_id, "vif-c", inner_id, "description", description]
+    def vif_c_path(self, interface: str, s_vlan_id: str, c_vlan_id: str, *segments: str) -> List[str]:
+        return self._base(interface) + ["vif-s", s_vlan_id, "vif-c", c_vlan_id, *segments]
 
     # ========================================================================
     # Config Parsing Methods (for READ operations)
@@ -549,6 +513,24 @@ class BondingInterfaceMapper(BaseFeatureMapper):
             "passphrase": eapol.get("passphrase"),
         }
 
+    def _parse_vif_common(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Parse fields shared by vif / vif-s / vif-c sub-interfaces."""
+        return {
+            "addresses": self._parse_addresses(data),
+            "description": data.get("description"),
+            "disable": "disable" in data,
+            "disable_link_detect": "disable-link-detect" in data,
+            "mtu": data.get("mtu"),
+            "mac": data.get("mac"),
+            "vrf": data.get("vrf"),
+            "redirect": data.get("redirect"),
+            "ip": self._parse_ip_settings(data) if isinstance(data.get("ip"), dict) else None,
+            "ipv6": self._parse_ipv6_settings(data) if isinstance(data.get("ipv6"), dict) else None,
+            "dhcp_options": self._parse_dhcp_options(data),
+            "dhcpv6_options": self._parse_dhcpv6_options(data),
+            "mirror": self._parse_mirror(data),
+        }
+
     def _parse_vifs(self, config: Dict[str, Any]) -> List[Dict[str, Any]]:
         vif_config = config.get("vif", {})
         if not isinstance(vif_config, dict):
@@ -557,17 +539,11 @@ class BondingInterfaceMapper(BaseFeatureMapper):
         for vlan_id, vlan_data in vif_config.items():
             if not isinstance(vlan_data, dict):
                 continue
-            vifs.append({
-                "vlan_id": vlan_id,
-                "addresses": self._parse_addresses(vlan_data),
-                "description": vlan_data.get("description"),
-                "disable": "disable" in vlan_data,
-                "mtu": vlan_data.get("mtu"),
-                "vrf": vlan_data.get("vrf"),
-                "mac": vlan_data.get("mac"),
-                "egress_qos": vlan_data.get("egress-qos"),
-                "ingress_qos": vlan_data.get("ingress-qos"),
-            })
+            entry = self._parse_vif_common(vlan_data)
+            entry["vlan_id"] = vlan_id
+            entry["egress_qos"] = vlan_data.get("egress-qos")
+            entry["ingress_qos"] = vlan_data.get("ingress-qos")
+            vifs.append(entry)
         return vifs
 
     def _parse_vif_s(self, config: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -578,25 +554,19 @@ class BondingInterfaceMapper(BaseFeatureMapper):
         for outer_id, outer_data in vif_s_config.items():
             if not isinstance(outer_data, dict):
                 continue
-            entry = {
-                "vlan_id": outer_id,
-                "addresses": self._parse_addresses(outer_data),
-                "description": outer_data.get("description"),
-                "disable": "disable" in outer_data,
-                "protocol": outer_data.get("protocol"),
-                "vif_c": [],
-            }
+            entry = self._parse_vif_common(outer_data)
+            entry["vlan_id"] = outer_id
+            entry["protocol"] = outer_data.get("protocol")
+            vif_c_list = []
             vif_c_config = outer_data.get("vif-c", {})
             if isinstance(vif_c_config, dict):
                 for inner_id, inner_data in vif_c_config.items():
                     if not isinstance(inner_data, dict):
                         continue
-                    entry["vif_c"].append({
-                        "vlan_id": inner_id,
-                        "addresses": self._parse_addresses(inner_data),
-                        "description": inner_data.get("description"),
-                        "disable": "disable" in inner_data,
-                    })
+                    c_entry = self._parse_vif_common(inner_data)
+                    c_entry["vlan_id"] = inner_id
+                    vif_c_list.append(c_entry)
+            entry["vif_c"] = vif_c_list
             vif_s_list.append(entry)
         return vif_s_list
 

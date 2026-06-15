@@ -230,3 +230,21 @@ export interface VyOSResponse {
   data?: Record<string, unknown> | null;
   error?: string | null;
 }
+
+/**
+ * Minimal service contract the shared VLAN modals depend on. Implemented by
+ * `ethernetService` (default) and by the bonding VLAN adapter, so the same
+ * Comprehensive VLAN/VIF-S/VIF-C modals can drive either parent interface type.
+ */
+export interface VlanBatchService {
+  batchConfigure(request: BatchRequest): Promise<VyOSResponse>;
+  refreshConfig(): Promise<unknown>;
+}
+
+/** Parent interface entry shown in the VLAN modals' parent dropdown. */
+export interface VlanParentInterface {
+  name: string;
+  description?: string | null;
+  /** Existing service VLANs, used by the VIF-C modal to pick a parent S-VLAN. */
+  vif_s?: { vlan_id: string; description?: string | null }[] | null;
+}

@@ -31,7 +31,7 @@ import { tunnelService, type TunnelInterface, type TunnelCapabilities } from "@/
 import { CreateTunnelModal } from "@/components/tunnel/CreateTunnelModal";
 import { EditTunnelModal } from "@/components/tunnel/EditTunnelModal";
 import { DeleteTunnelModal } from "@/components/tunnel/DeleteTunnelModal";
-import { bondingService, type BondingInterface, type BondingCapabilities } from "@/lib/api/bonding";
+import { bondingService, bondingVlanService, bondingVlanCapabilities, bondVifToVlanShape, type BondingInterface, type BondingCapabilities } from "@/lib/api/bonding";
 import { CreateBondingModal } from "@/components/bonding/CreateBondingModal";
 import { EditBondingModal } from "@/components/bonding/EditBondingModal";
 import { DeleteBondingModal } from "@/components/bonding/DeleteBondingModal";
@@ -142,6 +142,7 @@ function InterfacesPageInner() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedType, setSelectedType] = useState<InterfaceType>("ethernet");
   const [vlanSubTab, setVlanSubTab] = useState<VlanSubTab>("vif");
+  const [vlanParent, setVlanParent] = useState<"ethernet" | "bonding">("ethernet");
 
   useEffect(() => {
     const requestedType = searchParams.get("type") as InterfaceType | null;
@@ -560,9 +561,46 @@ function InterfacesPageInner() {
     );
   };
 
-  const filteredVifs = filterVlan(allVifs);
-  const filteredVifS = filterVlan(allVifS);
-  const filteredVifC = filterVlan(allVifC);
+  // Bond-parent VLANs (same shape as ethernet VLANs so the shared modals work)
+  const bondVifs: VLANWithParent[] = bondingInterfaces.flatMap((iface) =>
+    (iface.vifs || []).map((vif) => ({
+      ...bondVifToVlanShape(vif),
+      parentInterface: iface.name,
+      fullName: `${iface.name}.${vif.vlan_id}`,
+    } as unknown as VLANWithParent))
+  );
+  const bondVifS: VIFSWithParent[] = bondingInterfaces.flatMap((iface) =>
+    (iface.vif_s || []).map((vifs) => ({
+      ...bondVifToVlanShape(vifs),
+      parentInterface: iface.name,
+      fullName: `${iface.name}.${vifs.vlan_id}`,
+    } as unknown as VIFSWithParent))
+  );
+  const bondVifC: VIFCWithParent[] = bondingInterfaces.flatMap((iface) =>
+    (iface.vif_s || []).flatMap((vifs) =>
+      (vifs.vif_c || []).map((vifc) => ({
+        ...bondVifToVlanShape(vifc),
+        parentInterface: iface.name,
+        sVlanId: vifs.vlan_id,
+        fullName: `${iface.name}.${vifs.vlan_id}.${vifc.vlan_id}`,
+      } as unknown as VIFCWithParent))
+    )
+  );
+
+  // Active VLAN lists + the modal wiring depend on the selected parent type tab
+  const isBondVlan = vlanParent === "bonding";
+  const activeVifs = isBondVlan ? bondVifs : allVifs;
+  const activeVifS = isBondVlan ? bondVifS : allVifS;
+  const activeVifC = isBondVlan ? bondVifC : allVifC;
+  const vlanModalInterfaces = isBondVlan ? bondingInterfaces : interfaces;
+  const vlanModalCapabilities = isBondVlan
+    ? (bondingCapabilities ? bondingVlanCapabilities(bondingCapabilities.version) : null)
+    : capabilities;
+  const vlanModalService = isBondVlan ? bondingVlanService : undefined;
+
+  const filteredVifs = filterVlan(activeVifs);
+  const filteredVifS = filterVlan(activeVifS);
+  const filteredVifC = filterVlan(activeVifC);
 
   const handleCreateVlan = () => {
     if (vlanSubTab === "vif") setIsCreateVLANModalOpen(true);
@@ -1868,22 +1906,34 @@ function InterfacesPageInner() {
               </Button>
             </div>
 
-            {/* VLAN Sub-tabs */}
+            {/* VLAN parent-type tabs + sub-tabs */}
             {selectedType === "vlan" && (
-              <div className="mb-4">
+              <div className="mb-4 space-y-3">
+                <Tabs value={vlanParent} onValueChange={(v) => setVlanParent(v as "ethernet" | "bonding")}>
+                  <TabsList>
+                    <TabsTrigger value="ethernet" className="gap-1.5">
+                      Ethernet
+                      <Badge variant="secondary" className="text-xs px-1.5 py-0 ml-1">{allVifs.length + allVifS.length + allVifC.length}</Badge>
+                    </TabsTrigger>
+                    <TabsTrigger value="bonding" className="gap-1.5">
+                      Bonding
+                      <Badge variant="secondary" className="text-xs px-1.5 py-0 ml-1">{bondVifs.length + bondVifS.length + bondVifC.length}</Badge>
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
                 <Tabs value={vlanSubTab} onValueChange={(v) => setVlanSubTab(v as VlanSubTab)}>
                   <TabsList>
                     <TabsTrigger value="vif" className="gap-1.5">
                       802.1Q VLAN
-                      <Badge variant="secondary" className="text-xs px-1.5 py-0 ml-1">{allVifs.length}</Badge>
+                      <Badge variant="secondary" className="text-xs px-1.5 py-0 ml-1">{activeVifs.length}</Badge>
                     </TabsTrigger>
                     <TabsTrigger value="vif-s" className="gap-1.5">
                       VIF-S (QinQ Service)
-                      <Badge variant="secondary" className="text-xs px-1.5 py-0 ml-1">{allVifS.length}</Badge>
+                      <Badge variant="secondary" className="text-xs px-1.5 py-0 ml-1">{activeVifS.length}</Badge>
                     </TabsTrigger>
                     <TabsTrigger value="vif-c" className="gap-1.5">
                       VIF-C (QinQ Customer)
-                      <Badge variant="secondary" className="text-xs px-1.5 py-0 ml-1">{allVifC.length}</Badge>
+                      <Badge variant="secondary" className="text-xs px-1.5 py-0 ml-1">{activeVifC.length}</Badge>
                     </TabsTrigger>
                   </TabsList>
                 </Tabs>
@@ -3913,8 +3963,9 @@ function InterfacesPageInner() {
         open={isCreateVLANModalOpen}
         onOpenChange={setIsCreateVLANModalOpen}
         mode="create"
-        interfaces={interfaces}
-        capabilities={capabilities}
+        interfaces={vlanModalInterfaces}
+        capabilities={vlanModalCapabilities}
+        service={vlanModalService}
         onSuccess={loadData}
       />
 
@@ -3924,8 +3975,9 @@ function InterfacesPageInner() {
           onOpenChange={(open) => !open && setEditingVLAN(null)}
           mode="edit"
           vlan={editingVLAN}
-          interfaces={interfaces}
-          capabilities={capabilities}
+          interfaces={vlanModalInterfaces}
+          capabilities={vlanModalCapabilities}
+          service={vlanModalService}
           onSuccess={() => {
             setEditingVLAN(null);
             loadData();
@@ -3938,8 +3990,9 @@ function InterfacesPageInner() {
         open={isCreateVIFSModalOpen}
         onOpenChange={setIsCreateVIFSModalOpen}
         mode="create"
-        interfaces={interfaces}
-        capabilities={capabilities}
+        interfaces={vlanModalInterfaces}
+        capabilities={vlanModalCapabilities}
+        service={vlanModalService}
         onSuccess={loadData}
       />
 
@@ -3949,8 +4002,9 @@ function InterfacesPageInner() {
           onOpenChange={(open) => !open && setEditingVIFS(null)}
           mode="edit"
           vlan={editingVIFS}
-          interfaces={interfaces}
-          capabilities={capabilities}
+          interfaces={vlanModalInterfaces}
+          capabilities={vlanModalCapabilities}
+          service={vlanModalService}
           onSuccess={() => {
             setEditingVIFS(null);
             loadData();
@@ -3963,8 +4017,9 @@ function InterfacesPageInner() {
         open={isCreateVIFCModalOpen}
         onOpenChange={setIsCreateVIFCModalOpen}
         mode="create"
-        interfaces={interfaces}
-        capabilities={capabilities}
+        interfaces={vlanModalInterfaces}
+        capabilities={vlanModalCapabilities}
+        service={vlanModalService}
         onSuccess={loadData}
       />
 
@@ -3974,8 +4029,9 @@ function InterfacesPageInner() {
           onOpenChange={(open) => !open && setEditingVIFC(null)}
           mode="edit"
           vlan={editingVIFC}
-          interfaces={interfaces}
-          capabilities={capabilities}
+          interfaces={vlanModalInterfaces}
+          capabilities={vlanModalCapabilities}
+          service={vlanModalService}
           onSuccess={() => {
             setEditingVIFC(null);
             loadData();
@@ -3994,6 +4050,7 @@ function InterfacesPageInner() {
           sVlanId={deletingVLAN.sVlanId}
           description={deletingVLAN.description}
           addresses={deletingVLAN.addresses}
+          service={vlanModalService}
           onSuccess={() => {
             setDeletingVLAN(null);
             loadData();

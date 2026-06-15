@@ -13,6 +13,7 @@ from typing import Dict, List, Optional, Any
 from session_vyos_service import get_session_vyos_service
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
+import inspect
 import logging
 
 logger = logging.getLogger(__name__)
@@ -26,11 +27,14 @@ router = APIRouter(prefix="/vyos/bonding", tags=["bonding-interface"])
 
 
 class BondingBatchOperation(BaseModel):
-    """Single batch operation for bonding interface."""
+    """Single batch operation for bonding interface.
+
+    For VLAN (vif/vif-s/vif-c) operations the VLAN id(s) are packed,
+    comma-separated, at the front of ``value`` (e.g. ``"10,1.2.3.4/24"`` or,
+    for vif-c, ``"20,30,<value>"``).
+    """
     op: str = Field(..., description="Operation name")
     value: Optional[str] = Field(None, description="Value for the operation")
-    vlan_id: Optional[str] = Field(None, description="VLAN ID for vif/vif-s operations")
-    inner_vlan_id: Optional[str] = Field(None, description="Inner VLAN ID for vif-c operations")
 
 
 class BondingBatchRequest(BaseModel):
@@ -135,30 +139,34 @@ class Dhcpv6OptionsConfig(BaseModel):
     pd: List[Dhcpv6PdConfig] = Field(default_factory=list)
 
 
-class VifConfig(BaseModel):
+class VifBaseConfig(BaseModel):
+    """Fields common to vif, vif-s and vif-c sub-interfaces."""
     vlan_id: str
     addresses: List[str] = Field(default_factory=list)
     description: Optional[str] = None
     disable: bool = False
+    disable_link_detect: bool = False
     mtu: Optional[str] = None
-    vrf: Optional[str] = None
     mac: Optional[str] = None
+    vrf: Optional[str] = None
+    redirect: Optional[str] = None
+    ip: Optional[IpSettings] = None
+    ipv6: Optional[Ipv6Settings] = None
+    dhcp_options: Optional[DhcpOptionsConfig] = None
+    dhcpv6_options: Optional[Dhcpv6OptionsConfig] = None
+    mirror: Optional[MirrorConfig] = None
+
+
+class VifCConfig(VifBaseConfig):
+    pass
+
+
+class VifConfig(VifBaseConfig):
     egress_qos: Optional[str] = None
     ingress_qos: Optional[str] = None
 
 
-class VifCConfig(BaseModel):
-    vlan_id: str
-    addresses: List[str] = Field(default_factory=list)
-    description: Optional[str] = None
-    disable: bool = False
-
-
-class VifSConfig(BaseModel):
-    vlan_id: str
-    addresses: List[str] = Field(default_factory=list)
-    description: Optional[str] = None
-    disable: bool = False
+class VifSConfig(VifBaseConfig):
     protocol: Optional[str] = None
     vif_c: List[VifCConfig] = Field(default_factory=list)
 
@@ -355,24 +363,6 @@ _NO_VALUE_OPS = frozenset({
     "delete_dhcp_options_reject",
 })
 
-# VIF operations that require vlan_id
-_VIF_VALUE_OPS = frozenset({
-    "set_vif_description", "set_vif_address", "delete_vif_address",
-    "set_vif_mtu", "set_vif_vrf",
-})
-_VIF_NO_VALUE_OPS = frozenset({
-    "set_vif", "delete_vif",
-    "delete_vif_description", "set_vif_disable", "delete_vif_disable",
-    "delete_vif_mtu", "delete_vif_vrf",
-})
-
-# VIF-S operations
-_VIF_S_OPS = frozenset({
-    "set_vif_s", "delete_vif_s",
-    "set_vif_s_address", "delete_vif_s_address",
-    "set_vif_s_vif_c", "delete_vif_s_vif_c",
-})
-
 
 @router.post("/batch", response_model=VyOSResponse)
 async def configure_bonding_batch(http_request: Request, request: BondingBatchRequest) -> VyOSResponse:
@@ -392,8 +382,6 @@ async def configure_bonding_batch(http_request: Request, request: BondingBatchRe
         for operation in request.operations:
             op = operation.op
             val = operation.value
-            vlan = operation.vlan_id
-            inner_vlan = operation.inner_vlan_id
 
             # Value-required operations
             if op in _VALUE_REQUIRED_OPS:
@@ -416,39 +404,28 @@ async def configure_bonding_batch(http_request: Request, request: BondingBatchRe
                         raise HTTPException(status_code=400, detail=f"Unsupported operation: {op}")
                     method(iface)
 
-            # VIF operations requiring vlan_id + optional value
-            elif op in _VIF_VALUE_OPS:
-                if not vlan:
-                    raise HTTPException(status_code=400, detail=f"'{op}' requires vlan_id")
-                if not val:
-                    raise HTTPException(status_code=400, detail=f"'{op}' requires a value")
+            # VLAN sub-interface operations (vif / vif-s / vif-c).
+            # Dispatched generically. The VLAN id(s) and any value are packed,
+            # comma-separated, into `value`, ordered to match the builder method
+            # signature after `interface`:
+            #   vif/vif-s value op:  "<vlan>,<value>"      -> (iface, vlan, value)
+            #   vif/vif-s flag/node: "<vlan>"              -> (iface, vlan)
+            #   vif-c value op:      "<svlan>,<cvlan>,<value>"
+            #   PD interface addr:   "<vlan>,<pd>,<ifc>,<addr>"
+            elif op.startswith(("set_vif", "delete_vif")):
                 method = getattr(batch, op, None)
                 if method is None:
                     raise HTTPException(status_code=400, detail=f"Unsupported operation: {op}")
-                method(iface, vlan, val)
 
-            elif op in _VIF_NO_VALUE_OPS:
-                if not vlan:
-                    raise HTTPException(status_code=400, detail=f"'{op}' requires vlan_id")
-                method = getattr(batch, op, None)
-                if method is None:
-                    raise HTTPException(status_code=400, detail=f"Unsupported operation: {op}")
-                method(iface, vlan)
-
-            # VIF-S operations
-            elif op in _VIF_S_OPS:
-                if not vlan:
-                    raise HTTPException(status_code=400, detail=f"'{op}' requires vlan_id")
-                if op in ("set_vif_s", "delete_vif_s"):
-                    getattr(batch, op)(iface, vlan)
-                elif op in ("set_vif_s_address", "delete_vif_s_address"):
-                    if not val:
-                        raise HTTPException(status_code=400, detail=f"'{op}' requires a value")
-                    getattr(batch, op)(iface, vlan, val)
-                elif op in ("set_vif_s_vif_c", "delete_vif_s_vif_c"):
-                    if not inner_vlan:
-                        raise HTTPException(status_code=400, detail=f"'{op}' requires inner_vlan_id")
-                    getattr(batch, op)(iface, vlan, inner_vlan)
+                parts = val.split(",") if val else []
+                args = [iface, *parts]
+                nparams = len(inspect.signature(method).parameters)
+                if len(args) != nparams:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"'{op}' expects {nparams - 1} comma-separated value(s), got {len(parts)}",
+                    )
+                method(*args)
 
             else:
                 raise HTTPException(status_code=400, detail=f"Unsupported operation: {op}")
