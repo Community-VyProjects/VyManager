@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ethernetService } from "@/lib/api/ethernet";
-import type { BatchOperation } from "@/lib/api/types/ethernet";
+import type { BatchOperation, VlanBatchService } from "@/lib/api/types/ethernet";
 import { Loader2, AlertTriangle, AlertCircle } from "lucide-react";
 
 interface DeleteVLANModalProps {
@@ -24,6 +24,8 @@ interface DeleteVLANModalProps {
   description?: string | null;
   addresses?: string[];
   onSuccess: () => void;
+  /** Defaults to ethernetService; pass the bonding adapter to delete bond VLANs. */
+  service?: VlanBatchService;
 }
 
 const VLAN_TYPE_LABELS: Record<DeleteVLANModalProps["vlanType"], string> = {
@@ -69,6 +71,7 @@ export function DeleteVLANModal({
   description,
   addresses,
   onSuccess,
+  service = ethernetService,
 }: DeleteVLANModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -83,12 +86,12 @@ export function DeleteVLANModal({
     try {
       const operation = getDeleteOperation(vlanType, vlanId, sVlanId);
 
-      await ethernetService.batchConfigure({
+      await service.batchConfigure({
         interface: parentInterface,
         operations: [operation],
       });
 
-      await ethernetService.refreshConfig();
+      await service.refreshConfig();
 
       onSuccess();
       onOpenChange(false);

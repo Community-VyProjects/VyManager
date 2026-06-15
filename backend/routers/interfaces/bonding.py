@@ -27,11 +27,14 @@ router = APIRouter(prefix="/vyos/bonding", tags=["bonding-interface"])
 
 
 class BondingBatchOperation(BaseModel):
-    """Single batch operation for bonding interface."""
+    """Single batch operation for bonding interface.
+
+    For VLAN (vif/vif-s/vif-c) operations the VLAN id(s) are packed,
+    comma-separated, at the front of ``value`` (e.g. ``"10,1.2.3.4/24"`` or,
+    for vif-c, ``"20,30,<value>"``).
+    """
     op: str = Field(..., description="Operation name")
     value: Optional[str] = Field(None, description="Value for the operation")
-    vlan_id: Optional[str] = Field(None, description="VLAN ID for vif/vif-s operations")
-    inner_vlan_id: Optional[str] = Field(None, description="Inner VLAN ID for vif-c operations")
 
 
 class BondingBatchRequest(BaseModel):
@@ -379,8 +382,6 @@ async def configure_bonding_batch(http_request: Request, request: BondingBatchRe
         for operation in request.operations:
             op = operation.op
             val = operation.value
-            vlan = operation.vlan_id
-            inner_vlan = operation.inner_vlan_id
 
             # Value-required operations
             if op in _VALUE_REQUIRED_OPS:
@@ -404,36 +405,26 @@ async def configure_bonding_batch(http_request: Request, request: BondingBatchRe
                     method(iface)
 
             # VLAN sub-interface operations (vif / vif-s / vif-c).
-            # Dispatched generically: the builder method signature determines
-            # how many positional args are required. vif-c ops consume both the
-            # outer (vlan_id) and inner (inner_vlan_id) VLAN ids; vif / vif-s ops
-            # consume only vlan_id. Any remaining params are filled from `value`
-            # (comma-separated for multi-arg ops, e.g. PD: "pd_id,iface,addr").
+            # Dispatched generically. The VLAN id(s) and any value are packed,
+            # comma-separated, into `value`, ordered to match the builder method
+            # signature after `interface`:
+            #   vif/vif-s value op:  "<vlan>,<value>"      -> (iface, vlan, value)
+            #   vif/vif-s flag/node: "<vlan>"              -> (iface, vlan)
+            #   vif-c value op:      "<svlan>,<cvlan>,<value>"
+            #   PD interface addr:   "<vlan>,<pd>,<ifc>,<addr>"
             elif op.startswith(("set_vif", "delete_vif")):
                 method = getattr(batch, op, None)
                 if method is None:
                     raise HTTPException(status_code=400, detail=f"Unsupported operation: {op}")
 
-                if op.startswith(("set_vif_c", "delete_vif_c")):
-                    if not vlan or not inner_vlan:
-                        raise HTTPException(status_code=400, detail=f"'{op}' requires vlan_id and inner_vlan_id")
-                    args = [iface, vlan, inner_vlan]
-                else:
-                    if not vlan:
-                        raise HTTPException(status_code=400, detail=f"'{op}' requires vlan_id")
-                    args = [iface, vlan]
-
-                extra = len(inspect.signature(method).parameters) - len(args)
-                if extra > 0:
-                    if val is None:
-                        raise HTTPException(status_code=400, detail=f"'{op}' requires a value")
-                    parts = val.split(",")
-                    if len(parts) < extra:
-                        raise HTTPException(
-                            status_code=400,
-                            detail=f"'{op}' requires {extra} comma-separated value(s)",
-                        )
-                    args.extend(parts[:extra])
+                parts = val.split(",") if val else []
+                args = [iface, *parts]
+                nparams = len(inspect.signature(method).parameters)
+                if len(args) != nparams:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"'{op}' expects {nparams - 1} comma-separated value(s), got {len(parts)}",
+                    )
                 method(*args)
 
             else:
