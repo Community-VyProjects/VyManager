@@ -16,6 +16,7 @@ import { WireGuardPeersCard } from "@/components/dashboard/WireGuardPeersCard";
 import { NetworkSpeedCard } from "@/components/dashboard/NetworkSpeedCard";
 import { QoSStatsCard } from "@/components/dashboard/QoSStatsCard";
 import { OpenVpnCard } from "@/components/dashboard/OpenVpnCard";
+import { VrrpStatusCard } from "@/components/dashboard/VrrpStatusCard";
 import { AddCardModal } from "@/components/dashboard/AddCardModal";
 import {
   DndContext,
@@ -363,6 +364,9 @@ export default function Home() {
     if (cardType === "openvpn-status") {
       defaultSpan = 2;
     }
+    if (cardType === "vrrp-status") {
+      defaultSpan = 2;
+    }
     // system-info defaults to 1 column (already set above)
 
     // New cards always start at column 0
@@ -488,6 +492,8 @@ export default function Home() {
         return <QoSStatsCard {...baseProps} />;
       case "openvpn-status":
         return <OpenVpnCard {...baseProps} />;
+      case "vrrp-status":
+        return <VrrpStatusCard {...baseProps} />;
       default:
         return null;
     }

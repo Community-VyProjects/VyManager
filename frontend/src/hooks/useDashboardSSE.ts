@@ -89,12 +89,27 @@ export interface WireGuardPeersData {
   total: number;
 }
 
+export interface VrrpGroupData {
+  name: string;
+  interface: string | null;
+  vrid: number | null;
+  state: string | null;          // "MASTER" | "BACKUP" | "FAULT"
+  priority: number | null;
+  last_transition: string | null;
+}
+
+export interface VrrpStatusData {
+  groups: VrrpGroupData[];
+  total: number;
+}
+
 export interface DashboardSSEData {
   interfaceCounters: InterfaceCountersData | null;
   systemInfo: SystemInfoData | null;
   wireguardPeers: WireGuardPeersData | null;
   qosStats: QoSStatsResponse | null;
   openvpnStatus: OpenVpnStatus | null;
+  vrrpStatus: VrrpStatusData | null;
 }
 
 export interface DashboardSSEState {
@@ -109,7 +124,7 @@ export interface DashboardSSEState {
 
 export function useDashboardSSE(): DashboardSSEState {
   const [status, setStatus] = useState<SSEStatus>("disconnected");
-  const [data, setData] = useState<DashboardSSEData>({ interfaceCounters: null, systemInfo: null, wireguardPeers: null, qosStats: null, openvpnStatus: null });
+  const [data, setData] = useState<DashboardSSEData>({ interfaceCounters: null, systemInfo: null, wireguardPeers: null, qosStats: null, openvpnStatus: null, vrrpStatus: null });
   const [error, setError] = useState<string | null>(null);
   const esRef = useRef<EventSource | null>(null);
 
@@ -164,6 +179,15 @@ export function useDashboardSSE(): DashboardSSEState {
       try {
         const payload = JSON.parse(event.data) as OpenVpnStatus;
         setData((prev) => ({ ...prev, openvpnStatus: payload }));
+      } catch {
+        // Ignore malformed payloads
+      }
+    });
+
+    es.addEventListener("vrrp-status", (event: MessageEvent) => {
+      try {
+        const payload = JSON.parse(event.data) as VrrpStatusData;
+        setData((prev) => ({ ...prev, vrrpStatus: payload }));
       } catch {
         // Ignore malformed payloads
       }
