@@ -135,7 +135,7 @@ class OpenvpnClientIpv6Pool(BaseModel):
 class OpenvpnServerClient(BaseModel):
     name: str
     disable: bool = False
-    ip: Optional[str] = None
+    ip: List[str] = Field(default_factory=list)
     push_route: List[str] = Field(default_factory=list)
     subnet: List[str] = Field(default_factory=list)
 

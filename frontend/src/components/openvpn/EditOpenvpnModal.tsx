@@ -246,7 +246,7 @@ export function EditOpenvpnModal({
       (s?.clients ?? []).map((c) => ({
         name: c.name,
         disable: c.disable,
-        ip: c.ip ?? "",
+        ip: (c.ip ?? []).join(", "),
         subnet: joinLines(c.subnet),
         push_route: joinLines(c.push_route),
       }))
@@ -393,7 +393,7 @@ export function EditOpenvpnModal({
           .map((c) => ({
             name: c.name,
             disable: c.disable,
-            ip: c.ip || undefined,
+            ip: c.ip ? c.ip.split(/[\s,]+/).filter(Boolean) : undefined,
             subnet: c.subnet ? splitLines(c.subnet) : undefined,
             push_route: c.push_route ? splitLines(c.push_route) : undefined,
           })),
@@ -1197,7 +1197,7 @@ export function EditOpenvpnModal({
                         }}
                       />
                       <Input
-                        placeholder="IP"
+                        placeholder="IP (comma-separated)"
                         value={c.ip}
                         onChange={(e) => {
                           const next = [...serverClients];
