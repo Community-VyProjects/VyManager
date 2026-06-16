@@ -43,6 +43,30 @@ export interface BfdConfig {
   profiles: BfdProfile[];
 }
 
+export interface BfdPeerStatus {
+  peer: string;
+  peer_type: string | null;        // "configured" | "dynamic"
+  status: string | null;           // "up" | "down"
+  multihop: boolean;
+  passive: boolean;
+  local_address: string | null;
+  vrf: string | null;
+  interface: string | null;
+  uptime: string | null;
+  downtime: string | null;
+  diagnostic: string | null;
+  remote_diagnostic: string | null;
+  minimum_ttl: number | null;
+  detect_multiplier: number | null;
+  receive_interval: number | null;
+  transmit_interval: number | null;
+  echo_receive_interval: number | null;
+}
+
+export interface BfdStatusResponse {
+  peers: BfdPeerStatus[];
+}
+
 export interface BfdCapabilities {
   version: string;
   features: {
@@ -88,6 +112,10 @@ class BfdService {
     return apiClient.get<BfdConfig>("/vyos/bfd/config", {
       refresh: refresh.toString(),
     });
+  }
+
+  async getStatus(): Promise<BfdStatusResponse> {
+    return apiClient.get<BfdStatusResponse>("/vyos/bfd/status");
   }
 
   async refreshConfig(): Promise<VyOSResponse> {
