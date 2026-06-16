@@ -13,7 +13,10 @@ from session_vyos_service import get_session_vyos_service
 from vyos_builders import BfdBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
+from bfd_status import BfdPeerStatus, bfd_peers_gql_query, parse_bfd_peers
 import inspect
+import json
+import httpx
 import logging
 logger = logging.getLogger(__name__)
 
@@ -72,6 +75,11 @@ class BfdConfig(BaseModel):
     """Complete BFD configuration."""
     peers: List[BfdPeer] = []
     profiles: List[BfdProfile] = []
+
+
+class BfdStatusResponse(BaseModel):
+    """Live BFD session status (operational, includes dynamic peers)."""
+    peers: List[BfdPeerStatus] = []
 
 
 class BfdBatchOperation(BaseModel):
@@ -140,6 +148,49 @@ async def get_bfd_config(http_request: Request, refresh: bool = False):
         profiles = parse_profiles(bfd_config.get("profile", {}))
 
         return BfdConfig(peers=peers, profiles=profiles)
+    except Exception as e:
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+# ============================================================================
+# Endpoint: Operational Status (live / dynamic peers)
+# ============================================================================
+
+
+@router.get("/status", response_model=BfdStatusResponse)
+async def get_bfd_status(request: Request):
+    """Get live BFD sessions via the GraphQL ``Show`` op (``show bfd peers``).
+
+    Unlike ``/config``, this reflects the running BFD daemon and therefore
+    includes ``dynamic`` peers created by routing protocols (BGP/OSPF/IS-IS with
+    ``bfd`` enabled) that have no ``protocols bfd peer`` configuration node.
+    """
+    await require_read_permission(request, FeatureGroup.BFD)
+
+    try:
+        service = get_session_vyos_service(request)
+        api_key = str(service.config.apikey)
+        url = f"{service.config.protocol}://{service.config.hostname}:{service.config.port}/graphql"
+        payload = bfd_peers_gql_query(json.dumps(api_key))
+
+        async with httpx.AsyncClient(verify=service.config.verify, timeout=15.0) as client:
+            resp = await client.post(url, json=payload, auth=("vyos", api_key))
+
+        if resp.status_code != 200:
+            logger.error("BFD status GraphQL HTTP error %d", resp.status_code)
+            raise HTTPException(status_code=502, detail="Failed to fetch BFD status")
+
+        body = resp.json()
+        if "errors" in body:
+            logger.warning("BFD status GraphQL field errors: %s", body["errors"])
+
+        node = (body.get("data") or {}).get("BfdPeers") or {}
+        result = (node.get("data") or {}).get("result")
+        peers = parse_bfd_peers(result if isinstance(result, str) else "")
+        return BfdStatusResponse(peers=peers)
+    except HTTPException:
+        raise
     except Exception as e:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")

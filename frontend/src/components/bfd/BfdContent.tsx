@@ -22,6 +22,7 @@ import {
   Trash2,
   Radio,
   FileSliders,
+  Waypoints,
 } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import {
@@ -30,6 +31,7 @@ import {
   BfdCapabilities,
   BfdPeer,
   BfdProfile,
+  BfdPeerStatus,
 } from "@/lib/api/bfd";
 import { BfdPeerModal } from "./BfdPeerModal";
 import { DeleteBfdPeerModal } from "./DeleteBfdPeerModal";
@@ -42,6 +44,11 @@ export function BfdContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("peers");
+
+  // Live (operational) BFD sessions — includes dynamic peers from routing protocols
+  const [liveSessions, setLiveSessions] = useState<BfdPeerStatus[]>([]);
+  const [liveLoading, setLiveLoading] = useState(false);
+  const [liveError, setLiveError] = useState<string | null>(null);
 
   // Peer modal state
   const [peerModalOpen, setPeerModalOpen] = useState(false);
@@ -70,13 +77,28 @@ export function BfdContent() {
     }
   }, []);
 
+  const loadLiveSessions = useCallback(async () => {
+    try {
+      setLiveLoading(true);
+      setLiveError(null);
+      const status = await bfdService.getStatus();
+      setLiveSessions(status.peers);
+    } catch (err) {
+      setLiveError(err instanceof Error ? err.message : "Failed to load live BFD sessions");
+    } finally {
+      setLiveLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     loadData();
-  }, [loadData]);
+    loadLiveSessions();
+  }, [loadData, loadLiveSessions]);
 
   // Stats
   const peerCount = config?.peers.length ?? 0;
   const profileCount = config?.profiles.length ?? 0;
+  const liveCount = liveSessions.length;
   const activePeers = config?.peers.filter((p) => !p.shutdown).length ?? 0;
   const multihopPeers = config?.peers.filter((p) => p.multihop).length ?? 0;
 
@@ -173,7 +195,7 @@ export function BfdContent() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => loadData(true)}
+              onClick={() => { loadData(true); loadLiveSessions(); }}
             >
               <RefreshCw className="h-4 w-4 mr-2" />
               Refresh
@@ -251,6 +273,12 @@ export function BfdContent() {
                 Peers
                 {peerCount > 0 && (
                   <Badge variant="secondary" className="ml-2">{peerCount}</Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="live">
+                Live Sessions
+                {liveCount > 0 && (
+                  <Badge variant="secondary" className="ml-2">{liveCount}</Badge>
                 )}
               </TabsTrigger>
               <TabsTrigger value="profiles">
@@ -383,6 +411,106 @@ export function BfdContent() {
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
                               </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </ScrollArea>
+                </Card>
+              )}
+            </TabsContent>
+
+            {/* ============================================================ */}
+            {/* Live Sessions Tab (operational, includes dynamic peers) */}
+            {/* ============================================================ */}
+            <TabsContent value="live">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-sm text-muted-foreground">
+                  Running BFD sessions from the routing daemon, including dynamic peers
+                  created by protocols (BGP/OSPF) with BFD enabled. Read-only.
+                </p>
+                <Button variant="outline" size="sm" onClick={loadLiveSessions} disabled={liveLoading}>
+                  <RefreshCw className={`h-4 w-4 mr-2 ${liveLoading ? "animate-spin" : ""}`} />
+                  Refresh
+                </Button>
+              </div>
+
+              {liveError && (
+                <div className="mb-4 p-3 rounded-md bg-destructive/10 text-destructive text-sm">
+                  {liveError}
+                </div>
+              )}
+
+              {liveCount === 0 ? (
+                <Card>
+                  <CardContent className="flex flex-col items-center justify-center py-12">
+                    <Waypoints className="h-12 w-12 text-muted-foreground/30 mb-4" />
+                    <p className="text-sm text-muted-foreground mb-2">No active BFD sessions</p>
+                    <p className="text-xs text-muted-foreground">
+                      Dynamic sessions appear here when a routing protocol negotiates BFD with a neighbor
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card>
+                  <ScrollArea>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Peer</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Interface</TableHead>
+                          <TableHead>VRF</TableHead>
+                          <TableHead>Uptime</TableHead>
+                          <TableHead>Tx / Rx</TableHead>
+                          <TableHead>Multiplier</TableHead>
+                          <TableHead>Diagnostic</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {liveSessions.map((s, idx) => (
+                          <TableRow key={`${s.peer}-${s.vrf ?? ""}-${s.interface ?? ""}-${idx}`}>
+                            <TableCell className="font-medium font-mono">
+                              {s.peer}
+                              {s.multihop && (
+                                <Badge variant="outline" className="ml-2 text-xs">Multihop</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={s.peer_type === "dynamic" ? "secondary" : "outline"}>
+                                {s.peer_type ?? "unknown"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {s.status === "up" ? (
+                                <Badge variant="secondary" className="bg-green-500/10 text-green-600">Up</Badge>
+                              ) : (
+                                <Badge variant="secondary" className="bg-red-500/10 text-red-600">
+                                  {s.status ? s.status.charAt(0).toUpperCase() + s.status.slice(1) : "Down"}
+                                </Badge>
+                              )}
+                            </TableCell>
+                            <TableCell className="font-mono text-sm">
+                              {s.interface || <span className="text-muted-foreground">-</span>}
+                            </TableCell>
+                            <TableCell className="font-mono text-sm">
+                              {s.vrf || <span className="text-muted-foreground">-</span>}
+                            </TableCell>
+                            <TableCell className="text-sm">
+                              {s.status === "up"
+                                ? (s.uptime || <span className="text-muted-foreground">-</span>)
+                                : <span className="text-muted-foreground">{s.downtime || "-"}</span>}
+                            </TableCell>
+                            <TableCell className="font-mono text-sm">
+                              {s.transmit_interval != null ? `${s.transmit_interval}ms` : "300ms"} / {s.receive_interval != null ? `${s.receive_interval}ms` : "300ms"}
+                            </TableCell>
+                            <TableCell>
+                              {s.detect_multiplier ?? <span className="text-muted-foreground">3</span>}
+                            </TableCell>
+                            <TableCell className="text-sm">
+                              {s.diagnostic || <span className="text-muted-foreground">-</span>}
                             </TableCell>
                           </TableRow>
                         ))}
