@@ -30,6 +30,7 @@ from routers.qos.qos import (
     parse_cake_qos_json,
 )
 from openvpn_status import openvpn_configured, openvpn_gql_fields, build_openvpn_status
+from vrrp_status import vrrp_configured, vrrp_gql_fields, build_vrrp_status
 import logging
 logger = logging.getLogger(__name__)
 
@@ -115,7 +116,7 @@ def _wg_alias(iface_name: str) -> str:
     return f"WGStatus_{safe}"
 
 
-def _build_gql_payload(api_key: str, include_wireguard: bool, cake_targets: Optional[list] = None, include_openvpn: bool = False) -> dict:
+def _build_gql_payload(api_key: str, include_wireguard: bool, cake_targets: Optional[list] = None, include_openvpn: bool = False, include_vrrp: bool = False) -> dict:
     """
     Build the JSON body for the slow dashboard GraphQL query.
 
@@ -135,6 +136,8 @@ def _build_gql_payload(api_key: str, include_wireguard: bool, cake_targets: Opti
     fields += qos_gql_fields(k, cake_targets or [])
     if include_openvpn:
         fields += openvpn_gql_fields(k)
+    if include_vrrp:
+        fields += vrrp_gql_fields(k)
     if include_wireguard:
         fields.append(
             f'WireGuardConfig: ShowConfig(data: {{key: {k}, path: ["interfaces", "wireguard"]}}) {{ data {{ result }} }}'
@@ -153,7 +156,7 @@ def _build_gql_wg_status_payload(api_key: str, iface_names: List[str]) -> dict:
     return {"query": "{ " + " ".join(fields) + " }"}
 
 
-async def _fetch_graphql_dashboard(service, include_wireguard: bool, cake_targets: Optional[list] = None, include_openvpn: bool = False) -> Optional[dict]:
+async def _fetch_graphql_dashboard(service, include_wireguard: bool, cake_targets: Optional[list] = None, include_openvpn: bool = False, include_vrrp: bool = False) -> Optional[dict]:
     """
     Fire a single GraphQL POST for the full dashboard data.
 
@@ -162,7 +165,7 @@ async def _fetch_graphql_dashboard(service, include_wireguard: bool, cake_target
     api_key = str(service.config.apikey)
     url = f"{service.config.protocol}://{service.config.hostname}:{service.config.port}/graphql"
     verify = service.config.verify
-    payload = _build_gql_payload(api_key, include_wireguard, cake_targets, include_openvpn)
+    payload = _build_gql_payload(api_key, include_wireguard, cake_targets, include_openvpn, include_vrrp)
 
     try:
         async with httpx.AsyncClient(verify=verify, timeout=15.0) as client:
@@ -911,6 +914,8 @@ class DeviceDataBroadcaster:
         self._cached_cake_targets: list = []
         # Whether OpenVPN is configured (gates the ShowOpenvpn fetch).
         self._openvpn_configured: bool = False
+        # Whether any VRRP group is configured (gates the show vrrp fetch).
+        self._vrrp_configured: bool = False
 
     # ------------------------------------------------------------------
     # Public API
@@ -1050,6 +1055,7 @@ class DeviceDataBroadcaster:
             cfg = await run_in_threadpool(self._service.get_full_config, refresh=False)
             self._cached_cake_targets = find_cake_targets(cfg)
             self._openvpn_configured = openvpn_configured(cfg)
+            self._vrrp_configured = vrrp_configured(cfg)
         except Exception:
             logger.exception("Broadcaster: config-state refresh error")
 
@@ -1060,6 +1066,14 @@ class DeviceDataBroadcaster:
         except Exception:
             logger.exception("Broadcaster: openvpn-status parse error")
             self._push_to_all({"type": "error", "data": {"channel": "openvpn-status", "message": "Parse failed"}})
+
+    def _broadcast_vrrp(self, gql: dict) -> None:
+        """Parse live VRRP group state from the shared GraphQL result and push an event."""
+        try:
+            self._push_to_all({"type": "vrrp-status", "data": build_vrrp_status(gql)})
+        except Exception:
+            logger.exception("Broadcaster: vrrp-status parse error")
+            self._push_to_all({"type": "error", "data": {"channel": "vrrp-status", "message": "Parse failed"}})
 
     def _on_task_done(self, fut: asyncio.Future) -> None:
         """Clean up if _run() exits unexpectedly."""
@@ -1085,8 +1099,9 @@ class DeviceDataBroadcaster:
                     await self._refresh_config_state()
                     targets = self._cached_cake_targets
                     ovpn = self._openvpn_configured
-                    # Full query: counters + system info + QoS + OpenVPN + WireGuard
-                    gql = await _fetch_graphql_dashboard(self._service, include_wireguard=True, cake_targets=targets, include_openvpn=ovpn)
+                    vrrp = self._vrrp_configured
+                    # Full query: counters + system info + QoS + OpenVPN + VRRP + WireGuard
+                    gql = await _fetch_graphql_dashboard(self._service, include_wireguard=True, cake_targets=targets, include_openvpn=ovpn, include_vrrp=vrrp)
                     if gql is not None:
                         self._broadcast_interface_counters(gql)
                         self._broadcast_system_info(gql)
@@ -1094,6 +1109,8 @@ class DeviceDataBroadcaster:
                         self._broadcast_qos(gql, targets)
                         if ovpn:
                             self._broadcast_openvpn(gql)
+                        if vrrp:
+                            self._broadcast_vrrp(gql)
                     else:
                         self._push_to_all({"type": "error", "data": {"channel": "all", "message": "GraphQL fetch failed"}})
                 else:
@@ -1150,6 +1167,7 @@ async def dashboard_stream(request: Request):
     """
     service = get_session_vyos_service(request)
     include_wireguard = await has_permission(request, FeatureGroup.WIREGUARD, PermissionLevel.READ)
+    include_vrrp = await has_permission(request, FeatureGroup.HIGH_AVAILABILITY, PermissionLevel.READ)
     broadcaster = _get_broadcaster(service)
 
     instance_id: str = service.config.instance_id
@@ -1173,6 +1191,8 @@ async def dashboard_stream(request: Request):
                     yield ": keep-alive\n\n"
                     continue
                 if event["type"] == "wireguard-peers" and not include_wireguard:
+                    continue
+                if event["type"] == "vrrp-status" and not include_vrrp:
                     continue
                 yield f'event: {event["type"]}\ndata: {json.dumps(event["data"])}\n\n'
         finally:

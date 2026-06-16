@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Network, Plus, Server, Shield, Lock, TrendingUp, Gauge, ShieldCheck } from "lucide-react";
+import { Network, Plus, Server, Shield, Lock, TrendingUp, Gauge, ShieldCheck, Waypoints } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 
@@ -63,6 +63,13 @@ const AVAILABLE_CARDS: AvailableCard[] = [
     icon: ShieldCheck,
     requiredPermission: FeatureGroup.OPENVPN,
   },
+  {
+    type: "vrrp-status",
+    name: "VRRP / High Availability",
+    description: "Real-time VRRP group state (MASTER/BACKUP/FAULT) with interface, VRID, priority and last transition",
+    icon: Waypoints,
+    requiredPermission: FeatureGroup.HIGH_AVAILABILITY,
+  },
 ];
 
 interface AddCardModalProps {
@@ -85,7 +92,7 @@ export function AddCardModal({ open, onOpenChange, onAddCard }: AddCardModalProp
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="w-[95vw] sm:max-w-4xl flex max-h-[85vh] flex-col">
         <DialogHeader>
           <DialogTitle>Add Dashboard Card</DialogTitle>
           <DialogDescription>
@@ -93,7 +100,7 @@ export function AddCardModal({ open, onOpenChange, onAddCard }: AddCardModalProp
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-4 py-4 md:grid-cols-2">
+        <div className="grid gap-4 py-4 sm:grid-cols-2 lg:grid-cols-3 flex-1 min-h-0 overflow-y-auto">
           {AVAILABLE_CARDS.map((card) => {
             const Icon = card.icon;
             const locked =
