@@ -633,7 +633,7 @@ class OpenvpnInterfaceMapper(BaseFeatureMapper):
             clients.append({
                 "name": client_name,
                 "disable": "disable" in client_cfg,
-                "ip": client_cfg.get("ip"),
+                "ip": _as_list(client_cfg.get("ip")),
                 "push_route": _as_list(client_cfg.get("push-route")),
                 "subnet": _as_list(client_cfg.get("subnet")),
             })

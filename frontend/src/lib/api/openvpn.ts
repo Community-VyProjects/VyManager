@@ -64,7 +64,7 @@ export interface OpenvpnClientIpv6Pool {
 export interface OpenvpnServerClient {
   name: string;
   disable: boolean;
-  ip: string | null;
+  ip: string[];
   push_route: string[];
   subnet: string[];
 }
@@ -313,7 +313,7 @@ export interface OpenvpnCreateConfig {
     clients?: {
       name: string;
       disable?: boolean;
-      ip?: string;
+      ip?: string[];
       push_route?: string[];
       subnet?: string[];
     }[];
@@ -467,7 +467,9 @@ function buildInterfaceOps(
       for (const c of s.clients) {
         ops.push({ op: "set_server_client", value: c.name });
         if (c.disable) ops.push({ op: "set_server_client_disable", value: c.name });
-        if (c.ip) ops.push({ op: "set_server_client_ip", value: `${c.name}:${c.ip}` });
+        if (c.ip) {
+          for (const a of c.ip) ops.push({ op: "set_server_client_ip", value: `${c.name}:${a}` });
+        }
         if (c.push_route) {
           for (const r of c.push_route) ops.push({ op: "set_server_client_push_route", value: `${c.name}:${r}` });
         }
