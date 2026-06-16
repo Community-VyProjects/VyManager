@@ -88,6 +88,24 @@ COMMANDS: Dict[str, MonitoringCommand] = {
         template="monitor conntrack",
         params={},
     ),
+    "show_log_vpn_ipsec": MonitoringCommand(
+        name="show_log_vpn_ipsec",
+        description="IPsec VPN connection logs",
+        template="monitor log vpn",
+        params={},
+    ),
+    "show_log_openvpn": MonitoringCommand(
+        name="show_log_openvpn",
+        description="OpenVPN connection logs",
+        template="monitor log openvpn",
+        params={},
+    ),
+    "show_log_l2tp": MonitoringCommand(
+        name="show_log_l2tp",
+        description="L2TP VPN connection logs",
+        template="monitor log l2tp",
+        params={},
+    ),
 }
 
 
