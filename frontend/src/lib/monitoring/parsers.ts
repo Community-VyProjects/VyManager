@@ -201,13 +201,20 @@ function detectSeverity(facilityLevel: string, message: string): LogSeverity {
   if (/\berror\b|\bfail(ed|ure)?\b/.test(lc)) return "error";
   if (/\bwarn(ing)?\b/.test(lc)) return "warning";
   if (/\bdebug\b/.test(lc)) return "debug";
-  return "unknown";
+
+  return "info";
 }
 
 // "Jan 15 14:22:19 hostname [facility.level] process[pid]: message"
 // "Jan 15 14:22:19 hostname process[pid]: message"
+// "Jun 14 15:47:56 process[pid]: message"  (journald w/o hostname — `show log openvpn|vpn|l2tp`)
+//
+// The hostname group is optional AND lazy so the no-hostname form is preferred:
+// this keeps messages that themselves contain a colon (e.g. "net_addr_v4_add: 10.8.0.1")
+// from being mis-split into hostname/process. The process token excludes "[" so a
+// "process[pid]:" prefix can never be swallowed as a hostname.
 const LOG_RE =
-  /^(\w{3}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2})\s+(\S+)\s+(?:(\w+\.\w+)\s+)?(\S+?)(?:\[(\d+)\])?:\s*(.*)/;
+  /^(\w{3}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2})\s+(?:(\S+)\s+)??(?:(\w+\.\w+)\s+)?([\w.\-/@]+?)(?:\[(\d+)\])?:\s*(.*)/;
 
 export function parseLogLine(line: string, id: number): LogEntry | null {
   const trimmed = clean(line);

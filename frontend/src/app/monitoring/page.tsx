@@ -44,6 +44,9 @@ const TABLE_COMMANDS = {
   monitor_traffic: "traffic",
   monitor_log: "log",
   show_log_tail: "log",
+  show_log_vpn_ipsec: "log",
+  show_log_openvpn: "log",
+  show_log_l2tp: "log",
   monitor_conntrack: "conntrack",
 } as const;
 
