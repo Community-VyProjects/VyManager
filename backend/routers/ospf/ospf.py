@@ -269,10 +269,22 @@ async def get_ospf_config(http_request: Request, refresh: bool = False):
         if not ospf_config:
             return OspfConfig()
 
+        areas = parse_areas(ospf_config.get("area", {}))
+        interfaces = parse_interfaces(ospf_config.get("interface", {}))
+
+        # Interface-based area assignment (`set protocols ospf interface <name> area <id>`)
+        # does not create a `protocols ospf area <id>` node. Surface those areas so
+        # they still appear in the Areas tab even with no explicit area block.
+        known_area_ids = {area.area_id for area in areas}
+        for iface in interfaces:
+            if iface.area and iface.area not in known_area_ids:
+                areas.append(OspfArea(area_id=iface.area))
+                known_area_ids.add(iface.area)
+
         return OspfConfig(
             parameters=parse_parameters(ospf_config.get("parameters", {})),
-            areas=parse_areas(ospf_config.get("area", {})),
-            interfaces=parse_interfaces(ospf_config.get("interface", {})),
+            areas=areas,
+            interfaces=interfaces,
             redistribute=parse_redistribute(ospf_config.get("redistribute", {})),
             default_information=parse_default_information(ospf_config.get("default-information", {})),
             distance=parse_distance(ospf_config),
