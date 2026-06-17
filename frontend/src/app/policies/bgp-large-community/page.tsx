@@ -19,10 +19,10 @@ import {
   Pencil,
   GripVertical,
 } from "lucide-react";
-import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { DndContext, type DragStartEvent, type DragEndEvent, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, arrayMove, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { largeCommunityListService, LargeCommunityList, LargeCommunityListCapabilities } from "@/lib/api/large-community-list";
+import { largeCommunityListService, LargeCommunityList, LargeCommunityListRule, LargeCommunityListCapabilities } from "@/lib/api/large-community-list";
 import { CreateLargeCommunityListModal } from "@/components/policies/CreateLargeCommunityListModal";
 import { EditLargeCommunityListModal } from "@/components/policies/EditLargeCommunityListModal";
 import { DeleteLargeCommunityListModal } from "@/components/policies/DeleteLargeCommunityListModal";
@@ -34,7 +34,7 @@ import { cn } from "@/lib/utils";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 // Sortable row component
-function LargeCommunityListRuleRow({ rule, onEdit, onDelete }: any) {
+function LargeCommunityListRuleRow({ rule, onEdit, onDelete }: { rule: LargeCommunityListRule; onEdit: (rule: LargeCommunityListRule) => void; onDelete: (rule: LargeCommunityListRule) => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: rule.rule_number,
   });
@@ -104,13 +104,13 @@ export default function BGPLargeCommunityPage() {
   const [showCreateRuleModal, setShowCreateRuleModal] = useState(false);
   const [showEditRuleModal, setShowEditRuleModal] = useState(false);
   const [showDeleteRuleModal, setShowDeleteRuleModal] = useState(false);
-  const [selectedRule, setSelectedRule] = useState<any>(null);
+  const [selectedRule, setSelectedRule] = useState<LargeCommunityListRule | null>(null);
 
   // Drag and drop states
-  const [reorderedRules, setReorderedRules] = useState<any[]>([]);
-  const [originalRules, setOriginalRules] = useState<any[]>([]);
+  const [reorderedRules, setReorderedRules] = useState<LargeCommunityListRule[]>([]);
+  const [, setOriginalRules] = useState<LargeCommunityListRule[]>([]);
   const [hasChanges, setHasChanges] = useState(false);
-  const [activeId, setActiveId] = useState<number | null>(null);
+  const [, setActiveId] = useState<number | null>(null);
   const [savingReorder, setSavingReorder] = useState(false);
 
   // Drag and drop sensors
@@ -185,11 +185,11 @@ export default function BGPLargeCommunityPage() {
   });
 
   // Drag and drop handlers
-  const handleDragStart = (event: any) => {
-    setActiveId(event.active.id);
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as number);
   };
 
-  const handleDragEnd = (event: any) => {
+  const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveId(null);
 
@@ -271,12 +271,12 @@ export default function BGPLargeCommunityPage() {
     fetchData(true);
   };
 
-  const handleEditRule = (rule: any) => {
+  const handleEditRule = (rule: LargeCommunityListRule) => {
     setSelectedRule(rule);
     setShowEditRuleModal(true);
   };
 
-  const handleDeleteRule = (rule: any) => {
+  const handleDeleteRule = (rule: LargeCommunityListRule) => {
     setSelectedRule(rule);
     setShowDeleteRuleModal(true);
   };

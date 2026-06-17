@@ -42,7 +42,6 @@ export function OpenfabricInterfaceModal({
   onOpenChange,
   onSubmit,
   existingInterface,
-  capabilities,
 }: OpenfabricInterfaceModalProps) {
   const isEdit = !!existingInterface;
 

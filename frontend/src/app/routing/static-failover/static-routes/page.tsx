@@ -62,7 +62,7 @@ import { RoutingTablesAccordion } from "@/components/routing/RoutingTablesAccord
 function StaticRoutesPageInner() {
   const searchParams = useSearchParams();
   const [config, setConfig] = useState<StaticRoutesConfig | null>(null);
-  const [capabilities, setCapabilities] = useState<StaticRoutesCapabilities | null>(null);
+  const [, setCapabilities] = useState<StaticRoutesCapabilities | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -588,7 +588,7 @@ function StaticRoutesPageInner() {
                       </TableHeader>
                       <TableBody>
                         {config.arp_interfaces.flatMap((iface) =>
-                          iface.entries.map((entry, idx) => (
+                          iface.entries.map((entry) => (
                             <TableRow key={`${iface.interface}-${entry.ip_address}`} className="group">
                               <TableCell>
                                 <Badge variant="outline">{iface.interface}</Badge>

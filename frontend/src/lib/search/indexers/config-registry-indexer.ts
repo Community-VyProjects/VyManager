@@ -1,7 +1,7 @@
 import { configSources } from "../config-sources";
 import { walkConfig } from "../config-walker";
 import { safeIndex } from "../utils";
-import type { SearchIndexer, SearchResult } from "../types";
+import type { SearchIndexer } from "../types";
 
 export const configRegistryIndexer: SearchIndexer = {
   id: "config-registry",

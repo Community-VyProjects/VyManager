@@ -15,17 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  AlertCircle,
-  Key,
-  Loader2,
-  RefreshCw,
-  Copy,
-  Check,
-  Eye,
-  EyeOff,
-  Sparkles,
-} from "lucide-react";
+import { AlertCircle, Key, Loader2, Copy, Check, Eye, EyeOff, Sparkles } from "lucide-react";
 import { wireguardService, WireGuardCapabilities } from "@/lib/api/wireguard";
 import { ApiError } from "@/lib/types/api";
 
@@ -152,7 +142,7 @@ export function CreateInterfaceModal({
     setError(null);
 
     try {
-      const config: any = {
+      const config: Record<string, unknown> = {
         name: name.trim(),
         private_key: privateKey.trim(),
       };
@@ -185,7 +175,7 @@ export function CreateInterfaceModal({
         config.mss_clamping = mssCustomValue.trim();
       }
 
-      const result = await wireguardService.createInterface(config);
+      const result = await wireguardService.createInterface(config as Parameters<typeof wireguardService.createInterface>[0]);
 
       if (result.success) {
         handleClose();

@@ -15,22 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
-import {
-  AlertCircle,
-  Wand2,
-  Loader2,
-  Check,
-  Copy,
-  ArrowRight,
-  ArrowLeft,
-  Server,
-  Users,
-  Sparkles,
-  ShieldCheck,
-  Download,
-  Eye,
-  EyeOff,
-} from "lucide-react";
+import { AlertCircle, Wand2, Loader2, Check, Copy, ArrowRight, ArrowLeft, Server, Users, Sparkles, ShieldCheck, Download } from "lucide-react";
 import { wireguardService, WireGuardCapabilities } from "@/lib/api/wireguard";
 import { ApiError } from "@/lib/types/api";
 
@@ -83,7 +68,7 @@ export function QuickSetupWizard({
   // Result
   const [result, setResult] = useState<SetupResult | null>(null);
   const [copied, setCopied] = useState<"server" | "client" | null>(null);
-  const [showServerKey, setShowServerKey] = useState(false);
+  const [, setShowServerKey] = useState(false);
 
   // Get next available interface name (finds gaps like wg0, wg1, wg3 -> wg2)
   const getNextInterfaceName = (): string => {
@@ -401,11 +386,11 @@ PersistentKeepalive = 25`;
             <div className="rounded-lg bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 p-6 text-center">
               <Sparkles className="h-12 w-12 mx-auto text-primary mb-4" />
               <h3 className="text-lg font-semibold mb-2">
-                Let's set up your WireGuard VPN
+                Let&apos;s set up your WireGuard VPN
               </h3>
               <p className="text-sm text-muted-foreground">
                 This wizard will guide you through creating a secure VPN tunnel.
-                We'll generate encryption keys automatically and configure
+                We&apos;ll generate encryption keys automatically and configure
                 everything for you.
               </p>
             </div>
@@ -466,7 +451,7 @@ PersistentKeepalive = 25`;
                 placeholder="10.10.0.1/24"
               />
               <p className="text-xs text-muted-foreground">
-                The server's address on the VPN network. Use a private range.
+                The server&apos;s address on the VPN network. Use a private range.
               </p>
             </div>
 
@@ -555,7 +540,7 @@ PersistentKeepalive = 25`;
 
             <div className="rounded-lg bg-muted/50 border p-3">
               <p className="text-sm text-muted-foreground">
-                We'll generate a complete configuration file that you can import
+                We&apos;ll generate a complete configuration file that you can import
                 into the WireGuard app or scan as a QR code.
               </p>
             </div>

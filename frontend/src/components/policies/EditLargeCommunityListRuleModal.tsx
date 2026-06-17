@@ -24,7 +24,6 @@ export function EditLargeCommunityListRuleModal({
   onSuccess,
   largeCommunityListName,
   rule,
-  capabilities,
 }: EditLargeCommunityListRuleModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

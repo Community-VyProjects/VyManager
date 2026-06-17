@@ -24,7 +24,7 @@ interface CreateRouteMapModalProps {
 export function CreateRouteMapModal({ open, onOpenChange, onSuccess }: CreateRouteMapModalProps) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [capabilities, setCapabilities] = useState<RouteMapCapabilities | null>(null);
+    const [, setCapabilities] = useState<RouteMapCapabilities | null>(null);
 
     // Basic fields
     const [name, setName] = useState("");
@@ -326,7 +326,7 @@ export function CreateRouteMapModal({ open, onOpenChange, onSuccess }: CreateRou
             if (setTable.trim()) set.table = parseInt(setTable);
             if (setTag.trim()) set.tag = parseInt(setTag);
 
-            const rule: any = {
+            const rule: Record<string, unknown> = {
                 rule_number: parseInt(ruleNumber),
                 description: ruleDescription.trim() || null,
                 action,

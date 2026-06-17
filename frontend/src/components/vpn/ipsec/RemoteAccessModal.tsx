@@ -46,7 +46,6 @@ export function RemoteAccessModal({
   open,
   onOpenChange,
   onSuccess,
-  capabilities,
   ikeGroups,
   espGroups,
   pools,

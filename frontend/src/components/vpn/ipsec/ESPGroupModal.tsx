@@ -46,7 +46,6 @@ export function ESPGroupModal({
   open,
   onOpenChange,
   onSuccess,
-  capabilities,
   existingGroup,
 }: ESPGroupModalProps) {
   const isEdit = !!existingGroup;

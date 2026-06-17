@@ -70,7 +70,6 @@ export function VrfIsisTab({ vrf, capabilities, canWrite, onRefresh }: VrfIsisTa
     );
   }
 
-  const totalRedistribute = isis.redistribute_ipv4.length + isis.redistribute_ipv6.length;
 
   return (
     <div className="space-y-6">

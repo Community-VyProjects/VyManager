@@ -1115,7 +1115,7 @@ export function EditVirtualEthernetModal({
                       <button
                         type="button"
                         className="flex items-center gap-2 text-sm font-medium"
-                        onClick={() => setExpandedVifS((prev) => { const next = new Set(prev); next.has(si) ? next.delete(si) : next.add(si); return next; })}
+                        onClick={() => setExpandedVifS((prev) => { const next = new Set(prev); if (next.has(si)) { next.delete(si); } else { next.add(si); } return next; })}
                       >
                         {expandedVifS.has(si) ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                         <Badge variant="secondary">S-VLAN {vs.vlan_id}</Badge>

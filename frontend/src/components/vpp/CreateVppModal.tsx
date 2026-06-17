@@ -23,13 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { AlertCircle, ArrowLeft, ChevronRight, Loader2, Plus, Trash2, X } from "lucide-react";
-import {
-  vppService,
-  type VppCapabilities,
-  type VppSubType,
-  type VppVifInput,
-  type VppBridgeMemberInput,
-} from "@/lib/api/vpp";
+import { vppService, type VppCapabilities, type VppSubType, type VppBridgeMemberInput } from "@/lib/api/vpp";
 import { showService } from "@/lib/api/show";
 import { ApiError } from "@/lib/types/api";
 

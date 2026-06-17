@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,7 +18,7 @@ interface CreatePrefixListModalProps {
   capabilities: PrefixListCapabilitiesResponse | null;
 }
 
-export function CreatePrefixListModal({ open, onOpenChange, onSuccess, listType, capabilities }: CreatePrefixListModalProps) {
+export function CreatePrefixListModal({ open, onOpenChange, onSuccess, listType }: CreatePrefixListModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("basic");
@@ -151,7 +151,7 @@ export function CreatePrefixListModal({ open, onOpenChange, onSuccess, listType,
 
     try {
       // Build first rule
-      const firstRule: any = {
+      const firstRule: Record<string, unknown> = {
         rule_number: ruleNumber,
         action,
         description: ruleDescription || null,

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
 import {
   Table,
   TableBody,
@@ -17,21 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Radio,
-  Plus,
-  RefreshCw,
-  Pencil,
-  Trash2,
-  Save,
-  Loader2,
-  Search,
-  X,
-  AlertCircle,
-  Network,
-  MapPin,
-  Zap,
-} from "lucide-react";
+import { Plus, RefreshCw, Pencil, Trash2, Save, Loader2, Search, X, AlertCircle, Network, MapPin, Zap } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import {
   pimService,
@@ -77,7 +63,7 @@ export function PimContent() {
   const hasWritePermission = canWrite(FeatureGroup.PIM);
 
   const [config, setConfig] = useState<PimConfig | null>(null);
-  const [capabilities, setCapabilities] = useState<PimCapabilities | null>(null);
+  const [, setCapabilities] = useState<PimCapabilities | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("general");

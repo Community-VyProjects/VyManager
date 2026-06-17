@@ -44,7 +44,7 @@ export function PimInterfaceModal({
 
   // Available interfaces
   const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceName[]>([]);
-  const [interfacesLoading, setInterfacesLoading] = useState(false);
+  const [, setInterfacesLoading] = useState(false);
 
   // PIM form state
   const [name, setName] = useState("");

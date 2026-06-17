@@ -26,7 +26,7 @@ export function CommunityListReorderBanner({
               You have reordered {count} rule{count !== 1 ? "s" : ""}
             </p>
             <p className="text-xs text-muted-foreground">
-              Click "Save Changes" to apply the new order or "Cancel" to discard changes
+              Click &quot;Save Changes&quot; to apply the new order or &quot;Cancel&quot; to discard changes
             </p>
           </div>
         </div>

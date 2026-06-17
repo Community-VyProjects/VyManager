@@ -22,7 +22,6 @@ export function CreateLargeCommunityListRuleModal({
   onOpenChange,
   onSuccess,
   largeCommunityListName,
-  capabilities,
 }: CreateLargeCommunityListRuleModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

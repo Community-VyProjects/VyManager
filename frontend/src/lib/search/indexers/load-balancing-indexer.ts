@@ -1,6 +1,6 @@
 import { lbService } from "@/lib/api/load-balancing";
 import { Scale } from "lucide-react";
-import { buildHref, createSearchResult, safeIndex } from "../utils";
+import { createSearchResult, safeIndex } from "../utils";
 import type { SearchIndexer, SearchResult } from "../types";
 
 const FEATURE = "Load Balancing";

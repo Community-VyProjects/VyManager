@@ -36,7 +36,7 @@ export function EditAccessListRuleModal({
   const [action, setAction] = useState<"permit" | "deny">("permit");
   const [ruleDescription, setRuleDescription] = useState("");
   const [sourceType, setSourceType] = useState<"any" | "host" | "network">("any");
-  const [sourceNetworkFormat, setSourceNetworkFormat] = useState<"network" | "inverse-mask">("network");
+  const [, setSourceNetworkFormat] = useState<"network" | "inverse-mask">("network");
   const [sourceAddress, setSourceAddress] = useState("");
   const [sourceMask, setSourceMask] = useState("");
   // IPv6 specific fields
@@ -44,7 +44,7 @@ export function EditAccessListRuleModal({
   const [sourceExactMatch, setSourceExactMatch] = useState(false);
   const [sourceNetwork, setSourceNetwork] = useState("");
   const [destinationType, setDestinationType] = useState<"any" | "host" | "network">("any");
-  const [destinationNetworkFormat, setDestinationNetworkFormat] = useState<"network" | "inverse-mask">("network");
+  const [, setDestinationNetworkFormat] = useState<"network" | "inverse-mask">("network");
   const [destinationAddress, setDestinationAddress] = useState("");
   const [destinationMask, setDestinationMask] = useState("");
 
@@ -60,7 +60,7 @@ export function EditAccessListRuleModal({
           setSourceType("network");
           setSourceNetworkFormat("inverse-mask");
         } else {
-          setSourceType((rule.source_type as any) || "any");
+          setSourceType((rule.source_type as "any" | "host" | "network") || "any");
           setSourceNetworkFormat("network");
         }
         setSourceAddress(rule.source_address || "");
@@ -71,7 +71,7 @@ export function EditAccessListRuleModal({
           setDestinationType("network");
           setDestinationNetworkFormat("inverse-mask");
         } else {
-          setDestinationType((rule.destination_type as any) || "any");
+          setDestinationType((rule.destination_type as "any" | "host" | "network") || "any");
           setDestinationNetworkFormat("network");
         }
         setDestinationAddress(rule.destination_address || "");
@@ -198,7 +198,7 @@ export function EditAccessListRuleModal({
     setError(null);
 
     try {
-      let updatedRule: any = {
+      const updatedRule: Record<string, unknown> = {
         action,
         description: ruleDescription || null,
       };
@@ -315,7 +315,7 @@ export function EditAccessListRuleModal({
             {listType === "ipv4" ? (
               /* IPv4 Source - Radio Buttons */
               <>
-                <RadioGroup value={sourceType} onValueChange={(v: any) => setSourceType(v)} disabled={loading}>
+                <RadioGroup value={sourceType} onValueChange={(v) => setSourceType(v as "any" | "host" | "network")} disabled={loading}>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="any" id="source-any" />
                     <Label htmlFor="source-any" className="font-normal cursor-pointer">Any</Label>
@@ -416,7 +416,7 @@ export function EditAccessListRuleModal({
           {listType === "ipv4" && (
             <div className="space-y-3 border rounded-lg p-4">
               <Label>Destination</Label>
-            <RadioGroup value={destinationType} onValueChange={(v: any) => setDestinationType(v)} disabled={loading}>
+            <RadioGroup value={destinationType} onValueChange={(v) => setDestinationType(v as "any" | "host" | "network")} disabled={loading}>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="any" id="dest-any" />
                 <Label htmlFor="dest-any" className="font-normal cursor-pointer">Any</Label>

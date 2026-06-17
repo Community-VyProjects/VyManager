@@ -32,7 +32,6 @@ export function AddAccessListRuleModal({
   const [action, setAction] = useState<"permit" | "deny">("permit");
   const [ruleDescription, setRuleDescription] = useState("");
   const [sourceType, setSourceType] = useState<"any" | "host" | "network">("any");
-  const [sourceNetworkFormat, setSourceNetworkFormat] = useState<"network" | "inverse-mask">("network");
   const [sourceAddress, setSourceAddress] = useState("");
   const [sourceMask, setSourceMask] = useState("");
   // IPv6 specific fields
@@ -40,7 +39,6 @@ export function AddAccessListRuleModal({
   const [sourceExactMatch, setSourceExactMatch] = useState(false);
   const [sourceNetwork, setSourceNetwork] = useState("");
   const [destinationType, setDestinationType] = useState<"any" | "host" | "network">("any");
-  const [destinationNetworkFormat, setDestinationNetworkFormat] = useState<"network" | "inverse-mask">("network");
   const [destinationAddress, setDestinationAddress] = useState("");
   const [destinationMask, setDestinationMask] = useState("");
 
@@ -172,7 +170,7 @@ export function AddAccessListRuleModal({
     setError(null);
 
     try {
-      let newRule: any = {
+      const newRule: Record<string, unknown> = {
         rule_number: ruleNumber,
         action,
         description: ruleDescription || null,
@@ -284,7 +282,7 @@ export function AddAccessListRuleModal({
             {listType === "ipv4" ? (
               /* IPv4 Source - Radio Buttons */
               <>
-                <RadioGroup value={sourceType} onValueChange={(v: any) => setSourceType(v)} disabled={loading}>
+                <RadioGroup value={sourceType} onValueChange={(v) => setSourceType(v as "any" | "host" | "network")} disabled={loading}>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="any" id="source-any" />
                     <Label htmlFor="source-any" className="font-normal cursor-pointer">Any</Label>
@@ -385,7 +383,7 @@ export function AddAccessListRuleModal({
           {listType === "ipv4" && (
             <div className="space-y-3 border rounded-lg p-4">
               <Label>Destination</Label>
-            <RadioGroup value={destinationType} onValueChange={(v: any) => setDestinationType(v)} disabled={loading}>
+            <RadioGroup value={destinationType} onValueChange={(v) => setDestinationType(v as "any" | "host" | "network")} disabled={loading}>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="any" id="dest-any" />
                 <Label htmlFor="dest-any" className="font-normal cursor-pointer">Any</Label>

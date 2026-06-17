@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 interface ClickableSubnetProps {
   subnet: string;
   networkName?: string;
-  data?: any; // Full subnet data
+  data?: unknown; // Full subnet data
   children?: React.ReactNode;
   className?: string;
   variant?: "default" | "ghost" | "link";
@@ -73,7 +73,7 @@ export function ClickableSubnet({
 interface ClickableClientProps {
   clientName: string;
   interfaceName?: string;
-  data?: any; // Full client/peer data
+  data?: unknown; // Full client/peer data
   children?: React.ReactNode;
   className?: string;
   variant?: "default" | "ghost" | "link";

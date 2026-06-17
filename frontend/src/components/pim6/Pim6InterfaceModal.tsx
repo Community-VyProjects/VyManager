@@ -44,7 +44,7 @@ export function Pim6InterfaceModal({
   const isEditMode = !!existingInterface;
 
   const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceName[]>([]);
-  const [interfacesLoading, setInterfacesLoading] = useState(false);
+  const [, setInterfacesLoading] = useState(false);
 
   // PIMv6 form state
   const [name, setName] = useState("");

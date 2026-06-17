@@ -54,7 +54,7 @@ export function DHCPv6RelayModal({ open, onClose, onSuccess, config }: DHCPv6Rel
   const [upstreamSelectedIface, setUpstreamSelectedIface] = useState("");
 
   const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceName[]>([]);
-  const [interfacesLoading, setInterfacesLoading] = useState(false);
+  const [, setInterfacesLoading] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

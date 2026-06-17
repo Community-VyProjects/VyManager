@@ -98,7 +98,7 @@ async function proxyRequest(
     try {
       const data = JSON.parse(responseText);
       return NextResponse.json(data, { status: response.status });
-    } catch (parseError) {
+    } catch {
       return NextResponse.json(
         {
           error: "Backend returned invalid JSON",

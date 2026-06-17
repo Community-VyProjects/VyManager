@@ -95,7 +95,7 @@ function FirewallGlobalOptionsPageInner() {
   const [timeoutUdpStream, setTimeoutUdpStream] = useState<string>("");
 
   // Initial form values for change detection
-  const [initialValues, setInitialValues] = useState<Record<string, any>>({});
+  const [initialValues, setInitialValues] = useState<Record<string, unknown>>({});
 
   const loadData = async (forceRefresh: boolean = true) => {
     try {

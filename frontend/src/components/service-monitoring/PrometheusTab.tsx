@@ -368,7 +368,7 @@ interface ExporterCardProps {
   onRemove: () => void;
 }
 
-function ExporterCard({ title, description, defaultPort, port, listenAddresses, vrf, extraBadges = [], configured, hasWrite, onEdit, onRemove }: ExporterCardProps) {
+function ExporterCard({ title, description, port, listenAddresses, vrf, extraBadges = [], configured, hasWrite, onEdit, onRemove }: ExporterCardProps) {
   return (
     <Card>
       <CardHeader className="pb-2 pt-4 px-4">

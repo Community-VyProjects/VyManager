@@ -42,7 +42,7 @@ export function IgmpProxyInterfaceModal({
 
   // Available interfaces from VyOS
   const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceName[]>([]);
-  const [interfacesLoading, setInterfacesLoading] = useState(false);
+  const [, setInterfacesLoading] = useState(false);
 
   // Form state
   const [name, setName] = useState("");

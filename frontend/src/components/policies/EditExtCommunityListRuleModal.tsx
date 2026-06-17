@@ -24,7 +24,6 @@ export function EditExtCommunityListRuleModal({
   onSuccess,
   extcommunityListName,
   rule,
-  capabilities,
 }: EditExtCommunityListRuleModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

@@ -47,7 +47,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { useEffect, useState } from "react";
-import { DndContext, closestCenter, DragOverlay, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { DndContext, type DragStartEvent, type DragEndEvent, closestCenter, DragOverlay, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import {
   firewallIPv4Service,
@@ -298,13 +298,6 @@ function FirewallPoliciesPageInner() {
   };
 
   // Helper to get colored class for default action badge (matches table row styling)
-  const getDefaultActionBadgeClass = (action: string | null): string => {
-    if (!action) return "";
-    if (action === "accept") return "bg-green-500/10 text-green-500 border-green-500/20";
-    if (action === "drop") return "bg-red-500/10 text-red-500 border-red-500/20";
-    if (action === "reject") return "bg-orange-500/10 text-orange-500 border-orange-500/20";
-    return "";
-  };
 
   useEffect(() => {
     // Load IPv4 data
@@ -451,15 +444,15 @@ function FirewallPoliciesPageInner() {
     : (hasChangesIPv6 ? reorderedRulesIPv6 : getCurrentRules());
 
   // Drag and drop handlers (IPv4)
-  const handleDragStart = (event: any) => {
+  const handleDragStart = (event: DragStartEvent) => {
     if (selectedProtocol === "ipv4") {
-      setActiveId(event.active.id);
+      setActiveId(event.active.id as number);
     } else {
-      setActiveIdIPv6(event.active.id);
+      setActiveIdIPv6(event.active.id as number);
     }
   };
 
-  const handleDragEnd = (event: any) => {
+  const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
 
     if (selectedProtocol === "ipv4") {
@@ -836,7 +829,7 @@ function FirewallPoliciesPageInner() {
                       <div className="px-2 py-4 text-center">
                         <p className="text-xs text-muted-foreground">No custom chains</p>
                         <p className="text-xs text-muted-foreground mt-1">
-                          Click "New" to create one
+                          Click &quot;New&quot; to create one
                         </p>
                       </div>
                     ) : (
@@ -944,7 +937,7 @@ function FirewallPoliciesPageInner() {
                       <div className="px-2 py-4 text-center">
                         <p className="text-xs text-muted-foreground">No custom chains</p>
                         <p className="text-xs text-muted-foreground mt-1">
-                          Click "New" to create one
+                          Click &quot;New&quot; to create one
                         </p>
                       </div>
                     ) : (

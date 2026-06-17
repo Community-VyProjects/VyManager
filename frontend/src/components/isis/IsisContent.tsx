@@ -51,14 +51,7 @@ import {
   Zap,
 } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import {
-  isisService,
-  IsisConfig,
-  IsisCapabilities,
-  IsisInterface,
-  IsisRedistributeEntry,
-  IsisGlobalConfig,
-} from "@/lib/api/isis";
+import { isisService, IsisConfig, IsisCapabilities, IsisInterface, IsisRedistributeEntry } from "@/lib/api/isis";
 import { routeMapService } from "@/lib/api/route-map";
 import { IsisInterfaceModal } from "./IsisInterfaceModal";
 import { IsisRedistributeModal } from "./IsisRedistributeModal";

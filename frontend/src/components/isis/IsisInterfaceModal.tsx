@@ -25,9 +25,6 @@ import {
 import { Loader2, AlertCircle } from "lucide-react";
 import {
   IsisInterface,
-  IsisInterfaceLfa,
-  IsisInterfaceTiLfa,
-  IsisInterfaceRemoteLfa,
   IsisCapabilities,
 } from "@/lib/api/isis";
 import { showService, InterfaceName } from "@/lib/api/show";
@@ -41,31 +38,6 @@ interface IsisInterfaceModalProps {
   capabilities: IsisCapabilities | null;
 }
 
-const emptyLfa = (): IsisInterfaceLfa => ({
-  level1_enabled: false,
-  level1_exclude_interfaces: [],
-  level2_enabled: false,
-  level2_exclude_interfaces: [],
-});
-
-const emptyTiLfa = (): IsisInterfaceTiLfa => ({
-  enabled: false,
-  level1_enabled: false,
-  level1_node_protection: false,
-  level1_link_fallback: false,
-  level2_enabled: false,
-  level2_node_protection: false,
-  level2_link_fallback: false,
-});
-
-const emptyRemoteLfa = (): IsisInterfaceRemoteLfa => ({
-  level1_enabled: false,
-  level1_max_metric: null,
-  level1_tunnel_mpls_ldp: false,
-  level2_enabled: false,
-  level2_max_metric: null,
-  level2_tunnel_mpls_ldp: false,
-});
 
 export function IsisInterfaceModal({
   open,

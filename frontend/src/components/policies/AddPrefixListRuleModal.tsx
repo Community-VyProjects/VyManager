@@ -147,7 +147,7 @@ export function AddPrefixListRuleModal({
     setError(null);
 
     try {
-      const newRule: any = {
+      const newRule: Record<string, unknown> = {
         rule_number: ruleNumber,
         action,
         description: ruleDescription || null,

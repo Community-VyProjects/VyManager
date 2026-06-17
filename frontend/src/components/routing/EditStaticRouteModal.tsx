@@ -162,7 +162,7 @@ export function EditStaticRouteModal({ open, onOpenChange, onSuccess, route }: E
     setNextHops(nextHops.filter((_, i) => i !== index));
   };
 
-  const updateNextHop = (index: number, field: keyof NextHopEntry, value: any) => {
+  const updateNextHop = <K extends keyof NextHopEntry>(index: number, field: K, value: NextHopEntry[K]) => {
     const updated = [...nextHops];
     updated[index] = { ...updated[index], [field]: value };
     setNextHops(updated);
@@ -177,7 +177,7 @@ export function EditStaticRouteModal({ open, onOpenChange, onSuccess, route }: E
     setInterfaces(interfaces.filter((_, i) => i !== index));
   };
 
-  const updateInterface = (index: number, field: keyof InterfaceEntry, value: any) => {
+  const updateInterface = <K extends keyof InterfaceEntry>(index: number, field: K, value: InterfaceEntry[K]) => {
     const updated = [...interfaces];
     updated[index] = { ...updated[index], [field]: value };
     setInterfaces(updated);
@@ -190,7 +190,7 @@ export function EditStaticRouteModal({ open, onOpenChange, onSuccess, route }: E
     setError(null);
 
     try {
-      const config: any = {};
+      const config: Record<string, unknown> = {};
 
       // Description
       if (description.trim() !== route.description) {
@@ -258,8 +258,6 @@ export function EditStaticRouteModal({ open, onOpenChange, onSuccess, route }: E
 
   if (!route) return null;
 
-  const hasNextHops = route.next_hops.length > 0;
-  const hasInterfaces = route.interfaces.length > 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -375,7 +373,7 @@ export function EditStaticRouteModal({ open, onOpenChange, onSuccess, route }: E
                             <Checkbox
                               id={`bfd-enable-${index}`}
                               checked={nh.bfd_enable}
-                              onCheckedChange={(checked) => updateNextHop(index, "bfd_enable", checked)}
+                              onCheckedChange={(checked) => updateNextHop(index, "bfd_enable", checked === true)}
                             />
                             <Label htmlFor={`bfd-enable-${index}`}>Enable BFD Monitoring</Label>
                           </div>
@@ -397,7 +395,7 @@ export function EditStaticRouteModal({ open, onOpenChange, onSuccess, route }: E
                         <Checkbox
                           id={`nh-disable-${index}`}
                           checked={nh.disable}
-                          onCheckedChange={(checked) => updateNextHop(index, "disable", checked)}
+                          onCheckedChange={(checked) => updateNextHop(index, "disable", checked === true)}
                         />
                         <Label htmlFor={`nh-disable-${index}`}>Disable this next-hop</Label>
                       </div>
@@ -406,7 +404,7 @@ export function EditStaticRouteModal({ open, onOpenChange, onSuccess, route }: E
                   ) : (
                     <div className="border rounded-lg p-4 bg-muted/30">
                       <p className="text-sm text-muted-foreground text-center">
-                        No next-hops configured. Click "Add Next-Hop" to add one.
+                        No next-hops configured. Click &quot;Add Next-Hop&quot; to add one.
                       </p>
                     </div>
                   )}
@@ -470,7 +468,7 @@ export function EditStaticRouteModal({ open, onOpenChange, onSuccess, route }: E
                         <Checkbox
                           id={`iface-disable-${index}`}
                           checked={iface.disable}
-                          onCheckedChange={(checked) => updateInterface(index, "disable", checked)}
+                          onCheckedChange={(checked) => updateInterface(index, "disable", checked === true)}
                         />
                         <Label htmlFor={`iface-disable-${index}`}>Disable this interface route</Label>
                       </div>
@@ -479,7 +477,7 @@ export function EditStaticRouteModal({ open, onOpenChange, onSuccess, route }: E
                   ) : (
                     <div className="border rounded-lg p-4 bg-muted/30">
                       <p className="text-sm text-muted-foreground text-center">
-                        No interface routes configured. Click "Add Interface" to add one.
+                        No interface routes configured. Click &quot;Add Interface&quot; to add one.
                       </p>
                     </div>
                   )}

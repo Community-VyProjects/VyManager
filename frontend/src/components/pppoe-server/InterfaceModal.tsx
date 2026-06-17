@@ -33,7 +33,7 @@ export function InterfaceModal({ open, onOpenChange, onSuccess, existingInterfac
 
   const [ifaceName, setIfaceName] = useState("");
   const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceName[]>([]);
-  const [ifacesLoading, setIfacesLoading] = useState(false);
+  const [, setIfacesLoading] = useState(false);
   const [vlans, setVlans] = useState<string[]>([]);
   const [vlanInput, setVlanInput] = useState("");
   const [vlanMon, setVlanMon] = useState(false);

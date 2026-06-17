@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import type { CSSProperties } from "react";
+
 import {
   Sheet,
   SheetContent,

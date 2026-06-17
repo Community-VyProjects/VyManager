@@ -55,7 +55,6 @@ export function SiteToSiteModal({
   open,
   onOpenChange,
   onSuccess,
-  capabilities,
   ikeGroups,
   espGroups,
   existingPeer,

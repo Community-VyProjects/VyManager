@@ -33,7 +33,7 @@ export interface SystemConfig {
   name_servers: string[];
   domain_name: string | null;
   performance: string | null;
-  raw_config: Record<string, any>;
+  raw_config: Record<string, unknown>;
 }
 
 // ============================================================================

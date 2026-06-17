@@ -44,7 +44,7 @@ interface Props {
   onRefresh: () => void;
 }
 
-export function LoginAuthPanel({ config, capabilities: _cap, isReadOnly, onRefresh }: Props) {
+export function LoginAuthPanel({ config, isReadOnly, onRefresh }: Props) {
   const { toast } = useToast();
 
   // --- RADIUS ---

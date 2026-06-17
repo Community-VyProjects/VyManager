@@ -39,7 +39,7 @@ export function BroadcastRelayInstanceModal({ open, onOpenChange, instance, onSu
   const isEditMode = !!instance;
 
   const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceName[]>([]);
-  const [interfacesLoading, setInterfacesLoading] = useState(false);
+  const [, setInterfacesLoading] = useState(false);
 
   const [instanceId, setInstanceId] = useState("");
   const [port, setPort] = useState("");
@@ -66,7 +66,6 @@ export function BroadcastRelayInstanceModal({ open, onOpenChange, instance, onSu
       }
       loadInterfaces();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, instance]);
 
   const loadInterfaces = async () => {

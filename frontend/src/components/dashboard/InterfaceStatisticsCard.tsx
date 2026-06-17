@@ -338,7 +338,6 @@ export function InterfaceStatisticsCard({
     setInterfaces(buildGroupedInterfaces(sseData.interfaceCounters.interfaces));
     setLoading(false);
     setError(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sseData.interfaceCounters, autoRefresh]);
 
   useEffect(() => {

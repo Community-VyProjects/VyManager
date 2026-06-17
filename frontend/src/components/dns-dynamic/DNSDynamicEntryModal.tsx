@@ -40,7 +40,7 @@ export function DNSDynamicEntryModal({ open, onOpenChange, entry, onSubmit }: Pr
   const isEdit = !!entry;
 
   const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceName[]>([]);
-  const [interfacesLoading, setInterfacesLoading] = useState(false);
+  const [, setInterfacesLoading] = useState(false);
 
   const [name, setName] = useState("");
   const [protocol, setProtocol] = useState("");

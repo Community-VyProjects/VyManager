@@ -11,7 +11,7 @@ interface NATReorderBannerProps {
   saving: boolean;
 }
 
-export function NATReorderBanner({ changesCount, onSave, onCancel, saving }: NATReorderBannerProps) {
+export function NATReorderBanner({ onSave, onCancel, saving }: NATReorderBannerProps) {
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom duration-300">
       <Card className="shadow-lg border-2 border-primary bg-card">

@@ -11,7 +11,7 @@ export interface DashboardCard {
   column: number; // 0, 1, or 2
   position: number; // position within column
   span?: number; // how many columns this card spans (1, 2, or 3) - defaults to 1
-  config?: Record<string, any>; // card-specific configuration
+  config?: Record<string, unknown>; // card-specific configuration
 }
 
 export interface DashboardLayout {

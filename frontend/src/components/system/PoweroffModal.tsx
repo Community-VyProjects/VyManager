@@ -93,7 +93,7 @@ export function PoweroffModal({ open, onOpenChange, onSuccess }: PoweroffModalPr
           {/* Poweroff Options */}
           <div className="space-y-4">
             <Label>Poweroff Options</Label>
-            <RadioGroup value={action} onValueChange={(value) => setAction(value as any)}>
+            <RadioGroup value={action} onValueChange={(value) => setAction(value as "now" | "at" | "in")}>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="now" id="now" />
                 <Label htmlFor="now" className="font-normal cursor-pointer">

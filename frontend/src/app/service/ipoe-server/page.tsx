@@ -39,17 +39,7 @@ import {
   Key,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  ipoeServerService,
-  type IPoEConfigResponse,
-  type IPoECapabilities,
-  type IPoEInterface,
-  type IPoEAuthMac,
-  type IPoEAuthInterface,
-  type IPoERadiusServer,
-  type IPoEClientIPPool,
-  type IPoEClientIPv6Pool,
-} from "@/lib/api/ipoe-server";
+import { ipoeServerService, type IPoEConfigResponse, type IPoECapabilities, type IPoEInterface, type IPoEAuthMac, type IPoERadiusServer, type IPoEClientIPPool, type IPoEClientIPv6Pool } from "@/lib/api/ipoe-server";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 import {

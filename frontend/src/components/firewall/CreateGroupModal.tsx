@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Plus, X, AlertCircle, Search } from "lucide-react";
 import { firewallGroupsService, type FirewallGroup } from "@/lib/api/firewall-groups";
-import type { GroupType, FirewallGroupsCapabilities } from "@/lib/api/types/firewall-groups";
+import type { GroupType, FirewallGroupsCapabilities, GroupsConfigResponse } from "@/lib/api/types/firewall-groups";
 
 interface CreateGroupModalProps {
   open: boolean;
@@ -51,7 +51,7 @@ export function CreateGroupModal({ open, onOpenChange, onSuccess, capabilities }
     }
   };
 
-  const getGroupsForType = (config: any, type: GroupType): FirewallGroup[] => {
+  const getGroupsForType = (config: GroupsConfigResponse, type: GroupType): FirewallGroup[] => {
     switch (type) {
       case "address-group":
         return config.address_groups || [];
@@ -170,20 +170,6 @@ export function CreateGroupModal({ open, onOpenChange, onSuccess, capabilities }
     }
   };
 
-  const getGroupTypeLabel = (type: GroupType) => {
-    const labels: Record<GroupType, string> = {
-      "address-group": "IPv4 Address Group",
-      "ipv6-address-group": "IPv6 Address Group",
-      "network-group": "IPv4 Network Group",
-      "ipv6-network-group": "IPv6 Network Group",
-      "port-group": "Port Group",
-      "interface-group": "Interface Group",
-      "mac-group": "MAC Address Group",
-      "domain-group": "Domain Group",
-      "remote-group": "Remote Group",
-    };
-    return labels[type];
-  };
 
   const getMemberPlaceholder = (type: GroupType) => {
     const placeholders: Record<GroupType, string> = {

@@ -63,7 +63,7 @@ export default function LoginPage() {
       if (f && f !== "/login" && f !== "/onboarding") {
         setFrom(f);
       }
-    } catch (err) {
+    } catch {
       // ignore
     }
   }, []);

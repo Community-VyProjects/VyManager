@@ -60,7 +60,7 @@ export function searchIndex(
   const q = query.trim().toLowerCase();
   const limit = options.limit ?? DEFAULT_LIMIT;
 
-  let candidates = index.filter((r) => matchesFilters(r, options.filters));
+  const candidates = index.filter((r) => matchesFilters(r, options.filters));
 
   if (!q) {
     const starred = candidates.filter((r) => r.starred);

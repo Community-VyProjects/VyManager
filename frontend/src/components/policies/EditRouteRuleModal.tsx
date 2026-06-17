@@ -10,10 +10,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { AlertCircle, Plus, X } from "lucide-react";
-import { routeService, RouteCapabilitiesResponse, MatchConditions, SetActions } from "@/lib/api/route";
+import { AlertCircle } from "lucide-react";
+import { routeService, PolicyRouteRule, RouteCapabilitiesResponse, MatchConditions, SetActions } from "@/lib/api/route";
 import { firewallGroupsService, FirewallGroup } from "@/lib/api/firewall-groups";
-import { apiClient } from "@/lib/api/client";
+
 import { ApiError } from "@/lib/types/api";
 
 interface EditRouteRuleModalProps {
@@ -22,7 +22,7 @@ interface EditRouteRuleModalProps {
   onSuccess: () => void;
   policyType: string;
   policyName: string;
-  rule: any;
+  rule: PolicyRouteRule | null;
   capabilities: RouteCapabilitiesResponse | null;
 }
 
@@ -164,7 +164,6 @@ export function EditRouteRuleModal({
   const [actionTcpMss, setActionTcpMss] = useState("");
   const [actionVrf, setActionVrf] = useState("");
 
-
   useEffect(() => {
     if (open) {
       loadGroups();
@@ -203,15 +202,15 @@ export function EditRouteRuleModal({
     }
   };
 
-
   const loadRuleData = () => {
+    if (!rule) return;
     const match = rule.match || {};
     const set = rule.set || {};
 
     // Basic
     setDescription(rule.description || "");
     setDisable(rule.disable || false);
-    setLog(rule.log || false);
+    setLog(!!rule.log);
 
     // Match - Address - parse invert prefix (!)
     const srcAddr = match.source_address || "";
@@ -438,6 +437,7 @@ export function EditRouteRuleModal({
   };
 
   const handleSubmit = async () => {
+    if (!rule) return;
     setLoading(true);
     setError(null);
 
@@ -1636,8 +1636,8 @@ export function EditRouteRuleModal({
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label className="text-sm font-medium mb-2 block">Routing Table</Label>
-                  <RadioGroup value={actionTableMode} onValueChange={(value: any) => {
-                    setActionTableMode(value);
+                  <RadioGroup value={actionTableMode} onValueChange={(value) => {
+                    setActionTableMode(value as "none" | "main" | "custom");
                     if (value !== "custom") setActionTable("");
                   }} disabled={loading}>
                     <div className="flex items-center space-x-2">

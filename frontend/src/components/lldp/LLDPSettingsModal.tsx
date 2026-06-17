@@ -42,7 +42,6 @@ export function LLDPSettingsModal({
   open,
   onOpenChange,
   config,
-  capabilities,
   onSuccess,
 }: LLDPSettingsModalProps) {
   const [managementAddresses, setManagementAddresses] = useState<string[]>(
@@ -100,7 +99,6 @@ export function LLDPSettingsModal({
           snmpEnabled,
           legacyProtocols,
         },
-        capabilities
       );
       onSuccess();
       onOpenChange(false);

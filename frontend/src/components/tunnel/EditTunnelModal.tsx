@@ -44,7 +44,6 @@ export function EditTunnelModal({
   open,
   onOpenChange,
   onSuccess,
-  capabilities,
   interfaceData,
 }: EditTunnelModalProps) {
   // Basic

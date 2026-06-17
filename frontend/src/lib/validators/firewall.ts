@@ -233,8 +233,6 @@ export function isValidPortInput(input: string): boolean {
 export function getIPAddressError(input: string, protocol: "ipv4" | "ipv6"): string | null {
   if (!input || input.trim() === "") return null;
 
-  const trimmed = input.trim();
-  const value = trimmed.startsWith("!") ? trimmed.substring(1) : trimmed;
 
   if (protocol === "ipv4") {
     if (!isValidIPv4AddressInput(input)) {

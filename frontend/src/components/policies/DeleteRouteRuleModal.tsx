@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, AlertTriangle } from "lucide-react";
-import { routeService } from "@/lib/api/route";
+import { routeService, PolicyRouteRule } from "@/lib/api/route";
 import { ApiError } from "@/lib/types/api";
 
 interface DeleteRouteRuleModalProps {
@@ -13,7 +13,7 @@ interface DeleteRouteRuleModalProps {
   onSuccess: () => void;
   policyType: string;
   policyName: string;
-  rule: any;
+  rule: PolicyRouteRule | null;
 }
 
 export function DeleteRouteRuleModal({
@@ -28,6 +28,7 @@ export function DeleteRouteRuleModal({
   const [error, setError] = useState<string | null>(null);
 
   const handleDelete = async () => {
+    if (!rule) return;
     setLoading(true);
     setError(null);
 

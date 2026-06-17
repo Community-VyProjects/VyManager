@@ -11,50 +11,8 @@ import {
 } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import {
-  Loader2,
-  AlertCircle,
-  RefreshCw,
-  Shield,
-  Eye,
-  Edit3,
-  User,
-  ChevronDown,
-  ChevronRight,
-  Server,
-  Building2,
-  Search,
-  Check,
-  X,
-  Network,
-  Wifi,
-  Router,
-  Lock,
-  Activity,
-  Box,
-  Waypoints,
-  Globe,
-  FileText,
-  List,
-  MapPin,
-  Workflow,
-  Radio,
-  UserCircle,
-  Route,
-  Power,
-  ShieldCheck,
-  GitBranch,
-  Package,
-  Terminal,
-  ArrowLeftRight,
-  MonitorSpeaker,
-  Zap,
-  Clock,
-  Bot,
-  Gauge,
-  FolderUp,
-} from "lucide-react";
+
+import { type LucideIcon, Loader2, AlertCircle, RefreshCw, Shield, Eye, Edit3, User, ChevronDown, ChevronRight, Server, Building2, Search, X, Network, Wifi, Router, Lock, Activity, Box, Waypoints, Globe, FileText, List, MapPin, Workflow, Radio, UserCircle, Power, ShieldCheck, GitBranch, Package, Terminal, ArrowLeftRight, MonitorSpeaker, Zap, Clock, Bot, Gauge, FolderUp } from "lucide-react";
 import { userManagementService, FeatureGroup, InstanceUserListItem } from "@/lib/api/user-management";
 import { ApiError } from "@/lib/types/api";
 
@@ -69,14 +27,14 @@ interface ViewInstanceAccessModalProps {
 }
 
 // Role badge styles
-const ROLE_STYLES: Record<string, { bg: string; text: string; icon: any }> = {
+const ROLE_STYLES: Record<string, { bg: string; text: string; icon: LucideIcon }> = {
   ADMIN: { bg: "bg-red-100 dark:bg-red-900/30", text: "text-red-700 dark:text-red-400", icon: Shield },
   OPERATOR: { bg: "bg-blue-100 dark:bg-blue-900/30", text: "text-blue-700 dark:text-blue-400", icon: Edit3 },
   VIEWER: { bg: "bg-gray-100 dark:bg-gray-800", text: "text-gray-700 dark:text-gray-400", icon: Eye },
 };
 
 // Feature icons mapping
-const FEATURE_ICONS: Record<FeatureGroup, any> = {
+const FEATURE_ICONS: Record<FeatureGroup, LucideIcon> = {
   [FeatureGroup.FIREWALL]: Shield,
   [FeatureGroup.NAT]: Network,
   [FeatureGroup.NAT64]: Globe,
@@ -351,9 +309,6 @@ export function ViewInstanceAccessModal({
     }
   };
 
-  const handleClose = () => {
-    onOpenChange(false);
-  };
 
   const toggleUserExpand = (userId: string) => {
     setExpandedUserId(expandedUserId === userId ? null : userId);

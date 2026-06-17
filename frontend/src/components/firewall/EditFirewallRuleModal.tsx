@@ -911,7 +911,7 @@ export function EditFirewallRuleModal({
 
       // TCP Flags - only include flags that are not "disabled"
       const activeTcpFlags = Object.fromEntries(
-        Object.entries(tcpFlags).filter(([_, state]) => state !== "disabled")
+        Object.entries(tcpFlags).filter(([, state]) => state !== "disabled")
       );
       if (Object.keys(activeTcpFlags).length > 0) {
         config.tcp_flags = activeTcpFlags;

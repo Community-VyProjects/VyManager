@@ -109,10 +109,10 @@ export default function BridgeFirewallPage() {
 
   // Reorder state
   const [reorderedRules, setReorderedRules] = useState<BridgeRule[]>([]);
-  const [originalRules, setOriginalRules] = useState<BridgeRule[]>([]);
+  const [, setOriginalRules] = useState<BridgeRule[]>([]);
   const [hasChanges, setHasChanges] = useState(false);
   const [savingReorder, setSavingReorder] = useState(false);
-  const [activeId, setActiveId] = useState<number | null>(null);
+  const [, setActiveId] = useState<number | null>(null);
 
   // Column visibility
   const { visibleColumns, toggleColumn, visibleColumnCount, orderedColumns, visibleOrderedColumns, reorderColumns, resetToDefault } =

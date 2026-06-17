@@ -130,9 +130,6 @@ export default function NAT66Page() {
     }
   });
 
-  const masqueradeCount = sourceRules.filter(
-    (r) => r.translation?.address === "masquerade"
-  ).length;
 
   // Look up firewall group members by name and type prefix
   const getGroupMembers = (groupName: string, groupType: "net" | "addr" | "port" | "mac" | "domain"): string[] => {

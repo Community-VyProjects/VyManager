@@ -24,7 +24,6 @@ export function EditCommunityListRuleModal({
   onSuccess,
   communityListName,
   rule,
-  capabilities,
 }: EditCommunityListRuleModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -109,7 +108,7 @@ export function EditCommunityListRuleModal({
               disabled={loading}
             />
             <p className="text-xs text-muted-foreground">
-              Regular expression to match AS paths (e.g., "64501 64502")
+              Regular expression to match AS paths (e.g., &quot;64501 64502&quot;)
             </p>
           </div>
 

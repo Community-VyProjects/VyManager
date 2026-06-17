@@ -147,7 +147,7 @@ export function EditPrefixListRuleModal({
     setError(null);
 
     try {
-      const updatedRule: any = {
+      const updatedRule: Record<string, unknown> = {
         action,
         description: ruleDescription || null,
         prefix: prefix.trim(),
@@ -191,7 +191,7 @@ export function EditPrefixListRuleModal({
         <DialogHeader>
           <DialogTitle>Edit Rule {rule.rule_number}</DialogTitle>
           <DialogDescription>
-            Update this rule's configuration
+            Update this rule&apos;s configuration
           </DialogDescription>
         </DialogHeader>
 

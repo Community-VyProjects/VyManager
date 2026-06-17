@@ -32,7 +32,6 @@ export function EditInputModal({
   onOpenChange,
   onSuccess,
   interfaceData,
-  capabilities,
 }: EditInputModalProps) {
   const [description, setDescription] = useState("");
   const [redirect, setRedirect] = useState("");

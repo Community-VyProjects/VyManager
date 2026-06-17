@@ -45,7 +45,7 @@ export function IgmpProxyContent() {
   const hasWritePermission = canWrite(FeatureGroup.IGMP_PROXY);
 
   const [config, setConfig] = useState<IgmpProxyConfig | null>(null);
-  const [capabilities, setCapabilities] = useState<IgmpProxyCapabilities | null>(null);
+  const [, setCapabilities] = useState<IgmpProxyCapabilities | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");

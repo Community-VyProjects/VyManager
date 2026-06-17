@@ -147,7 +147,7 @@ export function EditInterfaceModal({
 
     try {
       // Build config with changes
-      const newConfig: any = {};
+      const newConfig: Record<string, unknown> = {};
 
       // Description change
       if (description.trim() !== (interfaceData.description || "")) {
@@ -327,7 +327,7 @@ export function EditInterfaceModal({
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                Keep as "***" to preserve existing key, or generate/enter a new one.
+                Keep as &quot;***&quot; to preserve existing key, or generate/enter a new one.
               </p>
             </div>
 

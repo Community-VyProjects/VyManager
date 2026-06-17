@@ -7,34 +7,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import {
-  Network,
-  Database,
-  Shield,
-  Route,
-  Lock,
-  Activity,
-  Settings,
-  Users,
-  Clock,
-  Wifi,
-  Globe,
-  Server,
-  ExternalLink
-} from "lucide-react";
+
+import { Network, Database, Shield, Route, Activity, Users, Wifi, ExternalLink } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 interface UnifiedViewProps {
   isOpen: boolean;
   onClose: () => void;
   type: 'subnet' | 'client' | 'peer';
-  data: any;
+  data: unknown;
 }
 
 export function UnifiedView({ isOpen, onClose, type, data }: UnifiedViewProps) {
   const router = useRouter();
-  const [relatedData, setRelatedData] = useState<any>({});
+  const [, setRelatedData] = useState<Record<string, unknown>>({});
 
   useEffect(() => {
     if (isOpen && data) {
@@ -56,7 +42,16 @@ export function UnifiedView({ isOpen, onClose, type, data }: UnifiedViewProps) {
   };
 
   const renderSubnetView = () => {
-    const { network, subnet } = data;
+    const { network, subnet } = data as {
+      network: { name: string };
+      subnet: {
+        subnet: string;
+        default_router?: string;
+        lease?: string;
+        name_servers: string[];
+        static_mappings: Array<{ name: string; ip_address?: string; mac_address?: string; disable?: boolean }>;
+      };
+    };
 
     return (
       <div className="space-y-6">
@@ -68,7 +63,7 @@ export function UnifiedView({ isOpen, onClose, type, data }: UnifiedViewProps) {
               Subnet: {subnet.subnet}
             </CardTitle>
             <CardDescription>
-              DHCP subnet in shared network "{network.name}"
+              DHCP subnet in shared network &quot;{network.name}&quot;
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -112,7 +107,7 @@ export function UnifiedView({ isOpen, onClose, type, data }: UnifiedViewProps) {
               <CardContent>
                 <ScrollArea className="h-64">
                   <div className="space-y-2">
-                    {subnet.static_mappings.map((mapping: any) => (
+                    {subnet.static_mappings.map((mapping) => (
                       <div key={mapping.name} className="flex items-center justify-between p-3 border rounded-lg">
                         <div>
                           <p className="font-medium">{mapping.name}</p>
@@ -223,7 +218,17 @@ export function UnifiedView({ isOpen, onClose, type, data }: UnifiedViewProps) {
   };
 
   const renderClientView = () => {
-    const { interface: wgInterface, peer } = data;
+    const { interface: wgInterface, peer } = data as {
+      interface: { name: string };
+      peer: {
+        name: string;
+        public_key?: string;
+        address?: string;
+        port?: string | number;
+        allowed_ips: string[];
+        description?: string;
+      };
+    };
 
     return (
       <div className="space-y-6">
@@ -333,7 +338,7 @@ export function UnifiedView({ isOpen, onClose, type, data }: UnifiedViewProps) {
                   Routing Configuration
                 </CardTitle>
                 <CardDescription>
-                  Routes affecting this client's traffic
+                  Routes affecting this client&apos;s traffic
                 </CardDescription>
               </CardHeader>
               <CardContent>

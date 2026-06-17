@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Plus, X, AlertCircle, Search } from "lucide-react";
 import { firewallGroupsService } from "@/lib/api/firewall-groups";
-import type { FirewallGroup, GroupBatchOperation } from "@/lib/api/types/firewall-groups";
+import type { FirewallGroup, GroupBatchOperation, GroupsConfigResponse } from "@/lib/api/types/firewall-groups";
 
 interface EditGroupModalProps {
   open: boolean;
@@ -57,7 +57,7 @@ export function EditGroupModal({ open, onOpenChange, group, onSuccess }: EditGro
     }
   };
 
-  const getGroupsForType = (config: any, type: string): FirewallGroup[] => {
+  const getGroupsForType = (config: GroupsConfigResponse, type: string): FirewallGroup[] => {
     switch (type) {
       case "address-group":
         return config.address_groups || [];

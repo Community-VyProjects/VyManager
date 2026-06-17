@@ -51,7 +51,6 @@ export function ViewRoutingTableModal({
 
   if (!table) return null;
 
-  const currentRoutes = selectedTab === "ipv4" ? table.ipv4_routes : table.ipv6_routes;
 
   const handleRouteCreated = () => {
     setCreateRouteModalOpen(false);

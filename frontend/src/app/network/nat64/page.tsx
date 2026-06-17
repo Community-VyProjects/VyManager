@@ -43,7 +43,7 @@ import { FeatureGroup } from "@/lib/api/user-management";
 export default function NAT64Page() {
   const { canRead, canWrite, isLoading: permissionsLoading } = usePermissions();
   const [config, setConfig] = useState<NAT64ConfigResponse | null>(null);
-  const [capabilities, setCapabilities] = useState<NAT64Capabilities | null>(null);
+  const [, setCapabilities] = useState<NAT64Capabilities | null>(null);
   const [selectedRule, setSelectedRule] = useState<NAT64SourceRule | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

@@ -44,7 +44,7 @@ export function useColumnVisibility(storageKey: string, columns: ColumnDef[]) {
   const toggleColumn = (id: string) => {
     setVisibleColumns((prev) => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) { next.delete(id); } else { next.add(id); }
       writeStorage(storageKey, [...next]);
       return next;
     });

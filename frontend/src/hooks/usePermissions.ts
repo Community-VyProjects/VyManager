@@ -2,12 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSessionStore } from "@/store/session-store";
-import {
-  userManagementService,
-  FeatureGroup,
-  PermissionLevel,
-  MyPermissionsResponse,
-} from "@/lib/api/user-management";
+import { userManagementService, FeatureGroup, PermissionLevel } from "@/lib/api/user-management";
 import { ApiError } from "@/lib/types/api";
 
 interface PermissionsState {

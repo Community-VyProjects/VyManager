@@ -10,23 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Plus,
-  Search,
-  RefreshCw,
-  Route,
-  Pencil,
-  Trash2,
-  AlertCircle,
-} from "lucide-react";
+import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Plus, Search, RefreshCw, Route, AlertCircle } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { localRouteService, type LocalRouteRule, type LocalRouteConfigResponse, type LocalRouteCapabilitiesResponse } from "@/lib/api/local-route";
 import { CreateLocalRouteModal } from "@/components/policies/CreateLocalRouteModal";
@@ -42,7 +27,7 @@ function LocalRoutePageInner() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [config, setConfig] = useState<LocalRouteConfigResponse | null>(null);
-  const [capabilities, setCapabilities] = useState<LocalRouteCapabilitiesResponse | null>(null);
+  const [, setCapabilities] = useState<LocalRouteCapabilitiesResponse | null>(null);
   const [selectedTab, setSelectedTab] = useState<"ipv4" | "ipv6">("ipv4");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -54,7 +39,7 @@ function LocalRoutePageInner() {
   // Drag-and-drop reorder state
   const [hasChanges, setHasChanges] = useState(false);
   const [reorderedRules, setReorderedRules] = useState<LocalRouteRule[]>([]);
-  const [originalRules, setOriginalRules] = useState<LocalRouteRule[]>([]);
+  const [, setOriginalRules] = useState<LocalRouteRule[]>([]);
   const [savingReorder, setSavingReorder] = useState(false);
 
   const sensors = useSensors(

@@ -17,7 +17,7 @@ function resolveBackendUrl(): string {
   return url;
 }
 
-import { VyOSResponse, ApiError } from "../types/api";
+import { ApiError } from "../types/api";
 
 export class ApiClient {
   private readonly _baseUrl?: string;
