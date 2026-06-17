@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -205,12 +206,13 @@ export default function LoginPage() {
             <div className="relative w-20 h-20 mb-4">
               <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 blur-xl" />
               <div className="relative w-20 h-20 rounded-2xl overflow-hidden shadow-lg shadow-primary/10">
-                <img
+                <Image
                   src="/vy-icon.png"
                   alt="VyManager Logo"
                   width={80}
                   height={80}
                   className="object-contain"
+                  priority
                 />
               </div>
             </div>
