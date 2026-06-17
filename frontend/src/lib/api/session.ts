@@ -136,6 +136,22 @@ export interface RevokeSessionRequest {
   session_token: string;
 }
 
+/** Result of decrypting a backup without applying it. */
+export interface BackupPreview {
+  created_at: string | null;
+  counts: Record<string, number>;
+  ssh_keys_decryptable: boolean;
+}
+
+/** Summary returned after a restore completes. */
+export interface RestoreSummary {
+  mode: "replace" | "merge";
+  inserted: Record<string, number>;
+  updated: Record<string, number>;
+  skipped: Record<string, number>;
+  warnings: string[];
+}
+
 // ============================================================================
 // Session Service
 // ============================================================================
@@ -230,31 +246,29 @@ class SessionService {
   }
 
   /**
-   * Export sites and instances as CSV file
+   * Download a full, passphrase-encrypted backup of all VyManager configuration
+   * (users, sites, instances + secrets, RBAC grants, OIDC providers/mappings).
    */
-  async exportCSV(): Promise<void> {
-    // Use Next.js API proxy to forward request to backend with proper auth
-    const response = await fetch("/api/session/export-csv", {
-      method: "GET",
+  async backup(passphrase: string): Promise<void> {
+    const response = await fetch("/api/session/backup", {
+      method: "POST",
       credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ passphrase }),
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Export failed: ${errorText || response.statusText}`);
+      const data = await response.json().catch(() => null);
+      throw new Error(data?.detail || `Backup failed: ${response.statusText}`);
     }
 
-    // Get filename from Content-Disposition header or use default
     const contentDisposition = response.headers.get("Content-Disposition");
-    let filename = "vymanager_export.csv";
+    let filename = "vymanager_backup.vymgr";
     if (contentDisposition) {
-      const match = contentDisposition.match(/filename="(.+)"/);
-      if (match) {
-        filename = match[1];
-      }
+      const match = contentDisposition.match(/filename="?([^"]+)"?/);
+      if (match) filename = match[1];
     }
 
-    // Download the file
     const blob = await response.blob();
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -267,33 +281,48 @@ class SessionService {
   }
 
   /**
-   * Import sites and instances from CSV file
+   * Decrypt a backup file and return its contents (record counts, created date)
+   * without applying anything. Used to validate the passphrase before restoring.
    */
-  async importCSV(file: File): Promise<{
-    success: boolean;
-    message: string;
-    data?: {
-      sites_created: number;
-      instances_created: number;
-      errors?: string[] | null;
-    };
-  }> {
+  async previewBackup(file: File, passphrase: string): Promise<BackupPreview> {
+    const data = await this.postBackupFile("/api/session/restore/preview", file, passphrase);
+    return data.data as BackupPreview;
+  }
+
+  /**
+   * Restore a backup. "replace" wipes existing VyManager data and restores the
+   * file exactly; "merge" upserts records, keeping anything not in the backup.
+   */
+  async restore(
+    file: File,
+    passphrase: string,
+    mode: "replace" | "merge",
+  ): Promise<RestoreSummary> {
+    const data = await this.postBackupFile("/api/session/restore", file, passphrase, mode);
+    return data.data as RestoreSummary;
+  }
+
+  private async postBackupFile(
+    path: string,
+    file: File,
+    passphrase: string,
+    mode?: "replace" | "merge",
+  ): Promise<{ success: boolean; message: string; data?: unknown }> {
     const formData = new FormData();
     formData.append("file", file);
+    formData.append("passphrase", passphrase);
+    if (mode) formData.append("mode", mode);
 
-    // Use Next.js API proxy to forward request to backend with proper auth
-    const response = await fetch("/api/session/import-csv", {
+    const response = await fetch(path, {
       method: "POST",
       credentials: "include",
       body: formData,
     });
 
-    const data = await response.json();
-
+    const data = await response.json().catch(() => null);
     if (!response.ok) {
-      throw new Error(data.detail || `Import failed: ${response.statusText}`);
+      throw new Error(data?.detail || `Request failed: ${response.statusText}`);
     }
-
     return data;
   }
 

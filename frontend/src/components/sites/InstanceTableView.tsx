@@ -19,17 +19,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { MoreVertical, Power, PowerOff, Pencil, Trash2, MoveRight } from "lucide-react";
 import { ReachabilityState } from "@/lib/api/system-updates";
+import { Instance } from "@/lib/api/session";
 import { ReachabilityDot } from "./ReachabilityDot";
-
-interface Instance {
-  id: string;
-  name: string;
-  description?: string | null;
-  host: string;
-  port: number;
-  is_active: boolean;
-  vyos_version?: string | null;
-}
 
 interface InstanceTableViewProps {
   instances: Instance[];

@@ -41,6 +41,14 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         "/vyos/version/check",  # Version check is public
     }
 
+    # Endpoints that authenticate if a session is present but are NOT rejected
+    # when it is absent/invalid — the handler decides (e.g. backup restore is
+    # allowed for ADMINs, or for anyone when the system has no users yet).
+    OPTIONAL_AUTH_PATHS = {
+        "/session/restore",
+        "/session/restore/preview",
+    }
+
     # Endpoints that should NOT update activity timestamp
     # These are background polling endpoints - not real user activity
     POLLING_ENDPOINTS = {
@@ -82,11 +90,17 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         if request.method == "OPTIONS":
             return await call_next(request)
 
+        # Some paths authenticate only if a session is supplied; the handler
+        # enforces its own authorization (and may allow anonymous access).
+        optional_auth = request.url.path in self.OPTIONAL_AUTH_PATHS
+
         # Extract session token from cookie
         session_token = request.cookies.get("better-auth.session_token")
         session_token2 = request.cookies.get("__Secure-better-auth.session_token")
 
         if not session_token and not session_token2:
+            if optional_auth:
+                return await call_next(request)
             return JSONResponse(
                 status_code=401,
                 content={
@@ -102,6 +116,8 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             # Verify the signature and extract the session ID
             token_id = verify_session_cookie(token_to_use)
             if not token_id:
+                if optional_auth:
+                    return await call_next(request)
                 return JSONResponse(
                     status_code=401,
                     content={"detail": "Invalid session token"},
@@ -129,6 +145,8 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                     logger.debug("Session not found")
 
                 if not session:
+                    if optional_auth:
+                        return await call_next(request)
                     return JSONResponse(
                         status_code=401,
                         content={"detail": "Session not found or expired"}
@@ -139,6 +157,8 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                 now = datetime.utcnow()
 
                 if expires_at < now:
+                    if optional_auth:
+                        return await call_next(request)
                     return JSONResponse(
                         status_code=401,
                         content={"detail": "Session expired. Please log in again."}

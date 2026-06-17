@@ -31,13 +31,12 @@ import {
   LogOut,
   User,
   Download,
-  Upload,
   LayoutGrid,
   Table,
   KeyRound,
 } from "lucide-react";
 import { signOut, useSession } from "@/lib/auth-client";
-import { Site, sessionService } from "@/lib/api/session";
+import { Site, Instance, sessionService } from "@/lib/api/session";
 import { useSessionStore } from "@/store/session-store";
 import { InstanceCard } from "@/components/sites/InstanceCard";
 import { InstanceTableView } from "@/components/sites/InstanceTableView";
@@ -51,7 +50,7 @@ import { CreateInstanceModal } from "@/components/sites/CreateInstanceModal";
 import { EditInstanceModal } from "@/components/sites/EditInstanceModal";
 import { MoveInstanceModal } from "@/components/sites/MoveInstanceModal";
 import { DeleteInstanceModal } from "@/components/sites/DeleteInstanceModal";
-import { ImportCSVModal } from "@/components/session/ImportCSVModal";
+import { BackupRestoreModal } from "@/components/session/BackupRestoreModal";
 import { UserManagement } from "@/components/user-management/UserManagement";
 import { AuthenticationSettings } from "@/components/authentication/AuthenticationSettings";
 import { ThemeSelector } from "@/components/ui/theme-selector";
@@ -83,7 +82,7 @@ export default function SitesPage() {
   const [instanceViewMode, setInstanceViewMode] = useState<"cards" | "table">("cards");
 
   // Instance state
-  const [instances, setInstances] = useState<any[]>([]);
+  const [instances, setInstances] = useState<Instance[]>([]);
   const [instancesLoading, setInstancesLoading] = useState(false);
 
   // Site-wide update/reachability fan-out (shared by the rollup panel and the
@@ -114,13 +113,14 @@ export default function SitesPage() {
   const [editInstanceOpen, setEditInstanceOpen] = useState(false);
   const [moveInstanceOpen, setMoveInstanceOpen] = useState(false);
   const [deleteInstanceOpen, setDeleteInstanceOpen] = useState(false);
-  const [selectedInstance, setSelectedInstance] = useState<any | null>(null);
+  const [selectedInstance, setSelectedInstance] = useState<Instance | null>(null);
 
-  // CSV import/export
-  const [importCSVOpen, setImportCSVOpen] = useState(false);
+  // Full backup / restore
+  const [backupRestoreOpen, setBackupRestoreOpen] = useState(false);
 
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Auto-select first site when sites load
@@ -189,7 +189,7 @@ export default function SitesPage() {
     try {
       const instances = await sessionService.listInstances(site.id);
       setInstanceCount(instances.length);
-    } catch (err) {
+    } catch {
       setInstanceCount(0);
     }
     setSiteToDelete(site);
@@ -211,17 +211,17 @@ export default function SitesPage() {
     router.refresh();
   };
 
-  const handleEditInstance = (instance: any) => {
+  const handleEditInstance = (instance: Instance) => {
     setSelectedInstance(instance);
     setEditInstanceOpen(true);
   };
 
-  const handleMoveInstance = (instance: any) => {
+  const handleMoveInstance = (instance: Instance) => {
     setSelectedInstance(instance);
     setMoveInstanceOpen(true);
   };
 
-  const handleDeleteInstance = (instance: any) => {
+  const handleDeleteInstance = (instance: Instance) => {
     setSelectedInstance(instance);
     setDeleteInstanceOpen(true);
   };
@@ -237,16 +237,7 @@ export default function SitesPage() {
     loadSession();
   };
 
-  const handleExportCSV = async () => {
-    try {
-      await sessionService.exportCSV();
-    } catch (err) {
-      console.error("Export failed:", err);
-      setError((err as ApiError).message || "Failed to export CSV");
-    }
-  };
-
-  const handleImportSuccess = () => {
+  const handleRestored = () => {
     loadData();
   };
 
@@ -451,25 +442,16 @@ export default function SitesPage() {
                 Add Site
               </Button>
 
-              {/* Import/Export Buttons */}
-              <div className="grid grid-cols-2 gap-2 mt-2">
+              {/* Backup & Restore */}
+              <div className="mt-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  className="gap-2"
-                  onClick={() => setImportCSVOpen(true)}
-                >
-                  <Upload className="h-3 w-3" />
-                  Import
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-2"
-                  onClick={handleExportCSV}
+                  className="w-full gap-2"
+                  onClick={() => setBackupRestoreOpen(true)}
                 >
                   <Download className="h-3 w-3" />
-                  Export
+                  Backup &amp; Restore
                 </Button>
               </div>
             </div>
@@ -809,11 +791,11 @@ export default function SitesPage() {
         </>
       )}
 
-      {/* CSV Import Modal */}
-      <ImportCSVModal
-        open={importCSVOpen}
-        onOpenChange={setImportCSVOpen}
-        onSuccess={handleImportSuccess}
+      {/* Full Backup & Restore Modal */}
+      <BackupRestoreModal
+        open={backupRestoreOpen}
+        onOpenChange={setBackupRestoreOpen}
+        onRestored={handleRestored}
       />
 
       <Toaster />

@@ -20,10 +20,12 @@ import { Loader2, AlertCircle, CheckCircle2, Building2, Server, User } from "luc
 import { signUp, signIn } from "@/lib/auth-client";
 import { sessionService } from "@/lib/api/session";
 import { ApiError } from "@/lib/types/api";
+import { BackupRestoreModal } from "@/components/session/BackupRestoreModal";
 
 export default function OnboardingPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
+  const [restoreOpen, setRestoreOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -228,7 +230,7 @@ export default function OnboardingPage() {
 
       // Step 3: Create instance
       console.log("[Onboarding] Step 3/3: Creating VyOS instance...");
-      const createdInstance = await sessionService.createInstance({
+      await sessionService.createInstance({
         site_id: createdSite.id,
         name: instanceData.name,
         description: instanceData.description || undefined,
@@ -289,7 +291,7 @@ export default function OnboardingPage() {
           </div>
           <CardTitle className="text-3xl">Welcome to VyManager</CardTitle>
           <CardDescription>
-            Let's set up your VyOS management system
+            Let&apos;s set up your VyOS management system
           </CardDescription>
         </CardHeader>
 
@@ -327,7 +329,7 @@ export default function OnboardingPage() {
               <div className="text-center mb-6">
                 <h3 className="text-xl font-semibold mb-2">Step 1: Create Admin Account</h3>
                 <p className="text-sm text-muted-foreground">
-                  You'll be the owner with full access to everything
+                  You&apos;ll be the owner with full access to everything
                 </p>
               </div>
 
@@ -391,6 +393,19 @@ export default function OnboardingPage() {
                   "Continue"
                 )}
               </Button>
+
+              <div className="pt-2 text-center">
+                <p className="text-xs text-muted-foreground">
+                  Already have a VyManager backup?{" "}
+                  <button
+                    type="button"
+                    onClick={() => setRestoreOpen(true)}
+                    className="font-medium text-primary hover:underline"
+                  >
+                    Restore from backup
+                  </button>
+                </p>
+              </div>
             </form>
           )}
 
@@ -589,6 +604,14 @@ export default function OnboardingPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Disaster recovery: restore a full backup onto this fresh install */}
+      <BackupRestoreModal
+        open={restoreOpen}
+        onOpenChange={setRestoreOpen}
+        defaultTab="restore"
+        onRestored={() => router.push("/login")}
+      />
     </div>
   );
 }

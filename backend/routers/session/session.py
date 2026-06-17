@@ -5,18 +5,23 @@ API endpoints for managing user sessions with VyOS instances.
 Handles connect/disconnect operations and instance selection.
 """
 
-from fastapi import APIRouter, HTTPException, Request, UploadFile, File
+from fastapi import APIRouter, HTTPException, Request, UploadFile, File, Form
 from starlette.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
 from datetime import datetime
 import asyncpg
-import csv
-import io
+import json
 from vyos_service import VyOSService, VyOSDeviceConfig
 from session_vyos_service import clear_session_cache
 from session_cookie import verify_session_cookie
+from backup_crypto import (
+    encrypt_backup,
+    decrypt_backup,
+    ssh_key_fingerprint,
+    BackupCryptoError,
+)
 import logging
 logger = logging.getLogger(__name__)
 
@@ -1269,328 +1274,346 @@ async def delete_instance(request: Request, instance_id: str):
 
 
 # ============================================================================
-# CSV Import/Export Endpoints
+# Full Backup / Restore Endpoints
 # ============================================================================
+#
+# A backup captures every VyManager-managed table (users, accounts, sites,
+# instances + secrets, RBAC grants, OIDC providers/mappings, dashboard layouts)
+# into a single passphrase-encrypted file. Restore re-applies it in either
+# "replace" (wipe + restore) or "merge" (upsert) mode. See backup_crypto.py for
+# the file format.
+
+# Tables included in a backup, in FK-safe INSERT order (parents first).
+# DELETE on a full replace walks this list in reverse.
+BACKUP_TABLES: List[str] = [
+    "users",
+    "sites",
+    "instances",
+    "accounts",
+    "oauth_providers",
+    "user_instance_roles",
+    "user_feature_permissions",
+    "oauth_role_mappings",
+    "dashboard_layouts",
+]
+
+# Transient/derived tables that are intentionally NOT backed up. sessions and
+# active_sessions are rebuilt on next login; the rest are history/scratch.
+BACKUP_EXCLUDED_TABLES: List[str] = [
+    "sessions",
+    "active_sessions",
+    "verifications",
+    "audit_logs",
+    "scheduled_power_actions",
+    "role_permissions",
+]
+
+# Natural unique key per table for merge mode. When a row collides on this key
+# (e.g. same email but a different id) we skip it and report a warning rather
+# than aborting the whole restore.
+BACKUP_NATURAL_KEYS: Dict[str, List[str]] = {
+    "users": ["email"],
+    "sites": ["name"],
+    "instances": ["siteId", "name"],
+    "oauth_providers": ["providerId"],
+}
+
+BACKUP_FORMAT_VERSION = 1
 
 
-@router.get("/export-csv")
-async def export_sites_and_instances_csv(request: Request):
+class BackupRequest(BaseModel):
+    """Request body for creating a backup."""
+
+    passphrase: str = Field(..., min_length=1, description="Encrypts the backup file")
+
+
+async def _require_backup_admin(conn: asyncpg.Connection, request: Request) -> None:
+    """Allow platform ADMINs, or anyone when the system has no users yet.
+
+    The zero-users case covers disaster recovery onto a fresh install, where no
+    admin account exists to authenticate as.
     """
-    Export all sites and instances to CSV format.
+    user = getattr(request.state, "user", None)
+    if user:
+        role = await conn.fetchval("SELECT role FROM users WHERE id = $1", user["id"])
+        if role == "ADMIN":
+            return
+    user_count = await conn.fetchval("SELECT COUNT(*) FROM users")
+    if user_count == 0:
+        return
+    raise HTTPException(status_code=403, detail="Only site ADMIN users can do this")
 
-    Only site ADMIN users can export.
-    Returns a CSV file with all sites and their instances.
-    CSV Format: site_name, site_description, instance_name, instance_description,
-                host, port, vyos_version, protocol, verify_ssl
+
+def _json_safe(value: Any) -> Any:
+    """Make an asyncpg value JSON-serializable for the backup payload."""
+    if isinstance(value, datetime):
+        return value.isoformat()
+    return value
+
+
+async def _table_columns(conn: asyncpg.Connection, table: str) -> Dict[str, str]:
+    """Return {column_name: udt_name} for a table's current columns."""
+    rows = await conn.fetch(
+        """
+        SELECT column_name, udt_name
+        FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = $1
+        """,
+        table,
+    )
+    return {r["column_name"]: r["udt_name"] for r in rows}
+
+
+def _bind_value(value: Any, udt: str) -> Any:
+    """Coerce a backed-up JSON value to a text form Postgres can cast.
+
+    Every column is inserted as `$n::text::"<udt>"`, so all values are bound as
+    text (or NULL) and Postgres parses them into the real column type.
     """
-    if not hasattr(request.state, "user") or not request.state.user:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+    if value is None:
+        return None
+    if udt == "jsonb" or udt == "json":
+        return value if isinstance(value, str) else json.dumps(value)
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    return str(value)
 
-    user = request.state.user
-    user_id = user["id"]
 
+def _build_insert(table: str, columns: List[str], col_types: Dict[str, str], merge: bool):
+    """Build an INSERT statement that binds all values as text and casts each
+    column to its real type. In merge mode, conflicts on the primary key update
+    the row; RETURNING reports whether the row was inserted (xmax = 0) or updated.
+    """
+    quoted = [f'"{c}"' for c in columns]
+    placeholders = [f'${i + 1}::text::"{col_types[c]}"' for i, c in enumerate(columns)]
+    sql = f'INSERT INTO "{table}" ({", ".join(quoted)}) VALUES ({", ".join(placeholders)})'
+    if merge:
+        updates = ", ".join(f'{q} = EXCLUDED.{q}' for q, c in zip(quoted, columns) if c != "id")
+        if updates:
+            sql += f' ON CONFLICT (id) DO UPDATE SET {updates}'
+        else:
+            sql += ' ON CONFLICT (id) DO NOTHING'
+    sql += ' RETURNING (xmax = 0) AS inserted'
+    return sql
+
+
+@router.post("/backup")
+async def create_backup(request: Request, body: BackupRequest):
+    """Create an encrypted full backup of all VyManager configuration."""
     db_pool: asyncpg.Pool = request.app.state.db_pool
     if not db_pool:
         raise HTTPException(status_code=503, detail="Database not available")
 
     try:
         async with db_pool.acquire() as conn:
-            # Check user is site ADMIN
-            user_role = await conn.fetchval(
-                "SELECT role FROM users WHERE id = $1",
-                user_id
-            )
+            await _require_backup_admin(conn, request)
 
-            if user_role != "ADMIN":
-                raise HTTPException(
-                    status_code=403,
-                    detail="Only site ADMIN users can export data"
-                )
+            tables: Dict[str, List[Dict[str, Any]]] = {}
+            for table in BACKUP_TABLES:
+                rows = await conn.fetch(f'SELECT * FROM "{table}"')
+                tables[table] = [
+                    {k: _json_safe(v) for k, v in row.items()} for row in rows
+                ]
 
-            # Get all sites and instances (site ADMIN sees everything)
-            rows = await conn.fetch(
-                """
-                SELECT
-                    s.name as site_name,
-                    s.description as site_description,
-                    i.name as instance_name,
-                    i.description as instance_description,
-                    i.host,
-                    i.port,
-                    i."vyosVersion" as vyos_version,
-                    i.protocol,
-                    i."verifySsl" as verify_ssl
-                FROM sites s
-                LEFT JOIN instances i ON s.id = i."siteId"
-                ORDER BY s.name, i.name
-                """
-            )
-
-            # Create CSV in memory
-            output = io.StringIO()
-            writer = csv.writer(output)
-
-            # Write header
-            writer.writerow([
-                "site_name",
-                "site_description",
-                "instance_name",
-                "instance_description",
-                "host",
-                "port",
-                "vyos_version",
-                "protocol",
-                "verify_ssl"
-            ])
-
-            # Write data rows
-            for row in rows:
-                writer.writerow([
-                    row["site_name"] or "",
-                    row["site_description"] or "",
-                    row["instance_name"] or "",
-                    row["instance_description"] or "",
-                    row["host"] or "",
-                    str(row["port"]) if row["port"] else "",
-                    row["vyos_version"] or "",
-                    row["protocol"] or "",
-                    str(row["verify_ssl"]).lower() if row["verify_ssl"] is not None else "false"
-                ])
-
-            # Get CSV content
-            csv_content = output.getvalue()
-            output.close()
-
-            # Return as downloadable file
-            return StreamingResponse(
-                iter([csv_content]),
-                media_type="text/csv",
-                headers={
-                    "Content-Disposition": f"attachment; filename=vymanager_sites_instances_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-                }
-            )
-
-    except Exception as e:
-        logger.exception("Unhandled error")
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-@router.post("/import-csv", response_model=ApiResponse)
-async def import_sites_and_instances_csv(
-    request: Request,
-    file: UploadFile = File(...)
-):
-    """
-    Import sites and instances from CSV file.
-
-    Only site ADMIN users can import.
-    CSV Format: site_name, site_description, instance_name, instance_description,
-                host, port, api_key, vyos_version, protocol, verify_ssl
-
-    Rules:
-    - Sites will be created if they don't exist
-    - If a site already exists with the same name, instances will be added to that site
-    - Instances will be created if they don't exist
-    """
-    if not hasattr(request.state, "user") or not request.state.user:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
-    user = request.state.user
-    user_id = user["id"]
-
-    db_pool: asyncpg.Pool = request.app.state.db_pool
-    if not db_pool:
-        raise HTTPException(status_code=503, detail="Database not available")
-
-    # Validate file type
-    if not file.filename.endswith('.csv'):
-        raise HTTPException(status_code=400, detail="File must be a CSV file")
-
-    try:
-        async with db_pool.acquire() as conn:
-            # Check user is site ADMIN
-            user_role = await conn.fetchval(
-                "SELECT role FROM users WHERE id = $1",
-                user_id
-            )
-
-            if user_role != "ADMIN":
-                raise HTTPException(
-                    status_code=403,
-                    detail="Only site ADMIN users can import data"
-                )
-
-        # Read file content
-        contents = await file.read()
-        csv_content = contents.decode('utf-8')
-
-        # Parse CSV
-        csv_file = io.StringIO(csv_content)
-        reader = csv.DictReader(csv_file)
-
-        # Validate headers
-        required_headers = {
-            "site_name", "site_description", "instance_name", "instance_description",
-            "host", "port", "api_key", "vyos_version", "protocol", "verify_ssl"
+        payload = {
+            "format_version": BACKUP_FORMAT_VERSION,
+            "created_at": datetime.utcnow().isoformat() + "Z",
+            "ssh_key_fingerprint": ssh_key_fingerprint(),
+            "excluded_tables": BACKUP_EXCLUDED_TABLES,
+            "tables": tables,
         }
 
-        if not reader.fieldnames or not required_headers.issubset(set(reader.fieldnames)):
-            raise HTTPException(
-                status_code=400,
-                detail=f"CSV must have headers: {', '.join(required_headers)}"
-            )
-
-        # Process rows
-        sites_created = 0
-        instances_created = 0
-        errors = []
-
-        async with db_pool.acquire() as conn:
-            import secrets
-            import string
-            alphabet = string.ascii_letters + string.digits
-
-            # Track sites by name to avoid duplicates
-            site_cache = {}
-
-            for row_num, row in enumerate(reader, start=2):  # Start at 2 (header is row 1)
-                try:
-                    site_name = row.get("site_name", "").strip()
-                    instance_name = row.get("instance_name", "").strip()
-
-                    # Skip rows with no site name
-                    if not site_name:
-                        continue
-
-                    # Get or create site
-                    if site_name in site_cache:
-                        site_id = site_cache[site_name]
-                    else:
-                        # Check if site already exists (site ADMIN can see all sites)
-                        existing_site = await conn.fetchrow(
-                            """
-                            SELECT id FROM sites
-                            WHERE name = $1
-                            """,
-                            site_name
-                        )
-
-                        if existing_site:
-                            site_id = existing_site["id"]
-                            site_cache[site_name] = site_id
-                        else:
-                            # Create new site
-                            site_id = ''.join(secrets.choice(alphabet) for _ in range(32))
-
-                            await conn.execute(
-                                """
-                                INSERT INTO sites (id, name, description, "createdAt", "updatedAt")
-                                VALUES ($1, $2, $3, NOW(), NOW())
-                                """,
-                                site_id,
-                                site_name,
-                                row.get("site_description", "").strip() or None,
-                            )
-
-                            site_cache[site_name] = site_id
-                            sites_created += 1
-
-                    # Create instance if instance details provided
-                    if instance_name and row.get("host", "").strip():
-                        # Validate required instance fields
-                        host = row.get("host", "").strip()
-                        port_str = row.get("port", "").strip()
-                        api_key = row.get("api_key", "").strip()
-                        vyos_version = row.get("vyos_version", "").strip()
-
-                        if not all([host, port_str, api_key, vyos_version]):
-                            errors.append(f"Row {row_num}: Missing required instance fields (host, port, api_key, vyos_version)")
-                            continue
-
-                        # Parse and validate port
-                        try:
-                            port = int(port_str)
-                            if port < 1 or port > 65535:
-                                raise ValueError("Port must be between 1 and 65535")
-                        except ValueError as e:
-                            errors.append(f"Row {row_num}: Invalid port '{port_str}': {str(e)}")
-                            continue
-
-                        # Parse protocol and verify_ssl
-                        protocol = row.get("protocol", "https").strip().lower()
-                        if protocol not in ["http", "https"]:
-                            protocol = "https"
-
-                        verify_ssl_str = row.get("verify_ssl", "false").strip().lower()
-                        verify_ssl = verify_ssl_str in ["true", "1", "yes"]
-
-                        # Check if instance already exists
-                        existing_instance = await conn.fetchrow(
-                            """
-                            SELECT id FROM instances
-                            WHERE "siteId" = $1 AND name = $2
-                            """,
-                            site_id,
-                            instance_name,
-                        )
-
-                        if existing_instance:
-                            errors.append(f"Row {row_num}: Instance '{instance_name}' already exists in site '{site_name}'")
-                            continue
-
-                        # Create instance
-                        instance_id = ''.join(secrets.choice(alphabet) for _ in range(32))
-
-                        await conn.execute(
-                            """
-                            INSERT INTO instances (
-                                id, "siteId", name, description, host, port, username, password,
-                                "apiKey", "vyosVersion", protocol, "verifySsl", "isActive",
-                                "createdAt", "updatedAt"
-                            )
-                            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NOW())
-                            """,
-                            instance_id,
-                            site_id,
-                            instance_name,
-                            row.get("instance_description", "").strip() or None,
-                            host,
-                            port,
-                            "api",  # username (legacy)
-                            "",     # password (legacy)
-                            api_key,
-                            vyos_version,
-                            protocol,
-                            verify_ssl,
-                            True,   # isActive
-                        )
-
-                        instances_created += 1
-
-                except Exception as e:
-                    errors.append(f"Row {row_num}: {str(e)}")
-                    continue
-
-        # Build response message
-        message = f"Import completed: {sites_created} sites created, {instances_created} instances created"
-        if errors:
-            message += f", {len(errors)} errors"
-
-        return ApiResponse(
-            success=True,
-            message=message,
-            data={
-                "sites_created": sites_created,
-                "instances_created": instances_created,
-                "errors": errors if errors else None,
-            }
+        blob = await run_in_threadpool(encrypt_backup, payload, body.passphrase)
+        filename = f"vymanager_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.vymgr"
+        return StreamingResponse(
+            iter([blob]),
+            media_type="application/octet-stream",
+            headers={"Content-Disposition": f"attachment; filename={filename}"},
         )
 
     except HTTPException:
         raise
-    except Exception as e:
-        logger.exception("Unhandled error")
-        raise HTTPException(status_code=500, detail="Internal server error")
+    except Exception:
+        logger.exception("Backup failed")
+        raise HTTPException(status_code=500, detail="Failed to create backup")
+
+
+def _decode_and_validate(payload: Dict[str, Any]) -> None:
+    if not isinstance(payload, dict) or "tables" not in payload:
+        raise HTTPException(status_code=400, detail="File is not a valid VyManager backup")
+    version = payload.get("format_version")
+    if version != BACKUP_FORMAT_VERSION:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported backup format version: {version}",
+        )
+
+
+@router.post("/restore/preview", response_model=ApiResponse)
+async def preview_restore(
+    request: Request,
+    file: UploadFile = File(...),
+    passphrase: str = Form(...),
+):
+    """Decrypt a backup and report its contents without applying anything.
+
+    Lets the restore UI validate the passphrase and show record counts first.
+    """
+    db_pool: asyncpg.Pool = request.app.state.db_pool
+    if not db_pool:
+        raise HTTPException(status_code=503, detail="Database not available")
+
+    async with db_pool.acquire() as conn:
+        await _require_backup_admin(conn, request)
+
+    contents = await file.read()
+    try:
+        payload = await run_in_threadpool(decrypt_backup, contents, passphrase)
+    except BackupCryptoError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    _decode_and_validate(payload)
+
+    tables = payload.get("tables", {})
+    counts = {t: len(rows) for t, rows in tables.items()}
+    host_fp = ssh_key_fingerprint()
+    backup_fp = payload.get("ssh_key_fingerprint")
+    ssh_keys_decryptable = backup_fp is None or backup_fp == host_fp
+
+    return ApiResponse(
+        success=True,
+        message="Backup is valid",
+        data={
+            "created_at": payload.get("created_at"),
+            "counts": counts,
+            "ssh_keys_decryptable": ssh_keys_decryptable,
+        },
+    )
+
+
+@router.post("/restore", response_model=ApiResponse)
+async def restore_backup(
+    request: Request,
+    file: UploadFile = File(...),
+    passphrase: str = Form(...),
+    mode: str = Form("merge"),
+):
+    """Restore a backup in "replace" (wipe + restore) or "merge" (upsert) mode."""
+    if mode not in ("replace", "merge"):
+        raise HTTPException(status_code=400, detail="mode must be 'replace' or 'merge'")
+
+    db_pool: asyncpg.Pool = request.app.state.db_pool
+    if not db_pool:
+        raise HTTPException(status_code=503, detail="Database not available")
+
+    async with db_pool.acquire() as conn:
+        await _require_backup_admin(conn, request)
+
+    contents = await file.read()
+    try:
+        payload = await run_in_threadpool(decrypt_backup, contents, passphrase)
+    except BackupCryptoError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    _decode_and_validate(payload)
+
+    tables = payload.get("tables", {})
+
+    # Guard against a replace that would leave nobody able to log in.
+    if mode == "replace":
+        has_admin = any(
+            (u.get("role") == "ADMIN") for u in tables.get("users", [])
+        )
+        if not has_admin:
+            raise HTTPException(
+                status_code=400,
+                detail="Backup contains no ADMIN user; refusing to replace and lock you out",
+            )
+
+    warnings: List[str] = []
+    host_fp = ssh_key_fingerprint()
+    backup_fp = payload.get("ssh_key_fingerprint")
+    if tables.get("instances") and backup_fp and backup_fp != host_fp:
+        warnings.append(
+            "Encrypted SSH keys in this backup were created with a different "
+            "SSH_ENCRYPTION_KEY and cannot be decrypted on this host. "
+            "Re-run SSH key setup per instance to restore monitoring."
+        )
+
+    inserted_counts: Dict[str, int] = {}
+    updated_counts: Dict[str, int] = {}
+    skipped_counts: Dict[str, int] = {}
+    affected_instance_ids: List[str] = []
+
+    async with db_pool.acquire() as conn:
+        # Cache each table's real columns so we can cast text -> column type and
+        # ignore any backed-up columns that no longer exist in the schema.
+        col_types = {t: await _table_columns(conn, t) for t in BACKUP_TABLES}
+
+        async with conn.transaction():
+            if mode == "replace":
+                for table in reversed(BACKUP_TABLES):
+                    await conn.execute(f'DELETE FROM "{table}"')
+
+            for table in BACKUP_TABLES:
+                rows = tables.get(table, [])
+                types = col_types.get(table, {})
+                inserted = updated = skipped = 0
+
+                for row in rows:
+                    columns = [c for c in row.keys() if c in types]
+                    if not columns:
+                        continue
+                    values = [_bind_value(row[c], types[c]) for c in columns]
+                    sql = _build_insert(table, columns, types, merge=(mode == "merge"))
+
+                    try:
+                        if mode == "merge":
+                            # Row-level savepoint so a natural-key collision skips
+                            # just this row instead of aborting the whole restore.
+                            async with conn.transaction():
+                                was_inserted = await conn.fetchval(sql, *values)
+                        else:
+                            was_inserted = await conn.fetchval(sql, *values)
+                    except asyncpg.UniqueViolationError:
+                        skipped += 1
+                        continue
+
+                    if was_inserted:
+                        inserted += 1
+                    else:
+                        updated += 1
+                    if table == "instances":
+                        affected_instance_ids.append(row.get("id"))
+
+                inserted_counts[table] = inserted
+                updated_counts[table] = updated
+                if skipped:
+                    skipped_counts[table] = skipped
+
+    for instance_id in affected_instance_ids:
+        if instance_id:
+            clear_session_cache(instance_id)
+
+    if mode == "replace":
+        warnings.append(
+            "Existing sessions were cleared; sign in again with a restored account."
+        )
+    if skipped_counts:
+        warnings.append(
+            "Some rows were skipped because a record with the same name/email "
+            "already exists. Use replace mode to overwrite."
+        )
+
+    return ApiResponse(
+        success=True,
+        message=f"Restore completed ({mode} mode)",
+        data={
+            "mode": mode,
+            "inserted": inserted_counts,
+            "updated": updated_counts,
+            "skipped": skipped_counts,
+            "warnings": warnings,
+        },
+    )
 
 
 # ============================================================================
