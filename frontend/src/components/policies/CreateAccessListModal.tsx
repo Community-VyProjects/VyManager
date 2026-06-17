@@ -131,7 +131,7 @@ export function CreateAccessListModal({ open, onOpenChange, onSuccess, listType 
       const actualDestinationType = destinationType === "network" ? "inverse-mask" : destinationType;
 
       // Build first rule
-      const firstRule: any = {
+      const firstRule: Record<string, unknown> = {
         rule_number: ruleNumber,
         action,
         description: ruleDescription || null,
@@ -252,7 +252,7 @@ export function CreateAccessListModal({ open, onOpenChange, onSuccess, listType 
             {/* Source Configuration */}
             <div className="space-y-3 border rounded-lg p-4">
               <Label>Source</Label>
-              <RadioGroup value={sourceType} onValueChange={(v: any) => setSourceType(v)} disabled={loading}>
+              <RadioGroup value={sourceType} onValueChange={(v) => setSourceType(v as "any" | "host" | "network")} disabled={loading}>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="any" id="source-any" />
                   <Label htmlFor="source-any" className="font-normal cursor-pointer">Any</Label>
@@ -324,7 +324,7 @@ export function CreateAccessListModal({ open, onOpenChange, onSuccess, listType 
             {/* Destination Configuration */}
             <div className="space-y-3 border rounded-lg p-4">
               <Label>Destination</Label>
-              <RadioGroup value={destinationType} onValueChange={(v: any) => setDestinationType(v)} disabled={loading}>
+              <RadioGroup value={destinationType} onValueChange={(v) => setDestinationType(v as "any" | "host" | "network")} disabled={loading}>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="any" id="dest-any" />
                   <Label htmlFor="dest-any" className="font-normal cursor-pointer">Any</Label>

@@ -353,7 +353,7 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
     setError(null);
 
     try {
-      const config: any = {};
+      const config: Record<string, unknown> = {};
 
       if (description.trim()) {
         config.description = description.trim();

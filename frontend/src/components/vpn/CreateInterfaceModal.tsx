@@ -142,7 +142,7 @@ export function CreateInterfaceModal({
     setError(null);
 
     try {
-      const config: any = {
+      const config: Record<string, unknown> = {
         name: name.trim(),
         private_key: privateKey.trim(),
       };
@@ -175,7 +175,7 @@ export function CreateInterfaceModal({
         config.mss_clamping = mssCustomValue.trim();
       }
 
-      const result = await wireguardService.createInterface(config);
+      const result = await wireguardService.createInterface(config as Parameters<typeof wireguardService.createInterface>[0]);
 
       if (result.success) {
         handleClose();

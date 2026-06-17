@@ -147,7 +147,7 @@ export function EditInterfaceModal({
 
     try {
       // Build config with changes
-      const newConfig: any = {};
+      const newConfig: Record<string, unknown> = {};
 
       // Description change
       if (description.trim() !== (interfaceData.description || "")) {

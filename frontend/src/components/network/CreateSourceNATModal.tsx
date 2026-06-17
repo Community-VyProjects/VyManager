@@ -203,7 +203,7 @@ export function CreateSourceNATModal({ open, onOpenChange, onSuccess }: CreateSo
     setError(null);
 
     try {
-      const config: any = {};
+      const config: Record<string, unknown> = {};
 
       if (description.trim()) {
         config.description = description.trim();

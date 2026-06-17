@@ -603,7 +603,7 @@ export function EditRouteMapRuleModal({
       if (setTable.trim()) set.table = parseInt(setTable);
       if (setTag.trim()) set.tag = parseInt(setTag);
 
-      const updatedRule: any = {
+      const updatedRule: Record<string, unknown> = {
         rule_number: rule.rule_number,
         description: ruleDescription.trim() || null,
         action,

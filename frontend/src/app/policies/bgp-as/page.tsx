@@ -19,10 +19,10 @@ import {
   Pencil,
   GripVertical,
 } from "lucide-react";
-import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { DndContext, type DragStartEvent, type DragEndEvent, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, arrayMove, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { asPathListService, AsPathList, AsPathListCapabilities } from "@/lib/api/as-path-list";
+import { asPathListService, AsPathList, AsPathListRule, AsPathListCapabilities } from "@/lib/api/as-path-list";
 import { CreateAsPathListModal } from "@/components/policies/CreateAsPathListModal";
 import { EditAsPathListModal } from "@/components/policies/EditAsPathListModal";
 import { DeleteAsPathListModal } from "@/components/policies/DeleteAsPathListModal";
@@ -34,7 +34,7 @@ import { cn } from "@/lib/utils";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 // Sortable row component
-function AsPathListRuleRow({ rule, onEdit, onDelete }: any) {
+function AsPathListRuleRow({ rule, onEdit, onDelete }: { rule: AsPathListRule; onEdit: (rule: AsPathListRule) => void; onDelete: (rule: AsPathListRule) => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: rule.rule_number,
   });
@@ -104,11 +104,11 @@ export default function BGPASPage() {
   const [showCreateRuleModal, setShowCreateRuleModal] = useState(false);
   const [showEditRuleModal, setShowEditRuleModal] = useState(false);
   const [showDeleteRuleModal, setShowDeleteRuleModal] = useState(false);
-  const [selectedRule, setSelectedRule] = useState<any>(null);
+  const [selectedRule, setSelectedRule] = useState<AsPathListRule | null>(null);
 
   // Drag and drop states
-  const [reorderedRules, setReorderedRules] = useState<any[]>([]);
-  const [, setOriginalRules] = useState<any[]>([]);
+  const [reorderedRules, setReorderedRules] = useState<AsPathListRule[]>([]);
+  const [, setOriginalRules] = useState<AsPathListRule[]>([]);
   const [hasChanges, setHasChanges] = useState(false);
   const [, setActiveId] = useState<number | null>(null);
   const [savingReorder, setSavingReorder] = useState(false);
@@ -185,11 +185,11 @@ export default function BGPASPage() {
   });
 
   // Drag and drop handlers
-  const handleDragStart = (event: any) => {
-    setActiveId(event.active.id);
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as number);
   };
 
-  const handleDragEnd = (event: any) => {
+  const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveId(null);
 
@@ -268,12 +268,12 @@ export default function BGPASPage() {
     fetchData(true);
   };
 
-  const handleEditRule = (rule: any) => {
+  const handleEditRule = (rule: AsPathListRule) => {
     setSelectedRule(rule);
     setShowEditRuleModal(true);
   };
 
-  const handleDeleteRule = (rule: any) => {
+  const handleDeleteRule = (rule: AsPathListRule) => {
     setSelectedRule(rule);
     setShowDeleteRuleModal(true);
   };

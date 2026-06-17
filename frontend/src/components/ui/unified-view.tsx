@@ -15,12 +15,12 @@ interface UnifiedViewProps {
   isOpen: boolean;
   onClose: () => void;
   type: 'subnet' | 'client' | 'peer';
-  data: any;
+  data: unknown;
 }
 
 export function UnifiedView({ isOpen, onClose, type, data }: UnifiedViewProps) {
   const router = useRouter();
-  const [, setRelatedData] = useState<any>({});
+  const [, setRelatedData] = useState<Record<string, unknown>>({});
 
   useEffect(() => {
     if (isOpen && data) {
@@ -42,7 +42,16 @@ export function UnifiedView({ isOpen, onClose, type, data }: UnifiedViewProps) {
   };
 
   const renderSubnetView = () => {
-    const { network, subnet } = data;
+    const { network, subnet } = data as {
+      network: { name: string };
+      subnet: {
+        subnet: string;
+        default_router?: string;
+        lease?: string;
+        name_servers: string[];
+        static_mappings: Array<{ name: string; ip_address?: string; mac_address?: string; disable?: boolean }>;
+      };
+    };
 
     return (
       <div className="space-y-6">
@@ -98,7 +107,7 @@ export function UnifiedView({ isOpen, onClose, type, data }: UnifiedViewProps) {
               <CardContent>
                 <ScrollArea className="h-64">
                   <div className="space-y-2">
-                    {subnet.static_mappings.map((mapping: any) => (
+                    {subnet.static_mappings.map((mapping) => (
                       <div key={mapping.name} className="flex items-center justify-between p-3 border rounded-lg">
                         <div>
                           <p className="font-medium">{mapping.name}</p>
@@ -209,7 +218,17 @@ export function UnifiedView({ isOpen, onClose, type, data }: UnifiedViewProps) {
   };
 
   const renderClientView = () => {
-    const { interface: wgInterface, peer } = data;
+    const { interface: wgInterface, peer } = data as {
+      interface: { name: string };
+      peer: {
+        name: string;
+        public_key?: string;
+        address?: string;
+        port?: string | number;
+        allowed_ips: string[];
+        description?: string;
+      };
+    };
 
     return (
       <div className="space-y-6">

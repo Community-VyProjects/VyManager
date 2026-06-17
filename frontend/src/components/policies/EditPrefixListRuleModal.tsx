@@ -147,7 +147,7 @@ export function EditPrefixListRuleModal({
     setError(null);
 
     try {
-      const updatedRule: any = {
+      const updatedRule: Record<string, unknown> = {
         action,
         description: ruleDescription || null,
         prefix: prefix.trim(),

@@ -15,9 +15,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Search, RefreshCw, AlertCircle, Route as RouteIcon, Trash2, Pencil, Network } from "lucide-react";
-import { DndContext, closestCenter, DragOverlay, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { DndContext, type DragStartEvent, type DragEndEvent, closestCenter, DragOverlay, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
-import { routeService, PolicyRoute, RouteCapabilitiesResponse } from "@/lib/api/route";
+import { routeService, PolicyRoute, PolicyRouteRule, RouteCapabilitiesResponse } from "@/lib/api/route";
 import { CreateRoutePolicyModal } from "@/components/policies/CreateRoutePolicyModal";
 import { EditRoutePolicyModal } from "@/components/policies/EditRoutePolicyModal";
 import { DeleteRoutePolicyModal } from "@/components/policies/DeleteRoutePolicyModal";
@@ -53,13 +53,13 @@ function RoutePageInner() {
   const [showCreateRuleModal, setShowCreateRuleModal] = useState(false);
   const [showEditRuleModal, setShowEditRuleModal] = useState(false);
   const [showDeleteRuleModal, setShowDeleteRuleModal] = useState(false);
-  const [selectedRule, setSelectedRule] = useState<any>(null);
+  const [selectedRule, setSelectedRule] = useState<PolicyRouteRule | null>(null);
 
   const [showManageInterfacesModal, setShowManageInterfacesModal] = useState(false);
 
   // Drag and drop states
-  const [reorderedRules, setReorderedRules] = useState<any[]>([]);
-  const [, setOriginalRules] = useState<any[]>([]);
+  const [reorderedRules, setReorderedRules] = useState<PolicyRouteRule[]>([]);
+  const [, setOriginalRules] = useState<PolicyRouteRule[]>([]);
   const [hasChanges, setHasChanges] = useState(false);
   const [activeId, setActiveId] = useState<number | null>(null);
   const [savingReorder, setSavingReorder] = useState(false);
@@ -149,11 +149,11 @@ function RoutePageInner() {
   });
 
   // Drag and drop handlers
-  const handleDragStart = (event: any) => {
-    setActiveId(event.active.id);
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as number);
   };
 
-  const handleDragEnd = (event: any) => {
+  const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveId(null);
 
@@ -249,12 +249,12 @@ function RoutePageInner() {
     fetchData(true);
   };
 
-  const handleEditRule = (rule: any) => {
+  const handleEditRule = (rule: PolicyRouteRule) => {
     setSelectedRule(rule);
     setShowEditRuleModal(true);
   };
 
-  const handleDeleteRule = (rule: any) => {
+  const handleDeleteRule = (rule: PolicyRouteRule) => {
     setSelectedRule(rule);
     setShowDeleteRuleModal(true);
   };

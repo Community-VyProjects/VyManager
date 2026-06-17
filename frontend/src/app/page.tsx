@@ -22,6 +22,7 @@ import { AddCardModal } from "@/components/dashboard/AddCardModal";
 import {
   DndContext,
   DragEndEvent,
+  DragStartEvent,
   DragOverlay,
   closestCorners,
   PointerSensor,
@@ -227,8 +228,8 @@ export default function Home() {
   }
 
   // Handler functions
-  const handleDragStart = (event: any) => {
-    setActiveId(event.active.id);
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
   };
 
   const handleDragCancel = () => {

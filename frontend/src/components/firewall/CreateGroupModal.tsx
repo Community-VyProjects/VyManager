@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Plus, X, AlertCircle, Search } from "lucide-react";
 import { firewallGroupsService, type FirewallGroup } from "@/lib/api/firewall-groups";
-import type { GroupType, FirewallGroupsCapabilities } from "@/lib/api/types/firewall-groups";
+import type { GroupType, FirewallGroupsCapabilities, GroupsConfigResponse } from "@/lib/api/types/firewall-groups";
 
 interface CreateGroupModalProps {
   open: boolean;
@@ -51,7 +51,7 @@ export function CreateGroupModal({ open, onOpenChange, onSuccess, capabilities }
     }
   };
 
-  const getGroupsForType = (config: any, type: GroupType): FirewallGroup[] => {
+  const getGroupsForType = (config: GroupsConfigResponse, type: GroupType): FirewallGroup[] => {
     switch (type) {
       case "address-group":
         return config.address_groups || [];

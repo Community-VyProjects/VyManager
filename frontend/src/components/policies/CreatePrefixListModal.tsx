@@ -151,7 +151,7 @@ export function CreatePrefixListModal({ open, onOpenChange, onSuccess, listType 
 
     try {
       // Build first rule
-      const firstRule: any = {
+      const firstRule: Record<string, unknown> = {
         rule_number: ruleNumber,
         action,
         description: ruleDescription || null,

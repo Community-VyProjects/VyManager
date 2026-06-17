@@ -198,7 +198,7 @@ export function CreateDestinationNATModal({ open, onOpenChange, onSuccess }: Cre
     setError(null);
 
     try {
-      const config: any = {};
+      const config: Record<string, unknown> = {};
 
       if (description.trim()) {
         config.description = description.trim();

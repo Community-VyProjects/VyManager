@@ -19,13 +19,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { AlertCircle, MoveRight, Loader2 } from "lucide-react";
-import { sessionService, Site } from "@/lib/api/session";
+import { sessionService, Site, Instance } from "@/lib/api/session";
 
 interface MoveInstanceModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
-  instance: any | null;
+  instance: Instance | null;
   currentSite: Site | null;
   allSites: Site[];
 }

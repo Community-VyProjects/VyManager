@@ -136,7 +136,7 @@ export function EditPeerModal({
 
     try {
       // Build config with changes
-      const newConfig: any = {};
+      const newConfig: Record<string, unknown> = {};
 
       // Public key change
       if (publicKey.trim() !== (peerData.public_key || "")) {

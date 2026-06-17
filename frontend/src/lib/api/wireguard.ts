@@ -52,7 +52,7 @@ export interface WireGuardCapabilities {
 
 export interface VyOSResponse {
   success: boolean;
-  data?: Record<string, any>;
+  data?: Record<string, unknown>;
   error?: string | null;
 }
 
@@ -592,7 +592,7 @@ class WireGuardService {
         `/vyos/vpn/wireguard/interface/${encodeURIComponent(interfaceName)}/status`
       );
       if (response.success && response.data) {
-        return response.data as InterfaceStatusResponse;
+        return response.data as unknown as InterfaceStatusResponse;
       }
       return null;
     } catch {

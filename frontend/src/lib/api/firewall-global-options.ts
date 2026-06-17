@@ -116,7 +116,7 @@ export interface GlobalOptionsBatchRequest {
 
 export interface VyOSResponse {
   success: boolean;
-  data?: Record<string, any> | null;
+  data?: Record<string, unknown> | null;
   error?: string | null;
 }
 

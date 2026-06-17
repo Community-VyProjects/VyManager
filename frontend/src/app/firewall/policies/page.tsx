@@ -47,7 +47,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { useEffect, useState } from "react";
-import { DndContext, closestCenter, DragOverlay, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { DndContext, type DragStartEvent, type DragEndEvent, closestCenter, DragOverlay, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import {
   firewallIPv4Service,
@@ -444,15 +444,15 @@ function FirewallPoliciesPageInner() {
     : (hasChangesIPv6 ? reorderedRulesIPv6 : getCurrentRules());
 
   // Drag and drop handlers (IPv4)
-  const handleDragStart = (event: any) => {
+  const handleDragStart = (event: DragStartEvent) => {
     if (selectedProtocol === "ipv4") {
-      setActiveId(event.active.id);
+      setActiveId(event.active.id as number);
     } else {
-      setActiveIdIPv6(event.active.id);
+      setActiveIdIPv6(event.active.id as number);
     }
   };
 
-  const handleDragEnd = (event: any) => {
+  const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
 
     if (selectedProtocol === "ipv4") {

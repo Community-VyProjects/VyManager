@@ -326,7 +326,7 @@ export function CreateRouteMapModal({ open, onOpenChange, onSuccess }: CreateRou
             if (setTable.trim()) set.table = parseInt(setTable);
             if (setTag.trim()) set.tag = parseInt(setTag);
 
-            const rule: any = {
+            const rule: Record<string, unknown> = {
                 rule_number: parseInt(ruleNumber),
                 description: ruleDescription.trim() || null,
                 action,

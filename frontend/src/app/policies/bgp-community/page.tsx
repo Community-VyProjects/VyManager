@@ -19,10 +19,10 @@ import {
   Pencil,
   GripVertical,
 } from "lucide-react";
-import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { DndContext, type DragStartEvent, type DragEndEvent, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, arrayMove, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { communityListService, CommunityList, CommunityListCapabilities } from "@/lib/api/community-list";
+import { communityListService, CommunityList, CommunityListRule, CommunityListCapabilities } from "@/lib/api/community-list";
 import { CreateCommunityListModal } from "@/components/policies/CreateCommunityListModal";
 import { EditCommunityListModal } from "@/components/policies/EditCommunityListModal";
 import { DeleteCommunityListModal } from "@/components/policies/DeleteCommunityListModal";
@@ -34,7 +34,7 @@ import { cn } from "@/lib/utils";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 // Sortable row component
-function CommunityListRuleRow({ rule, onEdit, onDelete }: any) {
+function CommunityListRuleRow({ rule, onEdit, onDelete }: { rule: CommunityListRule; onEdit: (rule: CommunityListRule) => void; onDelete: (rule: CommunityListRule) => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: rule.rule_number,
   });
@@ -104,11 +104,11 @@ export default function BGPCommunityPage() {
   const [showCreateRuleModal, setShowCreateRuleModal] = useState(false);
   const [showEditRuleModal, setShowEditRuleModal] = useState(false);
   const [showDeleteRuleModal, setShowDeleteRuleModal] = useState(false);
-  const [selectedRule, setSelectedRule] = useState<any>(null);
+  const [selectedRule, setSelectedRule] = useState<CommunityListRule | null>(null);
 
   // Drag and drop states
-  const [reorderedRules, setReorderedRules] = useState<any[]>([]);
-  const [, setOriginalRules] = useState<any[]>([]);
+  const [reorderedRules, setReorderedRules] = useState<CommunityListRule[]>([]);
+  const [, setOriginalRules] = useState<CommunityListRule[]>([]);
   const [hasChanges, setHasChanges] = useState(false);
   const [, setActiveId] = useState<number | null>(null);
   const [savingReorder, setSavingReorder] = useState(false);
@@ -185,11 +185,11 @@ export default function BGPCommunityPage() {
   });
 
   // Drag and drop handlers
-  const handleDragStart = (event: any) => {
-    setActiveId(event.active.id);
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as number);
   };
 
-  const handleDragEnd = (event: any) => {
+  const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveId(null);
 
@@ -271,12 +271,12 @@ export default function BGPCommunityPage() {
     fetchData(true);
   };
 
-  const handleEditRule = (rule: any) => {
+  const handleEditRule = (rule: CommunityListRule) => {
     setSelectedRule(rule);
     setShowEditRuleModal(true);
   };
 
-  const handleDeleteRule = (rule: any) => {
+  const handleDeleteRule = (rule: CommunityListRule) => {
     setSelectedRule(rule);
     setShowDeleteRuleModal(true);
   };

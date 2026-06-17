@@ -5,16 +5,16 @@ import { apiClient } from "./client";
 // ============================================================================
 
 export interface ConfigSnapshot {
-  config: Record<string, any>;
+  config: Record<string, unknown>;
   timestamp?: string | null;
   saved: boolean;
 }
 
 export interface ConfigDiff {
   has_changes: boolean;
-  added: Record<string, any>;
-  removed: Record<string, any>;
-  modified: Record<string, any>;
+  added: Record<string, unknown>;
+  removed: Record<string, unknown>;
+  modified: Record<string, unknown>;
   summary: {
     added: number;
     removed: number;

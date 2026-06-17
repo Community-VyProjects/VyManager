@@ -568,7 +568,7 @@ export function AddRouteMapRuleModal({
       if (setTable.trim()) set.table = parseInt(setTable);
       if (setTag.trim()) set.tag = parseInt(setTag);
 
-      const rule: any = {
+      const rule: Record<string, unknown> = {
         rule_number: ruleNumber,
         description: ruleDescription.trim() || null,
         action,

@@ -15,7 +15,7 @@ import type { ConfigDiff } from "@/lib/api/config";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-function expandSetCommands(pathParts: string[], value: any): string[] {
+function expandSetCommands(pathParts: string[], value: unknown): string[] {
   if (typeof value === "object" && value !== null && !Array.isArray(value)) {
     return Object.entries(value).flatMap(([k, v]) => expandSetCommands([...pathParts, k], v));
   }
@@ -24,7 +24,7 @@ function expandSetCommands(pathParts: string[], value: any): string[] {
   return [`set ${pathStr}${valStr ? " " + valStr : ""}`];
 }
 
-function expandDeleteCommands(pathParts: string[], value: any): string[] {
+function expandDeleteCommands(pathParts: string[], value: unknown): string[] {
   if (typeof value === "object" && value !== null && !Array.isArray(value)) {
     return [`delete ${pathParts.join(" ")}`];
   }
@@ -33,17 +33,17 @@ function expandDeleteCommands(pathParts: string[], value: any): string[] {
   return [`delete ${pathStr}${valStr ? " " + valStr : ""}`];
 }
 
-function formatCLIValue(value: any): string {
+function formatCLIValue(value: unknown): string {
   if (value === null || value === undefined || value === "") return "";
   const str = String(value);
   if (/\s|'/.test(str)) return `'${str.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
   return str;
 }
 
-function generateCommands(section: Record<string, any>, type: "added" | "removed" | "modified"): string[] {
+function generateCommands(section: Record<string, unknown>, type: "added" | "removed" | "modified"): string[] {
   return Object.entries(section).flatMap(([dotPath, value]) => {
     const pathParts = dotPath.split(".");
-    if (type === "modified") return expandSetCommands(pathParts, (value as { old: any; new: any }).new);
+    if (type === "modified") return expandSetCommands(pathParts, (value as { old: unknown; new: unknown }).new);
     if (type === "added") return expandSetCommands(pathParts, value);
     return expandDeleteCommands(pathParts, value);
   });
@@ -63,7 +63,7 @@ export function ConfigDiffModal({ open, onOpenChange, diff }: ConfigDiffModalPro
   const hasRemoved = summary.removed > 0;
   const hasModified = summary.modified > 0;
 
-  const renderValue = (value: any, depth: number = 0): ReactNode => {
+  const renderValue = (value: unknown, depth: number = 0): ReactNode => {
     const indent = depth * 16;
 
     if (typeof value === "object" && value !== null && !Array.isArray(value)) {
@@ -221,7 +221,7 @@ export function ConfigDiffModal({ open, onOpenChange, diff }: ConfigDiffModalPro
                 </div>
               ) : (
                 <div className="space-y-3 pr-4">
-                  {Object.entries(modified).map(([path, change]: [string, any]) => (
+                  {(Object.entries(modified) as [string, { old: unknown; new: unknown }][]).map(([path, change]) => (
                     <div
                       key={path}
                       className="p-3 rounded-lg bg-yellow-500/5 border border-yellow-500/20"

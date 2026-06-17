@@ -30,7 +30,7 @@ import {
   Layers
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { DndContext, closestCenter, DragOverlay, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { DndContext, type DragStartEvent, type DragEndEvent, closestCenter, DragOverlay, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { natService, type NATConfigResponse, type NATCapabilities, type SourceNATRule, type DestinationNATRule, type StaticNATRule } from "@/lib/api/nat";
 import { firewallGroupsService } from "@/lib/api/firewall-groups";
@@ -146,11 +146,11 @@ export default function NATPage() {
   const currentRules = selectedType === "cgnat" ? [] : hasChanges ? reorderedRules : (selectedType === "source" ? sourceRules : selectedType === "destination" ? destinationRules : staticRules);
 
   // Drag and drop handlers
-  const handleDragStart = (event: any) => {
-    setActiveId(event.active.id);
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as number);
   };
 
-  const handleDragEnd = (event: any) => {
+  const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveId(null);
 
@@ -187,7 +187,7 @@ export default function NATPage() {
       const reorderItems = reorderedRules.map((rule, i) => {
         const oldNumber = rule.rule_number;
         const newNumber = sortedRuleNumbers[i];
-        let ruleData: any = {};
+        let ruleData: Record<string, unknown> = {};
 
         if (selectedType === "source") {
           const sRule = rule as SourceNATRule;

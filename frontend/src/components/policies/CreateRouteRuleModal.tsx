@@ -1492,8 +1492,8 @@ export function CreateRouteRuleModal({
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label className="text-sm font-medium mb-2 block">Routing Table</Label>
-                  <RadioGroup value={actionTableMode} onValueChange={(value: any) => {
-                    setActionTableMode(value);
+                  <RadioGroup value={actionTableMode} onValueChange={(value) => {
+                    setActionTableMode(value as "none" | "main" | "custom");
                     if (value !== "custom") setActionTable("");
                   }} disabled={loading}>
                     <div className="flex items-center space-x-2">

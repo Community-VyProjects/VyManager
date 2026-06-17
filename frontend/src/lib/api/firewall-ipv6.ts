@@ -231,7 +231,7 @@ export interface FirewallBatchRequest {
 export interface ReorderRuleItem {
   old_number: number;
   new_number: number;
-  rule_data: any;
+  rule_data: FirewallRule;
 }
 
 export interface ReorderFirewallRequest {
@@ -745,7 +745,7 @@ class FirewallIPv6Service {
     const operations: FirewallBatchOperation[] = [];
 
     // Helper to determine if a value has changed
-    const hasChanged = (newVal: any, oldVal: any) => {
+    const hasChanged = (newVal: unknown, oldVal: unknown) => {
       if (newVal === undefined) return false;
       if (newVal === null && oldVal === null) return false;
       if (typeof newVal === "object" && typeof oldVal === "object") {
