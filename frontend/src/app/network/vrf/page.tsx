@@ -20,12 +20,7 @@ import { useState, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
-import {
-  vrfService,
-  VrfConfig,
-  VrfCapabilities,
-  VrfInstance,
-} from "@/lib/api/vrf";
+import { vrfService, VrfConfig, VrfCapabilities } from "@/lib/api/vrf";
 import { CreateVrfModal } from "@/components/vrf/CreateVrfModal";
 
 export default function VRFPage() {

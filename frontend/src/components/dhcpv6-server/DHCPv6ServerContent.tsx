@@ -1188,7 +1188,7 @@ export function DHCPv6ServerContent() {
           subnet={editingSubnet}
           caps={caps}
           onClose={() => { setSubnetModalOpen(false); setEditingSubnet(null); }}
-          onSuccess={(_netName: string) => { setSubnetModalOpen(false); setEditingSubnet(null); fetchData(true); }}
+          onSuccess={() => { setSubnetModalOpen(false); setEditingSubnet(null); fetchData(true); }}
         />
       )}
 

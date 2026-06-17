@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import { ApiError } from "@/lib/types/api";
 
@@ -8,7 +8,7 @@ const prisma = new PrismaClient();
  * Set the first user as ADMIN during onboarding.
  * This endpoint can only be called when there is exactly 1 user.
  */
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
     // Count users
     const userCount = await prisma.user.count();

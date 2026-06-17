@@ -7,22 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import {
-  Network,
-  Database,
-  Shield,
-  Route,
-  Lock,
-  Activity,
-  Settings,
-  Users,
-  Clock,
-  Wifi,
-  Globe,
-  Server,
-  ExternalLink
-} from "lucide-react";
+
+import { Network, Database, Shield, Route, Activity, Users, Wifi, ExternalLink } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 interface UnifiedViewProps {
@@ -34,7 +20,7 @@ interface UnifiedViewProps {
 
 export function UnifiedView({ isOpen, onClose, type, data }: UnifiedViewProps) {
   const router = useRouter();
-  const [relatedData, setRelatedData] = useState<any>({});
+  const [, setRelatedData] = useState<any>({});
 
   useEffect(() => {
     if (isOpen && data) {

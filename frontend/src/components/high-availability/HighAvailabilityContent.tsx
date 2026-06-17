@@ -308,7 +308,7 @@ function GlobalSettingsPanel({ config, onSaved }: { config: HAConfig; onSaved: (
 
 export function HighAvailabilityContent() {
   const [config, setConfig] = useState<HAConfig | null>(null);
-  const [capabilities, setCapabilities] = useState<HACapabilities | null>(null);
+  const [, setCapabilities] = useState<HACapabilities | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");

@@ -39,7 +39,6 @@ export function BabelInterfaceModal({
   onOpenChange,
   onSubmit,
   existingInterface,
-  capabilities,
 }: BabelInterfaceModalProps) {
   const isEditMode = !!existingInterface;
 

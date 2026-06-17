@@ -258,8 +258,6 @@ export function EditStaticRouteModal({ open, onOpenChange, onSuccess, route }: E
 
   if (!route) return null;
 
-  const hasNextHops = route.next_hops.length > 0;
-  const hasInterfaces = route.interfaces.length > 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

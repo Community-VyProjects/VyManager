@@ -116,7 +116,7 @@ export function ActiveSessionWarningModal({
           {/* Active Sessions List */}
           <div className="space-y-2">
             <p className="text-sm font-medium">Active {sessions.length > 1 ? "Sessions" : "Session"}:</p>
-            {sessions.map((session, index) => (
+            {sessions.map((session) => (
               <div
                 key={session.token}
                 className="rounded-lg border border-border bg-muted/50 p-3"

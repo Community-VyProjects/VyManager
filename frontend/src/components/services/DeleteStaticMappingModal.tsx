@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, AlertTriangle, Monitor, Network } from "lucide-react";
+import { AlertCircle, AlertTriangle, Monitor } from "lucide-react";
 import { dhcpService, type DHCPStaticMapping } from "@/lib/api/dhcp";
 
 interface DeleteStaticMappingModalProps {

@@ -104,7 +104,6 @@ export function EditRouteMapRuleModal({
   // Community Delete
   const [communityDeleteValues, setCommunityDeleteValues] = useState<string[]>([]);
   const [communityDeleteEnabled, setCommunityDeleteEnabled] = useState(false);
-  const [newCommunityDelete, setNewCommunityDelete] = useState("");
   // Community Replace
   const [communityReplaceValues, setCommunityReplaceValues] = useState<string[]>([]);
   const [communityReplaceEnabled, setCommunityReplaceEnabled] = useState(false);
@@ -120,7 +119,6 @@ export function EditRouteMapRuleModal({
   // Large Community Delete
   const [largeCommunityDeleteValues, setLargeCommunityDeleteValues] = useState<string[]>([]);
   const [largeCommunityDeleteEnabled, setLargeCommunityDeleteEnabled] = useState(false);
-  const [newLargeCommunityDelete, setNewLargeCommunityDelete] = useState("");
   // Large Community Replace
   const [largeCommunityReplaceValues, setLargeCommunityReplaceValues] = useState<string[]>([]);
   const [largeCommunityReplaceEnabled, setLargeCommunityReplaceEnabled] = useState(false);
@@ -272,12 +270,6 @@ export function EditRouteMapRuleModal({
   };
 
   // Community Delete handlers
-  const handleAddCommunityDelete = () => {
-    if (newCommunityDelete.trim()) {
-      setCommunityDeleteValues([...communityDeleteValues, newCommunityDelete.trim()]);
-      setNewCommunityDelete("");
-    }
-  };
   const handleRemoveCommunityDelete = (index: number) => {
     setCommunityDeleteValues(communityDeleteValues.filter((_, i) => i !== index));
   };
@@ -347,12 +339,6 @@ export function EditRouteMapRuleModal({
   };
 
   // Large Community Delete handlers
-  const handleAddLargeCommunityDelete = () => {
-    if (newLargeCommunityDelete.trim()) {
-      setLargeCommunityDeleteValues([...largeCommunityDeleteValues, newLargeCommunityDelete.trim()]);
-      setNewLargeCommunityDelete("");
-    }
-  };
   const handleRemoveLargeCommunityDelete = (index: number) => {
     setLargeCommunityDeleteValues(largeCommunityDeleteValues.filter((_, i) => i !== index));
   };

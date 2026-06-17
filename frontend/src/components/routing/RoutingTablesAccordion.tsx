@@ -57,7 +57,7 @@ export function RoutingTablesAccordion({
 }: RoutingTablesAccordionProps) {
   const [editingDescription, setEditingDescription] = useState<number | null>(null);
   const [descriptionValue, setDescriptionValue] = useState("");
-  const [deletingRoute, setDeletingRoute] = useState<{ tableId: number; route: StaticRoute } | null>(null);
+  const [, setDeletingRoute] = useState<{ tableId: number; route: StaticRoute } | null>(null);
   const [editingRoute, setEditingRoute] = useState<{ table: RoutingTable; route: StaticRoute } | null>(null);
   const [addingRouteToTable, setAddingRouteToTable] = useState<RoutingTable | null>(null);
   const [loading, setLoading] = useState<string | null>(null);
@@ -342,7 +342,7 @@ interface RouteRowProps {
   isDeleting: boolean;
 }
 
-function RouteRow({ route, tableId, onEdit, onDelete, isDeleting }: RouteRowProps) {
+function RouteRow({ route, onEdit, onDelete, isDeleting }: RouteRowProps) {
   const isIPv4 = route.route_type === "ipv4";
 
   return (

@@ -18,21 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  ShieldCheck,
-  Plus,
-  RefreshCw,
-  Loader2,
-  AlertCircle,
-  Pencil,
-  Trash2,
-  FileText,
-  Key,
-  Terminal,
-  Lock,
-  Settings,
-  Eye,
-} from "lucide-react";
+import { ShieldCheck, Plus, RefreshCw, Loader2, AlertCircle, Pencil, Trash2, FileText, Key, Terminal, Lock, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   pkiService,

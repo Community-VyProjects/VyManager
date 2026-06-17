@@ -27,7 +27,7 @@ interface Props {
   onRefresh: () => void;
 }
 
-export function IpSettingsPanel({ config, capabilities: _cap, isReadOnly, onRefresh }: Props) {
+export function IpSettingsPanel({ config, isReadOnly, onRefresh }: Props) {
   const { toast } = useToast();
 
   const ip = config.ip;

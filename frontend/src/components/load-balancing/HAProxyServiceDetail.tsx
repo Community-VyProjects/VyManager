@@ -18,9 +18,7 @@ import {
   Shield, Trash2,
 } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import {
-  lbService, LBConfig, LBCapabilities, LBService, LBServiceRule,
-} from "@/lib/api/load-balancing";
+import { lbService, LBConfig, LBCapabilities, LBServiceRule } from "@/lib/api/load-balancing";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 import { HAProxyServiceModal } from "./HAProxyServiceModal";

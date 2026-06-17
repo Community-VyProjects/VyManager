@@ -92,7 +92,7 @@ export function MplsContent() {
   const hasWritePermission = canWrite(FeatureGroup.MPLS);
 
   const [config, setConfig] = useState<MplsConfig | null>(null);
-  const [capabilities, setCapabilities] = useState<MplsCapabilities | null>(null);
+  const [, setCapabilities] = useState<MplsCapabilities | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("overview");

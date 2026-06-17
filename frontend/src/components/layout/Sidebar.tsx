@@ -10,7 +10,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { Activity, ChevronDown, HeartPulse, Shield, ShieldCheck, Network, Server, Settings, LayoutDashboard, Route, Lock, LogOut, User, FileText, Building2, Power, PowerOff, Scale } from "lucide-react";
+import { ChevronDown, LogOut, User, Building2, Power, PowerOff } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { useSession, signOut } from "@/lib/auth-client";
@@ -21,7 +21,6 @@ import { ThemeSelector } from "@/components/ui/theme-selector";
 import { SearchCommand } from "@/components/search/SearchCommand";
 
 import { getSidebarNavigation, type NavItem, type NavChild } from "@/lib/navigation";
-
 
 
 export function Sidebar() {

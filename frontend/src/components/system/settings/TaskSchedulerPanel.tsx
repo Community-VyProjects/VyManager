@@ -53,7 +53,7 @@ interface Props {
   onRefresh: () => void;
 }
 
-export function TaskSchedulerPanel({ config, capabilities: _cap, isReadOnly, onRefresh }: Props) {
+export function TaskSchedulerPanel({ config, isReadOnly, onRefresh }: Props) {
   const { toast } = useToast();
 
   const [taskModalOpen, setTaskModalOpen] = useState(false);

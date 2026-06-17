@@ -25,18 +25,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle, Loader2, Plus, Trash2 } from "lucide-react";
-import type {
-  AuthoritativeDomain,
-  AuthDomainRecords,
-  ARecord,
-  AAAARecord,
-  CNAMERecord,
-  MXRecord,
-  MXServer,
-  TXTRecord,
-  NSRecord,
-  PTRRecord,
-} from "@/lib/api/dns-forwarding";
+import type { AuthoritativeDomain, AuthDomainRecords, MXServer } from "@/lib/api/dns-forwarding";
 
 interface Props {
   open: boolean;

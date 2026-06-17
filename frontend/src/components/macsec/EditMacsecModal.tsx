@@ -26,7 +26,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Lock, Loader2, AlertCircle, Plus, Trash2 } from "lucide-react";
-import { macsecService, type MacsecInterface, type MacsecCapabilities, type MacsecMkaConfig, type MacsecStaticConfig, type MacsecSecurityConfig } from "@/lib/api/macsec";
+import { macsecService, type MacsecInterface, type MacsecCapabilities, type MacsecMkaConfig, type MacsecStaticConfig } from "@/lib/api/macsec";
 import { ApiError } from "@/lib/types/api";
 
 interface StaticPeerEntry {
@@ -48,7 +48,6 @@ export function EditMacsecModal({
   open,
   onOpenChange,
   onSuccess,
-  capabilities,
   interfaceData,
 }: EditMacsecModalProps) {
   const [allInterfaces, setAllInterfaces] = useState<InterfaceName[]>([]);

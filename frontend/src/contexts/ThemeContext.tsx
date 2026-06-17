@@ -25,7 +25,7 @@ function loadCustomThemes(): ThemeDefinition[] {
   }
 }
 
-function loadThemeId(customThemes: ThemeDefinition[]): string {
+function loadThemeId(): string {
   if (typeof window === "undefined") return "dark";
   const saved = localStorage.getItem("theme-id");
   if (saved) return saved;
@@ -37,7 +37,7 @@ function loadThemeId(customThemes: ThemeDefinition[]): string {
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [customThemes, setCustomThemes] = useState<ThemeDefinition[]>(loadCustomThemes);
-  const [themeId, setThemeIdRaw] = useState<string>(() => loadThemeId([]));
+  const [themeId, setThemeIdRaw] = useState<string>(() => loadThemeId());
 
   const allThemes = [...BUILT_IN_THEMES, ...customThemes];
 

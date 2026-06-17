@@ -40,7 +40,6 @@ export function EditLoopbackModal({
   onOpenChange,
   onSuccess,
   interfaceData,
-  capabilities,
 }: EditLoopbackModalProps) {
   const [description, setDescription] = useState("");
   const [addresses, setAddresses] = useState("");

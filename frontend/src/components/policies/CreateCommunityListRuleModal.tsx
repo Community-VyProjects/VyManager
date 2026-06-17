@@ -22,7 +22,6 @@ export function CreateCommunityListRuleModal({
   onOpenChange,
   onSuccess,
   communityListName,
-  capabilities,
 }: CreateCommunityListRuleModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

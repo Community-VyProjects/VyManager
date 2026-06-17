@@ -10,10 +10,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { AlertCircle, Plus, X } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import { routeService, RouteCapabilitiesResponse, MatchConditions, SetActions } from "@/lib/api/route";
 import { firewallGroupsService, FirewallGroup } from "@/lib/api/firewall-groups";
-import { apiClient } from "@/lib/api/client";
+
 import { ApiError } from "@/lib/types/api";
 
 interface EditRouteRuleModalProps {
@@ -164,7 +164,6 @@ export function EditRouteRuleModal({
   const [actionTcpMss, setActionTcpMss] = useState("");
   const [actionVrf, setActionVrf] = useState("");
 
-
   useEffect(() => {
     if (open) {
       loadGroups();
@@ -202,7 +201,6 @@ export function EditRouteRuleModal({
       console.error("Failed to load groups:", err);
     }
   };
-
 
   const loadRuleData = () => {
     const match = rule.match || {};

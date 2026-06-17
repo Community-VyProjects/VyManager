@@ -19,7 +19,7 @@ interface CreateAccessListModalProps {
   existingLists: AccessList[];
 }
 
-export function CreateAccessListModal({ open, onOpenChange, onSuccess, listType, existingLists }: CreateAccessListModalProps) {
+export function CreateAccessListModal({ open, onOpenChange, onSuccess, listType }: CreateAccessListModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("basic");
@@ -33,11 +33,9 @@ export function CreateAccessListModal({ open, onOpenChange, onSuccess, listType,
   const [action, setAction] = useState<"permit" | "deny">("permit");
   const [ruleDescription, setRuleDescription] = useState("");
   const [sourceType, setSourceType] = useState<"any" | "host" | "network">("any");
-  const [sourceNetworkFormat, setSourceNetworkFormat] = useState<"network" | "inverse-mask">("network");
   const [sourceAddress, setSourceAddress] = useState("");
   const [sourceMask, setSourceMask] = useState("");
   const [destinationType, setDestinationType] = useState<"any" | "host" | "network">("any");
-  const [destinationNetworkFormat, setDestinationNetworkFormat] = useState<"network" | "inverse-mask">("network");
   const [destinationAddress, setDestinationAddress] = useState("");
   const [destinationMask, setDestinationMask] = useState("");
 

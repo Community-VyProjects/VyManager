@@ -942,7 +942,7 @@ export function CreateFirewallRuleModal({
 
       // Advanced - TCP Flags
       const activeTcpFlags = Object.fromEntries(
-        Object.entries(tcpFlags).filter(([_, state]) => state !== "disabled")
+        Object.entries(tcpFlags).filter(([, state]) => state !== "disabled")
       );
       if (Object.keys(activeTcpFlags).length > 0) {
         config.tcp_flags = activeTcpFlags;

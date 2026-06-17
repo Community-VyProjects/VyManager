@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { AppLayout } from "@/components/layout/AppLayout";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -25,7 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
+
 import {
   Select,
   SelectContent,
@@ -33,34 +33,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Plus,
-  Search,
-  RefreshCw,
-  AlertCircle,
-  Server,
-  Network,
-  Clock,
-  Pencil,
-  Trash2,
-  MapPin,
-  Activity,
-  Wifi,
-  Monitor,
-  Globe,
-  Settings2,
-  Link2,
-  Loader2,
-  Power,
-  PowerOff,
-} from "lucide-react";
+import { Plus, Search, RefreshCw, AlertCircle, Server, Network, Clock, Pencil, Trash2, MapPin, Activity, Wifi, Monitor, Globe, Settings2, Loader2, Power, PowerOff } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   dhcpService,
   type DHCPConfigResponse,
-  type DHCPSharedNetwork,
   type DHCPSubnet,
   type DHCPCapabilitiesResponse,
   type DHCPLease,
@@ -292,9 +271,6 @@ function DHCPPageInner() {
   };
 
   // Get total active leases for a network
-  const getNetworkLeaseCount = (network: DHCPSharedNetwork): number => {
-    return network.subnets.reduce((sum, s) => sum + getSubnetLeaseCount(s.subnet), 0);
-  };
 
   // Get all static mappings for current network
   const getAllStaticMappings = (): Array<DHCPStaticMapping & { subnet: string }> => {

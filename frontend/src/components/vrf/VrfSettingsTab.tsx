@@ -38,7 +38,6 @@ interface VrfSettingsTabProps {
 
 export function VrfSettingsTab({
   vrf,
-  capabilities,
   canWrite,
   onRefresh,
 }: VrfSettingsTabProps) {

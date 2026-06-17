@@ -25,13 +25,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle, Loader2, Plus, X } from "lucide-react";
-import {
-  pseudoEthernetService,
-  type PseudoEthernetCapabilities,
-  type PseudoEthernetCreateConfig,
-  type PseudoEthernetDhcpv6PdInstanceInput,
-  type PseudoEthernetDhcpv6PdInterfaceInput,
-} from "@/lib/api/pseudo-ethernet";
+import { pseudoEthernetService, type PseudoEthernetCapabilities, type PseudoEthernetCreateConfig, type PseudoEthernetDhcpv6PdInterfaceInput } from "@/lib/api/pseudo-ethernet";
 import { showService, type InterfaceName } from "@/lib/api/show";
 import { InterfaceSelect } from "@/components/ui/interface-select";
 import type { EthernetInterface } from "@/lib/api/types/ethernet";

@@ -38,7 +38,6 @@ export function CreateLoopbackModal({
   open,
   onOpenChange,
   onSuccess,
-  capabilities,
 }: CreateLoopbackModalProps) {
   const [description, setDescription] = useState("");
   const [addresses, setAddresses] = useState("");

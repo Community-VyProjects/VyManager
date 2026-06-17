@@ -24,7 +24,7 @@ interface CreateRouteMapModalProps {
 export function CreateRouteMapModal({ open, onOpenChange, onSuccess }: CreateRouteMapModalProps) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [capabilities, setCapabilities] = useState<RouteMapCapabilities | null>(null);
+    const [, setCapabilities] = useState<RouteMapCapabilities | null>(null);
 
     // Basic fields
     const [name, setName] = useState("");

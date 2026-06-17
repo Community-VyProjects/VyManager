@@ -298,13 +298,6 @@ function FirewallPoliciesPageInner() {
   };
 
   // Helper to get colored class for default action badge (matches table row styling)
-  const getDefaultActionBadgeClass = (action: string | null): string => {
-    if (!action) return "";
-    if (action === "accept") return "bg-green-500/10 text-green-500 border-green-500/20";
-    if (action === "drop") return "bg-red-500/10 text-red-500 border-red-500/20";
-    if (action === "reject") return "bg-orange-500/10 text-orange-500 border-orange-500/20";
-    return "";
-  };
 
   useEffect(() => {
     // Load IPv4 data

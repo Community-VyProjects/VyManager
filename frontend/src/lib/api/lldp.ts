@@ -113,8 +113,7 @@ class LLDPService {
   }
 
   async updateSettings(
-    update: LLDPSettingsUpdate,
-    _caps: LLDPCapabilities
+    update: LLDPSettingsUpdate
   ): Promise<VyOSResponse> {
     const ops: BatchOperation[] = [];
     const orig = update.original;

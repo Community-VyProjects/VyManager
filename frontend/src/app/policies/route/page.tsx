@@ -13,18 +13,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Plus,
-  Search,
-  RefreshCw,
-  AlertCircle,
-  Route as RouteIcon,
-  Trash2,
-  Pencil,
-  X,
-  Network,
-} from "lucide-react";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Plus, Search, RefreshCw, AlertCircle, Route as RouteIcon, Trash2, Pencil, Network } from "lucide-react";
 import { DndContext, closestCenter, DragOverlay, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { routeService, PolicyRoute, RouteCapabilitiesResponse } from "@/lib/api/route";
@@ -39,8 +29,7 @@ import { RouteReorderBanner } from "@/components/policies/RouteReorderBanner";
 import { ManagePolicyInterfacesModal } from "@/components/policies/ManagePolicyInterfacesModal";
 import { cn } from "@/lib/utils";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { apiClient } from "@/lib/api/client";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 
 function RoutePageInner() {
   const searchParams = useSearchParams();
@@ -70,7 +59,7 @@ function RoutePageInner() {
 
   // Drag and drop states
   const [reorderedRules, setReorderedRules] = useState<any[]>([]);
-  const [originalRules, setOriginalRules] = useState<any[]>([]);
+  const [, setOriginalRules] = useState<any[]>([]);
   const [hasChanges, setHasChanges] = useState(false);
   const [activeId, setActiveId] = useState<number | null>(null);
   const [savingReorder, setSavingReorder] = useState(false);

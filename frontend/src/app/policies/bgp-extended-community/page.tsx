@@ -156,9 +156,9 @@ export default function BGPExtCommunityPage() {
 
   // Drag and drop states
   const [reorderedRules, setReorderedRules] = useState<any[]>([]);
-  const [originalRules, setOriginalRules] = useState<any[]>([]);
+  const [, setOriginalRules] = useState<any[]>([]);
   const [hasChanges, setHasChanges] = useState(false);
-  const [activeId, setActiveId] = useState<number | null>(null);
+  const [, setActiveId] = useState<number | null>(null);
   const [savingReorder, setSavingReorder] = useState(false);
 
   // Drag and drop sensors

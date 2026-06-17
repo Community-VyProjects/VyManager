@@ -85,7 +85,7 @@ async function main() {
       });
 
       // Grant instance access - all users get ADMIN instance role
-      const instanceRole = await prisma.userInstanceRole.upsert({
+      await prisma.userInstanceRole.upsert({
         where: {
           userId_instanceId: {
             userId: user.id,

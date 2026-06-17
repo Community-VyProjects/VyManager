@@ -68,10 +68,6 @@ export function VrfDhcpTab({ vrf, capabilities, canWrite, onRefresh }: VrfDhcpTa
     (sum, n) => sum + n.subnets.length,
     0
   );
-  const totalRanges = dhcp.shared_networks.reduce(
-    (sum, n) => sum + n.subnets.reduce((s, sub) => s + sub.ranges, 0),
-    0
-  );
   const totalMappings = dhcp.shared_networks.reduce(
     (sum, n) => sum + n.subnets.reduce((s, sub) => s + sub.static_mappings, 0),
     0

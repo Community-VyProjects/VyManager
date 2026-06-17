@@ -31,7 +31,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { AlertCircle, Key, Plus, Trash2, UserPlus, Edit2 } from "lucide-react";
+import { AlertCircle, Plus, Trash2, UserPlus, Edit2 } from "lucide-react";
 import { systemSettingsService, type SystemConfig, type SystemCapabilities, type LoginUser } from "@/lib/api/system-settings";
 import { useToast } from "@/hooks/useToast";
 import { UserModal } from "./UserModal";

@@ -75,7 +75,6 @@ function SortableCard({ card, children }: { card: DashboardCard; children: React
 function DroppableColumnOverlay({
   columnId,
   editMode,
-  hasCards,
   isDragging,
 }: {
   columnId: string;
@@ -114,7 +113,7 @@ export default function Home() {
   const router = useRouter();
   const [isChecking, setIsChecking] = useState(true);
   const { data: session, isPending } = useSession();
-  const { activeSession, loadSession } = useSessionStore();
+  const { loadSession } = useSessionStore();
 
   // Dashboard state
   const [cards, setCards] = useState<DashboardCard[]>([]);
@@ -195,7 +194,7 @@ export default function Home() {
         return;
       }
 
-      const sessionLoaded = await loadSession();
+      await loadSession();
       // Always try to load dashboard - the API will return empty if no layout exists
       await loadDashboard();
 

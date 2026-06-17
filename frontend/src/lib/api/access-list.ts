@@ -1,5 +1,5 @@
 import { apiClient } from "./client";
-import { VyOSResponse, BatchRequest } from "../types/api";
+import { VyOSResponse } from "../types/api";
 
 // ============================================================================
 // TypeScript Interfaces

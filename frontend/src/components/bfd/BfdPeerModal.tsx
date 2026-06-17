@@ -40,7 +40,6 @@ export function BfdPeerModal({
   onSubmit,
   existingPeer,
   profiles,
-  capabilities,
 }: BfdPeerModalProps) {
   const isEditMode = !!existingPeer;
 

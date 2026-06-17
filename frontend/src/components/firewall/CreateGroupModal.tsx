@@ -170,20 +170,6 @@ export function CreateGroupModal({ open, onOpenChange, onSuccess, capabilities }
     }
   };
 
-  const getGroupTypeLabel = (type: GroupType) => {
-    const labels: Record<GroupType, string> = {
-      "address-group": "IPv4 Address Group",
-      "ipv6-address-group": "IPv6 Address Group",
-      "network-group": "IPv4 Network Group",
-      "ipv6-network-group": "IPv6 Network Group",
-      "port-group": "Port Group",
-      "interface-group": "Interface Group",
-      "mac-group": "MAC Address Group",
-      "domain-group": "Domain Group",
-      "remote-group": "Remote Group",
-    };
-    return labels[type];
-  };
 
   const getMemberPlaceholder = (type: GroupType) => {
     const placeholders: Record<GroupType, string> = {

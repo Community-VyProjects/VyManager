@@ -48,7 +48,6 @@ export function CreateMacsecModal({
   open,
   onOpenChange,
   onSuccess,
-  capabilities,
   existingInterfaces,
 }: CreateMacsecModalProps) {
   const [allInterfaces, setAllInterfaces] = useState<InterfaceName[]>([]);

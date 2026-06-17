@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
+
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -108,7 +108,7 @@ export function AddRouteMapRuleModal({
   // Community Delete
   const [communityDeleteValues, setCommunityDeleteValues] = useState<string[]>([]);
   const [communityDeleteEnabled, setCommunityDeleteEnabled] = useState(false);
-  const [newCommunityDelete, setNewCommunityDelete] = useState("");
+  const [, setNewCommunityDelete] = useState("");
   // Community Replace
   const [communityReplaceValues, setCommunityReplaceValues] = useState<string[]>([]);
   const [communityReplaceEnabled, setCommunityReplaceEnabled] = useState(false);
@@ -123,7 +123,7 @@ export function AddRouteMapRuleModal({
   // Large Community Delete
   const [largeCommunityDeleteValues, setLargeCommunityDeleteValues] = useState<string[]>([]);
   const [largeCommunityDeleteEnabled, setLargeCommunityDeleteEnabled] = useState(false);
-  const [newLargeCommunityDelete, setNewLargeCommunityDelete] = useState("");
+  const [, setNewLargeCommunityDelete] = useState("");
   // Large Community Replace
   const [largeCommunityReplaceValues, setLargeCommunityReplaceValues] = useState<string[]>([]);
   const [largeCommunityReplaceEnabled, setLargeCommunityReplaceEnabled] = useState(false);
@@ -326,12 +326,6 @@ export function AddRouteMapRuleModal({
     setCommunityAddValues(communityAddValues.filter((_, i) => i !== index));
   };
 
-  const handleAddCommunityDelete = () => {
-    if (newCommunityDelete.trim()) {
-      setCommunityDeleteValues([...communityDeleteValues, newCommunityDelete.trim()]);
-      setNewCommunityDelete("");
-    }
-  };
   const handleRemoveCommunityDelete = (index: number) => {
     setCommunityDeleteValues(communityDeleteValues.filter((_, i) => i !== index));
   };
@@ -357,12 +351,6 @@ export function AddRouteMapRuleModal({
     setLargeCommunityAddValues(largeCommunityAddValues.filter((_, i) => i !== index));
   };
 
-  const handleAddLargeCommunityDelete = () => {
-    if (newLargeCommunityDelete.trim()) {
-      setLargeCommunityDeleteValues([...largeCommunityDeleteValues, newLargeCommunityDelete.trim()]);
-      setNewLargeCommunityDelete("");
-    }
-  };
   const handleRemoveLargeCommunityDelete = (index: number) => {
     setLargeCommunityDeleteValues(largeCommunityDeleteValues.filter((_, i) => i !== index));
   };

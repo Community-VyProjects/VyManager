@@ -21,12 +21,7 @@ import {
   CheckCircle2,
   ArrowLeft,
 } from "lucide-react";
-import {
-  oauthConfigService,
-  WELL_KNOWN_PROVIDERS,
-  WellKnownProvider,
-  OAuthProviderConfig,
-} from "@/lib/api/oauth";
+import { oauthConfigService, WELL_KNOWN_PROVIDERS, WellKnownProvider } from "@/lib/api/oauth";
 import { ProviderIcon } from "./ProviderIcon";
 import { CallbackUrlBox } from "./CallbackUrlBox";
 import { cn } from "@/lib/utils";

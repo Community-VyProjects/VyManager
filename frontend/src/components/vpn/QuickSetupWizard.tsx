@@ -15,22 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
-import {
-  AlertCircle,
-  Wand2,
-  Loader2,
-  Check,
-  Copy,
-  ArrowRight,
-  ArrowLeft,
-  Server,
-  Users,
-  Sparkles,
-  ShieldCheck,
-  Download,
-  Eye,
-  EyeOff,
-} from "lucide-react";
+import { AlertCircle, Wand2, Loader2, Check, Copy, ArrowRight, ArrowLeft, Server, Users, Sparkles, ShieldCheck, Download } from "lucide-react";
 import { wireguardService, WireGuardCapabilities } from "@/lib/api/wireguard";
 import { ApiError } from "@/lib/types/api";
 
@@ -83,7 +68,7 @@ export function QuickSetupWizard({
   // Result
   const [result, setResult] = useState<SetupResult | null>(null);
   const [copied, setCopied] = useState<"server" | "client" | null>(null);
-  const [showServerKey, setShowServerKey] = useState(false);
+  const [, setShowServerKey] = useState(false);
 
   // Get next available interface name (finds gaps like wg0, wg1, wg3 -> wg2)
   const getNextInterfaceName = (): string => {

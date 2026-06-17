@@ -2,32 +2,15 @@
 
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import {
-  Plus,
-  Search,
-  RefreshCw,
-  AlertCircle,
-  Map,
-  Trash2,
-  Pencil,
-  CheckCircle2,
-  XCircle,
-} from "lucide-react";
+import { Plus, Search, RefreshCw, AlertCircle, Map, Trash2, Pencil } from "lucide-react";
 import { useEffect, useState } from "react";
-import { DndContext, closestCenter, DragOverlay, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import {
   routeMapService,
@@ -66,7 +49,7 @@ export default function RouteMapPage() {
   const [reorderedRules, setReorderedRules] = useState<RouteMapRule[]>([]);
   const [originalRules, setOriginalRules] = useState<RouteMapRule[]>([]);
   const [hasChanges, setHasChanges] = useState(false);
-  const [activeId, setActiveId] = useState<number | null>(null);
+  const [, setActiveId] = useState<number | null>(null);
   const [savingReorder, setSavingReorder] = useState(false);
 
   // Drag and drop sensors - require 8px movement before drag starts

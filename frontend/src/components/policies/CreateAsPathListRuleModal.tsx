@@ -22,7 +22,6 @@ export function CreateAsPathListRuleModal({
   onOpenChange,
   onSuccess,
   asPathListName,
-  capabilities,
 }: CreateAsPathListRuleModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

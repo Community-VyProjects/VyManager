@@ -48,7 +48,6 @@ export function CreateTunnelModal({
   open,
   onOpenChange,
   onSuccess,
-  capabilities,
   existingInterfaces,
 }: CreateTunnelModalProps) {
   // Basic

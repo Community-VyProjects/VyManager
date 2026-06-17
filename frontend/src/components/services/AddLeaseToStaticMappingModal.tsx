@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { AlertCircle, Monitor, Network, Plus } from "lucide-react";
+import { AlertCircle, Network, Plus } from "lucide-react";
 import { dhcpService, type DHCPLease, type DHCPSharedNetwork } from "@/lib/api/dhcp";
 
 interface AddLeaseToStaticMappingModalProps {

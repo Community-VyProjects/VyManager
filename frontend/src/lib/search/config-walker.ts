@@ -351,7 +351,7 @@ function buildEntityDescription(obj: Record<string, unknown>): string {
   return parts.slice(0, 6).join(" · ");
 }
 
-function inferKind(path: string[], obj: Record<string, unknown>): SearchEntityKind {
+function inferKind(path: string[]): SearchEntityKind {
   const p = path.join(".").toLowerCase();
   if (p.includes("vrrp") && p.includes("groups")) return "config-entity";
   if (p.includes("pre_shared")) return "config-entity";
@@ -450,7 +450,7 @@ function walkValue(
         title,
         subtitle: subcategory,
         description,
-        kind: options.kind ?? inferKind(path, obj),
+        kind: options.kind ?? inferKind(path),
         typeLabel,
         feature: options.feature,
         subcategory,

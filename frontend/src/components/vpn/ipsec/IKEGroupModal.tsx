@@ -48,7 +48,6 @@ export function IKEGroupModal({
   open,
   onOpenChange,
   onSuccess,
-  capabilities,
   existingGroup,
 }: IKEGroupModalProps) {
   const isEdit = !!existingGroup;

@@ -31,7 +31,6 @@ export function CreateInputModal({
   open,
   onOpenChange,
   onSuccess,
-  capabilities,
   existingInterfaces,
 }: CreateInputModalProps) {
   const [name, setName] = useState("ifb0");

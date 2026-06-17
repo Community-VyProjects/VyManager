@@ -18,21 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Lock,
-  Plus,
-  RefreshCw,
-  Loader2,
-  AlertCircle,
-  Pencil,
-  Trash2,
-  Users,
-  Server,
-  Network,
-  Settings,
-  Key,
-  Shield,
-} from "lucide-react";
+import { Lock, Plus, RefreshCw, Loader2, AlertCircle, Pencil, Trash2, Users, Server, Network, Key } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   l2tpService,

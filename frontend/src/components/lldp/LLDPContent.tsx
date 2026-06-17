@@ -12,18 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Network,
-  RefreshCw,
-  Pencil,
-  Trash2,
-  Plus,
-  Radio,
-  ShieldCheck,
-  MapPin,
-  Loader2,
-  AlertTriangle,
-} from "lucide-react";
+import { Network, RefreshCw, Pencil, Trash2, Plus, Radio, ShieldCheck, MapPin, AlertTriangle } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import {
   lldpService,

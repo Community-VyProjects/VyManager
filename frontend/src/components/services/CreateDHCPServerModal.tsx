@@ -14,9 +14,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
-import { AlertCircle, Plus, X, Info } from "lucide-react";
+import { AlertCircle, Plus, X } from "lucide-react";
 import { dhcpService, type DHCPCapabilitiesResponse, type DHCPRange } from "@/lib/api/dhcp";
-import { Badge } from "@/components/ui/badge";
+
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ApiError } from "@/lib/types/api";
 

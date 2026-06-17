@@ -84,7 +84,7 @@ export function ConfigDiffModal({ open, onOpenChange, diff }: ConfigDiffModalPro
     } else if (Array.isArray(value)) {
       return (
         <div style={{ marginLeft: `${indent}px` }} className="text-foreground font-mono">
-          [{value.map((v, i) => (typeof v === "object" ? JSON.stringify(v) : String(v))).join(", ")}]
+          [{value.map((v) => (typeof v === "object" ? JSON.stringify(v) : String(v))).join(", ")}]
         </div>
       );
     } else {

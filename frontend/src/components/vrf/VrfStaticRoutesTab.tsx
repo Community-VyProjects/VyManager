@@ -1,13 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { VrfSelect } from "@/components/ui/vrf-select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -55,7 +55,6 @@ interface VrfStaticRoutesTabProps {
 
 export function VrfStaticRoutesTab({
   vrf,
-  capabilities,
   canWrite,
   onRefresh,
 }: VrfStaticRoutesTabProps) {
