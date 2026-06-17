@@ -206,7 +206,10 @@ function InterfaceSelect({
         <SelectItem value="__none__">None</SelectItem>
         {interfaces.map((iface) => (
           <SelectItem key={iface.name} value={iface.name}>
-            {iface.name}
+            <span className="font-mono">{iface.name}</span>
+            {iface.description && (
+              <span className="text-muted-foreground ml-2 text-xs">{iface.description}</span>
+            )}
           </SelectItem>
         ))}
       </SelectContent>

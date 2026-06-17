@@ -30,6 +30,7 @@ import {
 import { AlertCircle, ChevronDown, Loader2, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiClient } from "@/lib/api/client";
+import type { InterfaceName } from "@/lib/api/show";
 import type { VrrpGroup, VrrpGroupAddress } from "@/lib/api/high-availability";
 
 // ============================================================================
@@ -167,7 +168,7 @@ function InterfaceSelect({
 }: {
   value: string;
   onChange: (v: string) => void;
-  interfaces: string[];
+  interfaces: InterfaceName[];
   placeholder?: string;
   className?: string;
 }) {
@@ -196,8 +197,11 @@ function InterfaceSelect({
           <span className="text-muted-foreground">{placeholder}</span>
         </SelectItem>
         {interfaces.map((iface) => (
-          <SelectItem key={iface} value={iface}>
-            <span className="font-mono">{iface}</span>
+          <SelectItem key={iface.name} value={iface.name}>
+            <span className="font-mono">{iface.name}</span>
+            {iface.description && (
+              <span className="text-muted-foreground ml-2 text-xs">{iface.description}</span>
+            )}
           </SelectItem>
         ))}
       </SelectContent>
@@ -230,7 +234,7 @@ export function VrrpGroupModal({
   const [newPeer, setNewPeer] = useState("");
 
   // Interfaces fetched from the router
-  const [interfaces, setInterfaces] = useState<string[]>([]);
+  const [interfaces, setInterfaces] = useState<InterfaceName[]>([]);
   const [trackIfaceSelection, setTrackIfaceSelection] = useState("");
 
   useEffect(() => {
@@ -243,8 +247,8 @@ export function VrrpGroupModal({
 
       // Fetch interfaces
       apiClient
-        .get<{ interfaces: { name: string; type: string }[] }>("/vyos/show/all-interfaces")
-        .then((r) => setInterfaces(r.interfaces.map((i) => i.name).sort()))
+        .get<{ interfaces: InterfaceName[] }>("/vyos/show/all-interfaces")
+        .then((r) => setInterfaces([...r.interfaces].sort((a, b) => a.name.localeCompare(b.name))))
         .catch(() => setInterfaces([]));
     }
   }, [open, existingGroup]);
@@ -290,7 +294,7 @@ export function VrrpGroupModal({
   const removeTrackIface = (iface: string) =>
     setForm((prev) => ({ ...prev, track_interfaces: prev.track_interfaces.filter((i) => i !== iface) }));
 
-  const availableTrackInterfaces = interfaces.filter((i) => !form.track_interfaces.includes(i));
+  const availableTrackInterfaces = interfaces.filter((i) => !form.track_interfaces.includes(i.name));
 
   const handleSubmit = async () => {
     setError(null);

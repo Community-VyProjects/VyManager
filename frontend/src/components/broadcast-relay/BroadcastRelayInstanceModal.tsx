@@ -15,16 +15,10 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { AlertCircle, Loader2, Plus, X } from "lucide-react";
 import type { BroadcastRelayInstance } from "@/lib/api/broadcast-relay";
 import { showService, InterfaceName } from "@/lib/api/show";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 
 interface Props {
   open: boolean;
@@ -242,27 +236,14 @@ export function BroadcastRelayInstanceModal({ open, onOpenChange, instance, onSu
               )}
 
               <div className="flex items-center gap-2">
-                <Select value={selectedInterface} onValueChange={setSelectedInterface}>
-                  <SelectTrigger className="flex-1">
-                    <SelectValue
-                      placeholder={
-                        interfacesLoading
-                          ? "Loading interfaces..."
-                          : availableToAdd.length === 0
-                          ? "No more interfaces available"
-                          : "Select interface to add"
-                      }
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableToAdd.map((iface) => (
-                      <SelectItem key={iface.name} value={iface.name}>
-                        <span className="font-mono">{iface.name}</span>
-                        <span className="text-muted-foreground ml-2 text-xs">({iface.type})</span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <InterfaceSelect
+                  value={selectedInterface}
+                  onValueChange={setSelectedInterface}
+                  interfaces={availableToAdd}
+                  className="flex-1"
+                  placeholder="Select interface to add"
+                  emptyText="No more interfaces available"
+                />
                 <Button
                   variant="outline"
                   size="icon"

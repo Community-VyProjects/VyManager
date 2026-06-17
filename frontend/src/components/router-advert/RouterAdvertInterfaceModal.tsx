@@ -32,7 +32,8 @@ import {
   RAPrefix,
   RARoute,
 } from "@/lib/api/router-advert";
-import { showService } from "@/lib/api/show";
+import { showService, InterfaceName } from "@/lib/api/show";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 
 interface RouterAdvertInterfaceModalProps {
   open: boolean;
@@ -193,13 +194,12 @@ export function RouterAdvertInterfaceModal({
   const captivePortalSupported = capabilities?.features.captive_portal.supported ?? false;
   const baseIfaceSupported = capabilities?.features.prefix_base_interface.supported ?? false;
 
-  const [availableInterfaces, setAvailableInterfaces] = useState<string[]>([]);
+  const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceName[]>([]);
 
   useEffect(() => {
     if (!open || isEdit) return;
     showService.getAllInterfaces().then((res) => {
-      const names = res.interfaces.map((i) => i.name).sort();
-      setAvailableInterfaces(names);
+      setAvailableInterfaces([...res.interfaces].sort((a, b) => a.name.localeCompare(b.name)));
     });
   }, [open, isEdit]);
 
@@ -497,20 +497,13 @@ export function RouterAdvertInterfaceModal({
                   {isEdit ? (
                     <Input id="iface-name" value={interfaceName} disabled className="font-mono" />
                   ) : (
-                    <Select value={interfaceName} onValueChange={setInterfaceName}>
-                      <SelectTrigger id="iface-name">
-                        <SelectValue placeholder="Select interface" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableInterfaces
-                          .filter((name) => !existingNames.includes(name))
-                          .map((name) => (
-                            <SelectItem key={name} value={name}>
-                              {name}
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
+                    <InterfaceSelect
+                      value={interfaceName}
+                      onValueChange={setInterfaceName}
+                      id="iface-name"
+                      interfaces={availableInterfaces.filter((i) => !existingNames.includes(i.name))}
+                      placeholder="Select interface"
+                    />
                   )}
                 </div>
 

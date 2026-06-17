@@ -23,6 +23,7 @@ import {
 import { AlertCircle, Loader2, Key, Eye, EyeOff, RefreshCw } from "lucide-react";
 import { ipsecService, AuthPSK } from "@/lib/api/ipsec";
 import { showService, InterfaceName } from "@/lib/api/show";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 import { ApiError } from "@/lib/types/api";
 
 interface AuthPSKModalProps {
@@ -173,13 +174,13 @@ export function AuthPSKModal({
             </div>
             <div className="space-y-2">
               <Label>DHCP Interface (optional)</Label>
-              <Select value={dhcpInterface || "_none"} onValueChange={(v) => setDhcpInterface(v === "_none" ? "" : v)}>
-                <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="_none">None</SelectItem>
-                  {allInterfaces.map((iface) => <SelectItem key={iface.name} value={iface.name}>{iface.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <InterfaceSelect
+                value={dhcpInterface || "_none"}
+                onValueChange={(v) => setDhcpInterface(v === "_none" ? "" : v)}
+                interfaces={allInterfaces}
+                noneOption={{ label: "None", value: "_none" }}
+                placeholder="None"
+              />
             </div>
           </div>
         </div>

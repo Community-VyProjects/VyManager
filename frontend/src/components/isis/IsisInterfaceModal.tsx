@@ -30,7 +30,8 @@ import {
   IsisInterfaceRemoteLfa,
   IsisCapabilities,
 } from "@/lib/api/isis";
-import { showService } from "@/lib/api/show";
+import { showService, InterfaceName } from "@/lib/api/show";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 
 interface IsisInterfaceModalProps {
   open: boolean;
@@ -78,7 +79,7 @@ export function IsisInterfaceModal({
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [interfaceNames, setInterfaceNames] = useState<string[]>([]);
+  const [interfaceNames, setInterfaceNames] = useState<InterfaceName[]>([]);
   const [interfacesLoading, setInterfacesLoading] = useState(false);
 
   // Basic fields
@@ -132,7 +133,7 @@ export function IsisInterfaceModal({
     setInterfacesLoading(true);
     showService
       .getAllInterfaces()
-      .then((res) => setInterfaceNames(res.interfaces.map((i) => i.name).sort()))
+      .then((res) => setInterfaceNames([...res.interfaces].sort((a, b) => a.name.localeCompare(b.name))))
       .catch(() => setInterfaceNames([]))
       .finally(() => setInterfacesLoading(false));
 
@@ -299,18 +300,13 @@ export function IsisInterfaceModal({
                   {name}
                 </div>
               ) : (
-                <Select value={name} onValueChange={setName} disabled={interfacesLoading}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={interfacesLoading ? "Loading interfaces..." : "Select interface"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {interfaceNames.map((iface) => (
-                      <SelectItem key={iface} value={iface} className="font-mono">
-                        {iface}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <InterfaceSelect
+                  value={name}
+                  onValueChange={setName}
+                  disabled={interfacesLoading}
+                  interfaces={interfaceNames}
+                  placeholder="Select interface"
+                />
               )}
             </div>
 

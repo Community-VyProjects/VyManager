@@ -26,6 +26,7 @@ import {
 import { AlertCircle, Loader2, Plus, X } from "lucide-react";
 import { dhcpRelayService, DHCPRelayConfig } from "@/lib/api/dhcp-relay";
 import { showService, InterfaceName } from "@/lib/api/show";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 
 interface DHCPRelayModalProps {
   open: boolean;
@@ -526,27 +527,15 @@ function InterfaceSection({
       )}
 
       <div className="flex items-center gap-2">
-        <Select value={selected} onValueChange={onSelectedChange}>
-          <SelectTrigger className="flex-1">
-            <SelectValue
-              placeholder={
-                loading
-                  ? "Loading interfaces..."
-                  : available.length === 0
-                  ? "No additional interfaces available"
-                  : "Select interface to add"
-              }
-            />
-          </SelectTrigger>
-          <SelectContent>
-            {available.map((iface) => (
-              <SelectItem key={iface.name} value={iface.name}>
-                <span className="font-mono">{iface.name}</span>
-                <span className="text-muted-foreground ml-2 text-xs">({iface.type})</span>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <InterfaceSelect
+          value={selected}
+          onValueChange={onSelectedChange}
+          interfaces={available}
+          disabled={loading}
+          className="flex-1"
+          placeholder="Select interface to add"
+          emptyText="No additional interfaces available"
+        />
         <Button
           variant="outline"
           size="icon"

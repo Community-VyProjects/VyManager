@@ -12,16 +12,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { staticRoutesService } from "@/lib/api/static-routes";
-import { showService } from "@/lib/api/show";
+import { showService, InterfaceName } from "@/lib/api/show";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 
 interface CreateArpEntryModalProps {
   open: boolean;
@@ -36,7 +30,7 @@ export function CreateArpEntryModal({
 }: CreateArpEntryModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [availableInterfaces, setAvailableInterfaces] = useState<string[]>([]);
+  const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceName[]>([]);
 
   // Form fields
   const [interfaceName, setInterfaceName] = useState("");
@@ -54,7 +48,7 @@ export function CreateArpEntryModal({
   const loadInterfaces = async () => {
     try {
       const response = await showService.getAllInterfaces();
-      setAvailableInterfaces(response.interfaces.map((i) => i.name));
+      setAvailableInterfaces(response.interfaces);
     } catch (err) {
       console.error("Failed to load interfaces:", err);
     }
@@ -137,18 +131,12 @@ export function CreateArpEntryModal({
 
           <div className="space-y-2">
             <Label htmlFor="interface">Interface</Label>
-            <Select value={interfaceName} onValueChange={setInterfaceName}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select interface..." />
-              </SelectTrigger>
-              <SelectContent>
-                {availableInterfaces.map((iface) => (
-                  <SelectItem key={iface} value={iface}>
-                    {iface}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <InterfaceSelect
+              value={interfaceName}
+              onValueChange={setInterfaceName}
+              interfaces={availableInterfaces}
+              placeholder="Select interface..."
+            />
           </div>
 
           <div className="space-y-2">

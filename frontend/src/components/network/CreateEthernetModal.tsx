@@ -22,6 +22,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { ethernetService } from "@/lib/api/ethernet";
 import { showService } from "@/lib/api/show";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 import type { EthernetCapabilities } from "@/lib/api/types/ethernet";
 import { Loader2 } from "lucide-react";
 
@@ -171,18 +172,13 @@ export function CreateEthernetModal({
                 No unconfigured ethernet interfaces found.
               </div>
             ) : (
-              <Select value={interfaceName} onValueChange={setInterfaceName}>
-                <SelectTrigger id="interface-name">
-                  <SelectValue placeholder="Select an interface" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableInterfaces.map((iface) => (
-                    <SelectItem key={iface} value={iface}>
-                      {iface}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <InterfaceSelect
+                value={interfaceName}
+                onValueChange={setInterfaceName}
+                id="interface-name"
+                interfaces={availableInterfaces.map((n) => ({ name: n, type: "ethernet", description: null }))}
+                placeholder="Select an interface"
+              />
             )}
           </div>
 

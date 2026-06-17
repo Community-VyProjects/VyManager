@@ -25,6 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Cable, Loader2 } from "lucide-react";
 import { l2tpv3Service, type L2TPv3Capabilities } from "@/lib/api/l2tpv3";
 import { showService, type InterfaceName } from "@/lib/api/show";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 import { ApiError } from "@/lib/types/api";
 
 interface CreateL2TPv3ModalProps {
@@ -656,27 +657,23 @@ export function CreateL2TPv3Modal({
               <h4 className="text-sm font-medium text-foreground">Traffic Mirroring</h4>
               <div className="space-y-2">
                 <Label>Mirror Ingress &rarr;</Label>
-                <Select value={mirrorIngress || "none"} onValueChange={(v) => setMirrorIngress(v === "none" ? "" : v)}>
-                  <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    {availableInterfaces.map((iface) => (
-                      <SelectItem key={iface.name} value={iface.name}>{iface.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <InterfaceSelect
+                  value={mirrorIngress || "none"}
+                  onValueChange={(v) => setMirrorIngress(v === "none" ? "" : v)}
+                  interfaces={availableInterfaces}
+                  noneOption={{ label: "None", value: "none" }}
+                  placeholder="None"
+                />
               </div>
               <div className="space-y-2">
                 <Label>Mirror Egress &rarr;</Label>
-                <Select value={mirrorEgress || "none"} onValueChange={(v) => setMirrorEgress(v === "none" ? "" : v)}>
-                  <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    {availableInterfaces.map((iface) => (
-                      <SelectItem key={iface.name} value={iface.name}>{iface.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <InterfaceSelect
+                  value={mirrorEgress || "none"}
+                  onValueChange={(v) => setMirrorEgress(v === "none" ? "" : v)}
+                  interfaces={availableInterfaces}
+                  noneOption={{ label: "None", value: "none" }}
+                  placeholder="None"
+                />
               </div>
             </div>
           </TabsContent>

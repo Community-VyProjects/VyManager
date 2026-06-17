@@ -12,17 +12,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowDownToLine, Loader2 } from "lucide-react";
 import { inputService, type InputInterface, type InputCapabilities } from "@/lib/api/input";
 import { showService, type InterfaceName } from "@/lib/api/show";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 import { ApiError } from "@/lib/types/api";
 
 interface EditInputModalProps {
@@ -124,15 +118,13 @@ export function EditInputModal({
 
           <div className="space-y-2">
             <Label>Redirect To</Label>
-            <Select value={redirect || "none"} onValueChange={(v) => setRedirect(v === "none" ? "" : v)}>
-              <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">None</SelectItem>
-                {availableInterfaces.map((iface) => (
-                  <SelectItem key={iface.name} value={iface.name}>{iface.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <InterfaceSelect
+              value={redirect || "none"}
+              onValueChange={(v) => setRedirect(v === "none" ? "" : v)}
+              interfaces={availableInterfaces}
+              noneOption={{ label: "None", value: "none" }}
+              placeholder="None"
+            />
             <p className="text-xs text-muted-foreground">Redirect incoming packets to a destination interface</p>
           </div>
 

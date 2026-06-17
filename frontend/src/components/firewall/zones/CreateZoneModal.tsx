@@ -335,8 +335,8 @@ export function CreateZoneModal({
                         className="text-sm font-mono cursor-pointer flex-1"
                       >
                         {iface.name}
-                        {iface.type && (
-                          <span className="text-xs text-muted-foreground ml-2 font-sans">{iface.type}</span>
+                        {iface.description && (
+                          <span className="text-xs text-muted-foreground ml-2 font-sans">{iface.description}</span>
                         )}
                       </label>
                     </div>

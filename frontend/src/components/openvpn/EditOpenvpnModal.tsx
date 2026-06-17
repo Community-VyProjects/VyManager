@@ -32,6 +32,7 @@ import {
 } from "@/lib/api/openvpn";
 import { pkiService, type PKIConfigResponse } from "@/lib/api/pki";
 import { showService, type InterfaceName } from "@/lib/api/show";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 import { ApiError } from "@/lib/types/api";
 import {
   LEGACY_CIPHERS,
@@ -541,21 +542,13 @@ export function EditOpenvpnModal({
             </div>
             <div>
               <Label htmlFor="eredirect">Redirect</Label>
-              <Select value={redirect} onValueChange={setRedirect}>
-                <SelectTrigger id="eredirect">
-                  <SelectValue placeholder="Select interface" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableInterfaces.map((iface) => (
-                    <SelectItem key={iface.name} value={iface.name}>
-                      {iface.name}
-                      <span className="text-muted-foreground ml-2 text-xs">
-                        ({iface.type})
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <InterfaceSelect
+                value={redirect}
+                onValueChange={setRedirect}
+                id="eredirect"
+                interfaces={availableInterfaces}
+                placeholder="Select interface"
+              />
             </div>
             <Separator />
             <div className="space-y-2">
@@ -1468,39 +1461,23 @@ export function EditOpenvpnModal({
           <TabsContent value="mirror" className="space-y-4">
             <div>
               <Label htmlFor="emirror">Ingress Mirror Interface</Label>
-              <Select value={mirrorIngress} onValueChange={setMirrorIngress}>
-                <SelectTrigger id="emirror">
-                  <SelectValue placeholder="Select interface" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableInterfaces.map((iface) => (
-                    <SelectItem key={iface.name} value={iface.name}>
-                      {iface.name}
-                      <span className="text-muted-foreground ml-2 text-xs">
-                        ({iface.type})
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <InterfaceSelect
+                value={mirrorIngress}
+                onValueChange={setMirrorIngress}
+                id="emirror"
+                interfaces={availableInterfaces}
+                placeholder="Select interface"
+              />
             </div>
             <div>
               <Label htmlFor="emirrorE">Egress Mirror Interface</Label>
-              <Select value={mirrorEgress} onValueChange={setMirrorEgress}>
-                <SelectTrigger id="emirrorE">
-                  <SelectValue placeholder="Select interface" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableInterfaces.map((iface) => (
-                    <SelectItem key={iface.name} value={iface.name}>
-                      {iface.name}
-                      <span className="text-muted-foreground ml-2 text-xs">
-                        ({iface.type})
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <InterfaceSelect
+                value={mirrorEgress}
+                onValueChange={setMirrorEgress}
+                id="emirrorE"
+                interfaces={availableInterfaces}
+                placeholder="Select interface"
+              />
             </div>
           </TabsContent>
         </Tabs>

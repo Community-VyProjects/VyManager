@@ -133,6 +133,39 @@
     opacity: 0.35;
   }
 
+  /*
+   * Themed scrollbars applied app-wide. Every native scroll container — pages,
+   * panels, and modals — gets the thin, rounded, theme-colored scrollbar
+   * instead of the chunky default browser one. Radix ScrollArea viewports are
+   * excluded: they render their own custom scrollbar and already hide the
+   * native one, so styling them would re-show a duplicate.
+   */
+  *:not([data-radix-scroll-area-viewport]) {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  *:not([data-radix-scroll-area-viewport])::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  *:not([data-radix-scroll-area-viewport])::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *:not([data-radix-scroll-area-viewport])::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+
+  *:not([data-radix-scroll-area-viewport])::-webkit-scrollbar-thumb:hover {
+    background: var(--muted-foreground);
+    background-clip: padding-box;
+  }
+
   /* Glowing effects */
   .glow-primary {
     box-shadow: 0 0 20px var(--primary), 0 0 40px color-mix(in srgb, var(--primary) 30%, transparent);

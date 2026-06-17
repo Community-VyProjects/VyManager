@@ -24,7 +24,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AlertCircle, ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import { lldpService, LLDPInterface, LLDPCapabilities } from "@/lib/api/lldp";
-import { showService } from "@/lib/api/show";
+import { showService, InterfaceName } from "@/lib/api/show";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 
 interface LLDPInterfaceModalProps {
   open: boolean;
@@ -78,15 +79,14 @@ export function LLDPInterfaceModal({
   );
   const [elin, setElin] = useState(existing?.location?.elin ?? "");
 
-  const [availableInterfaces, setAvailableInterfaces] = useState<string[]>([]);
+  const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceName[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
     showService.getAllInterfaces().then((res) => {
-      const names = res.interfaces.map((i) => i.name).sort();
-      setAvailableInterfaces(names);
+      setAvailableInterfaces([...res.interfaces].sort((a, b) => a.name.localeCompare(b.name)));
     });
   }, [open]);
 
@@ -140,9 +140,10 @@ export function LLDPInterfaceModal({
   const use15Mode = capabilities.features.interface_mode.supported;
   const use14Disable = capabilities.features.interface_disable_flag.supported;
 
-  const selectableInterfaces = ["all", ...availableInterfaces].filter(
-    (name) => !existingNames.includes(name) || name === existing?.name
-  );
+  const selectableInterfaces: InterfaceName[] = [
+    { name: "all", type: "", description: "Apply to all interfaces" },
+    ...availableInterfaces,
+  ].filter((i) => !existingNames.includes(i.name) || i.name === existing?.name);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -164,27 +165,12 @@ export function LLDPInterfaceModal({
               {isEdit ? (
                 <Input value={interfaceName} disabled />
               ) : (
-                <Select value={interfaceName} onValueChange={setInterfaceName}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select interface" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {selectableInterfaces.map((name) => (
-                      <SelectItem key={name} value={name}>
-                        {name === "all" ? (
-                          <span>
-                            all{" "}
-                            <span className="text-muted-foreground text-xs">
-                              — Apply to all interfaces
-                            </span>
-                          </span>
-                        ) : (
-                          name
-                        )}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <InterfaceSelect
+                  value={interfaceName}
+                  onValueChange={setInterfaceName}
+                  interfaces={selectableInterfaces}
+                  placeholder="Select interface"
+                />
               )}
             </div>
 

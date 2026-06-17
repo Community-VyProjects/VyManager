@@ -5,13 +5,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircle, Plus, Trash2 } from "lucide-react";
 import { staticRoutesService } from "@/lib/api/static-routes";
-import { showService } from "@/lib/api/show";
+import { showService, InterfaceName } from "@/lib/api/show";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 import type { StaticRoutesCapabilities } from "@/lib/api/static-routes";
 
 interface CreateStaticRouteModalProps {
@@ -40,7 +40,7 @@ export function CreateStaticRouteModal({ open, onOpenChange, onSuccess, routeTyp
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [capabilities, setCapabilities] = useState<StaticRoutesCapabilities | null>(null);
-  const [availableInterfaces, setAvailableInterfaces] = useState<string[]>([]);
+  const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceName[]>([]);
 
   // Form fields
   const [destination, setDestination] = useState("");
@@ -85,7 +85,7 @@ export function CreateStaticRouteModal({ open, onOpenChange, onSuccess, routeTyp
   const loadInterfaces = async () => {
     try {
       const response = await showService.getAllInterfaces();
-      setAvailableInterfaces(response.interfaces.map((i) => i.name));
+      setAvailableInterfaces(response.interfaces);
     } catch (err) {
       console.error("Failed to load interfaces:", err);
     }
@@ -416,21 +416,12 @@ export function CreateStaticRouteModal({ open, onOpenChange, onSuccess, routeTyp
                         <Label>
                           Interface <span className="text-destructive">*</span>
                         </Label>
-                        <Select
+                        <InterfaceSelect
                           value={iface.interface}
                           onValueChange={(value) => updateInterface(index, "interface", value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select interface" />
-                          </SelectTrigger>
-                          <SelectContent className="max-h-60 overflow-y-auto">
-                            {availableInterfaces.map((interfaceName) => (
-                              <SelectItem key={interfaceName} value={interfaceName}>
-                                {interfaceName}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          interfaces={availableInterfaces}
+                          placeholder="Select interface"
+                        />
                       </div>
 
                       <div className="space-y-2">

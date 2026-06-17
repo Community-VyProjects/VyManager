@@ -23,6 +23,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ethernetService } from "@/lib/api/ethernet";
 import { showService } from "@/lib/api/show";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 import type { EthernetInterface, EthernetCapabilities, BatchOperation } from "@/lib/api/types/ethernet";
 import { Loader2, X, AlertCircle } from "lucide-react";
 
@@ -740,18 +741,13 @@ export function ComprehensiveEthernetModal({
                       All ethernet interfaces are already configured.
                     </p>
                   ) : (
-                    <Select value={interfaceName} onValueChange={setInterfaceName}>
-                      <SelectTrigger id="interface-name">
-                        <SelectValue placeholder="Select an interface" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableInterfaces.map((iface) => (
-                          <SelectItem key={iface} value={iface}>
-                            {iface}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <InterfaceSelect
+                      value={interfaceName}
+                      onValueChange={setInterfaceName}
+                      id="interface-name"
+                      interfaces={availableInterfaces.map((n) => ({ name: n, type: "ethernet", description: null }))}
+                      placeholder="Select an interface"
+                    />
                   )}
                 </div>
               )}

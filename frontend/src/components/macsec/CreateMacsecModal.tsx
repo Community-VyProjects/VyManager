@@ -25,6 +25,7 @@ import { Separator } from "@/components/ui/separator";
 import { Lock, Loader2, AlertCircle, Plus, Trash2 } from "lucide-react";
 import { macsecService, type MacsecCapabilities } from "@/lib/api/macsec";
 import { showService, type InterfaceName } from "@/lib/api/show";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 import { ApiError } from "@/lib/types/api";
 
 interface StaticPeerEntry {
@@ -352,16 +353,12 @@ export function CreateMacsecModal({
               </div>
               <div className="space-y-2">
                 <Label>Source Interface <span className="text-destructive">*</span></Label>
-                <Select value={sourceInterface} onValueChange={setSourceInterface}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select source interface" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {allInterfaces.map((iface) => (
-                      <SelectItem key={iface.name} value={iface.name}>{iface.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <InterfaceSelect
+                  value={sourceInterface}
+                  onValueChange={setSourceInterface}
+                  interfaces={allInterfaces}
+                  placeholder="Select source interface"
+                />
                 <p className="text-xs text-muted-foreground">Physical ethernet interface for MACsec traffic</p>
               </div>
             </div>

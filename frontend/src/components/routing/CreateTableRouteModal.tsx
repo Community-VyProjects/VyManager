@@ -22,7 +22,8 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertCircle, Loader2, Plus, Trash2 } from "lucide-react";
 import { staticRoutesService, type RoutingTable } from "@/lib/api/static-routes";
-import { showService } from "@/lib/api/show";
+import { showService, InterfaceName } from "@/lib/api/show";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 
 interface CreateTableRouteModalProps {
   open: boolean;
@@ -51,7 +52,7 @@ export function CreateTableRouteModal({
 }: CreateTableRouteModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [availableInterfaces, setAvailableInterfaces] = useState<string[]>([]);
+  const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceName[]>([]);
 
   // Form fields
   const [routeType, setRouteType] = useState<"ipv4" | "ipv6">("ipv4");
@@ -74,7 +75,7 @@ export function CreateTableRouteModal({
   const loadInterfaces = async () => {
     try {
       const response = await showService.getAllInterfaces();
-      setAvailableInterfaces(response.interfaces.map((i) => i.name));
+      setAvailableInterfaces(response.interfaces);
     } catch (err) {
       console.error("Failed to load interfaces:", err);
     }
@@ -299,21 +300,13 @@ export function CreateTableRouteModal({
             {interfaces.map((iface, index) => (
               <div key={index} className="border rounded-lg p-3 space-y-2">
                 <div className="flex items-center gap-2">
-                  <Select
+                  <InterfaceSelect
                     value={iface.interface}
                     onValueChange={(value) => updateInterface(index, "interface", value)}
-                  >
-                    <SelectTrigger className="flex-1">
-                      <SelectValue placeholder="Select interface..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableInterfaces.map((name) => (
-                        <SelectItem key={name} value={name}>
-                          {name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    interfaces={availableInterfaces}
+                    className="flex-1"
+                    placeholder="Select interface..."
+                  />
                   <Input
                     placeholder="Distance"
                     type="number"

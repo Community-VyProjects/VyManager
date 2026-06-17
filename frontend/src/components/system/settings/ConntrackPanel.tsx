@@ -54,7 +54,8 @@ import {
   type ConntrackIgnoreRule,
   type ConntrackTimeoutCustomRule,
 } from "@/lib/api/system-settings";
-import { showService } from "@/lib/api/show";
+import { showService, InterfaceName } from "@/lib/api/show";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 import { useToast } from "@/hooks/useToast";
 import {
   DndContext,
@@ -224,7 +225,7 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
   const [gtError, setGtError] = useState<string | null>(null);
 
   // Interface list for inbound interface dropdown
-  const [availableInterfaces, setAvailableInterfaces] = useState<string[]>([]);
+  const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceName[]>([]);
   const [loadingInterfaces, setLoadingInterfaces] = useState(false);
 
   // Ignore rules
@@ -292,7 +293,7 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
     setLoadingInterfaces(true);
     try {
       const res = await showService.getAllInterfaces();
-      setAvailableInterfaces(res.interfaces.map((i) => i.name).sort());
+      setAvailableInterfaces([...res.interfaces].sort((a, b) => a.name.localeCompare(b.name)));
     } catch {
       setAvailableInterfaces([]);
     } finally {
@@ -1140,21 +1141,14 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Inbound Interface</Label>
-              <Select
+              <InterfaceSelect
                 value={ignInboundIface || "_any"}
                 onValueChange={(v) => setIgnInboundIface(v === "_any" ? "" : v)}
                 disabled={loadingInterfaces}
-              >
-                <SelectTrigger className="font-mono text-sm">
-                  <SelectValue placeholder={loadingInterfaces ? "Loading…" : "Any"} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="_any">Any</SelectItem>
-                  {availableInterfaces.map((iface) => (
-                    <SelectItem key={iface} value={iface}>{iface}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                interfaces={availableInterfaces}
+                noneOption={{ label: "Any", value: "_any" }}
+                className="font-mono text-sm"
+              />
             </div>
           </div>
           <DialogFooter>

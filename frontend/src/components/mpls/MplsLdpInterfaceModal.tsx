@@ -11,16 +11,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { MplsLdpInterface } from "@/lib/api/mpls";
-import { showService } from "@/lib/api/show";
+import { showService, InterfaceName } from "@/lib/api/show";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 
 interface MplsLdpInterfaceModalProps {
   open: boolean;
@@ -39,7 +33,7 @@ export function MplsLdpInterfaceModal({
 
   const [interfaceName, setInterfaceName] = useState("");
   const [disableHello, setDisableHello] = useState(false);
-  const [availableInterfaces, setAvailableInterfaces] = useState<string[]>([]);
+  const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceName[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,7 +41,7 @@ export function MplsLdpInterfaceModal({
   useEffect(() => {
     if (open && !isEditMode) {
       showService.getAllInterfaces().then((res) => {
-        setAvailableInterfaces(res.interfaces.map((i) => i.name));
+        setAvailableInterfaces(res.interfaces);
       }).catch(() => {
         // Silently ignore — user can type manually via fallback
       });
@@ -108,18 +102,13 @@ export function MplsLdpInterfaceModal({
                 {existingInterface?.name}
               </p>
             ) : availableInterfaces.length > 0 ? (
-              <Select value={interfaceName} onValueChange={setInterfaceName}>
-                <SelectTrigger id="ldp-iface-name">
-                  <SelectValue placeholder="Select interface..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableInterfaces.map((iface) => (
-                    <SelectItem key={iface} value={iface}>
-                      {iface}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <InterfaceSelect
+                value={interfaceName}
+                onValueChange={setInterfaceName}
+                interfaces={availableInterfaces}
+                id="ldp-iface-name"
+                placeholder="Select interface..."
+              />
             ) : (
               <input
                 id="ldp-iface-name"

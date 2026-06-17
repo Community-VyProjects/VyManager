@@ -9,13 +9,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,6 +17,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { AlertCircle, Loader2, Network, X } from "lucide-react";
 import { pppoeServerService, PPPoEInterface, PPPoECapabilities } from "@/lib/api/pppoe-server";
 import { showService, InterfaceName } from "@/lib/api/show";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 import { ApiError } from "@/lib/types/api";
 
 interface InterfaceModalProps {
@@ -127,27 +121,12 @@ export function InterfaceModal({ open, onOpenChange, onSuccess, existingInterfac
             {isEdit ? (
               <Input value={ifaceName} disabled />
             ) : (
-              <Select value={ifaceName} onValueChange={setIfaceName}>
-                <SelectTrigger>
-                  <SelectValue
-                    placeholder={
-                      ifacesLoading
-                        ? "Loading interfaces..."
-                        : availableInterfaces.length === 0
-                        ? "No interfaces available"
-                        : "Select an interface"
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableInterfaces.map((iface) => (
-                    <SelectItem key={iface.name} value={iface.name}>
-                      <span className="font-mono">{iface.name}</span>
-                      <span className="text-muted-foreground ml-2 text-xs">({iface.type})</span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <InterfaceSelect
+                value={ifaceName}
+                onValueChange={setIfaceName}
+                interfaces={availableInterfaces}
+                placeholder="Select an interface"
+              />
             )}
           </div>
 

@@ -23,7 +23,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AlertCircle, Loader2 } from "lucide-react";
 import type { BabelInterface, BabelCapabilities } from "@/lib/api/babel";
-import { showService } from "@/lib/api/show";
+import { showService, InterfaceName } from "@/lib/api/show";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 
 interface BabelInterfaceModalProps {
   open: boolean;
@@ -59,12 +60,12 @@ export function BabelInterfaceModal({
   // UI state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [availableInterfaces, setAvailableInterfaces] = useState<string[]>([]);
+  const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceName[]>([]);
 
   const loadInterfaces = async () => {
     try {
       const response = await showService.getAllInterfaces();
-      setAvailableInterfaces(response.interfaces.map((i) => i.name));
+      setAvailableInterfaces(response.interfaces);
     } catch (err) {
       console.error("Failed to load interfaces:", err);
     }
@@ -278,25 +279,14 @@ export function BabelInterfaceModal({
               {/* Interface Name */}
               <div className="space-y-2">
                 <Label htmlFor="babel-iface-name">Interface</Label>
-                <Select
+                <InterfaceSelect
                   value={name}
                   onValueChange={setName}
                   disabled={isEditMode}
-                >
-                  <SelectTrigger
-                    id="babel-iface-name"
-                    className={isEditMode ? "bg-muted" : ""}
-                  >
-                    <SelectValue placeholder="Select an interface" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableInterfaces.map((iface) => (
-                      <SelectItem key={iface} value={iface}>
-                        {iface}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  id="babel-iface-name"
+                  className={isEditMode ? "bg-muted" : ""}
+                  interfaces={availableInterfaces}
+                />
                 <p className="text-xs text-muted-foreground">
                   The VyOS interface to enable Babel on.
                 </p>

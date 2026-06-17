@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle, X, Plus } from "lucide-react";
 import { flowtablesService, type Flowtable } from "@/lib/api/firewall-flowtables";
@@ -186,25 +187,15 @@ export function CreateFlowtableModal({
               Interfaces <span className="text-destructive">*</span>
             </Label>
             <div className="flex gap-2">
-              <Select value={selectedInterface} onValueChange={setSelectedInterface}>
-                <SelectTrigger className="flex-1">
-                  <SelectValue placeholder="Select interface" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableInterfaces
-                    .filter((iface) => !interfaces.includes(iface.name))
-                    .map((iface) => (
-                      <SelectItem key={iface.name} value={iface.name}>
-                        {iface.name}
-                        {iface.description && (
-                          <span className="text-muted-foreground ml-2">
-                            - {iface.description}
-                          </span>
-                        )}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
+              <InterfaceSelect
+                value={selectedInterface}
+                onValueChange={setSelectedInterface}
+                interfaces={availableInterfaces
+                  .filter((iface) => !interfaces.includes(iface.name))
+                  .map((i) => ({ name: i.name, type: i.type, description: i.description ?? null }))}
+                className="flex-1"
+                placeholder="Select interface"
+              />
               <Button
                 type="button"
                 variant="outline"

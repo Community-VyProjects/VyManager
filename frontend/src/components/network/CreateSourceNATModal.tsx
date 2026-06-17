@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -441,18 +442,13 @@ export function CreateSourceNATModal({ open, onOpenChange, onSuccess }: CreateSo
               {outboundInterfaceType === "name" ? (
                 <div className="space-y-2">
                   <Label htmlFor="outbound-interface-name">Outbound Interface Name</Label>
-                  <Select value={outboundInterfaceName} onValueChange={setOutboundInterfaceName}>
-                    <SelectTrigger id="outbound-interface-name">
-                      <SelectValue placeholder="Select interface" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {interfaces.map((iface) => (
-                        <SelectItem key={iface.name} value={iface.name}>
-                          {iface.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <InterfaceSelect
+                    value={outboundInterfaceName}
+                    onValueChange={setOutboundInterfaceName}
+                    id="outbound-interface-name"
+                    interfaces={interfaces.map((i) => ({ name: i.name, type: i.type, description: null }))}
+                    placeholder="Select interface"
+                  />
                 </div>
               ) : (
                 <div className="space-y-2">

@@ -25,6 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Signal, Loader2, Eye, EyeOff, X, Plus } from "lucide-react";
 import { wwanService, type WwanCapabilities } from "@/lib/api/wwan";
 import { showService, type InterfaceName } from "@/lib/api/show";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 import { ApiError } from "@/lib/types/api";
 
 interface CreateWwanModalProps {
@@ -803,39 +804,33 @@ export function CreateWwanModal({
             <h4 className="text-sm font-medium text-foreground">Traffic Mirroring &amp; Redirect</h4>
             <div className="space-y-2">
               <Label>Mirror Ingress →</Label>
-              <Select value={mirrorIngress || "none"} onValueChange={(v) => setMirrorIngress(v === "none" ? "" : v)}>
-                <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {availableInterfaces.map((iface) => (
-                    <SelectItem key={iface.name} value={iface.name}>{iface.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <InterfaceSelect
+                value={mirrorIngress || "none"}
+                onValueChange={(v) => setMirrorIngress(v === "none" ? "" : v)}
+                interfaces={availableInterfaces}
+                noneOption={{ label: "None", value: "none" }}
+                placeholder="None"
+              />
             </div>
             <div className="space-y-2">
               <Label>Mirror Egress →</Label>
-              <Select value={mirrorEgress || "none"} onValueChange={(v) => setMirrorEgress(v === "none" ? "" : v)}>
-                <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {availableInterfaces.map((iface) => (
-                    <SelectItem key={iface.name} value={iface.name}>{iface.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <InterfaceSelect
+                value={mirrorEgress || "none"}
+                onValueChange={(v) => setMirrorEgress(v === "none" ? "" : v)}
+                interfaces={availableInterfaces}
+                noneOption={{ label: "None", value: "none" }}
+                placeholder="None"
+              />
             </div>
             <div className="space-y-2">
               <Label>Redirect To</Label>
-              <Select value={redirect || "none"} onValueChange={(v) => setRedirect(v === "none" ? "" : v)}>
-                <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {availableInterfaces.map((iface) => (
-                    <SelectItem key={iface.name} value={iface.name}>{iface.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <InterfaceSelect
+                value={redirect || "none"}
+                onValueChange={(v) => setRedirect(v === "none" ? "" : v)}
+                interfaces={availableInterfaces}
+                noneOption={{ label: "None", value: "none" }}
+                placeholder="None"
+              />
             </div>
           </TabsContent>
         </Tabs>

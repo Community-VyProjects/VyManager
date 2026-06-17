@@ -20,7 +20,8 @@ import {
 } from "@/components/ui/select";
 import { AlertCircle, Loader2 } from "lucide-react";
 import type { RipNgInterface } from "@/lib/api/ripng";
-import { showService } from "@/lib/api/show";
+import { showService, InterfaceName } from "@/lib/api/show";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 
 interface RipngInterfaceModalProps {
   open: boolean;
@@ -42,12 +43,12 @@ export function RipngInterfaceModal({
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [availableInterfaces, setAvailableInterfaces] = useState<string[]>([]);
+  const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceName[]>([]);
 
   useEffect(() => {
     if (!open) return;
     showService.getAllInterfaces()
-      .then((res) => setAvailableInterfaces(res.interfaces.map((i) => i.name)))
+      .then((res) => setAvailableInterfaces(res.interfaces))
       .catch(() => {});
 
     if (existingInterface) {
@@ -116,16 +117,14 @@ export function RipngInterfaceModal({
           {/* Interface */}
           <div className="space-y-2">
             <Label htmlFor="ripng-iface-name">Interface</Label>
-            <Select value={name} onValueChange={setName} disabled={isEditMode}>
-              <SelectTrigger id="ripng-iface-name" className={isEditMode ? "bg-muted" : ""}>
-                <SelectValue placeholder="Select an interface" />
-              </SelectTrigger>
-              <SelectContent>
-                {availableInterfaces.map((iface) => (
-                  <SelectItem key={iface} value={iface}>{iface}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <InterfaceSelect
+              value={name}
+              onValueChange={setName}
+              disabled={isEditMode}
+              id="ripng-iface-name"
+              className={isEditMode ? "bg-muted" : ""}
+              interfaces={availableInterfaces}
+            />
           </div>
 
           {/* Split Horizon */}

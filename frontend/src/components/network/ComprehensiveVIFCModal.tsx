@@ -24,6 +24,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ethernetService } from "@/lib/api/ethernet";
 import type { EthernetCapabilities, VIFConfig, BatchOperation, VlanBatchService, VlanParentInterface } from "@/lib/api/types/ethernet";
 import { Loader2, X } from "lucide-react";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 
 interface VIFCWithParent extends VIFConfig {
   parentInterface: string;
@@ -458,16 +459,13 @@ export function ComprehensiveVIFCModal({
                 <>
                   <div className="space-y-2">
                     <Label htmlFor="parent-interface">Parent Interface <span className="text-destructive">*</span></Label>
-                    <Select value={parentInterface || undefined} onValueChange={(v) => { setParentInterface(v); setSVlanId(""); }}>
-                      <SelectTrigger id="parent-interface"><SelectValue placeholder="Select parent interface" /></SelectTrigger>
-                      <SelectContent>
-                        {interfaces.map((iface) => (
-                          <SelectItem key={iface.name} value={iface.name}>
-                            {iface.name}{iface.description && ` - ${iface.description}`}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <InterfaceSelect
+                      value={parentInterface}
+                      onValueChange={(v) => { setParentInterface(v); setSVlanId(""); }}
+                      id="parent-interface"
+                      interfaces={interfaces.map((i) => ({ name: i.name, type: "", description: i.description ?? null }))}
+                      placeholder="Select parent interface"
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="s-vlan">Parent S-VLAN <span className="text-destructive">*</span></Label>
