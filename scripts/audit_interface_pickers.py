@@ -41,7 +41,8 @@ def main():
     self_fetch, prefiltered, raw_select, legacy = [], [], [], []
 
     for f in sorted(glob.glob(os.path.join(ROOT, "components", "**", "*.tsx"), recursive=True)):
-        txt = open(f).read()
+        with open(f) as fh:
+            txt = fh.read()
         rel = os.path.relpath(f, ROOT)
         uses_is = "<InterfaceSelect" in txt
         calls_fetch = "getAllInterfaces" in txt
