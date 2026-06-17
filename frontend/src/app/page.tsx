@@ -17,6 +17,7 @@ import { NetworkSpeedCard } from "@/components/dashboard/NetworkSpeedCard";
 import { QoSStatsCard } from "@/components/dashboard/QoSStatsCard";
 import { OpenVpnCard } from "@/components/dashboard/OpenVpnCard";
 import { VrrpStatusCard } from "@/components/dashboard/VrrpStatusCard";
+import { BgpStatusCard } from "@/components/dashboard/BgpStatusCard";
 import { AddCardModal } from "@/components/dashboard/AddCardModal";
 import {
   DndContext,
@@ -367,6 +368,9 @@ export default function Home() {
     if (cardType === "vrrp-status") {
       defaultSpan = 2;
     }
+    if (cardType === "bgp-status") {
+      defaultSpan = 2;
+    }
     // system-info defaults to 1 column (already set above)
 
     // New cards always start at column 0
@@ -494,6 +498,8 @@ export default function Home() {
         return <OpenVpnCard {...baseProps} />;
       case "vrrp-status":
         return <VrrpStatusCard {...baseProps} />;
+      case "bgp-status":
+        return <BgpStatusCard {...baseProps} />;
       default:
         return null;
     }

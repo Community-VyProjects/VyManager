@@ -31,6 +31,7 @@ from routers.qos.qos import (
 )
 from openvpn_status import openvpn_configured, openvpn_gql_fields, build_openvpn_status
 from vrrp_status import vrrp_configured, vrrp_gql_fields, build_vrrp_status
+from bgp_status import bgp_configured, bgp_gql_fields, build_bgp_status
 import logging
 logger = logging.getLogger(__name__)
 
@@ -116,7 +117,7 @@ def _wg_alias(iface_name: str) -> str:
     return f"WGStatus_{safe}"
 
 
-def _build_gql_payload(api_key: str, include_wireguard: bool, cake_targets: Optional[list] = None, include_openvpn: bool = False, include_vrrp: bool = False) -> dict:
+def _build_gql_payload(api_key: str, include_wireguard: bool, cake_targets: Optional[list] = None, include_openvpn: bool = False, include_vrrp: bool = False, include_bgp: bool = False) -> dict:
     """
     Build the JSON body for the slow dashboard GraphQL query.
 
@@ -138,6 +139,8 @@ def _build_gql_payload(api_key: str, include_wireguard: bool, cake_targets: Opti
         fields += openvpn_gql_fields(k)
     if include_vrrp:
         fields += vrrp_gql_fields(k)
+    if include_bgp:
+        fields += bgp_gql_fields(k)
     if include_wireguard:
         fields.append(
             f'WireGuardConfig: ShowConfig(data: {{key: {k}, path: ["interfaces", "wireguard"]}}) {{ data {{ result }} }}'
@@ -156,7 +159,7 @@ def _build_gql_wg_status_payload(api_key: str, iface_names: List[str]) -> dict:
     return {"query": "{ " + " ".join(fields) + " }"}
 
 
-async def _fetch_graphql_dashboard(service, include_wireguard: bool, cake_targets: Optional[list] = None, include_openvpn: bool = False, include_vrrp: bool = False) -> Optional[dict]:
+async def _fetch_graphql_dashboard(service, include_wireguard: bool, cake_targets: Optional[list] = None, include_openvpn: bool = False, include_vrrp: bool = False, include_bgp: bool = False) -> Optional[dict]:
     """
     Fire a single GraphQL POST for the full dashboard data.
 
@@ -165,7 +168,7 @@ async def _fetch_graphql_dashboard(service, include_wireguard: bool, cake_target
     api_key = str(service.config.apikey)
     url = f"{service.config.protocol}://{service.config.hostname}:{service.config.port}/graphql"
     verify = service.config.verify
-    payload = _build_gql_payload(api_key, include_wireguard, cake_targets, include_openvpn, include_vrrp)
+    payload = _build_gql_payload(api_key, include_wireguard, cake_targets, include_openvpn, include_vrrp, include_bgp)
 
     try:
         async with httpx.AsyncClient(verify=verify, timeout=15.0) as client:
@@ -916,6 +919,8 @@ class DeviceDataBroadcaster:
         self._openvpn_configured: bool = False
         # Whether any VRRP group is configured (gates the show vrrp fetch).
         self._vrrp_configured: bool = False
+        # Whether BGP is configured (gates the show bgp summary fetch).
+        self._bgp_configured: bool = False
 
     # ------------------------------------------------------------------
     # Public API
@@ -1056,6 +1061,7 @@ class DeviceDataBroadcaster:
             self._cached_cake_targets = find_cake_targets(cfg)
             self._openvpn_configured = openvpn_configured(cfg)
             self._vrrp_configured = vrrp_configured(cfg)
+            self._bgp_configured = bgp_configured(cfg)
         except Exception:
             logger.exception("Broadcaster: config-state refresh error")
 
@@ -1074,6 +1080,14 @@ class DeviceDataBroadcaster:
         except Exception:
             logger.exception("Broadcaster: vrrp-status parse error")
             self._push_to_all({"type": "error", "data": {"channel": "vrrp-status", "message": "Parse failed"}})
+
+    def _broadcast_bgp(self, gql: dict) -> None:
+        """Parse live BGP session state from the shared GraphQL result and push an event."""
+        try:
+            self._push_to_all({"type": "bgp-status", "data": build_bgp_status(gql)})
+        except Exception:
+            logger.exception("Broadcaster: bgp-status parse error")
+            self._push_to_all({"type": "error", "data": {"channel": "bgp-status", "message": "Parse failed"}})
 
     def _on_task_done(self, fut: asyncio.Future) -> None:
         """Clean up if _run() exits unexpectedly."""
@@ -1100,8 +1114,9 @@ class DeviceDataBroadcaster:
                     targets = self._cached_cake_targets
                     ovpn = self._openvpn_configured
                     vrrp = self._vrrp_configured
-                    # Full query: counters + system info + QoS + OpenVPN + VRRP + WireGuard
-                    gql = await _fetch_graphql_dashboard(self._service, include_wireguard=True, cake_targets=targets, include_openvpn=ovpn, include_vrrp=vrrp)
+                    bgp = self._bgp_configured
+                    # Full query: counters + system info + QoS + OpenVPN + VRRP + BGP + WireGuard
+                    gql = await _fetch_graphql_dashboard(self._service, include_wireguard=True, cake_targets=targets, include_openvpn=ovpn, include_vrrp=vrrp, include_bgp=bgp)
                     if gql is not None:
                         self._broadcast_interface_counters(gql)
                         self._broadcast_system_info(gql)
@@ -1111,6 +1126,8 @@ class DeviceDataBroadcaster:
                             self._broadcast_openvpn(gql)
                         if vrrp:
                             self._broadcast_vrrp(gql)
+                        if bgp:
+                            self._broadcast_bgp(gql)
                     else:
                         self._push_to_all({"type": "error", "data": {"channel": "all", "message": "GraphQL fetch failed"}})
                 else:
@@ -1168,6 +1185,7 @@ async def dashboard_stream(request: Request):
     service = get_session_vyos_service(request)
     include_wireguard = await has_permission(request, FeatureGroup.WIREGUARD, PermissionLevel.READ)
     include_vrrp = await has_permission(request, FeatureGroup.HIGH_AVAILABILITY, PermissionLevel.READ)
+    include_bgp = await has_permission(request, FeatureGroup.BGP, PermissionLevel.READ)
     broadcaster = _get_broadcaster(service)
 
     instance_id: str = service.config.instance_id
@@ -1193,6 +1211,8 @@ async def dashboard_stream(request: Request):
                 if event["type"] == "wireguard-peers" and not include_wireguard:
                     continue
                 if event["type"] == "vrrp-status" and not include_vrrp:
+                    continue
+                if event["type"] == "bgp-status" and not include_bgp:
                     continue
                 yield f'event: {event["type"]}\ndata: {json.dumps(event["data"])}\n\n'
         finally:
