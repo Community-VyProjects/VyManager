@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Network, Plus, Server, Shield, Lock, TrendingUp, Gauge, ShieldCheck, Waypoints } from "lucide-react";
+import { Network, Plus, Server, Shield, Lock, TrendingUp, Gauge, ShieldCheck, Waypoints, Route } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 
@@ -69,6 +69,13 @@ const AVAILABLE_CARDS: AvailableCard[] = [
     description: "Real-time VRRP group state (MASTER/BACKUP/FAULT) with interface, VRID, priority and last transition",
     icon: Waypoints,
     requiredPermission: FeatureGroup.HIGH_AVAILABILITY,
+  },
+  {
+    type: "bgp-status",
+    name: "BGP Sessions",
+    description: "Live BGP neighbor state (Established/Active/Idle) per address family with remote AS, uptime and prefix counts",
+    icon: Route,
+    requiredPermission: FeatureGroup.BGP,
   },
 ];
 
