@@ -81,7 +81,7 @@ async function proxyRequest(
       if (contentType && contentType.includes("multipart/form-data")) {
         // For file uploads, pass the FormData directly
         const formData = await request.formData();
-        body = formData as any;
+        body = formData as BodyInit;
         // Don't set Content-Type header - let fetch set it with boundary
       } else {
         // For JSON requests
@@ -102,19 +102,18 @@ async function proxyRequest(
       body,
     });
 
-    // Check if this is a CSV export (file download)
+    // Check if this is a file download (e.g. an encrypted backup). Any response
+    // the backend marks as an attachment is streamed through as a binary blob.
     const responseContentType = response.headers.get("content-type");
-    if (responseContentType && responseContentType.includes("text/csv")) {
-      // Return the CSV file as-is
+    const contentDisposition = response.headers.get("content-disposition");
+    if (contentDisposition && contentDisposition.includes("attachment")) {
       const blob = await response.blob();
       const responseHeaders = new Headers();
-
-      // Copy important headers
-      const contentDisposition = response.headers.get("content-disposition");
-      if (contentDisposition) {
-        responseHeaders.set("Content-Disposition", contentDisposition);
-      }
-      responseHeaders.set("Content-Type", "text/csv");
+      responseHeaders.set("Content-Disposition", contentDisposition);
+      responseHeaders.set(
+        "Content-Type",
+        responseContentType || "application/octet-stream"
+      );
 
       return new NextResponse(blob, {
         status: response.status,
@@ -129,7 +128,7 @@ async function proxyRequest(
       const data = JSON.parse(responseText);
       // Return the response with the same status code
       return NextResponse.json(data, { status: response.status });
-    } catch (parseError) {
+    } catch {
       return NextResponse.json(
         {
           error: "Backend returned invalid JSON",

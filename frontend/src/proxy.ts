@@ -9,6 +9,9 @@ export default async function proxy(request: NextRequest) {
     "/onboarding",
     "/api/auth",
     "/api/session/onboarding-status",
+    // Fresh-install disaster recovery: the backend allows restore when no users
+    // exist yet, so it must be reachable before anyone can authenticate.
+    "/api/session/restore",
     "/api/internal",
     "/api/oauth-config/public",
   ];
