@@ -96,7 +96,7 @@ export function MoveInstanceModal({
         <DialogHeader>
           <DialogTitle>Move Instance to Another Site</DialogTitle>
           <DialogDescription>
-            Move "{instance.name}" to a different site. You can only move instances
+            Move &quot;{instance.name}&quot; to a different site. You can only move instances
             to sites where you have Owner or Admin permissions.
           </DialogDescription>
         </DialogHeader>
@@ -162,7 +162,7 @@ export function MoveInstanceModal({
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
                   Moving this instance will immediately change its site association.
-                  If you're currently connected to this instance, you'll be
+                  If you&apos;re currently connected to this instance, you&apos;ll be
                   disconnected.
                 </p>
               </div>

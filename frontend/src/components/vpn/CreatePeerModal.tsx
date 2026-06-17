@@ -257,7 +257,7 @@ export function CreatePeerModal({
                 className="font-mono text-sm"
               />
               <p className="text-xs text-muted-foreground">
-                The peer's WireGuard public key. Get this from the peer device.
+                The peer&apos;s WireGuard public key. Get this from the peer device.
               </p>
             </div>
 

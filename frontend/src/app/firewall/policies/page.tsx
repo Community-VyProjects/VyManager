@@ -836,7 +836,7 @@ function FirewallPoliciesPageInner() {
                       <div className="px-2 py-4 text-center">
                         <p className="text-xs text-muted-foreground">No custom chains</p>
                         <p className="text-xs text-muted-foreground mt-1">
-                          Click "New" to create one
+                          Click &quot;New&quot; to create one
                         </p>
                       </div>
                     ) : (
@@ -944,7 +944,7 @@ function FirewallPoliciesPageInner() {
                       <div className="px-2 py-4 text-center">
                         <p className="text-xs text-muted-foreground">No custom chains</p>
                         <p className="text-xs text-muted-foreground mt-1">
-                          Click "New" to create one
+                          Click &quot;New&quot; to create one
                         </p>
                       </div>
                     ) : (

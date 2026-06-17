@@ -260,7 +260,7 @@ export function RoutingTablesAccordion({
                     <div className="text-center py-8 text-muted-foreground border rounded-lg bg-muted/30">
                       <Network className="h-8 w-8 mx-auto mb-2 opacity-50" />
                       <p className="text-sm">No routes in this table</p>
-                      <p className="text-xs mt-1">Click "Add Route" to create one</p>
+                      <p className="text-xs mt-1">Click &quot;Add Route&quot; to create one</p>
                     </div>
                   ) : (
                     <div className="border rounded-lg overflow-hidden">

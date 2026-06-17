@@ -172,7 +172,7 @@ export function AddAccessListRuleModal({
     setError(null);
 
     try {
-      let newRule: any = {
+      const newRule: any = {
         rule_number: ruleNumber,
         action,
         description: ruleDescription || null,

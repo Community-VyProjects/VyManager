@@ -68,7 +68,7 @@ export function UnifiedView({ isOpen, onClose, type, data }: UnifiedViewProps) {
               Subnet: {subnet.subnet}
             </CardTitle>
             <CardDescription>
-              DHCP subnet in shared network "{network.name}"
+              DHCP subnet in shared network &quot;{network.name}&quot;
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -333,7 +333,7 @@ export function UnifiedView({ isOpen, onClose, type, data }: UnifiedViewProps) {
                   Routing Configuration
                 </CardTitle>
                 <CardDescription>
-                  Routes affecting this client's traffic
+                  Routes affecting this client&apos;s traffic
                 </CardDescription>
               </CardHeader>
               <CardContent>

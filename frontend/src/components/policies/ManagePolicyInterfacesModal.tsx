@@ -170,7 +170,7 @@ export function ManagePolicyInterfacesModal({
         <DialogHeader>
           <DialogTitle>Manage Policy Interfaces</DialogTitle>
           <DialogDescription>
-            Select interfaces to apply the "{policyName}" policy to.
+            Select interfaces to apply the &quot;{policyName}&quot; policy to.
           </DialogDescription>
         </DialogHeader>
 

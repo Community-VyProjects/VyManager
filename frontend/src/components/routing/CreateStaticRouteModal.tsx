@@ -377,7 +377,7 @@ export function CreateStaticRouteModal({ open, onOpenChange, onSuccess, routeTyp
                 ))
               ) : (
                 <p className="text-sm text-muted-foreground text-center py-4">
-                  No next-hops configured. Click "Add Next-Hop" to add one.
+                  No next-hops configured. Click &quot;Add Next-Hop&quot; to add one.
                 </p>
               )}
             </div>
@@ -448,7 +448,7 @@ export function CreateStaticRouteModal({ open, onOpenChange, onSuccess, routeTyp
                 ))
               ) : (
                 <p className="text-sm text-muted-foreground text-center py-4">
-                  No interface routes configured. Click "Add Interface" to add one.
+                  No interface routes configured. Click &quot;Add Interface&quot; to add one.
                 </p>
               )}
             </div>

@@ -66,7 +66,6 @@ export function BroadcastRelayInstanceModal({ open, onOpenChange, instance, onSu
       }
       loadInterfaces();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, instance]);
 
   const loadInterfaces = async () => {

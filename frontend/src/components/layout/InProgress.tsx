@@ -20,7 +20,7 @@ export function InProgress() {
             In Progress
           </h2>
           <p className="text-muted-foreground text-lg">
-            We're building something amazing
+            We&apos;re building something amazing
           </p>
         </div>
 

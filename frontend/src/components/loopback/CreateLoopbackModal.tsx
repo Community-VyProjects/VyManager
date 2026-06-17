@@ -67,7 +67,6 @@ export function CreateLoopbackModal({
       resetForm();
       showService.getAllInterfaces().then((res) => setAvailableInterfaces(res.interfaces)).catch(() => {});
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const handleSubmit = async () => {

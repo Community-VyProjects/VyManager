@@ -525,7 +525,7 @@ function RoutePageInner() {
                     {policyInterfaces.length === 0 ? (
                       <div className="text-center py-4">
                         <p className="text-sm text-muted-foreground">
-                          No interfaces configured. Click "Manage Interfaces" to assign interfaces.
+                          No interfaces configured. Click &quot;Manage Interfaces&quot; to assign interfaces.
                         </p>
                       </div>
                     ) : (

@@ -268,7 +268,7 @@ export function EditPeerModal({
                 className="font-mono text-sm"
               />
               <p className="text-xs text-muted-foreground">
-                The peer's WireGuard public key.
+                The peer&apos;s WireGuard public key.
               </p>
             </div>
 
@@ -329,7 +329,7 @@ export function EditPeerModal({
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                Keep as "***" to preserve existing key, or generate/enter a new one.
+                Keep as &quot;***&quot; to preserve existing key, or generate/enter a new one.
                 Clear to remove.
               </p>
             </div>

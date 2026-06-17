@@ -253,7 +253,6 @@ export function BgpNeighborModal({
         resetForm();
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, existingNeighbor]);
 
   const resetForm = () => {

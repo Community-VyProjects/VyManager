@@ -375,7 +375,7 @@ export function DHCPv6ServerContent() {
                 <Server className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
                 <p className="text-sm text-muted-foreground">No servers configured</p>
                 {hasWrite && (
-                  <p className="text-xs text-muted-foreground mt-1">Click "New Server" to create one</p>
+                  <p className="text-xs text-muted-foreground mt-1">Click &quot;New Server&quot; to create one</p>
                 )}
               </div>
             ) : (

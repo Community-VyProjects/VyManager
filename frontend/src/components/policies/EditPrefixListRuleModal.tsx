@@ -191,7 +191,7 @@ export function EditPrefixListRuleModal({
         <DialogHeader>
           <DialogTitle>Edit Rule {rule.rule_number}</DialogTitle>
           <DialogDescription>
-            Update this rule's configuration
+            Update this rule&apos;s configuration
           </DialogDescription>
         </DialogHeader>
 

@@ -109,7 +109,7 @@ export function EditAsPathListRuleModal({
               disabled={loading}
             />
             <p className="text-xs text-muted-foreground">
-              Regular expression to match AS paths (e.g., "64501 64502")
+              Regular expression to match AS paths (e.g., &quot;64501 64502&quot;)
             </p>
           </div>
 

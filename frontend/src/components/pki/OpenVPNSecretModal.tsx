@@ -167,7 +167,7 @@ export function OpenVPNSecretModal({ open, onOpenChange, onSuccess, existingSecr
                   <Input id="gen-ovpn-name" value={genName} onChange={(e) => setGenName(e.target.value)} placeholder="my-secret" />
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  The shared secret will be generated and installed on the device automatically using VyOS's built-in generator.
+                  The shared secret will be generated and installed on the device automatically using VyOS&apos;s built-in generator.
                 </p>
               </TabsContent>
             </Tabs>

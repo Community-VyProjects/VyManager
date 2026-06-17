@@ -91,7 +91,7 @@ export function ActiveSessionWarningModal({
         <DialogHeader>
           <DialogTitle>Active Session Detected</DialogTitle>
           <DialogDescription>
-            You're already signed in on {sessions.length > 1 ? "other devices" : "another device"}.
+            You&apos;re already signed in on {sessions.length > 1 ? "other devices" : "another device"}.
             Do you want to sign out of {sessions.length > 1 ? "those sessions" : "that session"} and continue here?
           </DialogDescription>
         </DialogHeader>

@@ -406,7 +406,7 @@ export function EditStaticRouteModal({ open, onOpenChange, onSuccess, route }: E
                   ) : (
                     <div className="border rounded-lg p-4 bg-muted/30">
                       <p className="text-sm text-muted-foreground text-center">
-                        No next-hops configured. Click "Add Next-Hop" to add one.
+                        No next-hops configured. Click &quot;Add Next-Hop&quot; to add one.
                       </p>
                     </div>
                   )}
@@ -479,7 +479,7 @@ export function EditStaticRouteModal({ open, onOpenChange, onSuccess, route }: E
                   ) : (
                     <div className="border rounded-lg p-4 bg-muted/30">
                       <p className="text-sm text-muted-foreground text-center">
-                        No interface routes configured. Click "Add Interface" to add one.
+                        No interface routes configured. Click &quot;Add Interface&quot; to add one.
                       </p>
                     </div>
                   )}
