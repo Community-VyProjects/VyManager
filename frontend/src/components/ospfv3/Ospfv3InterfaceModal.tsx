@@ -23,7 +23,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AlertCircle, Loader2 } from "lucide-react";
 import type { Ospfv3Interface, Ospfv3Capabilities } from "@/lib/api/ospfv3";
-import { showService } from "@/lib/api/show";
+import { showService, InterfaceName } from "@/lib/api/show";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 
 interface Ospfv3InterfaceModalProps {
   open: boolean;
@@ -60,12 +61,12 @@ export function Ospfv3InterfaceModal({
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [availableInterfaces, setAvailableInterfaces] = useState<string[]>([]);
+  const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceName[]>([]);
 
   const loadInterfaces = async () => {
     try {
       const response = await showService.getAllInterfaces();
-      setAvailableInterfaces(response.interfaces.map((i) => i.name));
+      setAvailableInterfaces(response.interfaces);
     } catch (err) {
       console.error("Failed to load interfaces:", err);
     }
@@ -198,16 +199,14 @@ export function Ospfv3InterfaceModal({
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="ospfv3-iface-name">Interface</Label>
-                <Select value={name} onValueChange={setName} disabled={isEditMode}>
-                  <SelectTrigger id="ospfv3-iface-name" className={isEditMode ? "bg-muted" : ""}>
-                    <SelectValue placeholder="Select an interface" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableInterfaces.map((iface) => (
-                      <SelectItem key={iface} value={iface}>{iface}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <InterfaceSelect
+                  value={name}
+                  onValueChange={setName}
+                  disabled={isEditMode}
+                  id="ospfv3-iface-name"
+                  className={isEditMode ? "bg-muted" : ""}
+                  interfaces={availableInterfaces}
+                />
               </div>
 
               <div className="space-y-2">

@@ -25,6 +25,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { AlertCircle, Loader2, Plus, X } from "lucide-react";
 import type { PimInterface, PimIgmpJoin } from "@/lib/api/pim";
 import { showService, InterfaceName } from "@/lib/api/show";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 
 interface PimInterfaceModalProps {
   open: boolean;
@@ -287,19 +288,12 @@ export function PimInterfaceModal({
                   {isEditMode ? (
                     <Input value={name} disabled className="bg-muted font-mono" />
                   ) : (
-                    <Select value={name} onValueChange={setName}>
-                      <SelectTrigger>
-                        <SelectValue placeholder={interfacesLoading ? "Loading interfaces..." : "Select interface"} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableInterfaces.map((iface) => (
-                          <SelectItem key={iface.name} value={iface.name}>
-                            <span className="font-mono">{iface.name}</span>
-                            <span className="text-muted-foreground ml-2 text-xs">({iface.type})</span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <InterfaceSelect
+                      value={name}
+                      onValueChange={setName}
+                      interfaces={availableInterfaces}
+                      placeholder="Select interface"
+                    />
                   )}
                 </div>
 

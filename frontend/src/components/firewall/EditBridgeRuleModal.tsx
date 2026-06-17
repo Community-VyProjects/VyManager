@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RefreshCw, AlertCircle, Loader2 } from "lucide-react";
 import {
@@ -517,55 +518,23 @@ export function EditBridgeRuleModal({
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="inboundInterface">Inbound Interface</Label>
-                    <Select
+                    <InterfaceSelect
                       value={inboundInterface || "_none_"}
                       onValueChange={(v) => setInboundInterface(v === "_none_" ? "" : v)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="None" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="_none_" textValue="None">None</SelectItem>
-                        {availableInterfaces.map((iface) => (
-                          <SelectItem key={iface.name} value={iface.name} textValue={iface.name}>
-                            <div className="flex flex-col">
-                              <span>{iface.name}</span>
-                              {iface.description && (
-                                <span className="text-xs text-muted-foreground">
-                                  {iface.description}
-                                </span>
-                              )}
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      interfaces={availableInterfaces.map((i) => ({ name: i.name, type: "", description: i.description ?? null }))}
+                      noneOption={{ label: "None", value: "_none_" }}
+                      placeholder="None"
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="outboundInterface">Outbound Interface</Label>
-                    <Select
+                    <InterfaceSelect
                       value={outboundInterface || "_none_"}
                       onValueChange={(v) => setOutboundInterface(v === "_none_" ? "" : v)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="None" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="_none_" textValue="None">None</SelectItem>
-                        {availableInterfaces.map((iface) => (
-                          <SelectItem key={iface.name} value={iface.name} textValue={iface.name}>
-                            <div className="flex flex-col">
-                              <span>{iface.name}</span>
-                              {iface.description && (
-                                <span className="text-xs text-muted-foreground">
-                                  {iface.description}
-                                </span>
-                              )}
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      interfaces={availableInterfaces.map((i) => ({ name: i.name, type: "", description: i.description ?? null }))}
+                      noneOption={{ label: "None", value: "_none_" }}
+                      placeholder="None"
+                    />
                   </div>
                 </div>
               )}

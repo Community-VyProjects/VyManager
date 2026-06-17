@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { showService, type InterfaceName } from "@/lib/api/show";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 import {
   Dialog,
   DialogContent,
@@ -394,16 +395,12 @@ export function EditMacsecModal({
               </div>
               <div className="space-y-2">
                 <Label>Source Interface <span className="text-destructive">*</span></Label>
-                <Select value={sourceInterface} onValueChange={setSourceInterface}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select source interface" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {allInterfaces.map((iface) => (
-                      <SelectItem key={iface.name} value={iface.name}>{iface.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <InterfaceSelect
+                  value={sourceInterface}
+                  onValueChange={setSourceInterface}
+                  interfaces={allInterfaces}
+                  placeholder="Select source interface"
+                />
               </div>
             </div>
 

@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertCircle } from "lucide-react";
 import { natService } from "@/lib/api/nat";
@@ -240,18 +240,13 @@ export function EditStaticNATModal({ open, onOpenChange, rule, onSuccess }: Edit
           {/* Inbound Interface */}
           <div className="space-y-2">
             <Label htmlFor="inbound-interface">Inbound Interface (Optional)</Label>
-            <Select value={inboundInterfaceName || undefined} onValueChange={setInboundInterfaceName}>
-              <SelectTrigger id="inbound-interface">
-                <SelectValue placeholder="Select interface (optional)" />
-              </SelectTrigger>
-              <SelectContent>
-                {interfaces.map((iface) => (
-                  <SelectItem key={iface.name} value={iface.name}>
-                    {iface.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <InterfaceSelect
+              value={inboundInterfaceName}
+              onValueChange={setInboundInterfaceName}
+              id="inbound-interface"
+              interfaces={interfaces.map((i) => ({ name: i.name, type: i.type, description: null }))}
+              placeholder="Select interface (optional)"
+            />
             {inboundInterfaceName && (
               <Button
                 variant="ghost"

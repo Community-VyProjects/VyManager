@@ -24,6 +24,7 @@ import {
 import { AlertCircle, Loader2, Network, X, Plus } from "lucide-react";
 import { bridgeService, type BridgeCapabilities } from "@/lib/api/bridge";
 import { showService, type InterfaceName } from "@/lib/api/show";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 import { ApiError } from "@/lib/types/api";
 
 interface MemberFormState {
@@ -513,14 +514,13 @@ export function CreateBridgeModal({
             </div>
 
             <div className="flex gap-2">
-              <Select value={memberToAdd} onValueChange={setMemberToAdd}>
-                <SelectTrigger className="flex-1"><SelectValue placeholder="Select an interface to add" /></SelectTrigger>
-                <SelectContent>
-                  {selectableInterfaces.map((i) => (
-                    <SelectItem key={i.name} value={i.name}>{i.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <InterfaceSelect
+                value={memberToAdd}
+                onValueChange={setMemberToAdd}
+                interfaces={selectableInterfaces}
+                className="flex-1"
+                placeholder="Select an interface to add"
+              />
               <Button variant="outline" onClick={addMember} disabled={!memberToAdd}>
                 <Plus className="h-4 w-4 mr-1" /> Add
               </Button>

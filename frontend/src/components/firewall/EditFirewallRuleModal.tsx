@@ -35,6 +35,7 @@ import { firewallIPv6Service } from "@/lib/api/firewall-ipv6";
 import { firewallGroupsService, type FirewallGroup } from "@/lib/api/firewall-groups";
 import { flowtablesService, type Flowtable } from "@/lib/api/firewall-flowtables";
 import { showService } from "@/lib/api/show";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 import type { NetworkInterface } from "@/lib/api/interfaces";
 import { CountryMultiSelect } from "./CountryMultiSelect";
 import {
@@ -255,7 +256,7 @@ export function EditFirewallRuleModal({
           name: i.name,
           type: "ethernet" as const,
           addresses: [],
-          description: null,
+          description: i.description ?? null,
           vrf: null,
           "hw-id": null,
           "source-interface": null,
@@ -2134,36 +2135,26 @@ export function EditFirewallRuleModal({
 
             <div className="space-y-2">
               <Label htmlFor="inboundInterface">Inbound Interface</Label>
-              <Select value={inboundInterface} onValueChange={setInboundInterface}>
-                <SelectTrigger id="inboundInterface">
-                  <SelectValue placeholder="Any interface" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="any">Any</SelectItem>
-                  {interfaces.map((iface) => (
-                    <SelectItem key={iface.name} value={iface.name}>
-                      {iface.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <InterfaceSelect
+                value={inboundInterface}
+                onValueChange={setInboundInterface}
+                id="inboundInterface"
+                interfaces={interfaces.map((i) => ({ name: i.name, type: "", description: i.description ?? null }))}
+                noneOption={{ label: "Any", value: "any" }}
+                placeholder="Any interface"
+              />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="outboundInterface">Outbound Interface</Label>
-              <Select value={outboundInterface} onValueChange={setOutboundInterface}>
-                <SelectTrigger id="outboundInterface">
-                  <SelectValue placeholder="Any interface" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="any">Any</SelectItem>
-                  {interfaces.map((iface) => (
-                    <SelectItem key={iface.name} value={iface.name}>
-                      {iface.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <InterfaceSelect
+                value={outboundInterface}
+                onValueChange={setOutboundInterface}
+                id="outboundInterface"
+                interfaces={interfaces.map((i) => ({ name: i.name, type: "", description: i.description ?? null }))}
+                noneOption={{ label: "Any", value: "any" }}
+                placeholder="Any interface"
+              />
             </div>
 
             {/* IPsec Matching */}

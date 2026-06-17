@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 import { AlertCircle } from "lucide-react";
 import {
   nat66Service,
@@ -562,18 +563,13 @@ export function NAT66RuleDialog({
                 <Label htmlFor="nat66-iface">
                   {isSource ? "Outbound Interface" : "Inbound Interface"}
                 </Label>
-                <Select value={interfaceName} onValueChange={setInterfaceName}>
-                  <SelectTrigger id="nat66-iface">
-                    <SelectValue placeholder="Select interface" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {interfaces.map((iface) => (
-                      <SelectItem key={iface} value={iface}>
-                        {iface}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <InterfaceSelect
+                  value={interfaceName}
+                  onValueChange={setInterfaceName}
+                  id="nat66-iface"
+                  interfaces={interfaces.map((n) => ({ name: n, type: "", description: null }))}
+                  placeholder="Select interface"
+                />
               </div>
 
               {/* Translation */}

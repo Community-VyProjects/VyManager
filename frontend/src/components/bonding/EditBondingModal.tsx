@@ -28,6 +28,7 @@ import {
   type BondingInterface,
 } from "@/lib/api/bonding";
 import { showService, type InterfaceName } from "@/lib/api/show";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 import { ApiError } from "@/lib/types/api";
 
 const BONDING_MODES = [
@@ -601,14 +602,13 @@ export function EditBondingModal({
             </div>
 
             <div className="flex gap-2">
-              <Select value={memberToAdd} onValueChange={setMemberToAdd}>
-                <SelectTrigger className="flex-1"><SelectValue placeholder="Select an interface to add" /></SelectTrigger>
-                <SelectContent>
-                  {ethernetInterfaces.map((i) => (
-                    <SelectItem key={i.name} value={i.name}>{i.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <InterfaceSelect
+                value={memberToAdd}
+                onValueChange={setMemberToAdd}
+                interfaces={ethernetInterfaces}
+                className="flex-1"
+                placeholder="Select an interface to add"
+              />
               <Button
                 variant="outline"
                 onClick={() => {

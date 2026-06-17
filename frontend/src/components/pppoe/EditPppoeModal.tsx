@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Loader2, Plus, Trash2 } from "lucide-react";
@@ -415,24 +416,14 @@ export function EditPppoeModal({
 
             <div>
               <Label htmlFor="edit-pppoe-source">Source Interface</Label>
-              <Select
+              <InterfaceSelect
                 value={sourceInterface || "__none__"}
-                onValueChange={(v) =>
-                  setSourceInterface(v === "__none__" ? "" : v)
-                }
-              >
-                <SelectTrigger id="edit-pppoe-source">
-                  <SelectValue placeholder="Select ethernet or VLAN" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">None</SelectItem>
-                  {sourceOptions.map((iface) => (
-                    <SelectItem key={iface} value={iface}>
-                      {iface}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                onValueChange={(v) => setSourceInterface(v === "__none__" ? "" : v)}
+                id="edit-pppoe-source"
+                interfaces={sourceOptions.map((n) => ({ name: n, type: "", description: null }))}
+                noneOption={{ label: "None", value: "__none__" }}
+                placeholder="Select ethernet or VLAN"
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -912,45 +903,25 @@ export function EditPppoeModal({
           <TabsContent value="mirror" className="space-y-4">
             <div>
               <Label htmlFor="edit-pppoe-mirror-in">Ingress Mirror Interface</Label>
-              <Select
+              <InterfaceSelect
                 value={mirrorIngress || "__none__"}
-                onValueChange={(v) =>
-                  setMirrorIngress(v === "__none__" ? "" : v)
-                }
-              >
-                <SelectTrigger id="edit-pppoe-mirror-in">
-                  <SelectValue placeholder="Select interface" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">None</SelectItem>
-                  {sourceOptions.map((iface) => (
-                    <SelectItem key={iface} value={iface}>
-                      {iface}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                onValueChange={(v) => setMirrorIngress(v === "__none__" ? "" : v)}
+                id="edit-pppoe-mirror-in"
+                interfaces={sourceOptions.map((n) => ({ name: n, type: "", description: null }))}
+                noneOption={{ label: "None", value: "__none__" }}
+                placeholder="Select interface"
+              />
             </div>
             <div>
               <Label htmlFor="edit-pppoe-mirror-out">Egress Mirror Interface</Label>
-              <Select
+              <InterfaceSelect
                 value={mirrorEgress || "__none__"}
-                onValueChange={(v) =>
-                  setMirrorEgress(v === "__none__" ? "" : v)
-                }
-              >
-                <SelectTrigger id="edit-pppoe-mirror-out">
-                  <SelectValue placeholder="Select interface" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">None</SelectItem>
-                  {sourceOptions.map((iface) => (
-                    <SelectItem key={iface} value={iface}>
-                      {iface}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                onValueChange={(v) => setMirrorEgress(v === "__none__" ? "" : v)}
+                id="edit-pppoe-mirror-out"
+                interfaces={sourceOptions.map((n) => ({ name: n, type: "", description: null }))}
+                noneOption={{ label: "None", value: "__none__" }}
+                placeholder="Select interface"
+              />
             </div>
           </TabsContent>
         </Tabs>

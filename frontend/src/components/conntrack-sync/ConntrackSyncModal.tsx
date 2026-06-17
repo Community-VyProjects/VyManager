@@ -17,13 +17,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Loader2,
   Plus,
   Trash2,
@@ -33,7 +26,8 @@ import {
   Settings2,
 } from "lucide-react";
 import { ConntrackSyncConfig, ConntrackSyncInterface } from "@/lib/api/conntrack-sync";
-import { showService } from "@/lib/api/show";
+import { showService, InterfaceName } from "@/lib/api/show";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 
 interface ConntrackSyncModalProps {
   open: boolean;
@@ -54,7 +48,7 @@ export function ConntrackSyncModal({ open, config, onClose, onSubmit }: Conntrac
   const [error, setError] = useState<string | null>(null);
 
   // Available interfaces from VyOS
-  const [availableInterfaces, setAvailableInterfaces] = useState<string[]>([]);
+  const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceName[]>([]);
   const [interfacesLoading, setInterfacesLoading] = useState(false);
 
   // Tab 1 — Interfaces
@@ -85,7 +79,7 @@ export function ConntrackSyncModal({ open, config, onClose, onSubmit }: Conntrac
     // Load available interfaces (non-critical)
     setInterfacesLoading(true);
     showService.getAllInterfaces()
-      .then((res) => setAvailableInterfaces(res.interfaces.map((i) => i.name).sort()))
+      .then((res) => setAvailableInterfaces([...res.interfaces].sort((a, b) => a.name.localeCompare(b.name))))
       .catch(() => {/* non-critical */})
       .finally(() => setInterfacesLoading(false));
 
@@ -250,35 +244,18 @@ export function ConntrackSyncModal({ open, config, onClose, onSubmit }: Conntrac
                   <div key={row.key} className="grid grid-cols-[1fr_1fr_100px_32px] gap-2 items-end">
                     <div className="space-y-1">
                       <Label className="text-xs">Interface</Label>
-                      <Select
-                        value={row.name || undefined}
+                      <InterfaceSelect
+                        value={row.name}
                         onValueChange={(val) => updateIfaceRow(row.key, "name", val)}
                         disabled={interfacesLoading}
-                      >
-                        <SelectTrigger>
-                          <SelectValue
-                            placeholder={interfacesLoading ? "Loading..." : "Select interface"}
-                          />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {availableInterfaces
-                            .filter(
-                              (iface) =>
-                                iface === row.name ||
-                                !ifaceRows.some((r) => r.key !== row.key && r.name === iface)
-                            )
-                            .map((iface) => (
-                              <SelectItem key={iface} value={iface}>
-                                {iface}
-                              </SelectItem>
-                            ))}
-                          {availableInterfaces.length === 0 && !interfacesLoading && (
-                            <SelectItem value="" disabled>
-                              No interfaces found
-                            </SelectItem>
-                          )}
-                        </SelectContent>
-                      </Select>
+                        interfaces={availableInterfaces.filter(
+                          (iface) =>
+                            iface.name === row.name ||
+                            !ifaceRows.some((r) => r.key !== row.key && r.name === iface.name)
+                        )}
+                        placeholder="Select interface"
+                        emptyText="No interfaces found"
+                      />
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">Peer IP (optional)</Label>

@@ -9,13 +9,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,7 +16,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AlertCircle, Loader2 } from "lucide-react";
 import type { AdminGroup, TeInterface } from "@/lib/api/traffic-engineering";
-import { showService } from "@/lib/api/show";
+import { showService, InterfaceName } from "@/lib/api/show";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 
 interface TeInterfaceModalProps {
   open: boolean;
@@ -43,7 +37,7 @@ export function TeInterfaceModal({
   const isEditMode = !!existingInterface;
 
   const [name, setName] = useState("");
-  const [availableInterfaces, setAvailableInterfaces] = useState<string[]>([]);
+  const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceName[]>([]);
   const [interfacesLoading, setInterfacesLoading] = useState(false);
   const [selectedGroups, setSelectedGroups] = useState<Set<string>>(new Set());
   const [maxBandwidth, setMaxBandwidth] = useState("");
@@ -76,7 +70,7 @@ export function TeInterfaceModal({
       setInterfacesLoading(true);
       showService
         .getAllInterfaces()
-        .then((res) => setAvailableInterfaces(res.interfaces.map((i) => i.name).sort()))
+        .then((res) => setAvailableInterfaces([...res.interfaces].sort((a, b) => a.name.localeCompare(b.name))))
         .catch(() => setAvailableInterfaces([]))
         .finally(() => setInterfacesLoading(false));
     }
@@ -159,20 +153,13 @@ export function TeInterfaceModal({
               {isEditMode ? (
                 <Input value={name} disabled className="bg-muted" />
               ) : (
-                <Select value={name} onValueChange={setName} disabled={interfacesLoading}>
-                  <SelectTrigger>
-                    <SelectValue
-                      placeholder={interfacesLoading ? "Loading interfaces..." : "Select interface"}
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableInterfaces.map((iface) => (
-                      <SelectItem key={iface} value={iface}>
-                        {iface}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <InterfaceSelect
+                  value={name}
+                  onValueChange={setName}
+                  disabled={interfacesLoading}
+                  interfaces={availableInterfaces}
+                  placeholder="Select interface"
+                />
               )}
             </div>
 

@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 import { AlertCircle } from "lucide-react";
 import { localRouteService, type LocalRouteRule, type LocalRouteCapabilitiesResponse } from "@/lib/api/local-route";
 import { apiClient } from "@/lib/api/client";
@@ -293,19 +293,15 @@ export function EditLocalRouteModal({
           {/* Inbound Interface */}
           <div className="space-y-2">
             <Label htmlFor="inbound-interface">Inbound Interface</Label>
-            <Select value={inboundInterface || "__none__"} onValueChange={setInboundInterface} disabled={loading}>
-              <SelectTrigger id="inbound-interface">
-                <SelectValue placeholder="Select interface" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">None</SelectItem>
-                {interfaces.map((iface) => (
-                  <SelectItem key={iface} value={iface}>
-                    {iface}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <InterfaceSelect
+              value={inboundInterface || "__none__"}
+              onValueChange={setInboundInterface}
+              disabled={loading}
+              id="inbound-interface"
+              interfaces={interfaces.map((n) => ({ name: n, type: "", description: null }))}
+              noneOption={{ label: "None", value: "__none__" }}
+              placeholder="Select interface"
+            />
             <p className="text-xs text-muted-foreground">
               Match traffic arriving on this interface
             </p>

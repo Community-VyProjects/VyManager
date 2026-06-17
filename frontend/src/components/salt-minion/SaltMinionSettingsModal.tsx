@@ -25,6 +25,7 @@ import {
 import { AlertCircle, Loader2, Plus, X } from "lucide-react";
 import { saltMinionService, SaltMinionConfig, SaltMinionSettingsUpdate } from "@/lib/api/salt-minion";
 import { showService } from "@/lib/api/show";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 
 interface SaltMinionSettingsModalProps {
   open: boolean;
@@ -42,35 +43,6 @@ const HASH_OPTIONS: { value: string; label: string; description: string }[] = [
   { value: "sha1",     label: "SHA-1",              description: "Legacy — not recommended for new deployments" },
   { value: "md5",      label: "MD5",               description: "Legacy — not recommended for new deployments" },
 ];
-
-function formatIfaceType(type: string): string {
-  const map: Record<string, string> = {
-    ethernet:         "Ethernet",
-    bonding:          "Bonding",
-    bridge:           "Bridge",
-    dummy:            "Dummy",
-    geneve:           "GENEVE",
-    input:            "IFB Input",
-    l2tpv3:           "L2TPv3",
-    loopback:         "Loopback",
-    macsec:           "MACsec",
-    openvpn:          "OpenVPN",
-    pppoe:            "PPPoE",
-    "pseudo-ethernet":"Pseudo-Ethernet",
-    sstpc:            "SSTPC",
-    tunnel:           "Tunnel",
-    vif:              "VLAN",
-    "vif-s":          "QinQ Service VLAN",
-    "vif-c":          "QinQ Customer VLAN",
-    "virtual-ethernet":"Virtual Ethernet",
-    vti:              "VTI",
-    vxlan:            "VXLAN",
-    wireguard:        "WireGuard",
-    wireless:         "Wireless",
-    wwan:             "WWAN",
-  };
-  return map[type] ?? type;
-}
 
 interface IfaceOption {
   name: string;
@@ -326,27 +298,12 @@ export function SaltMinionSettingsModal({
               <p className="text-xs text-muted-foreground">
                 Network interface used to establish the connection to the master. Leave unset to use the default route.
               </p>
-              <Select value={sourceInterface} onValueChange={setSourceInterface}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">
-                    <span className="font-medium">None</span>
-                    <span className="block text-xs text-muted-foreground">
-                      Use the default routing table
-                    </span>
-                  </SelectItem>
-                  {ifaces.map((iface) => (
-                    <SelectItem key={iface.name} value={iface.name}>
-                      <span className="font-mono font-medium">{iface.name}</span>
-                      <span className="block text-xs text-muted-foreground">
-                        {iface.description ?? formatIfaceType(iface.type)}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <InterfaceSelect
+                value={sourceInterface}
+                onValueChange={setSourceInterface}
+                interfaces={ifaces.map((i) => ({ name: i.name, type: i.type, description: i.description ?? null }))}
+                noneOption={{ label: "None", value: "none" }}
+              />
             </div>
           </div>
         </ScrollArea>

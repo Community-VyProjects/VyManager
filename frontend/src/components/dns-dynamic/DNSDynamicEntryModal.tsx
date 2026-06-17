@@ -25,6 +25,7 @@ import {
 import { AlertCircle, Loader2, Plus, X } from "lucide-react";
 import type { DynamicNameEntry } from "@/lib/api/dns-dynamic";
 import { showService, InterfaceName } from "@/lib/api/show";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 
 interface Props {
   open: boolean;
@@ -298,29 +299,14 @@ export function DNSDynamicEntryModal({ open, onOpenChange, entry, onSubmit }: Pr
                 {addressSource === "interface" ? (
                   <div className="space-y-2">
                     <Label>Interface</Label>
-                    <Select
+                    <InterfaceSelect
                       value={addressInterface || "none"}
                       onValueChange={(v) => setAddressInterface(v === "none" ? "" : v)}
-                    >
-                      <SelectTrigger className="font-mono">
-                        <SelectValue
-                          placeholder={
-                            interfacesLoading ? "Loading interfaces..." : "Select interface"
-                          }
-                        />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">
-                          <span className="text-muted-foreground">None</span>
-                        </SelectItem>
-                        {availableInterfaces.map((iface) => (
-                          <SelectItem key={iface.name} value={iface.name}>
-                            <span className="font-mono">{iface.name}</span>
-                            <span className="text-muted-foreground ml-2 text-xs">({iface.type})</span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      interfaces={availableInterfaces}
+                      noneOption={{ label: "None", value: "none" }}
+                      className="font-mono"
+                      placeholder="Select interface"
+                    />
                   </div>
                 ) : (
                   <>

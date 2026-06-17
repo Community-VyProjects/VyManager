@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/select";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { qosService, QoSInterface, QoSPolicy } from "@/lib/api/qos";
-import { showService, InterfaceName } from "@/lib/api/show";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 
 interface QoSInterfaceModalProps {
   open: boolean;
@@ -47,27 +47,12 @@ export function QoSInterfaceModal({
   const [ingress, setIngress] = useState(existing?.ingress ?? "");
   const [egress, setEgress] = useState(existing?.egress ?? "");
 
-  const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceName[]>([]);
-  const [ifacesLoading, setIfacesLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Ingress accepts only limiter policies; egress accepts all others.
   const ingressPolicies = policies.filter((p) => p.type === "limiter").map((p) => p.name);
   const egressPolicies = policies.filter((p) => p.type !== "limiter").map((p) => p.name);
-
-  useEffect(() => {
-    if (!open || isEdit) return;
-    setIfacesLoading(true);
-    showService
-      .getAllInterfaces()
-      .then((res) => setAvailableInterfaces(res.interfaces))
-      .catch(() => setAvailableInterfaces([]))
-      .finally(() => setIfacesLoading(false));
-  }, [open, isEdit]);
-
-  // Interfaces that already have a QoS binding can't be added again.
-  const selectableInterfaces = availableInterfaces.filter((i) => !existingNames.includes(i.name));
 
   const handleSubmit = async () => {
     const ifname = name.trim();
@@ -106,29 +91,11 @@ export function QoSInterfaceModal({
             {isEdit ? (
               <Input value={name} disabled className="font-mono bg-muted" />
             ) : (
-              <Select value={name} onValueChange={setName}>
-                <SelectTrigger>
-                  <SelectValue
-                    placeholder={
-                      ifacesLoading
-                        ? "Loading interfaces..."
-                        : selectableInterfaces.length === 0
-                          ? "No interfaces available"
-                          : "Select an interface"
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {selectableInterfaces.map((iface) => (
-                    <SelectItem key={iface.name} value={iface.name}>
-                      <span className="font-mono">{iface.name}</span>
-                      <span className="text-muted-foreground ml-2 text-xs">
-                        {iface.description ? iface.description : iface.type}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <InterfaceSelect
+                value={name}
+                onValueChange={setName}
+                filter={(i) => !existingNames.includes(i.name)}
+              />
             )}
           </div>
 

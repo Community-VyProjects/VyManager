@@ -12,13 +12,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -31,6 +24,7 @@ import {
 } from "lucide-react";
 import type { IgmpProxyInterface } from "@/lib/api/igmp-proxy";
 import { showService, InterfaceName } from "@/lib/api/show";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 
 interface IgmpProxySetupModalProps {
   open: boolean;
@@ -238,19 +232,12 @@ export function IgmpProxySetupModal({
 
               <div className="space-y-2">
                 <Label>Interface</Label>
-                <Select value={upstreamName} onValueChange={setUpstreamName}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={interfacesLoading ? "Loading interfaces..." : "Select interface"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableInterfaces.map((iface) => (
-                      <SelectItem key={iface.name} value={iface.name}>
-                        <span className="font-mono">{iface.name}</span>
-                        <span className="text-muted-foreground ml-2 text-xs">({iface.type})</span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <InterfaceSelect
+                  value={upstreamName}
+                  onValueChange={setUpstreamName}
+                  interfaces={availableInterfaces}
+                  placeholder="Select interface"
+                />
               </div>
 
               <div className="space-y-2">
@@ -379,19 +366,12 @@ export function IgmpProxySetupModal({
 
               <div className="space-y-2">
                 <Label>Interface</Label>
-                <Select value={downstreamName} onValueChange={setDownstreamName}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={interfacesLoading ? "Loading interfaces..." : "Select interface"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableInterfaces.map((iface) => (
-                      <SelectItem key={iface.name} value={iface.name}>
-                        <span className="font-mono">{iface.name}</span>
-                        <span className="text-muted-foreground ml-2 text-xs">({iface.type})</span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <InterfaceSelect
+                  value={downstreamName}
+                  onValueChange={setDownstreamName}
+                  interfaces={availableInterfaces}
+                  placeholder="Select interface"
+                />
               </div>
 
               <div className="space-y-2">

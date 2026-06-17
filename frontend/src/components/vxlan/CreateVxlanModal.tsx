@@ -24,6 +24,7 @@ import {
 import { AlertCircle, Boxes, Loader2, Plus, Trash2 } from "lucide-react";
 import { vxlanService, type VxlanCapabilities } from "@/lib/api/vxlan";
 import { showService, type InterfaceName } from "@/lib/api/show";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 import { ApiError } from "@/lib/types/api";
 
 interface CreateVxlanModalProps {
@@ -292,15 +293,13 @@ export function CreateVxlanModal({
               </div>
               <div className="space-y-2">
                 <Label htmlFor="sourceInterface">Source Interface</Label>
-                <Select value={sourceInterface || "__none__"} onValueChange={(v) => setSourceInterface(v === "__none__" ? "" : v)}>
-                  <SelectTrigger><SelectValue placeholder="Select interface" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">None</SelectItem>
-                    {availableInterfaces.map((iface) => (
-                      <SelectItem key={iface.name} value={iface.name}>{iface.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <InterfaceSelect
+                  value={sourceInterface || "__none__"}
+                  onValueChange={(v) => setSourceInterface(v === "__none__" ? "" : v)}
+                  interfaces={availableInterfaces}
+                  noneOption={{ label: "None", value: "__none__" }}
+                  placeholder="Select interface"
+                />
               </div>
             </div>
 
@@ -431,42 +430,36 @@ export function CreateVxlanModal({
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="mirrorIngress" className="text-xs">Ingress Interface</Label>
-                  <Select value={mirrorIngress || "__none__"} onValueChange={(v) => setMirrorIngress(v === "__none__" ? "" : v)}>
-                    <SelectTrigger><SelectValue placeholder="Select interface" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">None</SelectItem>
-                      {availableInterfaces.map((iface) => (
-                        <SelectItem key={iface.name} value={iface.name}>{iface.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <InterfaceSelect
+                    value={mirrorIngress || "__none__"}
+                    onValueChange={(v) => setMirrorIngress(v === "__none__" ? "" : v)}
+                    interfaces={availableInterfaces}
+                    noneOption={{ label: "None", value: "__none__" }}
+                    placeholder="Select interface"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="mirrorEgress" className="text-xs">Egress Interface</Label>
-                  <Select value={mirrorEgress || "__none__"} onValueChange={(v) => setMirrorEgress(v === "__none__" ? "" : v)}>
-                    <SelectTrigger><SelectValue placeholder="Select interface" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">None</SelectItem>
-                      {availableInterfaces.map((iface) => (
-                        <SelectItem key={iface.name} value={iface.name}>{iface.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <InterfaceSelect
+                    value={mirrorEgress || "__none__"}
+                    onValueChange={(v) => setMirrorEgress(v === "__none__" ? "" : v)}
+                    interfaces={availableInterfaces}
+                    noneOption={{ label: "None", value: "__none__" }}
+                    placeholder="Select interface"
+                  />
                 </div>
               </div>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="redirect">Redirect Interface</Label>
-              <Select value={redirect || "__none__"} onValueChange={(v) => setRedirect(v === "__none__" ? "" : v)}>
-                <SelectTrigger><SelectValue placeholder="Select interface" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">None</SelectItem>
-                  {availableInterfaces.map((iface) => (
-                    <SelectItem key={iface.name} value={iface.name}>{iface.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <InterfaceSelect
+                value={redirect || "__none__"}
+                onValueChange={(v) => setRedirect(v === "__none__" ? "" : v)}
+                interfaces={availableInterfaces}
+                noneOption={{ label: "None", value: "__none__" }}
+                placeholder="Select interface"
+              />
               <p className="text-xs text-muted-foreground">Redirect received packets to another interface</p>
             </div>
           </TabsContent>

@@ -41,19 +41,13 @@ import {
   MplsLdpConfig,
   MplsParameters,
 } from "@/lib/api/mpls";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { MplsLdpInterfaceModal } from "./MplsLdpInterfaceModal";
 import { MplsLdpNeighborModal } from "./MplsLdpNeighborModal";
 import { MplsLdpTargetedModal } from "./MplsLdpTargetedModal";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
-import { showService } from "@/lib/api/show";
+import { showService, InterfaceName } from "@/lib/api/show";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 
 // ============================================================================
 // Default empty LDP config used when ldp is null
@@ -117,7 +111,7 @@ export function MplsContent() {
   const [targetedModalOpen, setTargetedModalOpen] = useState(false);
 
   // Overview — global interface inline add
-  const [availableInterfaces, setAvailableInterfaces] = useState<string[]>([]);
+  const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceName[]>([]);
   const [globalIfaceError, setGlobalIfaceError] = useState<string | null>(null);
 
   // Overview — parameters inline edit
@@ -166,7 +160,7 @@ export function MplsContent() {
   // Load available system interfaces once on mount
   useEffect(() => {
     showService.getAllInterfaces().then((res) => {
-      setAvailableInterfaces(res.interfaces.map((i) => i.name).sort());
+      setAvailableInterfaces([...res.interfaces].sort((a, b) => a.name.localeCompare(b.name)));
     }).catch(() => {
       // Non-fatal — dropdown will just be empty
     });
@@ -505,21 +499,16 @@ export function MplsContent() {
 
                   {hasWritePermission && (() => {
                     const unenabledInterfaces = availableInterfaces.filter(
-                      (i) => !config?.interfaces.includes(i)
+                      (i) => !config?.interfaces.includes(i.name)
                     );
                     return unenabledInterfaces.length > 0 ? (
-                      <Select onValueChange={handleAddGlobalIface}>
-                        <SelectTrigger className="max-w-xs">
-                          <SelectValue placeholder="Add interface..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {unenabledInterfaces.map((iface) => (
-                            <SelectItem key={iface} value={iface}>
-                              {iface}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <InterfaceSelect
+                        value=""
+                        onValueChange={handleAddGlobalIface}
+                        interfaces={unenabledInterfaces}
+                        className="max-w-xs"
+                        placeholder="Add interface..."
+                      />
                     ) : availableInterfaces.length > 0 ? (
                       <p className="text-xs text-muted-foreground">All available interfaces are already enabled</p>
                     ) : null;

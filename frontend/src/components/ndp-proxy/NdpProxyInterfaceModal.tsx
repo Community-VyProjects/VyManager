@@ -29,7 +29,8 @@ import {
   NdpProxyInterface,
   NdpProxyPrefix,
 } from "@/lib/api/ndp-proxy";
-import { showService } from "@/lib/api/show";
+import { showService, InterfaceName } from "@/lib/api/show";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 
 interface NdpProxyInterfaceModalProps {
   open: boolean;
@@ -105,7 +106,7 @@ export function NdpProxyInterfaceModal({
   const [addingPrefix, setAddingPrefix] = useState(false);
   const [newPrefix, setNewPrefix] = useState<PrefixForm>({ ...emptyPrefixForm });
 
-  const [availableInterfaces, setAvailableInterfaces] = useState<string[]>([]);
+  const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceName[]>([]);
   const [prefixError, setPrefixError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -113,8 +114,7 @@ export function NdpProxyInterfaceModal({
   useEffect(() => {
     if (!open) return;
     showService.getAllInterfaces().then((res) => {
-      const names = res.interfaces.map((i) => i.name).sort();
-      setAvailableInterfaces(names);
+      setAvailableInterfaces([...res.interfaces].sort((a, b) => a.name.localeCompare(b.name)));
     });
   }, [open]);
 
@@ -264,20 +264,13 @@ export function NdpProxyInterfaceModal({
               {isEdit ? (
                 <Input id="iface-name" value={interfaceName} disabled />
               ) : (
-                <Select value={interfaceName} onValueChange={setInterfaceName}>
-                  <SelectTrigger id="iface-name">
-                    <SelectValue placeholder="Select interface" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableInterfaces
-                      .filter((name) => !existingNames.includes(name))
-                      .map((name) => (
-                        <SelectItem key={name} value={name}>
-                          {name}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
+                <InterfaceSelect
+                  value={interfaceName}
+                  onValueChange={setInterfaceName}
+                  id="iface-name"
+                  interfaces={availableInterfaces.filter((i) => !existingNames.includes(i.name))}
+                  placeholder="Select interface"
+                />
               )}
             </div>
 

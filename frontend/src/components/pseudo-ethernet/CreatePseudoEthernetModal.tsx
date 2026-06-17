@@ -31,7 +31,8 @@ import {
   type PseudoEthernetDhcpv6PdInstanceInput,
   type PseudoEthernetDhcpv6PdInterfaceInput,
 } from "@/lib/api/pseudo-ethernet";
-import { showService } from "@/lib/api/show";
+import { showService, type InterfaceName } from "@/lib/api/show";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 import type { EthernetInterface } from "@/lib/api/types/ethernet";
 import { ApiError } from "@/lib/types/api";
 
@@ -145,13 +146,13 @@ export function CreatePseudoEthernetModal({
   const [mirrorIngress, setMirrorIngress] = useState("");
   const [mirrorEgress, setMirrorEgress] = useState("");
 
-  const [allInterfaces, setAllInterfaces] = useState<string[]>([]);
+  const [allInterfaces, setAllInterfaces] = useState<InterfaceName[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
-    showService.getAllInterfaces().then((r) => setAllInterfaces(r.interfaces.map((i) => i.name))).catch(() => {});
+    showService.getAllInterfaces().then((r) => setAllInterfaces(r.interfaces)).catch(() => {});
     setName("peth0");
     setSourceInterface("");
     setMode("private");
@@ -359,18 +360,13 @@ export function CreatePseudoEthernetModal({
               </div>
               <div className="space-y-2">
                 <Label htmlFor="sourceInterface">Source Interface *</Label>
-                <Select value={sourceInterface} onValueChange={setSourceInterface}>
-                  <SelectTrigger id="sourceInterface">
-                    <SelectValue placeholder="Select ethernet interface" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableInterfaces.map((iface) => (
-                      <SelectItem key={iface.name} value={iface.name}>
-                        {iface.name}{iface.description ? ` — ${iface.description}` : ""}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <InterfaceSelect
+                  value={sourceInterface}
+                  onValueChange={setSourceInterface}
+                  id="sourceInterface"
+                  interfaces={availableInterfaces.map((i) => ({ name: i.name, type: i.type, description: i.description ?? null }))}
+                  placeholder="Select ethernet interface"
+                />
               </div>
             </div>
 
@@ -824,31 +820,23 @@ export function CreatePseudoEthernetModal({
           <TabsContent value="mirror" className="space-y-4 mt-4">
             <div className="space-y-2">
               <Label>Mirror Ingress</Label>
-              <Select value={mirrorIngress || "__none__"} onValueChange={(v) => setMirrorIngress(v === "__none__" ? "" : v)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select destination interface" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">None</SelectItem>
-                  {allInterfaces.map((iface) => (
-                    <SelectItem key={iface} value={iface}>{iface}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <InterfaceSelect
+                value={mirrorIngress || "__none__"}
+                onValueChange={(v) => setMirrorIngress(v === "__none__" ? "" : v)}
+                interfaces={allInterfaces}
+                noneOption={{ label: "None", value: "__none__" }}
+                placeholder="Select destination interface"
+              />
             </div>
             <div className="space-y-2">
               <Label>Mirror Egress</Label>
-              <Select value={mirrorEgress || "__none__"} onValueChange={(v) => setMirrorEgress(v === "__none__" ? "" : v)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select destination interface" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">None</SelectItem>
-                  {allInterfaces.map((iface) => (
-                    <SelectItem key={iface} value={iface}>{iface}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <InterfaceSelect
+                value={mirrorEgress || "__none__"}
+                onValueChange={(v) => setMirrorEgress(v === "__none__" ? "" : v)}
+                interfaces={allInterfaces}
+                noneOption={{ label: "None", value: "__none__" }}
+                placeholder="Select destination interface"
+              />
             </div>
           </TabsContent>
         </Tabs>

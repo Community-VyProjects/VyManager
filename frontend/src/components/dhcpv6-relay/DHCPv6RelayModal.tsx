@@ -16,16 +16,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { AlertCircle, Loader2, Plus, X } from "lucide-react";
 import { dhcpv6RelayService, DHCPv6RelayConfig } from "@/lib/api/dhcpv6-relay";
 import { showService, InterfaceName } from "@/lib/api/show";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 
 interface DHCPv6RelayModalProps {
   open: boolean;
@@ -357,27 +351,12 @@ export function DHCPv6RelayModal({ open, onClose, onSuccess, config }: DHCPv6Rel
               )}
 
               <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
-                <Select value={listenSelectedIface} onValueChange={setListenSelectedIface}>
-                  <SelectTrigger>
-                    <SelectValue
-                      placeholder={
-                        interfacesLoading
-                          ? "Loading..."
-                          : availableForListen.length === 0
-                          ? "No interfaces available"
-                          : "Select interface"
-                      }
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableForListen.map((iface) => (
-                      <SelectItem key={iface.name} value={iface.name}>
-                        <span className="font-mono">{iface.name}</span>
-                        <span className="text-muted-foreground ml-2 text-xs">({iface.type})</span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <InterfaceSelect
+                  value={listenSelectedIface}
+                  onValueChange={setListenSelectedIface}
+                  interfaces={availableForListen}
+                  placeholder="Select interface"
+                />
                 <Input
                   value={listenAddressInput}
                   onChange={(e) => setListenAddressInput(e.target.value)}
@@ -481,27 +460,13 @@ export function DHCPv6RelayModal({ open, onClose, onSuccess, config }: DHCPv6Rel
 
               {/* Add upstream interface */}
               <div className="flex items-center gap-2">
-                <Select value={upstreamSelectedIface} onValueChange={setUpstreamSelectedIface}>
-                  <SelectTrigger className="flex-1">
-                    <SelectValue
-                      placeholder={
-                        interfacesLoading
-                          ? "Loading..."
-                          : availableForUpstream.length === 0
-                          ? "No interfaces available"
-                          : "Select upstream interface to add"
-                      }
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableForUpstream.map((iface) => (
-                      <SelectItem key={iface.name} value={iface.name}>
-                        <span className="font-mono">{iface.name}</span>
-                        <span className="text-muted-foreground ml-2 text-xs">({iface.type})</span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <InterfaceSelect
+                  value={upstreamSelectedIface}
+                  onValueChange={setUpstreamSelectedIface}
+                  interfaces={availableForUpstream}
+                  className="flex-1"
+                  placeholder="Select upstream interface to add"
+                />
                 <Button
                   variant="outline"
                   size="icon"

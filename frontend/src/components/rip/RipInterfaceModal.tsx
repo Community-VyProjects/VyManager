@@ -22,7 +22,8 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AlertCircle, Loader2, Plus, Trash2 } from "lucide-react";
 import type { RipInterface, RipMd5Key } from "@/lib/api/rip";
-import { showService } from "@/lib/api/show";
+import { showService, InterfaceName } from "@/lib/api/show";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 
 interface RipInterfaceModalProps {
   open: boolean;
@@ -49,12 +50,12 @@ export function RipInterfaceModal({
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [availableInterfaces, setAvailableInterfaces] = useState<string[]>([]);
+  const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceName[]>([]);
 
   useEffect(() => {
     if (!open) return;
     showService.getAllInterfaces()
-      .then((res) => setAvailableInterfaces(res.interfaces.map((i) => i.name)))
+      .then((res) => setAvailableInterfaces(res.interfaces))
       .catch(() => {});
 
     if (existingInterface) {
@@ -165,16 +166,14 @@ export function RipInterfaceModal({
             {/* Interface */}
             <div className="space-y-2">
               <Label htmlFor="rip-iface-name">Interface</Label>
-              <Select value={name} onValueChange={setName} disabled={isEditMode}>
-                <SelectTrigger id="rip-iface-name" className={isEditMode ? "bg-muted" : ""}>
-                  <SelectValue placeholder="Select an interface" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableInterfaces.map((iface) => (
-                    <SelectItem key={iface} value={iface}>{iface}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <InterfaceSelect
+                value={name}
+                onValueChange={setName}
+                disabled={isEditMode}
+                id="rip-iface-name"
+                className={isEditMode ? "bg-muted" : ""}
+                interfaces={availableInterfaces}
+              />
             </div>
 
             {/* Authentication */}
