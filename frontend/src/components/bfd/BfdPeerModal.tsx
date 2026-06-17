@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { VrfSelect } from "@/components/ui/vrf-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -504,11 +505,10 @@ export function BfdPeerModal({
                 {/* VRF */}
                 <div className="space-y-2">
                   <Label htmlFor="bfd-peer-vrf">VRF</Label>
-                  <Input
+                  <VrfSelect
                     id="bfd-peer-vrf"
                     value={vrf}
-                    onChange={(e) => setVrf(e.target.value)}
-                    placeholder="e.g. my-vrf"
+                    onValueChange={setVrf}
                   />
                   <p className="text-xs text-muted-foreground">
                     VRF instance for this BFD peer.

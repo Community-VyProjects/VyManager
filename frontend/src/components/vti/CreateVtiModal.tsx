@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { VrfSelect } from "@/components/ui/vrf-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -314,11 +315,10 @@ export function CreateVtiModal({
 
             <div className="space-y-2">
               <Label htmlFor="vrf">VRF</Label>
-              <Input
+              <VrfSelect
                 id="vrf"
                 value={vrf}
-                onChange={(e) => setVrf(e.target.value)}
-                placeholder="Optional VRF name"
+                onValueChange={setVrf}
               />
             </div>
 

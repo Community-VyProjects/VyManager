@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { VrfSelect } from "@/components/ui/vrf-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -131,11 +132,11 @@ function VifForm({ form, onChange }: { form: VifFormState; onChange: (patch: Par
         </div>
         <div className="space-y-1">
           <Label className="text-xs">VRF</Label>
-          <Input value={form.vrf} onChange={(e) => onChange({ vrf: e.target.value })} />
+          <VrfSelect value={form.vrf} onValueChange={(v) => onChange({ vrf: v })} />
         </div>
         <div className="space-y-1">
           <Label className="text-xs">Redirect</Label>
-          <Input value={form.redirect} onChange={(e) => onChange({ redirect: e.target.value })} />
+          <VrfSelect value={form.redirect} onValueChange={(v) => onChange({ redirect: v })} />
         </div>
         <div className="space-y-1">
           <Label className="text-xs">Egress QoS</Label>
@@ -709,11 +710,11 @@ export function EditPseudoEthernetModal({
               </div>
               <div className="space-y-2">
                 <Label>VRF</Label>
-                <Input value={vrf} onChange={(e) => setVrf(e.target.value)} />
+                <VrfSelect value={vrf} onValueChange={setVrf} />
               </div>
               <div className="space-y-2">
                 <Label>Redirect</Label>
-                <Input value={redirect} onChange={(e) => setRedirect(e.target.value)} />
+                <VrfSelect value={redirect} onValueChange={setRedirect} />
               </div>
             </div>
 
@@ -1109,7 +1110,7 @@ export function EditPseudoEthernetModal({
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">VRF</Label>
-                      <Input value={newVifS.vrf} onChange={(e) => setNewVifS((p) => ({ ...p, vrf: e.target.value }))} />
+                      <VrfSelect value={newVifS.vrf} onValueChange={(v) => setNewVifS((p) => ({ ...p, vrf: v }))} />
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -1161,7 +1162,7 @@ export function EditPseudoEthernetModal({
                             <div className="grid grid-cols-2 gap-2">
                               <div className="space-y-1">
                                 <Label className="text-xs">C-VLAN ID *</Label>
-                                <Input type="number" min={1} max={4094} value={newVifC.vlan_id} onChange={(e) => setNewVifC((p) => ({ ...p, vlan_id: e.target.value }))} />
+                                <VrfSelect value={newVifC.vlan_id} onValueChange={(v) => setNewVifC((p) => ({ ...p, vlan_id: v }))} />
                               </div>
                               <div className="space-y-1">
                                 <Label className="text-xs">Description</Label>

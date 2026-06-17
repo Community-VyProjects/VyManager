@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { showService, type InterfaceName } from "@/lib/api/show";
 import { InterfaceSelect } from "@/components/ui/interface-select";
+import { VrfSelect } from "@/components/ui/vrf-select";
 import {
   Dialog,
   DialogContent,
@@ -416,7 +417,7 @@ export function EditMacsecModal({
               </div>
               <div className="space-y-2">
                 <Label htmlFor="edit-vrf">VRF</Label>
-                <Input id="edit-vrf" value={vrf} onChange={(e) => setVrf(e.target.value)} placeholder="None" />
+                <VrfSelect id="edit-vrf" value={vrf} onValueChange={setVrf} />
               </div>
             </div>
 

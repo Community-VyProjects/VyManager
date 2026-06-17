@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { VrfSelect } from "@/components/ui/vrf-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -284,11 +285,12 @@ export function NTPGlobalSettingsModal({
               <p className="text-xs text-muted-foreground">
                 Bind the NTP service to a specific VRF. Leave empty to use the default routing table.
               </p>
-              <Input
+              <VrfSelect
                 id="ntp-vrf"
-                placeholder="e.g. mgmt"
+                placeholder="Default routing table"
                 value={vrf}
-                onChange={(e) => setVrf(e.target.value)}
+                onValueChange={setVrf}
+                extraOptions={[{ label: "Default", value: "default" }]}
               />
             </div>
           </div>

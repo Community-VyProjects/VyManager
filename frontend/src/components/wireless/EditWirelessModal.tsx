@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { VrfSelect } from "@/components/ui/vrf-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -921,7 +922,7 @@ export function EditWirelessModal({ open, onOpenChange, onSuccess, capabilities,
                 </div>
                 <div className="space-y-1.5">
                   <Label>VRF</Label>
-                  <Input value={vrf} onChange={(e) => setVrf(e.target.value)} placeholder="VRF name" className="font-mono" />
+                  <VrfSelect value={vrf} onValueChange={setVrf} className="font-mono" />
                 </div>
               </div>
             </TabsContent>

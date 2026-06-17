@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { VrfSelect } from "@/components/ui/vrf-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -332,10 +333,10 @@ export function CreateStaticRouteModal({ open, onOpenChange, onSuccess, routeTyp
                     {capabilities?.features.next_hop_vrf.supported && (
                       <div className="space-y-2">
                         <Label>VRF</Label>
-                        <Input
-                          placeholder="VRF name (optional)"
+                        <VrfSelect
                           value={nh.vrf}
-                          onChange={(e) => updateNextHop(index, "vrf", e.target.value)}
+                          onValueChange={(v) => updateNextHop(index, "vrf", v)}
+                          extraOptions={[{ label: "Default", value: "default" }]}
                         />
                       </div>
                     )}

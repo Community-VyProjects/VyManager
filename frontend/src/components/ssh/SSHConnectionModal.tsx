@@ -24,6 +24,7 @@ import {
 import { AlertCircle, Loader2 } from "lucide-react";
 import { sshService, SSHConfig, SSHCapabilities } from "@/lib/api/ssh";
 import { SSHMultiValueField, isValidIP } from "./SSHMultiValueField";
+import { VrfMultiSelect } from "@/components/ui/vrf-multi-select";
 
 interface SSHConnectionModalProps {
   open: boolean;
@@ -115,13 +116,20 @@ export function SSHConnectionModal({
 
             <Separator />
 
-            <SSHMultiValueField
-              label="VRFs"
-              description='VRF instances to run the service in. Use "default" for the default VRF.'
-              placeholder="e.g. mgmt or default"
-              values={vrfs}
-              onChange={setVrfs}
-            />
+            <div className="space-y-2">
+              <div>
+                <Label className="text-sm font-medium">VRFs</Label>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {'VRF instances to run the service in. Use "default" for the default VRF.'}
+                </p>
+              </div>
+              <VrfMultiSelect
+                values={vrfs}
+                onChange={setVrfs}
+                placeholder="Select a VRF to add"
+                extraOptions={[{ label: "Default", value: "default" }]}
+              />
+            </div>
 
             <Separator />
 

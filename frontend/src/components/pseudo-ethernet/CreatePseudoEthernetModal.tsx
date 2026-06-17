@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { VrfSelect } from "@/components/ui/vrf-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -424,20 +425,18 @@ export function CreatePseudoEthernetModal({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="vrf">VRF</Label>
-                <Input
+                <VrfSelect
                   id="vrf"
                   value={vrf}
-                  onChange={(e) => setVrf(e.target.value)}
-                  placeholder="VRF instance name"
+                  onValueChange={setVrf}
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="redirect">Redirect</Label>
-                <Input
+                <VrfSelect
                   id="redirect"
                   value={redirect}
-                  onChange={(e) => setRedirect(e.target.value)}
-                  placeholder="Redirect destination"
+                  onValueChange={setRedirect}
                 />
               </div>
             </div>

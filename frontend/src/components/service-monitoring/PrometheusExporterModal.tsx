@@ -8,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { VrfSelect } from "@/components/ui/vrf-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -161,11 +162,11 @@ export function PrometheusExporterModal({
 
           <div className="space-y-2">
             <Label htmlFor="exp-vrf">VRF</Label>
-            <Input
+            <VrfSelect
               id="exp-vrf"
-              placeholder="e.g. mgmt"
               value={vrf}
-              onChange={(e) => setVrf(e.target.value)}
+              onValueChange={setVrf}
+              extraOptions={[{ label: "Default", value: "default" }]}
             />
           </div>
 

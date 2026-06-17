@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { VrfSelect } from "@/components/ui/vrf-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -563,11 +564,12 @@ export function FailoverRouteModal({
                     interfaces={availableInterfaces}
                     placeholder="Interface"
                   />
-                  <Input
+                  <VrfSelect
                     className="h-8 text-xs"
                     value={target.vrf}
-                    onChange={(e) => onUpdateTarget(tIndex, { vrf: e.target.value })}
+                    onValueChange={(v) => onUpdateTarget(tIndex, { vrf: v })}
                     placeholder="VRF"
+                    extraOptions={[{ label: "Default", value: "default" }]}
                   />
                 </>
               )}

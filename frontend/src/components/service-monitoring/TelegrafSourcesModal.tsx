@@ -8,8 +8,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { VrfSelect } from "@/components/ui/vrf-select";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertCircle, Loader2 } from "lucide-react";
@@ -97,11 +97,11 @@ export function TelegrafSourcesModal({
 
           <div className="space-y-2">
             <Label htmlFor="telegraf-vrf">VRF</Label>
-            <Input
+            <VrfSelect
               id="telegraf-vrf"
-              placeholder="e.g. mgmt"
               value={vrf}
-              onChange={(e) => setVrf(e.target.value)}
+              onValueChange={setVrf}
+              extraOptions={[{ label: "Default", value: "default" }]}
             />
           </div>
         </div>

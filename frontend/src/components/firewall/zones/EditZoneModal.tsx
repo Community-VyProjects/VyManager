@@ -9,6 +9,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { VrfSelect } from "@/components/ui/vrf-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -67,7 +68,6 @@ export function EditZoneModal({
   const [defaultLog, setDefaultLog] = useState(zone.default_log);
   const [interfaces, setInterfaces] = useState<string[]>([...zone.interfaces]);
   const [vrfs, setVrfs] = useState<string[]>([...zone.vrfs]);
-  const [vrfInput, setVrfInput] = useState("");
   const [intraMode, setIntraMode] = useState<IntraMode>(getIntraMode(zone.intra_zone_filtering));
 
   // Sync when zone prop changes
@@ -78,7 +78,6 @@ export function EditZoneModal({
     setDefaultLog(zone.default_log);
     setInterfaces([...zone.interfaces]);
     setVrfs([...zone.vrfs]);
-    setVrfInput("");
     setIntraMode(getIntraMode(zone.intra_zone_filtering));
     setError(null);
     setConfirmDelete(false);
@@ -103,14 +102,6 @@ export function EditZoneModal({
     setInterfaces((prev) =>
       prev.includes(name) ? prev.filter((i) => i !== name) : [...prev, name]
     );
-  };
-
-  const addVrf = () => {
-    const val = vrfInput.trim();
-    if (val && !vrfs.includes(val)) {
-      setVrfs([...vrfs, val]);
-      setVrfInput("");
-    }
   };
 
   const handleSave = async () => {
@@ -296,23 +287,16 @@ export function EditZoneModal({
               {supportsVrf && (
                 <div className="space-y-2">
                   <Label>Member VRFs</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      value={vrfInput}
-                      onChange={(e) => setVrfInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          addVrf();
-                        }
-                      }}
-                      placeholder="e.g., mgmt"
-                      className="font-mono"
-                    />
-                    <Button type="button" size="sm" onClick={addVrf}>
-                      Add
-                    </Button>
-                  </div>
+                  <VrfSelect
+                    value=""
+                    onValueChange={(v) => {
+                      if (v && !vrfs.includes(v)) setVrfs([...vrfs, v]);
+                    }}
+                    filter={(v) => !vrfs.includes(v.name)}
+                    includeNone={false}
+                    placeholder="Add VRF"
+                    className="font-mono"
+                  />
                   {vrfs.length > 0 && (
                     <div className="flex flex-wrap gap-1">
                       {vrfs.map((vrf) => (
