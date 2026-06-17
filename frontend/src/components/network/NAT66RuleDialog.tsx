@@ -31,7 +31,6 @@ import {
   type NAT66DestinationRule,
   type NAT66Capabilities,
 } from "@/lib/api/nat66";
-import { showService } from "@/lib/api/show";
 import { firewallGroupsService } from "@/lib/api/firewall-groups";
 import type { FirewallGroup } from "@/lib/api/types/firewall-groups";
 
@@ -59,7 +58,6 @@ export function NAT66RuleDialog({
   const groupsSupported = capabilities?.features?.groups?.supported ?? false;
 
   // Dropdown data
-  const [interfaces, setInterfaces] = useState<string[]>([]);
   const [groups, setGroups] = useState<FirewallGroup[]>([]);
 
   // Form fields
@@ -100,24 +98,14 @@ export function NAT66RuleDialog({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Load interfaces and firewall groups on open
+  // Load firewall groups on open
   useEffect(() => {
     if (open) {
-      loadInterfaces();
       if (groupsSupported) {
         loadGroups();
       }
     }
   }, [open, groupsSupported]);
-
-  const loadInterfaces = async () => {
-    try {
-      const data = await showService.getAllInterfaces();
-      setInterfaces(data.interfaces.map((i) => i.name).sort());
-    } catch (err) {
-      console.error("Failed to load interfaces:", err);
-    }
-  };
 
   const loadGroups = async () => {
     try {
@@ -567,7 +555,6 @@ export function NAT66RuleDialog({
                   value={interfaceName}
                   onValueChange={setInterfaceName}
                   id="nat66-iface"
-                  interfaces={interfaces.map((n) => ({ name: n, type: "", description: null }))}
                   placeholder="Select interface"
                 />
               </div>

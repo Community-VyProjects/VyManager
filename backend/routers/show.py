@@ -477,69 +477,194 @@ class AllInterfacesResponse(BaseModel):
     total: int
 
 
+# Maps the kernel's ``linkinfo.info_kind`` to the config-style ``type`` value
+# the frontend expects (consumers filter on these, e.g. "ethernet"/"bonding").
+# Anything not listed falls through to the raw info_kind / link_type.
+_KERNEL_KIND_TO_TYPE = {
+    "vlan": "vif",
+    "bond": "bonding",
+    "veth": "virtual-ethernet",
+}
+
+
+def _interfaces_from_config(interfaces_config: dict) -> List[InterfaceName]:
+    """Build the interface list from the VyOS ``interfaces`` config tree.
+
+    Returns every configured interface (regardless of active/up status), plus
+    VLAN sub-interfaces (vif), QinQ service VLANs (vif-s) and their customer
+    VLANs (vif-c). Sorted by name.
+    """
+    interfaces: List[InterfaceName] = []
+
+    if not isinstance(interfaces_config, dict):
+        return interfaces
+
+    # Process each interface type
+    for iface_type, iface_data in interfaces_config.items():
+        if not isinstance(iface_data, dict):
+            continue
+
+        # Each interface type contains interface names as keys
+        for iface_name, iface_config in iface_data.items():
+            cfg = iface_config if isinstance(iface_config, dict) else {}
+            interfaces.append(InterfaceName(
+                name=iface_name,
+                type=iface_type,
+                description=cfg.get("description") or None,
+            ))
+
+            # Handle VLANs (vif) - 802.1q sub-interfaces
+            if "vif" in cfg:
+                vif_data = cfg["vif"]
+                if isinstance(vif_data, dict):
+                    for vlan_id, vlan_cfg in vif_data.items():
+                        vif_name = f"{iface_name}.{vlan_id}"
+                        vlan_desc = vlan_cfg.get("description") or None if isinstance(vlan_cfg, dict) else None
+                        interfaces.append(InterfaceName(name=vif_name, type="vif", description=vlan_desc))
+
+            # Handle VIF-S (QinQ service VLANs)
+            if "vif-s" in cfg:
+                vif_s_data = cfg["vif-s"]
+                if isinstance(vif_s_data, dict):
+                    for s_vlan_id, s_vlan_config in vif_s_data.items():
+                        vif_s_name = f"{iface_name}.{s_vlan_id}"
+                        s_desc = s_vlan_config.get("description") or None if isinstance(s_vlan_config, dict) else None
+                        interfaces.append(InterfaceName(name=vif_s_name, type="vif-s", description=s_desc))
+
+                        # Handle VIF-C (QinQ customer VLANs) nested in VIF-S
+                        if isinstance(s_vlan_config, dict) and "vif-c" in s_vlan_config:
+                            vif_c_data = s_vlan_config["vif-c"]
+                            if isinstance(vif_c_data, dict):
+                                for c_vlan_id, c_vlan_cfg in vif_c_data.items():
+                                    vif_c_name = f"{iface_name}.{s_vlan_id}.{c_vlan_id}"
+                                    c_desc = c_vlan_cfg.get("description") or None if isinstance(c_vlan_cfg, dict) else None
+                                    interfaces.append(InterfaceName(name=vif_c_name, type="vif-c", description=c_desc))
+
+    # Sort interfaces by name for consistent ordering
+    interfaces.sort(key=lambda x: x.name)
+    return interfaces
+
+
+def _kernel_iface_type(entry: dict) -> str:
+    """Derive a config-style ``type`` for a kernel interface entry.
+
+    Used only for interfaces not present in the VyOS config (e.g. container or
+    host-created interfaces); for configured interfaces the config type wins.
+    """
+    info_kind = ""
+    linkinfo = entry.get("linkinfo")
+    if isinstance(linkinfo, dict):
+        info_kind = linkinfo.get("info_kind") or ""
+    if info_kind:
+        return _KERNEL_KIND_TO_TYPE.get(info_kind, info_kind)
+
+    link_type = entry.get("link_type") or ""
+    if link_type == "loopback":
+        return "loopback"
+    if link_type == "ether":
+        return "ethernet"
+    return link_type or "unknown"
+
+
+def _interfaces_from_kernel(json_str: str, config_index: Dict[str, InterfaceName]) -> List[InterfaceName]:
+    """Build the interface list from ``show interfaces kernel json`` output.
+
+    The output is an ``ip -d -s -j link show`` style array covering every kernel
+    interface (including container/host-created ones). Config wins for type and
+    description; interfaces only in the config (e.g. a down pppoe/tunnel) are
+    unioned back in so they never disappear from dropdowns. ``pim6reg`` registers
+    are filtered out (no useful insight per issue #6). Sorted by name.
+    """
+    data = json.loads(json_str)
+    if not isinstance(data, list):
+        raise ValueError("kernel interface output is not a JSON array")
+
+    interfaces: List[InterfaceName] = []
+    seen: set = set()
+
+    for entry in data:
+        if not isinstance(entry, dict):
+            continue
+        name = entry.get("ifname")
+        if not name:
+            continue
+        # Filter out PIM register interfaces (pim6reg / pimreg) - no useful insight.
+        if entry.get("link_type") == "pimreg" or name.startswith("pim6reg") or name.startswith("pimreg"):
+            continue
+
+        seen.add(name)
+        cfg_entry = config_index.get(name)
+        if cfg_entry is not None:
+            # Config wins for type + description.
+            interfaces.append(cfg_entry)
+        else:
+            interfaces.append(InterfaceName(
+                name=name,
+                type=_kernel_iface_type(entry),
+                description=(entry.get("ifalias") or None),
+            ))
+
+    # Union: configured interfaces that have no kernel device right now
+    # (e.g. disconnected pppoe, down tunnels/openvpn) must still be selectable.
+    for name, cfg_entry in config_index.items():
+        if name not in seen:
+            interfaces.append(cfg_entry)
+
+    interfaces.sort(key=lambda x: x.name)
+    return interfaces
+
+
 @router.get("/all-interfaces", response_model=AllInterfacesResponse)
 async def get_all_interfaces(request: Request):
     """
-    Get all interface names from VyOS configuration.
+    Get all interface names for use in the interface pickers.
 
-    This returns all configured interfaces regardless of their active/up status,
-    including VLANs (vif) and other sub-interfaces.
+    On VyOS 1.5+ the list is sourced from ``show interfaces kernel json`` so that
+    host/container-created interfaces (e.g. tailscale, podman veth/bridges) are
+    selectable too; config descriptions/types are merged in and configured-but-
+    down interfaces are unioned back in. On VyOS 1.4 (where that command does not
+    exist) the list is built from the VyOS config tree.
 
     Returns:
-        List of all interface names from the config
+        List of all interface names, including VLANs and sub-interfaces.
     """
     try:
         service = get_session_vyos_service(request)
 
-        # Get full config to extract all interfaces
-        full_config = service.get_full_config(refresh=False)
-        interfaces_config = full_config.get("interfaces", {})
+        # Config-derived list is both the 1.4 result and the 1.5 fallback /
+        # enrichment source.
+        full_config = await run_in_threadpool(service.get_full_config, refresh=False)
+        config_list = _interfaces_from_config(full_config.get("interfaces", {}))
 
-        interfaces = []
+        version = service.get_version() or ""
+        interfaces = config_list
 
-        # Process each interface type
-        for iface_type, iface_data in interfaces_config.items():
-            if not isinstance(iface_data, dict):
-                continue
-
-            # Each interface type contains interface names as keys
-            for iface_name, iface_config in iface_data.items():
-                cfg = iface_config if isinstance(iface_config, dict) else {}
-                interfaces.append(InterfaceName(
-                    name=iface_name,
-                    type=iface_type,
-                    description=cfg.get("description") or None,
-                ))
-
-                # Handle VLANs (vif) - 802.1q sub-interfaces
-                if "vif" in cfg:
-                    vif_data = cfg["vif"]
-                    if isinstance(vif_data, dict):
-                        for vlan_id, vlan_cfg in vif_data.items():
-                            vif_name = f"{iface_name}.{vlan_id}"
-                            vlan_desc = vlan_cfg.get("description") or None if isinstance(vlan_cfg, dict) else None
-                            interfaces.append(InterfaceName(name=vif_name, type="vif", description=vlan_desc))
-
-                # Handle VIF-S (QinQ service VLANs)
-                if "vif-s" in cfg:
-                    vif_s_data = cfg["vif-s"]
-                    if isinstance(vif_s_data, dict):
-                        for s_vlan_id, s_vlan_config in vif_s_data.items():
-                            vif_s_name = f"{iface_name}.{s_vlan_id}"
-                            s_desc = s_vlan_config.get("description") or None if isinstance(s_vlan_config, dict) else None
-                            interfaces.append(InterfaceName(name=vif_s_name, type="vif-s", description=s_desc))
-
-                            # Handle VIF-C (QinQ customer VLANs) nested in VIF-S
-                            if isinstance(s_vlan_config, dict) and "vif-c" in s_vlan_config:
-                                vif_c_data = s_vlan_config["vif-c"]
-                                if isinstance(vif_c_data, dict):
-                                    for c_vlan_id, c_vlan_cfg in vif_c_data.items():
-                                        vif_c_name = f"{iface_name}.{s_vlan_id}.{c_vlan_id}"
-                                        c_desc = c_vlan_cfg.get("description") or None if isinstance(c_vlan_cfg, dict) else None
-                                        interfaces.append(InterfaceName(name=vif_c_name, type="vif-c", description=c_desc))
-
-        # Sort interfaces by name for consistent ordering
-        interfaces.sort(key=lambda x: x.name)
+        if "1.4" not in version:
+            # VyOS 1.5+: prefer the kernel interface list, fall back to config
+            # on any failure so the dropdowns never break.
+            try:
+                response = await run_in_threadpool(
+                    service.device.show, path=["interfaces", "kernel", "json"]
+                )
+                if response.status == 200:
+                    output = ""
+                    if isinstance(response.result, dict) and "data" in response.result:
+                        output = response.result["data"]
+                    elif isinstance(response.result, str):
+                        output = response.result
+                    if output and output.strip():
+                        config_index = {i.name: i for i in config_list}
+                        interfaces = _interfaces_from_kernel(output, config_index)
+                    else:
+                        logger.warning("Empty 'show interfaces kernel json' output; using config list")
+                else:
+                    logger.warning(
+                        "'show interfaces kernel json' failed (status %s); using config list",
+                        response.status,
+                    )
+            except Exception:
+                logger.exception("Failed to parse kernel interface list; using config list")
+                interfaces = config_list
 
         return AllInterfacesResponse(
             interfaces=interfaces,

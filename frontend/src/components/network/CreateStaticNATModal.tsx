@@ -9,12 +9,6 @@ import { InterfaceSelect } from "@/components/ui/interface-select";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertCircle } from "lucide-react";
 import { natService } from "@/lib/api/nat";
-import { configService } from "@/lib/api/config";
-
-interface SimpleInterface {
-  name: string;
-  type: string;
-}
 
 interface CreateStaticNATModalProps {
   open: boolean;
@@ -27,7 +21,6 @@ export function CreateStaticNATModal({ open, onOpenChange, onSuccess }: CreateSt
   const [error, setError] = useState<string | null>(null);
 
   // Dropdown data
-  const [interfaces, setInterfaces] = useState<SimpleInterface[]>([]);
 
   // Auto-calculated rule number
   const [ruleNumber, setRuleNumber] = useState<number>(10);
@@ -43,65 +36,9 @@ export function CreateStaticNATModal({ open, onOpenChange, onSuccess }: CreateSt
     if (open) {
       // Reset form to ensure clean state when opening
       resetForm();
-      loadInterfaces();
       calculateNextRuleNumber();
     }
   }, [open]);
-
-  const loadInterfaces = async () => {
-    try {
-      const snapshot = await configService.getSnapshot();
-      const interfacesConfig = snapshot.config?.interfaces || {};
-      const allInterfaces: SimpleInterface[] = [];
-
-      // Parse all interface types from the config
-      const interfaceTypes = [
-        "ethernet",
-        "wireguard",
-        "vti",
-        "tunnel",
-        "dummy",
-        "loopback",
-        "bridge",
-        "bonding",
-        "pppoe",
-        "wwan",
-        "macsec",
-        "openvpn",
-        "vxlan",
-        "geneve",
-        "l2tpv3",
-        "sstpc",
-        "virtual-ethernet",
-      ];
-
-      for (const ifaceType of interfaceTypes) {
-        const typeInterfaces = interfacesConfig[ifaceType];
-        if (typeInterfaces && typeof typeInterfaces === "object") {
-          for (const ifaceName of Object.keys(typeInterfaces)) {
-            allInterfaces.push({ name: ifaceName, type: ifaceType });
-
-            // Check for VLANs (vif) under ethernet/bonding/bridge interfaces
-            const ifaceConfig = typeInterfaces[ifaceName];
-            if (ifaceConfig?.vif && typeof ifaceConfig.vif === "object") {
-              for (const vlanId of Object.keys(ifaceConfig.vif)) {
-                allInterfaces.push({
-                  name: `${ifaceName}.${vlanId}`,
-                  type: "vlan",
-                });
-              }
-            }
-          }
-        }
-      }
-
-      // Sort interfaces by name
-      allInterfaces.sort((a, b) => a.name.localeCompare(b.name));
-      setInterfaces(allInterfaces);
-    } catch (err) {
-      console.error("Failed to load interfaces:", err);
-    }
-  };
 
   const calculateNextRuleNumber = async () => {
     try {
@@ -246,7 +183,6 @@ export function CreateStaticNATModal({ open, onOpenChange, onSuccess }: CreateSt
               value={inboundInterface}
               onValueChange={setInboundInterface}
               id="inbound-interface"
-              interfaces={interfaces.map((i) => ({ name: i.name, type: i.type, description: null }))}
               placeholder="Select interface"
             />
             <p className="text-xs text-muted-foreground">
