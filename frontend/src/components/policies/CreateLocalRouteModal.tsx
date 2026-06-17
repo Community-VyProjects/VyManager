@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { VrfSelect } from "@/components/ui/vrf-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -370,12 +371,14 @@ export function CreateLocalRouteModal({
               </div>
             ) : (
               <div className="space-y-2">
-                <Input
+                <VrfSelect
                   id="vrf"
                   value={vrf}
-                  onChange={(e) => setVrf(e.target.value)}
-                  placeholder="Enter VRF name or 'default'"
+                  onValueChange={setVrf}
                   disabled={loading}
+                  includeNone={false}
+                  placeholder="Select VRF"
+                  extraOptions={[{ label: "Default", value: "default" }]}
                 />
                 <p className="text-xs text-muted-foreground">
                   VRF instance to use for matched traffic (VyOS 1.5+)

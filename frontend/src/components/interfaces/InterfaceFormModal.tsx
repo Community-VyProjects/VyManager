@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { VrfSelect } from "@/components/ui/vrf-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -244,26 +245,13 @@ export function InterfaceFormModal({
           {/* VRF */}
           <div className="space-y-2">
             <Label htmlFor="vrf">VRF</Label>
-            <Select
-              value={formData.vrf || "none"}
-              onValueChange={(value) =>
-                setFormData({ ...formData, vrf: value === "none" ? "" : value })
-              }
+            <VrfSelect
+              id="vrf"
+              value={formData.vrf || ""}
+              onValueChange={(value) => setFormData({ ...formData, vrf: value })}
+              vrfs={vrfs}
               disabled={isLoadingVrfs}
-            >
-              <SelectTrigger id="vrf">
-                <SelectValue placeholder={isLoadingVrfs ? "Loading VRFs..." : "Select VRF"} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">None</SelectItem>
-                {vrfs.map((vrf) => (
-                  <SelectItem key={vrf.name} value={vrf.name}>
-                    {vrf.name}
-                    {vrf.description && ` - ${vrf.description}`}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            />
           </div>
 
           {/* Hardware ID (for Ethernet) */}

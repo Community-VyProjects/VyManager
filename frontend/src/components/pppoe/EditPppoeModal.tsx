@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { VrfSelect } from "@/components/ui/vrf-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -448,10 +449,10 @@ export function EditPppoeModal({
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="edit-pppoe-vrf">VRF</Label>
-                <Input
+                <VrfSelect
                   id="edit-pppoe-vrf"
                   value={vrf}
-                  onChange={(e) => setVrf(e.target.value)}
+                  onValueChange={setVrf}
                 />
               </div>
               <div>

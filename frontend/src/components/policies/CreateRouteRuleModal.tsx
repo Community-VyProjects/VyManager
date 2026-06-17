@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { VrfSelect } from "@/components/ui/vrf-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -1525,12 +1526,12 @@ export function CreateRouteRuleModal({
                 {capabilities?.features.vrf_routing?.supported && (
                   <div className="space-y-2">
                     <Label htmlFor="actionVrf">VRF</Label>
-                    <Input
+                    <VrfSelect
                       id="actionVrf"
-                      placeholder="VRF name"
                       value={actionVrf}
-                      onChange={(e) => setActionVrf(e.target.value)}
+                      onValueChange={setActionVrf}
                       disabled={loading}
+                      extraOptions={[{ label: "Default", value: "default" }]}
                     />
                     <p className="text-xs text-muted-foreground">
                       VRF routing (VyOS 1.5+ only)

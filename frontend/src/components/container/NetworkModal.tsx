@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { VrfSelect } from "@/components/ui/vrf-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -200,7 +201,7 @@ export function NetworkModal({ open, onOpenChange, network, capabilities, onSubm
 
             <div className="space-y-2">
               <Label htmlFor="net-vrf">VRF</Label>
-              <Input id="net-vrf" value={vrf} onChange={e => setVrf(e.target.value)} placeholder="VRF name (optional)" className="font-mono" />
+              <VrfSelect id="net-vrf" value={vrf} onValueChange={setVrf} className="font-mono" />
             </div>
 
             <div className="flex items-center gap-2">

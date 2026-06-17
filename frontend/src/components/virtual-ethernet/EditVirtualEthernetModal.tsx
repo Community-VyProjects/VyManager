@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { VrfSelect } from "@/components/ui/vrf-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -309,7 +310,7 @@ function VifForm({
         </div>
         <div className="space-y-1">
           <Label className="text-xs">VRF</Label>
-          <Input value={form.vrf} onChange={(e) => onChange({ vrf: e.target.value })} />
+          <VrfSelect value={form.vrf} onValueChange={(v) => onChange({ vrf: v })} />
         </div>
         <div className="space-y-1">
           <Label className="text-xs">Redirect</Label>
@@ -934,7 +935,7 @@ export function EditVirtualEthernetModal({
               </div>
               <div className="space-y-2">
                 <Label htmlFor="e-vrf">VRF</Label>
-                <Input id="e-vrf" value={vrf} onChange={(e) => setVrf(e.target.value)} />
+                <VrfSelect id="e-vrf" value={vrf} onValueChange={setVrf} />
               </div>
             </div>
 
@@ -1146,7 +1147,7 @@ export function EditVirtualEthernetModal({
                               <div className="space-y-1"><Label className="text-xs">Description</Label><Input value={newVifC.description} onChange={(e) => setNewVifC((p) => ({ ...p, description: e.target.value }))} /></div>
                               <div className="space-y-1"><Label className="text-xs">MTU</Label><Input type="number" value={newVifC.mtu} onChange={(e) => setNewVifC((p) => ({ ...p, mtu: e.target.value }))} /></div>
                               <div className="space-y-1"><Label className="text-xs">MAC</Label><Input value={newVifC.mac} onChange={(e) => setNewVifC((p) => ({ ...p, mac: e.target.value }))} placeholder="xx:xx:xx:xx:xx:xx" /></div>
-                              <div className="space-y-1"><Label className="text-xs">VRF</Label><Input value={newVifC.vrf} onChange={(e) => setNewVifC((p) => ({ ...p, vrf: e.target.value }))} /></div>
+                              <div className="space-y-1"><Label className="text-xs">VRF</Label><VrfSelect value={newVifC.vrf} onValueChange={(v) => setNewVifC((p) => ({ ...p, vrf: v }))} /></div>
                               <div className="space-y-1"><Label className="text-xs">Redirect</Label><Input value={newVifC.redirect} onChange={(e) => setNewVifC((p) => ({ ...p, redirect: e.target.value }))} /></div>
                             </div>
                             <div className="flex items-center gap-3">

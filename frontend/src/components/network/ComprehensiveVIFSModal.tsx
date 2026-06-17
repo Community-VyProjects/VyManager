@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { VrfSelect } from "@/components/ui/vrf-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -523,7 +524,7 @@ export function ComprehensiveVIFSModal({
                 {feat?.vif_vrf && (
                   <div className="space-y-2">
                     <Label htmlFor="vrf">VRF</Label>
-                    <Input id="vrf" placeholder="MGMT" value={vrf} onChange={(e) => setVrf(e.target.value)} />
+                    <VrfSelect id="vrf" value={vrf} onValueChange={setVrf} />
                   </div>
                 )}
                 {feat?.vif_redirect && (

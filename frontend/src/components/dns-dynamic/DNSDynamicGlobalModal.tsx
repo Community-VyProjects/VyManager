@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { VrfSelect } from "@/components/ui/vrf-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -78,12 +79,12 @@ export function DNSDynamicGlobalModal({ open, onOpenChange, interval, vrf, onSub
           </div>
           <div className="space-y-2">
             <Label htmlFor="ddns-vrf">VRF (optional)</Label>
-            <Input
+            <VrfSelect
               id="ddns-vrf"
               value={vrfVal}
-              onChange={(e) => setVrfVal(e.target.value)}
-              placeholder="e.g. mgmt"
+              onValueChange={setVrfVal}
               className="font-mono"
+              extraOptions={[{ label: "Default", value: "default" }]}
             />
           </div>
         </div>

@@ -8,6 +8,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { VrfSelect } from "@/components/ui/vrf-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -323,7 +324,7 @@ function TargetList({
         <div key={i} className="flex items-center gap-2">
           <Input className="h-7 font-mono" placeholder="Target address" value={t.address} disabled={disabled} onChange={(e) => update(i, { address: e.target.value })} />
           <Input className="h-7" placeholder="Interface" value={t.interface} disabled={disabled} onChange={(e) => update(i, { interface: e.target.value })} />
-          <Input className="h-7" placeholder="VRF" value={t.vrf} disabled={disabled} onChange={(e) => update(i, { vrf: e.target.value })} />
+          <VrfSelect className="h-7" placeholder="VRF" value={t.vrf} disabled={disabled} onValueChange={(v) => update(i, { vrf: v })} extraOptions={[{ label: "Default", value: "default" }]} />
           {!disabled && (
             <Button size="sm" variant="ghost" className="h-7 text-destructive" onClick={() => setTargets(targets.filter((_, idx) => idx !== i))}>
               <Trash2 className="h-3 w-3" />

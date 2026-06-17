@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { VrfSelect } from "@/components/ui/vrf-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -537,7 +538,7 @@ export function EditOpenvpnModal({
               </div>
               <div>
                 <Label htmlFor="evrf">VRF</Label>
-                <Input id="evrf" value={vrf} onChange={(e) => setVrf(e.target.value)} />
+                <VrfSelect id="evrf" value={vrf} onValueChange={setVrf} />
               </div>
             </div>
             <div>

@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { VrfSelect } from "@/components/ui/vrf-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -419,7 +420,7 @@ export function EditTunnelModal({
               </div>
               <div className="space-y-2">
                 <Label htmlFor="edit-vrf">VRF</Label>
-                <Input id="edit-vrf" value={vrf} onChange={(e) => setVrf(e.target.value)} placeholder="VRF name" />
+                <VrfSelect id="edit-vrf" value={vrf} onValueChange={setVrf} />
               </div>
               <div className="space-y-2">
                 <Label>Source Interface</Label>
