@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -123,7 +123,7 @@ export function CGNATView({ config, onRefresh, canWrite, loading }: CGNATViewPro
 
   const externalPools = config?.external_pools ?? [];
   const internalPools = config?.internal_pools ?? [];
-  const rules = config?.rules ?? [];
+  const rules = useMemo(() => config?.rules ?? [], [config]);
   const logAllocation = config?.log_allocation ?? false;
 
   // ==================== Helpers ====================

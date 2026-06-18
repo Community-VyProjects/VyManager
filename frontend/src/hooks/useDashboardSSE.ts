@@ -158,6 +158,7 @@ export function useDashboardSSE(): DashboardSSEState {
   const esRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset status while (re)subscribing to the stream
     setStatus("connecting");
 
     const es = new EventSource("/api/vyos/show/stream");

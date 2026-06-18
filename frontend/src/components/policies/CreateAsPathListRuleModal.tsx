@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,14 +32,7 @@ export function CreateAsPathListRuleModal({
   const [action, setAction] = useState<"permit" | "deny">("permit");
   const [regex, setRegex] = useState("");
 
-  useEffect(() => {
-    if (open) {
-      calculateNextRuleNumber();
-      setError(null);
-    }
-  }, [open, asPathListName]);
-
-  const calculateNextRuleNumber = async () => {
+  const calculateNextRuleNumber = useCallback(async () => {
     try {
       const config = await asPathListService.getConfig();
       const asPathList = config.as_path_lists.find((apl) => apl.name === asPathListName);
@@ -54,7 +47,14 @@ export function CreateAsPathListRuleModal({
       console.error("Failed to calculate next rule number:", err);
       setRuleNumber(100);
     }
-  };
+  }, [asPathListName]);
+
+  useEffect(() => {
+    if (open) {
+      calculateNextRuleNumber();
+      setError(null);
+    }
+  }, [open, calculateNextRuleNumber]);
 
   const resetForm = () => {
     setDescription("");

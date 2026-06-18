@@ -53,10 +53,12 @@ function SystemSettingsPageInner() {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- load settings on mount
     load(true);
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync selected tab from the URL
     setSelectedTab(searchParams.get("tab") ?? "general");
   }, [searchParams]);
 

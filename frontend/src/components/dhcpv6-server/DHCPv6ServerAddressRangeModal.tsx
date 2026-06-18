@@ -108,6 +108,7 @@ export function DHCPv6ServerAddressRangeModal({
       setMode("start-stop");
       setStart14(""); setStop14(""); setPrefix14(""); setTemporary(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- seed form fields when the modal opens
   }, [open, range, is15]);
 
   async function handleSubmit() {

@@ -34,7 +34,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Plus, Search, RefreshCw, AlertCircle, Server, Network, Clock, Pencil, Trash2, MapPin, Activity, Wifi, Monitor, Globe, Settings2, Loader2, Power, PowerOff } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import {
@@ -202,30 +202,6 @@ function DHCPPageInner() {
     }
   };
 
-  const fetchConfig = async (refresh: boolean = false) => {
-    try {
-      setLoading(true);
-      setError(null);
-      const [configData, capsData] = await Promise.all([
-        dhcpService.getConfig(refresh),
-        dhcpService.getCapabilities(),
-      ]);
-      setConfig(configData);
-      setCapabilities(capsData);
-
-      // Auto-select first network if none selected
-      if (!selectedNetwork && configData.shared_networks.length > 0) {
-        setSelectedNetwork(configData.shared_networks[0].name);
-      }
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to load DHCP configuration"
-      );
-      console.error("Error fetching DHCP config:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const fetchLeases = async () => {
     try {
@@ -250,10 +226,35 @@ function DHCPPageInner() {
     }
   };
 
+  const fetchConfig = useCallback(async (refresh: boolean = false) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const [configData, capsData] = await Promise.all([
+        dhcpService.getConfig(refresh),
+        dhcpService.getCapabilities(),
+      ]);
+      setConfig(configData);
+      setCapabilities(capsData);
+
+      // Auto-select first network if none selected
+      if (configData.shared_networks.length > 0) {
+        setSelectedNetwork((prev) => prev ?? configData.shared_networks[0].name);
+      }
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to load DHCP configuration"
+      );
+      console.error("Error fetching DHCP config:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchConfig();
     fetchLeases();
-  }, []);
+  }, [fetchConfig]);
 
   useEffect(() => {
     const section = searchParams.get("section");

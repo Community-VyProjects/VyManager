@@ -1,6 +1,5 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,26 +19,6 @@ interface UnifiedViewProps {
 
 export function UnifiedView({ isOpen, onClose, type, data }: UnifiedViewProps) {
   const router = useRouter();
-  const [, setRelatedData] = useState<Record<string, unknown>>({});
-
-  useEffect(() => {
-    if (isOpen && data) {
-      // Load related data based on type
-      loadRelatedData();
-    }
-  }, [isOpen, data]);
-
-  const loadRelatedData = async () => {
-    // This would load related information from various APIs
-    // For now, we'll simulate with the data we have
-    setRelatedData({
-      firewallRules: [],
-      routes: [],
-      natRules: [],
-      monitoring: {},
-      logs: [],
-    });
-  };
 
   const renderSubnetView = () => {
     const { network, subnet } = data as {

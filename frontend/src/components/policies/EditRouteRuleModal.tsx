@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { VrfSelect } from "@/components/ui/vrf-select";
 import { Button } from "@/components/ui/button";
@@ -164,45 +164,7 @@ export function EditRouteRuleModal({
   const [actionTcpMss, setActionTcpMss] = useState("");
   const [actionVrf, setActionVrf] = useState("");
 
-  useEffect(() => {
-    if (open) {
-      loadGroups();
-      if (rule) {
-        loadRuleData();
-      }
-    }
-  }, [open, rule]);
-
-  // Protocol validation: must be tcp/udp/tcp_udp when using ports or port-groups
-  useEffect(() => {
-    const hasPort = sourcePort.trim() || destPort.trim() || sourcePortGroup || destPortGroup;
-    const validProtocols = ["tcp", "udp", "tcp_udp"];
-
-    if (hasPort && !validProtocols.includes(protocol)) {
-      setProtocol("tcp_udp");
-    }
-  }, [sourcePort, destPort, sourcePortGroup, destPortGroup, protocol]);
-
-  const loadGroups = async () => {
-    try {
-      const config = await firewallGroupsService.getConfig();
-      const allGroups = [
-        ...config.address_groups,
-        ...config.ipv6_address_groups,
-        ...config.network_groups,
-        ...config.ipv6_network_groups,
-        ...config.port_groups,
-        ...config.interface_groups,
-        ...config.domain_groups,
-        ...config.mac_groups,
-      ];
-      setGroups(allGroups);
-    } catch (err) {
-      console.error("Failed to load groups:", err);
-    }
-  };
-
-  const loadRuleData = () => {
+  const loadRuleData = useCallback(() => {
     if (!rule) return;
     const match = rule.match || {};
     const set = rule.set || {};
@@ -434,7 +396,46 @@ export function EditRouteRuleModal({
     }
     setActionTcpMss(set.tcp_mss || "");
     setActionVrf(set.vrf || "");
+  }, [rule]);
+
+  useEffect(() => {
+    if (open) {
+      loadGroups();
+      if (rule) {
+        loadRuleData();
+      }
+    }
+  }, [open, rule, loadRuleData]);
+
+  // Protocol validation: must be tcp/udp/tcp_udp when using ports or port-groups
+  useEffect(() => {
+    const hasPort = sourcePort.trim() || destPort.trim() || sourcePortGroup || destPortGroup;
+    const validProtocols = ["tcp", "udp", "tcp_udp"];
+
+    if (hasPort && !validProtocols.includes(protocol)) {
+      setProtocol("tcp_udp");
+    }
+  }, [sourcePort, destPort, sourcePortGroup, destPortGroup, protocol]);
+
+  const loadGroups = async () => {
+    try {
+      const config = await firewallGroupsService.getConfig();
+      const allGroups = [
+        ...config.address_groups,
+        ...config.ipv6_address_groups,
+        ...config.network_groups,
+        ...config.ipv6_network_groups,
+        ...config.port_groups,
+        ...config.interface_groups,
+        ...config.domain_groups,
+        ...config.mac_groups,
+      ];
+      setGroups(allGroups);
+    } catch (err) {
+      console.error("Failed to load groups:", err);
+    }
   };
+
 
   const handleSubmit = async () => {
     if (!rule) return;

@@ -101,6 +101,7 @@ export function BgpStatusCard({ onRemove, span = 1, onSpanChange }: BgpStatusCar
   // Snapshot the stream so "Paused" freezes the displayed status.
   const [snapshot, setSnapshot] = useState<BgpStatusData | null>(null);
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- freeze the last SSE snapshot for the paused view
     if (autoRefresh && sseData.bgpStatus) setSnapshot(sseData.bgpStatus);
   }, [autoRefresh, sseData.bgpStatus]);
 

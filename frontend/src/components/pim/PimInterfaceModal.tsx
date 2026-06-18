@@ -100,6 +100,7 @@ export function PimInterfaceModal({
       setActiveTab("pim");
       loadInterfaces();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- seed/reset the form when opened; reset helpers only touch local state
   }, [open, existingInterface]);
 
   const loadInterfaces = async () => {

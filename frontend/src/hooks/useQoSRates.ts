@@ -58,6 +58,7 @@ export function useQoSRates(live: QoSStatsResponse | null, active: boolean) {
     for (const ck of live.cake ?? []) sample(qosCakeKey(ck.interface), ck.bytes);
 
     prevRef.current = nextSamples;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- recompute rates when a new live sample arrives
     setStats(live);
     setRates(nextRates);
   }, [live, active]);

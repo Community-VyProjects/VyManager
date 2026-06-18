@@ -8,7 +8,7 @@ import { Pim6Content } from "@/components/pim6/Pim6Content";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Radio, ChevronRight, Wifi } from "lucide-react";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
@@ -30,14 +30,10 @@ export default function MulticastPage() {
     return allMulticast.filter(protocol => canRead(protocol.permission));
   }, [canRead, isLoading]);
 
-  const [selectedMulticast, setSelectedMulticast] = useState<MulticastType | null>(null);
+  const [userSelectedMulticast, setSelectedMulticast] = useState<MulticastType | null>(null);
 
-  // Auto-select first available multicast protocol
-  useEffect(() => {
-    if (multicast.length > 0 && !selectedMulticast) {
-      setSelectedMulticast(multicast[0].id);
-    }
-  }, [multicast, selectedMulticast]);
+  // Auto-select the first available protocol until the user picks one (derived, no effect)
+  const selectedMulticast = userSelectedMulticast ?? multicast[0]?.id ?? null;
 
   return (
     <AppLayout>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -121,31 +121,7 @@ export function CreateDHCPServerModal({
   const [pingCheck, setPingCheck] = useState(false);
   const [enableFailover, setEnableFailover] = useState(false);
 
-  useEffect(() => {
-    if (open) {
-      // Set mode based on whether existingNetwork is provided
-      if (existingNetwork) {
-        setMode("existing");
-        setSelectedNetwork(existingNetwork);
-      } else {
-        setMode("new");
-        setSelectedNetwork("");
-      }
-      calculateNextSubnetId();
-      loadExistingNetworks();
-    }
-  }, [open, existingNetwork]);
-
-  const loadExistingNetworks = async () => {
-    try {
-      const config = await dhcpService.getConfig();
-      setExistingNetworks(config.shared_networks.map(n => n.name));
-    } catch (err) {
-      console.error("Failed to load existing networks:", err);
-    }
-  };
-
-  const calculateNextSubnetId = async () => {
+  const calculateNextSubnetId = useCallback(async () => {
     if (!capabilities?.has_subnet_id) return;
 
     try {
@@ -172,7 +148,32 @@ export function CreateDHCPServerModal({
       console.error("Failed to calculate next subnet ID:", err);
       setSubnetId("1");
     }
+  }, [capabilities]);
+
+  useEffect(() => {
+    if (open) {
+      // Set mode based on whether existingNetwork is provided
+      if (existingNetwork) {
+        setMode("existing");
+        setSelectedNetwork(existingNetwork);
+      } else {
+        setMode("new");
+        setSelectedNetwork("");
+      }
+      calculateNextSubnetId();
+      loadExistingNetworks();
+    }
+  }, [open, existingNetwork, calculateNextSubnetId]);
+
+  const loadExistingNetworks = async () => {
+    try {
+      const config = await dhcpService.getConfig();
+      setExistingNetworks(config.shared_networks.map(n => n.name));
+    } catch (err) {
+      console.error("Failed to load existing networks:", err);
+    }
   };
+
 
   const resetForm = () => {
     setMode("new");

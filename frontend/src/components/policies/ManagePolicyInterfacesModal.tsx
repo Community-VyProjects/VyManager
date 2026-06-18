@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -46,13 +46,7 @@ export function ManagePolicyInterfacesModal({
   const [selectedInterfaces, setSelectedInterfaces] = useState<Set<string>>(new Set());
   const [originalInterfaces, setOriginalInterfaces] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    if (open) {
-      loadData();
-    }
-  }, [open, policyType, policyName]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoadingData(true);
     setError(null);
     try {
@@ -97,7 +91,14 @@ export function ManagePolicyInterfacesModal({
     } finally {
       setLoadingData(false);
     }
-  };
+  }, [policyType, policyName]);
+
+  useEffect(() => {
+    if (open) {
+      loadData();
+    }
+  }, [open, policyType, policyName, loadData]);
+
 
   const handleToggleInterface = (interfaceName: string) => {
     const newSelected = new Set(selectedInterfaces);

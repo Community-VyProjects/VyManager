@@ -238,6 +238,7 @@ export function TrafficTable({
   const parsedOffsetRef = useRef(0);
   const idCounterRef = useRef(0);
   const bufferRef = useRef<TrafficEntry[]>([]);
+  const [bufferedCount, setBufferedCount] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const autoScrollRef = useRef(true);
 
@@ -254,6 +255,7 @@ export function TrafficTable({
 
     if (paused) {
       bufferRef.current = [...bufferRef.current, ...newEntries];
+      setBufferedCount(bufferRef.current.length);
     } else {
       setEntries((prev) => {
         const combined = [...prev, ...newEntries];
@@ -272,6 +274,7 @@ export function TrafficTable({
         return combined.length > MAX_ENTRIES ? combined.slice(-MAX_ENTRIES) : combined;
       });
     }
+    setBufferedCount(0);
   };
 
   // Auto-scroll
@@ -354,6 +357,7 @@ export function TrafficTable({
   const handleClear = () => {
     setEntries([]);
     bufferRef.current = [];
+    setBufferedCount(0);
     parsedOffsetRef.current = output.length;
     setSelectedEntry(null);
     onClear();
@@ -405,9 +409,9 @@ export function TrafficTable({
               {proto} {protoCounts[proto]}
             </button>
           ))}
-          {paused && bufferRef.current.length > 0 && (
+          {paused && bufferedCount > 0 && (
             <Badge variant="secondary" className="text-[10px]">
-              +{bufferRef.current.length} buffered
+              +{bufferedCount} buffered
             </Badge>
           )}
         </div>

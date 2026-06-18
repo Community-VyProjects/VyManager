@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { VrfSelect } from "@/components/ui/vrf-select";
 import { Button } from "@/components/ui/button";
@@ -163,12 +163,30 @@ export function CreateRouteRuleModal({
   const [actionTcpMss, setActionTcpMss] = useState("");
   const [actionVrf, setActionVrf] = useState("");
 
+  const calculateNextRuleNumber = useCallback(async () => {
+    try {
+      const config = await routeService.getConfig();
+      const policies = policyType === "route" ? config.ipv4_policies : config.ipv6_policies;
+      const policy = policies.find((p) => p.name === policyName);
+
+      if (!policy || policy.rules.length === 0) {
+        setRuleNumber(100);
+      } else {
+        const ruleNumbers = policy.rules.map((r) => r.rule_number);
+        setRuleNumber(Math.max(...ruleNumbers) + 1);
+      }
+    } catch (err) {
+      console.error("Failed to calculate next rule number:", err);
+      setRuleNumber(100);
+    }
+  }, [policyType, policyName]);
+
   useEffect(() => {
     if (open) {
       loadGroups();
       calculateNextRuleNumber();
     }
-  }, [open, policyType, policyName]);
+  }, [open, policyType, policyName, calculateNextRuleNumber]);
 
   // Protocol validation: must be tcp/udp/tcp_udp when using ports or port-groups
   useEffect(() => {
@@ -196,24 +214,6 @@ export function CreateRouteRuleModal({
       setGroups(allGroups);
     } catch (err) {
       console.error("Failed to load groups:", err);
-    }
-  };
-
-  const calculateNextRuleNumber = async () => {
-    try {
-      const config = await routeService.getConfig();
-      const policies = policyType === "route" ? config.ipv4_policies : config.ipv6_policies;
-      const policy = policies.find((p) => p.name === policyName);
-
-      if (!policy || policy.rules.length === 0) {
-        setRuleNumber(100);
-      } else {
-        const ruleNumbers = policy.rules.map((r) => r.rule_number);
-        setRuleNumber(Math.max(...ruleNumbers) + 1);
-      }
-    } catch (err) {
-      console.error("Failed to calculate next rule number:", err);
-      setRuleNumber(100);
     }
   };
 

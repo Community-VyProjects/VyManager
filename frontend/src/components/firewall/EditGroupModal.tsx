@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,28 +36,7 @@ export function EditGroupModal({ open, onOpenChange, group, onSuccess }: EditGro
   const [availableGroups, setAvailableGroups] = useState<FirewallGroup[]>([]);
   const [groupSearchQuery, setGroupSearchQuery] = useState("");
 
-  // Load available groups when modal opens
-  useEffect(() => {
-    if (open && group) {
-      loadAvailableGroups();
-    }
-  }, [open, group]);
-
-  const loadAvailableGroups = async () => {
-    if (!group) return;
-
-    try {
-      const config = await firewallGroupsService.getConfig();
-      // Get groups of the same type, excluding the current group
-      const groupsForType = getGroupsForType(config, group.type);
-      const filtered = groupsForType.filter(g => g.name !== group.name);
-      setAvailableGroups(filtered);
-    } catch (err) {
-      console.error("Failed to load available groups:", err);
-    }
-  };
-
-  const getGroupsForType = (config: GroupsConfigResponse, type: string): FirewallGroup[] => {
+  const getGroupsForType = useCallback((config: GroupsConfigResponse, type: string): FirewallGroup[] => {
     switch (type) {
       case "address-group":
         return config.address_groups || [];
@@ -76,7 +55,28 @@ export function EditGroupModal({ open, onOpenChange, group, onSuccess }: EditGro
       default:
         return [];
     }
-  };
+  }, []);
+
+  const loadAvailableGroups = useCallback(async () => {
+    if (!group) return;
+
+    try {
+      const config = await firewallGroupsService.getConfig();
+      // Get groups of the same type, excluding the current group
+      const groupsForType = getGroupsForType(config, group.type);
+      const filtered = groupsForType.filter(g => g.name !== group.name);
+      setAvailableGroups(filtered);
+    } catch (err) {
+      console.error("Failed to load available groups:", err);
+    }
+  }, [getGroupsForType, group]);
+
+  // Load available groups when modal opens
+  useEffect(() => {
+    if (open && group) {
+      loadAvailableGroups();
+    }
+  }, [open, group, loadAvailableGroups]);
 
   // Check if current group type supports include
   const supportsInclude = () => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -122,7 +122,7 @@ export default function BGPCommunityPage() {
     })
   );
 
-  const fetchData = async (refresh: boolean = false) => {
+  const fetchData = useCallback(async (refresh: boolean = false) => {
     try {
       setLoading(true);
       setError(null);
@@ -139,10 +139,8 @@ export default function BGPCommunityPage() {
       setOriginalRules([]);
 
       // Auto-select first community list if none selected
-      if (!selectedCommunityList) {
-        if (config.community_lists.length > 0) {
-          setSelectedCommunityList(config.community_lists[0].name);
-        }
+      if (config.community_lists.length > 0) {
+        setSelectedCommunityList((prev) => prev ?? config.community_lists[0].name);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load community lists");
@@ -150,11 +148,11 @@ export default function BGPCommunityPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
 
   const selectedCommunityListData = communityLists.find((cl) => cl.name === selectedCommunityList);
 

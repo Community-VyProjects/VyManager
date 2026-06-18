@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -122,7 +122,7 @@ export default function BGPASPage() {
     })
   );
 
-  const fetchData = async (refresh: boolean = false) => {
+  const fetchData = useCallback(async (refresh: boolean = false) => {
     try {
       setLoading(true);
       setError(null);
@@ -139,10 +139,8 @@ export default function BGPASPage() {
       setOriginalRules([]);
 
       // Auto-select first AS path list if none selected
-      if (!selectedAsPathList) {
-        if (config.as_path_lists.length > 0) {
-          setSelectedAsPathList(config.as_path_lists[0].name);
-        }
+      if (config.as_path_lists.length > 0) {
+        setSelectedAsPathList((prev) => prev ?? config.as_path_lists[0].name);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load AS path lists");
@@ -150,11 +148,11 @@ export default function BGPASPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
 
   const selectedAsPathListData = asPathLists.find((apl) => apl.name === selectedAsPathList);
 

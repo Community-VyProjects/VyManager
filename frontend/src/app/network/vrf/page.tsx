@@ -63,6 +63,7 @@ export default function VRFPage() {
     if (!permissionsLoading && canRead(FeatureGroup.VRF)) {
       loadData();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- load once permissions settle; canRead is recreated each render in usePermissions
   }, [permissionsLoading]);
 
   const handleToggleBindToAll = async () => {

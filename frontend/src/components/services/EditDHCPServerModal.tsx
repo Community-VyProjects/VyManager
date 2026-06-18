@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -121,13 +121,7 @@ export function EditDHCPServerModal({
   const [pingCheck, setPingCheck] = useState(false);
   const [enableFailover, setEnableFailover] = useState(false);
 
-  useEffect(() => {
-    if (open && subnet) {
-      loadSubnetData();
-    }
-  }, [open, subnet]);
-
-  const loadSubnetData = () => {
+  const loadSubnetData = useCallback(() => {
     // Basic fields
     setDisabled(subnet.disable ?? false);
     setDescription(subnet.description ?? "");
@@ -163,7 +157,14 @@ export function EditDHCPServerModal({
     setEnableFailover(subnet.enable_failover);
 
     setError(null);
-  };
+  }, [subnet]);
+
+  useEffect(() => {
+    if (open && subnet) {
+      loadSubnetData();
+    }
+  }, [open, subnet, loadSubnetData]);
+
 
   const resetForm = () => {
     loadSubnetData();

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { VrfSelect } from "@/components/ui/vrf-select";
 import { Button } from "@/components/ui/button";
@@ -38,6 +38,23 @@ export function CreateLocalRouteModal({
   const [table, setTable] = useState("");
   const [vrf, setVrf] = useState("");
 
+  const calculateNextRuleNumber = useCallback(async () => {
+    try {
+      const config = await localRouteService.getConfig();
+      const rules = ruleType === "ipv4" ? config.ipv4_rules : config.ipv6_rules;
+
+      if (rules.length === 0) {
+        setRuleNumber(100);
+      } else {
+        const maxNumber = Math.max(...rules.map((r) => r.rule_number));
+        setRuleNumber(maxNumber + 1);
+      }
+    } catch (err) {
+      console.error("Error calculating rule number:", err);
+      setRuleNumber(100);
+    }
+  }, [ruleType]);
+
   useEffect(() => {
     if (open) {
       loadCapabilities();
@@ -45,7 +62,7 @@ export function CreateLocalRouteModal({
       calculateNextRuleNumber();
       resetForm();
     }
-  }, [open, ruleType]);
+  }, [open, ruleType, calculateNextRuleNumber]);
 
   const loadCapabilities = async () => {
     try {
@@ -83,23 +100,6 @@ export function CreateLocalRouteModal({
     // etc.
 
     setInterfaces(interfaceNames);
-  };
-
-  const calculateNextRuleNumber = async () => {
-    try {
-      const config = await localRouteService.getConfig();
-      const rules = ruleType === "ipv4" ? config.ipv4_rules : config.ipv6_rules;
-
-      if (rules.length === 0) {
-        setRuleNumber(100);
-      } else {
-        const maxNumber = Math.max(...rules.map((r) => r.rule_number));
-        setRuleNumber(maxNumber + 1);
-      }
-    } catch (err) {
-      console.error("Error calculating rule number:", err);
-      setRuleNumber(100);
-    }
   };
 
   const resetForm = () => {

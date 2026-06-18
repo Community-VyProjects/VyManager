@@ -85,6 +85,7 @@ export function DHCPv6ServerPrefixDelegationModal({
       setExcludedPrefix(""); setExcludedPrefixLength("");
       setStart(""); setStop(""); setPrefixLength14("");
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- seed form fields when the modal opens
   }, [open, pd, is15]);
 
   async function handleSubmit() {

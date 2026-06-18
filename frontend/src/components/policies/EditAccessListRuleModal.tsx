@@ -111,12 +111,14 @@ export function EditAccessListRuleModal({
     if (sourceNetwork.trim() && sourceExactMatch) {
       setSourceExactMatch(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- mutual-exclusivity guard keyed to the field that changed
   }, [sourceNetwork]);
 
   useEffect(() => {
     if (sourceExactMatch && sourceNetwork.trim()) {
       setSourceNetwork("");
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- mutual-exclusivity guard keyed to the field that changed
   }, [sourceExactMatch]);
 
   const resetForm = () => {

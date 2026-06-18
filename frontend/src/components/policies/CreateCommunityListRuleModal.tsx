@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,14 +32,7 @@ export function CreateCommunityListRuleModal({
   const [action, setAction] = useState<"permit" | "deny">("permit");
   const [regex, setRegex] = useState("");
 
-  useEffect(() => {
-    if (open) {
-      calculateNextRuleNumber();
-      setError(null);
-    }
-  }, [open, communityListName]);
-
-  const calculateNextRuleNumber = async () => {
+  const calculateNextRuleNumber = useCallback(async () => {
     try {
       const config = await communityListService.getConfig();
       const communityList = config.community_lists.find((cl) => cl.name === communityListName);
@@ -54,7 +47,14 @@ export function CreateCommunityListRuleModal({
       console.error("Failed to calculate next rule number:", err);
       setRuleNumber(100);
     }
-  };
+  }, [communityListName]);
+
+  useEffect(() => {
+    if (open) {
+      calculateNextRuleNumber();
+      setError(null);
+    }
+  }, [open, calculateNextRuleNumber]);
 
   const resetForm = () => {
     setDescription("");

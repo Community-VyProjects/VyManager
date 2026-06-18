@@ -136,6 +136,7 @@ export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSucce
 
   useEffect(() => {
     if (!open) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- seed form state when the modal opens
     setError(null);
     setActiveTab("network");
 

@@ -138,6 +138,7 @@ export function CertificateModal({
       }
       setError(null);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- seed form fields when the modal opens
   }, [open, existingCert]);
 
   useEffect(() => {
@@ -146,6 +147,7 @@ export function CertificateModal({
     } else if (keyType === "ec" && !ecKeySizes.includes(keySize)) {
       setKeySize("256");
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- reset key size only when the key type changes
   }, [keyType]);
 
   const handleManualSubmit = async () => {

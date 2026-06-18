@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -114,7 +114,8 @@ export default function WireGuardPage() {
   // Copy state
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
-  const fetchConfig = async (refresh: boolean = false) => {
+
+  const fetchConfig = useCallback(async (refresh: boolean = false) => {
     try {
       setLoading(true);
       setError(null);
@@ -126,19 +127,19 @@ export default function WireGuardPage() {
       setCapabilities(capsData);
 
       // Auto-select first interface if none selected
-      if (!selectedInterface && configData.interfaces.length > 0) {
-        setSelectedInterface(configData.interfaces[0].name);
+      if (configData.interfaces.length > 0) {
+        setSelectedInterface((prev) => prev ?? configData.interfaces[0].name);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load WireGuard configuration");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchConfig();
-  }, []);
+  }, [fetchConfig]);
 
   // Fetch public key when selected interface changes
   useEffect(() => {
@@ -163,7 +164,8 @@ export default function WireGuardPage() {
   }, [selectedInterface]);
 
   // Fetch interface status (handshake times, transfer) when selected interface changes
-  const fetchStatus = async () => {
+
+  const fetchStatus = useCallback(async () => {
     if (!selectedInterface) {
       setInterfaceStatus(null);
       return;
@@ -178,11 +180,11 @@ export default function WireGuardPage() {
     } finally {
       setLoadingStatus(false);
     }
-  };
+  }, [selectedInterface]);
 
   useEffect(() => {
     fetchStatus();
-  }, [selectedInterface]);
+  }, [selectedInterface, fetchStatus]);
 
   // Helper to get peer status by public key
   const getPeerStatus = (peer: WireGuardPeer) => {

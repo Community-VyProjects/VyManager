@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { VrfSelect } from "@/components/ui/vrf-select";
 import { Button } from "@/components/ui/button";
@@ -209,21 +209,21 @@ export function AddRouteMapRuleModal({
     }
   };
 
-  // Calculate next rule number when modal opens
-  useEffect(() => {
-    if (open) {
-      calculateNextRuleNumber();
-    }
-  }, [open, existingRules]);
-
-  const calculateNextRuleNumber = () => {
+  const calculateNextRuleNumber = useCallback(() => {
     if (existingRules.length === 0) {
       setRuleNumber(100);
     } else {
       const maxRuleNumber = Math.max(...existingRules.map((r) => r.rule_number));
       setRuleNumber(maxRuleNumber + 1);
     }
-  };
+  }, [existingRules]);
+
+  // Calculate next rule number when modal opens
+  useEffect(() => {
+    if (open) {
+      calculateNextRuleNumber();
+    }
+  }, [open, calculateNextRuleNumber]);
 
   // Community list names are already loaded in communityLists, largeCommunityLists, extcommunityLists
   // We'll use those directly for the delete dropdowns

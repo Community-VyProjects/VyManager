@@ -69,6 +69,7 @@ function InfrastructurePageInner() {
     const section = searchParams.get("section") as InfraType | null;
 
     if (section && infrastructure.some((infra) => infra.id === section)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- initialize selection from URL/data on load
       setSelectedInfra(section);
       return;
     }

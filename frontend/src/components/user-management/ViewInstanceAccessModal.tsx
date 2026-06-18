@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -269,13 +269,28 @@ export function ViewInstanceAccessModal({
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
 
+  const loadInstanceUsers = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const data = await userManagementService.getInstanceUsers(instance.id);
+      setUsers(data);
+      setFilteredUsers(data);
+    } catch (err) {
+      setError((err as ApiError).message || "Failed to load instance users");
+    } finally {
+      setLoading(false);
+    }
+  }, [instance.id]);
+
   useEffect(() => {
     if (open) {
       loadInstanceUsers();
       setSearchQuery("");
       setExpandedUserId(null);
     }
-  }, [open, instance.id]);
+  }, [open, instance.id, loadInstanceUsers]);
 
   useEffect(() => {
     // Filter users based on search query
@@ -294,20 +309,6 @@ export function ViewInstanceAccessModal({
     }
   }, [searchQuery, users]);
 
-  const loadInstanceUsers = async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const data = await userManagementService.getInstanceUsers(instance.id);
-      setUsers(data);
-      setFilteredUsers(data);
-    } catch (err) {
-      setError((err as ApiError).message || "Failed to load instance users");
-    } finally {
-      setLoading(false);
-    }
-  };
 
 
   const toggleUserExpand = (userId: string) => {

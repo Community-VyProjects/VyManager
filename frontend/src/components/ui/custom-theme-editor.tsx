@@ -38,6 +38,7 @@ export function CustomThemeEditor({ open, onOpenChange, editingTheme }: CustomTh
   // Populate fields when editing an existing theme
   useEffect(() => {
     if (open && editingTheme) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- seed form state when the editor opens
       setName(editingTheme.name);
       setHue(extractHue(editingTheme.variables));
       setIsDark(editingTheme.isDark);
