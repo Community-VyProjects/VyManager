@@ -54,6 +54,7 @@ function UnicastProtocolsPageInner() {
       requested = searchParams.get("protocol") as ProtocolType | null;
 
       if (requested && protocols.some((protocol) => protocol.id === requested)) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- initialize selection from URL/data on load
         setSelectedProtocol(requested);
         return;
       }

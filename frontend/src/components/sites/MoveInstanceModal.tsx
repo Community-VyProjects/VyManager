@@ -45,6 +45,7 @@ export function MoveInstanceModal({
   // Reset form when modal opens
   useEffect(() => {
     if (open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- seed form state when the modal opens
       setDestinationSiteId("");
       setError(null);
       setLoading(false);

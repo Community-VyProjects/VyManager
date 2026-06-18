@@ -81,6 +81,7 @@ export function DHCPv6ServerAddressRangeModal({
 
   useEffect(() => {
     if (!open) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- seed form state when the modal opens
     setError(null);
     setSelectedSubnet(subnetCidr);
     if (range) {

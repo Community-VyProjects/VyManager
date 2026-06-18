@@ -74,6 +74,7 @@ export function VrfSelect({
   useEffect(() => {
     if (provided) return;
     let active = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- show loading while fetching VRF options
     setLoading(true);
     vrfService
       .getConfig()

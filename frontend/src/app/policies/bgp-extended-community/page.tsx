@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -170,7 +170,7 @@ export default function BGPExtCommunityPage() {
     })
   );
 
-  const fetchData = async (refresh: boolean = false) => {
+  const fetchData = useCallback(async (refresh: boolean = false) => {
     try {
       setLoading(true);
       setError(null);
@@ -187,10 +187,8 @@ export default function BGPExtCommunityPage() {
       setOriginalRules([]);
 
       // Auto-select first extcommunity list if none selected
-      if (!selectedExtCommunityList) {
-        if (config.extcommunity_lists.length > 0) {
-          setSelectedExtCommunityList(config.extcommunity_lists[0].name);
-        }
+      if (config.extcommunity_lists.length > 0) {
+        setSelectedExtCommunityList((prev) => prev ?? config.extcommunity_lists[0].name);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load extcommunity lists");
@@ -198,11 +196,11 @@ export default function BGPExtCommunityPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
 
   const selectedExtCommunityListData = extcommunityLists.find((cl) => cl.name === selectedExtCommunityList);
 

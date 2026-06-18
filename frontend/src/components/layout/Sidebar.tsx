@@ -61,6 +61,7 @@ export function Sidebar() {
         }
       }
     });
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- open the active route's parent menus on navigation
     setOpenItems(activeParents);
   }, [pathname]);
 

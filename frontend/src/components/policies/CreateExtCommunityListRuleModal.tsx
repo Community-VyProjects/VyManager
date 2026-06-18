@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,14 +40,7 @@ export function CreateExtCommunityListRuleModal({
   // Raw regex for advanced mode
   const [rawRegex, setRawRegex] = useState("");
 
-  useEffect(() => {
-    if (open) {
-      calculateNextRuleNumber();
-      setError(null);
-    }
-  }, [open, extcommunityListName]);
-
-  const calculateNextRuleNumber = async () => {
+  const calculateNextRuleNumber = useCallback(async () => {
     try {
       const config = await extcommunityListService.getConfig();
       const extcommunityList = config.extcommunity_lists.find((ecl) => ecl.name === extcommunityListName);
@@ -62,7 +55,14 @@ export function CreateExtCommunityListRuleModal({
       console.error("Failed to calculate next rule number:", err);
       setRuleNumber(100);
     }
-  };
+  }, [extcommunityListName]);
+
+  useEffect(() => {
+    if (open) {
+      calculateNextRuleNumber();
+      setError(null);
+    }
+  }, [open, calculateNextRuleNumber]);
 
   const resetForm = () => {
     setDescription("");

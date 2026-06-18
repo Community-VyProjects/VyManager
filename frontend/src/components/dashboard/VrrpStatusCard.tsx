@@ -78,6 +78,7 @@ export function VrrpStatusCard({ onRemove, span = 1, onSpanChange }: VrrpStatusC
   // Snapshot the stream so "Paused" freezes the displayed status.
   const [snapshot, setSnapshot] = useState<VrrpStatusData | null>(null);
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- freeze the last SSE snapshot for the paused view
     if (autoRefresh && sseData.vrrpStatus) setSnapshot(sseData.vrrpStatus);
   }, [autoRefresh, sseData.vrrpStatus]);
 

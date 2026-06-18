@@ -42,6 +42,7 @@ export function DHCPv6ServerGlobalModal({ open, config, caps, onClose, onSuccess
 
   useEffect(() => {
     if (!open) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- seed form state when the modal opens
     setError(null);
     setServerDisabled(config.disabled);
     setPreference(config.preference != null ? String(config.preference) : "");

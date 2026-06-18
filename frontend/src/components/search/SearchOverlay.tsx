@@ -95,6 +95,7 @@ export function SearchOverlay({ open, onOpenChange }: SearchOverlayProps) {
 
   useEffect(() => {
     if (!open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset search state when the overlay closes
       setQuery("");
       setSelectedIndex(-1);
       setFeatureFilter(null);

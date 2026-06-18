@@ -134,12 +134,13 @@ export function HAProxyBackendDetail({ backendName }: Props) {
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load configuration");
+    } finally {
+      setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    setLoading(true);
-    loadData().finally(() => setLoading(false));
+    loadData();
   }, [loadData]);
 
   const handleRefresh = async () => {

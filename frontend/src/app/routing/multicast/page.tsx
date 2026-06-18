@@ -30,14 +30,10 @@ export default function MulticastPage() {
     return allMulticast.filter(protocol => canRead(protocol.permission));
   }, [canRead, isLoading]);
 
-  const [selectedMulticast, setSelectedMulticast] = useState<MulticastType | null>(null);
+  const [userSelectedMulticast, setSelectedMulticast] = useState<MulticastType | null>(null);
 
-  // Auto-select first available multicast protocol
-  useEffect(() => {
-    if (multicast.length > 0 && !selectedMulticast) {
-      setSelectedMulticast(multicast[0].id);
-    }
-  }, [multicast, selectedMulticast]);
+  // Auto-select the first available protocol until the user picks one (derived, no effect)
+  const selectedMulticast = userSelectedMulticast ?? multicast[0]?.id ?? null;
 
   return (
     <AppLayout>

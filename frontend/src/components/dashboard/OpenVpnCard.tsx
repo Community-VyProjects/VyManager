@@ -124,6 +124,7 @@ export function OpenVpnCard({ onRemove, span = 1, onSpanChange }: OpenVpnCardPro
   // Snapshot the stream so "Paused" freezes the displayed status.
   const [snapshot, setSnapshot] = useState<OpenVpnStatus | null>(null);
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- freeze the last SSE snapshot for the paused view
     if (autoRefresh && sseData.openvpnStatus) setSnapshot(sseData.openvpnStatus);
   }, [autoRefresh, sseData.openvpnStatus]);
 

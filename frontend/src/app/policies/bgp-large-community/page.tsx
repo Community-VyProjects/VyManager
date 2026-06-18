@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -122,7 +122,7 @@ export default function BGPLargeCommunityPage() {
     })
   );
 
-  const fetchData = async (refresh: boolean = false) => {
+  const fetchData = useCallback(async (refresh: boolean = false) => {
     try {
       setLoading(true);
       setError(null);
@@ -139,10 +139,8 @@ export default function BGPLargeCommunityPage() {
       setOriginalRules([]);
 
       // Auto-select first large community list if none selected
-      if (!selectedLargeCommunityList) {
-        if (config.large_community_lists.length > 0) {
-          setSelectedLargeCommunityList(config.large_community_lists[0].name);
-        }
+      if (config.large_community_lists.length > 0) {
+        setSelectedLargeCommunityList((prev) => prev ?? config.large_community_lists[0].name);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load large community lists");
@@ -150,11 +148,11 @@ export default function BGPLargeCommunityPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
 
   const selectedLargeCommunityListData = largeCommunityLists.find((cl) => cl.name === selectedLargeCommunityList);
 

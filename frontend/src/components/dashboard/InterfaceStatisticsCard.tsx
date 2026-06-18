@@ -335,16 +335,19 @@ export function InterfaceStatisticsCard({
 
   useEffect(() => {
     if (!sseData.interfaceCounters || !autoRefresh) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync live SSE counters into state
     setInterfaces(buildGroupedInterfaces(sseData.interfaceCounters.interfaces));
     setLoading(false);
     setError(null);
   }, [sseData.interfaceCounters, autoRefresh]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- surface SSE stream error
     if (sseError) { setError(sseError); setLoading(false); }
   }, [sseError]);
 
   // Reset to first page when filter changes
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- reset to first page when the filter changes
   useEffect(() => { setCurrentPage(0); }, [filter]);
 
   const handleSort = (key: SortKey) => {
