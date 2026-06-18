@@ -131,6 +131,7 @@ function IPoEPageInner() {
         setSelectedAuthIface(names[0]);
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- auto-select a valid interface once the config loads
   }, [config]);
 
   const onSuccess = () => fetchConfig(true);

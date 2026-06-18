@@ -107,6 +107,7 @@ export function CAModal({ open, onOpenChange, onSuccess, existingCA, x509Default
       }
       setError(null);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- seed form fields when the modal opens
   }, [open, existingCA]);
 
   // Update key size options when key type changes
@@ -116,6 +117,7 @@ export function CAModal({ open, onOpenChange, onSuccess, existingCA, x509Default
     } else if (keyType === "ec" && !ecKeySizes.includes(keySize)) {
       setKeySize("256");
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- reset key size only when the key type changes
   }, [keyType]);
 
   const handleImportSubmit = async () => {

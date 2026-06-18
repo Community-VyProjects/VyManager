@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,25 +33,7 @@ export function CreateGroupModal({ open, onOpenChange, onSuccess, capabilities }
   const [availableGroups, setAvailableGroups] = useState<FirewallGroup[]>([]);
   const [groupSearchQuery, setGroupSearchQuery] = useState("");
 
-  // Load existing groups for the include dropdown
-  useEffect(() => {
-    if (open) {
-      loadAvailableGroups();
-    }
-  }, [open, groupType]);
-
-  const loadAvailableGroups = async () => {
-    try {
-      const config = await firewallGroupsService.getConfig();
-      // Get groups of the same type
-      const groupsForType = getGroupsForType(config, groupType);
-      setAvailableGroups(groupsForType);
-    } catch (err) {
-      console.error("Failed to load available groups:", err);
-    }
-  };
-
-  const getGroupsForType = (config: GroupsConfigResponse, type: GroupType): FirewallGroup[] => {
+  const getGroupsForType = useCallback((config: GroupsConfigResponse, type: GroupType): FirewallGroup[] => {
     switch (type) {
       case "address-group":
         return config.address_groups || [];
@@ -70,7 +52,25 @@ export function CreateGroupModal({ open, onOpenChange, onSuccess, capabilities }
       default:
         return [];
     }
-  };
+  }, []);
+
+  const loadAvailableGroups = useCallback(async () => {
+    try {
+      const config = await firewallGroupsService.getConfig();
+      // Get groups of the same type
+      const groupsForType = getGroupsForType(config, groupType);
+      setAvailableGroups(groupsForType);
+    } catch (err) {
+      console.error("Failed to load available groups:", err);
+    }
+  }, [getGroupsForType, groupType]);
+
+  // Load existing groups for the include dropdown
+  useEffect(() => {
+    if (open) {
+      loadAvailableGroups();
+    }
+  }, [open, groupType, loadAvailableGroups]);
 
   // Check if current group type supports include
   const supportsInclude = () => {

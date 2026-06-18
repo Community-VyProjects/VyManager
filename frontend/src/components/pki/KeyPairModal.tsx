@@ -88,6 +88,7 @@ export function KeyPairModal({ open, onOpenChange, onSuccess, existingKeyPair }:
     } else if (keyType === "ec" && !ecKeySizes.includes(keySize)) {
       setKeySize("256");
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- reset key size only when the key type changes
   }, [keyType]);
 
   const handleImportSubmit = async () => {

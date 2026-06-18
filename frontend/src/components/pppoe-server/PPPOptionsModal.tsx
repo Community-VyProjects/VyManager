@@ -71,6 +71,7 @@ export function PPPOptionsModal({ open, onOpenChange, onSuccess, config }: PPPOp
       setIpv6AcceptPeer(ppp.ipv6_accept_peer_interface_id || false);
       setError(null);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- seed form from ppp config when the modal opens
   }, [open, config]);
 
   const handleSubmit = async () => {

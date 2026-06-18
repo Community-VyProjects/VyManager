@@ -64,7 +64,6 @@ export function DHCPv6ServerStaticMappingModal({
 
   useEffect(() => {
     if (!open) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- seed form state when the modal opens
     setError(null);
     setSelectedSubnet(subnetCidr);
     if (mapping) {
@@ -78,6 +77,7 @@ export function DHCPv6ServerStaticMappingModal({
       setName(""); setDisabled(false); setDuid(""); setMac("");
       setIpv6Address(""); setIpv6Prefix("");
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- seed form fields when the modal opens
   }, [open, mapping]);
 
   async function handleSubmit() {
