@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Plus, Search, RefreshCw, AlertCircle, Map, Trash2, Pencil } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { DndContext, type DragStartEvent, type DragEndEvent, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import {
@@ -61,7 +61,7 @@ export default function RouteMapPage() {
     })
   );
 
-  const fetchConfig = async (refresh: boolean = false) => {
+  const fetchConfig = useCallback(async (refresh: boolean = false) => {
     try {
       setLoading(true);
       setError(null);
@@ -74,8 +74,8 @@ export default function RouteMapPage() {
       setOriginalRules([]);
 
       // Auto-select first route-map if none selected
-      if (!selectedRouteMap && data.route_maps.length > 0) {
-        setSelectedRouteMap(data.route_maps[0].name);
+      if (data.route_maps.length > 0) {
+        setSelectedRouteMap((prev) => prev ?? data.route_maps[0].name);
       }
     } catch (err) {
       setError(
@@ -85,11 +85,11 @@ export default function RouteMapPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchConfig();
-  }, []);
+  }, [fetchConfig]);
 
   const routeMaps = config?.route_maps || [];
   const selectedRouteMapData = routeMaps.find((rm) => rm.name === selectedRouteMap);

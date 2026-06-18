@@ -81,6 +81,7 @@ function PrefixListPageInner() {
   useEffect(() => {
     fetchConfig();
     fetchCapabilities();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetch config + capabilities once on mount
   }, []);
 
   useEffect(() => {

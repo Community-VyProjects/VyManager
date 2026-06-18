@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { Suspense } from "react";
+import { Suspense, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
@@ -321,13 +321,13 @@ function FirewallPoliciesPageInner() {
   const forwardRules = config ? config.forward_rules : [];
   const inputRules = config ? config.input_rules : [];
   const outputRules = config ? config.output_rules : [];
-  const customChains = config ? config.custom_chains : [];
+  const customChains = useMemo(() => (config ? config.custom_chains : []), [config]);
 
   // IPv6 rules
   const forwardRulesIPv6 = configIPv6 ? configIPv6.forward_rules : [];
   const inputRulesIPv6 = configIPv6 ? configIPv6.input_rules : [];
   const outputRulesIPv6 = configIPv6 ? configIPv6.output_rules : [];
-  const customChainsIPv6 = configIPv6 ? configIPv6.custom_chains : [];
+  const customChainsIPv6 = useMemo(() => (configIPv6 ? configIPv6.custom_chains : []), [configIPv6]);
 
   useEffect(() => {
     const chainParam = searchParams.get("chain");
