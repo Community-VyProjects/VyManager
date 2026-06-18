@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -260,7 +260,9 @@ function RoutePageInner() {
   };
 
   // Interface management functions
-  const loadPolicyInterfaces = async () => {
+
+  // Load policy interfaces when selected policy changes
+  const loadPolicyInterfaces = useCallback(async () => {
     if (!selectedPolicyName) {
       setPolicyInterfaces([]);
       return;
@@ -280,12 +282,11 @@ function RoutePageInner() {
       console.error("Failed to load policy interfaces:", err);
       setPolicyInterfaces([]);
     }
-  };
+  }, [selectedPolicyName, selectedPolicyType]);
 
-  // Load policy interfaces when selected policy changes
   useEffect(() => {
     loadPolicyInterfaces();
-  }, [selectedPolicyName, selectedPolicyType]);
+  }, [selectedPolicyName, selectedPolicyType, loadPolicyInterfaces]);
 
   const ruleIds = filteredRules.map((r) => r.rule_number);
   const totalRules = policies.reduce((sum, p) => sum + p.rules.length, 0);

@@ -24,7 +24,7 @@ import {
   CheckCircle2,
   Settings,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import {
@@ -97,23 +97,6 @@ function FirewallGlobalOptionsPageInner() {
   // Initial form values for change detection
   const [initialValues, setInitialValues] = useState<Record<string, unknown>>({});
 
-  const loadData = async (forceRefresh: boolean = true) => {
-    try {
-      setError(null);
-      setLoading(true);
-      const [configResponse, capabilitiesData] = await Promise.all([
-        firewallGlobalOptionsService.getConfig(forceRefresh),
-        firewallGlobalOptionsService.getCapabilities(),
-      ]);
-      setConfig(configResponse.config);
-      setCapabilities(capabilitiesData);
-      populateFormFromConfig(configResponse.config);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load global options");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const populateFormFromConfig = (cfg: FirewallGlobalOptionsConfig) => {
     setAllPing(cfg.all_ping || "not_set");
@@ -261,9 +244,27 @@ function FirewallGlobalOptionsPageInner() {
     timeoutUdpOther, timeoutUdpStream, initialValues,
   ]);
 
+  const loadData = useCallback(async (forceRefresh: boolean = true) => {
+    try {
+      setError(null);
+      setLoading(true);
+      const [configResponse, capabilitiesData] = await Promise.all([
+        firewallGlobalOptionsService.getConfig(forceRefresh),
+        firewallGlobalOptionsService.getCapabilities(),
+      ]);
+      setConfig(configResponse.config);
+      setCapabilities(capabilitiesData);
+      populateFormFromConfig(configResponse.config);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load global options");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   useEffect(() => {
     const field = searchParams.get("field");
