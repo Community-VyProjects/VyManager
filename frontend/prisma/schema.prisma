@@ -332,6 +332,26 @@ model DashboardLayout {
   @@map("dashboard_layouts")
 }
 
+// FirewallSeparator - User-defined coloured separator bars rendered between
+// firewall rules. Pure UI metadata layered on top of the VyOS config (the
+// config stays authoritative). Shared per instance, like a section label.
+// A bar renders above the first rule whose number >= `position`.
+model FirewallSeparator {
+  id         String   @id @default(cuid())
+  instanceId String // VyOS instance this separator belongs to
+  family     String // "ipv4" | "ipv6" | "bridge"
+  chain      String // ruleset / chain name (forward, input, output, custom)
+  position   Int // bar renders above the first rule with rule_number >= position
+  label      String
+  color      String // colour token or hex (e.g. "#ef4444")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([instanceId])
+  @@index([instanceId, family, chain])
+  @@map("firewall_separators")
+}
+
 // ============================================================================
 // New RBAC System - Fine-Grained Per-Instance Permissions
 // ============================================================================

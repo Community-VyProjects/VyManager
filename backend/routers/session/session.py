@@ -1289,6 +1289,7 @@ BACKUP_TABLES: List[str] = [
     "users",
     "sites",
     "instances",
+    "firewall_separators",
     "accounts",
     "oauth_providers",
     "user_instance_roles",
