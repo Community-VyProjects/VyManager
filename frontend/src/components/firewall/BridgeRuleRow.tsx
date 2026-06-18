@@ -104,8 +104,15 @@ export function BridgeRuleRow({ rule, isV15, onEdit, onDelete, visibleOrderedCol
 
     return (
       <Badge variant="outline" className={`capitalize ${actionColors[action] || ""}`}>
-        {action}
-        {action === "jump" && rule.jump_target && ` → ${rule.jump_target}`}
+        {action === "jump" && rule.jump_target ? (
+          <span className="inline-flex items-center gap-1">
+            {action}
+            <ArrowRight className="h-3 w-3 shrink-0" />
+            {rule.jump_target}
+          </span>
+        ) : (
+          action
+        )}
       </Badge>
     );
   };

@@ -46,7 +46,7 @@ import {
 } from "@/components/ui/collapsible";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { DndContext, type DragStartEvent, type DragEndEvent, closestCenter, DragOverlay, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import {
@@ -68,6 +68,16 @@ import { DeleteCustomChainModal } from "@/components/firewall/DeleteCustomChainM
 import { FirewallRuleRow } from "@/components/firewall/FirewallRuleRow";
 import { FirewallReorderBanner } from "@/components/firewall/FirewallReorderBanner";
 import { ColumnToggleButton } from "@/components/firewall/ColumnToggleButton";
+import { SeparatorBar, separatorDragId } from "@/components/firewall/SeparatorBar";
+import { SeparatorInsertZone } from "@/components/firewall/SeparatorInsertZone";
+import { SeparatorModal } from "@/components/firewall/SeparatorModal";
+import {
+  firewallSeparatorsService,
+  type FirewallSeparator,
+  type SeparatorFamily,
+} from "@/lib/api/firewall-separators";
+import { usePermissions } from "@/hooks/usePermissions";
+import { FeatureGroup } from "@/lib/api/user-management";
 import { useColumnVisibility, type ColumnDef } from "@/hooks/useColumnVisibility";
 
 type ChainType = "forward" | "input" | "output" | "prerouting_raw";
@@ -156,6 +166,17 @@ function FirewallPoliciesPageInner() {
   const { visibleColumns, toggleColumn, visibleColumnCount, orderedColumns, visibleOrderedColumns, reorderColumns, resetToDefault } =
     useColumnVisibility("firewall-policies-columns", POLICIES_COLUMNS);
 
+  // Permissions — separator editing follows the firewall rules permission.
+  const { canWrite } = usePermissions();
+  const canEditSeparators = canWrite(FeatureGroup.FIREWALL_POLICIES);
+
+  // Coloured separators (UI-only metadata, shared per instance)
+  const [separators, setSeparators] = useState<FirewallSeparator[]>([]);
+  const [separatorModalOpen, setSeparatorModalOpen] = useState(false);
+  const [editingSeparator, setEditingSeparator] = useState<FirewallSeparator | null>(null);
+  const [separatorAnchor, setSeparatorAnchor] = useState<number | null>(null);
+  const [activeSeparatorId, setActiveSeparatorId] = useState<string | null>(null);
+
   // Drag and drop sensors - require 8px movement before drag starts
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -238,6 +259,34 @@ function FirewallPoliciesPageInner() {
     }
   };
 
+  const loadSeparators = async () => {
+    try {
+      setSeparators(await firewallSeparatorsService.list());
+    } catch (err) {
+      console.error("Error fetching firewall separators:", err);
+    }
+  };
+
+  const handleDeleteSeparator = async (id: string) => {
+    try {
+      setSeparators(await firewallSeparatorsService.delete(id));
+    } catch (err) {
+      console.error("Error deleting firewall separator:", err);
+    }
+  };
+
+  const openCreateSeparator = (anchorRuleNumber: number | null) => {
+    setEditingSeparator(null);
+    setSeparatorAnchor(anchorRuleNumber);
+    setSeparatorModalOpen(true);
+  };
+
+  const openEditSeparator = (separator: FirewallSeparator) => {
+    setEditingSeparator(separator);
+    setSeparatorAnchor(null);
+    setSeparatorModalOpen(true);
+  };
+
   // Handler for changing default action on base chains
   const handleDefaultActionChange = async (
     chain: string,
@@ -308,6 +357,8 @@ function FirewallPoliciesPageInner() {
     fetchCapabilitiesIPv6();
     // Load groups (shared between IPv4 and IPv6)
     fetchGroups();
+    // Load coloured separators (UI metadata from VyManager's DB)
+    loadSeparators();
   }, []);
 
   useEffect(() => {
@@ -393,6 +444,94 @@ function FirewallPoliciesPageInner() {
     }
   };
 
+  // ===== Coloured separators: current chain context + ordering helpers =====
+  // Family on this page is the selected protocol (ipv4 / ipv6); the bridge
+  // family lives on its own page.
+  const currentFamily: SeparatorFamily = selectedProtocol;
+  const currentChain = selectedProtocol === "ipv4" ? (selectedChain as string) : (selectedChainIPv6 as string);
+  const currentSeparators = separators
+    .filter((s) => s.family === currentFamily && s.chain === currentChain)
+    .sort((a, b) => a.position - b.position);
+  // Hide separators while searching: their anchors reference the full rule list.
+  const showSeparators = !searchQuery;
+
+  type SortableDescriptor =
+    | { kind: "sep"; sep: FirewallSeparator }
+    | { kind: "rule"; rule: FirewallRule };
+
+  // Interleave separators (by position) with the given rules, in display order.
+  // A bar sits above the first rule whose number >= its position; bars past the
+  // last rule trail the list.
+  const buildOrderedSortables = (
+    rulesList: FirewallRule[],
+    includeSeparators: boolean
+  ): SortableDescriptor[] => {
+    const seps = includeSeparators ? currentSeparators : [];
+    const out: SortableDescriptor[] = [];
+    let si = 0;
+    const pushUpTo = (upTo: number) => {
+      while (si < seps.length && seps[si].position <= upTo) {
+        out.push({ kind: "sep", sep: seps[si] });
+        si++;
+      }
+    };
+    for (const rule of rulesList) {
+      pushUpTo(rule.rule_number);
+      out.push({ kind: "rule", rule });
+    }
+    pushUpTo(Number.POSITIVE_INFINITY);
+    return out;
+  };
+
+  const dragIdFor = (d: SortableDescriptor): string | number =>
+    d.kind === "sep" ? separatorDragId(d.sep.id) : d.rule.rule_number;
+
+  // Persist a separator's new position (optimistic; reverts on failure).
+  const moveSeparator = async (sepId: string, position: number) => {
+    const sep = separators.find((s) => s.id === sepId);
+    if (!sep || sep.position === position) return;
+    setSeparators((prev) => prev.map((s) => (s.id === sepId ? { ...s, position } : s)));
+    try {
+      setSeparators(
+        await firewallSeparatorsService.save({
+          id: sep.id,
+          family: sep.family,
+          chain: sep.chain,
+          position,
+          label: sep.label,
+          color: sep.color,
+        })
+      );
+    } catch (err) {
+      console.error("Error moving separator:", err);
+      setSeparators((prev) =>
+        prev.map((s) => (s.id === sepId ? { ...s, position: sep.position } : s))
+      );
+    }
+  };
+
+  // Derive and persist a dragged separator's new position from where it landed.
+  const handleSeparatorDragEnd = (activeDragId: string, overId: string | number) => {
+    const ids = buildOrderedSortables(currentRules, true).map(dragIdFor);
+    const oldIndex = ids.indexOf(activeDragId);
+    const newIndex = ids.indexOf(overId);
+    if (oldIndex < 0 || newIndex < 0) return;
+    const newIds = arrayMove(ids, oldIndex, newIndex);
+    const at = newIds.indexOf(activeDragId);
+    let position: number | null = null;
+    for (let j = at + 1; j < newIds.length; j++) {
+      if (typeof newIds[j] === "number") {
+        position = newIds[j] as number;
+        break;
+      }
+    }
+    if (position == null) {
+      const nums = currentRules.map((r) => r.rule_number);
+      position = (nums.length ? Math.max(...nums) : 0) + 1;
+    }
+    void moveSeparator(activeDragId.slice("sep:".length), position);
+  };
+
   // Initialize reordered rules when current rules change or chain changes
   useEffect(() => {
     if (selectedProtocol === "ipv4") {
@@ -443,8 +582,16 @@ function FirewallPoliciesPageInner() {
     ? (hasChanges ? reorderedRules : getCurrentRules())
     : (hasChangesIPv6 ? reorderedRulesIPv6 : getCurrentRules());
 
-  // Drag and drop handlers (IPv4)
+  // Drag and drop handlers (IPv4). Separators (string ids) and rules (numeric
+  // ids) share one DndContext; we branch on the active id type.
+  const isSeparatorDragId = (id: string | number): id is string =>
+    typeof id === "string" && id.startsWith("sep:");
+
   const handleDragStart = (event: DragStartEvent) => {
+    if (isSeparatorDragId(event.active.id)) {
+      setActiveSeparatorId(event.active.id);
+      return;
+    }
     if (selectedProtocol === "ipv4") {
       setActiveId(event.active.id as number);
     } else {
@@ -455,34 +602,49 @@ function FirewallPoliciesPageInner() {
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
 
-    if (selectedProtocol === "ipv4") {
-      setActiveId(null);
-    } else {
-      setActiveIdIPv6(null);
-    }
+    setActiveId(null);
+    setActiveIdIPv6(null);
+    setActiveSeparatorId(null);
 
     if (!over || active.id === over.id) {
       return;
     }
 
+    // Dragging a separator → reposition it (DB only, no VyOS write).
+    if (isSeparatorDragId(active.id)) {
+      handleSeparatorDragEnd(active.id, over.id);
+      return;
+    }
+
+    // Dragging a rule → reorder. Move within the combined (rules + separators)
+    // list, then derive the new RULE order. Dropping a rule next to a separator
+    // without crossing another rule leaves the rule order unchanged, so we only
+    // enter reorder mode when the rule sequence actually differs.
+    const ids = buildOrderedSortables(currentRules, true).map(dragIdFor);
+    const oldIndex = ids.indexOf(active.id);
+    const newIndex = ids.indexOf(over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
+
+    const newRuleNumbers = arrayMove(ids, oldIndex, newIndex).filter(
+      (id): id is number => typeof id === "number"
+    );
+    const currentRuleNumbers = currentRules.map((r) => r.rule_number);
+    const unchanged =
+      newRuleNumbers.length === currentRuleNumbers.length &&
+      newRuleNumbers.every((n, i) => n === currentRuleNumbers[i]);
+    if (unchanged) return;
+
+    const ruleByNumber = new Map(currentRules.map((r) => [r.rule_number, r]));
+    const newRules = newRuleNumbers
+      .map((n) => ruleByNumber.get(n))
+      .filter((r): r is FirewallRule => r !== undefined);
+
     if (selectedProtocol === "ipv4") {
-      setReorderedRules((rules) => {
-        const oldIndex = rules.findIndex((r) => r.rule_number === active.id);
-        const newIndex = rules.findIndex((r) => r.rule_number === over.id);
-
-        const newRules = arrayMove(rules, oldIndex, newIndex);
-        setHasChanges(true);
-        return newRules;
-      });
+      setReorderedRules(newRules);
+      setHasChanges(true);
     } else {
-      setReorderedRulesIPv6((rules) => {
-        const oldIndex = rules.findIndex((r) => r.rule_number === active.id);
-        const newIndex = rules.findIndex((r) => r.rule_number === over.id);
-
-        const newRules = arrayMove(rules, oldIndex, newIndex);
-        setHasChangesIPv6(true);
-        return newRules;
-      });
+      setReorderedRulesIPv6(newRules);
+      setHasChangesIPv6(true);
     }
   };
 
@@ -674,6 +836,67 @@ function FirewallPoliciesPageInner() {
       rule.destination?.address?.toLowerCase().includes(query)
     );
   });
+
+  // Display order of draggable rows (separators interleaved with rules). Used
+  // both for SortableContext items and for rendering.
+  const orderedSortables = buildOrderedSortables(filteredRules, showSeparators);
+  const sortableIds = orderedSortables.map(dragIdFor);
+
+  // Render the interleaved separator bars, insert zones, and rule rows.
+  const renderRows = () => {
+    const out: ReactNode[] = [];
+    const colSpan = 4 + visibleColumnCount;
+    let lastRuleNumber: number | null = null;
+    for (const item of orderedSortables) {
+      if (item.kind === "sep") {
+        out.push(
+          <SeparatorBar
+            key={`sep-${item.sep.id}`}
+            separator={item.sep}
+            colSpan={colSpan}
+            canWrite={canEditSeparators}
+            onEdit={() => openEditSeparator(item.sep)}
+            onDelete={() => handleDeleteSeparator(item.sep.id)}
+          />
+        );
+        continue;
+      }
+      // Gap above this rule — click to drop a separator right here.
+      if (canEditSeparators && showSeparators) {
+        out.push(
+          <SeparatorInsertZone
+            key={`insert-${item.rule.rule_number}`}
+            colSpan={colSpan}
+            onInsert={() => openCreateSeparator(item.rule.rule_number)}
+          />
+        );
+      }
+      out.push(
+        <FirewallRuleRow
+          key={item.rule.rule_number}
+          rule={item.rule}
+          onEdit={() => setEditingRule(item.rule)}
+          onClone={() => { setCloningRule(item.rule); setCreateModalOpen(true); }}
+          onDelete={() => setDeletingRule(item.rule)}
+          isDragging={(selectedProtocol === "ipv4" ? activeId : activeIdIPv6) === item.rule.rule_number}
+          groups={groups}
+          visibleOrderedColumns={visibleOrderedColumns}
+        />
+      );
+      lastRuleNumber = item.rule.rule_number;
+    }
+    // Final gap below the last rule.
+    if (canEditSeparators && showSeparators && lastRuleNumber !== null) {
+      out.push(
+        <SeparatorInsertZone
+          key="insert-bottom"
+          colSpan={colSpan}
+          onInsert={() => openCreateSeparator(lastRuleNumber! + 1)}
+        />
+      );
+    }
+    return out;
+  };
 
   const handleChainSelect = (chain: string, custom: boolean = false) => {
     if (selectedProtocol === "ipv4") {
@@ -1025,6 +1248,12 @@ function FirewallPoliciesPageInner() {
                   onReorder={reorderColumns}
                   onReset={resetToDefault}
                 />
+                {canEditSeparators && (
+                  <Button variant="outline" onClick={() => openCreateSeparator(null)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Separator
+                  </Button>
+                )}
                 <Button onClick={() => setCreateModalOpen(true)}>
                   <Plus className="h-4 w-4 mr-2" />
                   Add Rule
@@ -1204,7 +1433,7 @@ function FirewallPoliciesPageInner() {
                       </TableHeader>
                       <TableBody>
                         <SortableContext
-                          items={filteredRules.map((r) => r.rule_number)}
+                          items={sortableIds}
                           strategy={verticalListSortingStrategy}
                         >
                           {filteredRules.length === 0 ? (
@@ -1224,18 +1453,7 @@ function FirewallPoliciesPageInner() {
                               </TableCell>
                             </TableRow>
                           ) : (
-                            filteredRules.map((rule) => (
-                              <FirewallRuleRow
-                                key={rule.rule_number}
-                                rule={rule}
-                                onEdit={() => setEditingRule(rule)}
-                                onClone={() => { setCloningRule(rule); setCreateModalOpen(true); }}
-                                onDelete={() => setDeletingRule(rule)}
-                                isDragging={(selectedProtocol === "ipv4" ? activeId : activeIdIPv6) === rule.rule_number}
-                                groups={groups}
-                                visibleOrderedColumns={visibleOrderedColumns}
-                              />
-                            ))
+                            renderRows()
                           )}
                         </SortableContext>
                       </TableBody>
@@ -1246,7 +1464,28 @@ function FirewallPoliciesPageInner() {
                         easing: "cubic-bezier(0.18, 0.67, 0.6, 1.22)",
                       }}
                     >
-                      {(selectedProtocol === "ipv4" ? activeId : activeIdIPv6) !== null ? (
+                      {activeSeparatorId ? (() => {
+                        const sep = separators.find(
+                          (s) => separatorDragId(s.id) === activeSeparatorId
+                        );
+                        if (!sep) return null;
+                        return (
+                          <div
+                            className="rounded-md px-3 py-1.5 shadow-2xl"
+                            style={{
+                              backgroundColor: `${sep.color}1a`,
+                              borderLeft: `3px solid ${sep.color}`,
+                            }}
+                          >
+                            <span
+                              className="text-xs font-semibold uppercase tracking-wide"
+                              style={{ color: sep.color }}
+                            >
+                              {sep.label}
+                            </span>
+                          </div>
+                        );
+                      })() : (selectedProtocol === "ipv4" ? activeId : activeIdIPv6) !== null ? (
                         <div className="bg-card border-2 border-primary shadow-2xl rounded-lg overflow-hidden">
                           <Table>
                             <TableBody>
@@ -1362,6 +1601,16 @@ function FirewallPoliciesPageInner() {
         }}
         chain={deletingChain}
         protocol={selectedProtocol}
+      />
+
+      <SeparatorModal
+        open={separatorModalOpen}
+        onOpenChange={setSeparatorModalOpen}
+        family={currentFamily}
+        chain={currentChain}
+        editing={editingSeparator}
+        defaultPosition={separatorAnchor}
+        onSaved={setSeparators}
       />
     </AppLayout>
   );

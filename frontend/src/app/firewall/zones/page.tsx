@@ -26,10 +26,11 @@ import {
   Plus,
   GripVertical,
   ArrowUpDown,
+  ArrowRight,
   Globe,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { useState, useEffect, useCallback, type CSSProperties } from "react";
+import { useState, useEffect, useCallback, type CSSProperties, type ReactNode } from "react";
 import { firewallZonesService, resolveChainName } from "@/lib/api/firewall-zones";
 import { firewallGroupsService, type FirewallGroup } from "@/lib/api/firewall-groups";
 import { firewallIPv4Service } from "@/lib/api/firewall-ipv4";
@@ -39,6 +40,15 @@ import type { FirewallConfigResponse, FirewallRule, FirewallCapabilitiesResponse
 import { CreateZoneModal } from "@/components/firewall/zones/CreateZoneModal";
 import { EditZoneModal } from "@/components/firewall/zones/EditZoneModal";
 import { ZoneRulePanel } from "@/components/firewall/zones/ZoneRulePanel";
+import { SeparatorBar, separatorDragId } from "@/components/firewall/SeparatorBar";
+import { SeparatorDivider } from "@/components/firewall/SeparatorDivider";
+import { SeparatorInsertZone } from "@/components/firewall/SeparatorInsertZone";
+import { SeparatorModal } from "@/components/firewall/SeparatorModal";
+import {
+  firewallSeparatorsService,
+  type FirewallSeparator,
+  type SeparatorFamily,
+} from "@/lib/api/firewall-separators";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 import { cn } from "@/lib/utils";
@@ -418,6 +428,14 @@ export default function FirewallZonesPage() {
   const [savingReorder, setSavingReorder] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
 
+  // Coloured separators (UI-only metadata, shared per instance). On this page a
+  // separator's chain is the custom chain backing a zone-pair.
+  const [separators, setSeparators] = useState<FirewallSeparator[]>([]);
+  const [separatorModalOpen, setSeparatorModalOpen] = useState(false);
+  const [editingSeparator, setEditingSeparator] = useState<FirewallSeparator | null>(null);
+  const [separatorAnchor, setSeparatorAnchor] = useState<number | null>(null);
+  const [activeSeparatorId, setActiveSeparatorId] = useState<string | null>(null);
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
@@ -428,19 +446,21 @@ export default function FirewallZonesPage() {
     setLoading(true);
     setError(null);
     try {
-      const [caps, zonesData, v4, v6, fwCaps, groupsData] = await Promise.all([
+      const [caps, zonesData, v4, v6, fwCaps, groupsData, seps] = await Promise.all([
         firewallZonesService.getCapabilities(),
         firewallZonesService.getConfig(refresh),
         firewallIPv4Service.getConfig(refresh),
         firewallIPv6Service.getConfig(refresh),
         firewallIPv4Service.getCapabilities(),
         firewallGroupsService.getConfig(refresh),
+        firewallSeparatorsService.list(),
       ]);
       setCapabilities(caps);
       setZones(zonesData.zones);
       setIpv4Config(v4);
       setIpv6Config(v6);
       setFirewallCaps(fwCaps);
+      setSeparators(seps);
       setGroups([
         ...groupsData.address_groups,
         ...groupsData.ipv6_address_groups,
@@ -563,6 +583,119 @@ export default function FirewallZonesPage() {
   const allPolicyRows = buildPolicyRows();
   const displayRows = isReordering ? reorderedRows : allPolicyRows;
 
+  // ── Separators ────────────────────────────────────────────────────────────
+  // On this page a separator's `chain` is the custom chain backing a zone-pair
+  // and its `family` is the selected IP version. Editing is offered only in the
+  // focused single-pair view; the "all" overview shows them read-only.
+  const canEditSeparators = canEdit;
+  const currentFamily: SeparatorFamily = ipVersion;
+  const focusedChain =
+    selectedPair !== "all"
+      ? resolveChainName(selectedPair.source, selectedPair.dest, ipVersion, zones)
+      : null;
+  const focusedSeparators = focusedChain
+    ? separators
+        .filter((s) => s.family === currentFamily && s.chain === focusedChain)
+        .sort((a, b) => a.position - b.position)
+    : [];
+  // Editable separators are shown in the focused pair view outside reorder mode.
+  const showFocusedSeparators =
+    selectedPair !== "all" && !isReordering && !!focusedChain && !searchQuery;
+
+  type SortableDescriptor =
+    | { kind: "sep"; sep: FirewallSeparator }
+    | { kind: "rule"; row: PolicyRow };
+
+  // Interleave the focused chain's separators (by position) with its rule rows.
+  const buildFocusedOrder = (rows: PolicyRow[]): SortableDescriptor[] => {
+    const out: SortableDescriptor[] = [];
+    let si = 0;
+    const pushUpTo = (upTo: number) => {
+      while (si < focusedSeparators.length && focusedSeparators[si].position <= upTo) {
+        out.push({ kind: "sep", sep: focusedSeparators[si] });
+        si++;
+      }
+    };
+    for (const row of rows) {
+      pushUpTo(row.rule.rule_number);
+      out.push({ kind: "rule", row });
+    }
+    pushUpTo(Number.POSITIVE_INFINITY);
+    return out;
+  };
+
+  const dragIdFor = (d: SortableDescriptor): string =>
+    d.kind === "sep" ? separatorDragId(d.sep.id) : `${d.row.chainName}-${d.row.rule.rule_number}`;
+
+  const openCreateSeparator = (anchorRuleNumber: number | null) => {
+    setEditingSeparator(null);
+    setSeparatorAnchor(anchorRuleNumber);
+    setSeparatorModalOpen(true);
+  };
+
+  const openEditSeparator = (sep: FirewallSeparator) => {
+    setEditingSeparator(sep);
+    setSeparatorAnchor(null);
+    setSeparatorModalOpen(true);
+  };
+
+  const handleDeleteSeparator = async (id: string) => {
+    try {
+      setSeparators(await firewallSeparatorsService.delete(id));
+    } catch (err) {
+      console.error("Error deleting separator:", err);
+    }
+  };
+
+  // Persist a separator's new position (optimistic; reverts on failure).
+  const moveSeparator = async (sepId: string, position: number) => {
+    const sep = separators.find((s) => s.id === sepId);
+    if (!sep || sep.position === position) return;
+    setSeparators((prev) => prev.map((s) => (s.id === sepId ? { ...s, position } : s)));
+    try {
+      setSeparators(
+        await firewallSeparatorsService.save({
+          id: sep.id,
+          family: sep.family,
+          chain: sep.chain,
+          position,
+          label: sep.label,
+          color: sep.color,
+        })
+      );
+    } catch (err) {
+      console.error("Error moving separator:", err);
+      setSeparators((prev) =>
+        prev.map((s) => (s.id === sepId ? { ...s, position: sep.position } : s))
+      );
+    }
+  };
+
+  // Derive and persist a dragged separator's new position from where it landed.
+  const handleSeparatorDragEnd = (activeDragId: string, overId: string | number) => {
+    const focusedRules = displayRows.filter((r) => r.chainName === focusedChain);
+    const ids = buildFocusedOrder(focusedRules).map(dragIdFor);
+    const oldIndex = ids.indexOf(activeDragId);
+    const newIndex = ids.indexOf(String(overId));
+    if (oldIndex < 0 || newIndex < 0) return;
+    const newIds = arrayMove(ids, oldIndex, newIndex);
+    const at = newIds.indexOf(activeDragId);
+    // The bar's position is the rule that now follows it (rule ids look like
+    // "<chain>-<number>"); past the last rule it trails the chain.
+    let position: number | null = null;
+    for (let j = at + 1; j < newIds.length; j++) {
+      if (!newIds[j].startsWith("sep:")) {
+        position = Number(newIds[j].slice(newIds[j].lastIndexOf("-") + 1));
+        break;
+      }
+    }
+    if (position == null) {
+      const nums = focusedRules.map((r) => r.rule.rule_number);
+      position = (nums.length ? Math.max(...nums) : 0) + 1;
+    }
+    void moveSeparator(activeDragId.slice("sep:".length), position);
+  };
+
   // ── Reorder handlers ──────────────────────────────────────────────────────
 
   const handleEnterReorder = () => {
@@ -576,17 +709,34 @@ export default function FirewallZonesPage() {
     setActiveId(null);
   };
 
+  const isSeparatorDragId = (id: string | number): id is string =>
+    typeof id === "string" && id.startsWith("sep:");
+
   const handleDragStart = (event: { active: { id: string | number } }) => {
+    if (isSeparatorDragId(event.active.id)) {
+      setActiveSeparatorId(event.active.id);
+      return;
+    }
     setActiveId(String(event.active.id));
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveId(null);
+    setActiveSeparatorId(null);
     if (!over || active.id === over.id) return;
+
+    // Dragging a separator → reposition it (DB only, instant, no VyOS write).
+    if (isSeparatorDragId(active.id)) {
+      handleSeparatorDragEnd(active.id, over.id);
+      return;
+    }
+
+    // Dragging a rule → existing reorder (focused pair, reorder mode only).
     setReorderedRows((prev) => {
       const oldIdx = prev.findIndex((r) => `${r.chainName}-${r.rule.rule_number}` === active.id);
       const newIdx = prev.findIndex((r) => `${r.chainName}-${r.rule.rule_number}` === over.id);
+      if (oldIdx < 0 || newIdx < 0) return prev;
       return arrayMove(prev, oldIdx, newIdx);
     });
   };
@@ -656,6 +806,148 @@ export default function FirewallZonesPage() {
   }
 
   const canReorder = selectedPair !== "all";
+
+  // Separator sortable ids (focused editable view only); used by SortableContext.
+  const separatorSortableIds = showFocusedSeparators
+    ? buildFocusedOrder(displayRows).map(dragIdFor)
+    : displayRows.map((r) => `${r.chainName}-${r.rule.rule_number}`);
+
+  // Render the policy table body: rule rows plus separators. In the focused
+  // pair view separators are editable (drag + insert zones); in the "all"
+  // overview they are read-only colour dividers grouped per chain.
+  const renderPolicyRows = (): ReactNode[] => {
+    const out: ReactNode[] = [];
+    const colSpan = 13;
+
+    if (showFocusedSeparators) {
+      let lastRuleNumber: number | null = null;
+      for (const item of buildFocusedOrder(displayRows)) {
+        if (item.kind === "sep") {
+          out.push(
+            <SeparatorBar
+              key={`sep-${item.sep.id}`}
+              separator={item.sep}
+              colSpan={colSpan}
+              canWrite={canEditSeparators}
+              onEdit={() => openEditSeparator(item.sep)}
+              onDelete={() => handleDeleteSeparator(item.sep.id)}
+            />
+          );
+          continue;
+        }
+        const row = item.row;
+        const id = `${row.chainName}-${row.rule.rule_number}`;
+        if (canEditSeparators) {
+          out.push(
+            <SeparatorInsertZone
+              key={`insert-${id}`}
+              colSpan={colSpan}
+              onInsert={() => openCreateSeparator(row.rule.rule_number)}
+            />
+          );
+        }
+        out.push(
+          <SortableRuleRow
+            key={id}
+            id={id}
+            row={row}
+            isReordering={isReordering}
+            onClick={() => openEditPanel(row)}
+            onClone={() => openClonePanel(row)}
+            groups={groups}
+          />
+        );
+        lastRuleNumber = row.rule.rule_number;
+      }
+      if (canEditSeparators && lastRuleNumber !== null) {
+        out.push(
+          <SeparatorInsertZone
+            key="insert-bottom"
+            colSpan={colSpan}
+            onInsert={() => openCreateSeparator(lastRuleNumber! + 1)}
+          />
+        );
+      }
+      return out;
+    }
+
+    // All-view (and focused while reordering/searching): plain rows. In the
+    // "all" overview, group rules under a per-policy (zone-pair) header band and
+    // interleave read-only dividers within each chain block.
+    const allViewGrouping = selectedPair === "all";
+    const allViewDividers = allViewGrouping && !searchQuery;
+    // Rule count per policy/chain, computed in one pass (header bands below).
+    const chainCounts = new Map<string, number>();
+    if (allViewGrouping) {
+      for (const r of displayRows) {
+        chainCounts.set(r.chainName, (chainCounts.get(r.chainName) ?? 0) + 1);
+      }
+    }
+    let currentChain: string | null = null;
+    let chainSeps: FirewallSeparator[] = [];
+    let csi = 0;
+    displayRows.forEach((row, idx) => {
+      const id = `${row.chainName}-${row.rule.rule_number}`;
+      if (allViewGrouping && row.chainName !== currentChain) {
+        currentChain = row.chainName;
+        // Policy section header for this zone-pair.
+        const count = chainCounts.get(currentChain) ?? 0;
+        const intra = row.sourceZone === row.destZone;
+        out.push(
+          <TableRow key={`grp-${currentChain}`} className="hover:bg-transparent border-y bg-muted/40">
+            <TableCell colSpan={colSpan} className="py-1.5">
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="font-mono text-[10px]">{row.sourceZone}</Badge>
+                <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
+                <Badge variant="outline" className="font-mono text-[10px]">{row.destZone}</Badge>
+                {intra && (
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-wide">intra-zone</span>
+                )}
+                <span className="ml-auto text-[11px] text-muted-foreground">
+                  {count} rule{count !== 1 ? "s" : ""}
+                </span>
+              </div>
+            </TableCell>
+          </TableRow>
+        );
+        chainSeps = allViewDividers
+          ? separators
+              .filter((s) => s.family === currentFamily && s.chain === currentChain)
+              .sort((a, b) => a.position - b.position)
+          : [];
+        csi = 0;
+      }
+      if (allViewDividers) {
+        while (csi < chainSeps.length && chainSeps[csi].position <= row.rule.rule_number) {
+          out.push(
+            <SeparatorDivider key={`div-${chainSeps[csi].id}`} separator={chainSeps[csi]} colSpan={colSpan} />
+          );
+          csi++;
+        }
+      }
+      out.push(
+        <SortableRuleRow
+          key={`${id}-${idx}`}
+          id={id}
+          row={row}
+          isReordering={isReordering}
+          onClick={() => openEditPanel(row)}
+          onClone={() => openClonePanel(row)}
+          groups={groups}
+        />
+      );
+      const next = displayRows[idx + 1];
+      if (allViewDividers && (!next || next.chainName !== currentChain)) {
+        while (csi < chainSeps.length) {
+          out.push(
+            <SeparatorDivider key={`div-${chainSeps[csi].id}`} separator={chainSeps[csi]} colSpan={colSpan} />
+          );
+          csi++;
+        }
+      }
+    });
+    return out;
+  };
 
   return (
     <AppLayout>
@@ -949,6 +1241,19 @@ export default function FirewallZonesPage() {
                   </Button>
                 )}
 
+                {/* Add Separator button — focused pair view only */}
+                {canEditSeparators && showFocusedSeparators && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs gap-1"
+                    onClick={() => openCreateSeparator(null)}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Add Separator
+                  </Button>
+                )}
+
                 {/* Search */}
                 {!isReordering && (
                   <div className="relative flex-1 max-w-xs">
@@ -966,8 +1271,10 @@ export default function FirewallZonesPage() {
                 {!isReordering && selectedPair !== "all" && (
                   <div className="flex items-center gap-1">
                     <Filter className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground font-mono">
-                      {selectedPair.source} → {selectedPair.dest}
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground font-mono">
+                      {selectedPair.source}
+                      <ArrowRight className="h-3 w-3 shrink-0" />
+                      {selectedPair.dest}
                     </span>
                     <Button
                       variant="ghost"
@@ -1042,38 +1349,44 @@ export default function FirewallZonesPage() {
                     {displayRows.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={12} className="text-center py-8 text-muted-foreground text-sm">
-                          {selectedPair !== "all"
-                            ? `No firewall rules for ${selectedPair.source} → ${selectedPair.dest}`
-                            : "No firewall rules found for any zone pair"}
+                          {selectedPair !== "all" ? (
+                            <span className="inline-flex items-center gap-1">
+                              No firewall rules for {selectedPair.source}
+                              <ArrowRight className="h-3 w-3 shrink-0" />
+                              {selectedPair.dest}
+                            </span>
+                          ) : (
+                            "No firewall rules found for any zone pair"
+                          )}
                         </TableCell>
                       </TableRow>
                     ) : (
                       <SortableContext
-                        items={displayRows.map((r) => `${r.chainName}-${r.rule.rule_number}`)}
+                        items={separatorSortableIds}
                         strategy={verticalListSortingStrategy}
                       >
-                        {displayRows.map((row, idx) => {
-                          const id = `${row.chainName}-${row.rule.rule_number}`;
-                          return (
-                            <SortableRuleRow
-                              key={`${id}-${idx}`}
-                              id={id}
-                              row={row}
-                              isReordering={isReordering}
-                              onClick={() => openEditPanel(row)}
-                              onClone={() => openClonePanel(row)}
-                              groups={groups}
-                            />
-                          );
-                        })}
+                        {renderPolicyRows()}
                       </SortableContext>
                     )}
                   </TableBody>
                 </Table>
 
-                {/* Drag overlay — ghost of the row being dragged */}
+                {/* Drag overlay — ghost of the row or separator being dragged */}
                 <DragOverlay>
-                  {activeId && (() => {
+                  {activeSeparatorId ? (() => {
+                    const sep = separators.find((s) => separatorDragId(s.id) === activeSeparatorId);
+                    if (!sep) return null;
+                    return (
+                      <div
+                        className="rounded-md px-3 py-1.5 shadow-2xl"
+                        style={{ backgroundColor: `${sep.color}1a`, borderLeft: `3px solid ${sep.color}` }}
+                      >
+                        <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: sep.color }}>
+                          {sep.label}
+                        </span>
+                      </div>
+                    );
+                  })() : activeId ? (() => {
                     const row = displayRows.find((r) => `${r.chainName}-${r.rule.rule_number}` === activeId);
                     if (!row) return null;
                     return (
@@ -1082,14 +1395,21 @@ export default function FirewallZonesPage() {
                         {row.rule.description ? ` — ${row.rule.description}` : ""}
                       </div>
                     );
-                  })()}
+                  })() : null}
                 </DragOverlay>
               </DndContext>
 
               {displayRows.length > 0 && (
-                <div className="px-4 py-2 border-t text-xs text-muted-foreground">
+                <div className="flex items-center px-4 py-2 border-t text-xs text-muted-foreground">
                   {displayRows.length} rule{displayRows.length !== 1 ? "s" : ""}
-                  {selectedPair !== "all" && ` for ${selectedPair.source} → ${selectedPair.dest}`}
+                  {selectedPair !== "all" && (
+                    <span className="inline-flex items-center gap-1">
+                      <span className="ml-1">for</span>
+                      {selectedPair.source}
+                      <ArrowRight className="h-3 w-3 shrink-0" />
+                      {selectedPair.dest}
+                    </span>
+                  )}
                   {isReordering && (
                     <span className="ml-2 text-primary font-medium">• reorder mode</span>
                   )}
@@ -1109,6 +1429,18 @@ export default function FirewallZonesPage() {
           capabilities={capabilities}
           existingZones={zones}
         />
+
+        {focusedChain && (
+          <SeparatorModal
+            open={separatorModalOpen}
+            onOpenChange={setSeparatorModalOpen}
+            family={currentFamily}
+            chain={focusedChain}
+            editing={editingSeparator}
+            defaultPosition={separatorAnchor}
+            onSaved={setSeparators}
+          />
+        )}
 
         {selectedZone && (() => {
           const nonLocalZones = zones.filter((z) => !z.local_zone);
