@@ -155,10 +155,10 @@ export function NetworkSpeedCard({
 }: NetworkSpeedCardProps) {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const { status: sseStatus, data: sseData } = useDashboardData();
-  const ethernetConfigRef = useRef<EthernetConfigResponse | null>(null);
+  const [ethernetConfig, setEthernetConfig] = useState<EthernetConfigResponse | null>(null);
 
   useEffect(() => {
-    ethernetService.getConfig().then((cfg) => { ethernetConfigRef.current = cfg; }).catch(() => {});
+    ethernetService.getConfig().then((cfg) => { setEthernetConfig(cfg); }).catch(() => {});
   }, []);
 
   const selectedIface = (config?.interface as string) || "";
@@ -174,7 +174,7 @@ export function NetworkSpeedCard({
 
   // Look up a description for an interface name from the ethernet config
   const getIfaceDescription = (name: string): string | undefined => {
-    const cfg = ethernetConfigRef.current;
+    const cfg = ethernetConfig;
     if (!cfg) return undefined;
     const direct = cfg.interfaces?.find((i) => i.name === name);
     if (direct?.description) return direct.description;
@@ -191,6 +191,7 @@ export function NetworkSpeedCard({
 
   // Clear history when selected interface changes
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset chart history when the selected interface changes
     setHistory([]);
     prevRef.current = null;
     rawBufferRef.current = [];
@@ -251,8 +252,9 @@ export function NetworkSpeedCard({
   const currentRx = latestPoint?.rx ?? 0;
   const currentTx = latestPoint?.tx ?? 0;
 
-  // Convert to chart-ready format: secsAgo computed from actual timestamps
-  const renderNow = Date.now();
+  // Convert to chart-ready format: secsAgo relative to the latest sample's
+  // timestamp (deterministic; avoids an impure Date.now() call during render).
+  const renderNow = latestPoint?.ts ?? 0;
   const chartData = history.map((pt) => ({
     secsAgo: Math.round((pt.ts - renderNow) / 1000), // negative: e.g. -30 = 30s ago
     rx: pt.rx,
