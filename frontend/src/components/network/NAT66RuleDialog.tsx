@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -140,6 +140,33 @@ export function NAT66RuleDialog({
       default: return [];
     }
   };
+
+  const resetForm = useCallback(() => {
+    setDescription("");
+    setProtocol("all");
+    setInterfaceName("");
+    setSourceType("input");
+    setSourceValue("");
+    setSourceGroupType("");
+    setSourceGroupName("");
+    setSourcePortType("input");
+    setSourcePort("");
+    setSourcePortGroupName("");
+    setDestinationType("input");
+    setDestinationValue("");
+    setDestinationGroupType("");
+    setDestinationGroupName("");
+    setDestPortType("input");
+    setDestinationPort("");
+    setDestPortGroupName("");
+    setTranslationType(isSource ? "masquerade" : "address");
+    setTranslationAddress("");
+    setTranslationPort("");
+    setDisable(false);
+    setExclude(false);
+    setLog(false);
+    setError(null);
+  }, [isSource]);
 
   // Reset form when dialog opens
   useEffect(() => {
@@ -288,34 +315,7 @@ export function NAT66RuleDialog({
         resetForm();
       }
     }
-  }, [open, editingRule, isSource]);
-
-  const resetForm = () => {
-    setDescription("");
-    setProtocol("all");
-    setInterfaceName("");
-    setSourceType("input");
-    setSourceValue("");
-    setSourceGroupType("");
-    setSourceGroupName("");
-    setSourcePortType("input");
-    setSourcePort("");
-    setSourcePortGroupName("");
-    setDestinationType("input");
-    setDestinationValue("");
-    setDestinationGroupType("");
-    setDestinationGroupName("");
-    setDestPortType("input");
-    setDestinationPort("");
-    setDestPortGroupName("");
-    setTranslationType(isSource ? "masquerade" : "address");
-    setTranslationAddress("");
-    setTranslationPort("");
-    setDisable(false);
-    setExclude(false);
-    setLog(false);
-    setError(null);
-  };
+  }, [open, editingRule, isSource, resetForm]);
 
   const handleSave = async () => {
     setSaving(true);
