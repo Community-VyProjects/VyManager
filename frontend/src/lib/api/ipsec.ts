@@ -466,6 +466,8 @@ class IPSecService {
     auth_psk?: string;
     auth_x509_ca_cert?: string;
     auth_x509_cert?: string;
+    auth_always_send_cert?: boolean;
+    local_users?: { username: string; password?: string; disabled?: boolean }[];
   }): Promise<VyOSResponse> {
     const ops: BatchOperation[] = [{ op: "create_ra_connection" }];
     if (config.description) ops.push({ op: "set_ra_connection_description", value: config.description });
@@ -483,6 +485,95 @@ class IPSecService {
     if (config.auth_psk) ops.push({ op: "set_ra_connection_auth_psk", value: config.auth_psk });
     if (config.auth_x509_ca_cert) ops.push({ op: "set_ra_connection_auth_x509_ca_cert", value: config.auth_x509_ca_cert });
     if (config.auth_x509_cert) ops.push({ op: "set_ra_connection_auth_x509_cert", value: config.auth_x509_cert });
+    if (config.auth_always_send_cert) ops.push({ op: "set_ra_connection_auth_always_send_cert" });
+    if (config.local_users) {
+      for (const user of config.local_users) {
+        if (!user.username) continue;
+        ops.push({ op: "create_ra_connection_auth_local_user", value: user.username });
+        if (user.password) ops.push({ op: "set_ra_connection_auth_local_user_password", value: `${user.username}|${user.password}` });
+        if (user.disabled) ops.push({ op: "set_ra_connection_auth_local_user_disable", value: user.username });
+      }
+    }
+    return this.batchConfigure(name, ops);
+  }
+
+  async updateRAConnection(name: string, config: {
+    description?: string;
+    esp_group?: string;
+    ike_group?: string;
+    local_address?: string;
+    pools?: string[];
+    auth_server_mode?: string;
+    auth_client_mode?: string;
+    auth_local_id?: string;
+    auth_psk?: string;
+    auth_x509_ca_cert?: string;
+    auth_x509_cert?: string;
+    auth_always_send_cert?: boolean;
+    local_users?: { username: string; password?: string; disabled?: boolean }[];
+  }, existing: RAConnection): Promise<VyOSResponse> {
+    const ops: BatchOperation[] = [];
+
+    // Single-valued leaf: set (replaces) when changed, delete when cleared.
+    const diffLeaf = (setOp: string, deleteOp: string, newVal?: string | null, oldVal?: string | null) => {
+      const nv = (newVal || "").trim();
+      const ov = (oldVal || "").trim();
+      if (nv && nv !== ov) ops.push({ op: setOp, value: nv });
+      else if (!nv && ov) ops.push({ op: deleteOp, value: ov });
+    };
+
+    diffLeaf("set_ra_connection_description", "delete_ra_connection_description", config.description, existing.description);
+    diffLeaf("set_ra_connection_esp_group", "delete_ra_connection_esp_group", config.esp_group, existing.esp_group);
+    diffLeaf("set_ra_connection_ike_group", "delete_ra_connection_ike_group", config.ike_group, existing.ike_group);
+    diffLeaf("set_ra_connection_local_address", "delete_ra_connection_local_address", config.local_address, existing.local_address);
+    diffLeaf("set_ra_connection_auth_server_mode", "delete_ra_connection_auth_server_mode", config.auth_server_mode, existing.auth_server_mode);
+    diffLeaf("set_ra_connection_auth_client_mode", "delete_ra_connection_auth_client_mode", config.auth_client_mode, existing.auth_client_mode);
+    diffLeaf("set_ra_connection_auth_local_id", "delete_ra_connection_auth_local_id", config.auth_local_id, existing.auth_local_id);
+    diffLeaf("set_ra_connection_auth_x509_cert", "delete_ra_connection_auth_x509_cert", config.auth_x509_cert, existing.auth_x509_cert);
+
+    // X.509 CA cert is a multi-value node: replacing requires deleting the old value.
+    {
+      const nv = (config.auth_x509_ca_cert || "").trim();
+      const ov = (existing.auth_x509_ca_cert || "").trim();
+      if (ov && ov !== nv) ops.push({ op: "delete_ra_connection_auth_x509_ca_cert", value: ov });
+      if (nv && nv !== ov) ops.push({ op: "set_ra_connection_auth_x509_ca_cert", value: nv });
+    }
+
+    // Pools (multi-value): reconcile add/remove.
+    {
+      const oldPools = existing.pools || [];
+      const newPools = config.pools || [];
+      for (const p of oldPools) if (!newPools.includes(p)) ops.push({ op: "delete_ra_connection_pool", value: p });
+      for (const p of newPools) if (!oldPools.includes(p)) ops.push({ op: "set_ra_connection_pool", value: p });
+    }
+
+    // PSK is never returned by the API, so only set it when the user typed one;
+    // leaving it blank preserves the existing key.
+    if (config.auth_psk) ops.push({ op: "set_ra_connection_auth_psk", value: config.auth_psk });
+
+    // always-send-cert flag.
+    if (config.auth_always_send_cert && !existing.auth_always_send_cert) {
+      ops.push({ op: "set_ra_connection_auth_always_send_cert" });
+    } else if (!config.auth_always_send_cert && existing.auth_always_send_cert) {
+      ops.push({ op: "delete_ra_connection_auth_always_send_cert" });
+    }
+
+    // Local users (multi-value): reconcile add/remove + password/disable.
+    {
+      const oldUsers = existing.local_users || [];
+      const newUsers = (config.local_users || []).filter((u) => u.username);
+      const oldByName = new Map(oldUsers.map((u) => [u.username, u]));
+      const newNames = new Set(newUsers.map((u) => u.username));
+      for (const u of oldUsers) if (!newNames.has(u.username)) ops.push({ op: "delete_ra_connection_auth_local_user", value: u.username });
+      for (const u of newUsers) {
+        const old = oldByName.get(u.username);
+        if (!old) ops.push({ op: "create_ra_connection_auth_local_user", value: u.username });
+        if (u.password) ops.push({ op: "set_ra_connection_auth_local_user_password", value: `${u.username}|${u.password}` });
+        if (u.disabled && !old?.disabled) ops.push({ op: "set_ra_connection_auth_local_user_disable", value: u.username });
+        else if (!u.disabled && old?.disabled) ops.push({ op: "delete_ra_connection_auth_local_user_disable", value: u.username });
+      }
+    }
+
     return this.batchConfigure(name, ops);
   }
 

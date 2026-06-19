@@ -682,13 +682,16 @@ class IPSecMapper:
         auth = config.get("authentication", {})
         x509 = auth.get("x509", {})
         local = config.get("local", {})
-        local_users = {}
+        ppk = auth.get("ppk", {})
+        local_users = []
         for username, user_config in auth.get("local-users", {}).get("username", {}).items():
-            local_users[username] = {
+            user_config = user_config or {}
+            local_users.append({
                 "username": username,
                 "disabled": "disable" in user_config,
                 "password": user_config.get("password"),
-            }
+            })
+        ca_certs = self._normalize_to_list(x509.get("ca-certificate"))
         return {
             "name": name,
             "description": config.get("description"),
@@ -697,35 +700,37 @@ class IPSecMapper:
             "ike_group": config.get("ike-group"),
             "local_address": config.get("local-address"),
             "dhcp_interface": config.get("dhcp-interface"),
-            "pool": self._normalize_to_list(config.get("pool")),
+            "pools": self._normalize_to_list(config.get("pool")),
             "replay_window": config.get("replay-window"),
             "timeout": config.get("timeout"),
             "unique": config.get("unique"),
-            "local": {
-                "prefix": self._normalize_to_list(local.get("prefix")),
-                "port": local.get("port"),
-            },
-            "authentication": {
-                "server_mode": auth.get("server-mode"),
-                "client_mode": auth.get("client-mode"),
-                "local_id": auth.get("local-id"),
-                "eap_id": auth.get("eap-id"),
-                "pre_shared_secret": auth.get("pre-shared-secret"),
-                "x509": {
-                    "ca_certificate": self._normalize_to_list(x509.get("ca-certificate")),
-                    "certificate": x509.get("certificate"),
-                    "passphrase": x509.get("passphrase"),
-                },
-                "local_users": local_users,
-            },
+            "local_prefix": self._normalize_to_list(local.get("prefix")),
+            "local_port": local.get("port"),
+            "bind": config.get("bind"),
+            "childless": "childless" in config,
+            "auth_server_mode": auth.get("server-mode"),
+            "auth_client_mode": auth.get("client-mode"),
+            "auth_local_id": auth.get("local-id"),
+            "auth_eap_id": auth.get("eap-id"),
+            "auth_psk": auth.get("pre-shared-secret"),
+            "auth_always_send_cert": "always-send-cert" in auth,
+            "auth_x509_ca_cert": ca_certs[0] if ca_certs else None,
+            "auth_x509_cert": x509.get("certificate"),
+            "auth_x509_passphrase": x509.get("passphrase"),
+            "auth_ppk_id": ppk.get("id"),
+            "auth_ppk_required": "required" in ppk,
+            "local_users": local_users,
         }
 
     def _parse_ra_pool(self, name: str, config: Dict[str, Any]) -> Dict[str, Any]:
+        rng = config.get("range", {})
         return {
             "name": name,
             "prefix": self._normalize_to_list(config.get("prefix")),
-            "name_server": self._normalize_to_list(config.get("name-server")),
+            "name_servers": self._normalize_to_list(config.get("name-server")),
             "exclude": self._normalize_to_list(config.get("exclude")),
+            "range_start": rng.get("start"),
+            "range_stop": rng.get("stop"),
         }
 
     def _normalize_to_list(self, value: Any) -> list:

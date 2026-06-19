@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { AlertCircle, Loader2, Wifi, Eye, EyeOff } from "lucide-react";
+import { AlertCircle, Loader2, Wifi, Eye, EyeOff, Plus, Trash2 } from "lucide-react";
 import {
   ipsecService,
   RAConnection,
@@ -42,10 +42,17 @@ interface RemoteAccessModalProps {
   existingConnection: RAConnection | null;
 }
 
+interface LocalUserRow {
+  username: string;
+  password: string;
+  disabled: boolean;
+}
+
 export function RemoteAccessModal({
   open,
   onOpenChange,
   onSuccess,
+  capabilities,
   ikeGroups,
   espGroups,
   pools,
@@ -66,6 +73,8 @@ export function RemoteAccessModal({
   const [showPsk, setShowPsk] = useState(false);
   const [authX509CaCert, setAuthX509CaCert] = useState("");
   const [authX509Cert, setAuthX509Cert] = useState("");
+  const [alwaysSendCert, setAlwaysSendCert] = useState(false);
+  const [localUsers, setLocalUsers] = useState<LocalUserRow[]>([]);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -85,6 +94,14 @@ export function RemoteAccessModal({
         setAuthPsk("");
         setAuthX509CaCert(existingConnection.auth_x509_ca_cert || "");
         setAuthX509Cert(existingConnection.auth_x509_cert || "");
+        setAlwaysSendCert(!!existingConnection.auth_always_send_cert);
+        setLocalUsers(
+          (existingConnection.local_users || []).map((u) => ({
+            username: u.username,
+            password: u.password || "",
+            disabled: !!u.disabled,
+          }))
+        );
       } else {
         setName("");
         setDescription("");
@@ -98,6 +115,8 @@ export function RemoteAccessModal({
         setAuthPsk("");
         setAuthX509CaCert("");
         setAuthX509Cert("");
+        setAlwaysSendCert(false);
+        setLocalUsers([]);
       }
       setShowPsk(false);
       setError(null);
@@ -111,11 +130,13 @@ export function RemoteAccessModal({
     setError(null);
 
     try {
-      if (isEdit) await ipsecService.deleteRAConnection(existingConnection!.name);
-
       const poolList = selectedPools.split(",").map((p) => p.trim()).filter(Boolean);
+      const isX509 = authServerMode === "x509";
+      const cleanedUsers = localUsers
+        .map((u) => ({ username: u.username.trim(), password: u.password, disabled: u.disabled }))
+        .filter((u) => u.username);
 
-      const result = await ipsecService.createRAConnection(name.trim(), {
+      const payload = {
         description: description || undefined,
         esp_group: espGroup || undefined,
         ike_group: ikeGroup || undefined,
@@ -124,10 +145,16 @@ export function RemoteAccessModal({
         auth_server_mode: authServerMode || undefined,
         auth_client_mode: authClientMode || undefined,
         auth_local_id: authLocalId || undefined,
-        auth_psk: authPsk || undefined,
-        auth_x509_ca_cert: authX509CaCert || undefined,
-        auth_x509_cert: authX509Cert || undefined,
-      });
+        auth_psk: !isX509 ? authPsk || undefined : undefined,
+        auth_x509_ca_cert: isX509 ? authX509CaCert || undefined : undefined,
+        auth_x509_cert: isX509 ? authX509Cert || undefined : undefined,
+        auth_always_send_cert: isX509 ? alwaysSendCert || undefined : undefined,
+        local_users: cleanedUsers,
+      };
+
+      const result = isEdit
+        ? await ipsecService.updateRAConnection(existingConnection!.name, payload, existingConnection!)
+        : await ipsecService.createRAConnection(name.trim(), payload);
 
       if (result.success) {
         onOpenChange(false);
@@ -267,17 +294,85 @@ export function RemoteAccessModal({
               </div>
             )}
             {authServerMode === "x509" && (
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>CA Certificate</Label>
-                  <Input value={authX509CaCert} onChange={(e) => setAuthX509CaCert(e.target.value)} placeholder="ca-cert" />
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>CA Certificate</Label>
+                    <Input value={authX509CaCert} onChange={(e) => setAuthX509CaCert(e.target.value)} placeholder="ca-cert" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Certificate</Label>
+                    <Input value={authX509Cert} onChange={(e) => setAuthX509Cert(e.target.value)} placeholder="server-cert" />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label>Certificate</Label>
-                  <Input value={authX509Cert} onChange={(e) => setAuthX509Cert(e.target.value)} placeholder="server-cert" />
-                </div>
-              </div>
+                {(capabilities?.features.always_send_cert.supported ?? true) && (
+                  <div className="flex items-start gap-2">
+                    <Checkbox
+                      id="always-send-cert"
+                      checked={alwaysSendCert}
+                      onCheckedChange={(checked) => setAlwaysSendCert(checked === true)}
+                    />
+                    <div className="space-y-0.5">
+                      <Label htmlFor="always-send-cert" className="cursor-pointer text-sm">Always send certificate</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Send the server certificate even when not requested. Required by some clients (e.g. Windows).
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs text-muted-foreground">Local Users</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setLocalUsers([...localUsers, { username: "", password: "", disabled: false }])}
+                >
+                  <Plus className="mr-1 h-3 w-3" /> Add User
+                </Button>
+              </div>
+              {localUsers.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No local users configured</p>
+              ) : (
+                <div className="space-y-2">
+                  {localUsers.map((user, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <Input
+                        value={user.username}
+                        onChange={(e) => {
+                          const next = [...localUsers];
+                          next[idx] = { ...next[idx], username: e.target.value };
+                          setLocalUsers(next);
+                        }}
+                        placeholder="username"
+                      />
+                      <Input
+                        type="password"
+                        value={user.password}
+                        onChange={(e) => {
+                          const next = [...localUsers];
+                          next[idx] = { ...next[idx], password: e.target.value };
+                          setLocalUsers(next);
+                        }}
+                        placeholder="password"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setLocalUsers(localUsers.filter((_, i) => i !== idx))}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
