@@ -189,6 +189,18 @@ export function SiteToSiteModal({
 
       const remoteAddrs = remoteAddresses.split(",").map((a) => a.trim()).filter(Boolean);
 
+      const tunnelConfigs = tunnels.map((t) => {
+        const localPrefixes = t.local_prefix.split(",").map((p) => p.trim()).filter(Boolean);
+        const remotePrefixes = t.remote_prefix.split(",").map((p) => p.trim()).filter(Boolean);
+        return {
+          number: t.number,
+          esp_group: t.esp_group || undefined,
+          local_prefix: localPrefixes.length > 0 ? localPrefixes : undefined,
+          remote_prefix: remotePrefixes.length > 0 ? remotePrefixes : undefined,
+          protocol: t.protocol || undefined,
+        };
+      });
+
       const result = await ipsecService.createS2SPeer(name.trim(), {
         ike_group: ikeGroup || undefined,
         default_esp_group: defaultEspGroup || undefined,
@@ -215,31 +227,13 @@ export function SiteToSiteModal({
         vti_ts_remote_prefix: vtiBind
           ? (vtiTsRemotePrefix.split(",").map((p) => p.trim()).filter(Boolean) || undefined)
           : undefined,
+        tunnels: tunnelConfigs.length > 0 ? tunnelConfigs : undefined,
       });
 
       if (!result.success) {
         setError(result.error || "Failed to create peer");
         setLoading(false);
         return;
-      }
-
-      // Create tunnels
-      for (const tunnel of tunnels) {
-        const localPrefixes = tunnel.local_prefix.split(",").map((p) => p.trim()).filter(Boolean);
-        const remotePrefixes = tunnel.remote_prefix.split(",").map((p) => p.trim()).filter(Boolean);
-
-        const tResult = await ipsecService.createS2STunnel(name.trim(), tunnel.number, {
-          esp_group: tunnel.esp_group || undefined,
-          local_prefix: localPrefixes.length > 0 ? localPrefixes : undefined,
-          remote_prefix: remotePrefixes.length > 0 ? remotePrefixes : undefined,
-          protocol: tunnel.protocol || undefined,
-        });
-
-        if (!tResult.success) {
-          setError(tResult.error || `Failed to create tunnel ${tunnel.number}`);
-          setLoading(false);
-          return;
-        }
       }
 
       onOpenChange(false);

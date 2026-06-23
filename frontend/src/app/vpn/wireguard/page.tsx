@@ -315,7 +315,7 @@ export default function WireGuardPage() {
           </div>
 
           {/* Interface List */}
-          <ScrollArea className="flex-1">
+          <ScrollArea className="flex-1 min-h-0">
             <div className="p-2">
               {!config?.interfaces.length ? (
                 <div className="text-center py-8 px-4">
@@ -624,7 +624,7 @@ export default function WireGuardPage() {
                   </Button>
                 </div>
 
-                <ScrollArea className="flex-1">
+                <ScrollArea className="flex-1 min-h-0">
                   <div className="p-4">
                     {filteredPeers.length === 0 ? (
                       <div className="text-center py-12">
