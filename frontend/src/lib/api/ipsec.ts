@@ -378,6 +378,13 @@ class IPSecService {
     vti_esp_group?: string;
     vti_ts_local_prefix?: string[];
     vti_ts_remote_prefix?: string[];
+    tunnels?: Array<{
+      number: string;
+      esp_group?: string;
+      local_prefix?: string[];
+      remote_prefix?: string[];
+      protocol?: string;
+    }>;
   }): Promise<VyOSResponse> {
     const ops: BatchOperation[] = [{ op: "create_s2s_peer" }];
     if (config.description) ops.push({ op: "set_s2s_peer_description", value: config.description });
@@ -413,6 +420,14 @@ class IPSecService {
         ops.push({ op: "set_s2s_peer_vti_ts_remote_prefix", value: prefix });
       }
     }
+    // Append tunnel operations so the peer and its tunnels are committed in a
+    // single atomic batch. A site-to-site peer without a tunnel (or VTI) is
+    // rejected by VyOS with a 400, so they must not be committed separately.
+    if (config.tunnels) {
+      for (const tunnel of config.tunnels) {
+        ops.push(...this.buildS2STunnelOps(tunnel.number, tunnel));
+      }
+    }
     return this.batchConfigure(name, ops);
   }
 
@@ -424,12 +439,12 @@ class IPSecService {
   // S2S Tunnel Operations
   // ==========================================================================
 
-  async createS2STunnel(peerName: string, tunnelNum: string, config: {
+  private buildS2STunnelOps(tunnelNum: string, config: {
     esp_group?: string;
     local_prefix?: string[];
     remote_prefix?: string[];
     protocol?: string;
-  }): Promise<VyOSResponse> {
+  }): BatchOperation[] {
     const ops: BatchOperation[] = [{ op: "create_s2s_peer_tunnel", value: tunnelNum }];
     if (config.esp_group) ops.push({ op: "set_s2s_peer_tunnel_esp_group", value: `${tunnelNum}|${config.esp_group}` });
     if (config.local_prefix) {
@@ -443,7 +458,16 @@ class IPSecService {
       }
     }
     if (config.protocol) ops.push({ op: "set_s2s_peer_tunnel_protocol", value: `${tunnelNum}|${config.protocol}` });
-    return this.batchConfigure(peerName, ops);
+    return ops;
+  }
+
+  async createS2STunnel(peerName: string, tunnelNum: string, config: {
+    esp_group?: string;
+    local_prefix?: string[];
+    remote_prefix?: string[];
+    protocol?: string;
+  }): Promise<VyOSResponse> {
+    return this.batchConfigure(peerName, this.buildS2STunnelOps(tunnelNum, config));
   }
 
   async deleteS2STunnel(peerName: string, tunnelNum: string): Promise<VyOSResponse> {
