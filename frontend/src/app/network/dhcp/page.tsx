@@ -137,6 +137,11 @@ function DHCPPageInner() {
   // Lease to static mapping modal state
   const [addingLeaseToStatic, setAddingLeaseToStatic] = useState<DHCPLease | null>(null);
 
+  // Clear (release) lease confirmation state
+  const [clearLeaseTarget, setClearLeaseTarget] = useState<DHCPLease | null>(null);
+  const [clearLeaseLoading, setClearLeaseLoading] = useState(false);
+  const [clearLeaseError, setClearLeaseError] = useState<string | null>(null);
+
   // Range modal state
   const [addingRange, setAddingRange] = useState(false);
   const [editingRange, setEditingRange] = useState<{
@@ -199,6 +204,21 @@ function DHCPPageInner() {
       setDisableConfirmError(err instanceof Error ? err.message : "Operation failed");
     } finally {
       setDisableConfirmLoading(false);
+    }
+  };
+
+  const handleConfirmClearLease = async () => {
+    if (!clearLeaseTarget) return;
+    setClearLeaseLoading(true);
+    setClearLeaseError(null);
+    try {
+      await dhcpService.clearLease(clearLeaseTarget.ip_address);
+      setClearLeaseTarget(null);
+      fetchLeases();
+    } catch (err) {
+      setClearLeaseError(err instanceof Error ? err.message : "Failed to clear lease");
+    } finally {
+      setClearLeaseLoading(false);
     }
   };
 
@@ -1195,24 +1215,38 @@ function DHCPPageInner() {
                                     </div>
                                   </TableCell>
                                   <TableCell>
-                                    {hasStaticMapping(lease.mac_address) ? (
-                                      <Badge
-                                        variant="outline"
-                                        className="bg-green-500/10 text-green-500 border-green-500/20"
-                                      >
-                                        Static Assigned
-                                      </Badge>
-                                    ) : (
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => setAddingLeaseToStatic(lease)}
-                                        title="Add to Static Mapping"
-                                      >
-                                        <Plus className="h-4 w-4 mr-1" />
-                                        Add Static
-                                      </Button>
-                                    )}
+                                    <div className="flex items-center gap-1">
+                                      {hasStaticMapping(lease.mac_address) ? (
+                                        <Badge
+                                          variant="outline"
+                                          className="bg-green-500/10 text-green-500 border-green-500/20"
+                                        >
+                                          Static Assigned
+                                        </Badge>
+                                      ) : (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => setAddingLeaseToStatic(lease)}
+                                          title="Add to Static Mapping"
+                                        >
+                                          <Plus className="h-4 w-4 mr-1" />
+                                          Add Static
+                                        </Button>
+                                      )}
+                                      {/* VyOS 1.4 can only release active leases; 1.5 can clear any state */}
+                                      {(!capabilities?.version?.includes("1.4") || lease.state === "active") && (
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-8 w-8"
+                                          onClick={() => { setClearLeaseError(null); setClearLeaseTarget(lease); }}
+                                          title="Release lease"
+                                        >
+                                          <Trash2 className="h-4 w-4 text-destructive" />
+                                        </Button>
+                                      )}
+                                    </div>
                                   </TableCell>
                                 </TableRow>
                               ))}
@@ -1440,6 +1474,57 @@ function DHCPPageInner() {
                 {disableConfirmLoading
                   ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Processing...</>
                   : disableConfirm?.currentlyDisabled ? "Enable" : "Disable"
+                }
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Release Lease Confirmation Modal */}
+        <Dialog
+          open={!!clearLeaseTarget}
+          onOpenChange={(open) => {
+            if (!open && !clearLeaseLoading) {
+              setClearLeaseTarget(null);
+              setClearLeaseError(null);
+            }
+          }}
+        >
+          <DialogContent className="sm:max-w-[420px]">
+            <DialogHeader>
+              <DialogTitle>Release DHCP Lease</DialogTitle>
+              <DialogDescription>
+                Release the lease for{" "}
+                <span className="font-mono">{clearLeaseTarget?.ip_address}</span>
+                {clearLeaseTarget?.hostname ? ` (${clearLeaseTarget.hostname})` : ""}? The
+                address will be returned to the pool and the client may receive a different
+                address on its next request.
+              </DialogDescription>
+            </DialogHeader>
+
+            {clearLeaseError && (
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0" />
+                <p className="text-sm text-destructive">{clearLeaseError}</p>
+              </div>
+            )}
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => { setClearLeaseTarget(null); setClearLeaseError(null); }}
+                disabled={clearLeaseLoading}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleConfirmClearLease}
+                disabled={clearLeaseLoading}
+              >
+                {clearLeaseLoading
+                  ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Releasing...</>
+                  : "Release Lease"
                 }
               </Button>
             </DialogFooter>

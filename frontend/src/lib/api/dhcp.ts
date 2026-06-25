@@ -254,6 +254,21 @@ class DHCPService {
   }
 
   /**
+   * Clear (release) a single DHCP lease by IP address.
+   * This is an operational command issued via the VyOS GraphQL API.
+   */
+  async clearLease(ipAddress: string, vrf?: string): Promise<VyOSResponse> {
+    const result = await apiClient.post<VyOSResponse>("/vyos/dhcp/leases/clear", {
+      ip_address: ipAddress,
+      vrf: vrf ?? null,
+    });
+    if (!result.success) {
+      throw new Error(result.error || "Failed to clear DHCP lease");
+    }
+    return result;
+  }
+
+  /**
    * Refresh the cached configuration from VyOS device
    */
   async refreshConfig(): Promise<VyOSResponse> {

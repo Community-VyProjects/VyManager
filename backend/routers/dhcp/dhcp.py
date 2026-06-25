@@ -14,6 +14,9 @@ from vyos_builders import DHCPBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 import inspect
+import ipaddress
+import httpx
+from datetime import datetime, timezone
 import logging
 logger = logging.getLogger(__name__)
 
@@ -186,6 +189,13 @@ class DHCPLeasesResponse(BaseModel):
 
     leases: List[DHCPLease] = []
     total: int = 0
+
+
+class DHCPClearLeaseRequest(BaseModel):
+    """Request to clear/release a single DHCP lease."""
+
+    ip_address: str = Field(..., description="IP address of the lease to clear")
+    vrf: Optional[str] = Field(None, description="VRF the lease belongs to (1.5 only)")
 
 
 # ============================================================================
@@ -571,16 +581,144 @@ async def get_dhcp_config(http_request: Request, refresh: bool = False):
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
+def _format_lease_time(value: Any) -> str:
+    """Format a lease timestamp from the GraphQL op (epoch seconds) to a string."""
+    if value is None:
+        return ""
+    # GraphQL returns epoch seconds (float); fall back to str for anything else.
+    if isinstance(value, (int, float)):
+        try:
+            return datetime.fromtimestamp(float(value), tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        except (ValueError, OSError, OverflowError):
+            return str(value)
+    return str(value)
+
+
+def _normalize_hostname(value: Any) -> Optional[str]:
+    """VyOS reports an unknown hostname as '-'; normalize that to None."""
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text or text == "-":
+        return None
+    return text
+
+
+def _parse_gql_lease_rows(rows: Any) -> List[DHCPLease]:
+    """Convert the JSON rows from ShowServerLeasesDhcp into DHCPLease models."""
+    leases: List[DHCPLease] = []
+    if not isinstance(rows, list):
+        return leases
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        try:
+            leases.append(DHCPLease(
+                ip_address=str(row.get("ip", "")),
+                mac_address=str(row.get("mac", "")),
+                state=str(row.get("state", "")),
+                lease_start=_format_lease_time(row.get("start")),
+                lease_expiration=_format_lease_time(row.get("end")),
+                remaining=str(row.get("remaining") or ""),
+                pool=str(row.get("pool") or ""),
+                hostname=_normalize_hostname(row.get("hostname")),
+                origin=str(row.get("origin") or "local"),
+            ))
+        except ValueError as e:
+            logger.warning("Could not parse GraphQL lease row %s: %s", row, e)
+    return leases
+
+
+async def _fetch_leases_graphql(service) -> List[DHCPLease]:
+    """Fetch IPv4 DHCP server leases via the VyOS GraphQL API.
+
+    The ``origin`` argument is required by the schema but is honored on 1.4
+    (filters local vs. remote) and ignored on 1.5 (returns the full set for
+    either value). We therefore query both origins in a single request and
+    dedupe by IP+MAC so the result is correct on both versions.
+    """
+    api_key = str(service.config.apikey)
+    url = f"{service.config.protocol}://{service.config.hostname}:{service.config.port}/graphql"
+    query = (
+        "query ($key: String) {"
+        "  local: ShowServerLeasesDhcp(data: {key: $key, family: inet, state: all, origin: local}) { success data { result } }"
+        "  remote: ShowServerLeasesDhcp(data: {key: $key, family: inet, state: all, origin: remote}) { success data { result } }"
+        "}"
+    )
+    payload = {"query": query, "variables": {"key": api_key}}
+
+    async with httpx.AsyncClient(verify=service.config.verify, timeout=15.0) as client:
+        resp = await client.post(url, json=payload, auth=("vyos", api_key))
+
+    if resp.status_code != 200:
+        raise RuntimeError(f"GraphQL HTTP {resp.status_code}")
+
+    body = resp.json()
+    if body.get("errors"):
+        raise RuntimeError(f"GraphQL errors: {body['errors']}")
+
+    data = body.get("data") or {}
+    deduped: Dict[tuple, DHCPLease] = {}
+    for alias in ("local", "remote"):
+        node = data.get(alias) or {}
+        rows = (node.get("data") or {}).get("result")
+        for lease in _parse_gql_lease_rows(rows):
+            deduped.setdefault((lease.ip_address, lease.mac_address), lease)
+    return list(deduped.values())
+
+
+def _fetch_leases_rest(service) -> List[DHCPLease]:
+    """Fallback: fetch leases via the REST 'show dhcp server leases' text output."""
+    response = service.device.show(path=["dhcp", "server", "leases"])
+    if response.status != 200 or not response.result:
+        return []
+
+    output = ""
+    if isinstance(response.result, dict) and "data" in response.result:
+        output = response.result["data"]
+    elif isinstance(response.result, str):
+        output = response.result
+    if not output:
+        return []
+
+    leases: List[DHCPLease] = []
+    lines = output.strip().split('\n')
+    data_lines = [
+        line for i, line in enumerate(lines)
+        if i >= 2 and line.strip() and not line.startswith('-')
+    ]
+    for line in data_lines:
+        parts = line.split()
+        if len(parts) < 9:
+            continue
+        try:
+            leases.append(DHCPLease(
+                ip_address=parts[0],
+                mac_address=parts[1],
+                state=parts[2],
+                lease_start=f"{parts[3]} {parts[4]}",
+                lease_expiration=f"{parts[5]} {parts[6]}",
+                remaining=parts[7],
+                pool=parts[8],
+                hostname=_normalize_hostname(parts[9]) if len(parts) > 9 else None,
+                origin=parts[10] if len(parts) > 10 else "local",
+            ))
+        except (IndexError, ValueError) as e:
+            logger.warning("Could not parse lease line %r: %s", line, e)
+    return leases
+
+
 @router.get("/leases", response_model=DHCPLeasesResponse)
 async def get_dhcp_leases(request: Request):
     """
     Get all active DHCP leases from VyOS.
 
-    Uses the 'show dhcp server leases' command via the VyOS API.
-    Results are cached to improve performance and reduce API calls.
+    Uses the GraphQL ``ShowServerLeasesDhcp`` op (faster than the REST text
+    output and returns structured JSON). Falls back to parsing the REST
+    'show dhcp server leases' output if the GraphQL request fails.
 
     Returns:
-        List of active DHCP leases with details like IP, MAC, hostname, expiration, etc.
+        List of DHCP leases with details like IP, MAC, hostname, expiration, etc.
     """
     # Check RBAC permission
     await require_read_permission(request, FeatureGroup.DHCP)
@@ -588,64 +726,111 @@ async def get_dhcp_leases(request: Request):
     try:
         service = get_session_vyos_service(request)
 
-        # Use the show command to get DHCP leases
-        # This returns tabular data that we need to parse
-        response = service.device.show(path=["dhcp", "server", "leases"])
-
-        if response.status != 200 or not response.result:
-            return DHCPLeasesResponse(leases=[], total=0)
-
-        # Parse the output - it can be a dict with "data" key or a string directly
-        output = ""
-        if isinstance(response.result, dict) and "data" in response.result:
-            output = response.result["data"]
-        elif isinstance(response.result, str):
-            output = response.result
-
-        if not output:
-            return DHCPLeasesResponse(leases=[], total=0)
-
-        leases = []
-        lines = output.strip().split('\n')
-
-        # Skip header lines (usually first 2 lines: header row and separator)
-        data_lines = []
-        for i, line in enumerate(lines):
-            # Skip header and separator lines
-            if i < 2 or not line.strip() or line.startswith('-'):
-                continue
-            data_lines.append(line)
-
-        # Parse each lease line
-        for line in data_lines:
-            # Split by whitespace to handle the tabular format
-            parts = line.split()
-            if len(parts) < 9:  # Minimum expected fields
-                continue
-
-            try:
-                lease = DHCPLease(
-                    ip_address=parts[0],
-                    mac_address=parts[1],
-                    state=parts[2],
-                    lease_start=f"{parts[3]} {parts[4]}",  # Date and time
-                    lease_expiration=f"{parts[5]} {parts[6]}",  # Date and time
-                    remaining=parts[7],
-                    pool=parts[8],
-                    hostname=parts[9] if len(parts) > 9 else None,
-                    origin=parts[10] if len(parts) > 10 else "local"
-                )
-                leases.append(lease)
-            except (IndexError, ValueError) as e:
-                # Skip malformed lines
-                print(f"Warning: Could not parse lease line: {line}. Error: {e}")
-                continue
+        try:
+            leases = await _fetch_leases_graphql(service)
+        except Exception as e:
+            logger.warning("GraphQL lease fetch failed (%s); falling back to REST", e)
+            leases = await run_in_threadpool(_fetch_leases_rest, service)
 
         return DHCPLeasesResponse(leases=leases, total=len(leases))
 
     except KeyError:
         raise HTTPException(status_code=404, detail="Device not found in registry")
     except Exception as e:
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post("/leases/clear", response_model=VyOSResponse)
+async def clear_dhcp_lease(http_request: Request, request: DHCPClearLeaseRequest):
+    """
+    Clear (release) a single active DHCP lease.
+
+    This is an operational command, not a configuration change, so it is issued
+    via the VyOS GraphQL API rather than the batch/config endpoint. The mutation
+    differs between VyOS versions:
+
+    - 1.4: ``ClearReleaseLeaseDhcp(data: {key, ip_address})``
+           (only active leases can be released)
+    - 1.5: ``ClearDhcpServerLeaseDhcp(data: {key, family, address, vrf})``
+
+    Args:
+        request: The IP address of the lease to clear, plus optional VRF (1.5).
+
+    Returns:
+        Success status and any error reported by VyOS.
+    """
+    await require_write_permission(http_request, FeatureGroup.DHCP)
+
+    try:
+        service = get_session_vyos_service(http_request)
+        version = service.get_version()
+
+        # Validate / normalize the IP address and derive the address family.
+        try:
+            ip_obj = ipaddress.ip_address(request.ip_address)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid IP address")
+        family = "inet6" if ip_obj.version == 6 else "inet"
+        ip_str = str(ip_obj)
+
+        api_key = str(service.config.apikey)
+        url = f"{service.config.protocol}://{service.config.hostname}:{service.config.port}/graphql"
+
+        if "1.4" in version:
+            mutation_name = "ClearReleaseLeaseDhcp"
+            query = (
+                "mutation ($key: String, $ip: String!) {"
+                f"  {mutation_name}(data: {{key: $key, ip_address: $ip}}) {{"
+                "    success errors"
+                "  }"
+                "}"
+            )
+            variables = {"key": api_key, "ip": ip_str}
+        else:
+            mutation_name = "ClearDhcpServerLeaseDhcp"
+            query = (
+                "mutation ($key: String, $family: FamilyDhcp!, $address: String!, $vrf: String) {"
+                f"  {mutation_name}(data: {{key: $key, family: $family, address: $address, vrf: $vrf}}) {{"
+                "    success errors"
+                "  }"
+                "}"
+            )
+            variables = {
+                "key": api_key,
+                "family": family,
+                "address": ip_str,
+                "vrf": request.vrf,
+            }
+
+        payload = {"query": query, "variables": variables}
+
+        async with httpx.AsyncClient(verify=service.config.verify, timeout=15.0) as client:
+            resp = await client.post(url, json=payload, auth=("vyos", api_key))
+
+        if resp.status_code != 200:
+            logger.error("Clear DHCP lease GraphQL HTTP error %d", resp.status_code)
+            raise HTTPException(status_code=502, detail="Failed to clear DHCP lease")
+
+        body = resp.json()
+        if "errors" in body and body["errors"]:
+            logger.warning("Clear DHCP lease GraphQL errors: %s", body["errors"])
+            return VyOSResponse(success=False, error="Failed to clear DHCP lease")
+
+        node = (body.get("data") or {}).get(mutation_name) or {}
+        success = bool(node.get("success"))
+        error = None
+        if not success:
+            errs = node.get("errors") or []
+            error = "; ".join(str(e) for e in errs) if errs else "Failed to clear DHCP lease"
+
+        return VyOSResponse(success=success, error=error)
+
+    except HTTPException:
+        raise
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Device not found in registry")
+    except Exception:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
 
