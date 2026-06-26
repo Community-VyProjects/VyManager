@@ -12,7 +12,6 @@ interface Props {
 
 interface State {
   hasError: boolean;
-  message: string;
   reportOpen: boolean;
 }
 
@@ -22,10 +21,10 @@ interface State {
  * is pushed into the capture buffer so the report auto-attaches the stack.
  */
 export class ErrorBoundary extends Component<Props, State> {
-  state: State = { hasError: false, message: "", reportOpen: false };
+  state: State = { hasError: false, reportOpen: false };
 
-  static getDerivedStateFromError(error: Error): Partial<State> {
-    return { hasError: true, message: error.message };
+  static getDerivedStateFromError(_error: Error): Partial<State> {
+    return { hasError: true };
   }
 
   componentDidCatch(error: Error, info: { componentStack?: string | null }) {
@@ -37,7 +36,7 @@ export class ErrorBoundary extends Component<Props, State> {
     });
   }
 
-  private reset = () => this.setState({ hasError: false, message: "", reportOpen: false });
+  private reset = () => this.setState({ hasError: false, reportOpen: false });
 
   render() {
     if (!this.state.hasError) return this.props.children;
