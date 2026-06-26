@@ -11,6 +11,8 @@ import { Loader2 } from "lucide-react";
 import { UnifiedView } from "../ui/unified-view";
 import { useUnifiedView } from "@/contexts/UnifiedViewContext";
 import { useBannerEvents } from "@/hooks/useBannerEvents";
+import { ErrorBoundary } from "../error/ErrorBoundary";
+import { installGlobalErrorCapture } from "@/lib/error-capture";
 
 
 function AppLayoutInner({ children }: { children: React.ReactNode }) {
@@ -19,6 +21,11 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
   const [isChecking, setIsChecking] = useState(true);
   const { unifiedViewData, closeUnifiedView } = useUnifiedView();
   const bannerEvents = useBannerEvents();
+
+  // Start capturing uncaught errors/rejections so the bug reporter can attach them.
+  useEffect(() => {
+    installGlobalErrorCapture();
+  }, []);
 
   useEffect(() => {
     const checkSession = async () => {
@@ -71,7 +78,7 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
           <PowerActionBanner powerStatus={bannerEvents.data.powerStatus} />
           <UnsavedChangesBanner configDiff={bannerEvents.data.configDiff} commitConfirm={bannerEvents.data.commitConfirm} />
           <div className="flex-1 min-h-0 overflow-y-auto">
-            {children}
+            <ErrorBoundary>{children}</ErrorBoundary>
           </div>
         </main>
       </div>

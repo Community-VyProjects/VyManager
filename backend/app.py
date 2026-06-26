@@ -78,6 +78,7 @@ from routers.rpki import rpki as rpki_router
 from routers.traffic_engineering import traffic_engineering as te_router
 from routers.broadcast_relay import broadcast_relay as broadcast_relay_router
 from routers.lldp import lldp as lldp_router
+from routers.bug_report import bug_report as bug_report_router
 from routers.ndp_proxy import ndp_proxy as ndp_proxy_router
 from routers.ntp import ntp as ntp_router
 from routers.snmp import snmp as snmp_router
@@ -395,6 +396,7 @@ app.include_router(rpki_router.router)
 app.include_router(te_router.router)
 app.include_router(broadcast_relay_router.router)
 app.include_router(lldp_router.router)
+app.include_router(bug_report_router.router)
 app.include_router(ndp_proxy_router.router)
 app.include_router(ntp_router.router)
 app.include_router(snmp_router.router)

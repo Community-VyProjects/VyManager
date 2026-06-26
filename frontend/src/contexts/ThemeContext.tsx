@@ -36,12 +36,26 @@ function loadThemeId(): string {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [customThemes, setCustomThemes] = useState<ThemeDefinition[]>(loadCustomThemes);
-  const [themeId, setThemeIdRaw] = useState<string>(() => loadThemeId());
+  // Start from SSR-safe defaults so the server-rendered markup and the first
+  // client (hydration) render are identical. The persisted theme is loaded from
+  // localStorage after mount; otherwise the client's first render would use the
+  // saved theme while the server used "dark", causing a hydration mismatch.
+  const [customThemes, setCustomThemes] = useState<ThemeDefinition[]>([]);
+  const [themeId, setThemeIdRaw] = useState<string>("dark");
+  const [mounted, setMounted] = useState(false);
 
   const allThemes = [...BUILT_IN_THEMES, ...customThemes];
 
   useEffect(() => {
+    setCustomThemes(loadCustomThemes());
+    setThemeIdRaw(loadThemeId());
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    // Don't apply/persist until the saved theme has been loaded, or we would
+    // clobber localStorage's "theme-id" with the temporary "dark" default.
+    if (!mounted) return;
     const theme = allThemes.find((t) => t.id === themeId) ?? BUILT_IN_THEMES[0];
     const root = document.documentElement;
     Object.entries(theme.variables).forEach(([k, v]) => {
@@ -51,7 +65,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     root.classList.toggle("light", !theme.isDark);
     localStorage.setItem("theme-id", theme.id);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [themeId, customThemes]);
+  }, [themeId, customThemes, mounted]);
 
   function setThemeId(id: string) {
     setThemeIdRaw(id);

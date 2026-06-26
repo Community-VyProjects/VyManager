@@ -10,7 +10,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { ChevronDown, LogOut, User, Building2, Power, PowerOff } from "lucide-react";
+import { ChevronDown, LogOut, User, Building2, Power, PowerOff, Bug } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { useSession, signOut } from "@/lib/auth-client";
@@ -19,6 +19,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 import { ThemeSelector } from "@/components/ui/theme-selector";
 import { SearchCommand } from "@/components/search/SearchCommand";
+import { BugReportModal } from "@/components/bug-report/BugReportModal";
 
 import { getSidebarNavigation, type NavItem, type NavChild } from "@/lib/navigation";
 
@@ -27,6 +28,7 @@ export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [openItems, setOpenItems] = useState<string[]>([]);
+  const [bugReportOpen, setBugReportOpen] = useState(false);
   const { data: session } = useSession();
   const { activeSession, loadSession, disconnectFromInstance } = useSessionStore();
   const { canRead } = usePermissions();
@@ -322,100 +324,77 @@ export function Sidebar() {
       </ScrollArea>
 
       {/* Footer */}
-      <div className="border-t border-border/50 p-4 space-y-3 shrink-0">
+      <div className="border-t border-border/50 p-3 space-y-2 shrink-0">
+        {/* Report a Bug */}
+        <Button
+          onClick={() => setBugReportOpen(true)}
+          variant="ghost"
+          size="sm"
+          className="w-full justify-center gap-2 text-xs text-muted-foreground hover:text-foreground"
+        >
+          <Bug className="h-3.5 w-3.5" />
+          Report a Bug
+        </Button>
+        <BugReportModal open={bugReportOpen} onOpenChange={setBugReportOpen} />
+
         {/* Theme Selector */}
-        <div className="space-y-2">
-          <ThemeSelector />
-        </div>
+        <ThemeSelector />
 
         {/* Active Instance Indicator */}
         {activeSession ? (
-          <div className="space-y-2">
-            <div className="rounded-lg bg-primary/10 border border-primary/30 p-3 glow-border">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20">
-                  <Building2 className="h-4 w-4 text-primary glow-text" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-primary truncate">
-                    {activeSession.instance_name}
-                  </p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {activeSession.site_name}
-                  </p>
-                </div>
-                <div
-                  className="h-2 w-2 rounded-full bg-primary animate-pulse glow-primary-subtle"
-                  title="Connected"
-                />
-              </div>
-              <Button
-                onClick={async () => {
-                  await disconnectFromInstance();
-                  router.push("/sites");
-                }}
-                variant="outline"
-                size="sm"
-                className="w-full justify-center gap-2 text-xs"
-              >
-                <PowerOff className="h-3 w-3" />
-                Disconnect Instance
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            <div className="rounded-lg bg-muted/30 border border-border/50 p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted/50">
-                  <Building2 className="h-4 w-4 text-muted-foreground" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-muted-foreground">
-                    No Instance
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Not connected
-                  </p>
-                </div>
-                <div
-                  className="h-2 w-2 rounded-full bg-muted-foreground/50"
-                  title="Disconnected"
-                />
-              </div>
-              <Button
-                onClick={() => router.push("/sites")}
-                variant="default"
-                size="sm"
-                className="w-full justify-center gap-2 text-xs"
-              >
-                <Power className="h-3 w-3" />
-                Connect to Instance
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* User Info & Logout */}
-        <div className="rounded-lg bg-muted/30 border border-border/50 p-3">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
-              <User className="h-4 w-4 text-primary glow-text" />
-            </div>
+          <div className="flex items-center gap-2 rounded-lg bg-primary/10 border border-primary/30 px-2.5 py-2 glow-border">
+            <Building2 className="h-4 w-4 text-primary glow-text shrink-0" />
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-foreground truncate">
-                {session?.user?.name || session?.user?.email || "User"}
+              <p className="text-xs font-medium text-primary truncate">
+                {activeSession.instance_name}
+              </p>
+              <p className="text-[11px] text-muted-foreground truncate leading-tight">
+                {activeSession.site_name}
               </p>
             </div>
+            <span
+              className="h-2 w-2 rounded-full bg-primary animate-pulse glow-primary-subtle shrink-0"
+              title="Connected"
+            />
+            <Button
+              onClick={async () => {
+                await disconnectFromInstance();
+                router.push("/sites");
+              }}
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
+              title="Disconnect instance"
+            >
+              <PowerOff className="h-3.5 w-3.5" />
+            </Button>
           </div>
+        ) : (
+          <Button
+            onClick={() => router.push("/sites")}
+            variant="default"
+            size="sm"
+            className="w-full justify-center gap-2 text-xs"
+          >
+            <Power className="h-3 w-3" />
+            Connect to Instance
+          </Button>
+        )}
+
+        {/* User Info & Logout (single compact row) */}
+        <div className="flex items-center gap-2 rounded-lg bg-muted/30 border border-border/50 px-2.5 py-1.5">
+          <User className="h-4 w-4 text-primary glow-text shrink-0" />
+          <span className="flex-1 min-w-0 truncate text-xs font-semibold text-foreground">
+            {session?.user?.name || session?.user?.email || "User"}
+          </span>
           <Button
             onClick={handleLogout}
-            variant="outline"
-            className="w-full justify-center gap-2 text-xs"
-            size="sm"
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
+            title="Logout"
           >
-            <LogOut className="h-3 w-3" />
-            Logout
+            <LogOut className="h-3.5 w-3.5" />
           </Button>
         </div>
       </div>
