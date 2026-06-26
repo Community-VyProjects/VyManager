@@ -18,6 +18,7 @@ function resolveBackendUrl(): string {
 }
 
 import { ApiError } from "../types/api";
+import { recordApiError } from "../error-capture";
 
 export class ApiClient {
   private readonly _baseUrl?: string;
@@ -86,6 +87,15 @@ export class ApiClient {
           details: errorDetails,
         };
 
+        // Capture for the bug reporter: unexpected server errors (5xx) and any
+        // failure on a config mutation (/batch), where a 400 usually signals a
+        // batching bug. Skip routine 4xx on read endpoints (auth/not-found).
+        const isBatch = endpoint.includes("/batch");
+        if (response.status >= 500 || (isBatch && response.status >= 400)) {
+          const payload = typeof options?.body === "string" ? options.body : undefined;
+          recordApiError(endpoint, response.status, errorMessage, payload);
+        }
+
         throw error;
       }
 
@@ -93,7 +103,23 @@ export class ApiClient {
       const responseText = await response.text();
 
       try {
-        return JSON.parse(responseText);
+        const parsed = JSON.parse(responseText);
+        // VyOS commit failures come back as HTTP 200 with { success: false }, so
+        // capture those here (with the payload) — they never hit the !ok branch.
+        if (
+          parsed &&
+          typeof parsed === "object" &&
+          (parsed as { success?: unknown }).success === false
+        ) {
+          const payload = typeof options?.body === "string" ? options.body : undefined;
+          recordApiError(
+            endpoint,
+            response.status,
+            (parsed as { error?: string }).error || "Operation failed",
+            payload,
+          );
+        }
+        return parsed;
       } catch {
         // If response is not valid JSON, throw error
         if (responseText.includes("<!DOCTYPE")) {
@@ -113,8 +139,10 @@ export class ApiClient {
         throw error;
       }
 
+      const message = error instanceof Error ? error.message : "Network error occurred";
+      recordApiError(endpoint, 0, message);
       throw {
-        message: error instanceof Error ? error.message : "Network error occurred",
+        message,
         details: error,
       } as ApiError;
     }

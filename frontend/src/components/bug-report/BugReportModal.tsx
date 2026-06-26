@@ -28,6 +28,11 @@ import {
   type ReportRequest,
   type ReportPreview,
 } from "@/lib/api/bug-report";
+import {
+  getRecentErrors,
+  formatErrorsForReport,
+  hasRecentErrors,
+} from "@/lib/error-capture";
 
 interface BugReportModalProps {
   open: boolean;
@@ -60,6 +65,7 @@ export function BugReportModal({ open, onOpenChange }: BugReportModalProps) {
   const [description, setDescription] = useState("");
   const [errorText, setErrorText] = useState("");
   const [includeDiagnostics, setIncludeDiagnostics] = useState(true);
+  const [autoAttached, setAutoAttached] = useState(false);
 
   // Preview / result
   const [preview, setPreview] = useState<ReportPreview | null>(null);
@@ -87,6 +93,7 @@ export function BugReportModal({ open, onOpenChange }: BugReportModalProps) {
     setDescription("");
     setErrorText("");
     setIncludeDiagnostics(true);
+    setAutoAttached(false);
     setPreview(null);
     setIssueUrl("");
   }, [stopPolling]);
@@ -97,6 +104,17 @@ export function BugReportModal({ open, onOpenChange }: BugReportModalProps) {
       resetAll();
       return;
     }
+
+    // Auto-attach any recently captured errors so the user doesn't have to find
+    // and paste a stack trace themselves.
+    if (hasRecentErrors()) {
+      const recent = getRecentErrors();
+      setErrorText(formatErrorsForReport(recent));
+      // A failed config operation is a "bug"; an uncaught/render error is a "crash".
+      setCategory(recent[recent.length - 1].kind === "api" ? "bug" : "crash");
+      setAutoAttached(true);
+    }
+
     let cancelled = false;
     (async () => {
       try {
@@ -326,7 +344,27 @@ export function BugReportModal({ open, onOpenChange }: BugReportModalProps) {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="br-error">Error / stack trace (optional)</Label>
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="br-error">Error / stack trace (optional)</Label>
+                {errorText.trim() && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setErrorText("");
+                      setAutoAttached(false);
+                    }}
+                    className="text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+              {autoAttached && (
+                <p className="text-xs text-muted-foreground">
+                  Recent errors were detected and attached automatically. Review and edit
+                  or clear them below.
+                </p>
+              )}
               <Textarea
                 id="br-error"
                 value={errorText}
