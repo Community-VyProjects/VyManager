@@ -27,11 +27,19 @@ REDACTED = "[REDACTED]"
 REDACTED_PEM = "[REDACTED CERTIFICATE/KEY]"
 REDACTED_IP = "[REDACTED PUBLIC IP]"
 
-# 1. PEM blocks — certificates and private keys. Multiline, non-greedy.
-_PEM_RE = re.compile(r"-----BEGIN [^-]+-----.*?-----END [^-]+-----", re.DOTALL)
+# 1. PEM blocks — certificates and private keys. The label class is restricted
+#    to letters/digits/spaces (disjoint from '-') and bounded, so the engine
+#    cannot backtrack character-by-character — avoids the polynomial-time ReDoS
+#    that an unbounded "[^-]+" would allow on adversarial input.
+_PEM_RE = re.compile(
+    r"-----BEGIN [A-Za-z0-9 ]{1,64}-----.*?-----END [A-Za-z0-9 ]{1,64}-----",
+    re.DOTALL,
+)
 
 # 2. key: value / key = value secrets. The key is preserved, the value redacted.
 #    Matches VyOS-style (password 'xxx'), JSON ("token": "xxx") and env (API_KEY=xxx).
+#    The value run is matched deterministically (no closing-quote backreference),
+#    which both avoids backtracking and still scrubs unbalanced/unclosed quotes.
 _SECRET_KEYS = (
     r"pre-?shared-?secret|preshared-?key|passphrase|password|passwd|"
     r"secret|client[-_]?secret|api[-_]?key|apikey|access[-_]?token|"
@@ -41,8 +49,7 @@ _SECRET_KV_RE = re.compile(
     r"(?i)\b(" + _SECRET_KEYS + r")\b"      # 1: key
     r"(\s*['\"]?\s*[:=]\s*|\s+)"            # 2: separator (':', '=', or whitespace)
     r"(['\"]?)"                             # 3: opening quote (maybe empty)
-    r"([^\s'\"]{3,})"                       # 4: the secret value
-    r"\3"                                   # matching closing quote
+    r"([^\s'\"]{3,})"                       # 4: the secret value (a quote/space ends it)
 )
 
 # 3. HTTP bearer tokens.
@@ -67,8 +74,9 @@ _CGNAT = ipaddress.ip_network("100.64.0.0/10")
 
 
 def _redact_kv(m: Match[str]) -> str:
-    quote = m.group(3)
-    return f"{m.group(1)}{m.group(2)}{quote}{REDACTED}{quote}"
+    # group(3) is the opening quote (if any); any closing quote is left in place
+    # since it is no longer part of the match.
+    return f"{m.group(1)}{m.group(2)}{m.group(3)}{REDACTED}"
 
 
 def _redact_ipv4(m: Match[str]) -> str:

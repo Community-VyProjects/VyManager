@@ -94,6 +94,25 @@ def test_public_ipv6_redacted_private_kept():
     assert "::1" in redact("loopback ::1 ok")
 
 
+def test_unbalanced_quote_secret_still_redacted():
+    # No closing quote — must still scrub the value (hardened KV regex).
+    out = redact('password "secretvalue')
+    assert "secretvalue" not in out
+    assert REDACTED in out
+
+
+def test_pem_redos_pathological_input_is_fast():
+    # Adversarial input that the old unbounded "[^-]+" matched in polynomial
+    # time. The bounded label class must keep this near-linear.
+    import time
+
+    evil = "-----BEGIN ," * 20000
+    start = time.perf_counter()
+    redact(evil)
+    elapsed = time.perf_counter() - start
+    assert elapsed < 1.0, f"redaction too slow on adversarial input: {elapsed:.3f}s"
+
+
 def test_empty_string():
     assert redact("") == ""
 
