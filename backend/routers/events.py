@@ -87,7 +87,32 @@ async def banner_events(request: Request):
     """
     await require_read_permission(request, FeatureGroup.CONFIGURATION)
 
-    instance_id = request.state.instance["id"]
+    instance = getattr(request.state, "instance", None)
+    if not instance:
+        # No active instance yet (e.g. on the site-selection screen). Return an
+        # idle keepalive stream instead of erroring, so the client's EventSource
+        # doesn't spin in an error/reconnect loop. A real stream is established
+        # once an instance is selected and this endpoint is reconnected.
+        async def idle_stream():
+            try:
+                yield _format_sse("banner_state", {})
+                while True:
+                    await asyncio.sleep(30)
+                    yield ": keepalive\n\n"
+            except asyncio.CancelledError:
+                pass
+
+        return StreamingResponse(
+            idle_stream(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no",
+                "Connection": "keep-alive",
+            },
+        )
+
+    instance_id = instance["id"]
     user_id = request.state.user["id"]
     db_pool = request.app.state.db_pool
     queue = event_manager.subscribe(instance_id)
