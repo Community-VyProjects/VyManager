@@ -9,6 +9,13 @@ import { Github, Globe, MessageCircle, Sparkles, ArrowUpCircle, Tag } from "luci
 import { useSession } from "@/lib/auth-client";
 import { useSessionStore } from "@/store/session-store";
 import { dashboardService, DashboardCard, DashboardLayout } from "@/lib/api/dashboard";
+import {
+  compactLayout,
+  cardPixelHeight,
+  DEFAULT_HEIGHT,
+  GRID_COLUMNS,
+  ROW_UNIT,
+} from "@/lib/dashboard-layout";
 import { versionService, VersionCheckResponse } from "@/lib/api/version";
 import { InterfaceStatisticsCard } from "@/components/dashboard/InterfaceStatisticsCard";
 import { SystemInfoCard } from "@/components/dashboard/SystemInfoCard";
@@ -62,7 +69,7 @@ function SortableCard({ card, children }: { card: DashboardCard; children: React
     <div
       ref={setNodeRef}
       style={style}
-      className={`${isDragging ? "cursor-grabbing" : "cursor-grab"} ${
+      className={`h-full ${isDragging ? "cursor-grabbing" : "cursor-grab"} ${
         isOver ? "ring-2 ring-primary ring-offset-2" : ""
       }`}
       {...attributes}
@@ -140,18 +147,16 @@ export default function Home() {
     try {
       const response = await dashboardService.getLayout();
       if (response.exists && response.layout) {
-        // Ensure all cards have a span property (backward compatibility)
-        const cardsWithSpan = (response.layout.cards || []).map((card) => {
-          if (card.span === undefined) {
-            // Set default span based on card type
-            if (card.type === "interface-statistics" || card.type === "network-speed") {
-              return { ...card, span: 2 };
-            }
-            return { ...card, span: 1 };
-          }
-          return card;
+        // Backfill span/height for cards saved before those fields existed,
+        // then compact so legacy row-index positions reflow into the row-unit grid.
+        const normalized = (response.layout.cards || []).map((card) => {
+          const span =
+            card.span ??
+            (card.type === "interface-statistics" || card.type === "network-speed" ? 2 : 1);
+          const height = card.height ?? DEFAULT_HEIGHT;
+          return { ...card, span, height };
         });
-        setCards(cardsWithSpan);
+        setCards(compactLayout(normalized));
       } else {
         setCards([]);
       }
@@ -253,18 +258,19 @@ export default function Home() {
 
     const cardSpan = activeCard.span || 1;
     let targetColumn = 0;
-    let targetPosition = 0;
+    // Tentative vertical position that steers compaction: a card dropped onto
+    // another takes a slot just above it; a column-overlay drop goes to the top.
+    let tentativePosition = 0;
 
     // Check if dropped on a column zone
     const columnMatch = over.id.toString().match(/^column-(\d+)$/);
     if (columnMatch) {
       targetColumn = parseInt(columnMatch[1]);
-      console.log(`[Drag] Dropped on Column ${targetColumn + 1} overlay`);
+      tentativePosition = -1; // top of the column
     } else {
       // Check if dropped on another card
       const overCard = cards.find((c) => c.id === over.id);
       if (!overCard) {
-        console.log(`[Drag] Dropped on unknown target: ${over.id}`);
         return;
       }
 
@@ -273,81 +279,20 @@ export default function Home() {
         return;
       }
 
-      // Use the overCard's column and position as target
+      // Take the target card's column and insert just above its position.
       targetColumn = overCard.column;
-      targetPosition = overCard.position;
-      console.log(`[Drag] Dropped on card at column=${targetColumn}, position=${targetPosition}`);
+      tentativePosition = overCard.position - 0.5;
     }
 
-    // SMART VALIDATION: Adjust column if span would overflow
-    // A card can only start at a column where it won't exceed column 2
-    const maxStartColumn = 3 - cardSpan; // span 1: max col 2, span 2: max col 1, span 3: max col 0
-    if (targetColumn > maxStartColumn) {
-      targetColumn = maxStartColumn;
-    }
+    // Clamp the start column so the card's span fits within the grid width.
+    const maxStartColumn = GRID_COLUMNS - cardSpan;
+    targetColumn = Math.min(Math.max(targetColumn, 0), maxStartColumn);
 
-    // Build occupancy map from all existing cards (excluding the one being moved)
-    const rowOccupancy: Map<number, Set<number>> = new Map();
-    for (const card of cards) {
-      if (card.id === activeCard.id) continue;
+    const updatedCards = cards.map((c) =>
+      c.id === activeCard.id ? { ...c, column: targetColumn, position: tentativePosition } : c
+    );
 
-      const span = card.span || 1;
-      const startCol = card.column;
-      const endCol = Math.min(startCol + span - 1, 2);
-
-      if (!rowOccupancy.has(card.position)) {
-        rowOccupancy.set(card.position, new Set());
-      }
-
-      for (let col = startCol; col <= endCol; col++) {
-        rowOccupancy.get(card.position)!.add(col);
-      }
-    }
-
-    // If dropped on a column overlay, find next available row
-    // If dropped on a card, try to use that card's position first
-    if (columnMatch) {
-      targetPosition = 0; // Start from top for column drops
-    }
-
-    // Find first available row where this card can fit
-    const endCol = targetColumn + cardSpan - 1;
-    let finalPosition = targetPosition;
-
-    while (finalPosition < 100) {
-      const occupied = rowOccupancy.get(finalPosition);
-      if (!occupied) {
-        // Row is completely empty
-        break;
-      }
-
-      // Check if columns needed for this card are free
-      let allFree = true;
-      for (let col = targetColumn; col <= endCol; col++) {
-        if (occupied.has(col)) {
-          allFree = false;
-          break;
-        }
-      }
-
-      if (allFree) {
-        // Found a free spot
-        break;
-      }
-
-      finalPosition++;
-    }
-
-    const updatedCards = cards.map((c) => {
-      if (c.id === activeCard.id) {
-        return { ...c, column: targetColumn, position: finalPosition };
-      }
-      return c;
-    });
-
-    console.log(`[Drag] Placed card: column=${targetColumn}, position=${finalPosition}, span=${cardSpan}`);
-
-    setCards(updatedCards);
+    setCards(compactLayout(updatedCards));
     setHasUnsavedChanges(true);
   };
 
@@ -377,76 +322,41 @@ export default function Home() {
     }
     // system-info defaults to 1 column (already set above)
 
-    // New cards always start at column 0
-    const targetColumn = 0;
-
-    // Build occupancy map from existing cards
-    const rowOccupancy: Map<number, Set<number>> = new Map();
-    for (const card of cards) {
-      const span = card.span || 1;
-      const startCol = card.column;
-      const endCol = Math.min(startCol + span - 1, 2);
-
-      if (!rowOccupancy.has(card.position)) {
-        rowOccupancy.set(card.position, new Set());
-      }
-
-      for (let col = startCol; col <= endCol; col++) {
-        rowOccupancy.get(card.position)!.add(col);
-      }
-    }
-
-    // Find first available row where this card can fit
-    let targetPosition = 0;
-    const endCol = targetColumn + defaultSpan - 1;
-
-    while (targetPosition < 100) {
-      const occupied = rowOccupancy.get(targetPosition);
-      if (!occupied) {
-        // Row is completely empty
-        break;
-      }
-
-      // Check if columns needed for this card are free
-      let allFree = true;
-      for (let col = targetColumn; col <= endCol; col++) {
-        if (occupied.has(col)) {
-          allFree = false;
-          break;
-        }
-      }
-
-      if (allFree) {
-        break;
-      }
-
-      targetPosition++;
-    }
-
+    // Append at the bottom of column 0 (large tentative position) and let
+    // compaction settle it into the first free slot.
     const newCard: DashboardCard = {
       id: `card-${Date.now()}`,
       type: cardType,
-      column: targetColumn,
-      position: targetPosition,
+      column: 0,
+      position: Number.MAX_SAFE_INTEGER,
       span: defaultSpan,
+      height: DEFAULT_HEIGHT,
     };
 
-    setCards([...cards, newCard]);
+    setCards(compactLayout([...cards, newCard]));
     setHasUnsavedChanges(true);
   };
 
   const handleRemoveCard = (cardId: string) => {
-    setCards(cards.filter((c) => c.id !== cardId));
+    setCards(compactLayout(cards.filter((c) => c.id !== cardId)));
     setHasUnsavedChanges(true);
   };
 
   const handleCardSpanChange = (cardId: string, newSpan: number) => {
-    setCards(cards.map((c) => {
-      if (c.id === cardId) {
-        return { ...c, span: newSpan };
-      }
-      return c;
-    }));
+    setCards(
+      compactLayout(
+        cards.map((c) => (c.id === cardId ? { ...c, span: newSpan } : c))
+      )
+    );
+    setHasUnsavedChanges(true);
+  };
+
+  const handleCardHeightChange = (cardId: string, newHeight: number) => {
+    setCards(
+      compactLayout(
+        cards.map((c) => (c.id === cardId ? { ...c, height: newHeight } : c))
+      )
+    );
     setHasUnsavedChanges(true);
   };
 
@@ -482,6 +392,8 @@ export default function Home() {
       onRemove: editMode ? () => handleRemoveCard(card.id) : undefined,
       span: card.span || 1,
       onSpanChange: editMode ? (newSpan: number) => handleCardSpanChange(card.id, newSpan) : undefined,
+      height: card.height ?? DEFAULT_HEIGHT,
+      onHeightChange: editMode ? (newHeight: number) => handleCardHeightChange(card.id, newHeight) : undefined,
       onConfigChange: editMode
         ? (config: Record<string, unknown>) => handleCardConfigChange(card.id, config)
         : undefined,
@@ -511,26 +423,13 @@ export default function Home() {
     }
   };
 
-  // Get grid placement classes and styles for explicit positioning
-  const getGridClasses = (card: DashboardCard) => {
-    const span = card.span || 1;
-    let classes = "";
-
-    // Column span
-    if (span === 2) classes += "col-span-2 ";
-    if (span === 3) classes += "col-span-3 ";
-
-    // Column start position
-    if (card.column === 1) classes += "col-start-2 ";
-    if (card.column === 2) classes += "col-start-3 ";
-
-    return classes.trim();
-  };
-
+  // Explicit grid placement: a card occupies a rectangle of columns × row-units.
   const getGridStyle = (card: DashboardCard) => {
-    // Explicit row placement
+    const span = card.span || 1;
+    const height = card.height ?? DEFAULT_HEIGHT;
     return {
-      gridRow: card.position + 1
+      gridColumn: `${card.column + 1} / span ${span}`,
+      gridRow: `${card.position + 1} / span ${height}`,
     };
   };
 
@@ -686,7 +585,10 @@ export default function Home() {
             {/* Wrapper for grid and overlays */}
             <div className="relative">
               {/* Main grid with explicit card placement */}
-              <div className="grid grid-cols-3 gap-6 auto-rows-min relative z-0">
+              <div
+                className="grid grid-cols-3 gap-6 relative z-0"
+                style={{ gridAutoRows: `${ROW_UNIT}px` }}
+              >
                 <SortableContext
                   items={cards.map((c) => c.id)}
                   strategy={verticalListSortingStrategy}
@@ -698,13 +600,12 @@ export default function Home() {
                         {renderCard(card)}
                       </SortableCard>
                     ) : (
-                      <div key={card.id}>{renderCard(card)}</div>
+                      <div key={card.id} className="h-full">{renderCard(card)}</div>
                     );
 
                     return (
                       <div
                         key={card.id}
-                        className={getGridClasses(card)}
                         style={getGridStyle(card)}
                       >
                         {cardElement}
@@ -742,7 +643,14 @@ export default function Home() {
             {/* Drag Overlay - Shows the card being dragged */}
             <DragOverlay>
               {activeId ? (
-                <div className="opacity-80 cursor-grabbing">
+                <div
+                  className="opacity-80 cursor-grabbing"
+                  style={{
+                    height: cardPixelHeight(
+                      cards.find((c) => c.id === activeId)?.height ?? DEFAULT_HEIGHT
+                    ),
+                  }}
+                >
                   {renderCard(cards.find((c) => c.id === activeId)!)}
                 </div>
               ) : null}

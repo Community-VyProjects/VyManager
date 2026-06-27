@@ -11,6 +11,7 @@ export interface DashboardCard {
   column: number; // 0, 1, or 2
   position: number; // position within column
   span?: number; // how many columns this card spans (1, 2, or 3) - defaults to 1
+  height?: number; // how many row-units tall this card is - defaults to standard
   config?: Record<string, unknown>; // card-specific configuration
 }
 

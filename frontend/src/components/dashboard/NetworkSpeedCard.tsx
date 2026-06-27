@@ -17,7 +17,6 @@ import {
   X,
   TrendingUp,
   RefreshCw,
-  Settings,
   ArrowDown,
   ArrowUp,
   Network,
@@ -30,6 +29,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { CardSizeMenu } from "@/components/dashboard/CardSizeMenu";
 import Link from "next/link";
 import { useDashboardData } from "@/contexts/DashboardDataContext";
 import { ethernetService } from "@/lib/api/ethernet";
@@ -69,6 +69,8 @@ interface NetworkSpeedCardProps {
   onRemove?: () => void;
   span?: number;
   onSpanChange?: (newSpan: number) => void;
+  height?: number;
+  onHeightChange?: (newHeight: number) => void;
   config?: Record<string, unknown>;
   onConfigChange?: (config: Record<string, unknown>) => void;
 }
@@ -150,6 +152,8 @@ export function NetworkSpeedCard({
   onRemove,
   span = 1,
   onSpanChange,
+  height,
+  onHeightChange,
   config,
   onConfigChange,
 }: NetworkSpeedCardProps) {
@@ -268,7 +272,7 @@ export function NetworkSpeedCard({
   const isLoading = !sseData.interfaceCounters && sseStatus === "connecting";
 
   return (
-    <Card className="flex flex-col h-[520px]">
+    <Card className="flex flex-col h-full">
       <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-3 shrink-0">
         <div className="flex flex-col min-w-0 flex-1">
           <div className="flex items-center gap-2">
@@ -360,31 +364,12 @@ export function NetworkSpeedCard({
           </Button>
 
           {onSpanChange && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm">
-                  <Settings className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Card Width</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {([1, 2, 3] as const).map((n) => (
-                  <DropdownMenuItem key={n} onClick={() => onSpanChange(n)}>
-                    <div className="flex items-center justify-between w-full">
-                      <span>
-                        {n === 1
-                          ? "Small (1 column)"
-                          : n === 2
-                          ? "Medium (2 columns)"
-                          : "Large (3 columns)"}
-                      </span>
-                      {span === n && <span className="ml-2 text-primary">✓</span>}
-                    </div>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <CardSizeMenu
+              span={span}
+              onSpanChange={onSpanChange}
+              height={height}
+              onHeightChange={onHeightChange}
+            />
           )}
 
           {onRemove && (

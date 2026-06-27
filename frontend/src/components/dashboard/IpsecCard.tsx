@@ -8,20 +8,12 @@ import {
   X,
   Lock,
   RefreshCw,
-  Settings,
   ArrowDownToLine,
   ArrowUpFromLine,
   ArrowLeftRight,
   ShieldOff,
 } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { CardSizeMenu } from "@/components/dashboard/CardSizeMenu";
 import { cn } from "@/lib/utils";
 import { IPSecStatus, IPSecTunnelStatus } from "@/lib/api/ipsec";
 import { useDashboardData } from "@/contexts/DashboardDataContext";
@@ -30,6 +22,8 @@ interface IpsecCardProps {
   onRemove?: () => void;
   span?: number;
   onSpanChange?: (newSpan: number) => void;
+  height?: number;
+  onHeightChange?: (newHeight: number) => void;
   config?: Record<string, unknown>;
   onConfigChange?: (config: Record<string, unknown>) => void;
 }
@@ -152,7 +146,7 @@ function TunnelRow({ tunnel }: { tunnel: IPSecTunnelStatus }) {
   );
 }
 
-export function IpsecCard({ onRemove, span = 1, onSpanChange }: IpsecCardProps) {
+export function IpsecCard({ onRemove, span = 1, onSpanChange, height, onHeightChange }: IpsecCardProps) {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const { status: sseStatus, data: sseData } = useDashboardData();
   // Snapshot the stream so "Paused" freezes the displayed status.
@@ -167,7 +161,7 @@ export function IpsecCard({ onRemove, span = 1, onSpanChange }: IpsecCardProps) 
   const hasTunnels = !!status && status.tunnels.length > 0;
 
   return (
-    <Card className="flex flex-col h-[520px]">
+    <Card className="flex flex-col h-full">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 shrink-0">
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
@@ -186,25 +180,12 @@ export function IpsecCard({ onRemove, span = 1, onSpanChange }: IpsecCardProps) 
             {autoRefresh ? "Live" : "Paused"}
           </Button>
           {onSpanChange && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm">
-                  <Settings className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Card Width</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {([1, 2, 3] as const).map((n) => (
-                  <DropdownMenuItem key={n} onClick={() => onSpanChange(n)}>
-                    <div className="flex items-center justify-between w-full">
-                      <span>{n === 1 ? "Small (1 column)" : n === 2 ? "Medium (2 columns)" : "Large (3 columns)"}</span>
-                      {span === n && <span className="ml-2 text-primary">✓</span>}
-                    </div>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <CardSizeMenu
+              span={span}
+              onSpanChange={onSpanChange}
+              height={height}
+              onHeightChange={onHeightChange}
+            />
           )}
           {onRemove && (
             <Button variant="ghost" size="sm" onClick={onRemove}>

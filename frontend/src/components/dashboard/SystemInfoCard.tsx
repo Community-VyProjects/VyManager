@@ -8,19 +8,11 @@ import {
   X,
   Server,
   RefreshCw,
-  Settings,
   MemoryStick,
   HardDrive,
   Activity,
 } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { CardSizeMenu } from "@/components/dashboard/CardSizeMenu";
 import { useDashboardData } from "@/contexts/DashboardDataContext";
 import { LoadData, DiskPartition } from "@/hooks/useDashboardSSE";
 
@@ -79,6 +71,8 @@ interface SystemInfoCardProps {
   onRemove?: () => void;
   span?: number;
   onSpanChange?: (newSpan: number) => void;
+  height?: number;
+  onHeightChange?: (newHeight: number) => void;
   config?: Record<string, unknown>;
 }
 
@@ -90,6 +84,8 @@ export function SystemInfoCard({
   onRemove,
   span = 1,
   onSpanChange,
+  height,
+  onHeightChange,
 }: SystemInfoCardProps) {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const { status: sseStatus, data: sseData } = useDashboardData();
@@ -109,7 +105,7 @@ export function SystemInfoCard({
   const isConnected = sseStatus === "connected";
 
   return (
-    <Card className="flex flex-col h-[520px]">
+    <Card className="flex flex-col h-full">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 shrink-0">
         <div className="flex items-center gap-2">
           <Server className="h-5 w-5 text-primary" />
@@ -128,35 +124,12 @@ export function SystemInfoCard({
             {autoRefresh ? "Live" : "Paused"}
           </Button>
           {onSpanChange && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm">
-                  <Settings className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Card Width</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => onSpanChange(1)}>
-                  <div className="flex items-center justify-between w-full">
-                    <span>Small (1 column)</span>
-                    {span === 1 && <span className="ml-2 text-primary">✓</span>}
-                  </div>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onSpanChange(2)}>
-                  <div className="flex items-center justify-between w-full">
-                    <span>Medium (2 columns)</span>
-                    {span === 2 && <span className="ml-2 text-primary">✓</span>}
-                  </div>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onSpanChange(3)}>
-                  <div className="flex items-center justify-between w-full">
-                    <span>Large (3 columns)</span>
-                    {span === 3 && <span className="ml-2 text-primary">✓</span>}
-                  </div>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <CardSizeMenu
+              span={span}
+              onSpanChange={onSpanChange}
+              height={height}
+              onHeightChange={onHeightChange}
+            />
           )}
           {onRemove && (
             <Button variant="ghost" size="sm" onClick={onRemove}>
