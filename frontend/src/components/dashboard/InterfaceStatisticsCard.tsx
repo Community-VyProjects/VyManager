@@ -9,7 +9,6 @@ import {
   X,
   Network,
   RefreshCw,
-  Settings,
   ChevronLeft,
   ChevronRight,
   ChevronDown,
@@ -20,14 +19,7 @@ import {
 import { InterfaceCounter } from "@/lib/api/show";
 import { getInterfaceType, formatBytes } from "@/lib/utils";
 import { useDashboardData } from "@/contexts/DashboardDataContext";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { CardSizeMenu } from "@/components/dashboard/CardSizeMenu";
 import { ethernetService } from "@/lib/api/ethernet";
 
 // ============================================================================
@@ -48,6 +40,8 @@ interface InterfaceStatisticsCardProps {
   onRemove?: () => void;
   span?: number;
   onSpanChange?: (newSpan: number) => void;
+  height?: number;
+  onHeightChange?: (newHeight: number) => void;
   config?: Record<string, unknown>;
   onConfigChange?: (config: Record<string, unknown>) => void;
 }
@@ -262,6 +256,8 @@ export function InterfaceStatisticsCard({
   onRemove,
   span = 1,
   onSpanChange,
+  height,
+  onHeightChange,
 }: InterfaceStatisticsCardProps) {
   const [interfaces, setInterfaces] = useState<InterfaceWithType[]>([]);
   const [loading, setLoading] = useState(true);
@@ -402,7 +398,7 @@ export function InterfaceStatisticsCard({
   const isConnected = sseStatus === "connected";
 
   return (
-    <Card className="flex flex-col h-[520px]">
+    <Card className="flex flex-col h-full">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 shrink-0">
         <div className="flex items-center gap-2">
           <Network className="h-5 w-5 text-primary" />
@@ -427,27 +423,12 @@ export function InterfaceStatisticsCard({
             {autoRefresh ? "Live" : "Paused"}
           </Button>
           {onSpanChange && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm">
-                  <Settings className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Card Width</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {([1, 2, 3] as const).map((n) => (
-                  <DropdownMenuItem key={n} onClick={() => onSpanChange(n)}>
-                    <div className="flex items-center justify-between w-full">
-                      <span>
-                        {n === 1 ? "Small (1 column)" : n === 2 ? "Medium (2 columns)" : "Large (3 columns)"}
-                      </span>
-                      {span === n && <span className="ml-2 text-primary">✓</span>}
-                    </div>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <CardSizeMenu
+              span={span}
+              onSpanChange={onSpanChange}
+              height={height}
+              onHeightChange={onHeightChange}
+            />
           )}
           {onRemove && (
             <Button variant="ghost" size="sm" onClick={onRemove}>

@@ -4,15 +4,8 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { X, Shield, RefreshCw, Settings } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { X, Shield, RefreshCw } from "lucide-react";
+import { CardSizeMenu } from "@/components/dashboard/CardSizeMenu";
 import { useDashboardData } from "@/contexts/DashboardDataContext";
 import { WireGuardPeerData, WireGuardInterfaceData } from "@/hooks/useDashboardSSE";
 
@@ -149,6 +142,8 @@ interface WireGuardPeersCardProps {
   onRemove?: () => void;
   span?: number;
   onSpanChange?: (newSpan: number) => void;
+  height?: number;
+  onHeightChange?: (newHeight: number) => void;
   config?: Record<string, unknown>;
 }
 
@@ -160,6 +155,8 @@ export function WireGuardPeersCard({
   onRemove,
   span = 1,
   onSpanChange,
+  height,
+  onHeightChange,
 }: WireGuardPeersCardProps) {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const { status: sseStatus, data: sseData } = useDashboardData();
@@ -175,7 +172,7 @@ export function WireGuardPeersCard({
   ) ?? 0;
 
   return (
-    <Card className="flex flex-col h-[520px]">
+    <Card className="flex flex-col h-full">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 shrink-0">
         <div className="flex items-center gap-2">
           <Shield className="h-5 w-5 text-primary" />
@@ -202,27 +199,12 @@ export function WireGuardPeersCard({
             {autoRefresh ? "Live" : "Paused"}
           </Button>
           {onSpanChange && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm">
-                  <Settings className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Card Width</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {([1, 2, 3] as const).map((n) => (
-                  <DropdownMenuItem key={n} onClick={() => onSpanChange(n)}>
-                    <div className="flex items-center justify-between w-full">
-                      <span>
-                        {n === 1 ? "Small (1 column)" : n === 2 ? "Medium (2 columns)" : "Large (3 columns)"}
-                      </span>
-                      {span === n && <span className="ml-2 text-primary">✓</span>}
-                    </div>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <CardSizeMenu
+              span={span}
+              onSpanChange={onSpanChange}
+              height={height}
+              onHeightChange={onHeightChange}
+            />
           )}
           {onRemove && (
             <Button variant="ghost" size="sm" onClick={onRemove}>
