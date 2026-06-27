@@ -45,6 +45,7 @@ import {
   type RAConnection,
   type RAPool,
   type AuthPSK,
+  type IPSecStatus,
 } from "@/lib/api/ipsec";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
@@ -111,8 +112,76 @@ function IPSecPageInner() {
     }
   };
 
+  // ---- Live tunnel status (operational, separate from config) ----
+  const [tunnelStatus, setTunnelStatus] = useState<IPSecStatus | null>(null);
+  const [statusLoading, setStatusLoading] = useState(false);
+  const [bouncing, setBouncing] = useState<string | null>(null);
+  const [statusMsg, setStatusMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+
+  const refreshStatus = async () => {
+    try {
+      setStatusLoading(true);
+      setTunnelStatus(await ipsecService.getStatus());
+    } catch {
+      // Status is best-effort; leave the last snapshot in place on failure.
+    } finally {
+      setStatusLoading(false);
+    }
+  };
+
+  /** Live tunnels belonging to a peer (names look like "<peer>-tunnel-<n>"). */
+  const peerTunnels = (peerName: string) =>
+    (tunnelStatus?.tunnels ?? []).filter((t) => (t.name ?? "").startsWith(`${peerName}-tunnel-`));
+
+  const bouncePeer = async (peerName: string) => {
+    setBouncing(peerName);
+    setStatusMsg(null);
+    try {
+      await ipsecService.resetPeer(peerName);
+      setStatusMsg({ type: "ok", text: `Bounced peer "${peerName}". Re-checking status…` });
+      // Give strongSwan a moment to re-establish before re-reading state.
+      await new Promise((r) => setTimeout(r, 2000));
+      await refreshStatus();
+    } catch (err) {
+      setStatusMsg({ type: "err", text: err instanceof Error ? err.message : "Failed to bounce peer" });
+    } finally {
+      setBouncing(null);
+    }
+  };
+
+  const resetAllPeers = async () => {
+    setBouncing("__all__");
+    setStatusMsg(null);
+    try {
+      await ipsecService.resetAllPeers();
+      setStatusMsg({ type: "ok", text: "Bounced all peers. Re-checking status…" });
+      await new Promise((r) => setTimeout(r, 2000));
+      await refreshStatus();
+    } catch (err) {
+      setStatusMsg({ type: "err", text: err instanceof Error ? err.message : "Failed to bounce peers" });
+    } finally {
+      setBouncing(null);
+    }
+  };
+
+  const resetRemoteAccess = async () => {
+    setBouncing("__ra__");
+    setStatusMsg(null);
+    try {
+      await ipsecService.resetRemoteAccess();
+      setStatusMsg({ type: "ok", text: "Reset all remote-access sessions." });
+    } catch (err) {
+      setStatusMsg({ type: "err", text: err instanceof Error ? err.message : "Failed to reset sessions" });
+    } finally {
+      setBouncing(null);
+    }
+  };
+
   useEffect(() => {
-    if (hasRead) fetchConfig();
+    if (hasRead) {
+      fetchConfig();
+      refreshStatus();
+    }
   }, [hasRead]);
 
   useEffect(() => {
@@ -258,12 +327,39 @@ function IPSecPageInner() {
                 <TabsContent value="s2s" className="mt-0">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="font-semibold">Site-to-Site Peers</h3>
-                    {hasWrite && (
-                      <Button size="sm" onClick={() => { setEditingS2S(null); setShowS2SModal(true); }}>
-                        <Plus className="h-4 w-4 mr-1" /> Add Peer
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" onClick={refreshStatus} disabled={statusLoading}>
+                        <RefreshCw className={cn("h-4 w-4 mr-1", statusLoading && "animate-spin")} /> Refresh Status
                       </Button>
-                    )}
+                      {hasWrite && (config?.site_to_site_peers.length ?? 0) > 0 && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={resetAllPeers}
+                          disabled={bouncing !== null}
+                          title="Bounce every site-to-site peer"
+                        >
+                          {bouncing === "__all__" ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Lock className="h-4 w-4 mr-1" />}
+                          Reset All
+                        </Button>
+                      )}
+                      {hasWrite && (
+                        <Button size="sm" onClick={() => { setEditingS2S(null); setShowS2SModal(true); }}>
+                          <Plus className="h-4 w-4 mr-1" /> Add Peer
+                        </Button>
+                      )}
+                    </div>
                   </div>
+                  {statusMsg && (
+                    <div className={cn(
+                      "mb-4 rounded-md border px-3 py-2 text-sm",
+                      statusMsg.type === "ok"
+                        ? "border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-400"
+                        : "border-destructive/30 bg-destructive/10 text-destructive",
+                    )}>
+                      {statusMsg.text}
+                    </div>
+                  )}
                   {(config?.site_to_site_peers.length ?? 0) === 0 ? (
                     <EmptyState icon={Network} label="No site-to-site peers configured" />
                   ) : (
@@ -305,15 +401,46 @@ function IPSecPageInner() {
                             </TableCell>
                             <TableCell><Badge variant="outline">{peer.tunnels.length}</Badge></TableCell>
                             <TableCell>
-                              {peer.disabled ? (
-                                <Badge variant="secondary" className="bg-red-500/10 text-red-600">Disabled</Badge>
-                              ) : (
-                                <Badge variant="secondary" className="bg-green-500/10 text-green-600">Enabled</Badge>
-                              )}
+                              <div className="flex flex-col gap-1">
+                                {peer.disabled ? (
+                                  <Badge variant="secondary" className="bg-red-500/10 text-red-600 w-fit">Disabled</Badge>
+                                ) : (
+                                  <Badge variant="secondary" className="bg-green-500/10 text-green-600 w-fit">Enabled</Badge>
+                                )}
+                                {(() => {
+                                  const lts = peerTunnels(peer.name);
+                                  if (lts.length === 0) return null;
+                                  const up = lts.filter((t) => (t.state ?? "").toLowerCase() === "up").length;
+                                  const allUp = up === lts.length;
+                                  return (
+                                    <Badge
+                                      variant="outline"
+                                      className={cn(
+                                        "text-xs w-fit gap-1",
+                                        allUp ? "border-green-500/30 text-green-600" : "border-amber-500/30 text-amber-600",
+                                      )}
+                                      title="Live tunnel status"
+                                    >
+                                      <span className={cn("inline-block h-1.5 w-1.5 rounded-full", allUp ? "bg-green-500" : "bg-amber-500")} />
+                                      {up}/{lts.length} up
+                                    </Badge>
+                                  );
+                                })()}
+                              </div>
                             </TableCell>
                             {hasWrite && (
                               <TableCell className="text-right">
                                 <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    disabled={bouncing !== null}
+                                    onClick={() => bouncePeer(peer.name)}
+                                    title="Bounce tunnel (reset peer)"
+                                  >
+                                    {bouncing === peer.name ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                                  </Button>
                                   <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingS2S(peer); setShowS2SModal(true); }}>
                                     <Pencil className="h-4 w-4" />
                                   </Button>
@@ -339,12 +466,36 @@ function IPSecPageInner() {
                 <TabsContent value="ra" className="mt-0">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="font-semibold">Remote Access Connections</h3>
-                    {hasWrite && (
-                      <Button size="sm" onClick={() => { setEditingRA(null); setShowRAModal(true); }}>
-                        <Plus className="h-4 w-4 mr-1" /> Add Connection
-                      </Button>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {hasWrite && (config?.remote_access.connections.length ?? 0) > 0 && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={resetRemoteAccess}
+                          disabled={bouncing !== null}
+                          title="Reset all remote-access (road-warrior) sessions"
+                        >
+                          {bouncing === "__ra__" ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-1" />}
+                          Reset Sessions
+                        </Button>
+                      )}
+                      {hasWrite && (
+                        <Button size="sm" onClick={() => { setEditingRA(null); setShowRAModal(true); }}>
+                          <Plus className="h-4 w-4 mr-1" /> Add Connection
+                        </Button>
+                      )}
+                    </div>
                   </div>
+                  {statusMsg && activeTab === "ra" && (
+                    <div className={cn(
+                      "mb-4 rounded-md border px-3 py-2 text-sm",
+                      statusMsg.type === "ok"
+                        ? "border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-400"
+                        : "border-destructive/30 bg-destructive/10 text-destructive",
+                    )}>
+                      {statusMsg.text}
+                    </div>
+                  )}
                   {(config?.remote_access.connections.length ?? 0) === 0 ? (
                     <EmptyState icon={Wifi} label="No remote access connections configured" />
                   ) : (

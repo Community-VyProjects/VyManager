@@ -32,6 +32,7 @@ from routers.qos.qos import (
 from openvpn_status import openvpn_configured, openvpn_gql_fields, build_openvpn_status
 from vrrp_status import vrrp_configured, vrrp_gql_fields, build_vrrp_status
 from bgp_status import bgp_configured, bgp_gql_fields, build_bgp_status
+from ipsec_status import ipsec_configured, ipsec_gql_fields, build_ipsec_status
 import logging
 logger = logging.getLogger(__name__)
 
@@ -117,7 +118,7 @@ def _wg_alias(iface_name: str) -> str:
     return f"WGStatus_{safe}"
 
 
-def _build_gql_payload(api_key: str, include_wireguard: bool, cake_targets: Optional[list] = None, include_openvpn: bool = False, include_vrrp: bool = False, include_bgp: bool = False) -> dict:
+def _build_gql_payload(api_key: str, include_wireguard: bool, cake_targets: Optional[list] = None, include_vrrp: bool = False, include_bgp: bool = False, include_ipsec: bool = False) -> dict:
     """
     Build the JSON body for the slow dashboard GraphQL query.
 
@@ -135,12 +136,12 @@ def _build_gql_payload(api_key: str, include_wireguard: bool, cake_targets: Opti
         f"InterfaceCounters: ShowCountersInterfaces(data: {{key: {k}}}) {{ data {{ result }} }}",
     ]
     fields += qos_gql_fields(k, cake_targets or [])
-    if include_openvpn:
-        fields += openvpn_gql_fields(k)
     if include_vrrp:
         fields += vrrp_gql_fields(k)
     if include_bgp:
         fields += bgp_gql_fields(k)
+    if include_ipsec:
+        fields += ipsec_gql_fields(k)
     if include_wireguard:
         fields.append(
             f'WireGuardConfig: ShowConfig(data: {{key: {k}, path: ["interfaces", "wireguard"]}}) {{ data {{ result }} }}'
@@ -159,7 +160,7 @@ def _build_gql_wg_status_payload(api_key: str, iface_names: List[str]) -> dict:
     return {"query": "{ " + " ".join(fields) + " }"}
 
 
-async def _fetch_graphql_dashboard(service, include_wireguard: bool, cake_targets: Optional[list] = None, include_openvpn: bool = False, include_vrrp: bool = False, include_bgp: bool = False) -> Optional[dict]:
+async def _fetch_graphql_dashboard(service, include_wireguard: bool, cake_targets: Optional[list] = None, include_vrrp: bool = False, include_bgp: bool = False, include_ipsec: bool = False) -> Optional[dict]:
     """
     Fire a single GraphQL POST for the full dashboard data.
 
@@ -168,7 +169,7 @@ async def _fetch_graphql_dashboard(service, include_wireguard: bool, cake_target
     api_key = str(service.config.apikey)
     url = f"{service.config.protocol}://{service.config.hostname}:{service.config.port}/graphql"
     verify = service.config.verify
-    payload = _build_gql_payload(api_key, include_wireguard, cake_targets, include_openvpn, include_vrrp, include_bgp)
+    payload = _build_gql_payload(api_key, include_wireguard, cake_targets, include_vrrp, include_bgp, include_ipsec)
 
     try:
         async with httpx.AsyncClient(verify=verify, timeout=15.0) as client:
@@ -188,28 +189,29 @@ async def _fetch_graphql_dashboard(service, include_wireguard: bool, cake_target
         return None
 
 
-def _build_fast_gql_payload(api_key: str, cake_targets: Optional[list] = None, include_openvpn: bool = False) -> dict:
-    """Build the fast GraphQL payload: interface counters + (gated) QoS + OpenVPN.
+def _build_fast_gql_payload(api_key: str, cake_targets: Optional[list] = None) -> dict:
+    """Build the fast GraphQL payload: interface counters + (gated) QoS.
 
     QoS rides this 3 s call so its live bandwidth stays smooth. ``ShowShaperQos``
     is always included (it returns ``success:false`` when nothing is applied, which
     can't break the other fields); per-cake ``ShowCakeQos`` aliases are added only
-    for the cake interfaces discovered from config. OpenVPN status (3 modes) is
-    added only when OpenVPN is configured.
+    for the cake interfaces discovered from config.
+
+    OpenVPN status is intentionally excluded — ``ShowOpenvpn`` is slow and erratic
+    on some hosts (2–16 s), so it is fetched in its own concurrent task
+    (``_fetch_gql_openvpn_status``) where it cannot stall counters/QoS.
     """
     k = json.dumps(api_key)
     fields = [f"InterfaceCounters: ShowCountersInterfaces(data: {{key: {k}}}) {{ data {{ result }} }}"]
     fields += qos_gql_fields(k, cake_targets or [])
-    if include_openvpn:
-        fields += openvpn_gql_fields(k)
     return {"query": "{ " + " ".join(fields) + " }"}
 
 
-async def _fetch_graphql_fast(service, cake_targets: Optional[list] = None, include_openvpn: bool = False) -> Optional[dict]:
-    """Fire a minimal GraphQL POST for interface counters + QoS + OpenVPN status."""
+async def _fetch_graphql_fast(service, cake_targets: Optional[list] = None) -> Optional[dict]:
+    """Fire a minimal GraphQL POST for interface counters + QoS."""
     api_key = str(service.config.apikey)
     url = f"{service.config.protocol}://{service.config.hostname}:{service.config.port}/graphql"
-    payload = _build_fast_gql_payload(api_key, cake_targets, include_openvpn)
+    payload = _build_fast_gql_payload(api_key, cake_targets)
     try:
         async with httpx.AsyncClient(verify=service.config.verify, timeout=15.0) as client:
             resp = await client.post(url, json=payload, auth=("vyos", api_key))
@@ -223,6 +225,33 @@ async def _fetch_graphql_fast(service, cake_targets: Optional[list] = None, incl
     except Exception:
         logger.exception("GraphQL fast dashboard fetch failed")
         return None
+
+
+async def _fetch_gql_openvpn_status(service) -> dict:
+    """Fetch OpenVPN status (all 3 modes) in one GraphQL POST, on its own task.
+
+    ``ShowOpenvpn`` can take anywhere from 2 to 16 s on a loaded host, so it runs
+    concurrently with a generous timeout instead of riding the fast/slow shared
+    query. Returns the ``data`` dict (``{OpenvpnServer: ..., ...}``) for
+    ``build_openvpn_status``, or an empty dict on any error so callers degrade
+    gracefully.
+    """
+    api_key = str(service.config.apikey)
+    url = f"{service.config.protocol}://{service.config.hostname}:{service.config.port}/graphql"
+    payload = {"query": "{ " + " ".join(openvpn_gql_fields(json.dumps(api_key))) + " }"}
+    try:
+        async with httpx.AsyncClient(verify=service.config.verify, timeout=30.0) as client:
+            resp = await client.post(url, json=payload, auth=("vyos", api_key))
+        if resp.status_code != 200:
+            logger.error("GraphQL OpenVPN status HTTP error %d", resp.status_code)
+            return {}
+        body = resp.json()
+        if "errors" in body:
+            logger.warning("GraphQL OpenVPN status field errors: %s", body["errors"])
+        return body.get("data") or {}
+    except Exception:
+        logger.exception("GraphQL OpenVPN status fetch failed")
+        return {}
 
 
 def _gql_result(gql: dict, key: str):
@@ -1015,6 +1044,7 @@ def _parse_wg_summary(output: str) -> dict:
 _FAST_INTERVAL = 3.0     # seconds between fast cycles (interface counters)
 _SLOW_EVERY = 5          # emit system-info / WG every N fast cycles (= every 15 s)
 _WG_MIN_INTERVAL = 15.0  # minimum seconds between WireGuard status queries
+_OPENVPN_MIN_INTERVAL = 6.0  # minimum seconds between (slow, erratic) OpenVPN status queries
 
 
 class DeviceDataBroadcaster:
@@ -1037,6 +1067,12 @@ class DeviceDataBroadcaster:
         self._last_wg_status: dict = {}
         self._cached_wg_ifaces: list[str] = []
         self._last_wg_query_time: float = 0.0
+        # OpenVPN status runs on its own task (ShowOpenvpn is slow/erratic) so it
+        # never stalls the fast counters/QoS query.
+        self._openvpn_task: Optional[asyncio.Task] = None
+        self._last_openvpn_status: dict = {}
+        self._last_openvpn_query_time: float = 0.0
+        self._openvpn_fetched: bool = False
         # Cake interfaces (interface, policy) discovered from config; refreshed on
         # the slow cycle and used to build per-cake GraphQL aliases each cycle.
         self._cached_cake_targets: list = []
@@ -1046,6 +1082,8 @@ class DeviceDataBroadcaster:
         self._vrrp_configured: bool = False
         # Whether BGP is configured (gates the show bgp summary fetch).
         self._bgp_configured: bool = False
+        # Whether IPSec is configured (gates the show ipsec connections fetch).
+        self._ipsec_configured: bool = False
 
     # ------------------------------------------------------------------
     # Public API
@@ -1071,6 +1109,8 @@ class DeviceDataBroadcaster:
                 self._task.cancel()
             if self._wg_task and not self._wg_task.done():
                 self._wg_task.cancel()
+            if self._openvpn_task and not self._openvpn_task.done():
+                self._openvpn_task.cancel()
             _broadcasters.pop(self._key, None)
 
     # ------------------------------------------------------------------
@@ -1187,16 +1227,43 @@ class DeviceDataBroadcaster:
             self._openvpn_configured = openvpn_configured(cfg)
             self._vrrp_configured = vrrp_configured(cfg)
             self._bgp_configured = bgp_configured(cfg)
+            self._ipsec_configured = ipsec_configured(cfg)
         except Exception:
             logger.exception("Broadcaster: config-state refresh error")
 
-    def _broadcast_openvpn(self, gql: dict) -> None:
-        """Parse OpenVPN status from the shared GraphQL result and push an event."""
+    def _handle_openvpn_cycle(self) -> None:
+        """Drive the concurrent OpenVPN status fetch and push the latest snapshot.
+
+        Mirrors ``_handle_wg_cycle``: collect a completed fetch, start a new one
+        when the cooldown has elapsed, and push the last good snapshot every cycle.
+        ``ShowOpenvpn`` is slow/erratic, so it runs off the shared query path here.
+        Only pushes once a first result has arrived, so the card shows "Loading…"
+        rather than flashing an empty list before the initial fetch returns.
+        """
         try:
-            self._push_to_all({"type": "openvpn-status", "data": build_openvpn_status(gql)})
+            # Collect a completed fetch.
+            if self._openvpn_task is not None and self._openvpn_task.done():
+                try:
+                    self._last_openvpn_status = self._openvpn_task.result() or {}
+                except Exception:
+                    self._last_openvpn_status = {}
+                self._openvpn_fetched = True
+                self._openvpn_task = None
+                self._last_openvpn_query_time = asyncio.get_event_loop().time()
+
+            # Start a new fetch if the cooldown has elapsed.
+            now = asyncio.get_event_loop().time()
+            if (self._openvpn_task is None
+                    and (now - self._last_openvpn_query_time) >= _OPENVPN_MIN_INTERVAL):
+                self._openvpn_task = asyncio.create_task(
+                    _fetch_gql_openvpn_status(self._service)
+                )
+
+            if self._openvpn_fetched:
+                self._push_to_all({"type": "openvpn-status", "data": build_openvpn_status(self._last_openvpn_status)})
         except Exception:
-            logger.exception("Broadcaster: openvpn-status parse error")
-            self._push_to_all({"type": "error", "data": {"channel": "openvpn-status", "message": "Parse failed"}})
+            logger.exception("Broadcaster: openvpn-status error")
+            self._push_to_all({"type": "error", "data": {"channel": "openvpn-status", "message": "Failed to fetch"}})
 
     def _broadcast_vrrp(self, gql: dict) -> None:
         """Parse live VRRP group state from the shared GraphQL result and push an event."""
@@ -1214,6 +1281,14 @@ class DeviceDataBroadcaster:
             logger.exception("Broadcaster: bgp-status parse error")
             self._push_to_all({"type": "error", "data": {"channel": "bgp-status", "message": "Parse failed"}})
 
+    def _broadcast_ipsec(self, gql: dict) -> None:
+        """Parse live IPSec tunnel state from the shared GraphQL result and push an event."""
+        try:
+            self._push_to_all({"type": "ipsec-status", "data": build_ipsec_status(gql)})
+        except Exception:
+            logger.exception("Broadcaster: ipsec-status parse error")
+            self._push_to_all({"type": "error", "data": {"channel": "ipsec-status", "message": "Parse failed"}})
+
     def _on_task_done(self, fut: asyncio.Future) -> None:
         """Clean up if _run() exits unexpectedly."""
         if fut.cancelled():
@@ -1224,6 +1299,8 @@ class DeviceDataBroadcaster:
             _broadcasters.pop(self._key, None)
             if self._wg_task and not self._wg_task.done():
                 self._wg_task.cancel()
+            if self._openvpn_task and not self._openvpn_task.done():
+                self._openvpn_task.cancel()
 
     # ------------------------------------------------------------------
     # Main loop
@@ -1237,36 +1314,38 @@ class DeviceDataBroadcaster:
                     # Refresh config-derived gates before building the query.
                     await self._refresh_config_state()
                     targets = self._cached_cake_targets
-                    ovpn = self._openvpn_configured
                     vrrp = self._vrrp_configured
                     bgp = self._bgp_configured
-                    # Full query: counters + system info + QoS + OpenVPN + VRRP + BGP + WireGuard
-                    gql = await _fetch_graphql_dashboard(self._service, include_wireguard=True, cake_targets=targets, include_openvpn=ovpn, include_vrrp=vrrp, include_bgp=bgp)
+                    ipsec = self._ipsec_configured
+                    # Full query: counters + system info + QoS + VRRP + BGP + IPSec + WireGuard
+                    gql = await _fetch_graphql_dashboard(self._service, include_wireguard=True, cake_targets=targets, include_vrrp=vrrp, include_bgp=bgp, include_ipsec=ipsec)
                     if gql is not None:
                         self._broadcast_interface_counters(gql)
                         self._broadcast_system_info(gql)
                         self._handle_wg_cycle(gql)
                         self._broadcast_qos(gql, targets)
-                        if ovpn:
-                            self._broadcast_openvpn(gql)
                         if vrrp:
                             self._broadcast_vrrp(gql)
                         if bgp:
                             self._broadcast_bgp(gql)
+                        if ipsec:
+                            self._broadcast_ipsec(gql)
                     else:
                         self._push_to_all({"type": "error", "data": {"channel": "all", "message": "GraphQL fetch failed"}})
                 else:
-                    # Fast query: interface counters + QoS + OpenVPN status
+                    # Fast query: interface counters + QoS
                     targets = self._cached_cake_targets
-                    ovpn = self._openvpn_configured
-                    gql = await _fetch_graphql_fast(self._service, cake_targets=targets, include_openvpn=ovpn)
+                    gql = await _fetch_graphql_fast(self._service, cake_targets=targets)
                     if gql is not None:
                         self._broadcast_interface_counters(gql)
                         self._broadcast_qos(gql, targets)
-                        if ovpn:
-                            self._broadcast_openvpn(gql)
                     else:
                         self._push_to_all({"type": "error", "data": {"channel": "interface-counters", "message": "GraphQL fast fetch failed"}})
+
+                # OpenVPN runs on its own concurrent task (slow/erratic op) so it
+                # never blocks the shared queries above; driven every cycle.
+                if self._openvpn_configured:
+                    self._handle_openvpn_cycle()
 
                 cycle += 1
                 await asyncio.sleep(_FAST_INTERVAL)
@@ -1275,6 +1354,8 @@ class DeviceDataBroadcaster:
         finally:
             if self._wg_task and not self._wg_task.done():
                 self._wg_task.cancel()
+            if self._openvpn_task and not self._openvpn_task.done():
+                self._openvpn_task.cancel()
 
 
 # Global broadcaster registry: instance_id -> DeviceDataBroadcaster

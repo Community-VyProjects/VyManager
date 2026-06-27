@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { InterfaceCounter } from "@/lib/api/show";
 import { QoSStatsResponse } from "@/lib/api/qos";
 import { OpenVpnStatus } from "@/lib/api/openvpn";
+import { IPSecStatus } from "@/lib/api/ipsec";
 
 // ============================================================================
 // Types
@@ -139,6 +140,7 @@ export interface DashboardSSEData {
   openvpnStatus: OpenVpnStatus | null;
   vrrpStatus: VrrpStatusData | null;
   bgpStatus: BgpStatusData | null;
+  ipsecStatus: IPSecStatus | null;
 }
 
 export interface DashboardSSEState {
@@ -153,7 +155,7 @@ export interface DashboardSSEState {
 
 export function useDashboardSSE(): DashboardSSEState {
   const [status, setStatus] = useState<SSEStatus>("disconnected");
-  const [data, setData] = useState<DashboardSSEData>({ interfaceCounters: null, systemInfo: null, wireguardPeers: null, qosStats: null, openvpnStatus: null, vrrpStatus: null, bgpStatus: null });
+  const [data, setData] = useState<DashboardSSEData>({ interfaceCounters: null, systemInfo: null, wireguardPeers: null, qosStats: null, openvpnStatus: null, vrrpStatus: null, bgpStatus: null, ipsecStatus: null });
   const [error, setError] = useState<string | null>(null);
   const esRef = useRef<EventSource | null>(null);
 
@@ -227,6 +229,15 @@ export function useDashboardSSE(): DashboardSSEState {
       try {
         const payload = JSON.parse(event.data) as BgpStatusData;
         setData((prev) => ({ ...prev, bgpStatus: payload }));
+      } catch {
+        // Ignore malformed payloads
+      }
+    });
+
+    es.addEventListener("ipsec-status", (event: MessageEvent) => {
+      try {
+        const payload = JSON.parse(event.data) as IPSecStatus;
+        setData((prev) => ({ ...prev, ipsecStatus: payload }));
       } catch {
         // Ignore malformed payloads
       }
