@@ -12,6 +12,35 @@ export interface IPSecProposal {
   prf?: string | null;
 }
 
+// ---- Live operational status (dashboard SSE + page refresh) ----
+
+export interface IPSecNegotiatedProposal {
+  cipher?: string | null;     // e.g. "AES"
+  mode?: string | null;       // e.g. "CBC"
+  key_size?: string | null;   // e.g. "256"
+  hash?: string | null;       // e.g. "HMAC_SHA2_256_128"
+  dh?: string | null;         // e.g. "MODP_2048"
+}
+
+export interface IPSecTunnelStatus {
+  name: string | null;        // e.g. "peer5-tunnel-0"
+  state: string | null;       // "up" / "down"
+  local_ts: string[];
+  remote_ts: string[];
+  bytes_in?: string | null;
+  bytes_out?: string | null;
+  packets_in?: string | null;
+  packets_out?: string | null;
+  esp_proposal?: IPSecNegotiatedProposal | null;
+}
+
+export interface IPSecStatus {
+  tunnels: IPSecTunnelStatus[];
+  total: number;
+  up: number;
+  down: number;
+}
+
 export interface IKEGroup {
   name: string;
   close_action?: string | null;
@@ -681,6 +710,41 @@ class IPSecService {
 
   async executeBatch(itemName: string, operations: BatchOperation[]): Promise<VyOSResponse> {
     return this.batchConfigure(itemName, operations);
+  }
+
+  // ==========================================================================
+  // Operational commands (live status + reset/bounce)
+  // ==========================================================================
+
+  /** Live site-to-site tunnel status (on-demand refresh). */
+  async getStatus(): Promise<IPSecStatus> {
+    return apiClient.get<IPSecStatus>("/vyos/vpn/ipsec/status");
+  }
+
+  /** Bounce a single site-to-site peer, or just one of its tunnels. */
+  async resetPeer(peer: string, tunnel?: string): Promise<VyOSResponse> {
+    const result = await apiClient.post<VyOSResponse>("/vyos/vpn/ipsec/reset/peer", {
+      peer,
+      ...(tunnel !== undefined ? { tunnel } : {}),
+    });
+    if (!result.success) throw new Error(result.error || "Failed to reset peer");
+    return result;
+  }
+
+  /** Bounce every configured site-to-site peer at once. */
+  async resetAllPeers(): Promise<VyOSResponse> {
+    const result = await apiClient.post<VyOSResponse>("/vyos/vpn/ipsec/reset/all", {});
+    if (!result.success) throw new Error(result.error || "Failed to reset peers");
+    return result;
+  }
+
+  /** Reset remote-access (IKEv2 road-warrior) sessions, optionally for one user. */
+  async resetRemoteAccess(username?: string): Promise<VyOSResponse> {
+    const result = await apiClient.post<VyOSResponse>("/vyos/vpn/ipsec/reset/remote-access", {
+      ...(username !== undefined ? { username } : {}),
+    });
+    if (!result.success) throw new Error(result.error || "Failed to reset remote-access sessions");
+    return result;
   }
 }
 

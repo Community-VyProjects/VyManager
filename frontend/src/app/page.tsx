@@ -18,6 +18,7 @@ import { QoSStatsCard } from "@/components/dashboard/QoSStatsCard";
 import { OpenVpnCard } from "@/components/dashboard/OpenVpnCard";
 import { VrrpStatusCard } from "@/components/dashboard/VrrpStatusCard";
 import { BgpStatusCard } from "@/components/dashboard/BgpStatusCard";
+import { IpsecCard } from "@/components/dashboard/IpsecCard";
 import { AddCardModal } from "@/components/dashboard/AddCardModal";
 import {
   DndContext,
@@ -371,6 +372,9 @@ export default function Home() {
     if (cardType === "bgp-status") {
       defaultSpan = 2;
     }
+    if (cardType === "ipsec-status") {
+      defaultSpan = 2;
+    }
     // system-info defaults to 1 column (already set above)
 
     // New cards always start at column 0
@@ -500,6 +504,8 @@ export default function Home() {
         return <VrrpStatusCard {...baseProps} />;
       case "bgp-status":
         return <BgpStatusCard {...baseProps} />;
+      case "ipsec-status":
+        return <IpsecCard {...baseProps} />;
       default:
         return null;
     }

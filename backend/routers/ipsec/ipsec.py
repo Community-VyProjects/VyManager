@@ -15,7 +15,10 @@ from vyos_builders.ipsec import IPSecBatchBuilder
 from vyos_mappers.ipsec import IPSecMapper
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
+from ipsec_status import ipsec_gql_fields, build_ipsec_status
+import httpx
 import inspect
+import json
 import logging
 
 logger = logging.getLogger(__name__)
@@ -49,6 +52,17 @@ class VyOSResponse(BaseModel):
     success: bool
     data: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
+
+
+class IPSecResetPeerRequest(BaseModel):
+    """Reset (bounce) one site-to-site peer, or a single tunnel of it."""
+    peer: str = Field(..., description="Site-to-site peer name")
+    tunnel: Optional[str] = Field(None, description="Optional tunnel id to bounce just that tunnel")
+
+
+class IPSecResetRemoteAccessRequest(BaseModel):
+    """Reset remote-access (IKEv2 road-warrior) sessions."""
+    username: Optional[str] = Field(None, description="Optional username; omit to reset all RA sessions")
 
 
 # ========================================================================
@@ -255,6 +269,146 @@ async def ipsec_batch_configure(http_request: Request, request: IPSecBatchReques
             data={"message": "IPSec configuration updated"},
             error=response.error if response.error else None,
         )
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+# ========================================================================
+# Operational Commands (live status + reset/bounce)
+#
+# These are op-mode actions, not config changes, so they go through the VyOS
+# GraphQL API directly (mirroring the DHCP lease-clear pattern) rather than the
+# batch/config endpoint.
+# ========================================================================
+
+async def _ipsec_graphql(service, query: str) -> dict:
+    """POST a GraphQL query/mutation to VyOS and return the parsed body.
+
+    Raises HTTPException(502) on transport/HTTP failure so callers can stay terse.
+    """
+    api_key = str(service.config.apikey)
+    url = f"{service.config.protocol}://{service.config.hostname}:{service.config.port}/graphql"
+    try:
+        async with httpx.AsyncClient(verify=service.config.verify, timeout=15.0) as client:
+            resp = await client.post(url, json={"query": query}, auth=("vyos", api_key))
+    except Exception:
+        logger.exception("IPSec GraphQL request failed")
+        raise HTTPException(status_code=502, detail="VyOS GraphQL request failed")
+    if resp.status_code != 200:
+        logger.error("IPSec GraphQL HTTP error %d", resp.status_code)
+        raise HTTPException(status_code=502, detail="VyOS GraphQL request failed")
+    return resp.json()
+
+
+def _reset_response(body: dict, mutation_name: str) -> VyOSResponse:
+    """Fold a Reset*Ipsec mutation response into a VyOSResponse.
+
+    Note: ResetPeerIpsec reports ``success: true`` even for a non-existent peer
+    (strongSwan simply issues the reset), so this success flag confirms the
+    command was accepted, not that a tunnel re-established. Callers should
+    re-query status to confirm tunnel state.
+    """
+    if body.get("errors"):
+        logger.warning("IPSec %s GraphQL errors: %s", mutation_name, body["errors"])
+        return VyOSResponse(success=False, error="VyOS reported an error")
+    node = (body.get("data") or {}).get(mutation_name) or {}
+    success = bool(node.get("success"))
+    error = None
+    if not success:
+        errs = node.get("errors") or []
+        error = "; ".join(str(e) for e in errs) if errs else "Reset failed"
+    return VyOSResponse(success=success, error=error)
+
+
+@router.get("/status")
+async def get_ipsec_status(request: Request):
+    """
+    Live site-to-site tunnel status (on-demand refresh source for the IPSec page).
+
+    Returns the same shape the dashboard pushes over SSE: per-tunnel up/down
+    state with byte/packet counters and the negotiated ESP proposal, plus
+    up/down/total counts. Returns empty/zero when strongSwan isn't running or
+    no tunnel has established.
+    """
+    await require_read_permission(request, FeatureGroup.IPSEC)
+    try:
+        service = get_session_vyos_service(request)
+        key_literal = json.dumps(str(service.config.apikey))
+        query = "{ " + " ".join(ipsec_gql_fields(key_literal)) + " }"
+        body = await _ipsec_graphql(service, query)
+        if body.get("errors"):
+            logger.warning("IPSec status GraphQL errors: %s", body["errors"])
+        return build_ipsec_status(body.get("data") or {})
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post("/reset/peer", response_model=VyOSResponse)
+async def reset_ipsec_peer(http_request: Request, request: IPSecResetPeerRequest):
+    """Bounce a single site-to-site peer (or just one of its tunnels)."""
+    await require_write_permission(http_request, FeatureGroup.IPSEC)
+    try:
+        service = get_session_vyos_service(http_request)
+        key_literal = json.dumps(str(service.config.apikey))
+        peer_literal = json.dumps(request.peer)
+        data = f"key: {key_literal}, peer: {peer_literal}"
+        if request.tunnel is not None:
+            data += f", tunnel: {json.dumps(request.tunnel)}"
+        query = (
+            "mutation { ResetPeerIpsec(data: {" + data + "}) "
+            "{ success errors } }"
+        )
+        body = await _ipsec_graphql(service, query)
+        return _reset_response(body, "ResetPeerIpsec")
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post("/reset/all", response_model=VyOSResponse)
+async def reset_ipsec_all_peers(http_request: Request):
+    """Bounce every configured site-to-site peer at once."""
+    await require_write_permission(http_request, FeatureGroup.IPSEC)
+    try:
+        service = get_session_vyos_service(http_request)
+        key_literal = json.dumps(str(service.config.apikey))
+        query = (
+            "mutation { ResetAllPeersIpsec(data: {key: " + key_literal + "}) "
+            "{ success errors } }"
+        )
+        body = await _ipsec_graphql(service, query)
+        return _reset_response(body, "ResetAllPeersIpsec")
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Unhandled error")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post("/reset/remote-access", response_model=VyOSResponse)
+async def reset_ipsec_remote_access(http_request: Request, request: IPSecResetRemoteAccessRequest):
+    """Reset remote-access (IKEv2 road-warrior) sessions, optionally for one user."""
+    await require_write_permission(http_request, FeatureGroup.IPSEC)
+    try:
+        service = get_session_vyos_service(http_request)
+        key_literal = json.dumps(str(service.config.apikey))
+        data = f"key: {key_literal}"
+        if request.username is not None:
+            data += f", username: {json.dumps(request.username)}"
+        query = (
+            "mutation { ResetRaIpsec(data: {" + data + "}) "
+            "{ success errors } }"
+        )
+        body = await _ipsec_graphql(service, query)
+        return _reset_response(body, "ResetRaIpsec")
     except HTTPException:
         raise
     except Exception:

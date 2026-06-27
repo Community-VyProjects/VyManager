@@ -77,6 +77,13 @@ const AVAILABLE_CARDS: AvailableCard[] = [
     icon: Route,
     requiredPermission: FeatureGroup.BGP,
   },
+  {
+    type: "ipsec-status",
+    name: "IPSec Tunnels",
+    description: "Live site-to-site IPSec tunnel state (up/down) with traffic selectors, byte counters and the negotiated ESP proposal",
+    icon: Lock,
+    requiredPermission: FeatureGroup.IPSEC,
+  },
 ];
 
 interface AddCardModalProps {
