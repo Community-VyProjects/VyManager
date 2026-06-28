@@ -35,6 +35,7 @@ import {
   type FirewallCapabilitiesResponse,
 } from "@/lib/api/firewall-ipv4";
 import { firewallIPv6Service } from "@/lib/api/firewall-ipv6";
+import { firewallSeparatorsService } from "@/lib/api/firewall-separators";
 import { firewallGroupsService, type FirewallGroup } from "@/lib/api/firewall-groups";
 import { flowtablesService, type Flowtable } from "@/lib/api/firewall-flowtables";
 import { CountryMultiSelect } from "../CountryMultiSelect";
@@ -975,6 +976,14 @@ export function ZoneRulePanel({
       ];
 
       await service.reorderRules({ chain: resolvedChain, is_custom_chain: true, rules: reorderItems });
+
+      // Deleting compacts the chain's rule numbers, so re-anchor its separators
+      // to the rules they sat above. The page reloads separators in onSuccess().
+      await firewallSeparatorsService.applyRenumber(
+        ipVersion,
+        resolvedChain,
+        reorderItems.map((it) => ({ old_number: it.old_number, new_number: it.new_number }))
+      );
 
       onOpenChange(false);
       onSuccess();
