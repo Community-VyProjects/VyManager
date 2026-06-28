@@ -1318,47 +1318,40 @@ class NATService {
     natType: "source" | "destination" | "static",
     ruleNumber: number
   ): Promise<VyOSResponse> {
-    // Step 1: Delete the rule
-    if (natType === "source") {
-      await this.deleteSourceRule(ruleNumber);
-    } else if (natType === "destination") {
-      await this.deleteDestinationRule(ruleNumber);
-    } else {
-      await this.deleteStaticRule(ruleNumber);
-    }
-
-    // Step 2: Fetch fresh config to see remaining rules
+    // Fetch config BEFORE deleting so the delete + compaction happen in ONE commit
+    // via the reorder endpoint. The deleted rule is sent with new_number=null
+    // (removed, not recreated); remaining rules compact to [100, 101, 102, ...].
+    // Splitting delete and reorder into two requests breaks under commit-confirm,
+    // which only allows one un-confirmed change at a time.
     const config = await this.getConfig(true);
 
     let remainingRules: Array<{ rule_number: number; data: Record<string, unknown> }> = [];
 
     if (natType === "source") {
       remainingRules = (config.source_rules ?? [])
+        .filter(r => r.rule_number !== ruleNumber)
         .sort((a, b) => a.rule_number - b.rule_number)
         .map(r => ({ rule_number: r.rule_number, data: this.flattenSourceRule(r) }));
     } else if (natType === "destination") {
       remainingRules = (config.destination_rules ?? [])
+        .filter(r => r.rule_number !== ruleNumber)
         .sort((a, b) => a.rule_number - b.rule_number)
         .map(r => ({ rule_number: r.rule_number, data: this.flattenDestinationRule(r) }));
     } else {
       remainingRules = (config.static_rules ?? [])
+        .filter(r => r.rule_number !== ruleNumber)
         .sort((a, b) => a.rule_number - b.rule_number)
         .map(r => ({ rule_number: r.rule_number, data: this.flattenStaticRule(r) }));
     }
 
-    // Step 3: Check if compaction is needed
-    const needsCompaction = remainingRules.some((r, idx) => r.rule_number !== 100 + idx);
-
-    if (!needsCompaction || remainingRules.length === 0) {
-      return { success: true };
-    }
-
-    // Step 4: Build reorder request to compact to sequential [100, 101, 102, ...]
-    const reorderItems = remainingRules.map((r, idx) => ({
-      old_number: r.rule_number,
-      new_number: 100 + idx,
-      rule_data: r.data,
-    }));
+    const reorderItems = [
+      { old_number: ruleNumber, new_number: null, rule_data: {} as Record<string, unknown> },
+      ...remainingRules.map((r, idx) => ({
+        old_number: r.rule_number,
+        new_number: 100 + idx,
+        rule_data: r.data,
+      })),
+    ];
 
     return this.reorderRules(natType, reorderItems);
   }
@@ -1367,29 +1360,24 @@ class NATService {
    * Delete a CGNAT rule and compact remaining CGNAT rules sequentially from 100.
    */
   async deleteAndCompactCGNATRules(ruleNumber: number): Promise<VyOSResponse> {
-    // Step 1: Delete the rule
-    await this.deleteCGNATRule(ruleNumber);
-
-    // Step 2: Fetch fresh config
+    // Fetch config BEFORE deleting so the delete + compaction happen in ONE commit
+    // (see deleteAndCompactRules). The deleted rule is sent with new_number=null;
+    // remaining rules compact to [100, 101, 102, ...].
     const config = await this.getConfig(true);
 
     const remainingRules = (config.cgnat?.rules ?? [])
+      .filter(r => r.rule_number !== ruleNumber)
       .sort((a, b) => a.rule_number - b.rule_number)
       .map(r => ({ rule_number: r.rule_number, data: this.flattenCGNATRule(r) }));
 
-    // Step 3: Check if compaction is needed
-    const needsCompaction = remainingRules.some((r, idx) => r.rule_number !== 100 + idx);
-
-    if (!needsCompaction || remainingRules.length === 0) {
-      return { success: true };
-    }
-
-    // Step 4: Build reorder request
-    const reorderItems = remainingRules.map((r, idx) => ({
-      old_number: r.rule_number,
-      new_number: 100 + idx,
-      rule_data: r.data,
-    }));
+    const reorderItems = [
+      { old_number: ruleNumber, new_number: null, rule_data: {} as Record<string, unknown> },
+      ...remainingRules.map((r, idx) => ({
+        old_number: r.rule_number,
+        new_number: 100 + idx,
+        rule_data: r.data,
+      })),
+    ];
 
     return this.reorderRules("cgnat", reorderItems);
   }
@@ -1401,7 +1389,7 @@ class NATService {
     natType: "source" | "destination" | "static" | "cgnat",
     rules: Array<{
       old_number: number;
-      new_number: number;
+      new_number: number | null;
       rule_data: Record<string, unknown>;
     }>
   ): Promise<VyOSResponse> {

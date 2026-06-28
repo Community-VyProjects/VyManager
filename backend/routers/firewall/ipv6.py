@@ -244,7 +244,7 @@ class FirewallBatchRequest(BaseModel):
 class ReorderRuleItem(BaseModel):
     """Single rule item for reordering."""
     old_number: int
-    new_number: int
+    new_number: Optional[int] = None  # None = delete-only (removed, not recreated)
     rule_data: Dict[str, Any]
 
 
@@ -313,6 +313,8 @@ async def get_firewall_ipv6_capabilities(request: Request):
             capabilities["instance_id"] = request.state.instance.get("id")
 
         return capabilities
+    except HTTPException:
+        raise
     except Exception as e:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -792,6 +794,8 @@ async def get_firewall_ipv6_config(http_request: Request, refresh: bool = False)
             custom_chains=custom_chains,
             total_rules=total_rules
         )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -863,6 +867,8 @@ async def firewall_ipv6_batch_configure(http_request: Request, request: Firewall
             data={"message": "Firewall configuration updated"},
             error=response.error if response.error else None
         )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -901,6 +907,8 @@ async def firewall_ipv6_reorder_rules(http_request: Request, request: ReorderFir
         # Step 2: Recreate rules with new numbers
         for rule_item in request.rules:
             new_number = rule_item.new_number
+            if new_number is None:
+                continue  # delete-only item: removed above, not recreated
             rule_data = rule_item.rule_data
 
             # Create the rule
@@ -1229,6 +1237,8 @@ async def firewall_ipv6_reorder_rules(http_request: Request, request: ReorderFir
             data={"message": "Rules reordered successfully"},
             error=response.error if response.error else None
         )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")

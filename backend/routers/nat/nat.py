@@ -77,7 +77,7 @@ class VyOSResponse(BaseModel):
 class ReorderRuleItem(BaseModel):
     """Single rule item for reordering."""
     old_number: int
-    new_number: int
+    new_number: Optional[int] = None  # None = delete-only (removed, not recreated)
     rule_data: Dict[str, Any]
 
 
@@ -750,6 +750,8 @@ async def reorder_nat_rules(http_request: Request, request: ReorderNATRequest):
         # Step 2: Create all rules with new numbers
         for rule_item in request.rules:
             new_num = rule_item.new_number
+            if new_num is None:
+                continue  # delete-only item: removed above, not recreated
             rule_data = rule_item.rule_data
 
             if request.nat_type == "source":

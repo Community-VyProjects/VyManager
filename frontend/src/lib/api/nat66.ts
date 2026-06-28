@@ -85,7 +85,7 @@ export interface NAT66BatchOperation {
 
 interface ReorderRuleItem {
   old_number: number;
-  new_number: number;
+  new_number: number | null; // null = delete-only (removed, not recreated)
   rule_data: Record<string, unknown>;
 }
 
@@ -489,40 +489,38 @@ class NAT66Service {
   // ==================== Delete + Compact ====================
 
   async deleteAndCompactSourceRules(ruleNumber: number): Promise<VyOSResponse> {
-    await this.deleteSourceRule(ruleNumber);
+    // Fetch config BEFORE deleting so the delete + compaction happen in ONE commit
+    // via the reorder endpoint. The deleted rule is sent with new_number=null
+    // (removed, not recreated); remaining rules compact to [100, 101, 102, ...].
+    // Splitting delete and reorder into two requests breaks under commit-confirm,
+    // which only allows one un-confirmed change at a time.
     const config = await this.getConfig(true);
-    const remaining = config.source_rules;
-    if (remaining.length === 0) {
-      return { success: true, data: { message: "All source rules deleted" } };
-    }
-    const reorderItems = remaining.map((rule, i) => ({
-      old_number: rule.rule_number,
-      new_number: 100 + i,
-      rule_data: this.flattenSourceRule(rule),
-    }));
-    const needsReorder = reorderItems.some((item) => item.old_number !== item.new_number);
-    if (!needsReorder) {
-      return { success: true, data: { message: "Rule deleted, no compaction needed" } };
-    }
+    const remaining = (config.source_rules ?? []).filter(r => r.rule_number !== ruleNumber);
+    const reorderItems: ReorderRuleItem[] = [
+      { old_number: ruleNumber, new_number: null, rule_data: {} },
+      ...remaining.map((rule, i) => ({
+        old_number: rule.rule_number,
+        new_number: 100 + i,
+        rule_data: this.flattenSourceRule(rule),
+      })),
+    ];
     return this.reorderRules("source", reorderItems);
   }
 
   async deleteAndCompactDestinationRules(ruleNumber: number): Promise<VyOSResponse> {
-    await this.deleteDestinationRule(ruleNumber);
+    // Fetch config BEFORE deleting so the delete + compaction happen in ONE commit
+    // (see deleteAndCompactSourceRules). The deleted rule is sent with new_number=null;
+    // remaining rules compact to [100, 101, 102, ...].
     const config = await this.getConfig(true);
-    const remaining = config.destination_rules;
-    if (remaining.length === 0) {
-      return { success: true, data: { message: "All destination rules deleted" } };
-    }
-    const reorderItems = remaining.map((rule, i) => ({
-      old_number: rule.rule_number,
-      new_number: 100 + i,
-      rule_data: this.flattenDestinationRule(rule),
-    }));
-    const needsReorder = reorderItems.some((item) => item.old_number !== item.new_number);
-    if (!needsReorder) {
-      return { success: true, data: { message: "Rule deleted, no compaction needed" } };
-    }
+    const remaining = (config.destination_rules ?? []).filter(r => r.rule_number !== ruleNumber);
+    const reorderItems: ReorderRuleItem[] = [
+      { old_number: ruleNumber, new_number: null, rule_data: {} },
+      ...remaining.map((rule, i) => ({
+        old_number: rule.rule_number,
+        new_number: 100 + i,
+        rule_data: this.flattenDestinationRule(rule),
+      })),
+    ];
     return this.reorderRules("destination", reorderItems);
   }
 

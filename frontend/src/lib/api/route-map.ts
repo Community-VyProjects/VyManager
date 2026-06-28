@@ -213,51 +213,28 @@ class RouteMapService {
       throw new Error(`Route-map ${name} not found`);
     }
 
-    // Get remaining rules (excluding the one being deleted)
-    const remainingRules = routeMap.rules.filter(r => r.rule_number !== ruleNumber);
+    // Delete + renumber in a SINGLE commit via the reorder endpoint. The deleted
+    // rule is sent with new_number=null (removed, not recreated); remaining rules
+    // renumber sequentially from the lowest existing number to close the gap.
+    // Splitting delete and reorder into two requests breaks under commit-confirm,
+    // which only allows one un-confirmed change at a time.
+    const deletedRule =
+      routeMap.rules.find(r => r.rule_number === ruleNumber) ??
+      ({ rule_number: ruleNumber } as RouteMapRule); // rule_data unused for delete-only
+    const sortedRules = routeMap.rules
+      .filter(r => r.rule_number !== ruleNumber)
+      .sort((a, b) => a.rule_number - b.rule_number);
+    const startingNumber = sortedRules.length > 0 ? sortedRules[0].rule_number : ruleNumber;
 
-    if (remainingRules.length === 0) {
-      // If no rules left, just delete the rule
-      const operations: RouteMapBatchOperation[] = [];
-      operations.push({ op: "delete_rule" });
+    const reorderRules: Array<{ old_number: number; new_number: number | null; rule_data: RouteMapRule }> = [
+      { old_number: ruleNumber, new_number: null, rule_data: deletedRule },
+      ...sortedRules.map((rule, index) => ({
+        old_number: rule.rule_number,
+        new_number: startingNumber + index,
+        rule_data: rule,
+      })),
+    ];
 
-      return this.batchConfigure({
-        name,
-        rule_number: ruleNumber,
-        operations,
-      });
-    }
-
-    // Sort remaining rules by their current number
-    const sortedRules = remainingRules.sort((a, b) => a.rule_number - b.rule_number);
-
-    // Renumber sequentially starting from the lowest existing number
-    // This closes gaps: if you have 105, 106, 107, 108 and delete 106,
-    // result will be 105, 106 (was 107), 107 (was 108)
-    const startingNumber = sortedRules[0].rule_number;
-    const reorderRules = sortedRules.map((rule, index) => ({
-      old_number: rule.rule_number,
-      new_number: startingNumber + index,
-      rule_data: rule,
-    }));
-
-    // Check if any rule actually needs renumbering
-    const needsReorder = reorderRules.some(r => r.old_number !== r.new_number);
-
-    if (!needsReorder) {
-      // No gaps to close, just delete the rule directly
-      const operations: RouteMapBatchOperation[] = [];
-      operations.push({ op: "delete_rule" });
-
-      return this.batchConfigure({
-        name,
-        rule_number: ruleNumber,
-        operations,
-      });
-    }
-
-    // Use reorder endpoint which will delete all rules (including the one we want to delete)
-    // and recreate them with new sequential numbers
     return this.reorderRules(name, reorderRules);
   }
 
@@ -695,7 +672,7 @@ class RouteMapService {
   /**
    * Reorder route-map rules
    */
-  async reorderRules(routeMapName: string, rules: Array<{ old_number: number; new_number: number; rule_data: RouteMapRule }>): Promise<VyOSResponse> {
+  async reorderRules(routeMapName: string, rules: Array<{ old_number: number; new_number: number | null; rule_data: RouteMapRule }>): Promise<VyOSResponse> {
     const result = await apiClient.post<VyOSResponse>("/vyos/route-map/reorder", {
       route_map_name: routeMapName,
       rules: rules,
