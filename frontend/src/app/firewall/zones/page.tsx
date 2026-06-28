@@ -753,6 +753,13 @@ export default function FirewallZonesPage() {
     }));
     try {
       await service.reorderRules({ chain: chainName, is_custom_chain: true, rules: reorderItems });
+      // Re-anchor this chain's separators to follow their rules' new numbers.
+      // loadData() below refetches separators, so persisting to the DB suffices.
+      await firewallSeparatorsService.applyRenumber(
+        currentFamily,
+        chainName,
+        reorderItems.map((it) => ({ old_number: it.old_number, new_number: it.new_number }))
+      );
       setIsReordering(false);
       setReorderedRows([]);
       await loadData(true);

@@ -683,6 +683,15 @@ function FirewallPoliciesPageInner() {
           rules: reorderItems,
         });
 
+        // Re-anchor separators so each bar follows its rule to its new number.
+        setSeparators(
+          await firewallSeparatorsService.applyRenumber(
+            "ipv4",
+            selectedChain as string,
+            reorderItems.map((it) => ({ old_number: it.old_number, new_number: it.new_number }))
+          )
+        );
+
         // Refresh config and reset state
         await fetchConfig(true);
       } catch (err) {
@@ -715,6 +724,15 @@ function FirewallPoliciesPageInner() {
           is_custom_chain: isCustomChainIPv6,
           rules: reorderItems,
         });
+
+        // Re-anchor separators so each bar follows its rule to its new number.
+        setSeparators(
+          await firewallSeparatorsService.applyRenumber(
+            "ipv6",
+            selectedChainIPv6 as string,
+            reorderItems.map((it) => ({ old_number: it.old_number, new_number: it.new_number }))
+          )
+        );
 
         // Refresh config and reset state
         await fetchConfigIPv6(true);
@@ -1567,7 +1585,30 @@ function FirewallPoliciesPageInner() {
         <DeleteFirewallRuleModal
           open={!!deletingRule}
           onOpenChange={(open) => !open && setDeletingRule(null)}
-          onSuccess={() => selectedProtocol === "ipv4" ? fetchConfig(true) : fetchConfigIPv6(true)}
+          onSuccess={async () => {
+            // Deleting a rule renumbers the ones below it (shift down by one), so
+            // re-anchor this chain's separators to the same rules they sat above.
+            const deleted = deletingRule;
+            if (deleted) {
+              const mapping = currentRules.map((r) => ({
+                old_number: r.rule_number,
+                new_number:
+                  r.rule_number === deleted.rule_number
+                    ? null
+                    : r.rule_number > deleted.rule_number
+                    ? r.rule_number - 1
+                    : r.rule_number,
+              }));
+              try {
+                setSeparators(
+                  await firewallSeparatorsService.applyRenumber(currentFamily, currentChain, mapping)
+                );
+              } catch (err) {
+                console.error("Error re-anchoring separators after delete:", err);
+              }
+            }
+            await (selectedProtocol === "ipv4" ? fetchConfig(true) : fetchConfigIPv6(true));
+          }}
           rule={deletingRule}
           protocol={selectedProtocol}
         />
