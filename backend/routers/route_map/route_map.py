@@ -169,7 +169,7 @@ class RouteMapBatchRequest(BaseModel):
 class ReorderRuleItem(BaseModel):
     """Single rule in a reorder request"""
     old_number: int = Field(..., description="Original rule number")
-    new_number: int = Field(..., description="New rule number after reorder")
+    new_number: Optional[int] = Field(None, description="New rule number after reorder; None = delete-only")
     rule_data: RouteMapRule = Field(..., description="Complete rule configuration")
 
 
@@ -561,6 +561,8 @@ async def reorder_route_map_rules(http_request: Request, body: ReorderRouteMapRe
         # Step 2: Recreate rules with new numbers
         for rule_item in body.rules:
             new_number = rule_item.new_number
+            if new_number is None:
+                continue  # delete-only item: removed above, not recreated
             rule_data = rule_item.rule_data
 
             # Create the rule

@@ -133,7 +133,7 @@ class NAT66ConfigResponse(BaseModel):
 class ReorderRuleItem(BaseModel):
     """Single rule item for reordering."""
     old_number: int
-    new_number: int
+    new_number: Optional[int] = None  # None = delete-only (removed, not recreated)
     rule_data: Dict[str, Any]
 
 
@@ -429,6 +429,8 @@ async def reorder_nat66_rules(http_request: Request, request: ReorderNAT66Reques
         # Step 2: Recreate rules with new numbers
         for rule_item in request.rules:
             new_num = rule_item.new_number
+            if new_num is None:
+                continue  # delete-only item: removed above, not recreated
             rd = rule_item.rule_data
 
             if is_source:

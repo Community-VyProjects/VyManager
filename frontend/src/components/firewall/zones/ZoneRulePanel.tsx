@@ -957,30 +957,24 @@ export function ZoneRulePanel({
     try {
       const service = ipVersion === "ipv4" ? firewallIPv4Service : firewallIPv6Service;
 
-      // Step 1: delete just the rule (bypass the service's auto-renumber)
-      await service.batchConfigure({
-        chain: resolvedChain,
-        rule_number: rule.rule_number,
-        is_custom_chain: true,
-        operations: [{ op: "delete_custom_chain_rule" }],
-      });
-
-      // Step 2: full compact — renumber remaining rules from 10 sequentially
+      // Delete + full compact in a SINGLE commit. The deleted rule is sent with
+      // new_number=null (removed, not recreated); remaining rules renumber from 10
+      // sequentially. Splitting this into two requests breaks under commit-confirm,
+      // which only allows one un-confirmed change at a time.
       const remaining = chainRules
         .filter((r) => r.rule_number !== rule.rule_number)
         .sort((a, b) => a.rule_number - b.rule_number);
 
-      if (remaining.length > 0) {
-        const reorderItems = remaining.map((r, i) => ({
+      const reorderItems = [
+        { old_number: rule.rule_number, new_number: null, rule_data: rule },
+        ...remaining.map((r, i) => ({
           old_number: r.rule_number,
           new_number: 10 + i,
           rule_data: r,
-        }));
-        const needsCompact = reorderItems.some((x) => x.old_number !== x.new_number);
-        if (needsCompact) {
-          await service.reorderRules({ chain: resolvedChain, is_custom_chain: true, rules: reorderItems });
-        }
-      }
+        })),
+      ];
+
+      await service.reorderRules({ chain: resolvedChain, is_custom_chain: true, rules: reorderItems });
 
       onOpenChange(false);
       onSuccess();

@@ -55,7 +55,7 @@ export interface NAT64BatchOperation {
 
 interface ReorderRuleItem {
   old_number: number;
-  new_number: number;
+  new_number: number | null; // null = delete-only (removed, not recreated)
   rule_data: Record<string, unknown>;
 }
 
@@ -318,21 +318,21 @@ class NAT64Service {
   // ==================== Delete + Compact ====================
 
   async deleteAndCompactRules(ruleNumber: number): Promise<VyOSResponse> {
-    await this.deleteRule(ruleNumber);
+    // Fetch config BEFORE deleting so the delete + compaction happen in ONE commit
+    // via the reorder endpoint. The deleted rule is sent with new_number=null
+    // (removed, not recreated); remaining rules compact to [100, 101, 102, ...].
+    // Splitting delete and reorder into two requests breaks under commit-confirm,
+    // which only allows one un-confirmed change at a time.
     const config = await this.getConfig(true);
-    const remaining = config.source_rules;
-    if (remaining.length === 0) {
-      return { success: true, data: { message: "All rules deleted" } };
-    }
-    const reorderItems = remaining.map((rule, i) => ({
-      old_number: rule.rule_number,
-      new_number: 100 + i,
-      rule_data: this.flattenRule(rule),
-    }));
-    const needsReorder = reorderItems.some((item) => item.old_number !== item.new_number);
-    if (!needsReorder) {
-      return { success: true, data: { message: "Rule deleted, no compaction needed" } };
-    }
+    const remaining = (config.source_rules ?? []).filter(r => r.rule_number !== ruleNumber);
+    const reorderItems: ReorderRuleItem[] = [
+      { old_number: ruleNumber, new_number: null, rule_data: {} },
+      ...remaining.map((rule, i) => ({
+        old_number: rule.rule_number,
+        new_number: 100 + i,
+        rule_data: this.flattenRule(rule),
+      })),
+    ];
     return this.reorderRules(reorderItems);
   }
 

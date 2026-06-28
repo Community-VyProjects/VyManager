@@ -230,7 +230,7 @@ export interface FirewallBatchRequest {
 
 export interface ReorderRuleItem {
   old_number: number;
-  new_number: number;
+  new_number: number | null; // null = delete-only (removed, not recreated)
   rule_data: FirewallRule;
 }
 
@@ -1535,41 +1535,31 @@ class FirewallIPv6Service {
       }
     }
 
-    // Delete the rule
-    const operations: FirewallBatchOperation[] = [
-      isCustomChain
-        ? { op: "delete_custom_chain_rule" }
-        : { op: "delete_base_chain_rule" },
-    ];
-
-    await this.batchConfigure({
-      chain,
-      rule_number: ruleNumber,
-      is_custom_chain: isCustomChain,
-      operations,
-    });
-
-    // Find all rules with numbers greater than the deleted rule
+    // Delete + renumber in a SINGLE commit via the reorder endpoint. The deleted
+    // rule is sent with new_number=null (removed, not recreated); the rules below
+    // it shift down by one. Doing this as two requests breaks under commit-confirm,
+    // which only allows one un-confirmed change at a time.
+    const deletedRule =
+      rulesInChain.find(r => r.rule_number === ruleNumber) ??
+      ({ rule_number: ruleNumber } as FirewallRule); // rule_data unused for delete-only
     const rulesToRenumber = rulesInChain
       .filter(r => r.rule_number > ruleNumber)
       .sort((a, b) => a.rule_number - b.rule_number);
 
-    // If there are rules to renumber, trigger a reorder
-    if (rulesToRenumber.length > 0) {
-      const reorderRequest: ReorderFirewallRequest = {
-        chain,
-        is_custom_chain: isCustomChain,
-        rules: rulesToRenumber.map(rule => ({
-          old_number: rule.rule_number,
-          new_number: rule.rule_number - 1, // Shift down by 1
-          rule_data: rule
-        }))
-      };
+    const reorderRules: ReorderRuleItem[] = [
+      { old_number: ruleNumber, new_number: null, rule_data: deletedRule },
+      ...rulesToRenumber.map(rule => ({
+        old_number: rule.rule_number,
+        new_number: rule.rule_number - 1, // Shift down by 1
+        rule_data: rule,
+      })),
+    ];
 
-      await this.reorderRules(reorderRequest);
-    }
-
-    return { success: true };
+    return this.reorderRules({
+      chain,
+      is_custom_chain: isCustomChain,
+      rules: reorderRules,
+    });
   }
 
   /**
