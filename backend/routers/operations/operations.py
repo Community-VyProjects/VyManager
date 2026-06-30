@@ -47,6 +47,23 @@ from vyos_builders import (
     TrafficEngineeringBatchBuilder,
     VrfBatchBuilder,
 )
+from vyos_builders import (
+    BondingBatchBuilder,
+    DummyBatchBuilder,
+    GeneveBatchBuilder,
+    InputBatchBuilder,
+    L2TPv3BatchBuilder,
+    LoopbackBatchBuilder,
+    MacsecBatchBuilder,
+    OpenvpnBatchBuilder,
+    PppoeBatchBuilder,
+    PseudoEthernetBatchBuilder,
+    SstpcBatchBuilder,
+    VirtualEthernetBatchBuilder,
+    VppBatchBuilder,
+    VtiBatchBuilder,
+    WirelessBatchBuilder,
+)
 from vyos_builders.broadcast_relay import BroadcastRelayBatchBuilder
 from vyos_builders.config_sync import ConfigSyncBatchBuilder
 from vyos_builders.conntrack_sync import ConntrackSyncBatchBuilder
@@ -181,18 +198,61 @@ _BUILDER_REGISTRY: dict[str, type] = {
     "vxlan": VxlanBatchBuilder,
     "webproxy": WebProxyBatchBuilder,
     "wwan": WwanInterfaceBatchBuilder,
+    # Interface sub-types — "subject injection": their batch handler injects a
+    # top-level field (the interface name) as the first arg of every op. See
+    # _SUBJECT_FIELDS. (ethernet uses explicit dispatch and is excluded.)
+    "bonding": BondingBatchBuilder,
+    "dummy": DummyBatchBuilder,
+    "geneve": GeneveBatchBuilder,
+    "input": InputBatchBuilder,
+    "l2tpv3": L2TPv3BatchBuilder,
+    "loopback": LoopbackBatchBuilder,
+    "macsec": MacsecBatchBuilder,
+    "openvpn": OpenvpnBatchBuilder,
+    "pppoe": PppoeBatchBuilder,
+    "pseudo-ethernet": PseudoEthernetBatchBuilder,
+    "sstpc": SstpcBatchBuilder,
+    "virtual-ethernet": VirtualEthernetBatchBuilder,
+    "vpp": VppBatchBuilder,
+    "vti": VtiBatchBuilder,
+    "wireless": WirelessBatchBuilder,
+}
+
+# Features whose batch handler injects a top-level body field as the first
+# positional arg of every op (so an op's value supplies args AFTER the subject).
+# A generic client must send this field and provide arg_count-1 value args.
+_SUBJECT_FIELDS: dict[str, str] = {
+    "bonding": "interface_name",
+    "dummy": "interface",
+    "geneve": "interface",
+    "input": "interface",
+    "l2tpv3": "interface",
+    "loopback": "interface",
+    "macsec": "interface",
+    "openvpn": "interface",
+    "pppoe": "interface",
+    "pseudo-ethernet": "interface",
+    "sstpc": "interface",
+    "virtual-ethernet": "interface",
+    "vpp": "interface",
+    "vti": "interface",
+    "wireless": "interface",
 }
 
 
-def describe_batch_builder(builder_cls: type) -> list[dict[str, Any]]:
-    """Introspect a batch builder into its callable operation vocabulary."""
+def describe_batch_builder(builder_cls: type, max_args: int = 2) -> list[dict[str, Any]]:
+    """Introspect a batch builder into its callable operation vocabulary.
+
+    Generic-dispatch features cap at 2 args (the dispatcher's limit). Subject
+    features inject one arg from a top-level field and their VLAN ops take more,
+    so they pass a higher max_args.
+    """
     operations: list[dict[str, Any]] = []
     for name, method in inspect.getmembers(builder_cls, inspect.isfunction):
         if name.startswith("_") or name in _INTERNAL_BUILDER_METHODS:
             continue
         params = [p for p in inspect.signature(method).parameters if p != "self"]
-        # The batch dispatcher supports 0-2 positional args (2 = comma-joined).
-        if len(params) > 2:
+        if len(params) > max_args:
             continue
         doc = inspect.getdoc(method)
         operations.append({
@@ -213,11 +273,22 @@ async def list_discoverable_features(request: Request) -> dict[str, Any]:
 
 @router.get("/{feature:path}")
 async def get_feature_operations(feature: str, request: Request) -> dict[str, Any]:
-    """Return the batch operation vocabulary for a single feature."""
-    builder_cls = _BUILDER_REGISTRY.get(feature.strip("/"))
+    """Return the batch operation vocabulary for a single feature.
+
+    ``subject_field``, when present, is the top-level body field the handler
+    injects as each op's first arg; an op's value then supplies the remaining args.
+    """
+    slug = feature.strip("/")
+    builder_cls = _BUILDER_REGISTRY.get(slug)
     if builder_cls is None:
         raise HTTPException(
             status_code=404,
             detail=f"No operation vocabulary for feature '{feature}'.",
         )
-    return {"feature": feature, "operations": describe_batch_builder(builder_cls)}
+    subject_field = _SUBJECT_FIELDS.get(slug)
+    max_args = 5 if subject_field else 2
+    return {
+        "feature": feature,
+        "subject_field": subject_field,
+        "operations": describe_batch_builder(builder_cls, max_args=max_args),
+    }
