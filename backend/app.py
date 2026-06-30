@@ -15,6 +15,7 @@ from typing import Optional
 
 from middleware.auth import AuthenticationMiddleware
 from middleware.session import SessionMiddleware
+from middleware.audit import AuditMiddleware
 from fastapi_permissions import get_user_feature_permissions
 
 # Import routers
@@ -58,6 +59,7 @@ from routers import show as show_router
 from routers.site_updates import site_updates as site_updates_router
 from routers import dashboard as dashboard_router
 from routers import user_management as user_management_router
+from routers.tokens import tokens as tokens_router
 from routers.monitoring import monitoring as monitoring_router
 from routers.high_availability import high_availability as high_availability_router
 from routers.load_balancing import load_balancing as load_balancing_router
@@ -291,6 +293,11 @@ app.add_middleware(
     expose_headers=["*"],
 )
 
+# Audit Middleware - Records config-mutating /vyos/* calls into audit_logs.
+# Added before Session/Auth so it nests inside them and sees the resolved user,
+# active instance, and API-token provenance when it records.
+app.add_middleware(AuditMiddleware)
+
 # Session Middleware - Resolves active VyOS instance for authenticated users
 # Added FIRST but runs SECOND (middleware executes in reverse order)
 app.add_middleware(SessionMiddleware)
@@ -376,6 +383,7 @@ app.include_router(show_router.router)
 app.include_router(site_updates_router.router)
 app.include_router(dashboard_router.router)
 app.include_router(user_management_router.router)
+app.include_router(tokens_router.router)
 app.include_router(monitoring_router.router)
 app.include_router(high_availability_router.router)
 app.include_router(load_balancing_router.router)
