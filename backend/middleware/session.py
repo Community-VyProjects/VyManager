@@ -137,6 +137,21 @@ class SessionMiddleware(BaseHTTPMiddleware):
                 )
         return session
 
+    @staticmethod
+    def _token_allows_instance(request: Request, instance_id: str, site_id: str) -> bool:
+        """
+        Apply a scoped token's instance/site restriction.
+
+        Empty restrictions = the token may reach any instance the user is granted.
+        Otherwise the instance must be explicitly allowed, or belong to an allowed
+        site. (The user-grant check has already run separately.)
+        """
+        allowed_instances = getattr(request.state, "api_token_allowed_instance_ids", None) or []
+        allowed_sites = getattr(request.state, "api_token_allowed_site_ids", None) or []
+        if not allowed_instances and not allowed_sites:
+            return True
+        return instance_id in allowed_instances or site_id in allowed_sites
+
     async def _resolve_instance_for_user(self, conn, user_id: str, user_site_role, instance_id: str):
         """
         Resolve a specific instance by id for a token client.
@@ -226,6 +241,12 @@ class SessionMiddleware(BaseHTTPMiddleware):
                         session = await self._resolve_instance_for_user(
                             conn, user_id, user_site_role, instance_id
                         )
+                        # Beyond the user's grant, a scoped token may only reach
+                        # the instances/sites it was restricted to.
+                        if session and not self._token_allows_instance(
+                            request, session["instance_id"], session["site_id"]
+                        ):
+                            session = None
                     else:
                         # No instance named - downstream read/write handlers will
                         # report "no active instance" as for a disconnected session.

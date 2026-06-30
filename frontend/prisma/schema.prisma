@@ -99,6 +99,12 @@ model ApiToken {
   tokenHash  String    @unique // sha256 hex of the full plaintext token
   prefix     String // non-secret display prefix, e.g. "vym_AbCd"
   scopes     String[]  @default([]) // empty = full user RBAC; ["read"] = read-only
+  // Instance/site scoping (least-privilege). Empty both = every instance the user
+  // has a grant on; otherwise the token may only reach instances in
+  // allowedInstanceIds or whose site is in allowedSiteIds (still intersected with
+  // the user's own grants at request time).
+  allowedInstanceIds String[] @default([])
+  allowedSiteIds     String[] @default([])
   lastUsedAt DateTime?
   expiresAt  DateTime? // null = never expires
   revokedAt  DateTime? // set on revoke; non-null tokens are rejected

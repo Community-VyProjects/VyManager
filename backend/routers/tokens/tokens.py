@@ -35,6 +35,14 @@ class TokenCreateRequest(BaseModel):
         default_factory=list,
         description='Empty = full user RBAC; ["read"] = read-only regardless of role',
     )
+    allowed_instance_ids: List[str] = Field(
+        default_factory=list,
+        description="Restrict to these instances; empty = any instance the user can access",
+    )
+    allowed_site_ids: List[str] = Field(
+        default_factory=list,
+        description="Restrict to instances in these sites; empty = no site restriction",
+    )
 
 
 class TokenMetadata(BaseModel):
@@ -42,6 +50,8 @@ class TokenMetadata(BaseModel):
     name: str
     prefix: str
     scopes: List[str]
+    allowed_instance_ids: List[str]
+    allowed_site_ids: List[str]
     last_used_at: Optional[datetime]
     expires_at: Optional[datetime]
     revoked_at: Optional[datetime]
@@ -66,6 +76,8 @@ def _row_to_metadata(row: asyncpg.Record) -> TokenMetadata:
         name=row["name"],
         prefix=row["prefix"],
         scopes=list(row["scopes"] or []),
+        allowed_instance_ids=list(row["allowedInstanceIds"] or []),
+        allowed_site_ids=list(row["allowedSiteIds"] or []),
         last_used_at=row["lastUsedAt"],
         expires_at=row["expiresAt"],
         revoked_at=row["revokedAt"],
@@ -91,6 +103,10 @@ async def create_token(request: Request, body: TokenCreateRequest):
     if invalid:
         raise HTTPException(status_code=400, detail=f"Unknown scopes: {sorted(invalid)}")
     scopes = sorted(set(body.scopes))
+    # Enforcement intersects scope with the user's grants, so over-broad lists are
+    # harmless; we just dedupe what the caller asked for.
+    allowed_instance_ids = sorted(set(body.allowed_instance_ids))
+    allowed_site_ids = sorted(set(body.allowed_site_ids))
 
     expires_at = (
         datetime.utcnow() + timedelta(days=body.expires_in_days)
@@ -105,11 +121,14 @@ async def create_token(request: Request, body: TokenCreateRequest):
         row = await conn.fetchrow(
             """
             INSERT INTO api_tokens
-                (id, "userId", name, "tokenHash", prefix, scopes, "expiresAt", "createdAt")
-            VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, NOW())
-            RETURNING id, name, prefix, scopes, "lastUsedAt", "expiresAt", "revokedAt", "createdAt"
+                (id, "userId", name, "tokenHash", prefix, scopes,
+                 "allowedInstanceIds", "allowedSiteIds", "expiresAt", "createdAt")
+            VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, NOW())
+            RETURNING id, name, prefix, scopes, "allowedInstanceIds", "allowedSiteIds",
+                      "lastUsedAt", "expiresAt", "revokedAt", "createdAt"
             """,
-            user["id"], body.name, token_hash, prefix, scopes, expires_at,
+            user["id"], body.name, token_hash, prefix, scopes,
+            allowed_instance_ids, allowed_site_ids, expires_at,
         )
 
     logger.info("API token created for user %s (id=%s)", user["id"], row["id"])
@@ -123,7 +142,8 @@ async def list_tokens(request: Request):
     async with db_pool.acquire() as conn:
         rows = await conn.fetch(
             """
-            SELECT id, name, prefix, scopes, "lastUsedAt", "expiresAt", "revokedAt", "createdAt"
+            SELECT id, name, prefix, scopes, "allowedInstanceIds", "allowedSiteIds",
+                   "lastUsedAt", "expiresAt", "revokedAt", "createdAt"
             FROM api_tokens
             WHERE "userId" = $1
             ORDER BY "createdAt" DESC

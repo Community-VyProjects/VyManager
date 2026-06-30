@@ -86,7 +86,9 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         async with db_pool.acquire() as conn:
             row = await conn.fetchrow(
                 """
-                SELECT t.id, t."userId", t.scopes, t."expiresAt", t."revokedAt",
+                SELECT t.id, t."userId", t.scopes,
+                       t."allowedInstanceIds", t."allowedSiteIds",
+                       t."expiresAt", t."revokedAt",
                        u.email, u.name
                 FROM api_tokens t
                 JOIN users u ON t."userId" = u.id
@@ -122,6 +124,8 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         request.state.auth_method = "api_token"
         request.state.api_token_id = row["id"]
         request.state.api_token_scopes = list(row["scopes"] or [])
+        request.state.api_token_allowed_instance_ids = list(row["allowedInstanceIds"] or [])
+        request.state.api_token_allowed_site_ids = list(row["allowedSiteIds"] or [])
         return True
 
     async def dispatch(self, request: Request, call_next):

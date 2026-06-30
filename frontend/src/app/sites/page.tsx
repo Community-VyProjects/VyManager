@@ -34,6 +34,7 @@ import {
   LayoutGrid,
   Table,
   KeyRound,
+  Key,
 } from "lucide-react";
 import { signOut, useSession } from "@/lib/auth-client";
 import { Site, Instance, sessionService } from "@/lib/api/session";
@@ -53,11 +54,12 @@ import { DeleteInstanceModal } from "@/components/sites/DeleteInstanceModal";
 import { BackupRestoreModal } from "@/components/session/BackupRestoreModal";
 import { UserManagement } from "@/components/user-management/UserManagement";
 import { AuthenticationSettings } from "@/components/authentication/AuthenticationSettings";
+import { ApiTokensPanel } from "@/components/tokens/ApiTokensPanel";
 import { ThemeSelector } from "@/components/ui/theme-selector";
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/types/api";
 
-type NavSection = "sites" | "user-management" | "authentication";
+type NavSection = "sites" | "user-management" | "authentication" | "api-tokens";
 
 export default function SitesPage() {
   const router = useRouter();
@@ -362,6 +364,33 @@ export default function SitesPage() {
                   </div>
                   <span className="font-medium text-sm">Authentication</span>
                   {selectedSection === "authentication" && (
+                    <ChevronRight className="h-4 w-4 text-primary ml-auto" />
+                  )}
+                </div>
+              </button>
+
+              {/* API Tokens */}
+              <button
+                onClick={() => setSelectedSection("api-tokens")}
+                className={cn(
+                  "w-full text-left rounded-lg px-3 py-3 transition-all",
+                  selectedSection === "api-tokens"
+                    ? "bg-accent text-accent-foreground shadow-sm"
+                    : "hover:bg-accent/50"
+                )}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={cn(
+                    "rounded-md p-1.5",
+                    selectedSection === "api-tokens" ? "bg-primary/10" : "bg-muted"
+                  )}>
+                    <Key className={cn(
+                      "h-4 w-4",
+                      selectedSection === "api-tokens" ? "text-primary" : "text-muted-foreground"
+                    )} />
+                  </div>
+                  <span className="font-medium text-sm">API Tokens</span>
+                  {selectedSection === "api-tokens" && (
                     <ChevronRight className="h-4 w-4 text-primary ml-auto" />
                   )}
                 </div>
@@ -721,6 +750,10 @@ export default function SitesPage() {
           ) : selectedSection === "authentication" ? (
             <div className="flex-1 overflow-auto p-6">
               <AuthenticationSettings />
+            </div>
+          ) : selectedSection === "api-tokens" ? (
+            <div className="flex-1 overflow-auto p-6">
+              <ApiTokensPanel />
             </div>
           ) : (
             <div className="flex-1 flex items-center justify-center">
