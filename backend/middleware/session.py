@@ -62,6 +62,131 @@ class SessionMiddleware(BaseHTTPMiddleware):
     def __init__(self, app):
         super().__init__(app)
 
+    # Shared SELECT projection so cookie and token resolution yield identical rows.
+    _INSTANCE_COLUMNS = """
+        i.id as instance_id,
+        i.name as instance_name,
+        i.host,
+        i.port,
+        i."apiKey" as api_key,
+        i."isActive" as is_active,
+        i."siteId" as site_id,
+        i."vyosVersion" as vyos_version,
+        i.protocol,
+        i."verifySsl" as verify_ssl,
+        i."commitConfirmEnabled" as commit_confirm_enabled,
+        i."commitConfirmMinutes" as commit_confirm_minutes,
+        i.timeout,
+        s.name as site_name
+    """
+
+    async def _resolve_cookie_instance(self, conn, request: Request, path: str, user_id: str, user_site_role):
+        """Resolve the user's single active instance from active_sessions (browser cookie flow)."""
+        cookie_token = request.cookies.get("better-auth.session_token")
+        current_session_token = verify_session_cookie(cookie_token) if cookie_token else None
+
+        # Site ADMINs don't need user_instance_roles entries - they get ADMIN role automatically
+        if user_site_role == "ADMIN":
+            session = await conn.fetchrow(
+                f"""
+                SELECT {self._INSTANCE_COLUMNS},
+                    a."sessionToken" as session_token,
+                    'ADMIN' as user_role
+                FROM active_sessions a
+                JOIN instances i ON a."instanceId" = i.id
+                JOIN sites s ON i."siteId" = s.id
+                WHERE a."userId" = $1
+                """,
+                user_id,
+            )
+        else:
+            # Regular users need explicit instance-level role assignment
+            session = await conn.fetchrow(
+                f"""
+                SELECT {self._INSTANCE_COLUMNS},
+                    a."sessionToken" as session_token,
+                    uir.role as user_role
+                FROM active_sessions a
+                JOIN instances i ON a."instanceId" = i.id
+                JOIN sites s ON i."siteId" = s.id
+                JOIN user_instance_roles uir
+                    ON (uir."instanceId" = i.id OR uir."siteId" = i."siteId")
+                    AND uir."userId" = $1
+                WHERE a."userId" = $1
+                ORDER BY CASE uir.role
+                    WHEN 'ADMIN' THEN 3 WHEN 'OPERATOR' THEN 2 WHEN 'VIEWER' THEN 1 ELSE 0
+                END DESC
+                LIMIT 1
+                """,
+                user_id,
+            )
+
+        # If the active session belongs to a different auth session (login from a
+        # new device), clear it so the user must reconnect to an instance.
+        if session:
+            stored_session_token = session.get("session_token")
+            if stored_session_token and current_session_token and stored_session_token != current_session_token:
+                await conn.execute('DELETE FROM active_sessions WHERE "userId" = $1', user_id)
+                return None
+
+            # Session tokens match - update activity (skip background polling).
+            if path not in self.POLLING_ENDPOINTS:
+                await conn.execute(
+                    'UPDATE active_sessions SET "lastActivityAt" = NOW() WHERE "userId" = $1',
+                    user_id,
+                )
+        return session
+
+    @staticmethod
+    def _token_allows_instance(request: Request, instance_id: str, site_id: str) -> bool:
+        """
+        Apply a scoped token's instance/site restriction.
+
+        Empty restrictions = the token may reach any instance the user is granted.
+        Otherwise the instance must be explicitly allowed, or belong to an allowed
+        site. (The user-grant check has already run separately.)
+        """
+        allowed_instances = getattr(request.state, "api_token_allowed_instance_ids", None) or []
+        allowed_sites = getattr(request.state, "api_token_allowed_site_ids", None) or []
+        if not allowed_instances and not allowed_sites:
+            return True
+        return instance_id in allowed_instances or site_id in allowed_sites
+
+    async def _resolve_instance_for_user(self, conn, user_id: str, user_site_role, instance_id: str):
+        """
+        Resolve a specific instance by id for a token client.
+
+        Returns the instance row only if the user is a site ADMIN or holds a
+        user_instance_roles grant (per-instance or whole-site) on it; otherwise
+        None. This is where per-user RBAC gates which devices a token may reach.
+        """
+        if user_site_role == "ADMIN":
+            return await conn.fetchrow(
+                f"""
+                SELECT {self._INSTANCE_COLUMNS}, 'ADMIN' as user_role
+                FROM instances i
+                JOIN sites s ON i."siteId" = s.id
+                WHERE i.id = $1
+                """,
+                instance_id,
+            )
+        return await conn.fetchrow(
+            f"""
+            SELECT {self._INSTANCE_COLUMNS}, uir.role as user_role
+            FROM instances i
+            JOIN sites s ON i."siteId" = s.id
+            JOIN user_instance_roles uir
+                ON (uir."instanceId" = i.id OR uir."siteId" = i."siteId")
+                AND uir."userId" = $2
+            WHERE i.id = $1
+            ORDER BY CASE uir.role
+                WHEN 'ADMIN' THEN 3 WHEN 'OPERATOR' THEN 2 WHEN 'VIEWER' THEN 1 ELSE 0
+            END DESC
+            LIMIT 1
+            """,
+            instance_id, user_id,
+        )
+
     async def dispatch(self, request: Request, call_next):
         """Process the request and resolve active instance."""
 
@@ -98,120 +223,38 @@ class SessionMiddleware(BaseHTTPMiddleware):
             request.state.site = None
             return await call_next(request)
 
-        try:
-            # Get current auth session token from cookie and verify its signature
-            cookie_token = request.cookies.get("better-auth.session_token")
-            current_session_token = verify_session_cookie(cookie_token) if cookie_token else None
+        # Token clients (e.g. the MCP server) authenticate without a cookie and
+        # select their instance explicitly per request.
+        is_token_auth = getattr(request.state, "auth_method", None) == "api_token"
 
+        try:
             async with db_pool.acquire() as conn:
-                # First check if user is site-level ADMIN
+                # Site ADMINs reach every instance; regular users need a grant.
                 user_site_role = await conn.fetchval(
-                    """
-                    SELECT role FROM users WHERE id = $1
-                    """,
-                    user_id
+                    "SELECT role FROM users WHERE id = $1",
+                    user_id,
                 )
 
-                # Look up active session with instance and site details
-                # Site ADMINs don't need user_instance_roles entries - they get ADMIN role automatically
-                if user_site_role == "ADMIN":
-                    session = await conn.fetchrow(
-                        """
-                        SELECT
-                            a."instanceId" as instance_id,
-                            a."sessionToken" as session_token,
-                            i.name as instance_name,
-                            i.host,
-                            i.port,
-                            i.username,
-                            i.password,
-                            i."apiKey" as api_key,
-                            i."isActive" as is_active,
-                            i."siteId" as site_id,
-                            i."vyosVersion" as vyos_version,
-                            i.protocol,
-                            i."verifySsl" as verify_ssl,
-                            i."commitConfirmEnabled" as commit_confirm_enabled,
-                            i."commitConfirmMinutes" as commit_confirm_minutes,
-                            i.timeout,
-                            s.name as site_name,
-                            'ADMIN' as user_role
-                        FROM active_sessions a
-                        JOIN instances i ON a."instanceId" = i.id
-                        JOIN sites s ON i."siteId" = s.id
-                        WHERE a."userId" = $1
-                        """,
-                        user_id,
-                    )
-                else:
-                    # Regular users need explicit instance-level role assignment
-                    session = await conn.fetchrow(
-                        """
-                        SELECT
-                            a."instanceId" as instance_id,
-                            a."sessionToken" as session_token,
-                            i.name as instance_name,
-                            i.host,
-                            i.port,
-                            i.username,
-                            i.password,
-                            i."apiKey" as api_key,
-                            i."isActive" as is_active,
-                            i."siteId" as site_id,
-                            i."vyosVersion" as vyos_version,
-                            i.protocol,
-                            i."verifySsl" as verify_ssl,
-                            i."commitConfirmEnabled" as commit_confirm_enabled,
-                            i."commitConfirmMinutes" as commit_confirm_minutes,
-                            i.timeout,
-                            s.name as site_name,
-                            uir.role as user_role
-                        FROM active_sessions a
-                        JOIN instances i ON a."instanceId" = i.id
-                        JOIN sites s ON i."siteId" = s.id
-                        JOIN user_instance_roles uir
-                            ON (uir."instanceId" = i.id OR uir."siteId" = i."siteId")
-                            AND uir."userId" = $1
-                        WHERE a."userId" = $1
-                        ORDER BY CASE uir.role
-                            WHEN 'ADMIN' THEN 3 WHEN 'OPERATOR' THEN 2 WHEN 'VIEWER' THEN 1 ELSE 0
-                        END DESC
-                        LIMIT 1
-                        """,
-                        user_id,
-                    )
-
-                # Check if active session exists but belongs to a different auth session
-                # This means the user logged in from a different device
-                if session:
-                    stored_session_token = session.get("session_token")
-
-                    # If the session tokens don't match, clear the VyOS connection
-                    # This forces the user to reconnect to a VyOS instance after logging in from a new device
-                    if stored_session_token and current_session_token and stored_session_token != current_session_token:
-                        await conn.execute(
-                            """
-                            DELETE FROM active_sessions
-                            WHERE "userId" = $1
-                            """,
-                            user_id,
+                if is_token_auth:
+                    instance_id = request.headers.get("X-VyOS-Instance-Id")
+                    if instance_id:
+                        session = await self._resolve_instance_for_user(
+                            conn, user_id, user_site_role, instance_id
                         )
-                        # Set session to None to indicate no active VyOS connection
-                        session = None
+                        # Beyond the user's grant, a scoped token may only reach
+                        # the instances/sites it was restricted to.
+                        if session and not self._token_allows_instance(
+                            request, session["instance_id"], session["site_id"]
+                        ):
+                            session = None
                     else:
-                        # Session tokens match - update last activity timestamp
-                        # But only if this is NOT a polling endpoint (real user activity only)
-                        is_polling = path in self.POLLING_ENDPOINTS
-
-                        if not is_polling:
-                            await conn.execute(
-                                """
-                                UPDATE active_sessions
-                                SET "lastActivityAt" = NOW()
-                                WHERE "userId" = $1
-                                """,
-                                user_id,
-                            )
+                        # No instance named - downstream read/write handlers will
+                        # report "no active instance" as for a disconnected session.
+                        session = None
+                else:
+                    session = await self._resolve_cookie_instance(
+                        conn, request, path, user_id, user_site_role
+                    )
 
                 if session:
                     # User has an active session - inject instance details.

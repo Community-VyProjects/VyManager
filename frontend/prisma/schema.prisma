@@ -31,6 +31,7 @@ model User {
   accounts          Account[]
   activeSession     ActiveSession?
   userInstanceRoles UserInstanceRole[]
+  apiTokens         ApiToken[]
 
   @@map("users")
 }
@@ -83,6 +84,34 @@ model Verification {
 
   @@unique([identifier, value])
   @@map("verifications")
+}
+
+// Personal Access Tokens for non-cookie API clients (e.g. the MCP server).
+// The plaintext token is shown to the user exactly once at creation; only the
+// sha256 hash is stored. Identity resolves to the owning user, so RBAC and audit
+// behave the same as a browser session. Empty `scopes` = inherit the user's full
+// RBAC; ["read"] = read-only regardless of role.
+model ApiToken {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  tokenHash  String    @unique // sha256 hex of the full plaintext token
+  prefix     String // non-secret display prefix, e.g. "vym_AbCd"
+  scopes     String[]  @default([]) // empty = full user RBAC; ["read"] = read-only
+  // Instance/site scoping (least-privilege). Empty both = every instance the user
+  // has a grant on; otherwise the token may only reach instances in
+  // allowedInstanceIds or whose site is in allowedSiteIds (still intersected with
+  // the user's own grants at request time).
+  allowedInstanceIds String[] @default([])
+  allowedSiteIds     String[] @default([])
+  lastUsedAt DateTime?
+  expiresAt  DateTime? // null = never expires
+  revokedAt  DateTime? // set on revoke; non-null tokens are rejected
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+  @@map("api_tokens")
 }
 
 // ============================================================================

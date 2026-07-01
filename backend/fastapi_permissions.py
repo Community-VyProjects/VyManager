@@ -23,6 +23,18 @@ from rbac_permissions import (
 # Permission Checking Helpers
 # ============================================================================
 
+def is_read_only_token(request: Request) -> bool:
+    """
+    True if the request was authenticated with a read-only-scoped API token.
+
+    Read-only tokens (scopes containing "read") can never perform writes,
+    regardless of the owning user's role, so a read-only token can be handed to
+    the MCP server safely.
+    """
+    scopes = getattr(request.state, "api_token_scopes", None)
+    return bool(scopes) and "read" in scopes
+
+
 async def require_permission(
     request: Request,
     feature: FeatureGroup,
@@ -50,6 +62,14 @@ async def require_permission(
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
+    # Read-only API tokens cannot write — enforced before the site-ADMIN bypass
+    # so even an admin's read-only token is denied write operations.
+    if level == PermissionLevel.WRITE and is_read_only_token(request):
+        raise HTTPException(
+            status_code=403,
+            detail="This API token is read-only and cannot perform write operations."
+        )
+
     # Get database pool
     db_pool: asyncpg.Pool = request.app.state.db_pool
 
@@ -57,25 +77,17 @@ async def require_permission(
     if await is_super_admin(db_pool, user["id"]):
         return
 
-    # Get user's active instance
-    async with db_pool.acquire() as conn:
-        result = await conn.fetchrow(
-            """
-            SELECT "instanceId"
-            FROM active_sessions
-            WHERE "userId" = $1
-            LIMIT 1
-            """,
-            user["id"]
+    # The active instance is resolved by SessionMiddleware for both auth paths:
+    # the browser cookie session, or (for token clients) the X-VyOS-Instance-Id
+    # header validated against the user's grants.
+    instance = getattr(request.state, "instance", None)
+    if not instance:
+        raise HTTPException(
+            status_code=404,
+            detail="No active VyOS instance. Please connect to an instance first."
         )
 
-        if not result:
-            raise HTTPException(
-                status_code=404,
-                detail="No active VyOS instance. Please connect to an instance first."
-            )
-
-        instance_id = result["instanceId"]
+    instance_id = instance["id"]
 
     # Check permission
     has_permission = await check_permission(
@@ -167,25 +179,15 @@ async def get_user_feature_permissions(request: Request) -> dict:
 
     db_pool: asyncpg.Pool = request.app.state.db_pool
 
-    # Get user's active instance
-    async with db_pool.acquire() as conn:
-        result = await conn.fetchrow(
-            """
-            SELECT "instanceId"
-            FROM active_sessions
-            WHERE "userId" = $1
-            LIMIT 1
-            """,
-            user["id"]
+    # Active instance resolved by SessionMiddleware (cookie session or token header).
+    instance = getattr(request.state, "instance", None)
+    if not instance:
+        raise HTTPException(
+            status_code=404,
+            detail="No active VyOS instance"
         )
 
-        if not result:
-            raise HTTPException(
-                status_code=404,
-                detail="No active VyOS instance"
-            )
-
-        instance_id = result["instanceId"]
+    instance_id = instance["id"]
 
     # Get all permissions
     permissions = await get_user_permissions(db_pool, user["id"], instance_id)

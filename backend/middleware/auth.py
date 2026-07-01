@@ -14,6 +14,7 @@ from starlette.responses import JSONResponse
 from datetime import datetime
 import asyncpg
 from session_cookie import verify_session_cookie
+from api_token_crypto import hash_api_token, looks_like_api_token
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +72,62 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             )
         return request.app.state.db_pool
 
+    async def _authenticate_api_token(self, request: Request, presented: str) -> bool:
+        """
+        Validate a Personal Access Token and attach its owner to request.state.
+
+        Returns True if the token is valid and identity was attached, False if the
+        token is unknown, revoked, or expired. Mirrors the cookie path so that all
+        downstream code (RBAC, audit) sees the same request.state.user shape.
+        """
+        token_hash = hash_api_token(presented)
+        db_pool = self.get_db_pool(request)
+
+        async with db_pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT t.id, t."userId", t.scopes,
+                       t."allowedInstanceIds", t."allowedSiteIds",
+                       t."expiresAt", t."revokedAt",
+                       u.email, u.name
+                FROM api_tokens t
+                JOIN users u ON t."userId" = u.id
+                WHERE t."tokenHash" = $1
+                """,
+                token_hash,
+            )
+
+            if not row:
+                return False
+            if row["revokedAt"] is not None:
+                return False
+            if row["expiresAt"] is not None and row["expiresAt"] < datetime.utcnow():
+                return False
+
+            await conn.execute(
+                'UPDATE api_tokens SET "lastUsedAt" = NOW() WHERE id = $1',
+                row["id"],
+            )
+
+        # Attach identity identically to the cookie path. There is no browser
+        # session, so session_id is None.
+        request.state.user_id = row["userId"]
+        request.state.session_id = None
+        request.state.user_email = row["email"]
+        request.state.user_name = row["name"]
+        request.state.user = {
+            "id": row["userId"],
+            "email": row["email"],
+            "name": row["name"],
+        }
+        # Provenance for downstream slices (instance selection, scopes, audit).
+        request.state.auth_method = "api_token"
+        request.state.api_token_id = row["id"]
+        request.state.api_token_scopes = list(row["scopes"] or [])
+        request.state.api_token_allowed_instance_ids = list(row["allowedInstanceIds"] or [])
+        request.state.api_token_allowed_site_ids = list(row["allowedSiteIds"] or [])
+        return True
+
     async def dispatch(self, request: Request, call_next):
         """
         Validate authentication for protected endpoints.
@@ -93,6 +150,35 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         # Some paths authenticate only if a session is supplied; the handler
         # enforces its own authorization (and may allow anonymous access).
         optional_auth = request.url.path in self.OPTIONAL_AUTH_PATHS
+
+        # Personal Access Token path (non-cookie clients, e.g. the MCP server).
+        # An Authorization: Bearer vym_... header authenticates as the token's
+        # owner; identity is attached to request.state exactly like a cookie
+        # session so RBAC and audit behave identically downstream.
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            presented = auth_header[len("Bearer "):].strip()
+            if looks_like_api_token(presented):
+                try:
+                    authenticated = await self._authenticate_api_token(request, presented)
+                except HTTPException as e:
+                    return JSONResponse(status_code=e.status_code, content={"detail": e.detail})
+                except Exception:
+                    logger.warning("API token authentication error")
+                    return JSONResponse(
+                        status_code=500,
+                        content={"detail": "Authentication validation failed"},
+                    )
+                if not authenticated:
+                    if optional_auth:
+                        return await call_next(request)
+                    return JSONResponse(
+                        status_code=401,
+                        content={"detail": "Invalid or expired API token"},
+                        headers={"WWW-Authenticate": "Bearer"},
+                    )
+                return await call_next(request)
+            # A non-vym Bearer credential falls through to cookie handling below.
 
         # Extract session token from cookie
         session_token = request.cookies.get("better-auth.session_token")
