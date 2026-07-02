@@ -1,0 +1,75 @@
+---
+id: get-firewall-global-options-config-vyos-firewall-global-options-config-get
+title: "Get Firewall Global Options Config"
+description: "Get firewall global-options configuration from VyOS in a generalized format."
+sidebar_label: "Get Firewall Global Options Config"
+hide_title: true
+hide_table_of_contents: true
+api: eJztmEtz2zYQx78Khqd26kfqSX3wTXH9mrHHHklJD7aHA4FLCTFIMAAoR9Hou2cXICXKkmVVdE9NLg6FxQ+LP3YXj2nk+NBGJ/dRKg08c6X2h0oPuNrXhZM6t9HjXpSAFUb67+gkugDHamO2bMyEzlM5LA2nT5YanbEvk9sekznjbAg5GK7kD0hYqk3G3cFD/pB3zNCePOQM/xlIDdjRCbtKWd+UsEd2AurfF8ADsjjnyqJJaYEJLkbgaV1wpclr4EVjyGXfEu44I7ez2h+i5w5yb2nLLMx3L9IFhD5XCc5+CC6uZx+H2cfV7OMwQjyeaPuWDWIQXXDDM3BgaAWmUY4fOEQ1W2yXpPe3EswEPwx8KxGKTqR+4pHFOWc8OplGblJQx4HWCjj5nEDKS+Xmpk46RRbdCj2bPRLQFugSWEIcffhAf5aXulcKAdampWLdyhjhwsvkyJwXhZLCq3P41VKfacOtwpB2ToYRwsxXfyeRCpn7Fp5PblOvRTUl6ww1zfbmv+SlUhG5X8+pg2F4F4yigdE8Edy6VsRPNWXOlUVsjYiNLh3sSr0qWM8I1vUMzxwfvwd1fLzMNSBAjiHGUMFwEc7uiu4GEC59Daq9frchvPdrx7GYiO35PUrnJa7SwzjjGHw835l6rYfspmaQr7rEKhWPsdAkPKTOju56EPuyABF9kmPV0E91uuzCneTstEIg0T3zeMR/cJPYGHPRoTYtnO4/c3YZaOxuQSPPHXcQFxpLxCQG/BooaUdUwZojvagGrXzpzMfGdV5bGRtruFInq/BQMAbVJjauPWBGSgcrPfiKqjRG75Eyd16Y6OX+6ttYUG1501oz8EuVZe6j8JfC/5nCBhR+/VL4XRUeGJkMIYmd4WkqxSZxcQP6uFGVKzJYIwvtXG91PF7tuEGBT8HrfuX0SxGqZlZNillwDqW37Dd/Jv7z4K8/fl8vB55KAbdzu1EHkRVrF1ji6WwIZvO+S51xIO1GaLkr5db3Jn9FEQul7fpTzDaovijYqSc0cfEzl649k/1DmAr86j70L8lnDU6FTmXe3uNzvCs1/VV0muXiqRX0mg6zHYRUUDpT4JFo3ApKp4ouQRpQW18M2kB7BKmglArtRe0jZa5qmRRxu8D/nBRsHvyEw6IKPGvF6wXEpnrTD2WhV9WRlYJTtW9daDYMdV5dXy/87fU2XF5Pww3u5bCnOisU3mK3exUgyUa8vghvLMiX3LLGmG+V5cUF+b6+bD5uNaPG3XZ5ZnUDzcBxmaOo205yRh5+PDpavVQvTvfszBhtdr9RJ4BO+V1eOsjsqoHSYql1i8PAPFwfFwpzY/hk6dwh5kuZ2eYaVryF6Q1Yy4ehqnuT1029GKxPrbRb50XpBZlvWf4HbBHuewOzErmnpOV3tzaRmhFC2gT3K7tGrCyWKKzQ61L8HZZgUypd9vt3K8AQHxm4ka5elfxzkBvhxyE9IB3WcXa4HGeHok4Imae6KZDP9Rueo9wZBhPr3F2tBPQ57gP4OxvghkJXY3r2yqgLRbYHJDCWAix7lm7ExmAsdtznz9xQEmRom1DdqRqQiPYkT6Gtw0byp3rFomfCOudYSDpWZR1bX0imizz43z0yVsFDkXtYKCw1fmcxPrlDWNxHFBZoWsuC/33xVLvXKHsjXBDqNJ0OuIXPRs1m9HN4TKQKkEiL55fGc+ITYEPj8REvkiX55HeqMTeSzLErFYYR8IT2T+SEbh0hoHCNXit1jCjzeL8462MO/AQGKczS
+sidebar_class_name: "get api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Get Firewall Global Options Config"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/vyos/firewall/global-options/config"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Get firewall global-options configuration from VyOS in a generalized format.
+
+Args:
+    refresh: If True, force refresh from VyOS. If False, use cache.
+
+Returns:
+    Generalized configuration data optimized for frontend consumption
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails
+  {...require("./get-firewall-global-options-config-vyos-firewall-global-options-config-get.ParamsDetails.json")}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./get-firewall-global-options-config-vyos-firewall-global-options-config-get.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./get-firewall-global-options-config-vyos-firewall-global-options-config-get.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

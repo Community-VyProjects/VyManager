@@ -1,0 +1,75 @@
+---
+id: batch-configure-vyos-vpp-batch-post
+title: "Batch Configure"
+description: "Configure a VPP interface using batch operations."
+sidebar_label: "Batch Configure"
+hide_title: true
+hide_table_of_contents: true
+api: eJztVs1u4zYQfhWCpyzgf2wPNdDDZneLBmhgI8nuJTa8tDS2uUuRLEk5Ngxf+wB9xD5JZyhZku3EKXIsqgCxxPnlN98MueNBLD0fPvK1tW2pA7iFSIBPWzwFnzhpgzSaD/lHoxdymTtggn0dj1mlynIv9ZLNRUhWzFhwgix8Z6InenT4ZFpk4FkWlea5VCk4lkFYmdQz2IgkqG2LQWfZGU40Yx7CbG50io5njTRaUbB0MHOQmQAtloKCALP1Rgk9W2tJQW9zFWTbCochMcdGTpgqsMQoo9seSCFAyr6thcrh21nctVzMRJo68J6xv//8i0W9Xya83+sN+z8POr3OoNPvDt5POGPsak0ZyHRYmrx7zl0WchafM3c/9XrRTfVU/tCm8qWMsXOR/DjK7djXsN/r0F+V2HO58RavQLlJsbixeLPkUOLZemv8DAkxKwTW+IA2Dv7IwYdrk275cMdRPYAO9CqsVTKJ/rrfPfFlx32ygkzQm3UULUjw9FVzDD/C1uIv98EhRhgiyKBo4aZSOuVhJYmUYlfEmRbDXAnoXnxDgvTf8X1jk0XgAJk/z8fYS4mM7FkG10f0jWlQsFiDCIbejhbYUadO961qRedK8f20DvM1Gp9Giqvs6pSxC4PBa5IjwbGke0yh9G7m3yE5FEw6SKm9cZuNeNdU16o7eW0rnBPbo/1XEL4WQTZq1kD+NOpdwSJ0t2/aB5dDXPAWrYrSDHo9+jkG5T5PEiTxIlfsrlTGgG8koy+cNRgwN0aB0A0IyoAEUiqCOC4xtpSkSEKNG45pM6dgXSr/J/KL/sE5497Koc/R+LUqHXbcJN92dF9BuY91eT8YnCOPdJRpMc6LWG+GPYUgpLrQlMokR9J/gQfRbwkIwPRlNv9ukorwmV9eavxbBEksoW6Nl1UjGOyBpKgttc0jIPUsowWUJGHTcFNV56D3kbDchFcrSNgU6Zd6x3OkLFHJhheh+FSU4LlgB5XfHh7GZw4LfhSzD3XKo8GKsMKvLh0cXRzB3XhwoICYcFefG583IrMKTs6BGtLmxH4sZnMtLCdsVftpRHthmmATl9mt0Fi6DInJPoxvzsbqr8IHXGd0lIIu5ymZ0D0mOkhhLbFL2JMMK7YG59GwLZ6Eo+tDhrqpp3wKAXpEfYKawEAh5RNPhXLiserudJpK4xD9/4L137pglU1FHd21Ssg4c3IXh17RLXjlxm4hHlm6ZBQdg728opZC6W43Fx6+OLXf0zL2kMN71+OUGsFJMSe+P1IPrEBgtWPD/IDtYZLo0I4jqe6bswlN07Ow+ICHgg0XdaeNrh+P7h8o5fImmJmUbJx4olGF/4c89nJ19YprONWFXuY0VIe88EnPP+EnUYw=
+sidebar_class_name: "post api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Batch Configure"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"post"}
+  path={"/vyos/vpp/batch"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Configure a VPP interface using batch operations.
+
+Operation names match builder methods exactly, e.g.:
+  set_bonding_description, set_gre_remote, delete_vxlan_vni
+
+Multi-parameter operations use colon-separated `value`:
+  set_bonding_vif_address  → value="100:192.0.2.1/24"   (vlan_id:address)
+  set_bonding_vif_mtu      → value="100:1500"            (vlan_id:mtu)
+  set_loopback_vif_address → value="10:10.0.0.1/24"      (vlan_id:address)
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./batch-configure-vyos-vpp-batch-post.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./batch-configure-vyos-vpp-batch-post.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

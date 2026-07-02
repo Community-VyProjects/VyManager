@@ -1,0 +1,106 @@
+---
+id: batch-configure-vyos-macsec-batch-post
+title: "Batch Configure"
+description: "Configure a MACsec interface using batch operations."
+sidebar_label: "Batch Configure"
+hide_title: true
+hide_table_of_contents: true
+api: eJztWF1T2zoQ/SsaP6UMgTRDackbBTqX4VIYoJ25A0wQ9iZx8deVZCAD+e93V1Js+Su0PN2H5CG2pd1zVruyfKQXT/Gp9EbXXsx9CX4/TBSICffBu930ApC+CDMVpok38g7SZBJOcwGMs9P9A7RmhTXLZZhM2T1X/oylGQhOTnLrJrlJNjYu8yxLhYLA6RptbNwkr+xs2cBe2U8e5YDXw5KWvaJRv/y91q72iZDuJKhxEdDYif0OMf8Bif+XoFhQQ2d3AUSgoNv3e4p/FxCnj9DiXaXlQSBAypJyPwjY8Tmz7ax3cHx48aGLuOFtWR2A1rGGkt9HUMR6aJ6d8nQNtOZ4lLT6EVus8moeT69+sN7ul/7H3cFgUBuRNbaJk9ZapZi+Cc8j5eDKNBe+E1OVxPQyUDMQCT53jKgNxK2ahWkb16OYOMWSMpwmFOjPi29VCmvnopIN1x4xJJUxgZ+LUM3Hfphh4NUhmTbWm/pxn4Psfxx+2V7eDz/t1jLZAuWGYMFaqCHxxTxT9dLa5sbk7/RbzqWGY4VNQBbx+fgpTIL0qTpe08VMF+sN+jvDvZ293c/DvU9dY22guUOu4rXEEj/wsc8farP1ZJ8d7J+w3gyeu2gdR5dw6dpF9ZC0UJ18f5vqobG6LF07qDIRpvTQ5Fv2UH6HnzoTWwepcxcwLQFIheu0P36AGr1pZ9i+csRV98rLWQJ002bgvkcHArgqPKlvNWvV+1AbtXh3EbvrpIWwb8UfRdCEsS/lH0TSSL920smnuxHevVGBJoytQ4H0RgioFFpCQEVgQ8D+3wmhAuOGQEjt36tyUTIVxFU3FJVl3dv0ColxHKBo0Ypk7C+ly/hxnsqx0Tpj05elUqGbgH9zkOprGsy90YuHHgrh6ZZnWRT6GnL7lyQp9OJJfwYxp7tMEKEKQdJTKZ/wQc0zvHpSCdRGSKFCFVHDcWFUl1hFD0t4DKwHW9OtTWbCHXzwFs7oDJ2CWDajSLNV9GdZg7dUYcRLPI+kxfTok/nZBAViHW+xWbQkeRR5i9uSQQu5FSQanPXCCaOsYwkDHBuSWrz0/hf4y5pQL+lTHJPD8JVKVwB6pS8Xgs8rgy3y9RZD6JTFSXOd9cJMFIRbuP5K5KAbZIZepg7DwYAu1TRc5r6PQm6SRySNtDESvnO+SQPmlPs+TSPgiZMCS0hJCrji1aKirAyJiUfnDjANpp6sVQU/JFzEByFS8d5Zc6Sd36rScsTudJufXRapXOi67AyHzczjtAwDMwMN17vTHoDiYbTiDYxSv9L7G/mg6TcFTMBt92z+O/WLCR/L6aq3/BSTxKdQvhrdpjoZ7Ip60TpMslwnpFyuqAF7fPXswBTVWdodUC6f1ZsVpNyY8K1ddeWwJbKzoTMVh6YEbWRLk7+urs4bgGZ+xLijSOn7YFf/jKsZPm3T52HbrLfb+vOAfTQZLsqvw9Ezj7MIaqt9mVV3hb42a3HZaZfVovy3OuGT1M03TWd2yhOsnt5X7J8fN9bSb1wqbMcNt/8AScAmWMCYXGgXrgECeAzxRUGdrGbsEYRExz5/4vi99NMYbQNJ8ZgORER7yjblAzspHv0psIseKzb/9VCcT+X6hGB9QrA+IVifEKxPCNYnBOsTgvUJwf/1hMDqRRKr27hShFpO50LreSMErz0SgqRStRTEGyMGUanOSDCiwcvLPZfwQ0SLBTWjPBRzbL8ljSdCKho9IfAMeICynrQgpm6pkxPV14K7lISN/QftDYzHPm55MrXS9tbRtOdnl1cUsj3KiNOAfAR/IiGO/yNPy9TiFEG34Z6FJ9Octgwjz2DS7z+QhFS8
+sidebar_class_name: "post api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Batch Configure"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"post"}
+  path={"/vyos/macsec/batch"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Configure a MACsec interface using batch operations.
+
+**Supported operations:**
+| Operation | Value | Description |
+|-----------|-------|-------------|
+| `set_interface_description` | Yes | Set description |
+| `delete_interface_description` | No | Remove description |
+| `set_interface_address` | Yes | Add IP address (CIDR) |
+| `delete_interface_address` | Yes | Remove IP address |
+| `set_interface_disable` | No | Disable interface |
+| `delete_interface_disable` | No | Enable interface |
+| `set_mtu` | Yes | Set MTU (68-16000) |
+| `delete_mtu` | No | Reset MTU to default |
+| `set_source_interface` | Yes | Set source ethernet interface |
+| `delete_source_interface` | No | Remove source interface |
+| `set_vrf` | Yes | Assign to VRF |
+| `delete_vrf` | No | Remove VRF assignment |
+| `set_security_cipher` | Yes | Set cipher (gcm-aes-128/gcm-aes-256) |
+| `delete_security_cipher` | No | Remove cipher |
+| `set_security_encrypt` | No | Enable encryption |
+| `delete_security_encrypt` | No | Disable encryption |
+| `set_security_replay_window` | Yes | Set replay window (0-4294967295) |
+| `delete_security_replay_window` | No | Remove replay window |
+| `set_security_mka_cak` | Yes | Set MKA CAK (hex) |
+| `delete_security_mka_cak` | No | Remove MKA CAK |
+| `set_security_mka_ckn` | Yes | Set MKA CKN (hex) |
+| `delete_security_mka_ckn` | No | Remove MKA CKN |
+| `set_security_mka_priority` | Yes | Set MKA priority (0-255) |
+| `delete_security_mka_priority` | No | Remove MKA priority |
+| `set_security_static_key` | Yes | Set static key (hex) |
+| `delete_security_static_key` | No | Remove static key |
+| `set_security_static_peer` | Yes | Create static peer |
+| `delete_security_static_peer` | Yes | Delete static peer |
+| `set_security_static_peer_disable` | Yes | Disable static peer |
+| `delete_security_static_peer_disable` | Yes | Enable static peer |
+| `set_security_static_peer_key` | Yes | Set peer key (peer:key) |
+| `delete_security_static_peer_key` | Yes | Remove peer key |
+| `set_security_static_peer_mac` | Yes | Set peer MAC (peer:mac) |
+| `delete_security_static_peer_mac` | Yes | Remove peer MAC |
+| `delete_interface` | No | Delete entire interface |
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./batch-configure-vyos-macsec-batch-post.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./batch-configure-vyos-macsec-batch-post.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

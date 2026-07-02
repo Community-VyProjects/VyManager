@@ -1,0 +1,70 @@
+---
+id: batch-configure-vyos-firewall-zones-batch-post
+title: "Batch Configure"
+description: "Execute a batch of firewall zone operations atomically."
+sidebar_label: "Batch Configure"
+hide_title: true
+hide_table_of_contents: true
+api: eJzdVt1vIjcQ/1csP7USgWvUJ95yl1SHlBxRkl6lIwiZ3Vnwndfe2l4SivjfO2PvF2xCTnlreQDWnu/5/WZnx71YOT6e8UxaeBJKnf1jNDg+H/AUXGJl4aXRfMyvniEpPTDBlsIna2YyVqswUmGmACtI2DHhTS4TvNkOH/WjvkCR7q0Flpg8l95DyqRGk07qlQL2dTu9Z94K7URCskM2yZjQ21b7UWdCKsf8GhhojwFU4UjHrFEKDS5F8mPIB7zRmaQYfpBaJEZnclVaWGy2xi3qBBYh50WUKYzzqG7h7xKc/2jSLR/vOGp6dEh/RVEozI5Mj747Ks6Ou2QNuaB/hSXHXmIN8YkML7TIgR78tsBf7rzFdNGFl17RwTcq3xcSOi56uCF19gsMV8MBu774MmB/0dflzbdf+b6TZvAnPeSuH4YpTvmfFj3H09pq9J5TZVCJul9KlYJlOfi1SSmCjVBlyA87Nc0QS8ee9oPmRJdK8f289f01KPfd0x+hWLDNMmNDx5tc+R79VibN8jskdcewoSmhGROeHxb4I6XQpNXzeB8R2HiIuIzYqqAw5K1TYa3YHpSw6cKx5WvpPLGlwwBvGD5gVnmHKm/m1GLpoOsv5XkXI+7FEi6PeFtzIqbd5Drg8CzyQkHETwuyWYQTd+ADb0J7D04WXacNPvgEGWSpqQhi9qpmJkrlF5H/HeUU8fyCvCSbmUigI4rA/C1grEM+jj6xwFTitqTelhAOXIGZRaacf/hAP0fgKJMEnMtKxe4qYfT3zpHgorEOIZfGKBC6A6fKIQEuFV4ckkukqYz0uO0YpmSO8XOKeJdkF+2Dtca+l71XQfkt4NYZd2mPk75TyqNye6FTYVNWd4Zl1uTx7dAicVj18/fz837HcKzINCI6xvjudqXg8Y1zYrYqkxzc/kQdCbUrwMLNX58o1yapRt2A5251an7fYHHFCtrx9LpoKAZ7oFuUlrooQ0Hq60k4wJvEP3fMNF2t5T5RLZ/9m52n2sTwK7nDyV+1qELRq6W4jC14yVkt8vnh4bZnMOKjelGNefViL4Rf49OINoBRPQpHYQMYhXmPMgSKu3YBuPrfTULqfWa6rQ/suhEagZQjTdjF7aRHzD+E83geVizQaXgv56RCq0EwkMJGItfZk/RrtgHrUPFMPNUrH/KaXpDVBSUDGwqGWoOXFE8VZXxTfar3teNQOgvZf28zrUBMDBoVSsjA8dKGIRPROeOEThStE+Gxh3QUMYpNXROeUXS3WwoHf1q139MxotbiyjqbEw6sFEtq74wmzRoEbm4Btz9gW9NY+7MwD1rY9MYjoS1qXOAkL/xJ2XmHcrfT+wcKuVqic5OSjhVPNCfwe8zDLtOsr+EMR6rQq5Im2phHm/T5F6Fsa0I=
+sidebar_class_name: "post api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Batch Configure"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"post"}
+  path={"/vyos/firewall/zones/batch"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Execute a batch of firewall zone operations atomically.
+
+All operations are committed in a single VyOS transaction. If any operation
+fails the entire batch is rolled back.
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./batch-configure-vyos-firewall-zones-batch-post.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./batch-configure-vyos-firewall-zones-batch-post.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

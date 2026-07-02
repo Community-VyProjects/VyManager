@@ -1,0 +1,73 @@
+---
+id: get-ethernet-capabilities-vyos-ethernet-capabilities-get
+title: "Get Ethernet Capabilities"
+description: "Get available ethernet features based on device VyOS version."
+sidebar_label: "Get Ethernet Capabilities"
+hide_title: true
+hide_table_of_contents: true
+api: eJztVcFOGzEQ/RXLlXoKCVBxCSdUUcShKgLaC4uCY0+yhl3btb0JUZR/75slbgK0P1A1l13PvDcznnmzWcus5kmO7yTlmqKjfGBdpjhTmuT9QBpKOtqQrXdyLC8oC7VQtlHThkRhiBmp3EVKYqoSGeGdMLSwmsSP1bcbsaCYQB9WrnLXBKBLhSFmDbIL64zVKls3F8va6lr4QFFxziQUUKkLwcdMBjFuawtj0/glokSPWp1JInuhPaIwB86VIMcljoxNfanvK9yv6vxZtQEoAAJy0rhyDw8Pj8nD9/HD0fGn08oJUcktp5JjHI6GJ5UcvDhKePbsCOxBPqt3ZliUMUD20Bw7GsC01+SdeTgc9qST00EJZsOrSMZG0ujKZBq9MlqlXNhbIvPKW3niYnIgfzf40mCsc8qTMsyJVkFNbYNWUposVj79xQUSApWWQUJreXx4yI/XmrnptMZ9Z10jrrdg8HQ/ucxwFULTj9+7EfecbUnX1Krea8pUryJXzbnluG+RzKtAyOCnj+gDgmabGzaUPIL1el5U+nmveijTp7+4QJIb/g1ki6v7bYcQP6hc4zDiroxKV0b7XQHIupnnwksx/Q58VU7NqcWNxdnVpXy7V18wO9ihTv0EPYuZj6JlCq9EH+BloZJY2lwX7R6oJW+H9i2whnNvHYgIvMQFgk8ZTq7HqZa2K/zHe78tar2b0f+9/1f2frsxmZ7zKDTKOhZJFxse94u67ySrG9AyZV7WfZngT6GGqhi5XnNbv8dms2Hzz47iCna8LlS0PAA+IUNNylDEYS2fCBB5hm9C4NAL1XRc0buPwOZ+b/0uzm+xkr8AkVZJZw==
+sidebar_class_name: "get api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Get Ethernet Capabilities"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/vyos/ethernet/capabilities"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Get available ethernet features based on device VyOS version.
+
+Returns feature flags indicating which operations are supported.
+This allows frontends to conditionally enable/disable features based on version.
+
+Example response:
+```json
+&#123;
+  "version": "1.5",
+  "features": &#123;
+    "basic": &#123; "address": true, "description": true, ... &#125;,
+    "ip": &#123; "directed_broadcast": true &#125;
+  &#125;
+&#125;
+```
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./get-ethernet-capabilities-vyos-ethernet-capabilities-get.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./get-ethernet-capabilities-vyos-ethernet-capabilities-get.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

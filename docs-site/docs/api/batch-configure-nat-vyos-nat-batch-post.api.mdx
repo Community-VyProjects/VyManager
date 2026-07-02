@@ -1,0 +1,78 @@
+---
+id: batch-configure-nat-vyos-nat-batch-post
+title: "Batch Configure Nat"
+description: "Execute batch NAT operations."
+sidebar_label: "Batch Configure Nat"
+hide_title: true
+hide_table_of_contents: true
+api: eJztV1tvGjkU/iuWn7YSBYKq1S5vNE13IyUkImz3IYmQmTmAW489tT1JEOK/9xx7ZhiuqSL1rSgKgy/n+p3vnFlxL+aO9++5Fp4/tngKLrEy99Jo3ucXL5AUHthU+GTBhoMxMzlYQbuu/aAf9HghHQOd5kZqz4RS5tmxxOiZnBdW6nm4YwsFjvmFNcV8wQRzYCUumNm2tIFSjQUmLDCI+lMmNd1DgQqYt0I7kdCpYMPAzl3/QTP8WPhegPN99jEYXP4kg7yQmuwhW5gusinYVjDOL3NoMaHThm6SOgJfWF0J/rK8uRuBy3ET2LP0C+aKJAHnOjMhVYGmSj0zNgv34/XvhbTg+uz/0eX4gqHsTDqHuwz/UDFv8VrhZYqxDjGeVLGDCSZk8rQ0LjzEzdw4j/dKtz6adMn7K07egfb0KPJcySTI7Hx1lMIVd8kCMkFPuSWNHmNPvygSkxiJcFUvb2YIhBWniKA9mFCY4966VS/pQim+RpR46RUtjCiawyhjFztV5stosz8wPsyZwibQwZNe6min8/iddJI5/o5QeYc6ufSQoesZHDTOeULXSdsuUQAbkoBdy8IOiY42nf9DpubGNOEXbKDIR/G7ijdqhmj1mPYO+U+X+qXTLdbwusWi2y2GBgTXSd9GPWmkCLj9vJn8lDk3+Z4hN5XU4DPpeRKqeHNcv4TLx5VE4WtUU0ow06+QVLjFmkiJbtCLhkyMVajYWsqe/LtY+3WEIiNMm2Xe5hudwlqx3ApLHdldyVcSGWKLi5g3VK9Uz6/6UUNkK3sHXBtFI/fUX5sUFCMcbkg2lE3FBEFkG+/Bi8hyFfK2ASaP4NpWTwklmHAHfhIPTEhmyOuhjUnTphof/Fo4NNqKFNjVYHj8tin81BQ6nRBn2JlIIFbuRhL4Rff4/fJZpCkypmtcO/u71z7786/2Wbvb6X04LiC0BBW8PyAlq90IQN4ivrNud72mJG+S6m0BYSHSfSi6XrdLXzuYjC1gVihW9QbU+kY6LvtJo7anyEggdAPFpULCeSq82K5g9FuSJqFuG4LJmV0En6ruTyQX5YO15nBf+AmKuAiXXyudyuMmtzTa7D4FeOzSwqasygybWZOF1twcJHjM54debz9jyF0yjfwRbXxzulLAiUKdoGllkq3dn4hj3XEfjxPZlYkGUo4yNz/VCq4xuGIOG1Y8fjQEI7Yxar06L0JA6lYaFnAn8S8NMXVWq3PnFMsX/2rmKTbR/PLcdnspU1Si6GgoPsUUHFJWHfl3PL7dExjxkSElGZq7yqEqF36Bvzo0cnWQXzuBjnGDkDDaTFwXv1n417Aw4W5mmrALlX0tNII4wxJlg9vLPVL4LJzHdWyeyTd8DwmNNKMrNOwHASk8SeSZOLU/gaUZ/L14pteLxGR4Ng1Wxg2UiOcJdAQL3Ix5pimUx3eK82pAx9lyr5s3hvHf706/9N2prDuim06u0EDKWWEDI8dSvudUyjxM8fg/ljMCb0H1jrur1VQ4+M+q9ZqWCZv4OnX/SIi1UkwJgvfExAtAzNpQzt9gWdGc9u/Lsb8C+F77oEKJNwbob+5Pnn1sUNLtzR35OC1f8DIcEXHVimfiUfzf54Fp6jeFsIYtR+h5QYzf51EmfX4AYECRgA==
+sidebar_class_name: "post api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Batch Configure Nat"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"post"}
+  path={"/vyos/nat/batch"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Execute batch NAT operations.
+
+This endpoint allows configuring NAT rules through a series of operations.
+All operations are executed in a single transaction.
+
+Args:
+    request: Batch request containing rule number, NAT type, and operations
+
+Returns:
+    VyOSResponse with success/failure information
+
+Requires: WRITE permission on NAT
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./batch-configure-nat-vyos-nat-batch-post.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./batch-configure-nat-vyos-nat-batch-post.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

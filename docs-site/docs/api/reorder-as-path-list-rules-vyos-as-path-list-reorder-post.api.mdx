@@ -1,0 +1,78 @@
+---
+id: reorder-as-path-list-rules-vyos-as-path-list-reorder-post
+title: "Reorder As Path List Rules"
+description: "Reorder AS path list rules by deleting and recreating them in a single commit."
+sidebar_label: "Reorder As Path List Rules"
+hide_title: true
+hide_table_of_contents: true
+api: eJztV1tz6jYQ/isaP0NIM32i0wd6cjrNTAIZQs8LMIyw16BzZNmV5AQP4//eXfmCsANJ+9aZ8gC2tNrrt5+WY2D5zgTjZcDNMON2P5TC2GA9CCIwoRaZFakKxsEcUh2BZpMXRlKMpJjOJRi2LVgEEqxQO8ZVxDSEGrh7tXtImFCMM4OvEliYJomwNyu1Uou9MAxUlKVCWQZxLEIBysoCFThbhiW5tCLDY42h8Ur9dMPuW2tSMpNBKGIBUS2E1jS84mlgTstK3d2wecelN4EhKHhzZ5jKky0eWKkJ6ksz0JyCNoxrYHCAMLeo3Y/iWzF78UOZ6J1B1xh+NPyVg7Fj1iSsXkBxZblQ5MJZDhVPwKXNvaVxFQZpnYPNtWoUk805mAwdg8p/k4chGDOKuZA5uipUnOrE+R4MgjaOhwjLV6d0w82GTG/I2MZZ2rwWqems18JZikgYBHUEv6VREYyPAQWCdaJHnmVShM7K6LshnBwDE2KCOT1lmnywAoyT9S1Q0LRoiwx/A2M15gVNWWElLUwMe6YMPVJOpiTcxWMvh0GJnlJApFdYSEzfh1RGm6rYnnFEH+xw5WR9JiM2rcS6Zmda7ITi0gcOWUYseZq5KmYx9lTPRjlol1QuZVCuT1anCMcLVqfnSGU8tg5Zrky/sGmqgP1aNSEMUyWLJhmbiNt3auG2PpGIOdmctkGeOfVOlHUZrwV576lAjTxslF1EQljjOYKYIx3gEgaCjedCRH8P/9aVuTtcoppaIt1+h7ABvNAQESv6qVr7ACV8EjwpR9fRSSo+tONB0y/dmb+u3GTvAeHds/lScZPDiSMrfc5AwckDrjUvOnU2PYWPPiGdKNMp/TCefrs37dkPyUtm7WrXlacUwc2Q3pqgejRa6S7L0nfD6hzcQkWbDvt3t7f008ldRaVxLlnDsejDZ5mudGZ/vrvrK/7GpYjcMfZV61T/A62dno0Arw95hdxkGp7tfqInWlpaX8bGY1o5SPBJzO5arz5hCvkOTkC7LOqSwRa0i9JCZblLSLP94BZwJ7QHT02LtEbuC+XyYD9EI+Wmcr+W80B4KlFVocupuK9K8J6xRuSPxeK5p7DCRwJ2n9JdXF+rhF18G9H9O/KHr1GNcZQhUMxP1+/XA08yCReu01OW63tweX7j3Z5fU7edK+LsUrjtdmCru6HshoZbFm7x5dBEw4hfUTcyPXGF+EgQ/Wzy/NDr8t+5sbjOtjz8gYOh6/eEjlC3OwURvIqwISMa8vDgkL/RoEbjGI5RRGP1BmpEeaonZRw3yZ86Ve046w8a79KgN/D8PwT/14bguk2JI0aZRMuEhlw7Gq36bxlQ/xGu/b8/g2ZgJqLYU7+i4PG45Qb+1LIsaRkj0jgQL/HxlWvBt4TzJWF/D5yOUv/9gKKhKWWHju9IXOaOX7r0T9RcnZhgVJm9Krv2KOV59rJA4W09oid4XdLQz98oEvweB+4fgauo63VawyuDq11OjD0OKp30+RvWCvIn
+sidebar_class_name: "post api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Reorder As Path List Rules"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"post"}
+  path={"/vyos/as-path-list/reorder"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Reorder AS path list rules by deleting and recreating them in a single commit.
+
+This endpoint efficiently reorders multiple rules by:
+1. Deleting all specified rules in reverse order
+2. Recreating them with new rule numbers
+All operations are executed in a single VyOS commit.
+
+Args:
+    request: Reorder request containing AS path list name and list of rules
+
+Returns:
+    VyOSResponse with success/failure information
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./reorder-as-path-list-rules-vyos-as-path-list-reorder-post.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./reorder-as-path-list-rules-vyos-as-path-list-reorder-post.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

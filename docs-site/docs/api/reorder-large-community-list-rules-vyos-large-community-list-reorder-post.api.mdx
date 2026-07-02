@@ -1,0 +1,78 @@
+---
+id: reorder-large-community-list-rules-vyos-large-community-list-reorder-post
+title: "Reorder Large Community List Rules"
+description: "Reorder large community list rules by deleting and recreating them in a single commit."
+sidebar_label: "Reorder Large Community List Rules"
+hide_title: true
+hide_table_of_contents: true
+api: eJztV1tz6jYQ/isaPUNIM32i0wd6cjrNTAIZQs8LMIyw16BzZNmV5AQP4//eXfmCMSZJ+9aZ8gBYWu3120/rI3diZ/l4yZUwOxgGSRxnWrp8qKR1fD3gIdjAyNTJRPMxn0NiQjDMS7NGmpE0M5kCy7Y5C0GBk3rHhA6ZgcCA8I9uDzGTmglm8VGVCqS7WemVXuylZaDDNJHaMYgiGUjQTuWowNu0LM6Ukykeqw2NV/qnG3bfWFOK2RQCGUkIKyG0ZuAVTwPzWlb67obNOy69SbdnGt78GaazeIsHVnqC+pIUjKDgLRMGGBwgyBxqb0fxLZ+9tEOZmJ1F1xh+DPyVgXVjVieuWkBx7YTU5EJvLrWIwafPPyVRGQ5pn4PLjK4NkO052BQdhDIOmwUBWDuKhFQZuix1lJjYx8AHvInnIcRyVqndeBc2jQsbMrrxFjeveWKv7FeH0wSRMuBVZL8lYc7HR04BYv3or0hTJQNvdfTdEo6O3AaYeEH/UkM+OQmWnnotUTJo0+Up/nLrDOYNTTrpFC08+gx+aTL4SDmb0qEufh+v5ZoXGAEFTHakg9he+paocFOCo+UMohV2uHLyZqZCNi3FuuZnRu6kFqoNNLKM2GtpFjqfRdiTFzaKQbOkM6V4sT5ZnSJ8r1idniObich5JPry/cKmiQb2a9m0MEy0yutkbELhemrktz6RiDnZnDZBnjnVE2VV1veCvG+pQI0iqJVdQ8YkqHAfQiSQPnAJA8FG9SGiv4d/68rcHy5QTSWRbL9DUDeCNBASq7ZTte4AtsErwZVy9Tm0ksoP7bag2i7lmf++/GT3AeF+Yful5DaPG0925pzB+MkDYYzIO3W3l8G0iexEuV7ph/Fcp4W6bS9D60ly5XrXtacEwc+QJusgr9JyaasoirZ7zmTgF0oa9j1yd3tLP52cltQcZYrVnI2+fJYpC2/257u7S8XfhJKhP8a+GpOYf6C109sh4LWk3iFBlQRnu5/onYa+1tcx85iUDhKsYrt7r6efMIViBycAXhf1yWAL2kVpqdPMJ6TefvALuBO4Q0tNg8Ba7gvl8uA+RinmpnS/kmuB8lSiskLXU3FflqDPWC3yx2LxfKGwxEcMbp/Q3V5dy6lwe3wa0T0+6hvyRhXmUZbAMT9d418PIk4VfHAtn7Je3Z/L85vy9vx6u+1cLWeXyW23MxvdNdXX9N2wd4M3jy4adtoV9qPZk9CIlxi7gU2eHy66/3dhHa6zrQh+4ADqeSCmI8QCXkEIrzKoSYuGSTw4FG80EFJKcEwjuqs2UCPKU32pArhJ/lSpqqfA3oGllzZbg9T/w/d/ffiu2pm4ZJQq9IBQkhlPt2WfLjn1KYr2vo4N6oGdiGVP/Y0HjsetsPCnUUVByxihwQF8iX9fhZFiS32wpN7Yg6Cj1J8/IK9pTbuh50cSV5nno+51QVRenphgdKl7V3bdoqDn2csChbfVK0GM1yy9dIg3igS/x9y/kfgKey6gNSIbvcuI4ce81EmfvwFfdzTz
+sidebar_class_name: "post api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Reorder Large Community List Rules"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"post"}
+  path={"/vyos/large-community-list/reorder"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Reorder large community list rules by deleting and recreating them in a single commit.
+
+This endpoint efficiently reorders multiple rules by:
+1. Deleting all specified rules in reverse order
+2. Recreating them with new rule numbers
+All operations are executed in a single VyOS commit.
+
+Args:
+    request: Reorder request containing large community list name and list of rules
+
+Returns:
+    VyOSResponse with success/failure information
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./reorder-large-community-list-rules-vyos-large-community-list-reorder-post.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./reorder-large-community-list-rules-vyos-large-community-list-reorder-post.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

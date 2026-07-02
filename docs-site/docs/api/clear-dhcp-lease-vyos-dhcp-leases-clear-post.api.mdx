@@ -1,0 +1,81 @@
+---
+id: clear-dhcp-lease-vyos-dhcp-leases-clear-post
+title: "Clear Dhcp Lease"
+description: "Clear (release) a single active DHCP lease."
+sidebar_label: "Clear Dhcp Lease"
+hide_title: true
+hide_table_of_contents: true
+api: eJztVlFPGzkQ/isjn3QCaSEt176kTxTaKxIVuZDjhSDw7k6ybnftPdsbiKL895uxd5MltHBC99gIkl17PDP+vpnPXgkv504Mr0VeZLW4SUSOLrOq9spoMRQnJUoLexbp1+E+SHBKz0sEmXm1QDj9cjKCMHc41VM9KZQD+pMaTI1WshdZQmaqSuo8AW08uciMnql5E6chK6SeYwLOgPIQ1rsG86leKAm+QLhaXlzCn1bWxV/ncDw6A1pYoKU5CsMGqfRZMYheAXVeG6X9IUxoqmp8iDLVuZrN0DpI0d8j6uh1QSM064ac/AG8PXw3hLu7sOlx3PI5f50SNnu59HIIv//29uiPD99xmYCqb2WeW3SOB99/2L+7m2qInz2jy2UHUnDkIKN0U4QWy3w/Rny/ichRLtFSTs8EnclKlfTbRk5gYWe98FN9bOe8HU7C4j8NOj8MSJyNujVgZgG2kAZ4AxlHT6AuG5qrW86uxp9hj9LbD8SO0TdWd44vmyxjR47AbZjtnP6XgNYaS1FrYz3mkC4DyIciEZtiOMupqEK8Wy6425DD7WJpXO/d3UaL2jhPi9ttfDT5UgxXgnj2qD0/yrouVRYcD745LtiVcFmBleSn2nJYr9Dx25YtfvPLGikT5y2VM8Xwypc8cFbDcWu12wovASjWiSAyQl56eUEP17tx1slmRDdlKdY328hXtHQ3JHOwDZRiafTccUAmBrjE9sWawrY+TfoNsw4xZTHnvu7tuxeN+zYUXSi1cUT4Sfx2fLPFQVu7Wxno9T9lsu6H9rbBMOBq6rBIwtGbN/zzOEpbTbOmhHFrTJm8kmYXnfU4To2hBHWP5DYgE8b99ZgxAkvFFhj1HPNmdnF+js1T9kv+Q0u8tiQ+hcUvEdztuF9L1HY9KHfg9tSv0ubQMQMza6qoh5s+dYFOivzu6OgpY1eyVHlU75jjq+nK0UtVhv70WLmnBqXJHs3+BxxJ/HGOBNzNFjlprVz2SuDcxASZo8rNn5OErwSunKPYOPu5aQADJjxL1krXTQBkIy5hgGYy/9Bzs2G1szthLB/8i8wzNjH91q5fAhuK2ir6KRSnkYIfBetMvkwmoycOY31U6AvDot6KdU1nM70NWNIHLOmDKOmDqJGJ4IoYbxX904Os6hJ3FXqLbZDULcuE6sz0QQ11+1VqoqiiAuQLwpOS/yyd54tDKrPvdD+AGbFU8RLyGQs/x4WiLoJ75YvuVnAg76XF7vLCB0I7QR7JnpPhTdMk56NlhZsLE5/dEKR1N5fe+fXrcvXrcvV/XK7armXJGNSlVEHUGhtUNbbjteB25FLkS34iImas2qEpSTYK7l6yW61Smvrblus1D9MWLV26rulxIa2SKbfcNetqgTInjWUhJug60dL+IKgfm5dNUJvdw4CFOq44pn3W/lnbm57AjC4uJ2ScttfAyuS8xsp7VkX6Hopw0QynFxuEMTpAqAEa1u+hiD758y9C83ID
+sidebar_class_name: "post api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Clear Dhcp Lease"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"post"}
+  path={"/vyos/dhcp/leases/clear"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Clear (release) a single active DHCP lease.
+
+This is an operational command, not a configuration change, so it is issued
+via the VyOS GraphQL API rather than the batch/config endpoint. The mutation
+differs between VyOS versions:
+
+- 1.4: ``ClearReleaseLeaseDhcp(data: &#123;key, ip_address&#125;)``
+       (only active leases can be released)
+- 1.5: ``ClearDhcpServerLeaseDhcp(data: &#123;key, family, address, vrf&#125;)``
+
+Args:
+    request: The IP address of the lease to clear, plus optional VRF (1.5).
+
+Returns:
+    Success status and any error reported by VyOS.
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./clear-dhcp-lease-vyos-dhcp-leases-clear-post.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./clear-dhcp-lease-vyos-dhcp-leases-clear-post.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

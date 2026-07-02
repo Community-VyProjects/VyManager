@@ -1,0 +1,62 @@
+---
+id: get-commit-confirm-status-vyos-config-commit-confirm-status-get
+title: "Get Commit Confirm Status"
+description: "Get the current commit-confirm status for the active instance."
+sidebar_label: "Get Commit Confirm Status"
+hide_title: true
+hide_table_of_contents: true
+api: eJzdVE1v2zAM/SuCThvgNsWOBXYIhrbooejQdLu0haHItK3WllyJShsE/u8jLSVtso9Dj8vFCkU+kY+P3EhUTZCnd1I7W5tGPhSygqC9GdA4K0/lBaDAFoSO3oNFoV3fGzya3H0vAiqMQdTOT15Ko1mBMJbsVsPxvb23N4DR25Dvvt76COLFYEtQ0WLlXiz5106YWqhDeBPoTgzeNR5CKO4tvZNxzlUXgIOs+0NUTuQT+RsUrQoCXgfjofp8LAvpBvCKC7ysqMQGsEwIZUYoU1nlau1CsjV/8aBYwqPkBmcDEJMb+eXkhD/7NC6i1lRBHTtxk50pjsCQSGV3NQyd0VNSs8fAMRsZdAu94hMxQCmjSS+k4viE64G+culcB8oSIhrs2DJPLmMht70oTTXF2vV1TQ3fxQb0xjbkubPY2HVyfHgDu8wQgugaC7mlAE0PZW9sxJzWIbSh6hrw/8T+lnt2S2DiKoPRI1xjYuEjGc9TNOEEoHSrUHpi0liO+2imi4RE/dsiEXxSVSgVfjTVs4Qg5ihHAsxubvkIOknrObJueUZz3/fYY1FmDheTJHfyGvlXyB6wdVnmhDcobOnPjKU9S9Ke7Y/PLElbsnRqN6ksv/Zzfb0QV8qqBnreBfPvl/JwX5yrgGQXS6WfwFbTZug5hHgQE0AFK0OzkHbACnygwCP1ojxMc6yIY0LNF4RI/sz04ALSJedjVQ95NSUCxFZFi23qe0lt3gbt/9xnWTQIrzgbOlInExZ9N62OqeF3khsui+2e58P7N8iQ207qaolqDtlslirAD9+NI5ufI/g12em4Ut6oJYvi7oGeakFVND0s/CdYT/OnYWC5rVQXObXf1huPwE6aF2e3JNdf3Q1RBA==
+sidebar_class_name: "get api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Get Commit Confirm Status"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/vyos/config/commit-confirm/status"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Get the current commit-confirm status for the active instance.
+
+Returns active=True with countdown info if a commit-confirm is in progress,
+or active=False if no commit-confirm is active (or it has expired).
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./get-commit-confirm-status-vyos-config-commit-confirm-status-get.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./get-commit-confirm-status-vyos-config-commit-confirm-status-get.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

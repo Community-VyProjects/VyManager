@@ -1,0 +1,71 @@
+---
+id: update-general-settings-vyos-system-general-post
+title: "Update General Settings"
+description: "Update all general system settings in a single VyOS commit."
+sidebar_label: "Update General Settings"
+hide_title: true
+hide_table_of_contents: true
+api: eJzlV01zIjcQ/SsqnZIqvGy5cuLmeDdZV2VjyrB7CHZRzUwD2tVIE0kDJhT/Pd3SADODbVLsMRxgRup+euqPJ7GVARZeDibSb3zAQj71ZI4+c6oMyho5kF/KHAIK0Fos0KADLZKp8BiCMgsvlBEgPD1qFF839yOR2aJQ4d2jeTS3tpgpg14srQ8GCuyJ3BagTE8EVeA/1tBIiW5uXQEmoxcwuWDDK49uhU5kSzAL9I8mLCGIta10LmxYolsrj8Lh35VySGRKcEy0P4OQLUVGhL34CYGeDWJO7IhkruZzdGjCo1G0hSmv8zPxD1YQEQHBFioTlvgAb/+d7MnDy11O0ahiNKZ1JKb7EExXG+unKS6HyZJ2TADMEH341eYbOdjKzJpABPgRylKrLIL3v3mO9lb6bIkF8FPpeOmg0PPbPnzRz2zu55SzrQybkkakD45YyF3vMGIqreWOkhlU0Dzwae+/68lMI7hpE7H2mllLU0Ye3W7ZVBycuTjmUGmiPwftkcBSNqc/wu1DhBB/tuh1cM8wbEK8QJJLbcq1dinFMQGIvxjgQLCFeYbe0f0Fco3qv5TesAFxINjBPUOxCfECSc7DNHWkn0KeMyK3kG9AH4juB8A52DRW4vSIUQIRNwTSBXZY2BX+OPZDwtkdze3sG2ahYf976tJR3cEPqUtlV/5ukiSkvhcUoXNKyDrSFEEisUsiQDJFYQuuwjjgS2t8au7r9+/5p73yqMoy9H5eadpOMiZ2F8qHT2Bv1kG9IMeYNgvtWqSUK14J9LABzJvphvjNTmdcwkfnrLu02D9G55dye4zy5LDjhiOn5RDKXczLL9fXp5H/ClrlMa4irXVx2HMMoHSrntsG2mat2f8QDzqtcIEUgKfXm+EPmwhyrAu/OO2jo+lnChIs8NhZr5vGYIgxz5K1MmUVA7KfvosDLD/huQFz0nm3HMvncDaDHJtEv7ZrpvKQoroaXg3Fh5SCt6Tg03g8PAFM9VFgWFo++OvDvISwpLc+n/f91P39Wgxolsvh4Xjcf3yGotTYPr6PYe0ew1FqOwdq17o1WTs0DqKueWOqNm4dCl3z1mTtcCr8k73b0yvqfTSIZTK3zSqJ2vgZDNVcQR0lboZ3J6L7G/hA42IG2Xek6yDLbsEufIuLADmuFLW3WKuwFLw4OV7BGugmyLpLd0hPqPUEIZI91whnkSaZTx3f+npbnwZifxx0KTXubf/7G3HdRtzD/VITcY5s5aLMpf6YSO4PMq3/VPTkvkeoZHjbbLLdzsDjF6d3Ox6mrnF0QZ7Q4wqcghlXy4QraImQk96xKH7HzV5ATLiKSsTmuoqd3xVmFs3kcUNnQRnetH1qNPvwfjQm41l9ZS9szj4O1qxQ9D2Q8Y8Be0fVjmMk5pSWirV0IBMmf/4F57Cx6g==
+sidebar_class_name: "post api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Update General Settings"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"post"}
+  path={"/vyos/system/general"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Update all general system settings in a single VyOS commit.
+
+Combines hostname, domain, timezone, performance, and name-server changes
+that would otherwise require separate /batch calls (each needing a different
+item_name) into one atomic operation.
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./update-general-settings-vyos-system-general-post.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./update-general-settings-vyos-system-general-post.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

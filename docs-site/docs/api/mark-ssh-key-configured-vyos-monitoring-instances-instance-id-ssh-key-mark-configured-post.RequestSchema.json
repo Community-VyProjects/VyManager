@@ -1,0 +1,1 @@
+{"title":"Body","body":{"required":true,"content":{"application/json":{"schema":{"properties":{"configured":{"type":"boolean","title":"Configured","default":true}},"type":"object","title":"MarkConfiguredRequest"}}}}}

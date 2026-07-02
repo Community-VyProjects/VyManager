@@ -1,0 +1,72 @@
+---
+id: get-site-updates-vyos-sites-site-id-updates-get
+title: "Get Site Updates"
+description: "Fleet-wide ``show system updates`` rollup for one site."
+sidebar_label: "Get Site Updates"
+hide_title: true
+hide_table_of_contents: true
+api: eJzdV01v2zgQ/SuETrtAHAfBngzswUjbbIBtU8RO9pAYCiONZbYUqZKUU8Pwf98ZkpIlf6XI3vaURHzzOJx585F14nhhk9FjYoWDQV3l3IFNZmdJDjYzonJCq2SUfJIAbvAqcmDPz3ahX5ldWQclixbPz8xoKeuKzbVhWgEjvvMn9aRulVwxoazjKgPL3AJYbcEwYVkFphTOQc6cZhaAcQMIzWSdQ37O7sDW0ln/FS2WkD+pudEl4wxdMG4gBX5jGc+IU0mwFr0zMDdgF386UwO6Rddwa5EvOUs03sjpSTc5PqoAl5KbaXxEulxp67/YNByIPG0PEY0MFTe8BAeGgrZOFP6BTBGM54KiVXG3wN8N/KiFAbyKfDlLLPpZ8mS0Ttyq8mbOCFUg0gkn6cMEeRj6ttmctdzxPQ33jxrMqkc+59IeYn/RWgJXCeVyzjGSLbS57i5SbzYzIrSVVhazjxSXFxf0oy+CSZ1hBu28lpQaD0byTCsHyhGcV5UUmQ/w8Jslm3XHrcpQ+J0INzQh+5Vo4CftuOxgBd5ZgOmApx7ReesFmr0Kt2gSeNL6HwSy+wjcIamr1OmUjk5S3FdsqtkHgu0QKO1SjNJcFLVP2AmSL9qxqy101xNlAMXOX+QbrnRwOxRC8cxh2Zy0v2lAe8axiskak1Pa/bw2mDdyexNhMb9B68fhX+gccQtt3SncX3ROntp0753bemidsGwcUGiC/rjantRjQCA2q41BzadL7AMi6Jyr1e3c94S+OVVy/KJqKRMqtYbwKtCwh0jjxUZCS/mSC7mT533/g2DZuAXvljoStkz/1dn2lgPu1ka+lza+4R4ZKLALyL5DnvKDWcbZUtJJQiYDJ0roBOMqmLKxF4AfCvnJ6F0FyF7MqN0EG/3yDTLXa7aPPYFH4UZddmXX6qn3ptl+AYT3Txpwv+PG4AQqP1px9GEsJLQTlVGPE8rP1TlXA12782T7BG4MXx2ou16Xe5yhQQGKhuP7gn/dGPvwvxHB7bTs3Tnrd/7YjSd1WXI/8fqhGReFgcJfGUTYXUB4WD/QE/Llj8vL/WH2wKXI/ahiH43R5v2TLAeHlXGiJUqd9U5/oUyanryZHU/l3zo4SNkubXGqc33Gsc0L2OriONQHg03p1Hf8qg5qaPVDH6jA3M8OTZvntrgolj/f1gLFJrgfcR0VbFMUMnQ8FB9CCg5d1k6G6fTrHmHQB+5zCx0XQr/i4fY2Soa0DQ79NjhcR8luhnW7Iwg1193IPKxuJ+wzVxjnkpr6+OvNnmg/cevwO3vh2BFU7rVakgnmgHmCHJaC1mSqahY79oC/0gqcaawEldPdbStH/iXFpcL+g4fkT1wbr8Exv0B1t5qOL+ut3P8v231MPeluWEkuwoQKoykk9TGhpFJzFiEko20v6vzvE7aMx2S9fuEWcDRtNvQ5rN5Ut7mwNAm3y/d3WPVW9SWXNfniR92SGxFm+SHTo1n57S7Wye/s2OOaclCr7p2NO83bfBNZAM+xoZAL4XSMy3zlOnZ7PY98b2vj+uMU6+VffkzlfQ==
+sidebar_class_name: "get api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Get Site Updates"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/vyos/sites/{site_id}/updates"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Fleet-wide ``show system updates`` rollup for one site.
+
+Only instances the user is permitted to see are included. Results are served
+from a short-lived cache unless ``refresh=true`` is passed.
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails
+  {...require("./get-site-updates-vyos-sites-site-id-updates-get.ParamsDetails.json")}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./get-site-updates-vyos-sites-site-id-updates-get.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./get-site-updates-vyos-sites-site-id-updates-get.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

@@ -1,0 +1,1 @@
+{"parameters":[{"name":"token_id","in":"path","required":true,"schema":{"type":"string","title":"Token Id"}}]}

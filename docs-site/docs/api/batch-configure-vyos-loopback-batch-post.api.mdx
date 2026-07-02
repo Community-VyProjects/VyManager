@@ -1,0 +1,84 @@
+---
+id: batch-configure-vyos-loopback-batch-post
+title: "Batch Configure"
+description: "Configure a loopback interface using batch operations."
+sidebar_label: "Batch Configure"
+hide_title: true
+hide_table_of_contents: true
+api: eJztVktv2zgQ/iuETmmQxEWwJ9/SuIs10KyNOFtgkRgOLY5ltpLIJSknhuP/vjPUi7Zip8iph/hgSZzHR87jG24ixxMb9e+jVCk95/HPc5k7MAseQzQ9iwTY2EjtpMqjfnSt8oVMCgOMs1qfNfqssDJP2Jy7eMmUBsPJzF485A/56emk0FoZByIQ9U9PH/IXNqoX2Av7ztMC8DlogdkLKp23v5e9Z/VFnh4tuFmzoVmw+0f0+S9Y/J+AY2LPO3sUkIKDw7Z/K/y7hUyt4BXrXVguhAFrW8grIdhwzKp1dnI9HNx+OgTcsa5QAwcBqJ5ZVRg0W/FUCr53VC9irYidWGdk7HqYPQs9IS2fp7C/lQM+wxDYjud2T5k0Rhk8UbJ7jhu/zqp15lRQOjsb6DoIoWv7UquLC6/Dwi+iwqugcADTgJAGYhdmq1xBmFhl1BAauwSc3UULDUOgev1AdTTqAy9gkDtUD48UnUVNgw0FNq3vx1lct+5stVZ2VnfvrJRqZR0aGvivAOu+KLGO+psIbRwC0CvXOpWxd9r7YYkMNpGNl5BxetOGIJ0ES18tgeCHW2t8RlR2eYIQTrqUFoaN0j7JNBKW8wzYCVwkF2dIN5+ibXC0EslBZrsbUPoY8kh3IFsCIkjCWREN+YPn69EC+XHf3/asWcmLNI220xbBc9gREO+cncgFo4Bj/gSeDUErf2r+AwugSgdJiZ7xTAHCF8pa4zBqbbkxfL1z2CZebyHIICNBmPdRb8saQXfb0N6ZAvyC1WhV5uHy82d67IZhUsQxttKiSLHkS2UEfGep2dJZkO65UinwPAhBBUhBQqriu0lFRpWExNNx4JgOsx+sYwkfkF/0D8QO762ar974rSzVJw7LbT2aNKHc+rz8cXnZjfz3lqxLrHeHXYDjMj3SgamKd6S/EA8qvwQwANPD1fxNxU3BZzY51uU3GCSeQNsah1V9MNgdSVFb5rrwAWmZihZQErvnwE2TnVrvmmL57N7MIMWm3H6lt8scVYqqajgYikGZgtfAapW/7u7GHYdlfWTgloqGQ0X8mrslfvVoNvTq2dDzswGlVA637Wj4+swzncIe1bdxDTn6vmTjVlgRa1MAUx/yhQojTgXNbniO+cuwOtnVeNhh0z+5dbjOaKOQC7bAFGZkQhPXOxCwktgq7Em6JVuBsWh4zp84jksczKgrLO2nFKBH1Kd4U0RQSPvxw6CiPdbcffe3EszJjwvyxwX544L8+1+QK8Ykuu7plEs/UArjJ1pJhfcRUSGq1l2MryUdIlsviTRRZbOZcwv/mHS7pWUkSIP35vspsZyRVDj0ha6XwAWONmLDn7CuZ0Xuzv3QaUmxM4NpPpYWVzj2tTuqOw14fTya3NGWq5t8pgTZGP5Ewwj/+5En6uYm7ddwbvM8KWhs9qPSJ/3+B+OSuj8=
+sidebar_class_name: "post api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Batch Configure"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"post"}
+  path={"/vyos/loopback/batch"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Configure a loopback interface using batch operations.
+
+**Supported operations:**
+| Operation | Value | Description |
+|-----------|-------|-------------|
+| `set_interface_description` | Yes | Set description |
+| `delete_interface_description` | No | Remove description |
+| `set_interface_address` | Yes | Add IP address (CIDR) |
+| `delete_interface_address` | Yes | Remove IP address |
+| `set_ip_source_validation` | Yes | Source validation (strict/loose/disable) |
+| `delete_ip_source_validation` | No | Remove source validation |
+| `set_mirror_ingress` | Yes | Mirror ingress to interface |
+| `delete_mirror_ingress` | No | Remove ingress mirror |
+| `set_mirror_egress` | Yes | Mirror egress to interface |
+| `delete_mirror_egress` | No | Remove egress mirror |
+| `set_redirect` | Yes | Redirect incoming packets |
+| `delete_redirect` | No | Remove redirect |
+| `delete_interface` | No | Delete entire interface |
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./batch-configure-vyos-loopback-batch-post.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./batch-configure-vyos-loopback-batch-post.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

@@ -1,0 +1,78 @@
+---
+id: reorder-extcommunity-list-rules-vyos-extcommunity-list-reorder-post
+title: "Reorder Extcommunity List Rules"
+description: "Reorder extcommunity list rules by deleting and recreating them in a single commit."
+sidebar_label: "Reorder Extcommunity List Rules"
+hide_title: true
+hide_table_of_contents: true
+api: eJztV1tv6jgQ/iuWn2lhq31itQ/saVdbqYWKsucFEDLJBHyO42RtpyVC/PedcS6EBGjPeVtpUVWIPZ6bv/lmsudObCwfzjnsXJDEcaaly2+UtI4vezwEGxiZOploPuRTSEwIhjVFGYkykymwbJ2zEBQ4qTdM6JAZCAwI/+i2EDOpmWAWHxUwUiDd7UIv9GwrLQMdponUjkEUyUCCdipHBd6gZXGmnEzxWGVouNC/3LL72ppSzKYQyEhCWAqhNQNveBqY17LQd7ds2nLpXbot0/DuzzCdxWs8sNAj1JekYARFbpkwgEFDkDnU3oziaz55bYYyMhuLrjH8GPgnA+uGrMpauYDi2gmpyYVuIrWIwefOPyVREQupnoLLjK60k+Ep2BS9gyIImwUBWNuPhFQZ+it1lJjYB8B7vA7mMcSLLPO6atpfkcWVN7d6yxN7brM8liaIjh4vA/ojCXM+3HOKC6+Nfoo0VTLw9vrfLGFnz22A+Rb0KzXkjZNg6alrhnJAOy5P8ZtbZzBXaM9Jp2jhoZm1J8rTmE600Ypi+Pelm19+QN8pTjIiHcS261WiwlWBhoYnCE/Y4MrRlYkK2bgQa5ufGLmRWqgmssgygq2hWeh8EmH5dWwcevWSzpTih+XR6hjxesHq+BTKTETOQ89f3G9snGhgvxdVCjeJVnmVjFUo3Jnb8VufSMSUbI7rIE+cOhNleafXgrxvqECNIqiUXYLFKCixHkIkkC9wCQPByvQhor+7n3Vl6g8fUE0pkay/QVCVgDQQEoE2U7U8QWuNQQIrZepzWCWFH1ptALV5kSfe+8snu48I9o7t14LKPGo8t5lTwuJHD4QxIm/duu0ofGpS15FhvdIP47lAB1XFduPq5Lf0uu3Vc4KoZ8iJVXznCbgwczgcmm45k4FfKAjXV8bdYEBfrVwWJBxlilXsjI58lhkP3uyvd3ddxV+FkqE/xh6MScwPaG1VdAjYfdQV6lNJcLL7iYqpSWt5GStPSeEgwSm2m2uV/IwpFBs4Au9KL6BksBntorTUaeYTUm0/+gXcCdyuoaZGXiX3hXK5cx+ik3JTuF/KNfB4vKLihi6n4r64gnPGKpG/ZrOXjsICHzG4bUJdvGzDqXBbfOpT0+53prh+iXYUJGRMjz37YSfiVMG1HnzMd9kv56edcXDazgatVnLSPAbtgqx1V9Re0XXN1jXSPK5ooGnerZ+9noVGpMRYB2z08tgp+j+FdbjO1iL4jhOmL/+YjlDxewUhvMmgoimaFvHgjXiniY9SgqMYEVy5gRpRnm6Wco+b5E+ZqmrM604nZ1myMS/9P1f/d+fqsn6JPPqpQvMEjsx4fi0Kc86pMFG0+4LVqwZxopEtVTNK7/drYeFvow4HWsbYDI7Xc/z5JowUa8L+nOphC4KOUk1+h7wiMe1uPBuSuMo8+7SbAxF3cWKEoaXuquyyQTgvk9cZCq/LgT/GjkovE+KdIsH/Q+7fNPzd+vqnNWwoQm8y4vMhL3TS519FNiYF
+sidebar_class_name: "post api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Reorder Extcommunity List Rules"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"post"}
+  path={"/vyos/extcommunity-list/reorder"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Reorder extcommunity list rules by deleting and recreating them in a single commit.
+
+This endpoint efficiently reorders multiple rules by:
+1. Deleting all specified rules in reverse order
+2. Recreating them with new rule numbers
+All operations are executed in a single VyOS commit.
+
+Args:
+    request: Reorder request containing extcommunity list name and list of rules
+
+Returns:
+    VyOSResponse with success/failure information
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./reorder-extcommunity-list-rules-vyos-extcommunity-list-reorder-post.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./reorder-extcommunity-list-rules-vyos-extcommunity-list-reorder-post.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

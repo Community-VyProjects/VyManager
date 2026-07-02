@@ -1,0 +1,1 @@
+{"title":"Body","body":{"content":{"application/json":{"schema":{"properties":{"instance_id":{"type":"string","title":"Instance Id","description":"Instance ID to connect to"}},"type":"object","required":["instance_id"],"title":"ConnectRequest","description":"Request model for connecting to an instance."}}},"required":true}}

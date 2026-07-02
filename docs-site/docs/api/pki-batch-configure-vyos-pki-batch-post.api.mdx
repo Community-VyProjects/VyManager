@@ -1,0 +1,76 @@
+---
+id: pki-batch-configure-vyos-pki-batch-post
+title: "Pki Batch Configure"
+description: "Execute a batch of PKI configuration operations."
+sidebar_label: "Pki Batch Configure"
+hide_title: true
+hide_table_of_contents: true
+api: eJztV99PIzcQ/lcsv7Qn5RKE2ofyBhxVUXslgtypEomCs55kfXjtre0NRCj/e2fs/ZXkCBVvlcoDu2uPZz5/38zYeeFBrDw/u+flo+KzAZfgM6fKoKzhZ/zqGbIqABNsIUKWM7tk49+vWWbNUq0qJ8iM2RLSmx9OzdSca90bYsIBg+RGMmXQlVdmpYF93dzcoaeiUIEtrWMi2EJlKmyil0kOTAUo5kYUwJYKtGQe3BrQo2cBZ0unCuE2TEkwQaGFi25oqgs/NT/CcDUcsMtzljyhCb7b0g9YBi50o/ErjhOYqSm1yCC3WqJjrR6BTYmjKY/GK20XQiOiEHA3Phn89fPJL0zCUlQ6+A9xG1eCWGvg/ODZgy0f6u0UosSdWGSkgJBbyZBLZPeCmL6oFAUeJiIe1kJX0KwrnV3jppEIKRW5RSClcLiPAM6zpxwMMwAS5JAPeBv8WqKguIN5lHLeaAjz9cb6eTdRWh9wnYO/K/DhwsoNP3vhaB6QZ3oVZalVFn2OvnnKkxfusxwKQW+IDiMGBZ6+WgnpI2xKfHIfHHKGIYIKmgau0Yj9SUb7+TduNCaLqNSunD0No2x9zXoyoaof+LbHRYvNH0K25TGsN+UByJvG6w7CzIEIMM/EgLIEn3OCinmKzEFEE0WNhJrNzRJrcD/qdtCOmEprvp11OL7Gxa9DSc63GKb2YBffIGuEVQ4kFT3uteezSb7Wy4H/u1S6LY+poFNvqBNmyLuYwjmx2SGv5f8tZF3i7Mj2HbS3Ke4B1os+qpgNh60ry4VZgUfMhKeLH1wFccCXGDXlxenJCT32CKmyDLxfVprd1sYI5J3F4pOzXvotrNUgTI/COiCRLEUQu+nTNYRxzzFtZp/sY6n1ifyif3DOuvfm51Vc/JbKzY77iY3HQo/KPbqDMFI4yRpl2NLZIh0lvWOI5MTIP52eHiqGhaNkUj9hfLdcEoJQ+kgn0Tbbmf0XPCpEsgIkbvZ6Ff1hE0DSqPCrY93qM5IrVtCV5OumkQw2oVm0VqasIiFtj44DOJOF556bVtXG7pK4fA5vKk/cJPi13W5vqyWqs+hVKj4lCb4XrDH5bTIZHzhM+ZGOXToV05FXipDj14gOxBEeiKPY2HCCMuG2Ow+vnkVRatg73zpK+8fMfTpQusm667fazyLbS9snO+bzZ2FQugITk52Prw9K4VfhA45j880ewcjY4Apagl5TQUhYK6wu9qRCztZ4NcCFH8UTXcjo2oWV5AlPmkCPaE9UExk4SXjqjY0fFUvd9LK5NOzD6V0Q/r80/vcvjXUxUSWPcEsq9prKxWaXquSeU5VQ0eDvhgFPlYI1nFMp4ezLy0J4+OL0dkvDWDsO75H3MyoAp8SC8vyecj8HgZhjoTzCpukgJnyMrairl4POTF0zrTjHQ6QMR21nvWof39xNCHJ9sy2spDVOPFGLwv9nPNZwe0+MY9jN8apQUTM948kn/f0DN6ae8w==
+sidebar_class_name: "post api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Pki Batch Configure"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"post"}
+  path={"/vyos/pki/batch"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Execute a batch of PKI configuration operations.
+
+All operations are executed in a single VyOS commit for atomicity.
+
+The item_name field serves as the primary identifier for the operations
+(e.g., CA name for CA ops, cert name for cert ops, or a
+placeholder like "pki" for global settings like X509 defaults).
+
+Each operation's `op` field maps to a method on PKIBatchBuilder.
+The `value` field provides additional parameters when needed.
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./pki-batch-configure-vyos-pki-batch-post.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./pki-batch-configure-vyos-pki-batch-post.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

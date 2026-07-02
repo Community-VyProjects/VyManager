@@ -1,0 +1,90 @@
+---
+id: system-batch-configure-vyos-system-batch-post
+title: "System Batch Configure"
+description: "Execute a batch of system configuration operations atomically."
+sidebar_label: "System Batch Configure"
+hide_title: true
+hide_table_of_contents: true
+api: eJztV9tu4zYQ/RWCBZouoDix2y1a5ynZzaIBumsjSfsSGzYtjW3uSqRKUk6MwEA/ot/QD+uXdIbUzXYubdC+RQ+ORA7ncmbmDHPPnVhY3r/hdm0dZHwc8QRsbGTupFa8z8/vIC4cMMFmwsVLpucsiLJYq7lcFEaQJNM5hDfLhNOZjEWarjsjNVLXS2DTqcQjEyUymE7ZXEKaMJmAchLfLXMokhuZCbNmJMi+WWrrSDpihQXj30bqYshEkhiwNiInUr1gcxHLVLp1xMDFnTcdxs4FeVl5c2DR9kqkRW13pHKjV2jcMq2AFEoSFCkTZlFk6NMJm2vTDsjAb4U0Ui2Yu9UM7pwRI1VJoy+gYp0ARUGoZJk4tJALPA1JH82PeO1lCitIR3w69cicroRMxSyFtrFMGoPmp9MrD/MZoX5WyDQBgyHkxSyVMcvALXVivZbzO5HlqOOv3/9g8VKoBbAKvX6fBBg+w8HVNTtarbU9Cuk78ukMm19/1e19exLe6RnxOlsj3sdPBbeHlc4Rj9qSjeckelOqwuVw0oKbNCdp9+3JuLH69mQ3AsxHlVsDmXYhmDrP/1VE3R97ne73P3S6ne7x8b8PKXg4CR5OKudQD+77agui2AORVHP9YOQ8aixdJNhqIYyJD2NSdRdMKMTJ1l6OiOBpKkuw7kwna96/53jCYT3Sq8hzrBKv+eizpT6+5zbG8hT0hvWPdh02Hn3VwNCHW+dAnjiqdjThpEtp4YKa8hMJ7fLDsN22dUubBzuYXQwjTPKfb/imFXvthd13TudPeTXI99wpO6VsEObjQmM+Jx4ZtR7Mke92lW6iekUVaco348bMr/7wriW/6pmC2KuOpsM+6Mq8ZQog2eINIhnrIdlnigPc60b40zvo8A16XTqkZ58hrhIuDSTE14hMy8UWVwwqT3ijQRgj1lvA1dg/Z6cpj62UPWz7MlQkKt20tThTgF+wOZ4Nme0dH9OfbUyvijhGdp8XKbsshdHsCwvbBmWtApppnYJQLSBKgwRVIpzYrpBmNAxbiimYXcieqp73pBf1A9H6S0vw3B9+LldVxO3aXQ+uaig3Pi/f9Xr7yGM1yyRM8mDrxbAn4HCqPdHTqY63dv8BHhI9WQACMH68pn/WcV32mV08xRsfESSxgKZBHhf1YLBr2kVpqfLCA1Lzol/AndjdtdTU2ank3hGWd+7ZDBI2wf1SbpuGyhSV1fAoFO9DCh4yVon8dH093FMY6iNwF8qUYyYXbolf+6MW96gYLpsxVA7ynbHSoNrm/JvA7s1mydF1+sce8Llu403lzD4Khdmjuxc7HV7sEfMHYR2u4301/gIq8RSd0REiYq8ggZXERmG30i3ZCozFg4fiVpiSlFViyZ+wgRpRntAmPHCT/CkDC9THPPexd9XE3vWoNZpfr9Ov1+nX6/T/dZ0uyY6Y9ihPhfSzoDB+GAUWu+EUIYqW/+5GPDAZ0izhQgL39zNh4ReTbja0jNxm8Hp9MyaCMpLKi75Q8RIEFpEnsi+wrkheuUM/LRo+2xueNNjCiVOc17l7UnbcImTKEblcXvgz7BJcNeKWpgj+9rnn2PpS7ddw4GIRFzTv+jzopOdv5AF7Qw==
+sidebar_class_name: "post api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"System Batch Configure"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"post"}
+  path={"/vyos/system/batch"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Execute a batch of system configuration operations atomically.
+
+The ``item_name`` field identifies the primary item (hostname, username,
+IP address, syslog facility, etc.).  Each operation's ``value`` field
+provides one additional argument; for operations requiring two extra
+arguments, encode them comma-separated: ``"facility,level"``.
+
+Available operations mirror ``SystemBatchBuilder`` public methods.
+
+Example — change hostname::
+
+    POST /vyos/system/batch
+    &#123;
+        "item_name": "new-hostname",
+        "operations": [&#123;"op": "set_hostname"&#125;]
+    &#125;
+
+Example — add syslog remote host facility::
+
+    POST /vyos/system/batch
+    &#123;
+        "item_name": "192.168.1.100",
+        "operations": [&#123;"op": "set_syslog_remote_facility", "value": "all,info"&#125;]
+    &#125;
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./system-batch-configure-vyos-system-batch-post.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./system-batch-configure-vyos-system-batch-post.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

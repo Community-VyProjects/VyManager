@@ -1,0 +1,73 @@
+---
+id: list-site-instances-session-sites-site-id-instances-get
+title: "List Site Instances"
+description: "Get all instances for a specific site that the user has access to."
+sidebar_label: "List Site Instances"
+hide_title: true
+hide_table_of_contents: true
+api: eJztV01T4zgQ/SsqXwaqMoRN7V6o2kMW2FlqYaAIcGEol2J3Ys3YkkeSA65U/vt2S7KjEBJmZ697mYml10+tp/5imVg+N8nJY2LAGKFk8jRIcjCZFrWlz5PkE1jGy5IJaSyXGRg2U5pxZmrIxExkzAgLzBbc4j/AGgOaFdwwniHWMKuOvsgvckKg8dnVxWeHMOxAqxJ+/+CWPiB5WLZ8WsIhM4Doy8voUEQQPR2GhNf4WwcTwipZthEYd1t0YgEMXupSZMKyGnQl3BXRpeAcEt3jvZmEZ3b7x/iUmdZYqNgBEacdXUqe4n1k7g88ou/Do2SQKCTlJNNFjkKVwtiU/OstTRpUdcsmDbt5GiHmYJGp5ppXYJEd32KZSPxAxgDHfUEvUXNb4G8N3xuhAY+0uoFBYrICKp6cLBPb1s7MaiHniLTClrTgxEcfV6snMje1kugYWYyOj+m/zRefNE6dWVOy2wBGskxJC9ISnNckqrv58Kshm+W2F1xr3pLrqKg7q9aklxX+ZLzWHo/J2UF//x+52iCIthv6mfZXr8IbLyPb65lTfdNwNehXZFOWCWnXUZ1FFMhYKGP3nfwX7SOuVjrGCRR0DjoC3hCAgFpZlalyH+lNh6EbzXhTInVSWFsbYliAFrM2NSbmmCqMXC4jkgcHYxOzQTPjpQEkESblmRUL2MtxYdjYo+jcVpkUDzf/Qd0H5GAPgYPCwBTpu9JNTMGcfNE9RqNgTXnbhcfPeETk9x1H4PwGbYo5MRPzxiXjHoXI/G+sSKdr+BtqZ6qqhPWcukpBUincT3zqTDyvrth5MHmfvBKysT4Rdyr6ivwqmETkv60IXYFq9r/NXcBEpr8ck1MauIU85W9mD7aZinaSHEEf6ZzYOW/Kxi5fmjr/WaJ7b+qI6DreVk2/QmY3iu1j4irxuia7YAjJH3I7TpmN6224GAXWRegDUZ3drMXdBqtUDqVvvbLvdEfJas3VQy+xETFfGPuOOPGNyC0bFnZzFiGwz6MCpMGvo9F2U3jgpchdyWfnWiv9bzrCZuXPwXLhytKO1lCqbGP3BzK2i7nV0/oNuwbU6XOpvIOkWWXm+2rrFarF5y7VPWQ31InB7miXKqasQy70D0wLFOv2JaLp42udbHiDl/djkLTx7gdcXDf7J/IvtFuKM/8Ebx3W96y7u5stQh8fOKgUiiaebnbBseQkGYZZZ+hmneEyJMpq2M86bo6ZqVieh/Z6wq64RLErDCU2vrnYSoE/ubG4zqY8+wY4hFEOVGSCD8EcQQ4LQSH8LGzBQvP5yJ+5BkZ1Dyc3OrvvSsi/8O3YWNwkf8LA9UbmvHZnuQ77/0fj3aNxCCuK6WFdcuGyrtEu7X3ArP/k8EWVlD6JJ97uAZ66AesxWS6n3MC9LlcrWv7egG5xHX8uuBakjysTuTChd7r2t+cFD25Dbh2yXU53KSQpgRa8bOgLf2L/j0Z0V3gK4DkWIXLB745Ry9pGdlt1kqaMPp8+nd9hjv0DNhqvLg==
+sidebar_class_name: "get api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"List Site Instances"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/session/sites/{site_id}/instances"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Get all instances for a specific site that the user has access to.
+
+Site ADMIN users (role='ADMIN' in users table) see ALL instances in the site.
+Other users see only instances they have explicit permission to access.
+Uses new RBAC system (user_instance_roles and users.role).
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails
+  {...require("./list-site-instances-session-sites-site-id-instances-get.ParamsDetails.json")}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./list-site-instances-session-sites-site-id-instances-get.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./list-site-instances-session-sites-site-id-instances-get.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

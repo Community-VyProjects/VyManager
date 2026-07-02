@@ -1,0 +1,104 @@
+---
+id: batch-configure-vyos-dummy-batch-post
+title: "Batch Configure"
+description: "Configure a dummy interface using batch operations."
+sidebar_label: "Batch Configure"
+hide_title: true
+hide_table_of_contents: true
+api: eJztWF1P6zgQ/StWnoCllHvFohVvXOBqKy0LKh/SClAxybT1JbGztlOooP99Zxw3cZO2IF63fWgae2bOeGY8Pu5bZPnIREd3UVJk2bQjpAU95DFED7tRAibWIrdCyegoOlFyKEaFBsaZE2aVMCuMkCP2xG08ZioHzUnH7N3Le7mzc1XkudIWkmCKbfE0ZRPQht62j3Z27uU7u5jPs3d2y9MC8HlaO8HeUahTf94bT/9Glh4N2EHl3yBYySPa/AcMfl+BZUnDOntMIAULq3X/VvjVh0xNYIn2IixPEg3G1JDHScJ6l8yPs62T3ml/exVwS9ujBgaWgWa2WFzj+fUN2zr8o/PtcH9/fyWaV/PLM17PKlzkkBepXYqVCMOfUqgUj5NMSGEsZXEC6ZR5gZWxbej3oQPSKdS1tQx3oodBUI0RI0mu3vZ/rkLyGmH2SJo73QzkwvryuWODodIvXCdY3ZX2qV9S73JywOr5BvBaE2dyjQXvgVGFJr95KhLeKFw3xeoptoUhF7HtpkoZ6HrkZqpX2AxDYlqWQ58mh5+My+GauKw3UkdmiY3KC1/+AyjE4cHi7jq76XUOD1iuYShel2CvUPXrX6bdQpVq4PfEIBXyeZCqmKft1lDuGpLoOIk1znxk0Vil15gkDzOhtdJY8KPFnnHuxpkfp03S3FneobaBcDlz/VKqjQvLYeGTqLAUFFZgakiEhtiG6StHECZWGVVMzuNnsGYRLVQMgebjK5pHXeJugmG3QPHFJdFBdzu9uGLf9n7/jSmZTv2ZVkaJx42efHzSaOLzgJSSoXdtWTIpwUqzrAnixIvSz0zyDEzeinilF0Is0Yl2o+q47iV4/rvTfRDPWcBgMlVm4IjAoJzKlbGopeHfAiv2h0qm0dFbhAoWA0Y/eZ6nInYWu78MkYq3yMRjyDj9yjXhWQGG3moigi92muMzoiYnRwhhhU1poFcJNclKNeOWxLZgb7S3S7RlfzuaBSsrsSxkpu2CytdhX+Qt0Jq+ECjhTIjEuKXL6cUQaVbT3my3GpFFmkazhxrBMaA1IM442xJDRiHHikxwbQjq7amnX1jSPiE0SywP1xQg/KC8VQajWpdrzacLi63i9RGCCHIShLmJ2i+rBM3NQn2rC3ADJketMg/f9/fpsRiGqyKOcUMMi5T6oxNGwC8WmymNBel+UioFLoMQeEAKEh6NfDGpuD0FIfH0MjBMi2kGa13CT8ku2gfqd1+tmjOn/FGW5isOyw27VxXKmcvLwffv7cjf1uSgxPpy2BOwXKRrdiAecguzn4gHld8IMAAPq6v5LxVXBZ+Z0bpdfo5B4iOot8ZqURcMdk2zKC1kXriA1L2KBnAmtq+BmSo7c7kTiuWr/TCDFJvSfS+32Dl8inw1rAzFaZmCZWBzkT+vry9bBsv6yMCOFZ0NvvXn3I7xrUtHQ9cdDV13NOAU1UK/PhnOXnmWp9Do9HVQwwZ9V7bietJ31Sr7Dy7eQxWG253F51xi8hy7P77stVrpT24sjuO9FbmCTIhwsoxUiEA4AwlMBO4T9iLseH5b7XBkpcCQZ6BsYsifcgItojwFm8KBk+SPOwl8z2PVFbrpSnBMbu7Zm3v25p69uWdv7tmbe/bmnv2/uGd75kW0r5unXDhiWmjHjEtKdRcRpSLWQIQAnyWtQso3JuaF829vT9zAjU5nMxpGoqXx+n33QGxJC9rs9IZ2x8AT5MfEqp5hOiec0nYcc63JVYvIE8kuNY7x7pDbtbIPATm8vLi6Jpf9HwKZSkhH8xditPh9FDnCV13H3RiSfy5HBXHvo6i0SZ//AO720wc=
+sidebar_class_name: "post api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Batch Configure"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"post"}
+  path={"/vyos/dummy/batch"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Configure a dummy interface using batch operations.
+
+**Supported operations (all versions):**
+| Operation | Value | Description |
+|-----------|-------|-------------|
+| `set_interface_description` | Yes | Set description |
+| `delete_interface_description` | No | Remove description |
+| `set_interface_address` | Yes | Add IP address (CIDR) |
+| `delete_interface_address` | Yes | Remove IP address |
+| `set_interface_mtu` | Yes | Set MTU (68-16000) |
+| `delete_interface_mtu` | No | Reset MTU to default |
+| `set_interface_disable` | No | Administratively disable |
+| `delete_interface_disable` | No | Re-enable interface |
+| `set_interface_vrf` | Yes | Assign to VRF |
+| `delete_interface_vrf` | No | Remove VRF assignment |
+| `set_ip_disable_forwarding` | No | Disable IPv4 forwarding |
+| `delete_ip_disable_forwarding` | No | Enable IPv4 forwarding |
+| `set_ip_source_validation` | Yes | Source validation (strict/loose/disable) |
+| `delete_ip_source_validation` | No | Remove source validation |
+| `set_ipv6_disable_forwarding` | No | Disable IPv6 forwarding |
+| `delete_ipv6_disable_forwarding` | No | Enable IPv6 forwarding |
+| `set_ipv6_address_eui64` | Yes | Add EUI-64 prefix |
+| `delete_ipv6_address_eui64` | Yes | Remove EUI-64 prefix |
+| `set_ipv6_address_no_default_link_local` | No | Remove default link-local |
+| `delete_ipv6_address_no_default_link_local` | No | Restore default link-local |
+| `set_mirror_ingress` | Yes | Mirror ingress to interface |
+| `delete_mirror_ingress` | No | Remove ingress mirror |
+| `set_mirror_egress` | Yes | Mirror egress to interface |
+| `delete_mirror_egress` | No | Remove egress mirror |
+| `set_redirect` | Yes | Redirect incoming packets |
+| `delete_redirect` | No | Remove redirect |
+| `delete_interface` | No | Delete entire interface |
+
+**VyOS 1.5+ only:**
+| `set_mac` | Yes | Set MAC address |
+| `delete_mac` | No | Remove MAC address |
+| `set_netns` | Yes | Assign to network namespace |
+| `delete_netns` | No | Remove network namespace |
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./batch-configure-vyos-dummy-batch-post.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./batch-configure-vyos-dummy-batch-post.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

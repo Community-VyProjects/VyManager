@@ -1,0 +1,78 @@
+---
+id: reorder-community-list-rules-vyos-community-list-reorder-post
+title: "Reorder Community List Rules"
+description: "Reorder community list rules by deleting and recreating them in a single commit."
+sidebar_label: "Reorder Community List Rules"
+hide_title: true
+hide_table_of_contents: true
+api: eJztV1tz6jYQ/isaPZNAM32i0wd6cjrNTAIZQs8LMIyw16BzZNmV5AQP4//eXfmCbSBJ+9aZ8gC2tNrrt5+WI3diZ/l4yYMkjjMtXX6jpHV8PeAh2MDI1MlE8zGfQ2JCMKyRYyTHTKbAsm3OQlDgpN4xoUNmIDAg/KvbQ8ykZoJZfFXgFUh3u9IrvdhLy0CHaSK1YxBFMpCgncpRgbdmWZwpJ1M8Vhsar/RPt+y+saYUsykEMpIQVkJozcArngbmtaz03S2b91x6k27PNLz5M0xn8RYPrPQE9SUpGEFhWyYMMDhAkDnU3o7iWz57aYcyMTuLrjH8GPgrA+vGrE5ZtYDi2gmpyYVeFrWIwSfOvyVRGQjpnYPLjK5Vk9U52BRdgzICmwUBWDuMhFQZOit1lJjYe88HvInkIcQSVkndNMY3ZG7jbW1e88Se7VQH0gQRMeBVHL8lYc7HR07hYLXoUaSpkoG3NPxuCS9HbgNMs6Cn1JAfToItj3VsUOi07PIUf7l1BvODxpx0iha+NJl6pNxMSbyPzS/n2eQF+kuBkW7pILbnniQq3JSFbzmASIQdrpw8mKmQTUuxvuGZkTuphWqDiCwjrlqahc5nEfbYmY1i0CzpTClerE9WpwjNK1anXdQyETmPMl+sX9g00cB+LRsSbhKt8joZm1C4CxXxW59IxJxsTpsgO05diLIq5XtB3rdUoEYR1MquoWESVMgOIRJIDbiEgWAT+hDR38O/dWXuDxeoppJItt8hqGEvDYTEku1UrS+AlDBKafoIoqTnQ2MtfLbr13Ha15wsPiDGz6y+lGTlweLZy3QpiZ88EMaIvFdse6bwsc1PJw71Sj+M51Ln1116HlQ3p5W/fX+eEoQ5Q8qrI7tArqWBoija3jiTgV8oydT3wd1oRD+9FJYEG2WK1cyLXnyW+wpv9ue7u3PF34SSoT/GvhqTmH+gtde/IeC1ot4hOpUEnd1P9EdDUevrEHlMSgcJRbHdvde3T5hCsYMT3q6L+mSwBe2itNRp5hNSbz/4BdwJ3KGlpgHcqSUxgoP7EJSUm9L9Sq6FxFOJygpdT8V9WYJLxmqRPxaL5zOFJT5icPuEbujqok2F2+PbkO7kYXcwG1Y4RymCxfx0JX89iDhVcPWKPWW6uheX3Rtw1L22Rr0ro3NJjPp92OiuKbym5YaVG4x5RNGY0q6qH6eehEaMxNgBbPL8cNbrvwvrcJ1tRfADh0bf9TEdoZ73CkJ4lUHNSzQA4sEb8UZDHKUEByxitGoDNaI81ZSyjpvkT5WqenLrDR8XObE1CP0/JP8Xh+SqYYkthqlC24SJzHhCLTtxyakTPUF3/iQN6pGaSGNPvYuix+NWWPjTqKKgZYzK4Li8xMdXYaTYEt6X1AN7EHSU+vAH5DVlaXfjuY/EVea5pn8VEE2XJyYYV+relV236OV59rJA4W01wMd4edLfAvFGkeD3mPv/DL6qvudpDa8PoXcZsfeYlzrp8zfkQwsg
+sidebar_class_name: "post api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Reorder Community List Rules"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"post"}
+  path={"/vyos/community-list/reorder"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Reorder community list rules by deleting and recreating them in a single commit.
+
+This endpoint efficiently reorders multiple rules by:
+1. Deleting all specified rules in reverse order
+2. Recreating them with new rule numbers
+All operations are executed in a single VyOS commit.
+
+Args:
+    request: Reorder request containing community list name and list of rules
+
+Returns:
+    VyOSResponse with success/failure information
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./reorder-community-list-rules-vyos-community-list-reorder-post.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./reorder-community-list-rules-vyos-community-list-reorder-post.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

@@ -1,0 +1,71 @@
+---
+id: generate-certificate-vyos-pki-generate-certificate-post
+title: "Generate Certificate"
+description: "Generate a certificate signed by an existing CA on the device."
+sidebar_label: "Generate Certificate"
+hide_title: true
+hide_table_of_contents: true
+api: eJzlV91z4jYQ/1c0fmluhhwp+eiVN0rSNtNewoT0XpIMs9gCdLElV5JJuAz/e3clG8uGIy2vzUOA1Wq/97ert8jC3ET9hyh/FtFTJ0q4ibXIrVAy6ke/cck1WM6AxVxbMRMx/TJiLnnCpisGkvFXYayQczYcMCWZXXCW8KWI+cdH+SjvOCTGEYeDH0xDCsiE5Vos6fszX7GZVhn7srods1jJmZh3HuW81G/QAMlfHFsOQnfYtBBpYpp2dZxhhgnLXoRdlFpRDGkS0lhIU8P4kuuVXZDFTXOjTqRyUoe+XyfofaV9EuiYLFfKTDBYk52nuTIW5Wj+d8GN/UUlq6j/FqE/lktLXyHPU2JFHd2vhoL8Fpl4wTOgb7kmC6zghn5JyDh92lWOn5GxGo1G6VbYlAg3dN5O2TCIsBOw7kQxTN6TNQS2UxwRmZqVsWRWuRi7+JJkTMjEi9wWzWWRUWVpA/QrpvKq1P2Bibwn/rY+OiBBfYbXmNIM7xHPDIoUA+iElXqN+BbqFRjjOddRU8mYmHYpodvs6G486LPeydmn7unJT73u2cnPFx12NUTa+UX39NNZ97z344fQAOKliKpCWu2SC3J1O0M/2wFYdzYUWaRptA7cH5bXt5Ln6dgACRrXYym3lmvzgVzG8rX8UIVjd7mtzlEpyFh3SyFjVyypiiEV9mDf/qzut7VVB6QwJgZUpvQcpPgGnuUwhbehjLbS8LDuB5VlSr7fE45td18EZ+xoeOMylMDK7C3IS2JoS/qCQUkoLNj5QhFQsaTiK4vu9OKcCqCYfuWxnUBqnemmGTBheWa23cGLJQG0htX+KvEa2CC1zrNtYwMOriVGdck9Jzu6vBm7ABvK7/XIFy2XsV7ldoL9Gpg2VSrlIIPIXHk+hp25pbM6IwgK54XDeMB5YEy+0GB4GLIZpIajAcHpgeU1asoPLauP2AydJqNKh+l8XYdeuaiVg0FonhAuSl9XFTg3yzIwoBrCAbLf+fmyZVBJJ5ie/7fR/RHNXYf2WV1wRzC5ksYXW+/khD7aJRHH3JhZkbK7ktn5ctDIM17Y3lopFfqOs9DMKyTYS6gJ0lEgmJxpJ2Nfzi9JLpWv1kofWjhX7vJ7VVB5HFykHSgI5RZmywR0wqrMBHvTZn0xLp2o+azX286YQxyPiN7Gg9OVcAsipW8b9Gky4DBpnP6LOFawuX5qQ1dzxvge60SZme8D8c8YXJjzGge/z+qC4dcS5BYyL1xAquNrR6DxYV8DMZus1mMDPXi172aeYuPNL/nCEtikqKyi74bi0qdgl7KK5ff7+9GWQF8fGbcLRbtuubjmgHtdP+rSltvFLbdbwchxACLIR4VxVy+5V6+Q5Smvl9Y6uJvdsybVS2O5G9bbHK1XwXZV3ym3n5pQryk1rblNBDaE874m+3mNw3XnbH2oGJ9aY8yNluZkCYatkDMVVo1rzM8gsQYz7DA2GF1v9fSvYCzS2RTiZ45vFRomGV0hbHYC/BPF+JmHDxiDF4/hBTRn5BxCAs3q8gAlIj8ZQ1nFwyAvmxfdsJHPhj3Bg+V/9wIs65IauJunIBzEFNphnG+Oh4iag3oFX8ydaGeDYMksqKGQ+e1tiiXyl07XayJjy1BhP+DXJWgBUyqSB4K6BcYJYY+w0ZWZxxFpj8t30hLSwgFAG58JO/2NAY6S3O7lfQp6fnQ7vkfmaflKzfDRQS0JLwRU+L8fuSexGyjE4GiI6SDnBUFqP/Iy6e8f9Z6dLQ==
+sidebar_class_name: "post api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Generate Certificate"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"post"}
+  path={"/vyos/pki/generate-certificate"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Generate a certificate signed by an existing CA on the device.
+
+Reads the CA's certificate and private key from VyOS config,
+generates a new key pair, builds a certificate, signs it with the CA,
+and installs everything on the device.
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./generate-certificate-vyos-pki-generate-certificate-post.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./generate-certificate-vyos-pki-generate-certificate-post.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

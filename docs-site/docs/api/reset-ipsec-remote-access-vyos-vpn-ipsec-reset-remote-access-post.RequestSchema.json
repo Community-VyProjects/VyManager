@@ -1,0 +1,1 @@
+{"title":"Body","body":{"content":{"application/json":{"schema":{"properties":{"username":{"anyOf":[{"type":"string"},{"type":"null"}],"title":"Username","description":"Optional username; omit to reset all RA sessions"}},"type":"object","title":"IPSecResetRemoteAccessRequest","description":"Reset remote-access (IKEv2 road-warrior) sessions."}}},"required":true}}

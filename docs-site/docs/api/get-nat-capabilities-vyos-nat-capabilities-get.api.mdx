@@ -1,0 +1,64 @@
+---
+id: get-nat-capabilities-vyos-nat-capabilities-get
+title: "Get Nat Capabilities"
+description: "Get NAT capabilities based on device VyOS version."
+sidebar_label: "Get Nat Capabilities"
+hide_title: true
+hide_table_of_contents: true
+api: eJzlU8tu2zAQ/BWCZ7cKevTNaNMghz7guL0kgbGm1hYbiWTIlV1D0L931rFTu/mE6iKSOzs7Go4GK7QpdnpvA4l9nNiai8s+iY/BTu0Ni/k6WxhHiVa+9eK5mBUVrk0Mpuatd2x+7r/dmS3ngp73D+EhzFn6HIpZM2HBZt1ihvGh9o7Eh43ZNd41B2LZJzBSAF/iTDoWW/SUPqWYhWswLhqPw7aNO3DmGIRDXYxE4yI4tQfFveFAq5ar2hd9n6af6b3U+Nx7VKdmfj37ZDC880WrCoQyO7Gvim5rWLFhWcKj5bkVy+0+lrengKId5Alfw3B3sB+urvR16e5d7xyXsu5bMz+C0ecOHygKp5Tag2cxVL+K9gy2uIY7wmrUZ2I7liYeBaI7kTTYVKqsgrLqXBnqPqyj0oiXlgE8XN4XCrThDlPN7Put/TcFn6kIzmGke4L1Zh2z6bRF7/JA8JKEYnZempPN72inF+liB2yts48FMAJvoT3FIiiqnkAdnwJHYj5eqr7QM/y16P8OqGqDB8K/pUot+aCe9rlVi15ycG81B4Dq341onbuKn72B/woaBpXwI7fjqMfPPec9zrHcUvYqVncgb5hqztgM9okBsTMkOCn1ltpexbyJ7Ph4ltGb64Udxz/495cr
+sidebar_class_name: "get api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Get Nat Capabilities"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/vyos/nat/capabilities"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Get NAT capabilities based on device VyOS version.
+
+Returns feature flags indicating which NAT types and operations are supported.
+This allows frontends to conditionally enable/disable features based on version.
+
+Requires: READ permission on NAT
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./get-nat-capabilities-vyos-nat-capabilities-get.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./get-nat-capabilities-vyos-nat-capabilities-get.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

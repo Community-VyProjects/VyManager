@@ -1,0 +1,70 @@
+---
+id: reorder-prefix-list-rules-vyos-prefix-list-reorder-post
+title: "Reorder Prefix List Rules"
+description: "Reorder rules in a prefix-list."
+sidebar_label: "Reorder Prefix List Rules"
+hide_title: true
+hide_table_of_contents: true
+api: eJzNVl1v4joQ/SuWn2lB1eo+8Nb9urdSv9Sy+0IrZJIBvOvYubZDQSj/fWfshBgotLtP24cm2OPjycyZM7PhXswdH455aWEmV2dKOs+fezwHl1lZemk0H/IHMDYHy2ylwDGpmWCJ/fmTftKjhXQMdF4aqT3LQYFHU6EUgxXaSD1vTgudMwuZBUEGfgEFe5F+wTS8MF0VU7DuSYcrHB5SwL6v7x5ZZopCejYzlglvCplJvz7nPW5KsIK8vMrRTxv9nETnJuTcJNw6Wa6N211uTQ1+cA9P/l+B8x9NvubDDc+M9qA9vYqyVDILd/R/OArHhrsM3Rb0VlrywEtw9EuLAujp1yU+ufMWPwHRvfSKFm5pfz+498ErRl6xAFD3eHAxohxHu6YTI9rch5Tl8gPDUOHzH4ILMSAo6aFwh34blU9i7JP7MI8wx5XuwjuVs9tohqCYsPccusW8dofIk0ku/CvBC1vvAHxAuwRRZPGjj8fpMlrUe1HC1Or13QzJv3+07m1XdKUUr587sM8JBCJGSv0pWEw94czhVYz260+B/BsZ8+cA1wiACM22mf6ArC0JaSEndUhzsw35wYcQISk7B3y8MSgIsXhT4QiKcP7m5Qk7d1iXsinxpRErcuQK6X7SmUZiCIdkzbY6F9XgnHeeCWvFeo+F7k3XdSz4rpzbWjz0NwlhvP2E442fnageSDJ6VqeueFtBWHCl0S4W3MVgQI/dSx6rLAPnZpViD40xOvJePazDtR8uLg6Bvwsl83CMfbHW2N9A3ROKHLyQ6oScKZPt7L6jNLd18nw85dcmOkisKNz8lOTcYAjFHDr+HDcNwYgyjtZSl1UISLt9FRZwJ/OrBGbLttbuE8Vy5d9kJMUmut/YJUzsUhQzdDwUn2MKXrusNflvNLo/AIz8KMAvDPXrpvmWwi/wV5+adD9hcb/hOZoQJx66Hv1lJYoySl7suV1ck9bZLTYNcLzb6ga7TWyw1552GtKg6zQd7C7Dt8ttU+hWSN4HUaQHdeCY1DOT5jlMOTdCI2sKrAl2eX91cMFX4Tyus6nIfuKoFaSgoCMkBAEgh6XE8o0T1RJHKTx4Jl6EhTBB4ezlELXZQES0D10M84CbSTjbia8ZTsKoESXvoItuq/gvHhMbPlCF9EslZKjhygYRiewbc2LfNnlxEO61EyVVyYLIinabzVQ4+GZVXdMyctLizDjG16WwUkwpnWNK8QIEHSXW/YR1W6PanzUz21KoKhTXvvaRLsUTlyjGpT9p+5zU0/3d4wiNp80UW2DDoKlYvNCX4P8hDyMznY4jF62hXgo9r0iuhjxi0t8vj7k0rw==
+sidebar_class_name: "post api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Reorder Prefix List Rules"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"post"}
+  path={"/vyos/prefix-list/reorder"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Reorder rules in a prefix-list.
+
+This endpoint deletes all existing rules and recreates them with new numbers
+in a single VyOS commit for atomicity.
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./reorder-prefix-list-rules-vyos-prefix-list-reorder-post.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./reorder-prefix-list-rules-vyos-prefix-list-reorder-post.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

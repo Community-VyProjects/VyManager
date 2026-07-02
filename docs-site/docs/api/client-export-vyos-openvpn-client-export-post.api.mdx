@@ -1,0 +1,72 @@
+---
+id: client-export-vyos-openvpn-client-export-post
+title: "Client Export"
+description: "Generate a ready-to-use client .ovpn for a server-mode OpenVPN interface."
+sidebar_label: "Client Export"
+hide_title: true
+hide_table_of_contents: true
+api: eJztVsFSGzkQ/RXVXJZU2Zii9sSeWEI2VJKFAi97MBSRZ9q2khlJK2kMLpf/fV9LY8/YEEj5sKflgGc0re7We69bvcyCnPrsZJQZS3pudV/pQG4ic8rue1lBPnfKBmV0dpL9QZqcDCSkcCSLRT+Yfu1J5KUiHcShwX4xMQ7fPbk5uX5lChKX8Hx79afYeD6803f6byetF7eLy5tfvPg6Xbtu0mh89nOjJ2r6FcvJV26qSuqiJ8KMEEuVpYffO41XYetxqXKkVhk4mhkfBEwFVWMqPG9oskK84ecbIeswG+RuYYP4TgvhDZvcaUe+LoPSU2GdQQCOqTXlwYtHFWamDmIGt30qFFsdimuak0Qa1qk5nwDO7nSFJ6dk2WO/KiCpf2oF1+LRKdhYcpXyHrCKAy8rIOrF1acLmLGvd4dZj/kAILC4KAB9guOBnqxx4WG+MP6hQeph+5PFsbGb45EPv5tikZ0sMxwhwIgfpbVAKXoefPPM6zLz+YwqyU84M+IGRZ7fWi3gJSwsfjMfHI6NEEGFkhcuNka7erl5TQTigA6B3jzU+uhdtupleUxA6sXlBHrcjbfqbVZ0XZbZ6r7N4Ew+C81gnp0KDWx/EwVNJDiFBsy2DAJoy2U/5xNPGBSKiXReXzn3WcfspfAdNzEPAcJrKtZJJNo4HgSz78k/YetbsVncL+OwmyEnk6rngatn36SuUwF+TErcSS7VqCwKFIMfcJiITULDr2uNMzxI1c2JNiVdKk2QCrJsQpvxNxg3ckd5FdzIVEePXSo7GV6m0jmLQc9j4VyngoH3VdddcDXFBW+N9qkqjo+O+GdH63We40STukRDSMYcf7+688lZR31jY0qSuiO/JiBzxl0q8rcnYR/W+1cxYzTcvSsx7YYfcs64fd2cx81vEb1G6S1iGzZWkdpfj4+fk3crS1VEakQKvTdzBQWpytg7A1X+uUFp8q2vPwEPC3pKwOO+BUQ6JxcdNXw2KUGGvvLT1/rWF2Amp5HsZPJj0wiGGPJXWCtt6whI2/l5gUUTnjpuNmR1VBHoKbxJKGOT0m/sOsy2FDXi+CEU7xMFLwVbm3wcDq+eOUz6qAh3PN+4zUVqZZjhbcBX7qC5cgfNcJKuXBixKq7bG/f8SVa2pJ0btIWXb7rOW/e6aZfjrdC+bvXlViQIMDFdTnigEl+kBsMVD2WnVxfPmvAH6QPWxVjm3wkTEo9sFW/hqSc6KGiuckoTj8BdyZNKXz5Kt5nAPLw2H+AR9pwMY4aPnE/qR1mqRHG+Rmorkc5c8v9s+V/Olk1dcFEObClVbBu1i30rCX6UseDTGMqYsU63RI/STFocZcvlWHr6y5WrFS+jDBykO8LjXCLPMetyxL1rBmLRx7jZJXWfJfr7scOweVnHit5tuNwM045TtHwbXrW97xTx1eXNEMbjZgxmmrHq5CNXFP6fZPGIvDt247iGJi31tOYeeZIln/z3LwyNndI=
+sidebar_class_name: "post api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Client Export"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"post"}
+  path={"/vyos/openvpn/client-export"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Generate a ready-to-use client .ovpn for a server-mode OpenVPN interface.
+
+Wraps VyOS's `generate openvpn client-config` op-mode command, then fills in
+the public remote host and embeds the server's TLS auth/crypt key so the
+resulting profile connects without hand-editing. Reveals private key
+material, so it requires write permission (same as PKI reveal).
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./client-export-vyos-openvpn-client-export-post.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./client-export-vyos-openvpn-client-export-post.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

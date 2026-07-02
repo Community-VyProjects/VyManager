@@ -1,0 +1,1 @@
+{"title":"Body","body":{"content":{"application/json":{"schema":{"properties":{"layout":{"additionalProperties":true,"type":"object","title":"Layout"}},"type":"object","required":["layout"],"title":"DashboardLayoutRequest","description":"Request model for saving dashboard layout."}}},"required":true}}

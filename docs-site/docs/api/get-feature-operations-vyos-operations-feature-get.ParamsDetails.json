@@ -1,0 +1,1 @@
+{"parameters":[{"name":"feature","in":"path","required":true,"schema":{"type":"string","title":"Feature"}}]}

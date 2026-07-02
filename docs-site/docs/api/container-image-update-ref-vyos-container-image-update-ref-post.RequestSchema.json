@@ -1,0 +1,1 @@
+{"title":"Body","body":{"content":{"application/json":{"schema":{"properties":{"image":{"type":"string","title":"Image","description":"Image reference (e.g. adguard/adguardhome:latest)"}},"type":"object","required":["image"],"title":"ContainerImageRefRequest"}}},"required":true}}

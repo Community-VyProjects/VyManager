@@ -1,0 +1,65 @@
+---
+id: get-bridge-capabilities-vyos-firewall-bridge-capabilities-get
+title: "Get Bridge Capabilities"
+description: "Get bridge firewall capabilities based on device VyOS version."
+sidebar_label: "Get Bridge Capabilities"
+hide_title: true
+hide_table_of_contents: true
+api: eJztVMtu2zAQ/BWC1zp2WrSX3JzEMQykaOH0cXAMgxbXFhuKYkjKriHo3ztrSY3d9NhjdREfs7vD2SFrmdQ2yquF3JhAe2XtxToYvSW5HEhNMQvGJ1M6eSWnlES7J3qsyJRXa2NNMhTFWkXSonRC085kJL4dPj2IHYWI+OGje3RzSlVwUWxIYYA0FrWFcdpkKhm3FfvcZLnIcmWAUg7JPAXF9TFFQKy8L0MijXTH7G+H71HQHvod5C7DXgXdJnmBfXjzCjJAZV+lgSirdPz7QAFjJtJR8LZCYa0NU1C2Jx670zxX0CGK+WR8K0C0MJGPygrczeaT7+P7+9X1fHY7nfSBQzmQv4800xB1S2nViro61XK1O5Rx1cv8VwQikQ31PdQhtLCW7y4v+XfetocqyyjGTWXFvAMjLitdIpcYrry3xwaUbvQjckwtY5ZToTBq+BvIglJednwR7VXKMRkxy1HPctSyHJ2yBNa4Tckpk0mWEHRsyEfl1JYKMBDjzzP5p9XuVExYh6OyJ4IN0DFRcAj35pigtVgUe5Py3mMXas8mycoCWM21uw1kBF7iHL6MCZvMx6mCOldft66+OSd+Rql+Uez/Rfg3FyEdPDcg0c808hZluEFVsCx2a7CFZIMB2suMYfc6wcGn3cJjlaO1HFLXLP/XYJuGl58rCgesY7hTwag1m3CxRKmclKaASS2fCBA5xkXxbO+dshVTe3UzmuXJVZhOvsim+QWDUOBe
+sidebar_class_name: "get api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Get Bridge Capabilities"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/vyos/firewall/bridge/capabilities"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Get bridge firewall capabilities based on device VyOS version.
+
+Returns feature flags indicating which chains and operations are supported.
+VyOS 1.4 only supports forward chain.
+VyOS 1.5+ supports forward, input, output, prerouting chains plus additional features.
+
+Requires READ permission on FIREWALL_BRIDGE feature.
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./get-bridge-capabilities-vyos-firewall-bridge-capabilities-get.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./get-bridge-capabilities-vyos-firewall-bridge-capabilities-get.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

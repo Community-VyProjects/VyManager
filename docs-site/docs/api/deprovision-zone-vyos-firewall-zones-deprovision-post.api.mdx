@@ -1,0 +1,73 @@
+---
+id: deprovision-zone-vyos-firewall-zones-deprovision-post
+title: "Deprovision Zone"
+description: "Atomically remove a zone and all its associated firewall chains and policies."
+sidebar_label: "Deprovision Zone"
+hide_title: true
+hide_table_of_contents: true
+api: eJztVlFv2zYQ/isEnzbUmYug2IPfsqbFAqSLkXgdUMcwztLJZkuRGkkpcQ3/996Rki3bSdr1eXmIpdPx7vh9x++4kQGWXo6mslAOH0Drs6/WoJezgczRZ05VQVkjR/Ii2FJl5LAWDkvboADBrgJMLsgsVPACvLeZgoC56OKJbAXK+OhWWa0yhf63e3NvLlFjQC+UoUhemaVG8XF9cyeCA+Mh47yje3MmJitMmSgD6oJNV+PmjXjFP7938QvrBDbo1qIC5ShqY3VDUUVYKR/X88L3zpZxh7SJAh2ajCoIdu8Uy6GqK0QXDT7mK4Tycw0+zNk2Etc3by+u04JX0T8aUuRUkBxIW6ED3sZVTgDmWDnbKE/vMci8WVs/72CKJj/vO1XWB4ri8N8affjD5ms52sjMmoAm8CNUFeEZMww/e2ZpI322whL4iQJR/kBw81vMaKBEfgnrin6lD44AohRBBc2GT1z+X+x0zH78QjjlkTS5HUgGKBXNEVXA0p+GJr/WAM7BupdqzPh+isuPc3EBXtiC+4yQZA6NNWfaUvclSsQvVEqmEYyoK1H0OfW/ctI+Wb2qFtbyol4ZV15ck2Os5KSQf1ZoxMTVOCCKfbd56hXs88+N/RT7ORZQayKqoMW43UNhF58x65gl+nM+fnt+Zod8XO474jZ1wkmdrZ35gR85panE4e40yi1Xt68m0JajwVfW+ETw+evX/HOY+K7O6Pz4otbitnWm4n6yQ30K9iJdbUKmOIcQg4BZ3xSEID3lueJMoMe9wLyZY+i3g10OU2sttz3MLzkuxUfnrDtMcNzbzwd5Fxd/j/Nux72FLIA9KI/gDsQiuFx0zMTWT6K505pEJ2V+c35+ythH0CqPfiLV+NN05RhA6YOzf+hA5/Xg6w/gqKiSJRJws+eF49qmApmj0i9fkrMPBC4sca9Cz7tGMMSEv7J8mKqOgOxkIhroSxYee2F2rHZ+bxnLx/Bd5hmbVH7r12+BHUVtFz0LxWWi4Klkncufk8n4JGDqjxLDyvJgaudMBWFFb0MeS8NuLA2j3g57Y4k8uTVu91Pp3SOUlcajKbPHuD8ppp15dizSSSUZ+8L2oY/d/QEMEVlSm4qL8dXJwXhPYcguFpB9QRI6vguUvIRnRwyQY6N41D+osBJ0S+CdnMEDOBJsW5JvzpLdfojDuolDjqChj1xPu6ueHD85NHoD+v8r03+/MrV9zIdoWGkyMgu1izqTGnQquUHJtUOLHr/u7hH7NqUGW3Fj04LNZgEe/3Z6u2UzNa6jq9SUHhtwChbcZ1OWnBVCTvLDGvUF1915NuEsCgO76zoexGOdZA1LKy5I0qvwou+sd/bGN3cTcl60l7vS5rzGwQMLBv0fyXiPjMLODtFG2gpmWbO0jWSKyX/fAL9fHwk=
+sidebar_class_name: "post api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Deprovision Zone"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"post"}
+  path={"/vyos/firewall/zones/deprovision"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Atomically remove a zone and all its associated firewall chains and policies.
+
+Deletes in a single VyOS transaction:
+- The zone itself
+- IPv4 + IPv6 chains for every pair involving this zone
+- From-zone references to this zone in all peer zones
+- If is_last_zone: LOCAL zone + all LOCAL-zone chains
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./deprovision-zone-vyos-firewall-zones-deprovision-post.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./deprovision-zone-vyos-firewall-zones-deprovision-post.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

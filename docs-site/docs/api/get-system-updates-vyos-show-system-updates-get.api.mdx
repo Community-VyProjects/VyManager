@@ -1,0 +1,64 @@
+---
+id: get-system-updates-vyos-show-system-updates-get
+title: "Get System Updates"
+description: "Get available-update info for the active instance via ``show system updates``."
+sidebar_label: "Get System Updates"
+hide_title: true
+hide_table_of_contents: true
+api: eJztVcFO20AQ/ZWRDz0FgnoEqRKqCorUlgoIF0DJxh7HC+tdszt2cKNI/Yh+Yb+kM17LIUB7oNdeYmcz8+btzHuTdUJqGZLD6yQUbpXcjpIMQ+p1RdrZ5DA5RQLVKG3UwuBeXWWKELTNHeTOAxUIKiXdyFkgZVOERiuYzwUNQhsIS4hZYT7fv7E39hwfau0xSBCD78TspQWm91B7A+8MHfHzw3wO5GCBkDqb62XtMQNnu8oL93h0Y1cFWtAEOoB1NGLYbSQn8/GJMoF52qzL4tIELu/ec40mC6A8ApYVtR3Byy6ocp641PT8s0DIZTMdKqNarm5a+PXjJ1y1X5RVS/RgseHPHIn5Byazn4wSV6FX0sVJxn1cIs3iVWd9O2ZN68JM+vT8B47lfOZZORuQh7NO3h8cyGN3Nhd1mmIIeW3gvA/mPL49oSUJV1VldNqRGN8FyVkngSmWSt4qLxRJxwrbpsk3aivkCgvnDCrLqKTJyMnHbZhIJVe14VK5dHjDtWvvufaMuxF0rKdse5azvgbMQF7bZbIZDSe2NibZ3D4pEmHgqodh5Nib2SDFv5KcRpkeD8GvUB2Q/pXsUOUVuizgt8L2d5gywoYB+zC3uMOUnlz1opNODA4T9mXy3MFfnS+V0d9ZzCwp7oGI/w8G7XSuIDA5s7X0PjPYCIkSqXC9mrlOpajgL2MR8ljwxhGvXxOBQ2RTdKPq6V61ZxcQXVPKhI+/TV4QPlGB+BwWKr1HNq1wKiWFWUEHkGGjWfmw0lRAP749tRIbp67k2ExqD3Nl/EaGUrlA/KPwsarEfrvFDsJ04LzDZr310/9d+OZd2KuX8JHGnKejR6I5ooquE1ERh3Z/Q/zYVRIbo+DpSdx6vVAB2RebjRw/1OhbPufXRnkdd8P1LeMXqDL0ne3usRWn8rqsRLiNMrXwebEfxYCDyE8/XbLwfwPbvIl6
+sidebar_class_name: "get api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Get System Updates"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/vyos/show/system-updates"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Get available-update info for the active instance via ``show system updates``.
+
+Requires ``set system update-check url &lt;url>`` to be configured on the box;
+when it is not, ``configured`` is False and the rest of the fields are empty.
+
+The reported URL is for display only — VyManager never fetches it.
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./get-system-updates-vyos-show-system-updates-get.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./get-system-updates-vyos-show-system-updates-get.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

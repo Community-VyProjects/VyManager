@@ -1,0 +1,72 @@
+---
+id: get-feature-operations-vyos-operations-feature-get
+title: "Get Feature Operations"
+description: "Return the batch operation vocabulary for a single feature."
+sidebar_label: "Get Feature Operations"
+hide_title: true
+hide_table_of_contents: true
+api: eJzdVd9P2zAQ/lcsv2yTAkVoT90T2mBDGgIB4wWq9ppcE4NrB9spRFH+9905aRsoIO11T43vvjt//u5HGxkg93J8K22JDoKyxstJIjP0qVMln+VYXmKonBGhQDGHkBZiAxYrm8K80uBqsbBOgPDK5BrFAoFicP/O3JnZzFfze0zDdKFQZ7NZIp4KNKJ06NGERCgfcwdb7mlcoRZzm1E+BkdHASbT6O6MMpzGC/ACIfL45AnnfBDg8m8CTGdaga6QQ43wVVlqhd0NDpegKEvOcL8vk+2zTzN6aI7EsWM+3QoyXdXWD88bzJQCKEkJDpYY0LGSjTR0oGQ9iPyKRSwhFPTt8LFSDum24CpMpE8LIiXHjQx1yWE+OCJIyKCCZsNJn6dtJxzuS6KAniMODw7452Wxrqo0Re8XlRaXPZiSpdYE0prhwIKk8Smje88xzS4LGwtGgZBliqGgLxxLEBTf3XFfM1zfI35iED1dcb7RS9yQfsPzBsMB9K62TeTXw8Pdt9yAVlnXaMfOWfcvDykHdDlvAKX5SwVc+l2AtukLL5j6fBHL+bIubbKxKGKSo5PthPj3NnAO6kHxftuOIMXJpc8/qvMZVQ1ylJtk70OjGOKavS23V1lFQdbu02ggTxqe36rpGvedtXzmCiQ7mG2f3kZtOvo9brLNsS1RV6H3pfjRleCty9aQX9fXFzsJu/6g+SpsP6Nx5GiaxnLEoznajuao6aeujWO3sENZburzK3EGhkReUguJo4tT+XrVnYAPZKc9lz6gyeJSW3IIL42YIMOVogETTyoUYkUzT4F78ATUzqldEjbzlLV3UEbCsyil9YGczKffD28Py2tGzbbj/+c93HcEt+Oo1ORkzSoXJ7ar9a3kWg9XNh/G6y1LLVmQxIxrmjl4/ON027L5sUJXk50+V+AUzLkZaK4z5fmbemoB2uMHun++7Ifhi3iP6rrnDXd8fDad6PMB68FfQdwUBUJGW4MpdN4jWthlGMTtLDbe/JsB+Hl8TUPxFxEGtDk=
+sidebar_class_name: "get api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Get Feature Operations"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/vyos/operations/{feature}"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Return the batch operation vocabulary for a single feature.
+
+``subject_field``, when present, is the top-level body field the handler
+injects as each op's first arg; an op's value then supplies the remaining args.
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails
+  {...require("./get-feature-operations-vyos-operations-feature-get.ParamsDetails.json")}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./get-feature-operations-vyos-operations-feature-get.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./get-feature-operations-vyos-operations-feature-get.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

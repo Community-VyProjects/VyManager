@@ -1,0 +1,66 @@
+---
+id: get-dhcp-leases-vyos-dhcp-leases-get
+title: "Get Dhcp Leases"
+description: "Get all active DHCP leases from VyOS."
+sidebar_label: "Get Dhcp Leases"
+hide_title: true
+hide_table_of_contents: true
+api: eJztVk1z2zgM/SsYXZrOaOPMHnPLpGnqTrLxxmkvccZhJMhiQ5EqSTn1ePzfC5CyLCupu4c9VhdLJPDw9QB4nXixcMnpfZKXWZ08pEmOLrOy9tLo5DS5RA9CKRCZl0uED5/OJ6BQOHRQWFPB19XN9HimZ/oLH/kS4dKKuvz3Ch4fp6V5maJdor0KGh/IwuMjmBqOCuE8WpIXOijdXkzvwOMPP9Om8XVDRnUOFn1jtQPnbZPRK+bweXrzz/tj+Eg+OXgS2TN4A7WwTupFhzTT7xzZBg4JXPCgdfodtPCy2HPW4vcGnYdCSOVCPLfR9ulMAz1Xki5NsRf/i/Ql5OhZBZR8RhhPUrg+O0+hNM5rUWEK+KOWVnAy6d1nx0mamBrjyTinBC/Qz9nPeUSdL1fG7R2QAClZdLXR9J2crpO/T074Z79S0ybL0LmiUXDbCpNeZrRH7Vlc1LWSWbA8+uZYZ524rMRK8Ftt2S8vo4Vom9+kx8q9FpD1XOQ5eRW+/KpGcoHqRGUgq156xQfjGs5aqSGxxhNoAWI+82STJpXI/gvstch+iUv574CpYJmSHD5hOy88HkKdBoEhXqAuBGU4il3QVhXzWNL3jB5imJOY9YdsRLRpEPulJevBywp3sDsS/R77Yif7toEdWGfFEgekZrQD8Led0BC3u4mV7GBrY9QhxAnfD8H4ELh3GGHbR4G+enVT0KAa4m3S7kQ3SiWbh52FT1v9oZXzQIuuT9mWsXIhDyb4Jkq8ndaoDkfKZEKlNFAq45GoQcgtnnn6hlns5e8N04enbq+P9um/Jew+td5gRL98bc67YHqp4MkVPH3lf5hp7XyPBZS6MLYK8MfJLgBhrVgNCRc7sBCNIuLfP7C08aJfd0kTaIG2p3gXJHp6J2+l6ZXnrjfXhgyMF8DjruVib1RTEPxQgtGXpp26nCzhS/oY8cwd8cwdqW1InIIQQ+sE7zm4FlossGLmnE3Gr7z4SEuNzsNaQlpflESoWIXdCQA5LmW2XR20lRwp/iVehGXPK5LN2XZ7QYgkHxvJebpkf2I3hLXM6xR6Nei5st7N/T8b/P/f4C1TOdpRrYhvXKTGBtJHTt0nzCkuC/+rSrf79CGONL5fr5/o6ItVmw0fk/N2xQ1E5RdWiidmXWinEkVO3cOD7xlJJDmjPV8zfZdCNaEvh4udR2BH9cuLO6L/T4h9bUk=
+sidebar_class_name: "get api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Get Dhcp Leases"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/vyos/dhcp/leases"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Get all active DHCP leases from VyOS.
+
+Uses the GraphQL ``ShowServerLeasesDhcp`` op (faster than the REST text
+output and returns structured JSON). Falls back to parsing the REST
+'show dhcp server leases' output if the GraphQL request fails.
+
+Returns:
+    List of DHCP leases with details like IP, MAC, hostname, expiration, etc.
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./get-dhcp-leases-vyos-dhcp-leases-get.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./get-dhcp-leases-vyos-dhcp-leases-get.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

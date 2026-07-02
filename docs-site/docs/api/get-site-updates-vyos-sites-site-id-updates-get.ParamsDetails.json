@@ -1,0 +1,1 @@
+{"parameters":[{"name":"site_id","in":"path","required":true,"schema":{"type":"string","title":"Site Id"}},{"name":"refresh","in":"query","required":false,"schema":{"type":"boolean","default":false,"title":"Refresh"}}]}

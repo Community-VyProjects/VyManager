@@ -1,0 +1,63 @@
+---
+id: discard-config-vyos-config-discard-post
+title: "Discard Config"
+description: "Discard all unsaved configuration changes for the active instance."
+sidebar_label: "Discard Config"
+hide_title: true
+hide_table_of_contents: true
+api: eJztVMtu2zAQ/JUFTy3g2kGPuQVpC+QQJKj7ONhGsCZXNhOKVEhKiWAI6Ef0C/sl3ZXkR5JLP6An0eTscDg7653KuEnqfKF08IXdqNVEGUo62irb4NW5+mSTxmgAnYPaJ2zIwICtIwoG9Bb9hhIUIULeEqDOtiGwPmX0mqZLv/SXoazqzCABRGooJoJQ9D91HSP5DMYWBbwz5CgziTFkJgxNOUQpKQPfPFn6vjhDGRhuybwH9AbomfRIH4S4okFbYtJIOrsW/vz6DT6M0qGwjpa+wrxl6seaQWYKP0N8SMAvQt/Cj/ZmDolyXTFiww44SkkknzCAC7q/Z6om6nDplWHbzGDb3YC+a9qQ9uv9URVS5jp+YsVKibuwUx/PzuTzsgXzWmu+vKgdfB3BXMdsmW0TOFaVs4OS2X2Smp1KekslyqqKIi3b4YY0kMkytxUx/ToER+iZMtvs6Hih6iaq5C9u6ASecrR+c4K+HiGMphhD7BX59qbgWL2u6iaHHV87p7rVkedzX9wxzYgI63vuXW/R0CLJ6V7/UdoJxZzjedm7fGLUSzP3B1DEUILk+RiXKd/edf2rOUjSxrFHEhT+NZM2zoY2zsY28qn1RegNGlX00blGz+JKCfbF7dUbGV8wZd6HNeoH4gTL8JRSwi4N2TPUWH4pPFkOqQwMF37AJ+Rp0KFkrBETxgNJHDXSAlHMh6LHY0knEzwY81rJ7hik/7P+r7M+BjTTc55VDq0X5+vo+nHrs7JQkpVhTEfXx7xwXLeSKobsdmtM9D26rpPtx5piy/u8bDBaXEuaFium3hIaiv08PRBD1AUPQSXJbNDVIuXNX4BM1iHGtzfzb5ztv6qkHZc=
+sidebar_class_name: "post api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Discard Config"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"post"}
+  path={"/vyos/config/discard"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Discard all unsaved configuration changes for the active instance.
+
+Computes the reverse of the current diff (delete added, restore removed,
+revert modified) and executes those operations directly — no config file
+path required. Works on any VyOS setup regardless of config file location.
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./discard-config-vyos-config-discard-post.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./discard-config-vyos-config-discard-post.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

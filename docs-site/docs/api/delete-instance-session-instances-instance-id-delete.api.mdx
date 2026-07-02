@@ -1,0 +1,72 @@
+---
+id: delete-instance-session-instances-instance-id-delete
+title: "Delete Instance"
+description: "Delete an instance."
+sidebar_label: "Delete Instance"
+hide_title: true
+hide_table_of_contents: true
+api: eJzVVU1PGzEQ/SuWTyClBKGecouaVI0ETRRSegAUTdZOYnC8i+0NRKv9753xfhlSaNVbT+tdv/nwe+O3BfewcXxwy510TqWG3/e4kC6xKvP0OuAjqaWXDAxTxnkwiTy7M3dmavSBOYU7w9HV5DvLnbSOJQgTVUCDdgif1GtmUy0dOwkh/elsPB8upvP+zWT8czw/ZUlqPCLYzWF6zdYSfG6xcII5XI+Z1Lc52Q4MbOROGn/GezzNpAVqdyKw4ar+ssEu65O1H9yy21NiuazwmCYDCztcWiKk4AZfMF2ERYwiSjLwW1xb+ZQrK7Gmt7nscZds5Q74oOD+kFGo81aZDSK98po+tDxgo2V5TylclhrskKIuzs/p8Zr+6zycf51rNq/BmJCYwsMTHLJMqyQcv//gKKaIOskskeNVVcFVyaIWVykqAibqsS7Iyx7f4RNp/uhEVzUE0QJ8KAnmMF0HBkEIRX2BnkVtVGTVCdPVg0w8hrclTK41J26aEiPKW5ZvQ2L+b9uTdU1HGYaZirh7wy8KIsAKNpxNWCPHGdajip8vLo4VuQGtROCbja1N7b/LIaQHpWmF92jnjgE6TV7tdtS+1iOiT2EnG2mRwY4xsBYOkWiXadVg0Nht/lLfCvI+NJDBFrRb0kXJ8kBIN/v0AXcS/xKladVscF+Iyxf/R8WJm6r9GhcJ3klUKfQ+FaNKgt8VayDfFovZUcJqPtAttmnnOcFD0BoGvF+bTr81nX4RGUkZnGSdxvwE07tqfY3m8WhYv4LzNKcrSB6lEWyNhAcrRCUq1xRyr7Aae1Z+y/ZoZRj4CZ4BjTRJd4gVdEfqjdD4ntjJUudxk/qpba+2/cax3rZSdDP/P/wham1psPqZBhVGP7fh7lWSdX/AXmv5RNUg9n8csS0yReiiWIGTP6wuS/r8lEt7wO+43INVsCJN8Z4K5WiNM7IG7eQHLJ7M6+E+Ze813MywoQneg87pDZeP8vDmRxVu/1aCQCegNirEEInKfBR7ZFbku+1Qj8aX48UYZ/0Xz2HQEg==
+sidebar_class_name: "delete api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Delete Instance"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"delete"}
+  path={"/session/instances/{instance_id}"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Delete an instance.
+
+Only site ADMIN users can delete instances.
+Instance roles (ADMIN/OPERATOR/VIEWER) control VyOS feature access, not instance management.
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails
+  {...require("./delete-instance-session-instances-instance-id-delete.ParamsDetails.json")}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./delete-instance-session-instances-instance-id-delete.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./delete-instance-session-instances-instance-id-delete.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

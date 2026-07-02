@@ -1,0 +1,1 @@
+{"title":"Body","body":{"content":{"application/json":{"schema":{"properties":{"container_name":{"type":"string","title":"Container Name","description":"Container name as configured in VyOS"}},"type":"object","required":["container_name"],"title":"ContainerImageRequest"}}},"required":true}}

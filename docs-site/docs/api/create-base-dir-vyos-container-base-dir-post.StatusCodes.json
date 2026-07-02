@@ -1,0 +1,1 @@
+{"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{"properties":{"success":{"type":"boolean","title":"Success"},"output":{"anyOf":[{"type":"string"},{"type":"null"}],"title":"Output"},"error":{"anyOf":[{"type":"string"},{"type":"null"}],"title":"Error"}},"type":"object","required":["success"],"title":"ContainerSSHResponse"}}}}}}

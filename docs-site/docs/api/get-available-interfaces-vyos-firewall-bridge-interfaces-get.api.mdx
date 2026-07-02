@@ -1,0 +1,64 @@
+---
+id: get-available-interfaces-vyos-firewall-bridge-interfaces-get
+title: "Get Available Interfaces"
+description: "Get available interfaces for inbound/outbound interface dropdowns."
+sidebar_label: "Get Available Interfaces"
+hide_title: true
+hide_table_of_contents: true
+api: eJzlVdtO20AQ/ZXVPrWSwaiPvKUioEi0VIG2DxBFE3ucLKx3zV6SWpH/vTO2E5tAv6BRJK/nfmbPjPcywNrLy0dZKIc70Pps5VS+RrlIZI4+c6oKyhp5KW8wCNiC0rDSKJQJ6ArI0IvCOnpd2Wjy1MbQHga9yJ2tcrsz/vzJPJk5huiMFyC08kHYQlDOcbRPGDboDIZE5LEs60R0BSViRxWuI7g8ERiy889PJmwgiAyMWKGIHjmrOOAQLmo85HyNJPViPp1ciQpdqbwnUIL+17P59Pfk9nb5dT67upmKAoEKxHOZSEuWwOBnOcFfY1ge4S+Hgpfb2vrlIeuyK3asJ0cKRukrazxSr/fyy8UFP9729z5mZO6LqMW8Nya/zFIkE9gcqkqrrK0offbss5c+22AJfKoc1xtUl2HI374FLP17IwMl8jPUFT2lD06ZNeUMKmgWfGd9k/T6f9s9sLw54QvVa+q7gqh16tgkR4mJWstmMYS6GoVojqmlXT1j1rWxvcqcGduW35uMQswO0O+6MKc8PuqFbUUtfweSDoAlOAe1/CCyb4MWEDVdzOOCPWwAPeoR93+Nbtyk1mLkd/ERvnepbmlKRnR4C+WgEMwSUIa6++GIEij+JbKk4bI9mylaBWFDLylTOD1QOO0onKoxWmUK28Lr6/tV392Lb2BgjSXRU0x+zN5Vdw0+kFysIHtBWgnc55JduMw2QI5bxTO/U2Ejtuh4KM9gB44RlWSbc+5eQRHJnq+nsj6QcqBwu5smR+An9/SGlMd5+v/2Wc+1gH9CWmmiC/cyupa2HRMeJTOBTA9J6dh/DpLxSqFp29AdsMN+vwKPP51uGha/RnQ1zwRdGzjFre0nZIOQ00DwOnhBMpETWncVs3ALOrbjdrrfeDEcGXszfSAW/wUnTlrM
+sidebar_class_name: "get api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Get Available Interfaces"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/vyos/firewall/bridge/interfaces"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Get available interfaces for inbound/outbound interface dropdowns.
+
+Returns a list of all interfaces (ethernet, dummy, bridge, wireguard, etc.)
+that can be used in firewall rules.
+
+Requires READ permission on FIREWALL_BRIDGE feature.
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./get-available-interfaces-vyos-firewall-bridge-interfaces-get.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./get-available-interfaces-vyos-firewall-bridge-interfaces-get.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

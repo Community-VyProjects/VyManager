@@ -1,0 +1,73 @@
+---
+id: provision-zone-vyos-firewall-zones-provision-post
+title: "Provision Zone"
+description: "Atomically provision a new zone with all firewall chains and from-zone assignments."
+sidebar_label: "Provision Zone"
+hide_title: true
+hide_table_of_contents: true
+api: eJztV0tv2zgQ/iuEFli0qF2n2XYP7smbB9ZA2hiJNwvUMYyxRNlsJVJLUnZcw/99Z0jJejhxC5/2sDlE0nD4zXAe39DbwMLCBP1JEAvN15Ak3e9KchNMO0HETahFZoWSQT8YWJWKEBU2LNNqJQyKGTDJ14x2sLWwS4bLrARi4RKENAxkxGKtUgfMwBixkCmX1rx9lI/yQnOw3DBBYEbIRcLZw+b2nlkN0kBI1vuPssvGS14zJKxhoZKxWOQaSIdUhqPVe/aGHr+XxmOlGV9xvfF7MxCavZorRIjQTYduXndYxGPIE8sirTJCun7OX7SseeQhIVw6MGc2ZsLM8NjGzmhPn93cXgxuvMU3/qP76y/vzn/7SCJ6+/CR9Vhb1PXbCs9f1X1CGJ1jZN6dnTEIQ57Z10EnUBn3hx9GmKB9VpwTs9VGOadcLpzIzCqVTBmLCJr/k3Nj/1DRJuhvA4yoxZPSK2RZgukm9N5XQxWwDUy45CnQGwKhbSuwUPDL2ZOQcvqwmwyfgbEak4kmrLAJCb5QND6TUruyPpcl5CB2rWV0RW5uYyzRNvaus5fIPEmC3bSydlmDcIguljNfT8fcvCyiPvCabV9dMrAANP+K1RPskYuluq1ELWqG5kolHOQzlm7Uoo4TQ2I4wghMhY4h9CEWlqfm0G/UKwSgNWxq6MNqOyqtdHwazANtxGX+JIxFVV9IJ0FdFRDsi4M4qAJMvmEqZqUpJpXsJgopx1WHYVax0LFF2SLEBGSw0X1HYz407Jo0nQ8HLvy95JKNdc47SGRmb80i89Q6mvjM97T79L4cZrAKhJoXtULdRhRCdFv1zLTZI6OyR+98bx54WcgpHPAznFyj4UxhT2PTvg125F/lj8VDO4HJkBB9gs/PzujRNH6fI/sYE+cJuyuU0cETecN4sKMZKwy6xgILTT6AKBJkCZJRDZgO0w7+Ua4gXKpxrZU+lXCu3OYfZb08cW0jDbtaKFvhtpg20BErM+MmqR+Qe/b36UTL78/PDzP2AImInB7zPp6crohbEEmj95sK2KyN1Z+II7HcgmPgpi8Tx43yDlKOUrM4xt6fMLiw4BULvazqgsHGtOrYNstdQCr+JAGuhPapBrPPaql3QbF8sj/MPMXGu1/o1Utgn6Kiil4MxaVPwXPGSpU/x+PRAaCvj5TbpXJXBT/9M0D+7Ac9uir0yqtCz5Ftb88nqEeFcVfdFK6eIM0S3pr8VYSb9VcTN2ewH5iteem4szn8JiXEtJxjdUl7MNXXWnOhmqyxqqfaddMnkFg4dM9jg9Hw4BTXYCzK2RzCb1z6S2BKW2hQOYCIrwT66zkXb5wUuy6sQeOIUCnqRjQkigU6PV9RoikVuEj+FHHcD4Bnh1Ttkvb/lfy/dyUvupIooZcluItynGvHmr7dJgG1G6qWScHX78WNqGo6rN4lNSmqb7dzMPwvnex2JMY21HhZn1A3gBYwpxqeEH0uOURIpcS33/im5CZpu47kSD3JHam0OZ/42O8YuIMc1Z3WeGR0ez9G5Xnx8yFVEe3RsCbyw//9wP1KcSklBSfDOQFykRNN9wOPSX//AscvCgY=
+sidebar_class_name: "post api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Provision Zone"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"post"}
+  path={"/vyos/firewall/zones/provision"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Atomically provision a new zone with all firewall chains and from-zone assignments.
+
+Creates in a single VyOS transaction:
+- The zone with its configuration
+- IPv4 + IPv6 chains for every zone pair (both directions), default drop
+- From-zone assignments wired for each pair
+- If is_first_zone: LOCAL zone + LOCAL-&#123;zone&#125; / &#123;zone&#125;-LOCAL chains (default drop + rule 100 accept)
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./provision-zone-vyos-firewall-zones-provision-post.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./provision-zone-vyos-firewall-zones-provision-post.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

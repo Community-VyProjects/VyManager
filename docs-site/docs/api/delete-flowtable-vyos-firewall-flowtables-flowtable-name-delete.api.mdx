@@ -1,0 +1,78 @@
+---
+id: delete-flowtable-vyos-firewall-flowtables-flowtable-name-delete
+title: "Delete Flowtable"
+description: "Delete a flowtable."
+sidebar_label: "Delete Flowtable"
+hide_title: true
+hide_table_of_contents: true
+api: eJzlVU1v2zgQ/SsET10gjYtgT755GwdrwG2CxNscksAYSyObLUWqJOXUMPTfd4aUZDneZIteGxgxTc4X37x53MsAay/HD7JQDp9B6/eFts8BVhq9fDqTOfrMqSooa+RYXqLGgAJEb3T+aB7NxK39+NEI+nP4vUYfxuIKfJjczLoNYVdfMQvJqPdeGihxLD7Tf2ELETZ4OBPBijzm4xS3GGpnuixfdtd3t+grazyKZxU2wtdZht6PClC6diiUKawrgetO7t9ruqAX97ezxVRU6ErlPR0K+lzNbqf3k/l8eTW/vl9M/ppP70SBQAnxXJ5JS9Yx0CwnCFJJy8MVtjvrlx16h32/XB5fc7lMrhSxAkcbAR0jv5d8SpGPzclMMeQVhA2tXboAVRBcjWfSZxssQY73Muwq9vbBKbMmy6CC5o2rHkiGVzbNE0dJmHl2vPjwgb+OO3yXcCxqLTqAKWZmTUAT2ByqSqss4jH66tlnPyimcoxWUClD25RBlStrNYIZlNkmlA1xDUIMAmZ3XURkIM8VZwJ9MwicEGgjJl6Re5/D1FpLvm2X4pLjUnx0zrrjBMfgvRVkGp2b5mXiYWse+hsPHIdclS8H6i6AycHlouuMKJwtI79Fzzt/Tnk5858XF6cd+wJa5dFOpBp/uV05BpoeXqmApT810DY7Ov0JHBVVskYC7umAHDgHuwEF5jYVyD0q/fotUn8icGGNsg/2umkEQyz4tOFZquoISHc8ixt0koUfgzB9Vzu7j4zlj/C/nWdsUvmt3ZACfYtaFr0KxWVqwX8l60z+XixuTgImfpCmbOxBpKLSkHqM5YhFatSJ1OggUqP9seo0UXYKO0QqkvETGMK9JFYJUvUTHndqv4LsG5pckPiKkl2oJ4nNOW4VjUZS6y1JHzm+h2cgrc5sSba5p6jtQbzClnGqrA90yPW0Mtm+Qb28vaxlf6D/7/letcRh1o4qDSrOVe3iYCc+PEjmA5l2jODl4dk/k+MXbxFxeUONYM/9fgUe/3G6aXibwHI72qflFpyKDWFByJXnNZGxAO3xjR69a++a/yFeK74bFsOjsgVd8y9afsPd6bsZlWaDkJPqcCXJaEJwV2HgfiKMLPb9AF1O59PFlObqX0NxLcg=
+sidebar_class_name: "delete api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Delete Flowtable"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"delete"}
+  path={"/vyos/firewall/flowtables/{flowtable_name}"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Delete a flowtable.
+
+Args:
+    request: FastAPI request object
+    flowtable_name: Name of the flowtable to delete
+
+Returns:
+    VyOSResponse with success/failure information
+
+Requires WRITE permission on FIREWALL_FLOWTABLES feature.
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails
+  {...require("./delete-flowtable-vyos-firewall-flowtables-flowtable-name-delete.ParamsDetails.json")}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./delete-flowtable-vyos-firewall-flowtables-flowtable-name-delete.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./delete-flowtable-vyos-firewall-flowtables-flowtable-name-delete.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

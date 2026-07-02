@@ -1,0 +1,279 @@
+---
+id: batch-configure-vyos-wireless-batch-post
+title: "Batch Configure"
+description: "Configure a wireless interface using batch operations."
+sidebar_label: "Batch Configure"
+hide_title: true
+hide_table_of_contents: true
+api: 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
+sidebar_class_name: "post api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Batch Configure"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"post"}
+  path={"/vyos/wireless/batch"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Configure a wireless interface using batch operations.
+
+**Basic operations (all versions):**
+| Operation | Value | Description |
+|-----------|-------|-------------|
+| `set_interface_type` | Yes | Wireless type (access-point/station/monitor) |
+| `delete_interface_type` | No | Reset type to default |
+| `set_interface_mode` | Yes | Radio mode (a/b/g/n/ac/ax) |
+| `delete_interface_mode` | No | Reset mode |
+| `set_interface_ssid` | Yes | Set SSID |
+| `delete_interface_ssid` | No | Remove SSID |
+| `set_interface_channel` | Yes | Set channel (0=ACS) |
+| `delete_interface_channel` | No | Reset channel |
+| `set_interface_description` | Yes | Set description |
+| `delete_interface_description` | No | Remove description |
+| `set_interface_address` | Yes | Add IP address (CIDR) |
+| `delete_interface_address` | Yes | Remove IP address |
+| `set_interface_disable` | No | Disable interface |
+| `delete_interface_disable` | No | Enable interface |
+| `set_interface_mac` | Yes | Set MAC address |
+| `delete_interface_mac` | No | Remove MAC override |
+| `set_interface_hw_id` | Yes | Set hardware MAC ID |
+| `delete_interface_hw_id` | No | Remove hardware MAC |
+| `set_interface_physical_device` | Yes | Set physical device (phy0) |
+| `delete_interface_physical_device` | No | Remove physical device |
+| `set_interface_vrf` | Yes | Assign to VRF |
+| `delete_interface_vrf` | No | Remove VRF |
+| `set_interface_mtu` | Yes | Set MTU |
+| `delete_interface_mtu` | No | Reset MTU |
+| `delete_interface` | No | Delete entire interface |
+
+**AP settings:**
+| `set_disable_broadcast_ssid` | No | Hide SSID |
+| `delete_disable_broadcast_ssid` | No | Broadcast SSID |
+| `set_expunge_failing_stations` | No | Kick failing stations |
+| `delete_expunge_failing_stations` | No | Allow failing stations |
+| `set_isolate_stations` | No | Isolate clients |
+| `delete_isolate_stations` | No | Allow client communication |
+| `set_max_stations` | Yes | Max connected clients |
+| `delete_max_stations` | No | Remove station limit |
+| `set_mgmt_frame_protection` | Yes | MFP mode (disabled/optional/required) |
+| `delete_mgmt_frame_protection` | No | Reset MFP |
+| `set_per_client_thread` | No | Per-client thread mode |
+| `delete_per_client_thread` | No | Shared thread mode |
+| `set_reduce_transmit_power` | No | Reduce TX power |
+| `delete_reduce_transmit_power` | No | Normal TX power |
+| `set_stationary_ap` | No | Stationary AP mode |
+| `delete_stationary_ap` | No | Mobile AP mode |
+| `set_enable_bf_protection` | No | Enable beacon frame protection |
+| `delete_enable_bf_protection` | No | Disable beacon protection |
+
+**Security - WPA:**
+| `set_security_wpa_mode` | Yes | WPA mode (wpa/wpa2/wpa+wpa2/wpa3) |
+| `delete_security_wpa_mode` | No | Remove WPA mode |
+| `set_security_wpa_passphrase` | Yes | WPA passphrase |
+| `delete_security_wpa_passphrase` | No | Remove passphrase |
+| `set_security_wpa_cipher` | Yes | Add cipher (CCMP/TKIP/etc) |
+| `delete_security_wpa_cipher` | Yes | Remove specific cipher |
+| `delete_security_wpa_cipher_all` | No | Remove all ciphers |
+| `set_security_wpa_group_cipher` | Yes | Group cipher |
+| `delete_security_wpa_group_cipher` | No | Remove group cipher |
+| `set_security_wpa_group_mgmt_cipher` | Yes | Group management cipher |
+| `delete_security_wpa_group_mgmt_cipher` | No | Remove group mgmt cipher |
+| `set_security_wpa_radius_server` | Yes | Add RADIUS server |
+| `delete_security_wpa_radius_server` | Yes | Remove RADIUS server |
+| `set_security_wpa_radius_server_key` | Yes | server:key format |
+| `set_security_wpa_radius_server_port` | Yes | server:port format |
+| `set_security_wpa_radius_server_accounting` | Yes | Enable accounting |
+| `delete_security_wpa_radius_server_accounting` | Yes | Disable accounting |
+| `set_security_wpa_radius_server_disable` | Yes | Disable RADIUS server |
+| `delete_security_wpa_radius_server_disable` | Yes | Enable RADIUS server |
+| `set_security_wpa_radius_source_address` | Yes | RADIUS source address |
+| `delete_security_wpa_radius_source_address` | No | Remove source address |
+| `delete_security_wpa` | No | Remove all WPA config |
+
+**Security - WEP:**
+| `set_security_wep_key` | Yes | Add WEP key |
+| `delete_security_wep` | No | Remove WEP config |
+
+**Security - Station filtering:**
+| `set_security_station_address_mode` | Yes | Mode (accept/deny) |
+| `delete_security_station_address_mode` | No | Remove mode |
+| `set_security_station_accept_mac` | Yes | Add MAC to accept list |
+| `delete_security_station_accept_mac` | Yes | Remove MAC from accept |
+| `delete_security_station_accept_all` | No | Clear accept list |
+| `set_security_station_deny_mac` | Yes | Add MAC to deny list |
+| `delete_security_station_deny_mac` | Yes | Remove MAC from deny |
+| `delete_security_station_deny_all` | No | Clear deny list |
+| `delete_security` | No | Remove all security config |
+
+**Capabilities - HT (802.11n):**
+| `set_cap_ht_channel_set_width` | Yes | ht20/ht40+/ht40- |
+| `delete_cap_ht_channel_set_width` | Yes | Remove specific width |
+| `delete_cap_ht_channel_set_width_all` | No | Clear all widths |
+| `set_cap_ht_40mhz_incapable` | No | Declare 40MHz incapable |
+| `delete_cap_ht_40mhz_incapable` | No | Allow 40MHz |
+| `set_cap_ht_auto_powersave` | No | HT auto power save |
+| `delete_cap_ht_auto_powersave` | No | No HT auto power save |
+| `set_cap_ht_delayed_block_ack` | No | Delayed block ack |
+| `delete_cap_ht_delayed_block_ack` | No | Immediate block ack |
+| `set_cap_ht_dsss_cck_40` | No | DSSS/CCK in 40MHz |
+| `delete_cap_ht_dsss_cck_40` | No | No DSSS/CCK in 40MHz |
+| `set_cap_ht_greenfield` | No | Greenfield mode |
+| `delete_cap_ht_greenfield` | No | No greenfield |
+| `set_cap_ht_ldpc` | No | LDPC coding |
+| `delete_cap_ht_ldpc` | No | No LDPC |
+| `set_cap_ht_lsig_protection` | No | L-SIG TXOP protection |
+| `delete_cap_ht_lsig_protection` | No | No L-SIG protection |
+| `set_cap_ht_max_amsdu` | Yes | Max A-MSDU (3839/7935) |
+| `delete_cap_ht_max_amsdu` | No | Reset A-MSDU |
+| `set_cap_ht_short_gi` | Yes | Short GI width (20/40) |
+| `delete_cap_ht_short_gi` | Yes | Remove specific short GI |
+| `delete_cap_ht_short_gi_all` | No | Remove all short GI |
+| `set_cap_ht_smps` | Yes | SMPS mode (static/dynamic) |
+| `delete_cap_ht_smps` | No | Disable SMPS |
+| `set_cap_ht_stbc_rx` | Yes | STBC RX streams |
+| `delete_cap_ht_stbc_rx` | No | Disable STBC RX |
+| `set_cap_ht_stbc_tx` | No | Enable STBC TX |
+| `delete_cap_ht_stbc_tx` | No | Disable STBC TX |
+| `delete_cap_ht` | No | Remove all HT capabilities |
+| `set_cap_require_ht` | No | Require HT association |
+| `delete_cap_require_ht` | No | Allow non-HT |
+
+**Capabilities - VHT (802.11ac):**
+| `set_cap_vht_antenna_count` | Yes | Antenna count |
+| `delete_cap_vht_antenna_count` | No | Remove antenna count |
+| `set_cap_vht_antenna_pattern_fixed` | No | Fixed antenna pattern |
+| `delete_cap_vht_antenna_pattern_fixed` | No | Variable pattern |
+| `set_cap_vht_beamform` | Yes | Beamform mode |
+| `delete_cap_vht_beamform` | Yes | Remove beamform mode |
+| `delete_cap_vht_beamform_all` | No | Remove all beamform |
+| `set_cap_vht_center_channel_freq_1` | Yes | Center freq 1 |
+| `delete_cap_vht_center_channel_freq_1` | No | Remove center freq 1 |
+| `set_cap_vht_center_channel_freq_2` | Yes | Center freq 2 |
+| `delete_cap_vht_center_channel_freq_2` | No | Remove center freq 2 |
+| `set_cap_vht_channel_set_width` | Yes | Channel width (0-3) |
+| `delete_cap_vht_channel_set_width` | No | Reset channel width |
+| `set_cap_vht_ldpc` | No | LDPC coding |
+| `delete_cap_vht_ldpc` | No | No LDPC |
+| `set_cap_vht_link_adaptation` | Yes | Link adaptation mode |
+| `delete_cap_vht_link_adaptation` | No | Remove link adaptation |
+| `set_cap_vht_max_mpdu_exp` | Yes | Max MPDU exponent |
+| `delete_cap_vht_max_mpdu_exp` | No | Reset MPDU exponent |
+| `set_cap_vht_max_mpdu` | Yes | Max MPDU (7991/11454) |
+| `delete_cap_vht_max_mpdu` | No | Reset max MPDU |
+| `set_cap_vht_short_gi` | Yes | Short GI (80/160) |
+| `delete_cap_vht_short_gi` | Yes | Remove specific GI |
+| `delete_cap_vht_short_gi_all` | No | Remove all short GI |
+| `set_cap_vht_stbc_rx` | Yes | STBC RX streams |
+| `delete_cap_vht_stbc_rx` | No | Disable STBC RX |
+| `set_cap_vht_stbc_tx` | No | Enable STBC TX |
+| `delete_cap_vht_stbc_tx` | No | Disable STBC TX |
+| `set_cap_vht_tx_powersave` | No | VHT TX power save |
+| `delete_cap_vht_tx_powersave` | No | No TX power save |
+| `set_cap_vht_vht_cf` | No | VHT HT operation |
+| `delete_cap_vht_vht_cf` | No | No VHT-CF |
+| `delete_cap_vht` | No | Remove all VHT capabilities |
+| `set_cap_require_vht` | No | Require VHT association |
+| `delete_cap_require_vht` | No | Allow non-VHT |
+
+**Capabilities - HE (802.11ax):**
+| `set_cap_he_antenna_pattern_fixed` | No | Fixed antenna pattern |
+| `delete_cap_he_antenna_pattern_fixed` | No | Variable pattern |
+| `set_cap_he_beamform` | Yes | Beamform mode |
+| `delete_cap_he_beamform` | Yes | Remove beamform mode |
+| `delete_cap_he_beamform_all` | No | Remove all beamform |
+| `set_cap_he_bss_color` | Yes | BSS color (1-63) |
+| `delete_cap_he_bss_color` | No | Remove BSS color |
+| `set_cap_he_center_channel_freq_1` | Yes | HE center freq 1 |
+| `delete_cap_he_center_channel_freq_1` | No | Remove center freq 1 |
+| `set_cap_he_center_channel_freq_2` | Yes | HE center freq 2 |
+| `delete_cap_he_center_channel_freq_2` | No | Remove center freq 2 |
+| `set_cap_he_channel_set_width` | Yes | HE channel width |
+| `delete_cap_he_channel_set_width` | No | Reset channel width |
+| `set_cap_he_coding_scheme` | Yes | Coding scheme (0-3) |
+| `delete_cap_he_coding_scheme` | No | Reset coding scheme |
+| `delete_cap_he` | No | Remove all HE capabilities |
+| `set_cap_require_he` | No | Require HE association |
+| `delete_cap_require_he` | No | Allow non-HE |
+| `delete_capabilities` | No | Remove all capabilities |
+
+**IP / IPv6 settings:**
+| `set_ip_disable_forwarding` | No | Disable IPv4 forwarding |
+| `delete_ip_disable_forwarding` | No | Enable IPv4 forwarding |
+| `set_ip_source_validation` | Yes | strict/loose/disable |
+| `delete_ip_source_validation` | No | Remove source validation |
+| `set_ip_enable_proxy_arp` | No | Enable proxy ARP |
+| `delete_ip_enable_proxy_arp` | No | Disable proxy ARP |
+| `set_ip_arp_cache_timeout` | Yes | ARP cache timeout |
+| `delete_ip_arp_cache_timeout` | No | Reset ARP cache timeout |
+| `set_ipv6_disable_forwarding` | No | Disable IPv6 forwarding |
+| `delete_ipv6_disable_forwarding` | No | Enable IPv6 forwarding |
+| `set_ipv6_address_eui64` | Yes | EUI-64 prefix |
+| `delete_ipv6_address_eui64` | Yes | Remove specific EUI-64 |
+| `delete_ipv6_address_eui64_all` | No | Remove all EUI-64 |
+| `set_ipv6_address_no_default_link_local` | No | Remove link-local |
+| `delete_ipv6_address_no_default_link_local` | No | Restore link-local |
+
+**Mirror / Redirect:**
+| `set_mirror_ingress` | Yes | Mirror ingress to interface |
+| `delete_mirror_ingress` | No | Remove ingress mirror |
+| `set_mirror_egress` | Yes | Mirror egress to interface |
+| `delete_mirror_egress` | No | Remove egress mirror |
+| `set_redirect` | Yes | Redirect incoming packets |
+| `delete_redirect` | No | Remove redirect |
+
+**VyOS 1.4 only:**
+| `set_country_code` | Yes | Regulatory country code (e.g., US) |
+| `delete_country_code` | No | Remove country code |
+
+**VyOS 1.5 only:**
+| `set_bssid` | Yes | Target BSSID (MAC) for station mode |
+| `delete_bssid` | No | Remove BSSID |
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./batch-configure-vyos-wireless-batch-post.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./batch-configure-vyos-wireless-batch-post.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

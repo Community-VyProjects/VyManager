@@ -1,0 +1,70 @@
+---
+id: reorder-access-list-rules-vyos-access-list-reorder-post
+title: "Reorder Access List Rules"
+description: "Reorder rules in an access-list."
+sidebar_label: "Reorder Access List Rules"
+hide_title: true
+hide_table_of_contents: true
+api: eJzNV0tvIjkQ/iuWTzsSCSiK5sAtO5nVIE0mUcLOhSBkug144rZ7bTcJQvz3rbL74aYhYYfLRlECdvmrcj2+Km+pY0tLhxPKkoRbeyGFdXTaoym3iRG5E1rRIX3k2qTcEFNIbolQhMFvc+DyWT2r8UpYwlWaa6EcSbnkDmSZlIS/gYxQy/I4UykxPDGcoYBb8Yy8Crciir8SVWRzbuyzQh3EwiHJyc/N/RNJdJYJRxbaEOZ0JhLhNpe0R3XODUMzRykYaoKhs2DcDI2bea2z9Ubb9nIpmmu4cQ9O/lNw6/7U6YYOtzTRynHl8CPLcykSr6P/y6I/ttQmYDbDT7lBC5zgFr+JFA6JheAGv7lNzsEo6wxcBHQ44SQujBqpfU/feAsJWlg6g/wxelhffyJwccUy7r9+/kR3PeqvEXQc1/Udkca4ua9K5OtrRIX/nxHO+8lfwvHMdu+mZToLJkX6INZ86e9RKbyXKfkRxAAUgnrKoR8Q++YQWjJLmTvgYL91AuAjyEWILAmXPu6nmyCx2/MShF9t7hdQIftHd716RRVS0t20AbuNIADR6sIkvA7V7yA+eYgQyAaRpamBdDkT9KZEaXAzZl/OBL1DiAaRv0EIANclq4PAc60lZ+oU5K8IBfgIFcIF5OLL8ywP3zY4tZtj7DN9HcNHDo81nOP1GD64HsBLYT3/xZOK44ThKfJ9XEh1fUzjekAiQvbAUuqQx50Ghg9s3GoFnuMvP9QecUmLI+Laj4wp+w9aMgJyes+aqmkgDnYqU7WuwO+XtLGMGcM2e5xhPzRdxOTdUHDFn12rI08GG94xv7S2aZbdXgsG7mKLnCm4X7C5Vjaw5NVggP/aWp4Kj7IoJHkshcGSUxvdzqu9vrrqAv9kUqQh9b4ao81/QN1j95Q7JuQ7PUjqpLV7QqlUvWE3PR757zoYiMmR2eV7feIOXMiWvEmj46LeGTWXCJUX3iH1FOAXYCdxbxFMnXSV3Bf05Zv7MDHRN8H8Ui5KxSZEIULHXXEbQnBIWSXybTx+6ACG/Mi4W2kcxMqpKmcO+J72cfrqR1ncLxMdRDAnHpvhC9g9yyXfH6Ya70ZTT7NYzi6T9pQyaM8fg73JojVLDJohoYFt53m93OrnneW6UXR2AsF3llu9Ecv5UFNrGdVtSoe32wp3vgSEWug4Df10fccUJHUG/iY3D6POzf9i1sE6mbPkBUZ8T1UZHkGi8gApXwuIbpjk1zDCw8EL9soM95M7zPwWUMsNQAR5TEJME9hEe3C4jZ4a5SDsx9dAzJ3JrCaZ//P7pIweVnA/l0x4jimMJ7lQHROK1eGbcPME61VPGaziFRYTyG23c2b530budrgMNWPgsTKBj2tmBJtjPCcY4xVneBTr4YVvKg5R7qJ8CKyZLHzx73Mz8mY4gf7P3buy06jeH+6fxiA8L59PGXQ0fI6xV7wJ/B1S/1bD02GOxzXgc6aWBdLpkAZM/PkXqkQZRw==
+sidebar_class_name: "post api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Reorder Access List Rules"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"post"}
+  path={"/vyos/access-list/reorder"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Reorder rules in an access-list.
+
+This endpoint deletes all existing rules and recreates them with new numbers
+in a single VyOS commit for atomicity.
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./reorder-access-list-rules-vyos-access-list-reorder-post.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./reorder-access-list-rules-vyos-access-list-reorder-post.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      
