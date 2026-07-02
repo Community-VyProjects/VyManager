@@ -1,0 +1,58 @@
+name: Docs OpenAPI Spec Check
+
+# Fails when the committed OpenAPI spec no longer matches the backend code.
+# The API reference pages in docs-site are generated from
+# docs-site/openapi/vymanager.json, which is committed to the repository.
+# This job re-exports the spec from the FastAPI app and diffs it against
+# the committed file, so a PR that changes routes without regenerating the
+# docs is caught in review instead of after merge.
+#
+# The generated .mdx pages are intentionally NOT regenerated here; the spec
+# diff is the reliable drift signal. See docs-site's Contributing page for
+# the full regeneration steps.
+
+on:
+  pull_request:
+    paths:
+      - 'backend/**'
+      - 'docs-site/**'
+
+jobs:
+  spec-check:
+
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          # Matches the backend production image (python:3.11-slim)
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install backend dependencies
+        run: pip install -r backend/requirements.txt
+
+      - name: Export OpenAPI spec from the app
+        working-directory: backend
+        run: python export_openapi.py
+
+      - name: Diff committed spec against export
+        run: |
+          if ! git diff --exit-code -- docs-site/openapi/vymanager.json; then
+            echo ""
+            echo "The committed OpenAPI spec is out of date with the backend code."
+            echo "Regenerate it and the API reference pages, then commit the result:"
+            echo ""
+            echo "  cd backend && python export_openapi.py"
+            echo "  cd docs-site && npm run clean-api-docs vymanager && npm run gen-api-docs vymanager"
+            echo ""
+            echo "See the Contributing > Regenerating the API reference page in the docs."
+            exit 1
+          fi

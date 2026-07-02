@@ -17,11 +17,13 @@ from app import app
 OUTPUT = os.path.join(os.path.dirname(__file__), "..", "docs-site", "openapi", "vymanager.json")
 
 def _escape_mdx(value):
-    """Escape angle brackets and braces in description/summary strings.
+    """Escape '<' and curly braces in description/summary strings.
 
     Endpoint docstrings contain placeholders like <interface-name> and literal
     {json} examples. The docs generator emits them into MDX, where an unescaped
-    '<' or '{' is parsed as JSX and breaks the docs build.
+    '<' starts a JSX tag and an unescaped '{' starts a JSX expression - either
+    breaks the docs build. A bare '>' is not special in MDX (only '<' opens a
+    tag), so it is left alone.
     """
     return value.replace("<", "&lt;").replace("{", "&#123;").replace("}", "&#125;")
 
