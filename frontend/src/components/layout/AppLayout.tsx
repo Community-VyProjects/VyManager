@@ -15,7 +15,17 @@ import { ErrorBoundary } from "../error/ErrorBoundary";
 import { installGlobalErrorCapture } from "@/lib/error-capture";
 
 
-function AppLayoutInner({ children }: { children: React.ReactNode }) {
+interface AppLayoutProps {
+  children: React.ReactNode;
+  /**
+   * Render the layout even when no VyOS instance session is active instead of
+   * redirecting to the site manager. Used by pages that provide their own
+   * disconnected state (currently the dashboard's zero-instance panel).
+   */
+  allowWithoutInstance?: boolean;
+}
+
+function AppLayoutInner({ children, allowWithoutInstance = false }: AppLayoutProps) {
   const router = useRouter();
   const { activeSession, loadSession } = useSessionStore();
   const [isChecking, setIsChecking] = useState(true);
@@ -39,10 +49,10 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
 
   // Redirect to sites page if no active instance
   useEffect(() => {
-    if (!isChecking && !activeSession) {
+    if (!isChecking && !activeSession && !allowWithoutInstance) {
       router.push("/sites");
     }
-  }, [isChecking, activeSession, router]);
+  }, [isChecking, activeSession, allowWithoutInstance, router]);
 
   // Show loading while checking session
   if (isChecking) {
@@ -57,7 +67,7 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
   }
 
   // Show nothing while redirecting (when no active session)
-  if (!activeSession) {
+  if (!activeSession && !allowWithoutInstance) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
@@ -97,6 +107,6 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function AppLayout({ children }: { children: React.ReactNode }) {
-  return <AppLayoutInner>{children}</AppLayoutInner>;
+export function AppLayout({ children, allowWithoutInstance }: AppLayoutProps) {
+  return <AppLayoutInner allowWithoutInstance={allowWithoutInstance}>{children}</AppLayoutInner>;
 }

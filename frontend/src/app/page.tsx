@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Github, Globe, MessageCircle, Sparkles, ArrowUpCircle, Tag } from "lucide-react";
 import { useSession } from "@/lib/auth-client";
 import { useSessionStore } from "@/store/session-store";
+import { sessionService } from "@/lib/api/session";
 import { dashboardService, DashboardCard, DashboardLayout } from "@/lib/api/dashboard";
 import {
   compactLayout,
@@ -27,6 +28,7 @@ import { VrrpStatusCard } from "@/components/dashboard/VrrpStatusCard";
 import { BgpStatusCard } from "@/components/dashboard/BgpStatusCard";
 import { IpsecCard } from "@/components/dashboard/IpsecCard";
 import { AddCardModal } from "@/components/dashboard/AddCardModal";
+import { ConnectFirstInstance } from "@/components/dashboard/ConnectFirstInstance";
 import {
   DndContext,
   DragEndEvent,
@@ -122,7 +124,9 @@ export default function Home() {
   const router = useRouter();
   const [isChecking, setIsChecking] = useState(true);
   const { data: session, isPending } = useSession();
-  const { loadSession } = useSessionStore();
+  const { activeSession, loadSession } = useSessionStore();
+  // null = not determined yet; true = no instance exists anywhere the user can see
+  const [noInstances, setNoInstances] = useState<boolean | null>(null);
 
   // Dashboard state
   const [cards, setCards] = useState<DashboardCard[]>([]);
@@ -202,6 +206,36 @@ export default function Home() {
       }
 
       await loadSession();
+
+      const currentSession = useSessionStore.getState().activeSession;
+      if (!currentSession) {
+        // Disconnected. Distinguish "no instance exists anywhere" (render the
+        // zero-instance panel) from "instances exist but none is connected"
+        // (send the user to the site manager to pick one).
+        try {
+          const sites = await sessionService.listSites();
+          let instanceCount = 0;
+          if (sites.length > 0) {
+            const instanceLists = await Promise.all(
+              sites.map((site) => sessionService.listInstances(site.id).catch(() => []))
+            );
+            instanceCount = instanceLists.reduce((sum, list) => sum + list.length, 0);
+          }
+          if (instanceCount === 0) {
+            setNoInstances(true);
+          } else {
+            setNoInstances(false);
+            router.push("/sites");
+          }
+        } catch {
+          // Cannot determine - fall back to the site manager as before
+          setNoInstances(false);
+          router.push("/sites");
+        }
+        setIsChecking(false);
+        return;
+      }
+
       // Always try to load dashboard - the API will return empty if no layout exists
       await loadDashboard();
 
@@ -226,6 +260,22 @@ export default function Home() {
   }, [router, session, isPending, loadSession]);
 
   if (isPending || isChecking) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!activeSession) {
+    if (noInstances) {
+      return (
+        <AppLayout allowWithoutInstance>
+          <ConnectFirstInstance />
+        </AppLayout>
+      );
+    }
+    // Instances exist but none is connected - redirect to /sites is in flight
     return (
       <div className="min-h-screen w-full flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

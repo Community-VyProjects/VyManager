@@ -148,6 +148,15 @@ export default function OnboardingPage() {
       return;
     }
 
+    await completeOnboarding(true);
+  };
+
+  const handleSkipInstance = async () => {
+    setError("");
+    await completeOnboarding(false);
+  };
+
+  const completeOnboarding = async (withInstance: boolean) => {
     setLoading(true);
     setIsSubmitting(true); // Prevent going back once submission starts
 
@@ -228,22 +237,26 @@ export default function OnboardingPage() {
 
       console.log("[Onboarding] ✓ Site created");
 
-      // Step 3: Create instance
-      console.log("[Onboarding] Step 3/3: Creating VyOS instance...");
-      await sessionService.createInstance({
-        site_id: createdSite.id,
-        name: instanceData.name,
-        description: instanceData.description || undefined,
-        host: instanceData.host,
-        port: instanceData.port,
-        api_key: instanceData.apiKey,
-        vyos_version: instanceData.vyosVersion,
-        protocol: instanceData.protocol,
-        verify_ssl: instanceData.verifySsl,
-        is_active: true,
-      });
+      if (withInstance) {
+        // Step 3: Create instance
+        console.log("[Onboarding] Step 3/3: Creating VyOS instance...");
+        await sessionService.createInstance({
+          site_id: createdSite.id,
+          name: instanceData.name,
+          description: instanceData.description || undefined,
+          host: instanceData.host,
+          port: instanceData.port,
+          api_key: instanceData.apiKey,
+          vyos_version: instanceData.vyosVersion,
+          protocol: instanceData.protocol,
+          verify_ssl: instanceData.verifySsl,
+          is_active: true,
+        });
 
-      console.log("[Onboarding] ✓ Instance created");
+        console.log("[Onboarding] ✓ Instance created");
+      } else {
+        console.log("[Onboarding] Instance step skipped - add a router later in Site Manager");
+      }
       console.log("[Onboarding] Setup complete! Redirecting to sites...");
 
       // Note: Site ADMIN users (which the first user is) automatically have access
@@ -599,6 +612,21 @@ export default function OnboardingPage() {
                     "Complete Setup"
                   )}
                 </Button>
+              </div>
+
+              <div className="text-center mt-4">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="text-sm text-muted-foreground"
+                  onClick={handleSkipInstance}
+                  disabled={loading || isSubmitting}
+                >
+                  Skip for now
+                </Button>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Your account and site are still created. You can add a router later in Site Manager.
+                </p>
               </div>
             </form>
           )}
