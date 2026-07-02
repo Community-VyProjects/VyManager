@@ -8,7 +8,7 @@ import type * as OpenApiPlugin from 'docusaurus-plugin-openapi-docs';
 const config: Config = {
   title: 'VyManager',
   tagline: 'Centralized management for multi-site VyOS routers',
-  favicon: 'img/favicon.ico',
+  favicon: 'img/vy-icon.png',
 
   future: {
     v4: true,
@@ -74,6 +74,10 @@ const config: Config = {
     },
     navbar: {
       title: 'VyManager',
+      logo: {
+        alt: 'VyManager logo',
+        src: 'img/vy-icon.png',
+      },
       items: [
         {
           type: 'docSidebar',
