@@ -1,0 +1,72 @@
+---
+id: get-interface-status-vyos-vpn-wireguard-interface-interface-name-status-get
+title: "Get Interface Status"
+description: "Get runtime status for a WireGuard interface including peer handshake times and transfer stats."
+sidebar_label: "Get Interface Status"
+hide_title: true
+hide_table_of_contents: true
+api: eJzlVVFP2zAQ/iuWH6ZN6ghCe+qkSWhjDGkMBIU9QFUdySUxJI6xnUIU5b/vLkmTlA6kPa8PqWPffb5+d9/XWnpInJzfyCdlMSnBRnI5kxG60CrjVaHlXB6jF7bUXuUonAdfOhEXVoD4TTnHnCOU9mhjCJFWYVZGSifCIFqRgo5cCg8oON0JehXegnYxHTKY27vVt/rK0dl1dXYpXFo8ibDIc4qcd28DuBNDleJd5j8PB1+EKynDVrf6An1ptSMIrTHkXzCtGSFMu8LuwGEk6DQDj86/KHRPzmRh0AIDnEREQoJ+Ndy36iBX66qgh9Groa5JzGSpIaf3PomQCN2ApU0KYPZryRF0y3YKhSlugAGf0triY0n3UDXeljiTLkwxBzmvpa8MZztviXiK9MpnvHEytOUXwzXNklGcKTTxzYkH+/v8td3vyzIkrl1cZuKiDyZMItSj9hwOxmQqbLkJ7h3n1GMxDX1m8tPBwS7wNWQqatPEkbWF/QdUaSz3w6uu7gg9qIxXymPudgOyItw6BV2dxS3T21w1s2GHuU/QymZJ9fd7YC1UE0J/Fl2BlCdzl7zF/SlRCAnKAez10JYMseDThltuypaQsYu8QSehf57AFHf3NOATmK/M5TNFjvUPMePs3LTcdOX3ccsRY2xR16HXqfjWteBvl21CfiwW5zuA3XzQ6KdFr6tWDTThcxmwoAISVDAIKhgkEdTb6miCTlCtSuJiyljrJKegif+cpkscnp/Il672HZynfTKC8AHJldgeck5h72oBIlyrznR8KtakVEr8CE9gcWNQfHd/QIgUz3yZwnk65Hp6VbOBjlK83FS9VU89SuF/Ndx+jHiGA5OBalVW2lbm3YDcSB4QJt1oeo7/WbPROWk937HRflJo0FPqDgPVNRd0ZbOm4e3HEm1F+7Rcg1Vwx3NEbhEpx2ua1Bgyh2807f1FL7EP4rXfslGSZh2tISv5jZYPWO16f2tDKUJElsSVdEGHZM3GT9J3XJM9flDX8dGCFPcHBOXJXA==
+sidebar_class_name: "get api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Get Interface Status"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/vyos/vpn/wireguard/interface/{interface_name}/status"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Get runtime status for a WireGuard interface including peer handshake times and transfer stats.
+
+Uses VyOS show command: show interfaces wireguard &lt;interface&gt; summary
+Returns connection status for each peer based on latest handshake time.
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails
+  {...require("./get-interface-status-vyos-vpn-wireguard-interface-interface-name-status-get.ParamsDetails.json")}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./get-interface-status-vyos-vpn-wireguard-interface-interface-name-status-get.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./get-interface-status-vyos-vpn-wireguard-interface-interface-name-status-get.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

@@ -1,0 +1,65 @@
+---
+id: get-system-capabilities-vyos-system-capabilities-get
+title: "Get System Capabilities"
+description: "Return version-aware feature flags for the system section."
+sidebar_label: "Get System Capabilities"
+hide_title: true
+hide_table_of_contents: true
+api: eJztVMFuE0EM/RVrTkVKmoLEJbcKQVUhRNWUXtqqcmad3WlnZ5aZ2Q1RlH/nOQkQQjlxJYfsjsd+frafd20K19lM70xe5SKteRiZSrJNrisuBjM111L6FGiQlGEY85KT0EIYVjw9omkRE5VGaAdBWazGnt6H+3AD8yLFUCRU1GfJcHT4i9P7MKaPIS5p2TjbaKyPNbWxEk/wYGAMQic+WvY0ZKp9nLMfUZI2FlFLE3N5dQSzJ4Z4sHt9+nYcg1/RyZKLbapYj2jpknjJeUSxk8QlpnGdYt9tgWYNgLQSG1NCFQQXFNdysEJdigvnBXFaXf7pzwM7z3OvUSGUxPZZy+iRxYzMLgsCLis0s5byuOvSo+WO58674iQ/DquYX7xAAEBQUIeUAJyuzZuzM338PqVZby2qWvServfOiLPbxhd1567zzm6ZTJ6yxqxNto20vL2tKqdX7K+SMtbcZlpSLyNTVp0gQ5w/oSMALa542Qpjl4cupNBsN/p3B9zpFkW9eIEAs9HfyLRSmrjvDLA7Lg0OE+3HZNePyWE/4OLCIirlHzRuV59n9IkD19KiVjq/ujTHGv7AucBOc8xGhaiCbTXEhZq2AJUMDg2EPEpzpHUbW/hWmnt/AUT4G9DvIEFcKp/ArdL5SzOOKa1/zeb/hv3bhu31WeRbmXSeXdDB9Mlrk3d6ujOqJ7juv3FYjMPR4JOnharfej3nLF+S32zU/LWXtIIdrwMnpxT0BPxGuJKEw9o8C1zMOfavUwkP7Hvl88fCbR4O5H7x/gYr8B0vyPfi
+sidebar_class_name: "get api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Get System Capabilities"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/vyos/system/capabilities"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Return version-aware feature flags for the system section.
+
+The frontend uses this to:
+- Know which syslog model is active (local vs global, remote vs host)
+- Know which features are 1.5-only (watchdog, wireless, operator-group)
+- Show the correct performance profile options
+- Show available conntrack modules
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./get-system-capabilities-vyos-system-capabilities-get.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./get-system-capabilities-vyos-system-capabilities-get.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

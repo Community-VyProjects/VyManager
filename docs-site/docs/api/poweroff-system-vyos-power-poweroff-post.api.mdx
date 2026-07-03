@@ -1,0 +1,73 @@
+---
+id: poweroff-system-vyos-power-poweroff-post
+title: "Poweroff System"
+description: "Poweroff the VyOS system."
+sidebar_label: "Poweroff System"
+hide_title: true
+hide_table_of_contents: true
+api: eJzdVktv2zgQ/isEL9kASl0Ee9It23aRAA0SxN5igSQwaGlksxVJLUk5EQz/950ZSrZiN2nRY32wpHlzvnlwI6NaBpnfy8Y9gZePmSwhFF43UTsrc3lLZFdVIq5AfOlupiJ0IYJ592Af7A1LhfzBngnrnnKxk9bGQKlVhLoTTzquXBtF4WylvVGkQxoqjhRUFKGBQle6EFEbEH9cXubX16JypHFK8tqOHVjxrzDathECMQtlC6hz8YGfQokGbKntUjS9hsyka8Cz96sSTzYw5ulA83XnwpyJ8x2rcSGioof/WgjxL1d2Mt9IPEgEG+lVNU2tCzY6+RooYxsZihUYRW+NJ5dRQ2DZIuV0I2PXAEYQoscI0T7Y1hAGmEP8UuRSW/xLhyJQoo41qVwkG4coJbIguzkhkWE+M8xRJpzvUyO3mVyrugUOxXY3FXo8DGWb7Si2rVFn5PoLKx96ZiqhJE5UPOlROyW3J9ridw/Rqdyi/960W3yFYsir9lDS2fvsjBwy1ulkdwmAI+89XRhXIugUBUMnkrHwDr1ux26ib4EJoUF2guX8/Xt6vDQ8bYsCQqjaWtz1woTHrwEfkrER8gvnalCE43DY3iGhZPCplvC9Qhmkr3sRlCanZVtDOae2eQvcTKZmQkqJnXnG8m8hPh1MixmL/gDB4Zj7E7wG5i6hh2gmhqi8My+QZCDR/Z/n58dYYQnqkpEQn7x3/teBKiEqXdObxokQjgVqV7zg/kQfaYxkiZN1+7hPn/JedSM4P7sUIKMflj+JfBJ5XZSTIWbE3dJAaVpOyMC+YgJyivg8MrODdpD7QLl8jj+En3KTwu/lXs6OHqKE0Oup+Jgg+J6zQeRyNrs9MpjqwwCumjTceVo0Kq7wa0KzfcIFNRntAyqHu/1o//SsTFPDeFT3E7mfm3t0MZuVGyeTN+O1sgiNwcITF7dXR+X9twoR6WKhim+4nHhcGVKhNcUGSlhrbCHemGINPqDimXpSHnB5GpQtqbt6BrUxrCkYOiwyKR6rzK7baE1OebcdhjJaYb/Vgu8rhsp10tRKc0O1njs6lcK9pFKgyuDrTra7BVC1rqhoUGSzWagA//h6uyUyFojHvX//SIXgtVoQ4vfUzitQJVqh/v8G3dArNp5x0+3r5mgG0XxIGhc4M5v4puzjqK5vb6YzFF70NxHae0j1iqqU/nPJ9xxGjQSYhnNL2WXLO0Umm/T7H+rMdaU=
+sidebar_class_name: "post api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Poweroff System"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"post"}
+  path={"/vyos/power/poweroff"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Poweroff the VyOS system.
+
+Options:
+- now: Poweroff immediately without confirmation
+- at: Poweroff at specific time (HH:MM format)
+- in: Poweroff in X minutes
+- cancel: Cancel a pending poweroff
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./poweroff-system-vyos-power-poweroff-post.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./poweroff-system-vyos-power-poweroff-post.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

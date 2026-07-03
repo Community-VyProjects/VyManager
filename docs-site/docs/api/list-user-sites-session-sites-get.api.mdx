@@ -1,0 +1,63 @@
+---
+id: list-user-sites-session-sites-get
+title: "List User Sites"
+description: "Get all sites the user has access to."
+sidebar_label: "List User Sites"
+hide_title: true
+hide_table_of_contents: true
+api: eJzlVEtPGzEQ/iuWL4AUEtQjUg8ptAiJR0WaXgBFk91J1uD1LvZs6Cra/94ZryGPVhx67SVZz+Obb8bfeK0JlkGf3uuAIZjK6ceBzjFk3tQkx1N9gaTAWhUMYVBUoGoCelVAUJBlnKWoGj64BzfhADU+v768iRFBHfrK4ueDaDpQxiUzwdzikQrI0VdXPS4D3DK0TyHiq5xtU9FX9qCUbrnsChkqELgMEwFOnjJ95fBV3X0Zn6nQBsJSHQrY7C14JmyYs8v7IkM5Hw31QFc1epBuL3Pu15pAs5gZi8/SYNJpicQZHkNdOfbo07X+dHIif7tTmzSR2qKx6i4Fc15WOUJHEg51bU0Wy46eguSsdcgKLEG+uFYZwWsv7Mj0pUwuv9TWyCUCeeOWjEqGrBiYfjfQDkr8KOpG/N3eLTMf194uWAj7id3g3eIaa3X3uIE634JgRBnoR5XvxM9xmUcgzGdAf4teVL4Uj8456JhMiVsQZ32qGpMANXX+r0DTPjUCMVLKreZPmPUX/NIYj7lsBg89TTW1uNPBDout2cg2bN38rjreHKqscrSKmSqIWh/qDRnwHtrt8b0lXbFC1VSWcBLXY9IrNJ14X7mlTroqkYpKNN2rtgYq+DBKih5FRbPduEUVB5gK/WxvJ+oaHCyxZLWq8ffLPzr4BoHYruaQPSOvlLRQSgrPXkWAHFcmk+U1VKgVLxwnHsMr8CZnVcmxudRODrklXEnzdRWIncKnV7Lea3efynqzVf/BW5W0QfiLRrUFExev8Ta+FfF+N0/5QPc3zKoseKriWq/nEHDqbdeJ+aVB37KdP1fgjTQrJ4YsEHL08T14Rg7RY6Zfi4pWYJsoz/0HTF6Gd8VdfP3BKvwN3Hczfw==
+sidebar_class_name: "get api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"List User Sites"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/session/sites"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Get all sites the user has access to.
+
+Site ADMIN users (role='ADMIN' in users table) see ALL sites.
+Other users see only sites where they have instance access.
+Uses new RBAC system (user_instance_roles and users.role).
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./list-user-sites-session-sites-get.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./list-user-sites-session-sites-get.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

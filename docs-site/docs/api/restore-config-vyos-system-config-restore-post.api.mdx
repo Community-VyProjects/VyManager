@@ -1,0 +1,73 @@
+---
+id: restore-config-vyos-system-config-restore-post
+title: "Restore Config"
+description: "Restore configuration from a backup file at an archive location."
+sidebar_label: "Restore Config"
+hide_title: true
+hide_table_of_contents: true
+api: eJztVk1PGzEQ/SuWT60Umgr1lBstVEUqAgXoBRCa7E4SF6+9tb2BKMp/74w/kiUBWvVcDrDYzzPjNzNvvJIBZl6ObqRf+oCNvBvIGn3lVBuUNXIkx+iDdSgqa6Zq1jngdTF1thEgJlA9dK2YKo0CggAjwFVztUChbRWRH27NrfkBWtUQ0I9ujRAHBXRfQEJ5oYyocaGq4ikh2bKBBkUDoZqjF6C1fcRatBACOiPetQ4XaILnlbkIDhboPOj37Pfa04kfy/PLbPOezZFXqMXRxal4VHSidTbYyuoD32KlpqoS1+PvbMf4qXVNuoQcSNtiuvtpTay4xMp9trtYWn+fGCxLBdFaH+i4w18drXy29VKOVpJAgaLmT2hbrRIPw5+eOV9JT3dtgL8oPHIcFPqI3SGO18KyRYrIB6fMjDwFFTQvHOVMfC/Y3cwWAN/3XdP5ICa4l4b3cj2QJQtvuftaMLtuPm9rJGYyWJG5kWuyne3ZyU+sClHKYc01uXfdXih3W9dfYqS5UMeJ6L0w8nrPfb5hruUXSpfiW/cDCq7DuOBba3zKyOHHj/znua/LrqrQ+2mnxTiDKZ5/zLlPxnrcT6zVCKZHfnbIuaI+i0bALM+nRCJ91bViT6Aveob5MrvsrwcbH6bTWq57JB+zXbKPzln33MHzknjLyEk8/Ke0lxv3DnITb6hcx7x8OjzcZz4rDWtK8vXPtNcYQGn+UtTVfh9AZfJs9y/4UBTJDImAuy0D4Bwse6nctCtBGj97q+XOiCSYodwYex0ayRBXvEtoZdouElK2T+MC7VThqWdmk51epwV8Cn/MIHOTws+4fio3KcrV8CoVxykFLzkrkG9XVxd7BlN9NBjmlrU6KzDPB/pvyFo9TFo9TAowLHo0kFwV461UnzxB02p8WXq3LG/1cZt0Inlq+xzHOXQGhjLWUD3yBNoTqa/gA08mnqtoakETiCYfHSGbaZAlcfZpdvGoo4MH8AhRzhrC1p6s5g2ySHgOhjmgTY4nB1rmehLP3Uh6E+r/CyC/AHINcgMMWw0qtmjnokak4rqRXFwEzY+pKD6J3VJi1AhzrkfCrlYT8Hjt9HrNy1R0jt4GN/S5AKdgwlVzw0oxR6hJNVhaHnBZ2tCEg9jPDNdd7J9deWPpSSeOSFHb8Cb2rtcyF+eXVwSe5NdKY2s+4+CRb0K/RzK+iPh01L64RpIIZtaxIo1kssk/vwHvj6Xq
+sidebar_class_name: "post api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Restore Config"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"post"}
+  path={"/vyos/system/config/restore"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Restore configuration from a backup file at an archive location.
+
+Validates:
+  - archive_location is in device config
+  - filename matches allowed pattern (prevents path traversal)
+
+Uses VyOS config_file_load API with protocol-specific URL transformation.
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./restore-config-vyos-system-config-restore-post.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./restore-config-vyos-system-config-restore-post.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

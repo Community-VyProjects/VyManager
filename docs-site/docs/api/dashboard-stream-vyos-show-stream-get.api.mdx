@@ -1,0 +1,66 @@
+---
+id: dashboard-stream-vyos-show-stream-get
+title: "Dashboard Stream"
+description: "Server-Sent Events stream for dashboard data."
+sidebar_label: "Dashboard Stream"
+hide_title: true
+hide_table_of_contents: true
+api: eJztVE1v00AQ/SujPYGUkhaJS25FLVUlEB/h49BW1WQ9iZeud83O2CGy8t+ZsdsUypUjPtjr+dq37z17cIIbdosrx3XeupuZq4h9Ca2EnNzCLan0VI6WlATOe70zsBTCBta5QIVcrzKWSleCL67TdTqNEXwMY6XPKZEXqkAySE3A2BB83b1fQkgsmLyGaiwEORGcUR88nemg1yVj5ZGFynWSGgVKlxgQOKRN1B4SyOtp0EXBtv74Fn50VALxiOGNto6IAJ6FpFPWqDv53Nmany+A9Ew7OAErX8a8fSjmne7ZKLh1nsG3CzvAOmwODa/GBo3H0BO0pMMWsEJ/tyk6W0+JfDeDEy2DJqTQdA2sSLZE6QDPzVxuqaDRe1kpwQcKbydeb/td5lsT4yGwIdGuQtzmxKRaDe7l8bE9nkjVeU/M6y7Cp/ti7dMjiIph5di2Mfhx6/l3tp7Bsa+pQV3t7Zq5hqTOhmvatUWp9WVuoOYGaj6B0pSRZBMkSCStGdV4hwk31JhbTj9cuqduMmE0PnJGSph5qLEW1XWSsxpNwLANUoOSztp4hFvziM+N1lasU+8TRh/1TmG3mUWThiepxzRxdrDm8gHxH1iGR2b+m/zfm1x2rakg9FPmbcSQTKWuRCN+MtWVM1Np6fjj0cckk/6BahXT8sOwQqYvJe73FrbpO43rsscScGW2u7rRuTVhRUVfBndHWuJO9Utozb89xs5w/GX9/c1vXr84/+z2+1/V9cXo
+sidebar_class_name: "get api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Dashboard Stream"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/vyos/show/stream"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Server-Sent Events stream for dashboard data.
+
+All clients connected to the same VyOS instance share one DeviceDataBroadcaster
+that runs a single set of VyOS GraphQL queries.
+
+Fast data  (interface counters): every 1 s.
+Slow data  (system info, WG config): every 5 s.
+WG live peers: background task, 15 s minimum between queries.
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./dashboard-stream-vyos-show-stream-get.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./dashboard-stream-vyos-show-stream-get.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

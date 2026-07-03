@@ -1,0 +1,76 @@
+---
+id: dhcp-batch-configure-vyos-dhcp-batch-post
+title: "Dhcp Batch Configure"
+description: "Execute a batch of DHCP configuration operations."
+sidebar_label: "Dhcp Batch Configure"
+hide_title: true
+hide_table_of_contents: true
+api: eJztV99P4zgQ/lcsP91JpYUKrbi+scBpkYAiyu0LVJWbTBsvjp2znZYK9X+/GTtp06awe6t93CLRxPb8nu/z9I17MXd88MTTLCn4uMNTcImVhZdG8wG/eoWk9MAEmwqfZMzM2OWXi3uWGD2T89IKOsdMAfHJdZ/1s37MpGOg08JI7ZlQyiwdy0vlZaHgkHySCT0Hx7xhU7RVFEpC+qylRrtO6jlKfV0NRyiV59JvzbGZsQxmM5lI0MkqGD+3czd41gw/Fv4twfkB+xx8r17JthcStc+ZBr809oVpkUMH9ZJSoZgrp7jTYUKnjdiYks6TiQfwpdW1lVGZJOAcc1740gUZoVdoTcFCYPyp8IJ3+EbPdYp5pWxPQkondSpgslgZN2nsFMZ5lKz8/mzSFR+8cXIftKfHkKkkaO19c1SwN+6SDHJBT4Ulm16Co7cq1AmFSu9+VeA3d95iItCKl17Rwl2Vkjs6t98Oo0xYSHfSxtcdHvMVPNKr4QzbaV//urNZ0aVSfD3eWhxF6ZatsMz+kLNGwbGxorEjV0AisfJ/kgPbIpET0kPu2hkwxUdxD4uWB8ON2TrQhVAl/GycX4Pw+0ai8jWaqTSY6TdI6g6QmHjCqQkorXUSmEJ3b9S08xgB1Mih3sC5aq0u3xoV1orVTl42qd3XfIN4IEZoQAQRjC8Iy/y7gew05E4JD8X3ED1t+XBrUlCBB2JEbXbpogy8irxQ0MYBvzm/2zVONaVO4Q78JPbaJIWZQPqaWINcaPmmD/jJX/3uyaez7kn3JJR+X5CMTBzYxY7UWTf8HZRITY7cVCelllAmEaqrhD4oo0C45umzT6fHx6H1amA2HD3u9U+xNlSdbTW8LSEsuAJzEOHSRx34tQ/KQHazUrGH6jAa/lFKimZP+/22YgSHTGN/Xllr7P/QugfzFJDd1Qc8gMnc2f0BLOM9BnOs4Xr8PlBuTHSQsJS7+Udcc4spFHPYou79oyEZ7JF28bTURRkSUm9fhwXcSfxrQ80GcPW5C8rlq/8uKCk30f3q3C5/VSWKFXo/FZexBIeM1Ue+PD7etxTG/sjBZ4Yuyer+K4TP8K1H12OPrsdegDruUCs8bG/Hq98o30U5NczMNPsljFG3QmP35Ygtdn5/3aLUv4XzuI6EmrzgFBfINScRmpiCghQWEmmALaXPGEbtUPBILHE2CCMajkB0WVQbNO3AgpyheuJmqE+syyVWs5rOLuoxaN+fxsTzexz9ZeNohUsihV6h0D4VqLSBNyPgnjgBjqpBvww6PIIO2y0jWOL229sUO/Ifq9ZrWsZoLA6oT2NqUSvFlBruiQgzA5EiNAhzL7Cq2Uj7o0Br245usTzBIEqcY1CF//DsuMEc98PRI7lcjcw5Dgm4asWS6A7/D3igg83EGNbwZsC6l0TMAx510uc/rWqNUw==
+sidebar_class_name: "post api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Dhcp Batch Configure"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"post"}
+  path={"/vyos/dhcp/batch"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Execute a batch of DHCP configuration operations.
+
+This endpoint allows multiple DHCP configuration changes to be applied
+in a single VyOS commit operation for efficiency.
+
+Args:
+    request: Batch request containing network name, optional subnet, and operations list
+
+Returns:
+    Success status and any relevant data
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./dhcp-batch-configure-vyos-dhcp-batch-post.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./dhcp-batch-configure-vyos-dhcp-batch-post.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

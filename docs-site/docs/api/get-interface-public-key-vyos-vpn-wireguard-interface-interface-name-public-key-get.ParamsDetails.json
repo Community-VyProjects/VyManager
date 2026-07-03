@@ -1,0 +1,1 @@
+{"parameters":[{"name":"interface_name","in":"path","required":true,"schema":{"type":"string","title":"Interface Name"}}]}

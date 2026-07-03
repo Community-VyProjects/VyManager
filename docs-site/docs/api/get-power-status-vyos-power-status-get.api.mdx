@@ -1,0 +1,62 @@
+---
+id: get-power-status-vyos-power-status-get
+title: "Get Power Status"
+description: "Check if a reboot or poweroff is scheduled for the current instance."
+sidebar_label: "Get Power Status"
+hide_title: true
+hide_table_of_contents: true
+api: eJzVVU1v2zAM/SuEzmlT7Nhb12VFD1uLJNsOaRDIMh2rlSVXktMZQf77SNl1khXIhvU0oEATkXx8/HjMVkS5DuJyIWr3gl4sRyLHoLyuo3ZWXIrrEtUT6AIkeMyci+A8JF9XFKADBFVi3hjMoSBLLBFU4z3aCNqGKK3C8wf7YOcl+aLNa6fZFAjDcFDWppjCOxvJDNFBrkNtZPeeSWvRE8IUnxvtMcB0cvUJavSVDoEoAv3d3/2YTKFAGRuP52IkHNklF3CbUwlrjKvEeEV8YhNWm9aF4xdyoTCCr50NSP3Yig8XF/zvuBuzRikMoWgMTHtnilOJe2R3WddGq5R7/Bg4Ziu4Q5XkT7VnZlF3GYbO8ZfY1kgJqMMGpSXQqKPhl9ngtRsJqRh51TlTNtveFTS8ITxEr+2aPIcX2xgjdss93lWCgDmbCXEgsYq6Ogk6EjTgSlKZIpcRz5L/qUwDc5h3rgfJsvZf+e9RP7a/Y66sPF3D3wLDV9kxVrzA5k8zuh68WD6FbAx1qZAm4CHEO4oeEvRFH2K+q+hD4L5ogu+9XfaIqhNGEl/Od2K/tQcw9yymWdLSgS6OtfNqSHciqQ869YHiG3NOmXecvMJYul63BFLLWNKXMYt2nMLGXRjZtC1cGkxP43t7N4Mv0so1VnyBru5v39D4LEOkd7os6okPDrOpOIRaBQkgx40mlcOLjiVs0POZOZMv0tNpcxX55py7N7AacMMzqV2IZGQ+3UTEDUZInYHZK+MjLtv95fg/72y/JxF/xjFBact9aLxJty7NbSF4bjzG9PNCcu06QbtTUr/YYbvNZMBv3ux2/PzcoCedLOjjRnotM57sYknAJcqcMHjBn7BNp0xhzTuykaZhIm+uL6/6sE83kznt2C//GG2U
+sidebar_class_name: "get api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Get Power Status"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/vyos/power/status"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Check if a reboot or poweroff is scheduled for the current instance.
+
+This endpoint is polled by the frontend to display the banner.
+Requires READ permission on POWER feature.
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./get-power-status-vyos-power-status-get.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./get-power-status-vyos-power-status-get.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

@@ -1,0 +1,1 @@
+{"parameters":[{"name":"flowtable_name","in":"path","required":true,"schema":{"type":"string","title":"Flowtable Name"}}]}

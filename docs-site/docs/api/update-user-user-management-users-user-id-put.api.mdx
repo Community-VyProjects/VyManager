@@ -1,0 +1,72 @@
+---
+id: update-user-user-management-users-user-id-put
+title: "Update User"
+description: "Update a user."
+sidebar_label: "Update User"
+hide_title: true
+hide_table_of_contents: true
+api: eJzNVktv2zgQ/isET1vAeSDoYeHTZlMXNdCkgRtnD6lh0NLYYiuRXJKyYxj+750hJUu2ErUI9rA5OBI582ke3zx23IuV48MnXjqwZ4VQYgUFKM9nA56CS6w0XmrFh3xqUuGBCUaS59/UN3WnPQzZvXBuo23KyiDgmLDAlPYsKa1FpHzLXGmMth5S5jOry1WG/6VjoFKjpfIINnWAZ8BMDWbBgWfLXG/YUluWZEKtpFqFjx+k3DkfcG3ACrJxnKKV0Yg5icWfxqXw7ubxWKbzuSk96hthRQEerzAMO67whXCiEN5Lct4In+GzhX9LaQE/5G0JA+6SDArBhzvut4bUnLdoJUp66XM6mJK9aNl+P4vq4PzfOt2SzilaopWn0OOVMCaXSXDr4ruj+O9aHzOWnPYSHL1Fi1FHbb8sgw/HxuwHhxNV5jknS2rz7kh3P+AILPM+kAHHNBQCjatk+1BHlQSvE9WPXEj1GdQKIzz8sw+2ZhohO4lZtjp/s+dfEYBNCOCU6OGGoIfs+sPt+I4h/x7Ho39GE8zioAbUi++Q+HamA/Mo35OY5g5wdc68rmqlKiaEJWCkvNHKxaReXV7SvxPLyiQB55ZlziaVMH8zbWTax9txiPJ/Sq3XPnVgS5Ccr8HKpYS2dQuN2RDqVIc91qKonFjAiKZz4V/61oG8FPYzLwtogd1EVXbtCSim5k1AkQIR6AWmNPX+xENrCeGtI9Tx/8inI7tmx/3lA/gIcMyWeIzmhJ4pVTSd7iLf3l9ddSn2KHKZBik2slbbt/MrjVYR0zwUriuQ6+To9jdIhsMCVlQwsya8wlqxbSXhs04qL7GzuFUf826xmHA48ANYD0kpGOyBbvc0E2h2kHhdLuGAaOifWzCdJnFDsXz+NT0oNtH8Sq6V8iZFMUOvh6IiRl/X+vTwcN8BjPzAoZhpmqn1nKQGzS9OFoXw7i521cDcoyQxY9KMutGzKExs1NVwPUS36g1h2v4FUe480QVvj45GvNX0G3JwYnY7F4/bL1/Z7cFAdn0/7tTGR+E8nrOFSH7gGhJ2jOAT7RgBIIW1xGbLNtJnDGvSoeKZ2NBygwaibOoQtbqgfgDrMPG083jZcrbam6hQT83YNbX1v12vKuIQay9MLmSoq9KGwo6U6O6Og3BC8RnWexTyN8PQkPRutxAOpjbf7+kYeWJxHXrCx7WwUiwoidgEUunoGQmwFLmDntD9Makq5x17zeC6QBSVx1rkJb3h4w/Ytpa90FYyECmmikyItzfxQ2eh+BvtTi+kPhU1rnFMG98rO2vV1/30AWUX1VZY6JRUrNhQT8DfYKgOfoc+Gc6wfWLKSupeQx4h6e8n27AVHA==
+sidebar_class_name: "put api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Update User"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"put"}
+  path={"/user-management/users/{user_id}"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Update a user.
+
+Note: Password updates are not currently supported through this endpoint.
+Use the password reset flow for changing user passwords.
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails
+  {...require("./update-user-user-management-users-user-id-put.ParamsDetails.json")}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./update-user-user-management-users-user-id-put.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./update-user-user-management-users-user-id-put.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

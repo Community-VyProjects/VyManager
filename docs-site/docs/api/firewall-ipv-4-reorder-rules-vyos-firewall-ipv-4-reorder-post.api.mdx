@@ -1,0 +1,72 @@
+---
+id: firewall-ipv-4-reorder-rules-vyos-firewall-ipv-4-reorder-post
+title: "Firewall Ipv4 Reorder Rules"
+description: "Reorder firewall rules within a chain."
+sidebar_label: "Firewall Ipv4 Reorder Rules"
+hide_title: true
+hide_table_of_contents: true
+api: eJzdVl1v2jwU/iuWr1mpql1x13VULxIbiLL1glaRSQ7gzbEz24EixH/fOXZCAmm7d7erUAn28fl8nsc5cC/Wjg8WfCUt7IRSiSy2H/lzj2fgUisLL43mAz4DYzOwrDZjtlTg2E76jdRMsHQjpL560k96vpGOmQKsoKMsAwUeLZszaG9hC9YBCz57zG+A1lILgkzxZ/6kyTXTsAunmC7zJR5hIZiTeo1rqclz6UPQGfwqMTPHHmej+ZBh9Fw6R/Hxcz+aDR9vx+NkOhmP7kbDB7bCQKWFK97jp0xHGZZ51oXExqKTkHey3RuXvG5QGOfRl8UswPlPJtvzwYGnRnvQnh5FUSiZhjj9H446euAuxToFPRWWsvASXDhGraQHvy8Ac3LeYr3o3kuvaOEuGFxOKKwyLXLgxx6XLklL502eXLpbGqNA6Ja/kWN3wZa97vlxAzgSi3PByeIHpx3N05P5SpQKC10J5QCjh4ZRTOkhd90SjcqSONFWYhK7tcaVJrGJytjXaIZOEQutQ0LvJysEbuf4sXda0qVS/PjcOPyKcGocUpZJJnyYgcgySfUKNW2l6m0JvdqdWf6A1LfymxEyP5OD47FrZSMmM2JXq+B23FZqFcHI5Qib1hnCQ8R8IAN1la2MZRX+cOuKNxkIa8X+Ik3XcTiWzjOzahGZiCctw1yZ0FngXkW7P9ZXIyEOvlvWfUWbWWRIJ5lqneUG9eKitAvNwUopmyY6zSgsuMJoFwF2c31NXxctLNMUnFuVis0qY0zk/7L0GMJ+vLnpOv4ulMyi3A2tNfYvvF4QIwMvpHqHOcqkZ7sdGlRq0WLBiRjPb0NkbGKChKLcrd9Tny/YQrGGBm9vm4ZmsDntkiTpogwNOelOWMCd1L+03HRodke9fPF/BCH1JqZf2bVw2IwoTujtVnyOI3gtWG3y33w+7TiM+MhRKg3dJNWVUAi/wV99ujz6NZD7dHn0K4SjEaFi1twdwxeRFwpad0HT2o6uB8k9Ke7iXFuvz1Xz+lzzjgERUq9Meyrf95MH9kVonHGOCGa301GHrvfCeVxnS5H+BJQKImxOR4iuwUEGW5nWukKXPR78IHbCxmsb9YUUqdpAj2hPM6Gu4SblE24yDFWTf4Q9Y/VryKuS1rpx/933lQqTRIh+oQgC2LbSBs2IYFtwAhua1rUTbOiljtgSIYfE2BA+0fZwWAoH36w6HmkZQWjx5WWBj1thpVgSJhaEkw0IOkoQ+wn7mpbafwj8JnNVBj5dyh1JUTxxi/pb+Hdtn1sUmk4e5mi8rF6n6G7AVSt2VAn+H/Dw/kangxaGNZRIodclKdSAR5/09xv03dCO
+sidebar_class_name: "post api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Firewall Ipv4 Reorder Rules"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"post"}
+  path={"/vyos/firewall/ipv4/reorder"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Reorder firewall rules within a chain.
+
+This operation deletes all rules in reverse order, then recreates them
+with new rule numbers in a single commit.
+
+Requires WRITE permission on FIREWALL_POLICIES feature.
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./firewall-ipv-4-reorder-rules-vyos-firewall-ipv-4-reorder-post.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./firewall-ipv-4-reorder-rules-vyos-firewall-ipv-4-reorder-post.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

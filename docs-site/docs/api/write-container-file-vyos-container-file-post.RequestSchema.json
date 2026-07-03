@@ -1,0 +1,1 @@
+{"title":"Body","body":{"required":true,"content":{"application/json":{"schema":{"properties":{"path":{"type":"string","title":"Path","description":"File path under /config/containers/ to write"},"content":{"type":"string","title":"Content","description":"New file content"}},"type":"object","required":["path","content"],"title":"ContainerFileWriteRequest"}}}}}

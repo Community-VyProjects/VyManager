@@ -1,0 +1,79 @@
+---
+id: batch-configure-flowtable-vyos-firewall-flowtables-batch-post
+title: "Batch Configure Flowtable"
+description: "Execute batch flowtable operations."
+sidebar_label: "Batch Configure Flowtable"
+hide_title: true
+hide_table_of_contents: true
+api: eJztV99vIjkM/leiPLelV90Tb3QXdJXoUlFu+9AiFGY8kN2ZZDbJlCLE/352Mr9gCr3r0z0sqsqQOLZjf/7s2XEnVpb3n3kiDWxEml4mqd44sUzB8vkFj8FGRuZOasX7fPgGUeGALYWL1qyWZDoHI0jGXr2oFzVbS8tAxbmWyjFUqjeWRVolclUYqVbNScvc2uhitWaCWTASF3RyqG6Qpq0FJgwwCG7ETCo6hxrRB2eEsiIiKe/EwKxs/0Ux/Bj4VYB1fTYS1g0e7qoFppc/IHJByN9pUYve+itWgui8E1Id+M6UyIAJFbfcI8NTcIVRle3v28njFGyOm8A20q2ZLaIIrO0lQqYF3kaqRJvMnw/HfxWYC8uepnezIUPVmbQWNxn+je6mw6fBeLwYjSdPs8HtePjIEhBoEK74Ba8duYsxW+FGVdxhUXu+eN1qu6gy3qzbRTiSa+tQW3n5Wx1veX/HKQagHD2KPE9l5C31fliCxo7baA2ZoKfckB8Ok0m/GqsUL1px2xy/uXWEBbTjpEtpYVRH9htJHoNvdBB4vm9d1xuSDjLbta/zczYnecfOpNJa23kVaeE9F2o7SbBajvXtL+oVVaQp388bC9/94dNGgvI9mik1BFCW8cccxVSeeIv5O5HyKK11daw8htKo4xQKZtmG9hVvLAtjxPYgOHV8jzWPJZVPu1SZ0wRWwvKHtznCxEEmT15zGhzuuHKvY0gZ2u3QUgV9r5nqA95ElqfwHiz5aLYYD74d+kKZJvxwC64pE5/u7vKi7VYNGo5K2YdHkScxdCKC1kFw6+v/KP/HKXmd4LOIW9JWJ26DZIpY3e8pX01+nCnALwTW8lV0c31NX0fwCkyWFCmrKA4tfJInSlpsFetS6xSEagGyNEiQjYUThyUp4liSJZE+tBTTZY7BeK5cv5Je1A/GaPPZmh/6wx9VQXXjNlm0ukW3mh02G2FiVmWGJUZnvsO0WyYP+fzz5qabMSQjGQcqCD5+Ol0xYENMz/BuqqOD3X8RR0L1CgxB8iQnjXVwkHKU2dU5br/H4IoVNAR3WtQHg81oF6WlygsfkGr7zi/gTuTeWmrqrFZyXyiWb+7DzFNsgvul3GG/KFNUouhkKL6GFLxnrBL5azZ76CgM+MiQLzSNCWW3z4Vb468ezQa9ajboNbNBz7MrChIyps1oMPzNqe9xKqEo0W0Q+Tq9FwohmWHBMRxEuzNOOaAuRfQTB2jf1TI6QpOnVxDDq0TWCKPkKxiaDC8FWcV2l6FsTM263ECNKE8QoiTjJvlT5iYMuF+q6ZDVzfbYqdbk9/sF4H/+AlDyAJFQL0/RYcp9YTxPhwJ/5lTgKFqVOD02r3wX4a2BCGlNvIDyu91SWPjbpPs9LWM8DL4PPM8J90Z6xOAvtLMGESN7U4H/hG1Fh8pdel5tyqTTZqjAwokBRiZ3Z2XnLep6mDzOyOXyDSXDSRBXjdgQ3+L/PvfcU78i+DVsTUKtCuoMfR500ucftkhPpw==
+sidebar_class_name: "post api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Batch Configure Flowtable"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"post"}
+  path={"/vyos/firewall/flowtables/batch"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Execute batch flowtable operations.
+
+This endpoint allows configuring flowtables through a series of operations.
+All operations are executed in a single transaction.
+
+Args:
+    request: FastAPI request object
+    batch_request: Batch request containing flowtable name and operations
+
+Returns:
+    VyOSResponse with success/failure information
+
+Requires WRITE permission on FIREWALL_FLOWTABLES feature.
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./batch-configure-flowtable-vyos-firewall-flowtables-batch-post.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./batch-configure-flowtable-vyos-firewall-flowtables-batch-post.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

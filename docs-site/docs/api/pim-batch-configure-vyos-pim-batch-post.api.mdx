@@ -1,0 +1,70 @@
+---
+id: pim-batch-configure-vyos-pim-batch-post
+title: "Pim Batch Configure"
+description: "Execute a batch of PIM configuration operations."
+sidebar_label: "Pim Batch Configure"
+hide_title: true
+hide_table_of_contents: true
+api: eJzdVk1vGzkM/SuCTi3gxkXQk29pm+0GaGAjyfbiGgE9Q9tqNSOtpEliGP7vJaX5sidxFjluDo4tkRT1+B6pnQyw9nIyl1YVcjGSOfrMKRuUKeVEXj5hVgUUIJYQso0wKzG7uhaZKVdqXTlgM2Espm/+7Gf5s7zIMrTBi6LSQVmNYu1MZf1IIHCEGBq03gqfkWcugqHwXpVrMlVlQLeCDCnShda1qwCHwjqToffkQEY9l2WldI5OQJlTXkWhQiAbCKZQGR9zJkeyzfAqp0vRTe/jde6be+D9w9b4+27DGh/Iz+G/Ffrw2eRbOdlJMg9YBv4K1mqKzzHHvzxjtZM+22AB/I1ypRODQs+/0iX4mwpY+KFBe+sYudxOV1SQnQxbSyvSB0c3lftRu1JWWss9FSuooHnhqg1wXMB2R5RQoHjHrmJlnFhrswRN5fDvKXSH0Kk8jeXPw7S6JKZ2cPq0iRpP53MeQFdvvuaP6PzyISn4no6pI5jlL8yaQiqHOROdbtGLOVPFZy55G2UQ/zbxrEWI+NfqoSbImezOBOdgewBLi+zrmbWmz2T4jWk0yO4iaYSV2bmflJZ415b//anEvyXavpZ0ze5nEr5J4AxSvjY5JhImEA+6yZm4raw1bthAEu71bZK+a8HTLTjLLqvgKowL3hIaibznHz/yv6PaVhk3lVWlxU1tTOm+Uec+BetpZGmMRih7oNYHMuw5BDhUAuS5St1x1gvMlzkuwSmVfOW4FB+dM+6tUruMzq/VvrlxX6Pb6W0PyiO4A3VpcLloKiNWzhSCffpThMtJJ386Px9WjHqAypMOU45vLleOAZQ+0e60yQ52/wOOLLI1EnCLl3X13aQEuUaFX59qqdcELqyxE+nLphEMcce7ZK1KW0VAugnBC7SThademLaqjd0XxvIpvFp5xialX9sdtum6RDWLXoTiayrBc4c1Jn/f3c0GARM/CgwbEwd6mtYWwoZ+jXmWj2mWj2N7oQ1mwk03yi+foLAa+6N5fjCEO3T7Y3GeBmC3Wc+ylgaLWHVVrkwf+UjuayipjgWxVFzMrga6+At8oHXqh9lvpHcM98aCXShuUkeOD4qkJh5V2IgHdJ4cP8AjP4y4B5KsPGeUNigi2TPujAxtcj5xAsfmLGJ3Fl+ax89xOr2Hzv/lAVizi6k9thpUFF/lovoTbeaSacMsonfwSCbqEKk3zC3a3e2W4PEfp/d7XiYyOXoTzhdMA6dgybWec/03CJRNpMtv3DaSKsOHqM2ONYNWxW0keSQAT9ouevSfTW/vOOX6lVrQeKVVB4+sWfqcyMjk9nUX16i9QbmuuLtMZIrJf38Ahpg2ug==
+sidebar_class_name: "post api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Pim Batch Configure"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"post"}
+  path={"/vyos/pim/batch"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Execute a batch of PIM configuration operations.
+
+Accepts multiple groups, each optionally scoped to a single interface.
+All groups are processed into a single builder and committed atomically.
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./pim-batch-configure-vyos-pim-batch-post.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./pim-batch-configure-vyos-pim-batch-post.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

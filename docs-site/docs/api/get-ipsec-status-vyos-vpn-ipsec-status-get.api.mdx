@@ -1,0 +1,64 @@
+---
+id: get-ipsec-status-vyos-vpn-ipsec-status-get
+title: "Get Ipsec Status"
+description: "Live site-to-site tunnel status (on-demand refresh source for the IPSec page)."
+sidebar_label: "Get Ipsec Status"
+hide_title: true
+hide_table_of_contents: true
+api: eJztVE1v00AQ/SujvQBSUlcce+uhVJFAVBi4NFW1sSfxUnt22ZlNCFb+OzNOolK4csQH27vz9fa9Z49O/Ibd1b0LibFxDzPXIjc5JAmR3JV7H7YIHATnEuf2BClE2AOLl8LwOtK8xcFTCxnXGbkDjiU3COuYQTqExV2NDSS/wTcXS1rSJ5SSiacY+0FvnU84LVvP3Sr63EIq3CFD3GKGur65goR5fppcUtXGnXYyCAi7IB2s9oJV8s0TCjSxkGBmMFDWlnATJWhuCzf1HaQcU2TfzyD1hZd06ldJFN8fq/kCzjBxSLKvfmKOsOuQ9Nw50qbeeYLA9EogK6pAG4h5SRTP9HReSxXgqg96kvbCzVzUM3ijddEqsRuUx4nzxyOTj9t91Fuil7uapqXKa4rEqEqN7u3lpT1e6lSXpkHmdekV+TFZ65qoTJBYuk+pD800v/rGVjM6bjqVTt8Ods3cgNLFEzitTl46XVSGrFJk1YSsOiLTeKB1tDYSpEdN/Lr/WMMHTyr1oFPh+m7h/vTTO8+i+7AyrVQfc8lgJUbh1KDFbdCjHHVV/VkL537nM6o2gznNZp8C2lHznWJXSUWDhofUVRq4VS8sDDHUZ8QvsIzP9Py3+b+zueyTsS/4Q6rU+0CmTsm9EX501L0zR5mIicxG059n5k6+0l9Qp1pa2jiuPOOX3B8Otv29YN7rvr5ufQ46FG2l7Tv0LWZdjO4JNcVd69eQzMNb3xeD85f9Dw+/+f325rM7HH4Br/vPtw==
+sidebar_class_name: "get api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Get Ipsec Status"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/vyos/vpn/ipsec/status"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Live site-to-site tunnel status (on-demand refresh source for the IPSec page).
+
+Returns the same shape the dashboard pushes over SSE: per-tunnel up/down
+state with byte/packet counters and the negotiated ESP proposal, plus
+up/down/total counts. Returns empty/zero when strongSwan isn't running or
+no tunnel has established.
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./get-ipsec-status-vyos-vpn-ipsec-status-get.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./get-ipsec-status-vyos-vpn-ipsec-status-get.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

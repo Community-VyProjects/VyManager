@@ -1,0 +1,1 @@
+{"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{"properties":{"interfaces":{"items":{"type":"string"},"type":"array","title":"Interfaces"},"total":{"type":"integer","title":"Total"}},"type":"object","required":["interfaces","total"],"title":"AvailableEthernetInterfacesResponse"}}}}}}

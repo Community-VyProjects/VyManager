@@ -1,0 +1,70 @@
+---
+id: update-watchdog-settings-vyos-system-watchdog-settings-post
+title: "Update Watchdog Settings"
+description: "Update watchdog timeout and reboot-timeout in a single VyOS commit."
+sidebar_label: "Update Watchdog Settings"
+hide_title: true
+hide_table_of_contents: true
+api: eJzdVsFu2zgQ/RWCp13AqYNgT76laYsGaJEgdtuDExgjaWyxpUgtScUxDP37zpCyLUeJW3RvzcGRyJnHmXkzj9rKACsvJ3PpNz5gJR9GskCfO1UHZY2cyC91AQHFGkJeFnYlgqrQNkGAKYTDzNpwtltSRoDwyqw0iq+bm6nIbVWp8Obe3JsrW2XKoBeZDeUeZKlQF16EEoJY20YXgnbRrZVHYRAL4bEGx+ePMw7g3uSgtRd/IeRltKDT6NBCLZfo0FAMlMTCQIV/UzjBCmtQQLCVyoWtkaAoqzdyJPcv1wUl2cQkF7skFx5DIGS/eNxYv0ileWG3tj4QlsN/G/ThrS02crKVuTWBQuFHqGut8njO+Lvnem6lz0usgJ9qx1EEhZ7fuppEN7O5WRIptLipkeKjVHCFTraj/ZJptJYt0RVU0Lww6/zbkcw1glv0ADsfYot2jDw4XbGl2Lky90toNPksQXtsOTemePF/g7uLMGIQ4xD+J6E+AxpETMgdgs2+Yx56AN86/qYdfXeJNvm84y9Tu6SeEEvrfrX5udf6fS/btk3doRxSmwXXpJL62hqfWL84P+d/xxFMmzxH75eNpnyTMUX5m33lE9jJ2nYHMi+UNBzTDEWh+CTQtz1gTuZ5rU91wDvGJXx0zroX+8gHR7ScBHkfnV8i+VDl+T7jniPTsi9lG3n55+JiWPmvoFUR6yrSWb9d9gIDKM1PLEl+aKBtfrT7C/XYT9rDoQLgHGx6VH6yKUCudeVXPdo7vIPpZyoSrFDuwV43jcUQM94la2Xqbli77eu4wFMdnnowgxG84lo+hZ8yyLVJ4Xd2fSr3FHXd8Gop3iUKTmnCx9nsdgCY+qPCUFq+HDqVryGU9DbmK2GcroTxThjOdlcC2XFj3B1uhPdPUNUajxT+fCDRUbyGanv+mk7u5FmZpe0TEeXnMxiiteLr8PL2eqBvH8AHWhcZ5D+QhIwVrmIXvksjQIGPiiZIrBXd1Y/oPDmewRocRmkj9eNEuw1CJHumgQtFmxwP38CHj4ed8orpoUxHMfUuzT/1g6PrQG7/ca1BxQFtXFSI1Fpzya1Fpt2n2EgO24vmoOR2JOPtNgOPX5xuW16mhnP0+TGnx0dwCjLuhzkLRYlQkGiwsvzAzW4KTTiL48zmuonj81zdWHmSxyUJah1O2j70Jub2Zjoj46z7IKpswT4O1jzm9DuR8QuMvaP0xTVSRDCrhgVpIhMm//0Hi0q+iQ==
+sidebar_class_name: "post api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Update Watchdog Settings"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"post"}
+  path={"/vyos/system/watchdog-settings"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Update watchdog timeout and reboot-timeout in a single VyOS commit.
+
+Combines both timeout fields that would otherwise need separate /batch
+calls (each needing a different item_name) into one atomic operation.
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./update-watchdog-settings-vyos-system-watchdog-settings-post.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./update-watchdog-settings-vyos-system-watchdog-settings-post.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

@@ -1,0 +1,76 @@
+---
+id: save-config-vyos-config-save-post
+title: "Save Config"
+description: "Save the current running configuration to disk for the active instance."
+sidebar_label: "Save Config"
+hide_title: true
+hide_table_of_contents: true
+api: eJztVd9P2zAQ/lcsv2yTSovQnvpWsaEhDRWNjheK0NVxEoNjB9spVFX/993ZaZNS0BDa4/KSxL4fn7+7+7zmAQrPxzdcWJOrgt8OeCa9cKoOyho+5lewlCyUkonGOWkCc40xyhQsOTQOyJAFyzLlH1huXbQGERQ6KuMDGCGHczM3s1J5JkBrz65X06tPvo1xlCstmadEtpZdwCenQsq9n3NucHOUvtvXcGFtGLJJHqRjvhFCep83OgYdsKbOIEgfQ3kDtS9twARzU0EQ5d7p2nAEd+IKP54bhg8BHLNp5AQ0qyGUBDBCTh70+zmTOTQ6MDzmK/C+8AHfne88Q27J/y5Z3C1X1m+/43ptfUCPGhxUEo9FVVpzgz/oSYBwU1GFHhvpVvjj5GOjnMTAOWgvB9yLUlbAx2sOZjXNo39Y1eTvg0M++WawWzGN1nyD5Q8qaFo4oxQbWnHS19Z46SnUyfExvV40Scf4r9YYAeFpAnIaAdS1ViKefHTvyWfdg1c74iWolKEtH3222JA9LcHwDlybEA/AK3xDIXvm7eE664vWBK2lc9Z9lJLv0XmDYVoLu7iXIuxxf7PD30HrhaBxOo1V7hG1T+Z2g+XOVi/GYojZKf/Xk5PDKlyDVlmanoT0wyXIZACl6QsnsPKHBtqKvd13sKkQSSGRvtuOP3AOVr1C/bQJYKyrL95Z02Tytmkkg81od0MzUzeRkO32eVzAHRGee2F2td3anRKXz+Gv9SduEvzWrlf+rkRtL71JxbdUgteSbU1+zGaXBwFTf6BilJYkZqciocS/EanMVpqos6KG5LZPB0kzuwCD5FakiJPL84MWPQMfcJ0tQDxIk0XVr8iFRDoGyORS4RSwJ4VSuUT1QscjeAJHglmhbUYD0m5gRLQnMggubhKeVuni/ZMm5iWMddfe/6+pf3pNtR1H7T6qNag4kI2LipBa6YZTKyWFSaWJ7YStXlLH4f56vQAvfzu92dByuqVIIbAAsNC9e+pBrrorbQm6odxReJfgFNmiH6lGKSFDBaEgyWeCDNah53UgchRlNwyX06sZTsgfGOEghA==
+sidebar_class_name: "post api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Save Config"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"post"}
+  path={"/vyos/config/save"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Save the current running configuration to disk for the active instance.
+
+This calls VyOS's config-file save operation to write the running config
+to /config/config.boot. After successful save, updates the snapshot to
+match the current config.
+
+Args:
+    file: Optional path to save config to (default is /config/config.boot)
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails
+  {...require("./save-config-vyos-config-save-post.ParamsDetails.json")}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./save-config-vyos-config-save-post.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./save-config-vyos-config-save-post.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

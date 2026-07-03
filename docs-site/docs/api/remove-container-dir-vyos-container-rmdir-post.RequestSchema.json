@@ -1,0 +1,1 @@
+{"title":"Body","body":{"content":{"application/json":{"schema":{"properties":{"path":{"type":"string","title":"Path","description":"Path under /config/containers/ to remove"}},"type":"object","required":["path"],"title":"ContainerRmdirRequest"}}},"required":true}}

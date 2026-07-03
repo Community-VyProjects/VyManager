@@ -1,0 +1,75 @@
+---
+id: ipsec-batch-configure-vyos-vpn-ipsec-batch-post
+title: "Ipsec Batch Configure"
+description: "Execute a batch of IPSec configuration operations."
+sidebar_label: "Ipsec Batch Configure"
+hide_title: true
+hide_table_of_contents: true
+api: eJztVk1vIjkQ/SuWL7srMTCK9sQtmWE1SDsLCuxcCOqYdgGedLe9tpsERfz3qbL7C0jIKJe5bA4B7HLV83v14Wfuxcbx4YIr4yDlyx6X4FKrjFe64EM+eoK09MAEWwmfbples/F0BilLdbFWm9IKMmTaQPzm+nfFXXGdZZ0lJiwwiI4kUwU6c6rYZMC+7Scz9JTnyrO1tkx4natU+X3wMt8CUx7ypBA5sLWCTDIHdgfo0TGPu8aqXNg9UxIKr9DCBje01Ya/K36H/qbfY6PZlG2sLg0jhz1mAO3jV7xNAWm4Ci38EeKPBF249vObY/fa3Fc4cmEQgsar5OC3WjI8GYi5IZpuSpVJsP14h/udyEqoTxqrd4gX7yClIsciY0ZYjOrBOva4BcQAIEH2eY834ccS1QgiJUGJpBYAkt1eu2RniqS7bbTzeN7CfyU4f6Plng+fOR7ySBV9FcZkKg2+B98dif3MXbqFXNA3RImRvQJHvxoV6IffG/zkzlsUEUN45TNaGKMR+4eMTpNoWstEFkHMShFw5mcV4YcOGQ0od45Vm0sgJ+YM3aT2egQttSA8JIgwCQh7mHo+cVcuIZCJeoC4HoAFgQOpxX6yxnI6BXDoNStFmWX8sGwhfQuHX0cVnR8wTOVBr74jM5W4yoKk+sVrd3y2qdj4OYswizXYkBorM5Z5lTZ93kYV1or9EZONGG9ha9PnSMMX8d7GyGdob7q4QpW/1IfSrSg24BA3YWoxeFtCWHAGI8dEufr4kT5OSCnTFJxblxm7rYwRyjvLxkVnnXxcaZ2BKDo0VgGJaCm8OE6itkVMO47pMqeEX0qwz+QX/YO12r43S0fh8FtK1zfupjf2+A6VJ3R7UUhhJauVYWur8zgXOjOF5MTIf15dnSuG5aNkVD9ifLdcErxQ2YXWkun0aPcneFSIZANI3PL1SvpbR4CkUe42l9rXVyRXbKAty9dNAxlsTrtorQpTBkKaigsLuJP6p46bRtXa7hNx+eTfVJ64ifAru+MOV0lUZdGrVHyOErwUrDb5Mp9PzxzG/IijGG2q4WeE3+KvAQ3IAQ7IQRiQg9DicJvy4badj6MnkZsMTuZdS2x3+izinGk3qwnQZMAycL7WXcpDVn8VBQqYY3qy6+n4rCD+Es7jOrbh9AEKGRpdTkfQaywLCTuFNcYeld+yHT4Z8OAH8UhvLHpJYT05whM30CPaE+FECW4SnupiYyKDxb76qX5MnALqPBn+fwv+4rdgVRFUjgOTCRUaRmlDx4qpvuCU6iS/oRkT3/Q9HhMeC3JLdYFWz88r4eBfmx0OtIwlYPF5uFhSHlslVpSuC0rhLQjEHvL9AfZ1Oyj8h9BX2rQ/a7PUAuOJa5wIxl+0XXZKdzqZzQly9WDNtaQzVjxSv8H/Qx5KsXkFhjVszTj3S+qMQx590t8Ps/6A2A==
+sidebar_class_name: "post api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Ipsec Batch Configure"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"post"}
+  path={"/vyos/vpn/ipsec/batch"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Execute a batch of IPSec configuration operations.
+
+All operations are executed in a single VyOS commit for atomicity.
+
+The item_name field serves as the primary identifier for the operations
+(e.g., ESP group name, peer name, connection name).
+
+Each operation's `op` field maps to a method on IPSecBatchBuilder.
+The `value` field provides additional parameters when needed.
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./ipsec-batch-configure-vyos-vpn-ipsec-batch-post.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./ipsec-batch-configure-vyos-vpn-ipsec-batch-post.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

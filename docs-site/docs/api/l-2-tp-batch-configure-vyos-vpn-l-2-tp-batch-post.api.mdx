@@ -1,0 +1,76 @@
+---
+id: l-2-tp-batch-configure-vyos-vpn-l-2-tp-batch-post
+title: "L2Tp Batch Configure"
+description: "Execute a batch of L2TP configuration operations."
+sidebar_label: "L2Tp Batch Configure"
+hide_title: true
+hide_table_of_contents: true
+api: eJztV0tvGzcQ/isEL00ARQqEnnyzExc1kFSCreZiCTK1O9Iy5pIsyZUtGPrvnSH3JcmPwLcC9cGWyOHMx++bB/3Eg9h4fnbL1ThYvhjwHHzmpA3SaH7GLx8hqwIwwVYiZAUza/ZtPJuyzOi13FROkB0zFtInP5zruT5XqrfEhAMGyU/OpEZfXuqNAvZjN7lBT2UpA1sbx0Qwpcxk2EUvswKYDFAutSiBrSWonHlwW0CPngXctU6Wwu2YzEEHiRYuuqGtLvxcf4DhZjhgFR5OrtBGmUyouISmfsCsMYq1u/FbXCdUc22VyKAwKkdzJe+BzSNdcx6tN8qs0JmHEPBe/mNEfymIrQbFb57dGXtX36IUFi9gkIgSQmFyhhQSqxdE8UUlKc4wEXC3FaqC5qB1ZouXRQLyXJJfDGuFQ9gBnGcPBWimAXLIh3zA2+hXOSpJgJdRxGUjHiy3O+OXW6uXvV1rfMDTDv6pwIcLk+/42RPHMwFZpo/CWiWz6Hn001OaPHGfFVAK+oQYMW6Q4OlbKyB9CTuLf7kPDnnCEEEGRQtXaMT+IqPj9Js2CpNFlOdIzJ5yUay+Uj1tUMuPfN+jpAXnTzEb+xrYiT1BOWm8HkDEfFiaKngUbIl6OfCYT5kDEWAZ029Jl4iwosiRWr2brLEaj8PvB+2KrpTi+0UH6Ec8/DKm5HyPYWoPZvUTskZi6SCn8jex+BufbTa2bk4C3KQabhlNlZ26RJ07Q94FFc6J3QGNrRJvQety6EDA5+Bep8AnYC/6sGJiPNPFskLoDXhETYg6BMFVEBe8xbgpR8afP9OfI0qqLEOV15Vi17UxInln5fjkrJeKK8x0ELpHYh2QaM5FEIcZ1PWIac8xXeaY7tey6yv5Rf/gnHHvTdHLePgtnZsb93MbJ0SPyiO6g9C5cDlrlGFrZ8o0VXoTieTEyL+Px6eKYe3IPKmfML5brhyCkOqVroIlf7D7CzxKRLIBJG7xch19MwkgaVT6zWud6zuSKzbQFeXLppEMNqNdtJbaVpGQtmHHBdzJwmPPTatqY/eFuHwMbypP3CT4td1he6slqrPoRSq+JgmeC9aY/DmbTU8cpvxIoxht6vlnRSjw24hG5AhH5IhG5Cj2N9yldLjuJuTloyitgqOJ1/Hanzu3acJ0m3X3bxNgESlfmz7jMam/C436lZid7Hx6dVIPfwgfcB17cHYPOo9trqQj6DVVRQ5biSXGHmQo2BafDHjwk3igBxo9w7CcPOFJG+gR7YlvYgQ3CU99MeyelqWm+qV5TBzj6b0Z/n9G/oefkXUtUSGP8AYytprKxV6XiuSWU5FQ5liaTvE/iQFPpYKVXFBBodHT00p4+Nup/Z6WsXgcPi1vF1QBTooVJfotJX8BAqHHSrmHXdNHdPgUG1JXMCf9mXpnOnGOo8SGV20XvZqfTm5mBLl+7JYmpzNOPFCjwt9nPBZx+3KMa9jT8cFQUUs948kn/fwLBrapIw==
+sidebar_class_name: "post api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"L2Tp Batch Configure"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"post"}
+  path={"/vyos/vpn/l2tp/batch"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Execute a batch of L2TP configuration operations.
+
+All operations are executed in a single VyOS commit for atomicity.
+
+The item_name field serves as the primary identifier for the operations
+(e.g., username for local user ops, pool name for pool ops, or a
+placeholder like "l2tp" for global settings).
+
+Each operation's `op` field maps to a method on L2TPBatchBuilder.
+The `value` field provides additional parameters when needed.
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./l-2-tp-batch-configure-vyos-vpn-l-2-tp-batch-post.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./l-2-tp-batch-configure-vyos-vpn-l-2-tp-batch-post.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

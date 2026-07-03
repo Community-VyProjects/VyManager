@@ -1,0 +1,194 @@
+---
+id: batch-configure-vyos-wwan-batch-post
+title: "Batch Configure"
+description: "Configure a WWAN interface using batch operations."
+sidebar_label: "Batch Configure"
+hide_title: true
+hide_table_of_contents: true
+api: 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
+sidebar_class_name: "post api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Batch Configure"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"post"}
+  path={"/vyos/wwan/batch"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Configure a WWAN interface using batch operations.
+
+**Basic operations (all versions):**
+| Operation | Value | Description |
+|-----------|-------|-------------|
+| `set_interface` | No | Create interface node |
+| `delete_interface` | No | Delete entire interface |
+| `set_description` | Yes | Set interface description |
+| `delete_description` | No | Remove description |
+| `set_address` | Yes | Add IP address (CIDR, dhcp, or dhcpv6) |
+| `delete_address` | Yes | Remove a specific IP address |
+| `delete_address_all` | No | Remove all addresses |
+| `set_disable` | No | Administratively disable interface |
+| `delete_disable` | No | Re-enable interface |
+| `set_disable_link_detect` | No | Disable link state detection |
+| `delete_disable_link_detect` | No | Enable link state detection |
+| `set_connect_on_demand` | No | Connect when traffic is sent |
+| `delete_connect_on_demand` | No | Always-on connection |
+| `set_mtu` | Yes | Set MTU (68-1500) |
+| `delete_mtu` | No | Reset MTU to default |
+| `set_vrf` | Yes | Assign to VRF instance |
+| `delete_vrf` | No | Remove VRF assignment |
+| `set_redirect` | Yes | Redirect incoming packets to interface |
+| `delete_redirect` | No | Remove redirect |
+
+**APN / Authentication:**
+| `set_apn` | Yes | Set Access Point Name |
+| `delete_apn` | No | Remove APN |
+| `set_auth_username` | Yes | Set APN username |
+| `delete_auth_username` | No | Remove username |
+| `set_auth_password` | Yes | Set APN password |
+| `delete_auth_password` | No | Remove password |
+| `delete_authentication` | No | Remove all authentication config |
+
+**DHCP options:**
+| `set_dhcp_client_id` | Yes | DHCP client identifier |
+| `delete_dhcp_client_id` | No | Remove client identifier |
+| `set_dhcp_default_route_distance` | Yes | Default route distance (1-255) |
+| `delete_dhcp_default_route_distance` | No | Remove distance override |
+| `set_dhcp_host_name` | Yes | Override hostname sent to DHCP server |
+| `delete_dhcp_host_name` | No | Remove hostname override |
+| `set_dhcp_mtu` | Yes | Override MTU via DHCP |
+| `delete_dhcp_mtu` | No | Remove MTU override |
+| `set_dhcp_no_default_route` | No | Do not install default route from DHCP |
+| `delete_dhcp_no_default_route` | No | Allow default route from DHCP |
+| `set_dhcp_reject` | Yes | Reject leases from IP/subnet |
+| `delete_dhcp_reject` | Yes | Remove specific reject entry |
+| `delete_dhcp_reject_all` | No | Remove all reject entries |
+| `set_dhcp_user_class` | Yes | DHCP user class identifier |
+| `delete_dhcp_user_class` | No | Remove user class |
+| `set_dhcp_vendor_class_id` | Yes | DHCP vendor class identifier |
+| `delete_dhcp_vendor_class_id` | No | Remove vendor class |
+| `delete_dhcp_options` | No | Remove all DHCP options |
+
+**DHCPv6 options:**
+| `set_dhcpv6_duid` | Yes | DHCPv6 DUID |
+| `delete_dhcpv6_duid` | No | Remove DUID |
+| `set_dhcpv6_no_release` | No | Do not send Release on client exit |
+| `delete_dhcpv6_no_release` | No | Send Release on exit |
+| `set_dhcpv6_parameters_only` | No | Request parameters only, no address |
+| `delete_dhcpv6_parameters_only` | No | Request address and parameters |
+| `set_dhcpv6_rapid_commit` | No | Enable rapid commit (2-message exchange) |
+| `delete_dhcpv6_rapid_commit` | No | Disable rapid commit |
+| `set_dhcpv6_temporary` | No | Request temporary address |
+| `delete_dhcpv6_temporary` | No | Do not request temporary address |
+| `set_dhcpv6_pd_instance` | Yes | Create prefix delegation instance (e.g. "0") |
+| `delete_dhcpv6_pd_instance` | Yes | Delete prefix delegation instance |
+| `delete_dhcpv6_pd_all` | No | Remove all prefix delegations |
+| `delete_dhcpv6_options` | No | Remove all DHCPv6 options |
+
+**Mirror:**
+| `set_mirror_ingress` | Yes | Mirror ingress traffic to destination interface |
+| `delete_mirror_ingress` | No | Remove ingress mirror |
+| `set_mirror_egress` | Yes | Mirror egress traffic to destination interface |
+| `delete_mirror_egress` | No | Remove egress mirror |
+
+**IP settings:**
+| `set_ip_adjust_mss` | Yes | Clamp TCP MSS to PMTU |
+| `delete_ip_adjust_mss` | No | Remove MSS clamping |
+| `set_ip_arp_cache_timeout` | Yes | ARP cache timeout (seconds) |
+| `delete_ip_arp_cache_timeout` | No | Reset ARP cache timeout |
+| `set_ip_disable_arp_filter` | No | Disable ARP filter |
+| `delete_ip_disable_arp_filter` | No | Enable ARP filter |
+| `set_ip_disable_forwarding` | No | Disable IPv4 forwarding |
+| `delete_ip_disable_forwarding` | No | Enable IPv4 forwarding |
+| `set_ip_enable_arp_accept` | No | Enable ARP accept |
+| `delete_ip_enable_arp_accept` | No | Disable ARP accept |
+| `set_ip_enable_arp_announce` | No | Enable ARP announce |
+| `delete_ip_enable_arp_announce` | No | Disable ARP announce |
+| `set_ip_enable_arp_ignore` | No | Enable ARP ignore |
+| `delete_ip_enable_arp_ignore` | No | Disable ARP ignore |
+| `set_ip_enable_directed_broadcast` | No | Enable directed broadcast |
+| `delete_ip_enable_directed_broadcast` | No | Disable directed broadcast |
+| `set_ip_enable_proxy_arp` | No | Enable proxy ARP |
+| `delete_ip_enable_proxy_arp` | No | Disable proxy ARP |
+| `set_ip_proxy_arp_pvlan` | No | Enable proxy ARP PVLAN |
+| `delete_ip_proxy_arp_pvlan` | No | Disable proxy ARP PVLAN |
+| `set_ip_source_validation` | Yes | Source validation (strict/loose/disable) |
+| `delete_ip_source_validation` | No | Remove source validation |
+
+**IPv6 settings:**
+| `set_ipv6_accept_dad` | Yes | DAD mode (0=disable, 1=enable, 2=enable+no-link-local-if-duplicate) |
+| `delete_ipv6_accept_dad` | No | Reset DAD |
+| `set_ipv6_address_autoconf` | No | Enable SLAAC |
+| `delete_ipv6_address_autoconf` | No | Disable SLAAC |
+| `set_ipv6_address_eui64` | Yes | EUI-64 prefix |
+| `delete_ipv6_address_eui64` | Yes | Remove specific EUI-64 prefix |
+| `delete_ipv6_address_eui64_all` | No | Remove all EUI-64 prefixes |
+| `set_ipv6_address_no_default_link_local` | No | Disable default link-local address |
+| `delete_ipv6_address_no_default_link_local` | No | Enable default link-local address |
+| `set_ipv6_adjust_mss` | Yes | Clamp TCP MSS to PMTU (IPv6) |
+| `delete_ipv6_adjust_mss` | No | Remove IPv6 MSS clamping |
+| `set_ipv6_base_reachable_time` | Yes | Neighbor base reachable time |
+| `delete_ipv6_base_reachable_time` | No | Reset base reachable time |
+| `set_ipv6_disable_forwarding` | No | Disable IPv6 forwarding |
+| `delete_ipv6_disable_forwarding` | No | Enable IPv6 forwarding |
+| `set_ipv6_dup_addr_detect_transmits` | Yes | DAD transmit count |
+| `delete_ipv6_dup_addr_detect_transmits` | No | Reset DAD transmit count |
+| `set_ipv6_source_validation` | Yes | IPv6 source validation (strict/loose/disable) |
+| `delete_ipv6_source_validation` | No | Remove IPv6 source validation |
+
+**VyOS 1.5 only:**
+| `set_dhcpv6_no_request_dns` | No | Do not request DNS servers via DHCPv6 |
+| `delete_dhcpv6_no_request_dns` | No | Request DNS servers via DHCPv6 |
+| `set_dhcpv6_no_request_domain_name` | No | Do not request domain name via DHCPv6 |
+| `delete_dhcpv6_no_request_domain_name` | No | Request domain name via DHCPv6 |
+| `set_ipv6_address_interface_identifier` | Yes | SLAAC interface identifier (::h:h:h:h) |
+| `delete_ipv6_address_interface_identifier` | No | Remove interface identifier |
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./batch-configure-vyos-wwan-batch-post.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./batch-configure-vyos-wwan-batch-post.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

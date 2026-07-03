@@ -1,0 +1,68 @@
+---
+id: get-all-interfaces-vyos-show-all-interfaces-get
+title: "Get All Interfaces"
+description: "Get all interface names for use in the interface pickers."
+sidebar_label: "Get All Interfaces"
+hide_title: true
+hide_table_of_contents: true
+api: eJztVttO20AQ/ZXVPoHqxLRqX+gTUlsUiUsFlBeCkrU9thfWu2YvCRHKv3dmY2InUPUDWr84nsvZmdk5R3nhXlSOH99xV5slv094AS63svXSaH7MT8EzoRST2oMtRQ5MiwYcK41lwQHama9h4G5l/gjWjad6qi81u11dXrOP4y8fYpiSzjPpmDPB5lCw0pqGzed0dA/hGAJoUOzBGT2fYzDmCj/VtXE+zY32Qmqwo9yC8AgySDyAcTVm6FcuFwoS1pqiEZotwNdpZmVRgTtkwsJUO1CQe5EpYN6YrwxxS1mxQfcu9asWQTGcNWCreBQTuuhig4VilAU/murCLPWwDkoJGjEwJxP5I/rGrJ/GZ3awrAFjqC9EaxpCLQxmaoONwjPO6XBnYlmQym/mReYI1JXsLUAc9xX4YLU7nmqGzxllmvK920vQkKtQSF2x27OTCxe7ciEb9T2MecJNC1bQKCYFrkIFfoZgsz5mtlgZN6Pb23dgLOZbcC3OEXC/XvinoyN67a7Xdcgx3JVBsasuGPPojkF7Chdtq2Qei0hpH8jm8hoaQb9aSyV6uTmhPz9+eWjc2yAaAL3pbrEA5y1OAc/00isyXJB/nXT+P8fdkH29RxesV68uS6TTfuI62Vp0UIqv73uobwOI9fZobrIH3NA4xqcgcdmIpbH8LmQAMXlt/WLj353yuSmQTkTZ3UXY7NNmjcZ901xYK1b8HXQXg4wXajAawqzADmcTI/7WyuC6XkEHHZ0o1R872I3dzl4drJMF2uh35WqnUXoS3qAomG6xEbgVvsaPlHY6pZ1OEWi0U6TUpYmNdzVGFp4LLSpocF/Zyc/Jmwp/COfRHmUAkGV0Cw2lRPIRQAELSaKxlL5GpbIOE0diSRrSSQOd3TkQEePpGlpUQ3T2Ox21GsfGJsOa9/ZzS63/yv4vK3vHSw/PPm0VTp02KthI6w0R7jgRAUPj/4KE75EBmUqXRnEvL5lw8Muq9ZrMTwHsCu34cyGspHugL8SvQRSoEySOj7AijqP4t8S9hVAhCs++2pNMbnl6+v0Gufsb54oRYQ==
+sidebar_class_name: "get api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Get All Interfaces"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/vyos/show/all-interfaces"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Get all interface names for use in the interface pickers.
+
+On VyOS 1.5+ the list is sourced from ``show interfaces kernel json`` so that
+host/container-created interfaces (e.g. tailscale, podman veth/bridges) are
+selectable too; config descriptions/types are merged in and configured-but-
+down interfaces are unioned back in. On VyOS 1.4 (where that command does not
+exist) the list is built from the VyOS config tree.
+
+Returns:
+    List of all interface names, including VLANs and sub-interfaces.
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./get-all-interfaces-vyos-show-all-interfaces-get.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./get-all-interfaces-vyos-show-all-interfaces-get.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

@@ -1,0 +1,78 @@
+---
+id: batch-configure-vyos-input-batch-post
+title: "Batch Configure"
+description: "Configure an input (IFB) interface using batch operations."
+sidebar_label: "Batch Configure"
+hide_title: true
+hide_table_of_contents: true
+api: eJztVl1vGjsQ/SuWn9IIQhTdJ96SplUjtSWC3CtVCSJmPYDbXXuv7SVBhP/eGe+ya5ZCqqiP5WGX9XzZZ2bOeM29mDvev+dK54XvKu3BzkQCfNzhElxiVe6V0bzP3xs9U/PCAhOaBW12cvPx6h2rbVjhlJ6zqfDJgpkcrCBTd/agH/Tp6ajIc2M9yEjUPz190C9ssF1gL+w/kRaA7+smOHtBpW7ze2m9qy/y9OjAT+oNTaITPKLPb+DwOQLPZMs7e5SQgofDtl8NPoaQmSX8wroVVjkxTaE2u5SZ0sp5OuQS0hWrFA6GbtkPoQs6GDRYN3EtSGUh8c0Jh9UKqicmo5zkIvkB3jFvaPNe6RLutrtqJ7HH+Nzb9QP7rtWvg4CB9qgeB+EdXif/RmJRhVqZJNvSmixXxk1CcU1KUW6cRysL/xe47ysjV7y/5mjg0Tv9FXmeqiR47H13VKlr7pIFZIL+5ZbieQWOvprqxg+/yvHNMSsIEIbwyqe0cFMrtTugljAtMmAncDY/6zA1m56/45voZGUsD5nb34LJj8Ue5HtBm96goBRnSR0Sjq5Xgxn2btvfplOv6CJN+WbcRAjtdSRIcM5O1IwR5Jg+iWfDoJU/M/2O+a8SQlKiDjxTFOGK8lY75I2tsFasdg5b4/VaBBXlJIK5HXVYVgm628T23hYQFlyOVmUeLs7P6bULw6hIEnBuVqRY8aUyBnxjsbnSWZTuqTEpCB1BUAUkkKTwYjepQkpFkUR6Gzmmw7TBOpbwa/KL/sFaY99aNR+C8WtZ2p44LrfVYFRDuQl5+efiYh95LEslywosY70ZdgleqPRIB6Ym2ZH+Bh5UfnNAAMaHq/mzSeqCz9z8WJd/QZDEHJrWOKwawGB3JEXtQIxBveYqWkBJ4p8jN3V2tnrvCctn/2oGCZty+5XeLnNUKaqq4SAU12UKfhVsq/Lp7u52z2FZHxn4haHZUFF/LvwCv3o0GnoBgV4YDSiiWhg2k+HDs8jyFFpM34AaE/R9ScWNsGLVOvvjgPfMxHBTNbMvQmPyMixNdnl7s0elH4XzuI63IJy4WrIZ5i8jExrDwYGEpcI+YU/KL9gSrEPDrngSOCpxWqOudLSfUoAeUZ/AJjhQSPsJk6DiPFbfy9pbicbk38vb38vbn7i8Ve1MXNLLU6EC2xU20G3Zp/ec+pRvuapT3vCIRxbUzihfr6fCwb823WxoGbvX4p3ufkwtaBUBRV/odwFCIulSq/6A1ZbFtO8GOmw6dm86EHOXFpc4kHJ/VHccMc7tYHRHW65umZmRZGPFE9EkPvs8sEh9xwtrOFGEnhdE6H1e+qTfT/HFrow=
+sidebar_class_name: "post api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Batch Configure"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"post"}
+  path={"/vyos/input/batch"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Configure an input (IFB) interface using batch operations.
+
+**Supported operations:**
+| Operation | Value | Description |
+|-----------|-------|-------------|
+| `set_interface_description` | Yes | Set description |
+| `delete_interface_description` | No | Remove description |
+| `set_interface_disable` | No | Administratively disable |
+| `delete_interface_disable` | No | Re-enable interface |
+| `set_redirect` | Yes | Redirect incoming packets to destination interface |
+| `delete_redirect` | No | Remove redirect |
+| `delete_interface` | No | Delete entire interface |
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./batch-configure-vyos-input-batch-post.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./batch-configure-vyos-input-batch-post.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

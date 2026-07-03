@@ -1,0 +1,71 @@
+---
+id: generate-openssh-vyos-pki-generate-openssh-post
+title: "Generate Openssh"
+description: "Generate an OpenSSH RSA key pair and install it on the device."
+sidebar_label: "Generate Openssh"
+hide_title: true
+hide_table_of_contents: true
+api: eJztVt9v2zYQ/lcIvqwFnNjwgq3zW9Z2a9B1NuKsL0lg0BJlsaFIjkc58Qz/77ujRFm222To8/IQ0ce7747f/SC3PIgV8Mktdw+K3w94LiHzygVlDZ/w36WRXgTJhGFTJ818/oFdzy/Zg9wwJ5RHec6UgSC0Ziowa1goJcvlWmXy/M7cmYQABNGaDhhIr4RWgGLSd16tyQvBKsOWNpSdO/Iw+/h2/ubOFNZXIsCAbAwTIcjKBUSwXQg1KLOKkMm8sWGF8hDYK1xmJarcmc+b6fwHYPbRsFU6ZGarCt29jj4LxAO2FNkDOYgRMFUgNqEJpeGcD7h1ZIlcXeXIVgJaoNgAlIv1xsICiV2c7DgLAe29/LuWEH61+YZPtjyzJkgTaCmc0yqL2MMvQMnYcshKWQlaOU+eg5JAv4yoJH3DxuGXQ/B4REQPKmgS/En7x6lNBBHnEWA34LhegPqnD6YwopX0PbSPaDAnpWPEVBiEENOoMDmvxqOLN8MfRz+PhxejX356Ha0KUWs8JW3t0G3ryi6/yCyxorzMqSxjaPd776me2vCvGwJPY2nklLrVV2o41e8531EAe4fB1zIKwFkDDb3j0Yg+hw7mdZZJgKLW7LpVxiC+M4HQgPVoX1qrpTA92luHlKZchAgizGZaIEm4ynNFnoSe9YDpMMfs7gadD1NrzXc9bt8RLuJL760/dHBYWs+BvI/GL6U1nbhnSB3Zo/KI7oA9KXzOUmZY4W3FyIZ1TQgxnej5Yjw+zdhnHDh51GNNjN+drlwGHAC0UjiC4FRB2+xg9z/wmPpsd79nTngvNr0S+MM2AVKOKlg91/KfkFyxik3dqHxbNZLBbmgXtZVxdSQkbV9FAe5k4akH02U16b0lLp/Ci5knbprwW71+CXQpaqvom1S8a1LwNWdJ5cPNzewEsKmPSobS0sRux7ATocRfQ5rXQ5zXwzQzztp5jTpUFNf7cf3+SVROy/343RO7n6JxwBGnhe1TGqv2kzCYoArLj13Ork4K/jcBAeXxApJ0HWGOKjKhCy4CNJcssEeFt+VaekDDM/EofHeRAaK2G4iI+kQoHRk3e4F3l/y0O+xBLL176f8HwQsPgrYYqROGTgsVe7X2cVg0VXbLqcqo6PDBNeAnlYbtUFJVouJ2uxQg//J6tyMx1p7HZ8ItLtcC6VpSMd3SvCilyHF20IBBxlIzmnAWu5rUdR276HjI0QBqLC5xHrvwrO59r3Fm0/kNKi/bh0tlc7Lx4pG6Hf9PeHwdxalMClGGg1GYVU1zacIbTPr7F+hVoYU=
+sidebar_class_name: "post api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Generate Openssh"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"post"}
+  path={"/vyos/pki/generate-openssh"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Generate an OpenSSH RSA key pair and install it on the device.
+
+Generates an RSA key, serialises the private key in both OpenSSH and PKCS8
+formats, then attempts to install using the OpenSSH format first (matching
+VyOS's own generate command) and falls back to PKCS8 if that fails.
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./generate-openssh-vyos-pki-generate-openssh-post.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./generate-openssh-vyos-pki-generate-openssh-post.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

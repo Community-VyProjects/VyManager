@@ -1,0 +1,75 @@
+---
+id: get-access-list-config-vyos-access-list-config-get
+title: "Get Access List Config"
+description: "Get all access-list configurations from VyOS in a generalized format."
+sidebar_label: "Get Access List Config"
+hide_title: true
+hide_table_of_contents: true
+api: eJztWE1PGzEQ/SuWz5QgVHHIDQGlSNBWkPYCUeTsejcuXntre1PSKP+9M/Z+eBOSoqa3hguKPX6eeTPzdmeX1LHc0uEjZUnCrX0nhXV0fERTbhMjSie0okN6zR1hUpLIiCRaZSKvDEMbSzKjC/Jt8fmBCEUYybnihknxi6ck06Zg7vhJPalzk9vhkyLwZ3hmuJ0NyU1GRqbiR2iX8Ga9AzxGiw9MWjCpLCcJS2bco91zVxnVAF5HV/acIylzjGgIpmj8QXTluPKWtipCoEdUlzycuUkh7Jy7SQh5giFPAupkvtD2tXUwB4iSGVZwxw3SuqQKfgBUHRXsCyT0R8XNAn4Y/qMShsNlmQ+QWoitYHS4pG5R4sGp1pIz9C3lGauka02dcBIt7mvo1WqMgLaEiLhFiNOTE/zXz+VD5T3PKknua2MATzwdDs1ZWUqReBYG3y2eWUZulQY5ciLcIMr5e89B+OV4YTeNVFVMuYliss4IldMuhE/BYrVWd+CLWnzOPI/9o6ujdkVVUlIMvQG7jCAA0VSS7/IO9ycbLgqgI4eViGawI52jLGl83BbUedK48O+DsrqCXpkE679DfPAQZITbHSJLUyghuyfoeY3S4RbMPu8JeocQHSJ/gRQArktmrwI3jfMG5CuEAnyECulyQvkG2Ivhyw6npTnG3pPrGD4iPL5hH9Zj+EA9gNfGevqdJ66nX4+9Rmr7Yxz3A+rOLYgFthJdf8bc6ZRLr81M9R40iHtMu8uZMWyx1pg21sfHMRh7YW6yt61F0Zk6NX8Iro2rw301tDeHtSuiG1BVcutVdT0sENyzg+AeBPcguAfBPQjuPxTcsy2C67RjcoLvuTvFaoRmBIU7RjiJAc7eBnDWB3iFpk0SLvwAEr3O9ylpNnDYcUwoyMnucQ64WuHN709PNweIbzBjpaFMr4zR5u+nh5SDN3LHo0LqpLf7hrZqmF2Nt6f7VgcHsSIKm+8q2DsgiOW8q53tpp6MVneEKitPSFtjfgF2EvcSwWxk9QK5fHF/bBDkJrhf20Xt0aUoZGg7FZchBbvK7ONo9GUDMNQHzLkzXU/KfvR18GigAxyQB1FxDUJx+eE30zEp/oPBHVNAcQEFRM6/3GxU7wdmHayTKUuecWLH1i7wCJaxB0j5XMBl5KdwMzKHyRsOvmM/mcGKL8A2xb6uNwAR7JGSUlsHm/6NKUzp+J0jdJVXA3LR+L32QtHW+//zZaSuDizNQSlBRJDByvjuDXl/pJh3/yTqPiV5bUAOoTpnwDeaLZdTZvlXI1crXA7fQrCpU2HZVEZfQ575ovftZM5khV745+acGYHmtVDPOEvxjRJwwjFMZOmiUxvShChtCV9fjaCsfwOFhpq6
+sidebar_class_name: "get api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Get Access List Config"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/vyos/access-list/config"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Get all access-list configurations from VyOS in a generalized format.
+
+Args:
+    refresh: If True, force refresh from VyOS. If False, use cache.
+
+Returns:
+    Generalized configuration data optimized for frontend consumption
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails
+  {...require("./get-access-list-config-vyos-access-list-config-get.ParamsDetails.json")}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./get-access-list-config-vyos-access-list-config-get.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./get-access-list-config-vyos-access-list-config-get.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

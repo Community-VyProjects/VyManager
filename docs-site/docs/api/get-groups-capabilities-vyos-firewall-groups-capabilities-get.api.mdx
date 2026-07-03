@@ -1,0 +1,64 @@
+---
+id: get-groups-capabilities-vyos-firewall-groups-capabilities-get
+title: "Get Groups Capabilities"
+description: "Get firewall groups capabilities based on device VyOS version."
+sidebar_label: "Get Groups Capabilities"
+hide_title: true
+hide_table_of_contents: true
+api: eJztVMtu2zAQ/BWC5yQKeszNaB3DQIoEdtIeksCgqZXFhiIZkrJrCPr3zlpWa7dFv6C+iI/Z2dHsWJ3MapPkzbOsTKSdsvZyE30bkny9kCUlHU3Ixjt5I2eUxQgSA0hoFdTaWJMNJbFWiUrhnShpazSJL/v7pdhSTKi/enEvbkG5jS6JihQWJCqL3sK40miVjduIXW10PXCLvA/gVA6MgaJiEdiiKrUh+JipBOdjbXBord+BNXqXyZVJZC+0ByvX4HIvyKm1paI0iZ9j/xPF5yrfW8O3i+nkk0DvxiS+ZNztfDH9Orm7W80W908Py5HpSl7InyrnJczaUF4NHq1OPVpt9z6tRhf/ikAl2NA/4IUJo+nkh+trfpyPY9lqTSlVrRWLIxh1+uBBZrgKwR6M9a74lrimk0nX1Cisev5dyIZy7Y96UR1UrrEpWGUxqiwGlcWpSmCNqzxTZpMtoegw7c/KqQ01UCAmD3P5e4RuVco4h+/6DZMSlY+i4RIe/oFgiE4SO5PrcSqXasdz174BtuTexwswAi/xHsGnjEvW41RDx7TOhpB+PBd+Jqn75dj/gP874KwXLmX6notglXFsfBstmzgE51lycAAdXcTy+DVBMk+ngI9LjZFxSdexyKdo+56P31uKe5xjuVXR8OvwDq1qUiVFbDr5RoDICf4AgWO7VbZlaX8kvn89ifhs+ij7/gdqdsg6
+sidebar_class_name: "get api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Get Groups Capabilities"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/vyos/firewall/groups/capabilities"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Get firewall groups capabilities based on device VyOS version.
+
+Returns feature flags indicating which group types and operations are supported.
+This allows frontends to conditionally enable/disable features based on version.
+
+Requires READ permission on FIREWALL_GROUPS feature.
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./get-groups-capabilities-vyos-firewall-groups-capabilities-get.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./get-groups-capabilities-vyos-firewall-groups-capabilities-get.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

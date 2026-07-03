@@ -1,0 +1,78 @@
+---
+id: get-flowtables-config-vyos-firewall-flowtables-config-get
+title: "Get Flowtables Config"
+description: "Get all flowtable configurations from VyOS."
+sidebar_label: "Get Flowtables Config"
+hide_title: true
+hide_table_of_contents: true
+api: eJztVt9P2zAQ/lcsP20SUIT21LdutKxSN6bSjQdA1TVxWm9OHGynrKryv+/OThq3BTZtr0NIEPt+fvfdnbfcwdLy/h3PpBFPoNRppvSTg4USlj+c8FTYxMjSSV3wPr8SjqEM28mwRBeZXFYGSMKyzOicfdtc35zdF/fFwCxt/75g+GPEYyWs67MRWDf4Mm4PmF58F4ljb9CQA4kmIHFyLZgV1qLJt616ZoRd9dk4YzNTiROWaZOI9jzySxIjUBZFKovxQbISTGYM1iAVhewjmwpXmaIN7kOcBEsFBqIsedhP1gbNxwqhsmw6HFyyUphc+kAZ/o7G0+HtYDKZjybXt7PB+8nwhmUC0JU44ydco7R3MU4Ry6Vw8870PAA5X2+0nbe1eOYetdBSCQZy4YSh0m15gR9osQED7yUVC/E1G/wwIWL0mXlcuEVIcuD9LXebkhQXWisBBadyZ1AptxN10imSmDam6/qBDNoSi40EQRMX5+f0Z58nN1WSYP2ySrFpI4zGqcSicCQOZalk4sHofbeks43CKg1B5WTwEBESv6QTuT0WChDsMrLOyGLJuwQ+0319wGeMo9hcZx7DfcX6ZHdSVEpxSrs1dRmZqAlrrEMGyUF4h/baAzAGNlFg4049gv/uATV0hqlD+rdxXjfqdec8NNseJ+4CdJHeqMWbH7b/6Pm2P3slvVFXvMP0nHagIqgIyKUwkfLMS0R658/lcuwq9HPEvP002gvWzBwE8qDRMaOaXL27uDgm9zdQMg2jYmiMNn/P7DBpXmG10sne7R/QoEWxfni5KBMdAqS65Xb5Wt98wjaGpegq/LKoB4PN6Na3RVl5QDqi0wHeJO5nZOaojB8Iy5/ut7QlbEL4jVxE4a5EoUIvQ3EZSvAarz7OZl+ODAZ+4Axe6WaY+7HsVvjRoyHea4d4r6NVL7SNH9CZjsGh1cU+QYFQ50gkhhvyuPuazbmA5IcoUr+fclIh/noDqVhLHCTsSboVW+N2QMVTeAJDVM9RNqUubC7QIsoTNKW2Di+7Mer3fNdOzX48DGjb0f7/w+CfHgYN84j2vVJhslSVyvjJEDh1x4lTKNqyiv6NR2vDLOyBFVaTFLbbBVjx1ai6puPwGqDRkUpLWt174IfY7L0e1qAqisdvkzUY6ZdBGNorASlOF7IT1Aa46UsXaR0NQLKya5Sr4Qyb5xdAMqFd
+sidebar_class_name: "get api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Get Flowtables Config"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/vyos/firewall/flowtables/config"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Get all flowtable configurations from VyOS.
+
+Args:
+    request: FastAPI request object (contains active session)
+    refresh: If True, force refresh from VyOS. If False, use cache if available.
+
+Returns:
+    Configuration details for all flowtables
+
+Requires READ permission on FIREWALL_FLOWTABLES feature.
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails
+  {...require("./get-flowtables-config-vyos-firewall-flowtables-config-get.ParamsDetails.json")}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./get-flowtables-config-vyos-firewall-flowtables-config-get.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./get-flowtables-config-vyos-firewall-flowtables-config-get.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

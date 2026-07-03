@@ -1,0 +1,63 @@
+---
+id: banner-events-vyos-events-banners-get
+title: "Banner Events"
+description: "SSE stream for banner status updates."
+sidebar_label: "Banner Events"
+hide_title: true
+hide_table_of_contents: true
+api: eJzlU8GO2jAQ/ZWRT12JhVWPe9tWtELaqlXZ9gIIDc4kcUkc13ZCUZR/73MC2hX9hHLBHs+8efPepFeRi6AeN0o6sTGo3UxlErQ3LprGqke1Xi8pRC9cU954OrC14hHh2AZqXcZRwnxrt3YtNgs0wdCpFEu6sbkpKDN5PsOlrk28H2O+nhGwXHN6hdIl22KEeimFdGWAQ160mE4CGYs0BC4NKfdNTXWLUrAMxDYjJ940mdFAEn0MW5voyp8o3nJ1had3Mi/m9PF5dWUnmYnhbq5mqgHCiLfKMPc06H6aZ9+dm3A9Ty9hX0hElZfgQEEgYq/ePzykvxsFW60lhLyt6PslGXVoHwGX0tm5yuix9eJXSDW9CpiiZpyG9JupWmLZJF5TV8exxGWReC0mXosLL7wazJ5AoomVIO3n+euavrDlQuok69O3lbr1+ROHiDgM1kc4OZpdpxJjCxoBMukMBqGTiSV16ITCez6xl9FceJB6Xx6AiHwF5q4JEY+Jj+U60fkw7dBy2rgbIv2rMv/R7sWzS8pE1CxcxcYm5VpfJT0mrzcqeY1Uucp29RufbAmNU0rfHzjID18NQwr/bsWfEcexY2/4kLZhswN0KZyJx6VXR0GKesKOurRZHVdtovLPUg67N1v4efmihuEv69OCLQ==
+sidebar_class_name: "get api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Banner Events"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/vyos/events/banners"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+SSE stream for banner status updates.
+
+Sends events when config diff, commit-confirm, or power status changes.
+The client receives instant updates from mutations and periodic checks
+for external changes (e.g. CLI config edits).
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./banner-events-vyos-events-banners-get.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./banner-events-vyos-events-banners-get.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

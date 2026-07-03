@@ -1,0 +1,72 @@
+---
+id: get-interface-public-key-vyos-vpn-wireguard-interface-interface-name-public-key-get
+title: "Get Interface Public Key"
+description: "Get the public key for a WireGuard interface."
+sidebar_label: "Get Interface Public Key"
+hide_title: true
+hide_table_of_contents: true
+api: eJzVVVFP2zAQ/iuWH6ZNKgtCe8qkSYgxhjYGgsIeSlVdEzcxJLGxnZYoyn/fXZwmKR1Ie1wfqGvffT5/d99HzR0kloczvpFGJCWYmM8nPBY2MlI7qQoe8jPhmEsF0+UykxF7FBVbKcOA/cacM8phsnDCrCASH++L++LWCsvuqssbZlO1YZHKcyhi5hRLEKqPZbbEA1OxTSqjFPejrMSbX9yFiCceIPRwfb5lfdHsXeY+9wdftsh8wpUWBugh5zE+Be9f9GELf8kCL1msK2UXa10seshR3GhZQI6/R4mIiLdoMHiAQcRlzSkKb9tNwzBJdGpwKa6NeCrxLqzKmVJMuI1SkQMPa+4qTdnWGVkkGOmky2jjvCfuF8E1zZxQrFYF8k2JR4eH9LXbvZsyQqrsqszYdReMmJFCsMJROGiNj2k5Ch4s5dRDMQ1+JvzT0dE+8B1kMm7T2KkxyvwDKteG+uKkrzsWDmRGK+lEbvcDMhXtnEJRXa5apne5aib9DnGfCMObOdbf7YExUI0I/al8gZjHc5u8xf0FUgiJ4D3Y66EtGWxKpw21XJctIUMXaQNPIvc8glHLBxG5EcwJcfmMkUP9fcwwO7OWG19+FzcfMIYW+Q69TsVX34K/XbYN+T6dXu0B+vnA0U9Vp69WDTjhIQ9IVAGKKuhFFfSSCOpddTSBF9UBiqpVykqNWWvd5AIK7EGOE8aOr875S5/6BtbhPltC9CjQb8ikckrB/ng7isVaet9wKVujWjHxADZgxNakLKJ2B4iI8cSZVtbhIdXTKZsscZDjlTerH23lOzXVgyT+bxvthoImMtAZyFYzpWlF69s949Ruok8X+Hf4fzIZfBDX4Z4pjvqOo5si1wRW10uw4tZkTUPbT6XAOsIZLtdgJCxpKlD/sbS0xtlbQWbFG/S/v+5E84G99p6tNgp68Rqykn7hkkrbc/PWWFIBMZoMVeKDjtFstRul7/kguXavl7PTKWroD1Mzo0w=
+sidebar_class_name: "get api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Get Interface Public Key"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/vyos/vpn/wireguard/interface/{interface_name}/public-key"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Get the public key for a WireGuard interface.
+
+Uses VyOS show command to get interface summary which includes the public key.
+Command: show interfaces wireguard &lt;interface&gt; summary
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails
+  {...require("./get-interface-public-key-vyos-vpn-wireguard-interface-interface-name-public-key-get.ParamsDetails.json")}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./get-interface-public-key-vyos-vpn-wireguard-interface-interface-name-public-key-get.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./get-interface-public-key-vyos-vpn-wireguard-interface-interface-name-public-key-get.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

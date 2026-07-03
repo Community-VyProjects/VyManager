@@ -1,0 +1,71 @@
+---
+id: igmp-proxy-batch-configure-vyos-igmp-proxy-batch-post
+title: "Igmp Proxy Batch Configure"
+description: "Execute a batch of IGMP proxy configuration operations."
+sidebar_label: "Igmp Proxy Batch Configure"
+hide_title: true
+hide_table_of_contents: true
+api: eJztVltvGjsQ/iuWn85RSaiiPvGWtjlppEaghHNeKEJmd1jceteu7Q0gxH8/M/beYAup8lyEYNcez4y/+eay515kjo9mXGa5uTJWb3d8PuApuMRK46Uu+IjfbSEpPTDBlsIna6ZX7OH+ccKCOEt0sZJZaQVJM20gPrnrb8W34jZJwHjH8lJ5aRSwzOrSuAEDgYpcguIp8xpVO1lkuC8LD3YlEmB/acsypZdC/Y2qbpWqzjJhgUwn4BwexgOd48tSqhQsE0WKjuW59B5lhNe5TIRSO9Q0XUvUoZTeOObAezzISoNf5y2InL1jqd4U1UvjjsNHpguotF7zAW+u+pAiSATgIiCyCCgtalxg8bLTbtHbN9p51GLhZwnOf9Tpjo/2HE95KDw9CmMUek0Wht8dRWLPXbKGXNATqkL7XoKjtwgNPUkPuesLNBcJmovdeIVR33O/M7jC8bYIAz8MmpWiVIofkApeekULD42CU3o0O6wQOaCSFplLHmlDv8cOtObGpmdnXGtt7LwIVb75Qv+Fw+eNROUHNFNp0MvvkNQhkxZSyhu8RRckDPKEYvyRQtzo6ll5jmxtcCJy1dlVEeKat5aFtWJ3BE6D7+v+NaJn/bwn8vR8vI35RtneKvn9lL3g/n0k62uuV5w+6/ZTBKrn+KNOQbEV+hIBPSpQ1+y5NEbbbk1qL1BVmBCN6naxdjRpfyCvWy+9LSEsOIPoRGLfvH9PfycRLxMqWKtSsadKGB1/Y7a7qKyTP0utFYiiA3JlkMKQCi+Os0SkqSRLQk06iukypyG5lEGfSS/qB2u1fWsa3oXDr3GhvnE3f3fj5w6UJ3B77ADCpqyODFtZnTM6021RFE60/OHmph8xrA8yjdkZfXxzuFLwQqoLpVDp5Gj3N3AkzmaAwM3P59lXHR2kGOUuu1RuHxFckUGbtOdFAxhsSrsoLQtTBkDaPkELuJP4bUdNE9Va7hNhufWvRp6wie5XcsclvApRxaKzUHyOIfiVsVrky3Q66SmM/MjBrzU1+apnG+HX+Dakxj5sJ6dhqDe4T4R4avv63VbkRkG3T8+OOnILcrdzzmKPbDerdtewYR6CL4uV7gYgcPxRFBjOHMnKbicPvfT4RziP61ggkx+AoxIVy5yO0DAUFKTwImnq2Ui/Zi9gHR68EhuavagUYnY58ihuoEaUJ/gJINwkf0KTjjWbhaLNQtVmn+q56NSrzvDzZ+T89chZcZcSZ2iUkCG1SxtqSyTljBMpUbQz0A94JCZmzpoIjEL7/VI4+Neqw4GWkaoWx8/ZnEhmpVgSk2bErjUIvFwg4w/Y1Xlb+KtQAFpO9uoh1ap4Igbkouy8k2OT8fOUXK4G4hy7Oa5asaHCgL8jHvKkGS/DGtZQUWQllbARjzrp8z+V74Xj
+sidebar_class_name: "post api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Igmp Proxy Batch Configure"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"post"}
+  path={"/vyos/igmp-proxy/batch"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Execute a batch of IGMP proxy configuration operations.
+
+Accepts multiple groups, each scoped to a single interface (or global).
+All groups are processed into a single builder and committed atomically.
+This allows setting up upstream + downstream interfaces in one commit.
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./igmp-proxy-batch-configure-vyos-igmp-proxy-batch-post.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./igmp-proxy-batch-configure-vyos-igmp-proxy-batch-post.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

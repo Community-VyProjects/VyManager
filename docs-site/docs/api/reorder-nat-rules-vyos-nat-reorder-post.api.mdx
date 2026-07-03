@@ -1,0 +1,80 @@
+---
+id: reorder-nat-rules-vyos-nat-reorder-post
+title: "Reorder Nat Rules"
+description: "Reorder NAT rules by deleting and recreating them in a single commit."
+sidebar_label: "Reorder Nat Rules"
+hide_title: true
+hide_table_of_contents: true
+api: eJztVlFvGjkQ/iuWn2nIRffEG3dJdUhtEhGu9xAiZHYHcOu1t7aXBCH++83YXjBsQqq+VSpCsGuPZ76Z+WY8W+7F0vHBI9fC86ceL8EVVtZeGs0HfAzGlmDZ7XDCbKPAsfmGlaDAS71kQpfMQmFBhFe/gopJzQRz+KqAFaaqpL+Y6qmerKRjoMvaSO0ZLBaykKC92qCCYMKxqlFe1ngsNzaY6j8u2PXeolLM1VDIhYQyCk311QUbn6B4ln7FNDwHEaabao4WpnqIx00NVpB7jgkLDF6gaDwqy4F/2dw95OiHdukQCcOPhe8NOD9gbWjSAoprL6QmCOSA39QQAqQkbppFC3aqx+Abq1t9ZGoMrkY8EGG7pijAuf5CSNUgQqkXxlYBcjz+vZEW3ID9Nx5Nbhi6U0nncJfhF03zHt/7OCoxiSnCM8zwLKCYrTfGxde0VRvn8Vzy5S9Tbvhgy8klTBI9irpWsgg6+18dcWPLXYGhFvRUW7LoJTh6I8XkPj3Hf+68xcCgBS+9ooVb4dmE9k4Z18ZuwJxpbAE9pJvDxAbTPeY8PhQ9ZiwrlkTZHaImn8iY9FC5Lh6jylmkQIYIaQhLXDlAulMlu41iqBTJkx0SenO3wCrpHN/19ku6UYrvnjIfkX8HhYRyVgofAibKUpJDQt1nUL1toNeqM/OvUPgM35iofE0KdruulI20KKmUM4dzuxm0RF5SOcKgdbLwEOsgVA9FlSEF20rFrQt+QCCsFZsTmK6j8FNeBZHnWKjSMsQayoSKNdXpu/7tCdbmvusZ0mgcydyBktZZZbCRnTh26D3oIsE4mKXkhIVYq4FZV5eX9HcSu1i/i0axtrARw0/WUmoGGXHnxigQOot4Mkg52fNrz9cfZ9o5Kkfa9ThYa14viFTh55TchMPvJbf1ODuY98guVT3SR1i6iVIXXVhTxRZ+6PUhnWj5z6urbsa+CCXLIMcixp9OVwl4B6gzvUiZ4mj3B+K4bzVPbxfdJxMBUo4qtzzXeT9jcMUSDhX8tmgIRmzTKC113YSAtNujsIA7hX/J1HQa198Uyxf/buYpNhF+ksspsE9RYtGbobiOKXjNWCvyz2Ry31EY+VGBXxm6NNONWAu/wrc+3Zh97Dv91Ctwi7gwPlyYNy+iqhUcX4CHmKZL6vH4Oro8vmguj6+JXUg53f952AOzPwuNSayQomx4P+oUxUfhPK6zuSi+4dQVulxFR6jHBQUlrGXRtuI1dl08+EE800hEgw/WFDXxtIEaUZ6CTmHBzehllTVcRjf6q70/myN+z5O/5jyZyExV3K8VoiIqNDY0ulghj5wqBEVpJuu1IydV8IoKCfe327lw8K9Vux0to5MWh8xHfFwLK8WcuP1IfF+BoKNUKt9g0/YP7T+keXEtVBMK/7QvU8+MJ4boce3Pyj5ltX5/90BeztPYS4MBjc3imTzB3wEPM3VIMgmENezlQi8baqUDHnXS539mrKuE
+sidebar_class_name: "post api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Reorder Nat Rules"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"post"}
+  path={"/vyos/nat/reorder"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Reorder NAT rules by deleting and recreating them in a single commit.
+
+This endpoint efficiently reorders multiple NAT rules by:
+1. Deleting all specified rules
+2. Recreating them with new rule numbers
+All operations are executed in a single VyOS commit.
+
+Args:
+    request: Reorder request containing NAT type and list of rules
+
+Returns:
+    VyOSResponse with success/failure information
+
+Requires: WRITE permission on NAT
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./reorder-nat-rules-vyos-nat-reorder-post.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./reorder-nat-rules-vyos-nat-reorder-post.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

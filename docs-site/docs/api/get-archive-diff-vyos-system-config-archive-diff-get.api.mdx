@@ -1,0 +1,72 @@
+---
+id: get-archive-diff-vyos-system-config-archive-diff-get
+title: "Get Archive Diff"
+description: "Compare current running config with a remote archive backup file."
+sidebar_label: "Get Archive Diff"
+hide_title: true
+hide_table_of_contents: true
+api: eJzdVU1P3DAQ/SuWT620sAj1xA3xVaQiEGy5wGrlTSaJIbGN7SxEUf57Z+xks9sFpKrqpVyIxzNvxm9m3rbci9zxowfuGueh4vMJT8ElVhovteJH/ERXRlhgSW0tKM9srZRUOUu0ymTOXqUvmGAWKu2BCZsUcgVsKZLn2rBMlrD/qB7VLfjaKsd8AcyJCthJiD6VWXYLzmjl0F4IgwiOTVeNdtOIP03RhTlNkY8qs1p5UClLhMKUNUatEclxDytMwcbyKoTFgvf5hGsDVtB7LlN8UQ5+0Re6oKgF5VvE9y9i2u17DEAQZAHzeLBEV8sVHhBscCx1EjKgoyTaXmqwDR4svNTSAub1toYJd0kBleBHLfeNIQDnqV709NKXZDjuOfwxIHbdZJ2OGA2ff53mfEDqujnFxy44Cjk8OKB/23NwVycJOJfVJRtahmhJaIgnd2FMKWPJ0ydHMe1YRod/E/7t8HAX+F6UMg1h7Mxabf8AlRtLrfUy1p2CF7KkL4mtdLsO2KStW6Ga6yx0c5slIry3SKwkB8u7Odbf24S1otmgcuzUhFcu/4z1K6RQ5MDXYB+7BjLYjG476rapAyHD9WUw4E3i3zZg9PIJEr8Bc0Jcvnmaoh2fcWoeAjex/N5vPmKMLYod+piK09iC95INLt9ns5sdwDgfuF6F7lc0bJwv8BD1IO7nIAv92u3RfoZdyPQmOffN9R27Egqprki0jm8u+e/Cdi6cR3vQKtKUDNmuKITkIwCksJI481HjVrj4GLgnXoMa6gp9U4eo/QUioj9RY7TzeEn19Ft7AVhCv9anseKtWtpx4v8Lve1bT3M3NaWQYTNqG1YzNvWBU1J07X92ws5jfvzYai0OYYF0UkDbLoWDn7bsOjJH5aPdTaUTy5KmOBOlg0+4/XLbD/xX9lGVz9C8r+orUdbkHsThH6TcUPYx1ZwOVlIufCpJUAECGQ/vjnHHKMvGb0TtKCahrDfr4myG2/YLGsXHLg==
+sidebar_class_name: "get api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Get Archive Diff"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/vyos/system/config/archive-diff"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Compare current running config with a remote archive backup file.
+
+Returns the same ConfigDiffResponse shape as /vyos/config/diff so the
+frontend can reuse the same diff-rendering component.
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails
+  {...require("./get-archive-diff-vyos-system-config-archive-diff-get.ParamsDetails.json")}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./get-archive-diff-vyos-system-config-archive-diff-get.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./get-archive-diff-vyos-system-config-archive-diff-get.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

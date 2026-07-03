@@ -1,0 +1,71 @@
+---
+id: router-advert-batch-configure-vyos-router-advert-batch-post
+title: "Router Advert Batch Configure"
+description: "Execute a batch of router-advert configuration operations atomically."
+sidebar_label: "Router Advert Batch Configure"
+hide_title: true
+hide_table_of_contents: true
+api: eJztV01vIjkQ/SuWTzMSDKMoyoFbksnORtoZEGH3QhAy3UXjmW6713YTEOK/T5Xdn5CQWc6bA2nc9eXnV8/FnjuRWD6ccaMLB6Yv4g0Yx+c9HoONjMyd1IoP+cMWIjRggi2Fi9ZMr1jHg0VarWRSGEEOTOcQniwTTmcyEmm6+/SsntWDQO8EfXMWCWMkWDQmS5FSDAdbxz5I/G9WIoIeyw2s5LbHlHA319UXn/ojxpuugcXS5lQTGCbVD4icZW4NFmu1LAURS5WwXFtZJhEmsexlDYqs2LKQaQzmWWXg1jpmViaYqTDAYJtXsbIefSom8hxUbLHOLBN9C7nATUKMps4IthFpAfYT7/F6948xQhdwWgScFh6+RYUWLDY7bRevmWDJDmMZ+Bejujsd7/hwzz1EytEjVpMisJRn8MPSKe25RRgyQU+5oSoc4kvfPOD+STrI7KlBjbiPrHajFZJiz90uxxVunUEU+aFXr6giTfkBaeKkS2nhsQ5wTJ3JLUulxar9AZVWeJ4ZYEAejvTSrOPg/UrKx/HmpiQP+7DSpnzup7CBFClnP1L2FqsuLeE7hXijju+305vr01JaWY/q8US4tJKJdz6uwWf3cUNy/3iUtmnXMxTROX12y2mSj/KTzHeht1jZWtWJ+z65dI//eOfjTPevNqTv9CXstIob4g0C7oPWGQwCOqX68APWWKbXS9KTsgulgZiUEnE4Bt3c+s69o8YdVVjyJg4Kndh1wKrxfj9bbXou61dq8DMZvwYBeC9bqRPnMk2CIGGoQ9vXmQL8gs2x1sCYq8+f6V/3rJ6KKAJrV0XKJqUxFnGhrtkQrEXMpdYo+qq19TIhgRMLJ7rME3FcXgzjVmDazDFQ51j5heJifDBGm0up/eCd3zuhasftntiNnmooD/5crq+uTpHH3pFxuJ9Drothj8EJmZ7RilRHnbe/gQd1aAIIwPxtFv+lo7q1Mpuc06NvCJJIoGmJt009GGxKb9FaqrzwgDQ3Gy3gm8htW2Hq06ns7n9TPwibUH5p15W38ohKNrwJxZdwBK8lq0z+nE7HJwEDP4Iko005ZeAAtcZvA5pGBp3BbuCnETQhTkyaYeRhK7I8hfZwMeuMEQ3O1f3arHSu3Wa5vP2ahfa9NAs3UPOyvEdqKs09c6Ra6fbpUXOwb0IhFzJkOrsdP55cH38I63AdR9voJw54jK7JjFxodPQBYthIbDv2It2aISwWHfviRRgIwyBOhVRReIER0d4PN4guvqR6/O1XySkLesq8oLL7ahg8Lqw17v0/gP+XAbzsCNrLIE+F9IJRGK9YgeozTlSvOFf/7unxQHdsyTV1Btrt90th4W+THg60jA1gcBKfzYmARoolsWxGzFvjVlG/iKg/YVcJgnJ9rywNX0+ElkQweNyitufurO281bzj0dOUSi5/G2Q6Jh8jXmhf+Dnkvofqwc6voTgLlRSkjUMeYtLfL3Im7Ts=
+sidebar_class_name: "post api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Router Advert Batch Configure"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"post"}
+  path={"/vyos/router-advert/batch"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Execute a batch of router-advert configuration operations atomically.
+
+Each group carries optional context (interface, prefix, nat64prefix, route).
+The dispatcher injects these as leading positional args when the builder
+method signature expects them, then appends comma-separated extra values.
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./router-advert-batch-configure-vyos-router-advert-batch-post.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./router-advert-batch-configure-vyos-router-advert-batch-post.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

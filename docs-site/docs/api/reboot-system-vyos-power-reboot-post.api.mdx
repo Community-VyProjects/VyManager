@@ -1,0 +1,73 @@
+---
+id: reboot-system-vyos-power-reboot-post
+title: "Reboot System"
+description: "Reboot the VyOS system."
+sidebar_label: "Reboot System"
+hide_title: true
+hide_table_of_contents: true
+api: eJzdVktv2zAM/iuCLl0BdxmKnXzrXmiBFS2abBjQFoFiM4k2W/IkOa0R5L+PpOTETdZu2HE5xDb1iaT48aG1DGrhZX4rG/sATt5nsgRfON0EbY3M5Q3MrA0iLEF87a7Gwnc+QP36ztyZK8b4/M6cCGMfcpGwuq6h1CpA1YkHHZa2DaKwZq5drWgH4VXYwlUQvoFCz3Uhgq5BvDo/zy8vxdwS/pjQ2uyUG/FN1Nq0ATwtFcoUUOXiPT+FEg2YUpuFcIyXmbQNOLZ7UeJ5ongajzFdddZP+eTTtNBYT5sc/GzBh3e27GS+luh+ABPoVTVNpQtWOPruKUZr6Ysl1IreGkfmggbP2CJGcS1D1wBa98Ghb6gfTFtT1DFu+KXIpDb4F49DNAQdKtpyFnXs8xLFgvTmFP0M45hhdDJhXQqK3GRypaoW2BXTXc3R4r4rm2wrMW2Fewamv/LmfcssJXbEkQpHia1jMnukDX4nco7lBu0n1Xb2HYo+rtpBSWdP0RkYvCYm4sluIgEH1pNc1LZEuskLpk9EZf41Wt0MzQTXAgt8g8uRltM3b+jxVPG4LQrwft5WmGoRTHz8G/E+Khswj8lVgSIe+8Mmg8RSjU+1gN8lSo++TBBEk9GyraCcUrm8RG4mYxGhpMR6PGH8S4yPe9ViwtA/MNgfc3eC58jcBnSfzbgg5s7WT5hkItH829PTQ64wBXXJTIiPzln370SVEJSu6E1jP/CHgMoWT1b/oo40erLAXrq534VPOae6AZ2fbXSQ2feLv2Q+Qp6HcjDEhFY31FCalgPSL1+wAFeK8DhQs6W2x72nWD6GP9JPsYnuJ9zT3pEoigw9H4oPkYLfGesh55PJ9YHCmB814IChxp4ad6PCEr9G1NlHnFCj7SSgZLjZNfaPj6puKhg26tSPU9fccYuxnNthKHkWXiqDxNSYduLs+uIguT8pH1AuZqr4gUOJm1VNW2g8sYISVhoLiKekWIHzuPFEPSgHODBrxJZUW2mBihhW5AwdFRfJH6OoA/RTesxTbd+Rwfj6D8Z5yhFK0FFTKc0l1Dqu4Uj+rSTyKRf4SpOlmU/ZuaQkQcB6PVMevrhqsyExpoTDOX97T9Q7rWbE8S2V7xJUiTqo3n9A19eGCSdcZLtMOeg51A/ijjPskU14EXs/yOPrq/EEwbN086A5R9cWRXlJ/7nkOw1zRQCWYZ9SZtHyDJFRJ/1+ARr9aLI=
+sidebar_class_name: "post api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Reboot System"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"post"}
+  path={"/vyos/power/reboot"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Reboot the VyOS system.
+
+Options:
+- now: Reboot immediately without confirmation
+- at: Reboot at specific time (HH:MM format)
+- in: Reboot in X minutes
+- cancel: Cancel a pending reboot
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./reboot-system-vyos-power-reboot-post.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./reboot-system-vyos-power-reboot-post.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

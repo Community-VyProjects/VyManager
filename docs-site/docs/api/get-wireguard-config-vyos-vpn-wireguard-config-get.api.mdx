@@ -1,0 +1,76 @@
+---
+id: get-wireguard-config-vyos-vpn-wireguard-config-get
+title: "Get Wireguard Config"
+description: "Get all WireGuard configurations from VyOS."
+sidebar_label: "Get Wireguard Config"
+hide_title: true
+hide_table_of_contents: true
+api: eJzdVU1v2zAM/SuCztkyFDvlVnRdFmBFizZrD20QMDZtq5UlT5LTZoH/+0jLH8myHnZdLonFx2fqkY/ZywC5l7NH+aoc5jW4VK4mMkWfOFUFZY2cyTkGAVqLB4LMGSISazKV1w4Y4UXmbCnud9d3H5/Mkzl3uZ89GUEfhz9r9GEmvoIP5zeL/kDYzTMmoQdlDn0xE4tMLF2NE5FZl2B/PrIz+S2G2pmef44GHWj1C9P3qhMpBJATaSuMB4uUrpRjWA83XseE9XZn/XpbmdMIwYmiAgclBnQs2F4aeiCqrkyKKxaL7ud29MA3JRp6WQba40T6pMAS5Gwvw67ixI21GsFIljuDWocBGlTQjLjtqJtmxYS+IrHRM8XZp0/8ddynuzpJ0Pus1uK2AxM5XSGgCQyHqtIqaVWYPnvO2Y9lNfSZyM9nZ6fE9yRxGtW8dM66f2CVlWPlg4p1pxhAaf6lApb+FKBtchQFs7vOWrk71XxwyuSymQwniirJ0clmRfV3Z+AccBd6Jb/bWCDlydLnB13o+EboFUkIOcqB7H1oK4ZYcrTh9ld1K0gfXrQHFEnC2wFNnP0DmgvW8o2QY/0DZhyjx1abWH6HW40cY4tih96X4ktswd9e1kO+LZc3J4RxPmj+C9s5qLVEKOhhytaZknWmg3Wm0TqtLTJ7KAtbWVyBIZFLGiFBe0H+uXL6fbGB5AVNyhtBlJxCDWh3gUhxq2jaxasKhdiSJynxA7yCQ/J/SdjUE2sXIEbCsyiV9YGCXE/nX95uD33V4qKv+qie/Tjv/8c27DrPYzetNKjWGLVrnRl7+ii5pyxhxStq/Htovc8a0fQVpCZD9/sNePzhdNPwcdyBbNpUedjogy34grujnbkFXXMlklfcFpxiOKWylwuElHzNPDHtnPZbFQ6yTlYPswwjOr9c0tj+BjeaYyc=
+sidebar_class_name: "get api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Get Wireguard Config"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/vyos/vpn/wireguard/config"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Get all WireGuard configurations from VyOS.
+
+Args:
+    request: FastAPI request object
+    refresh: If True, force refresh from VyOS
+
+Returns:
+    Generalized WireGuard configuration data
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails
+  {...require("./get-wireguard-config-vyos-vpn-wireguard-config-get.ParamsDetails.json")}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./get-wireguard-config-vyos-vpn-wireguard-config-get.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./get-wireguard-config-vyos-vpn-wireguard-config-get.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      
