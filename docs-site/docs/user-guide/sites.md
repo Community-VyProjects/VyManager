@@ -6,7 +6,7 @@ sidebar_position: 10
 
 # Sites
 
-Site Manager is the entry hub: whenever you are not connected to an instance, VyManager sends you here. It has its own left rail with four sections — Sites, User Management, Authentication and API Tokens (the last three are covered in [Settings and administration](settings)).
+Site Manager is the entry hub: whenever you are not connected to an instance, VyManager sends you here. (The one exception: on a fresh install with no instances at all, the dashboard shows a "Connect your first VyOS instance" panel instead of redirecting.) It has its own left rail with four sections — Sites, User Management, Authentication and API Tokens (the last three are covered in [Settings and administration](settings)).
 
 ## Sites and instances
 
