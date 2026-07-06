@@ -248,7 +248,7 @@ export function CreateVtiModal({
             Create VTI Interface
           </DialogTitle>
           <DialogDescription>
-            Create a new Virtual Tunnel Interface (XFRM) for use with IPsec.
+            Create a new Virtual Tunnel Interface for use with IPsec.
           </DialogDescription>
         </DialogHeader>
 
