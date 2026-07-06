@@ -177,6 +177,41 @@ class SegmentRoutingService {
     return this.batch([{ op: "delete_locator", value: name }]);
   }
 
+  /** Enable SRv6 on an interface, optionally with an explicit HMAC policy. */
+  async createInterface(iface: SrInterface): Promise<VyOSResponse> {
+    if (iface.hmac) {
+      return this.batch([{ op: "set_interface_hmac", value: `${iface.name},${iface.hmac}` }]);
+    }
+    return this.batch([{ op: "set_interface_srv6", value: iface.name }]);
+  }
+
+  /** In-place HMAC policy change (works on VyOS 1.5/rolling). */
+  async updateInterface(original: SrInterface, updated: SrInterface): Promise<VyOSResponse> {
+    if (original.hmac === updated.hmac) {
+      return { success: true, data: { message: "No changes" } };
+    }
+    if (updated.hmac) {
+      return this.batch([{ op: "set_interface_hmac", value: `${updated.name},${updated.hmac}` }]);
+    }
+    // Removing the hmac leaf reverts to the VyOS default (accept); the
+    // interface srv6 node itself stays enabled.
+    return this.batch([{ op: "delete_interface_hmac", value: updated.name }]);
+  }
+
+  /** In-place interface removal (works on VyOS 1.5/rolling). */
+  async deleteInterface(name: string): Promise<VyOSResponse> {
+    return this.batch([{ op: "delete_interface", value: name }]);
+  }
+
+  /**
+   * Remove the whole segment-routing tree. Used when deleting the last SRv6
+   * interface with no locators left: a plain interface delete would leave an
+   * orphan empty srv6 node that VyOS still counts as "SRv6 configured".
+   */
+  async deleteTree(): Promise<VyOSResponse> {
+    return this.batch([{ op: "delete_segment_routing" }]);
+  }
+
   /**
    * VyOS 1.4 mutation path: FRR rejects in-place changes to an existing
    * segment-routing tree, so apply the desired end state by deleting the
