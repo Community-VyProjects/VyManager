@@ -132,7 +132,7 @@ class WwanInterfacesConfigResponse(BaseModel):
 @router.get("/capabilities")
 async def get_capabilities(request: Request) -> Dict[str, Any]:
     """Return version-aware feature capabilities for WWAN interfaces."""
-    await require_read_permission(request, FeatureGroup.INTERFACES)
+    await require_read_permission(request, FeatureGroup.WWAN)
     service = get_session_vyos_service(request)
     from vyos_builders.interfaces.wwan import WwanInterfaceBatchBuilder
     builder = WwanInterfaceBatchBuilder(version=service.get_version())
@@ -142,7 +142,7 @@ async def get_capabilities(request: Request) -> Dict[str, Any]:
 @router.get("/config", response_model=WwanInterfacesConfigResponse)
 async def get_config(http_request: Request, refresh: bool = False) -> WwanInterfacesConfigResponse:
     """Get all WWAN interface configurations from VyOS."""
-    await require_read_permission(http_request, FeatureGroup.INTERFACES)
+    await require_read_permission(http_request, FeatureGroup.WWAN)
     try:
         service = get_session_vyos_service(http_request)
         full_config = await run_in_threadpool(service.get_full_config, refresh)
@@ -366,7 +366,7 @@ async def batch_configure(http_request: Request, request: BatchRequest) -> VyOSR
     | `set_ipv6_address_interface_identifier` | Yes | SLAAC interface identifier (::h:h:h:h) |
     | `delete_ipv6_address_interface_identifier` | No | Remove interface identifier |
     """
-    await require_write_permission(http_request, FeatureGroup.INTERFACES)
+    await require_write_permission(http_request, FeatureGroup.WWAN)
 
     try:
         service = get_session_vyos_service(http_request)

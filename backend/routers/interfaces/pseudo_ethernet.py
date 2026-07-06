@@ -233,7 +233,7 @@ class PseudoEthernetConfigResponse(BaseModel):
 @router.get("/capabilities")
 async def get_capabilities(request: Request) -> Dict[str, Any]:
     """Return version-aware feature capabilities for pseudo-ethernet interfaces."""
-    await require_read_permission(request, FeatureGroup.INTERFACES)
+    await require_read_permission(request, FeatureGroup.PSEUDO_ETHERNET)
     service = get_session_vyos_service(request)
     from vyos_builders.interfaces.pseudo_ethernet import PseudoEthernetInterfaceBuilderMixin
     builder = PseudoEthernetInterfaceBuilderMixin(version=service.get_version())
@@ -243,7 +243,7 @@ async def get_capabilities(request: Request) -> Dict[str, Any]:
 @router.get("/config", response_model=PseudoEthernetConfigResponse)
 async def get_config(http_request: Request, refresh: bool = False) -> PseudoEthernetConfigResponse:
     """Get all pseudo-ethernet interface configurations from VyOS."""
-    await require_read_permission(http_request, FeatureGroup.INTERFACES)
+    await require_read_permission(http_request, FeatureGroup.PSEUDO_ETHERNET)
     try:
         service = get_session_vyos_service(http_request)
         full_config = await run_in_threadpool(service.get_full_config, refresh)
@@ -267,7 +267,7 @@ async def batch_configure(http_request: Request, request: BatchRequest) -> VyOSR
     the interface name + one value, encode extras in `value` using colon-separated
     components (e.g., `vif_id:address`, `s_vlan_id:c_vlan_id`, `pd_id:length`).
     """
-    await require_write_permission(http_request, FeatureGroup.INTERFACES)
+    await require_write_permission(http_request, FeatureGroup.PSEUDO_ETHERNET)
 
     try:
         service = get_session_vyos_service(http_request)

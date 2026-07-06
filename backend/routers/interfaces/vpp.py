@@ -151,7 +151,7 @@ class VppConfigResponse(BaseModel):
 @router.get("/capabilities")
 async def get_capabilities(request: Request) -> Dict[str, Any]:
     """Return version-aware feature capabilities for VPP interfaces."""
-    await require_read_permission(request, FeatureGroup.INTERFACES)
+    await require_read_permission(request, FeatureGroup.VPP)
     service = get_session_vyos_service(request)
     from vyos_builders.interfaces.vpp import VppInterfaceBuilderMixin
     builder = VppInterfaceBuilderMixin(version=service.get_version())
@@ -161,7 +161,7 @@ async def get_capabilities(request: Request) -> Dict[str, Any]:
 @router.get("/config", response_model=VppConfigResponse)
 async def get_config(http_request: Request, refresh: bool = False) -> VppConfigResponse:
     """Get all VPP interface configurations from VyOS."""
-    await require_read_permission(http_request, FeatureGroup.INTERFACES)
+    await require_read_permission(http_request, FeatureGroup.VPP)
     try:
         service = get_session_vyos_service(http_request)
         full_config = await run_in_threadpool(service.get_full_config, refresh)
@@ -189,7 +189,7 @@ async def batch_configure(http_request: Request, request: BatchRequest) -> VyOSR
       set_bonding_vif_mtu      → value="100:1500"            (vlan_id:mtu)
       set_loopback_vif_address → value="10:10.0.0.1/24"      (vlan_id:address)
     """
-    await require_write_permission(http_request, FeatureGroup.INTERFACES)
+    await require_write_permission(http_request, FeatureGroup.VPP)
 
     try:
         service = get_session_vyos_service(http_request)

@@ -97,7 +97,7 @@ class VtiInterfacesConfigResponse(BaseModel):
 @router.get("/capabilities")
 async def get_capabilities(request: Request) -> Dict[str, Any]:
     """Return version-aware feature capabilities for VTI interfaces."""
-    await require_read_permission(request, FeatureGroup.INTERFACES)
+    await require_read_permission(request, FeatureGroup.VTI)
     service = get_session_vyos_service(request)
     from vyos_builders.interfaces.vti import VtiInterfaceBuilderMixin
     builder = VtiInterfaceBuilderMixin(version=service.get_version())
@@ -107,7 +107,7 @@ async def get_capabilities(request: Request) -> Dict[str, Any]:
 @router.get("/config", response_model=VtiInterfacesConfigResponse)
 async def get_config(http_request: Request, refresh: bool = False) -> VtiInterfacesConfigResponse:
     """Get all VTI interface configurations from VyOS."""
-    await require_read_permission(http_request, FeatureGroup.INTERFACES)
+    await require_read_permission(http_request, FeatureGroup.VTI)
     try:
         service = get_session_vyos_service(http_request)
         full_config = await run_in_threadpool(service.get_full_config, refresh)
@@ -190,7 +190,7 @@ async def batch_configure(http_request: Request, request: BatchRequest) -> VyOSR
     | `set_ipv6_source_validation` | Yes | IPv6 source validation (strict/loose/disable) |
     | `delete_ipv6_source_validation` | No | Remove IPv6 source validation |
     """
-    await require_write_permission(http_request, FeatureGroup.INTERFACES)
+    await require_write_permission(http_request, FeatureGroup.VTI)
 
     try:
         service = get_session_vyos_service(http_request)
