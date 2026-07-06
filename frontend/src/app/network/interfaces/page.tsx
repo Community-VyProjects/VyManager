@@ -1799,7 +1799,7 @@ function InterfacesPageInner() {
                                       : selectedType === "vpp"
                                         ? "VPP (Vector Packet Processing) interfaces — bonding, bridge, GRE, IPIP, loopback, VXLAN, and XConnect types"
                                         : selectedType === "vti"
-                                          ? "Virtual Tunnel Interfaces (XFRM) — kernel-side endpoint for IPsec tunnels"
+                                          ? "Virtual Tunnel Interfaces (VTI) — routable endpoints for IPsec tunnels"
                                           : selectedType === "wireless"
                                             ? "Wireless (802.11) interfaces — access point, station, and monitor mode"
                                             : selectedType === "wwan"
