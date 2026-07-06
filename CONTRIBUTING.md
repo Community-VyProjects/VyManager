@@ -12,7 +12,7 @@
 
 - **Check the issue tracker first.** If you're building something that doesn't have an issue yet, open one. Even a quick "I'm going to work on X" issue helps avoid duplicate effort and gives others a chance to weigh in on approach before you write code.
 - **One feature per PR.** Don't bundle a firewall fix, a sidebar tweak, and a new DHCP field into one PR. Keep them separate. Smaller PRs get reviewed faster and are easier to roll back if something goes wrong.
-- **Branch from `main`.** Name your branch something descriptive: `feat/openvpn-support`, `fix/nat-modal-width`, `refactor/sidebar-responsive`. Not `my-changes` or `update`.
+- **Branch from `beta`.** Name your branch something descriptive: `feat/openvpn-support`, `fix/nat-modal-width`, `refactor/sidebar-responsive`. Not `my-changes` or `update`.
 
 ### What a good PR looks like
 

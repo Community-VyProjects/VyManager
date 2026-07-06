@@ -22,6 +22,13 @@ The backend verifies session cookies with `BETTER_AUTH_SECRET`. If the value dif
 
 `DATABASE_URL` is missing or PostgreSQL is unreachable. The API deliberately starts anyway and answers 503 on authenticated routes. Check `docker compose ps postgres` and that the hostname in `DATABASE_URL` is `postgres` (the compose service name), not `localhost`.
 
+## Stuck on the Sites page, cannot reach the dashboard
+
+Which case you are in depends on whether any instance exists:
+
+- **Fresh install, no instance added yet** — this is normal, not a fault. Onboarding's instance step can be skipped, and the dashboard shows a "Connect your first VyOS instance" panel until you add and connect one. Add the router in Site Manager when it is ready (see [Finishing without a router](../getting-started/first-run#finishing-without-a-router)).
+- **Instances exist but Connect fails** — connecting runs a live connectivity test against the router and returns 503 if it fails; you stay on the Sites page by design. Work through [Cannot connect to a VyOS instance](#cannot-connect-to-a-vyos-instance) below.
+
 ## Cannot connect to a VyOS instance
 
 1. Verify the API key on the router matches the instance settings.

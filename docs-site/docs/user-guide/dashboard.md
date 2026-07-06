@@ -8,6 +8,8 @@ sidebar_position: 1
 
 The dashboard is the landing page after connecting to an instance. It is a three-column grid of cards fed by a live stream: the backend queries the router's GraphQL API and pushes updates to the browser over server-sent events, so counters move without reloading.
 
+If no VyOS instance exists yet (for example after skipping the instance step during onboarding), the dashboard instead shows a "Connect your first VyOS instance" panel linking to Site Manager.
+
 Nine card types are available:
 
 | Card | Shows |
