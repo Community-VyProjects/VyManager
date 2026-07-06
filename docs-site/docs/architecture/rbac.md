@@ -34,6 +34,8 @@ For OPERATOR and VIEWER grants, `user_feature_permissions` rows list the allowed
 
 Parents propagate to children: granting `ROUTING` grants `BGP`, `OSPF`, `STATIC_ROUTES` and the rest of the routing subtree at the same level. Permission levels are `NONE`, `READ`, `WRITE`.
 
+For interface types with their own feature group (`PSEUDO_ETHERNET`, `VIRTUAL_ETHERNET`, `VPP`, `VTI`, `WIRELESS`, `WWAN`), the endpoint checks the dedicated group, and `INTERFACES` acts as a fallback: a role holding either the dedicated grant or `INTERFACES` gets access, so granting only `INTERFACES` still covers every interface type.
+
 ## Enforcement
 
 Every feature endpoint calls `require_read_permission` or `require_write_permission` with its feature group before doing anything. The check order is:
