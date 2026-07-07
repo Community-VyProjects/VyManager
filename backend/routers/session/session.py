@@ -1306,7 +1306,6 @@ BACKUP_EXCLUDED_TABLES: List[str] = [
     "verifications",
     "audit_logs",
     "scheduled_power_actions",
-    "role_permissions",
 ]
 
 # Natural unique key per table for merge mode. When a row collides on this key
