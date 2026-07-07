@@ -78,6 +78,7 @@ from routers.pim6 import pim6 as pim6_router
 from routers.rip import rip as rip_router
 from routers.ripng import ripng as ripng_router
 from routers.rpki import rpki as rpki_router
+from routers.segment_routing import segment_routing as segment_routing_router
 from routers.traffic_engineering import traffic_engineering as te_router
 from routers.broadcast_relay import broadcast_relay as broadcast_relay_router
 from routers.lldp import lldp as lldp_router
@@ -403,6 +404,7 @@ app.include_router(pim6_router.router)
 app.include_router(rip_router.router)
 app.include_router(ripng_router.router)
 app.include_router(rpki_router.router)
+app.include_router(segment_routing_router.router)
 app.include_router(te_router.router)
 app.include_router(broadcast_relay_router.router)
 app.include_router(lldp_router.router)

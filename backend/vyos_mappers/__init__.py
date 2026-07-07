@@ -107,6 +107,8 @@ from .ripng import RipNgMapper
 from .ripng.ripng_versions import get_ripng_mapper
 from .rpki import RpkiMapper
 from .rpki.rpki_versions import get_rpki_mapper
+from .segment_routing import SegmentRoutingMapper
+from .segment_routing.segment_routing_versions import get_segment_routing_mapper
 from .traffic_engineering import TrafficEngineeringMapper
 from .traffic_engineering.traffic_engineering_versions import get_traffic_engineering_mapper
 from .broadcast_relay import BroadcastRelayMapper
@@ -297,6 +299,8 @@ CommandMapperRegistry.register_feature("rip", get_rip_mapper)
 CommandMapperRegistry.register_feature("ripng", get_ripng_mapper)
 # RPKI uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("rpki", get_rpki_mapper)
+# Segment Routing uses factory for version-specific mappers
+CommandMapperRegistry.register_feature("segment_routing", get_segment_routing_mapper)
 # Traffic Engineering uses factory for version-specific mappers
 CommandMapperRegistry.register_feature("traffic_engineering", get_traffic_engineering_mapper)
 # Broadcast Relay uses factory for version-specific mappers
@@ -406,6 +410,7 @@ __all__ = [
     "PimMapper",
     "Pim6Mapper",
     "RpkiMapper",
+    "SegmentRoutingMapper",
     "TrafficEngineeringMapper",
     "BondingInterfaceMapper",
     "BridgeInterfaceMapper",

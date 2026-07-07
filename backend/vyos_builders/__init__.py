@@ -40,6 +40,7 @@ from .tunnel import TunnelBatchBuilder
 from .rip import RipBatchBuilder
 from .ripng import RipNgBatchBuilder
 from .rpki import RpkiBatchBuilder
+from .segment_routing import SegmentRoutingBatchBuilder
 from .traffic_engineering import TrafficEngineeringBatchBuilder
 from .broadcast_relay import BroadcastRelayBatchBuilder
 from .container import ContainerBatchBuilder
@@ -104,6 +105,7 @@ __all__ = [
     "RipBatchBuilder",
     "RipNgBatchBuilder",
     "RpkiBatchBuilder",
+    "SegmentRoutingBatchBuilder",
     "TrafficEngineeringBatchBuilder",
     "BondingBatchBuilder",
     "GeneveBatchBuilder",
