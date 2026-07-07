@@ -12,9 +12,25 @@ Permission Resolution:
 4. Apply special rules (e.g., WRITE on CONFIGURATION requires READ on all features)
 """
 
-from typing import Dict, List, Optional
+from contextlib import asynccontextmanager
+from typing import Dict, List, Optional, Union
 from enum import Enum
 import asyncpg
+
+
+# Resolver entry points accept either a pool (acquire per call, the historic
+# shape) or an already org-scoped connection (org_scope.py), so permission
+# checks can run inside the caller's transaction.
+DbSource = Union[asyncpg.Pool, asyncpg.Connection]
+
+
+@asynccontextmanager
+async def _acquire(db: DbSource):
+    if isinstance(db, asyncpg.Pool):
+        async with db.acquire() as conn:
+            yield conn
+    else:
+        yield db
 
 
 # ============================================================================
@@ -653,9 +669,10 @@ async def _apply_instance_grant(conn, role, assignment_id, permissions):
 
 
 async def get_user_permissions(
-    db_pool: asyncpg.Pool,
+    db_pool: DbSource,
     user_id: str,
-    instance_id: str
+    instance_id: str,
+    org_id: Optional[str] = None,
 ) -> Dict[FeatureGroup, PermissionLevel]:
     """
     Get all permissions for a user on a specific instance.
@@ -666,9 +683,12 @@ async def get_user_permissions(
     - Instance OPERATOR/VIEWER: Check user_feature_permissions for granular access
 
     Args:
-        db_pool: Database connection pool
+        db_pool: Database connection pool, or an org-scoped connection
         user_id: User ID
         instance_id: Instance ID
+        org_id: Acting organization. Accepted and threaded through so
+            callers can pass it today; resolution stays org-agnostic until
+            org enforcement turns on (single-org semantics).
 
     Returns:
         Dictionary mapping feature groups to permission levels
@@ -678,7 +698,7 @@ async def get_user_permissions(
         feature: PermissionLevel.NONE for feature in FeatureGroup
     }
 
-    async with db_pool.acquire() as conn:
+    async with _acquire(db_pool) as conn:
         # First check if user is site-level ADMIN
         site_role = await conn.fetchval(
             """
@@ -836,26 +856,29 @@ async def get_user_permissions(
 
 
 async def check_permission(
-    db_pool: asyncpg.Pool,
+    db_pool: DbSource,
     user_id: str,
     instance_id: str,
     feature: FeatureGroup,
-    required_level: PermissionLevel
+    required_level: PermissionLevel,
+    org_id: Optional[str] = None,
 ) -> bool:
     """
     Check if a user has a specific permission level for a feature on an instance.
 
     Args:
-        db_pool: Database connection pool
+        db_pool: Database connection pool, or an org-scoped connection
         user_id: User ID
         instance_id: Instance ID
         feature: Feature group to check
         required_level: Required permission level (READ or WRITE)
+        org_id: Acting organization, threaded to the resolver (single-org
+            semantics until org enforcement turns on)
 
     Returns:
         True if user has required permission, False otherwise
     """
-    permissions = await get_user_permissions(db_pool, user_id, instance_id)
+    permissions = await get_user_permissions(db_pool, user_id, instance_id, org_id=org_id)
     user_level = permissions.get(feature, PermissionLevel.NONE)
 
     # WRITE includes READ
@@ -867,7 +890,7 @@ async def check_permission(
     return False
 
 
-async def is_admin(db_pool: asyncpg.Pool, user_id: str) -> bool:
+async def is_admin(db_pool: DbSource, user_id: str) -> bool:
     """
     Check if a user is an ADMIN (has role='ADMIN' in users table).
 
@@ -880,7 +903,7 @@ async def is_admin(db_pool: asyncpg.Pool, user_id: str) -> bool:
     Returns:
         True if user has ADMIN role, False otherwise
     """
-    async with db_pool.acquire() as conn:
+    async with _acquire(db_pool) as conn:
         result = await conn.fetchval(
             """
             SELECT role FROM users WHERE id = $1
@@ -891,7 +914,7 @@ async def is_admin(db_pool: asyncpg.Pool, user_id: str) -> bool:
 
 
 # Deprecated: Kept for backwards compatibility
-async def is_super_admin(db_pool: asyncpg.Pool, user_id: str) -> bool:
+async def is_super_admin(db_pool: DbSource, user_id: str) -> bool:
     """Deprecated: Use is_admin() instead."""
     return await is_admin(db_pool, user_id)
 
@@ -910,7 +933,7 @@ async def get_user_accessible_instances(
     Returns:
         List of instance IDs
     """
-    async with db_pool.acquire() as conn:
+    async with _acquire(db_pool) as conn:
         # Check if user is ADMIN
         user_is_admin = await is_admin(db_pool, user_id)
 

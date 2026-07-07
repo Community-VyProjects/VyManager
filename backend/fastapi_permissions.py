@@ -8,8 +8,8 @@ on their active VyOS instance.
 
 from fastapi import Request, HTTPException
 from typing import Optional
-import asyncpg
 
+from org_scope import org_id_from_state, request_scoped_conn
 from rbac_permissions import (
     FeatureGroup,
     PermissionLevel,
@@ -47,7 +47,7 @@ async def require_permission(
     Site ADMIN users bypass all permission checks.
 
     Args:
-        request: FastAPI request object (contains user and db_pool)
+        request: FastAPI request object (carries user and org context)
         feature: Feature group to check (e.g., FIREWALL, NAT)
         level: Required permission level (READ or WRITE)
 
@@ -70,33 +70,35 @@ async def require_permission(
             detail="This API token is read-only and cannot perform write operations."
         )
 
-    # Get database pool
-    db_pool: asyncpg.Pool = request.app.state.db_pool
-
-    # Site ADMIN bypasses all permission checks
-    if await is_super_admin(db_pool, user["id"]):
-        return
-
     # The active instance is resolved by SessionMiddleware for both auth paths:
     # the browser cookie session, or (for token clients) the X-VyOS-Instance-Id
-    # header validated against the user's grants.
+    # header validated against the user's grants. Checked before touching the
+    # database so a missing instance stays a 404 and never costs a connection.
     instance = getattr(request.state, "instance", None)
-    if not instance:
-        raise HTTPException(
-            status_code=404,
-            detail="No active VyOS instance. Please connect to an instance first."
+
+    # One unit of work: the whole permission check runs on one org-scoped
+    # connection (the handler's org_conn transaction when one is open,
+    # otherwise a short-lived one of its own — /vyos handlers hold no
+    # connection across their VyOS HTTP call).
+    async with request_scoped_conn(request) as conn:
+        # Site ADMIN bypasses all permission checks
+        if await is_super_admin(conn, user["id"]):
+            return
+
+        if not instance:
+            raise HTTPException(
+                status_code=404,
+                detail="No active VyOS instance. Please connect to an instance first."
+            )
+
+        has_permission = await check_permission(
+            db_pool=conn,
+            user_id=user["id"],
+            instance_id=instance["id"],
+            feature=feature,
+            required_level=level,
+            org_id=org_id_from_state(request),
         )
-
-    instance_id = instance["id"]
-
-    # Check permission
-    has_permission = await check_permission(
-        db_pool=db_pool,
-        user_id=user["id"],
-        instance_id=instance_id,
-        feature=feature,
-        required_level=level
-    )
 
     if not has_permission:
         # Get feature name for error message
@@ -152,13 +154,12 @@ async def require_super_admin(request: Request) -> None:
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
-    db_pool: asyncpg.Pool = request.app.state.db_pool
-
-    if not await is_super_admin(db_pool, user["id"]):
-        raise HTTPException(
-            status_code=403,
-            detail="Insufficient permissions. Site ADMIN role required."
-        )
+    async with request_scoped_conn(request) as conn:
+        if not await is_super_admin(conn, user["id"]):
+            raise HTTPException(
+                status_code=403,
+                detail="Insufficient permissions. Site ADMIN role required."
+            )
 
 
 async def get_user_feature_permissions(request: Request) -> dict:
@@ -177,8 +178,6 @@ async def get_user_feature_permissions(request: Request) -> dict:
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
-    db_pool: asyncpg.Pool = request.app.state.db_pool
-
     # Active instance resolved by SessionMiddleware (cookie session or token header).
     instance = getattr(request.state, "instance", None)
     if not instance:
@@ -187,10 +186,12 @@ async def get_user_feature_permissions(request: Request) -> dict:
             detail="No active VyOS instance"
         )
 
-    instance_id = instance["id"]
-
-    # Get all permissions
-    permissions = await get_user_permissions(db_pool, user["id"], instance_id)
+    # Get all permissions (one unit of work, org-scoped)
+    async with request_scoped_conn(request) as conn:
+        permissions = await get_user_permissions(
+            conn, user["id"], instance["id"],
+            org_id=org_id_from_state(request),
+        )
 
     # Convert to JSON-serializable format
     return {

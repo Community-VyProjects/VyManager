@@ -77,7 +77,9 @@ class SessionMiddleware(BaseHTTPMiddleware):
         i."commitConfirmEnabled" as commit_confirm_enabled,
         i."commitConfirmMinutes" as commit_confirm_minutes,
         i.timeout,
-        s.name as site_name
+        s.name as site_name,
+        s."orgId" as org_id,
+        o.name as org_name
     """
 
     async def _resolve_cookie_instance(self, conn, request: Request, path: str, user_id: str, user_site_role):
@@ -95,6 +97,7 @@ class SessionMiddleware(BaseHTTPMiddleware):
                 FROM active_sessions a
                 JOIN instances i ON a."instanceId" = i.id
                 JOIN sites s ON i."siteId" = s.id
+                LEFT JOIN organizations o ON o.id = s."orgId"
                 WHERE a."userId" = $1
                 """,
                 user_id,
@@ -109,6 +112,7 @@ class SessionMiddleware(BaseHTTPMiddleware):
                 FROM active_sessions a
                 JOIN instances i ON a."instanceId" = i.id
                 JOIN sites s ON i."siteId" = s.id
+                LEFT JOIN organizations o ON o.id = s."orgId"
                 JOIN user_instance_roles uir
                     ON (uir."instanceId" = i.id OR uir."siteId" = i."siteId")
                     AND uir."userId" = $1
@@ -166,6 +170,7 @@ class SessionMiddleware(BaseHTTPMiddleware):
                 SELECT {self._INSTANCE_COLUMNS}, 'ADMIN' as user_role
                 FROM instances i
                 JOIN sites s ON i."siteId" = s.id
+                LEFT JOIN organizations o ON o.id = s."orgId"
                 WHERE i.id = $1
                 """,
                 instance_id,
@@ -175,6 +180,7 @@ class SessionMiddleware(BaseHTTPMiddleware):
             SELECT {self._INSTANCE_COLUMNS}, uir.role as user_role
             FROM instances i
             JOIN sites s ON i."siteId" = s.id
+            LEFT JOIN organizations o ON o.id = s."orgId"
             JOIN user_instance_roles uir
                 ON (uir."instanceId" = i.id OR uir."siteId" = i."siteId")
                 AND uir."userId" = $2
@@ -221,6 +227,7 @@ class SessionMiddleware(BaseHTTPMiddleware):
             # Database not available - continue without instance resolution
             request.state.instance = None
             request.state.site = None
+            request.state.org = None
             return await call_next(request)
 
         # Token clients (e.g. the MCP server) authenticate without a cookie and
@@ -234,6 +241,9 @@ class SessionMiddleware(BaseHTTPMiddleware):
                     "SELECT role FROM users WHERE id = $1",
                     user_id,
                 )
+                # Deployment-operator flag for org-scoped connections
+                # (org_scope.py) — resolved here anyway, so keep it.
+                request.state.user_role = user_site_role
 
                 if is_token_auth:
                     instance_id = request.headers.get("X-VyOS-Instance-Id")
@@ -279,15 +289,24 @@ class SessionMiddleware(BaseHTTPMiddleware):
                         "name": session["site_name"],
                         "user_role": session["user_role"],
                     }
+                    # Org derived from the active instance
+                    # (instance -> site -> org); the LEFT JOIN keeps a
+                    # pre-migration row resolvable, hence the None guard.
+                    request.state.org = (
+                        {"id": session["org_id"], "name": session["org_name"]}
+                        if session.get("org_id") else None
+                    )
                 else:
                     # No active session
                     request.state.instance = None
                     request.state.site = None
+                    request.state.org = None
 
         except Exception as e:
             # Error resolving active session - set to None and continue
             request.state.instance = None
             request.state.site = None
+            request.state.org = None
 
         # Continue with the request
         response = await call_next(request)
