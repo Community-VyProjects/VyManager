@@ -39,10 +39,4 @@ MIGRATION_PENDING = {
     # already use org-scoped connections.
     "routers/monitoring/monitoring.py": "monitoring websocket sessions",
     "routers/console/console.py": "console shell websocket sessions",
-    # Wave C - remaining DB-backed handlers
-    "middleware/audit.py": "audit log writes",
-    "routers/firewall/separators.py": "separator CRUD",
-    "routers/dashboard.py": "dashboard layouts",
-    "routers/container/container.py": "container feature state",
-    "routers/site_updates/site_updates.py": "site update polling",
 }

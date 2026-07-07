@@ -27,6 +27,7 @@ from typing import List, Optional, Dict, Any
 from session_vyos_service import get_session_vyos_service
 from vyos_builders.container import ContainerBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
+from org_scope import request_scoped_conn
 from rbac_permissions import FeatureGroup
 from ssh_key_manager import decrypt_private_key
 import inspect
@@ -325,9 +326,7 @@ async def _run_container_ssh_command(
         )
 
     instance_id = instance["id"]
-    db_pool: asyncpg.Pool = request.app.state.db_pool
-
-    async with db_pool.acquire() as conn:
+    async with request_scoped_conn(request) as conn:
         row = await conn.fetchrow(
             """
             SELECT host, "sshPort", "sshUsername",
@@ -420,8 +419,7 @@ async def _get_ssh_connection(request: Request) -> tuple:
     if not instance:
         raise HTTPException(status_code=400, detail="No active instance.")
 
-    db_pool: asyncpg.Pool = request.app.state.db_pool
-    async with db_pool.acquire() as conn:
+    async with request_scoped_conn(request) as conn:
         row = await conn.fetchrow(
             """SELECT host, "sshPort", "sshUsername", "sshEncryptedPrivKey", "sshKeyNonce", "sshKeyConfigured"
                FROM instances WHERE id = $1""",

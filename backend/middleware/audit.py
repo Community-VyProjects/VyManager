@@ -16,6 +16,7 @@ Design notes:
 """
 
 import json
+from org_scope import request_scoped_conn
 import logging
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -57,10 +58,6 @@ class AuditMiddleware(BaseHTTPMiddleware):
             # have no identity to attribute, so there is nothing to record.
             return
 
-        db_pool = getattr(request.app.state, "db_pool", None)
-        if not db_pool:
-            return
-
         path = request.url.path
         feature = self._feature_from_path(path)
         instance = getattr(request.state, "instance", None) or {}
@@ -80,7 +77,9 @@ class AuditMiddleware(BaseHTTPMiddleware):
         ip = request.client.host if request.client else None
         user_agent = request.headers.get("user-agent")
 
-        async with db_pool.acquire() as conn:
+        # Fire-and-forget: dispatch() swallows any failure here, including
+        # an unavailable database, so auditing never breaks the request.
+        async with request_scoped_conn(request) as conn:
             await conn.execute(
                 """
                 INSERT INTO audit_logs

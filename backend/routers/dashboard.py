@@ -14,6 +14,7 @@ import uuid
 
 from session_vyos_service import get_session_vyos_service
 from fastapi_permissions import require_read_permission, require_write_permission
+from org_scope import request_scoped_conn
 from rbac_permissions import FeatureGroup
 import logging
 logger = logging.getLogger(__name__)
@@ -69,9 +70,7 @@ async def get_dashboard_layout(request: Request):
         user_id = user["id"]
         instance_id = instance["id"]
 
-        db_pool: asyncpg.Pool = request.app.state.db_pool
-
-        async with db_pool.acquire() as conn:
+        async with request_scoped_conn(request) as conn:
             result = await conn.fetchrow(
                 """
                 SELECT layout FROM dashboard_layouts
@@ -128,9 +127,7 @@ async def save_dashboard_layout(request: Request, body: DashboardLayoutRequest):
         user_id = user["id"]
         instance_id = instance["id"]
 
-        db_pool: asyncpg.Pool = request.app.state.db_pool
-
-        async with db_pool.acquire() as conn:
+        async with request_scoped_conn(request) as conn:
             # Generate a unique ID for new records
             record_id = str(uuid.uuid4())
 
