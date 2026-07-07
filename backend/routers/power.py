@@ -496,12 +496,16 @@ async def get_power_status(request: Request):
     instance_id = instance["id"]
 
     async with request_scoped_conn(request) as conn:
+        # scheduledTime is stored as naive UTC (see parse_scheduled_time and
+        # the utcnow() writes), so it must be compared against UTC, not a
+        # tz-aware NOW(): under a non-UTC database session timezone a bare
+        # NOW() shifts the comparison by the offset and hides pending actions.
         # First, clean up expired actions
         await conn.execute(
             """
             DELETE FROM scheduled_power_actions
             WHERE "instanceId" = $1
-              AND "scheduledTime" < NOW()
+              AND "scheduledTime" < (NOW() AT TIME ZONE 'UTC')
             """,
             instance_id,
         )
@@ -513,7 +517,7 @@ async def get_power_status(request: Request):
                    cancelled, "cancelledBy", "cancelledByName"
             FROM scheduled_power_actions
             WHERE "instanceId" = $1
-              AND "scheduledTime" > NOW()
+              AND "scheduledTime" > (NOW() AT TIME ZONE 'UTC')
             ORDER BY "createdAt" DESC
             LIMIT 1
             """,
@@ -550,7 +554,7 @@ async def get_power_status(request: Request):
                     DELETE FROM scheduled_power_actions
                     WHERE "instanceId" = $1
                       AND "actionType" = $2
-                      AND "scheduledTime" > NOW()
+                      AND "scheduledTime" > (NOW() AT TIME ZONE 'UTC')
                     """,
                     instance_id,
                     result["actionType"],
