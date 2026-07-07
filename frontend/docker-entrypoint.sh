@@ -21,29 +21,21 @@ if [ -d "prisma/migrations" ] && [ "$(ls -A prisma/migrations)" ]; then
   # Migrations exist - use migrate deploy (safe for production)
   echo "📋 Applying existing migrations..."
 
-  # Try to apply migrations
+  # A failed migration must stop the container. Never mark migrations as
+  # applied without running them: the schema Prisma believes in would diverge
+  # from the real one, and every later migration builds on that lie. A
+  # container that refuses to boot is recoverable; a database that
+  # misrepresents its own schema is not.
   if ! npx prisma migrate deploy 2>&1; then
-    echo "⚠️  Migration deployment failed - attempting to resolve..."
-
-    # Resolve any failed migrations by marking them as rolled back, then re-applying
-    for MIGRATION_DIR in prisma/migrations/*/; do
-      MIGRATION_NAME=$(basename "$MIGRATION_DIR")
-      # Skip the migration_lock.toml entry
-      [ "$MIGRATION_NAME" = "migration_lock.toml" ] && continue
-      echo "📌 Resolving migration: $MIGRATION_NAME"
-      npx prisma migrate resolve --rolled-back "$MIGRATION_NAME" 2>/dev/null || true
-    done
-
-    # Retry deployment after resolving failed migrations
-    echo "🔄 Retrying migration deployment..."
-    if ! npx prisma migrate deploy 2>&1; then
-      echo "⚠️  Retry failed - marking all migrations as applied..."
-      for MIGRATION_DIR in prisma/migrations/*/; do
-        MIGRATION_NAME=$(basename "$MIGRATION_DIR")
-        [ "$MIGRATION_NAME" = "migration_lock.toml" ] && continue
-        npx prisma migrate resolve --applied "$MIGRATION_NAME" 2>/dev/null || true
-      done
-    fi
+    echo ""
+    echo "❌ Database migration failed - refusing to start."
+    echo ""
+    echo "   The database schema may be mid-migration. Inspect the state with:"
+    echo "       npx prisma migrate status"
+    echo "   and resolve the failed migration manually before restarting."
+    echo "   See https://www.prisma.io/docs/orm/prisma-migrate/workflows/troubleshooting"
+    echo ""
+    exit 1
   fi
 else
   # No migrations yet - this is the first deployment
