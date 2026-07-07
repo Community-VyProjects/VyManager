@@ -101,7 +101,7 @@ class VyOSResponse(BaseModel):
 
 
 @router.get("/capabilities", response_model=LocalRouteCapabilitiesResponse)
-async def get_local_route_capabilities(request: Request):
+async def get_local_route_capabilities(http_request: Request):
     """
     Get feature capabilities based on device VyOS version.
 
@@ -114,9 +114,9 @@ async def get_local_route_capabilities(request: Request):
         capabilities = builder.get_capabilities()
 
         # Add instance info
-        if hasattr(request.state, "instance") and request.state.instance:
-            capabilities["instance_name"] = request.state.instance.get("name")
-            capabilities["instance_id"] = request.state.instance.get("id")
+        if hasattr(http_request.state, "instance") and http_request.state.instance:
+            capabilities["instance_name"] = http_request.state.instance.get("name")
+            capabilities["instance_id"] = http_request.state.instance.get("id")
         return capabilities
     except Exception as e:
         logger.exception("Unhandled error")
