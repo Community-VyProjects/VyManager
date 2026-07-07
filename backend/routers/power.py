@@ -19,6 +19,7 @@ import uuid
 
 from session_vyos_service import get_session_vyos_service
 from fastapi_permissions import require_read_permission, require_write_permission
+from org_scope import request_scoped_conn
 from rbac_permissions import FeatureGroup
 from events.event_manager import event_manager, EVENT_POWER_STATUS
 import logging
@@ -163,7 +164,6 @@ async def reboot_system(request: Request, body: PowerActionRequest):
     user = request.state.user
     instance = request.state.instance
     instance_id = instance["id"]
-    db_pool: asyncpg.Pool = request.app.state.db_pool
 
     # Build VyOS command path
     if body.action == "now":
@@ -190,7 +190,7 @@ async def reboot_system(request: Request, body: PowerActionRequest):
         scheduled_time = None
 
         # Mark as cancelled in database
-        async with db_pool.acquire() as conn:
+        async with request_scoped_conn(request) as conn:
             await conn.execute(
                 """
                 UPDATE scheduled_power_actions
@@ -248,7 +248,7 @@ async def reboot_system(request: Request, body: PowerActionRequest):
 
     # Store scheduled action in database (except for 'now' and 'cancel')
     if body.action in ["at", "in"] and scheduled_time:
-        async with db_pool.acquire() as conn:
+        async with request_scoped_conn(request) as conn:
             # Delete any existing scheduled reboots for this instance
             await conn.execute(
                 """
@@ -321,7 +321,6 @@ async def poweroff_system(request: Request, body: PowerActionRequest):
     user = request.state.user
     instance = request.state.instance
     instance_id = instance["id"]
-    db_pool: asyncpg.Pool = request.app.state.db_pool
 
     # Build VyOS command path
     if body.action == "now":
@@ -348,7 +347,7 @@ async def poweroff_system(request: Request, body: PowerActionRequest):
         scheduled_time = None
 
         # Mark as cancelled in database
-        async with db_pool.acquire() as conn:
+        async with request_scoped_conn(request) as conn:
             await conn.execute(
                 """
                 UPDATE scheduled_power_actions
@@ -426,7 +425,7 @@ async def poweroff_system(request: Request, body: PowerActionRequest):
 
     # Store scheduled action in database (except for 'now' and 'cancel')
     if body.action in ["at", "in"] and scheduled_time:
-        async with db_pool.acquire() as conn:
+        async with request_scoped_conn(request) as conn:
             # Delete any existing scheduled poweroffs for this instance
             await conn.execute(
                 """
@@ -495,9 +494,8 @@ async def get_power_status(request: Request):
     service = get_session_vyos_service(request)
     instance = request.state.instance
     instance_id = instance["id"]
-    db_pool: asyncpg.Pool = request.app.state.db_pool
 
-    async with db_pool.acquire() as conn:
+    async with request_scoped_conn(request) as conn:
         # First, clean up expired actions
         await conn.execute(
             """

@@ -30,6 +30,7 @@ from fastapi import APIRouter, HTTPException, Request, WebSocket, WebSocketDisco
 from pydantic import BaseModel
 
 from fastapi_permissions import require_read_permission
+from org_scope import request_scoped_conn
 from rbac_permissions import FeatureGroup, PermissionLevel, check_permission
 from session_cookie import verify_session_cookie
 from ssh_key_manager import decrypt_private_key
@@ -79,10 +80,9 @@ async def get_console_status(request: Request):
     """Check if the active instance has SSH configured for console access."""
     await require_read_permission(request, FeatureGroup.SSH_CONSOLE)
 
-    db_pool = _get_db_pool(request)
     user_id = request.state.user_id
 
-    async with db_pool.acquire() as conn:
+    async with request_scoped_conn(request) as conn:
         active = await conn.fetchrow(
             'SELECT "instanceId" FROM active_sessions WHERE "userId" = $1',
             user_id,
@@ -686,18 +686,6 @@ async def websocket_console(websocket: WebSocket):
 # ============================================================================
 # Helper Functions
 # ============================================================================
-
-def _get_db_pool(request: Request) -> asyncpg.Pool:
-    db_pool = getattr(request.app.state, "db_pool", None)
-
-    if not db_pool:
-        raise HTTPException(
-            status_code=503,
-            detail="Database not available",
-        )
-
-    return db_pool
-
 
 async def _safe_send(websocket: WebSocket, data: dict) -> None:
     try:

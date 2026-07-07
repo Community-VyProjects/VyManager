@@ -23,6 +23,7 @@ from pydantic import BaseModel, Field
 from monitoring_commands import build_command, get_available_commands
 from rbac_permissions import FeatureGroup, check_permission, PermissionLevel
 from fastapi_permissions import require_read_permission, require_super_admin
+from org_scope import request_scoped_conn
 from session_cookie import verify_session_cookie
 from ssh_key_manager import decrypt_private_key, generate_keypair
 
@@ -86,11 +87,10 @@ class CommandsListResponse(BaseModel):
 async def generate_ssh_key(instance_id: str, request: Request):
     """Generate a new SSH keypair for an instance. Requires site ADMIN."""
     await require_super_admin(request)
-    db_pool = _get_db_pool(request)
 
     keypair = generate_keypair()
 
-    async with db_pool.acquire() as conn:
+    async with request_scoped_conn(request) as conn:
         updated = await conn.fetchval(
             """
             UPDATE instances
@@ -120,9 +120,8 @@ async def generate_ssh_key(instance_id: str, request: Request):
 async def get_ssh_key_status(instance_id: str, request: Request):
     """Get SSH key status for an instance. Requires site ADMIN."""
     await require_super_admin(request)
-    db_pool = _get_db_pool(request)
 
-    async with db_pool.acquire() as conn:
+    async with request_scoped_conn(request) as conn:
         row = await conn.fetchrow(
             """
             SELECT "sshPublicKey", "sshKeyConfigured", "sshPort", "sshUsername"
@@ -147,9 +146,8 @@ async def get_ssh_key_status(instance_id: str, request: Request):
 async def mark_ssh_key_configured(instance_id: str, request: Request, body: MarkConfiguredRequest):
     """Mark SSH key as configured on the VyOS device. Requires site ADMIN."""
     await require_super_admin(request)
-    db_pool = _get_db_pool(request)
 
-    async with db_pool.acquire() as conn:
+    async with request_scoped_conn(request) as conn:
         has_key = await conn.fetchval(
             'SELECT "sshPublicKey" IS NOT NULL FROM instances WHERE id = $1',
             instance_id,
@@ -179,9 +177,8 @@ async def mark_ssh_key_configured(instance_id: str, request: Request, body: Mark
 async def delete_ssh_key(instance_id: str, request: Request):
     """Remove SSH key from an instance. Requires site ADMIN."""
     await require_super_admin(request)
-    db_pool = _get_db_pool(request)
 
-    async with db_pool.acquire() as conn:
+    async with request_scoped_conn(request) as conn:
         updated = await conn.fetchval(
             """
             UPDATE instances
@@ -205,10 +202,9 @@ async def delete_ssh_key(instance_id: str, request: Request):
 async def get_monitoring_status(request: Request):
     """Get SSH monitoring availability for the current user's active instance. Requires MONITORING read permission."""
     await require_read_permission(request, FeatureGroup.MONITORING)
-    db_pool = _get_db_pool(request)
     user_id = request.state.user_id
 
-    async with db_pool.acquire() as conn:
+    async with request_scoped_conn(request) as conn:
         active = await conn.fetchrow(
             'SELECT "instanceId" FROM active_sessions WHERE "userId" = $1',
             user_id,
@@ -503,14 +499,6 @@ async def websocket_monitor(websocket: WebSocket):
 # ============================================================================
 # Helper Functions
 # ============================================================================
-
-def _get_db_pool(request: Request) -> asyncpg.Pool:
-    """Get database pool from app state."""
-    db_pool = getattr(request.app.state, "db_pool", None)
-    if not db_pool:
-        raise HTTPException(status_code=503, detail="Database not available")
-    return db_pool
-
 
 async def _authenticate_websocket(websocket: WebSocket) -> Optional[dict]:
     """
