@@ -31,6 +31,7 @@ from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
 from fastapi_permissions import require_read_permission
+from org_scope import request_scoped_conn
 from rbac_permissions import FeatureGroup
 from system_updates import SystemUpdatesInfo, parse_system_updates
 from vyos_service import VyOSDeviceConfig, VyOSService
@@ -181,11 +182,7 @@ async def get_site_updates(request: Request, site_id: str, refresh: bool = False
         raise HTTPException(status_code=401, detail="Not authenticated")
     user_id = request.state.user["id"]
 
-    db_pool: Optional[asyncpg.Pool] = getattr(request.app.state, "db_pool", None)
-    if not db_pool:
-        raise HTTPException(status_code=503, detail="Database not available")
-
-    async with db_pool.acquire() as conn:
+    async with request_scoped_conn(request) as conn:
         # Reuse the proven RBAC-filtered enumeration: site ADMIN sees all
         # instances in the site; everyone else is limited to instances they
         # have an explicit role on (instance- or site-scoped grant).

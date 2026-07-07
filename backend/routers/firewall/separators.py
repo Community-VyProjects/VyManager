@@ -22,6 +22,7 @@ from fastapi_permissions import (
     has_permission,
     PermissionLevel,
 )
+from org_scope import request_scoped_conn
 from rbac_permissions import FeatureGroup
 import logging
 
@@ -130,8 +131,7 @@ async def list_separators(request: Request):
     await _require_separator_permission(request, PermissionLevel.READ)
     try:
         instance_id = _require_instance(request)
-        db_pool: asyncpg.Pool = request.app.state.db_pool
-        async with db_pool.acquire() as conn:
+        async with request_scoped_conn(request) as conn:
             separators = await _fetch_separators(conn, instance_id)
         return SeparatorListResponse(separators=separators)
     except HTTPException:
@@ -160,8 +160,7 @@ async def batch_separators(request: Request, body: SeparatorBatchRequest):
                     status_code=400, detail=f"Invalid family: {up.family}"
                 )
 
-        db_pool: asyncpg.Pool = request.app.state.db_pool
-        async with db_pool.acquire() as conn:
+        async with request_scoped_conn(request) as conn:
             async with conn.transaction():
                 # Deletes are scoped to this instance so a caller can never
                 # remove another instance's separators by guessing an id.
