@@ -19,7 +19,16 @@ A protocol selector on the left lists BGP, OSPF, OSPFv3, IS-IS, OpenFabric, RIP,
 
 ## Infrastructure
 
-Same selector layout for BFD, MPLS, NHRP, RPKI and Traffic Engineering. Traffic Engineering only appears when the connected VyOS version reports support for it. BFD is the one section with live state: it reads peer status from the router in addition to configuration. Segment Routing appears in the menu but has no editor yet and shows a work-in-progress placeholder.
+Same selector layout for BFD, MPLS, NHRP, RPKI, Segment Routing and Traffic Engineering. Traffic Engineering only appears when the connected VyOS version reports support for it. BFD is the one section with live state: it reads peer status from the router in addition to configuration.
+
+### Segment Routing (SRv6)
+
+Two tabs: **Locators** (the IPv6 prefixes the router advertises for SRv6 segments — name, prefix, block/node lengths, function bits, uSID behavior) and **Interfaces** (which interfaces accept SR-enabled IPv6 packets, with the ingress HMAC policy). VyOS enforces a few rules the UI handles for you:
+
+- A locator cannot be committed unless at least one interface has SRv6 enabled. When none does, the locator dialog asks for an interface and applies both changes in a single commit. For the same reason, the last SRv6 interface cannot be disabled while locators exist — delete the locators first.
+- The locator prefix length must equal block length + node length (defaults 40 + 24, so a /64 prefix). The dialog validates this before sending anything, because the router itself reports only a generic commit failure.
+- On VyOS 1.4, existing Segment Routing configuration cannot be modified in place (a platform limitation in the FRR integration). Every change on a 1.4 router removes and recreates the whole segment-routing tree in two commits; the page shows a banner and the dialogs say so explicitly. If the second commit fails, the tree is left empty — refresh and re-apply.
+- Removing the entire configuration is always safe: deleting the last interface (with no locators left) clears the whole tree in one commit.
 
 ## Multicast
 
