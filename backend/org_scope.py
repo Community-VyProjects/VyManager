@@ -28,7 +28,14 @@ from contextlib import asynccontextmanager
 from typing import AsyncIterator, Optional
 
 import asyncpg
-from fastapi import Request
+from fastapi import HTTPException, Query, Request
+
+
+def _require_pool(request: Request) -> asyncpg.Pool:
+    pool = getattr(request.app.state, "db_pool", None)
+    if pool is None:
+        raise HTTPException(status_code=503, detail="Database not available")
+    return pool
 
 
 @asynccontextmanager
@@ -81,21 +88,85 @@ async def _resolve_system_admin(conn: asyncpg.Connection, request: Request) -> b
     return role == "ADMIN"
 
 
-async def org_conn(request: Request) -> AsyncIterator[asyncpg.Connection]:
-    """FastAPI dependency: the handler's whole body is one unit of work.
+async def _resolve_admin_org(
+    conn: asyncpg.Connection,
+    request: Request,
+    requested_org_id: Optional[str],
+    is_system_admin: bool,
+) -> str:
+    """Validate an explicitly requested org for a no-instance endpoint.
 
-    Yields a connection inside an org-scoped transaction and exposes it as
-    request.state.org_conn so nested permission checks join the same
+    The org must exist and (unless the caller is a System Administrator)
+    be one of the caller's organizations.
+    """
+    user = getattr(request.state, "user", None)
+    exists = await conn.fetchval(
+        "SELECT 1 FROM organizations WHERE id = $1", requested_org_id)
+    if not exists:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    if not is_system_admin:
+        member = user and await conn.fetchval(
+            'SELECT 1 FROM org_memberships'
+            ' WHERE "userId" = $1 AND "orgId" = $2',
+            user["id"], requested_org_id)
+        if not member:
+            raise HTTPException(
+                status_code=403,
+                detail="You are not a member of this organization")
+    return requested_org_id
+
+
+@asynccontextmanager
+async def _handler_conn(
+    request: Request,
+    requested_org_id: Optional[str],
+) -> AsyncIterator[asyncpg.Connection]:
+    """Shared core of the handler dependencies.
+
+    The handler's whole body is one unit of work; the connection is exposed
+    as request.state.org_conn so nested permission checks join the same
     transaction instead of opening their own.
     """
-    pool: asyncpg.Pool = request.app.state.db_pool
+    pool = _require_pool(request)
+    user = getattr(request.state, "user", None)
     async with pool.acquire() as conn:
         async with conn.transaction():
-            is_admin = await _resolve_system_admin(conn, request)
+            org_id = org_id_from_state(request)
+            is_admin = is_system_admin_from_state(request)
+
+            if requested_org_id and org_id is None:
+                if is_admin is None:
+                    is_admin = await _resolve_system_admin(conn, request)
+                org_id = await _resolve_admin_org(
+                    conn, request, requested_org_id, is_admin)
+            elif user and (is_admin is None or org_id is None):
+                # One round trip resolves both the deployment role and the
+                # sole-org default — this dependency runs on every admin
+                # request, so per-query trips matter.
+                row = await conn.fetchrow(
+                    "SELECT (SELECT role FROM users WHERE id = $1) AS role,"
+                    ' ARRAY(SELECT "orgId" FROM org_memberships'
+                    '       WHERE "userId" = $1 ORDER BY "orgId" LIMIT 2)'
+                    " AS orgs",
+                    user["id"])
+                if is_admin is None:
+                    is_admin = row["role"] == "ADMIN"
+                if org_id is None:
+                    orgs = row["orgs"]
+                    if len(orgs) == 1:
+                        org_id = orgs[0]
+                    elif len(orgs) > 1:
+                        raise HTTPException(
+                            status_code=400,
+                            detail="You belong to multiple organizations;"
+                                   " pass org_id")
+
+            if is_admin is None:
+                is_admin = False
             await conn.execute(
                 "SELECT set_config('app.org_id', $1, true),"
                 "       set_config('app.is_system_admin', $2, true)",
-                org_id_from_state(request) or "",
+                org_id or "",
                 "true" if is_admin else "false",
             )
             request.state.org_conn = conn
@@ -103,6 +174,27 @@ async def org_conn(request: Request) -> AsyncIterator[asyncpg.Connection]:
                 yield conn
             finally:
                 request.state.org_conn = None
+
+
+async def org_conn(request: Request) -> AsyncIterator[asyncpg.Connection]:
+    """FastAPI dependency for handlers whose org context comes from the
+    active instance (SessionMiddleware) or is deliberately absent."""
+    async with _handler_conn(request, None) as conn:
+        yield conn
+
+
+async def org_conn_admin(
+    request: Request,
+    org_id: Optional[str] = Query(
+        None,
+        description="Organization to act in; defaults to your sole organization.",
+    ),
+) -> AsyncIterator[asyncpg.Connection]:
+    """FastAPI dependency for the admin surface (sites, instances, users,
+    tokens, backup): no active instance required; org context comes from
+    the optional org_id parameter or the caller's sole membership."""
+    async with _handler_conn(request, org_id) as conn:
+        yield conn
 
 
 @asynccontextmanager

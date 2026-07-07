@@ -5,7 +5,8 @@ API endpoints for managing user sessions with VyOS instances.
 Handles connect/disconnect operations and instance selection.
 """
 
-from fastapi import APIRouter, HTTPException, Request, UploadFile, File, Form
+from fastapi import Depends, APIRouter, HTTPException, Request, UploadFile, File, Form
+from org_scope import org_conn_admin
 from starlette.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
@@ -160,26 +161,21 @@ class ApiResponse(BaseModel):
 
 
 @router.get("/onboarding-status", response_model=OnboardingStatusResponse)
-async def get_onboarding_status(request: Request):
+async def get_onboarding_status(request: Request, conn: asyncpg.Connection = Depends(org_conn_admin)):
     """
     Check if the system needs initial onboarding setup.
 
     Returns True if no users exist in the system.
     """
-    db_pool: asyncpg.Pool = request.app.state.db_pool
-    if not db_pool:
-        raise HTTPException(status_code=503, detail="Database not available")
-
     try:
-        async with db_pool.acquire() as conn:
-            # Count users
-            result = await conn.fetchrow('SELECT COUNT(*) as count FROM users')
-            user_count = result['count']
+        # Count users
+        result = await conn.fetchrow('SELECT COUNT(*) as count FROM users')
+        user_count = result['count']
 
-            return OnboardingStatusResponse(
-                needs_onboarding=user_count == 0,
-                user_count=user_count
-            )
+        return OnboardingStatusResponse(
+            needs_onboarding=user_count == 0,
+            user_count=user_count
+        )
     except Exception as e:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -191,7 +187,7 @@ async def get_onboarding_status(request: Request):
 
 
 @router.get("/current", response_model=Optional[ActiveSessionResponse])
-async def get_current_session(request: Request):
+async def get_current_session(request: Request, conn: asyncpg.Connection = Depends(org_conn_admin)):
     """
     Get the user's current active session (which instance they're connected to).
 
@@ -205,44 +201,39 @@ async def get_current_session(request: Request):
     user_id = user["id"]
 
     # Get database pool from app state
-    db_pool: asyncpg.Pool = request.app.state.db_pool
-    if not db_pool:
-        raise HTTPException(status_code=503, detail="Database not available")
-
     try:
-        async with db_pool.acquire() as conn:
-            # Get active session with instance and site details
-            session = await conn.fetchrow(
-                """
-                SELECT
-                    a.id as session_id,
-                    a."instanceId" as instance_id,
-                    a."connectedAt" as connected_at,
-                    i.name as instance_name,
-                    i.host,
-                    i.port,
-                    i."siteId" as site_id,
-                    s.name as site_name
-                FROM active_sessions a
-                JOIN instances i ON a."instanceId" = i.id
-                JOIN sites s ON i."siteId" = s.id
-                WHERE a."userId" = $1
-                """,
-                user_id,
-            )
+        # Get active session with instance and site details
+        session = await conn.fetchrow(
+            """
+            SELECT
+                a.id as session_id,
+                a."instanceId" as instance_id,
+                a."connectedAt" as connected_at,
+                i.name as instance_name,
+                i.host,
+                i.port,
+                i."siteId" as site_id,
+                s.name as site_name
+            FROM active_sessions a
+            JOIN instances i ON a."instanceId" = i.id
+            JOIN sites s ON i."siteId" = s.id
+            WHERE a."userId" = $1
+            """,
+            user_id,
+        )
 
-            if not session:
-                return None
+        if not session:
+            return None
 
-            return ActiveSessionResponse(
-                instance_id=session["instance_id"],
-                instance_name=session["instance_name"],
-                site_id=session["site_id"],
-                site_name=session["site_name"],
-                host=session["host"],
-                port=session["port"],
-                connected_at=session["connected_at"],
-            )
+        return ActiveSessionResponse(
+            instance_id=session["instance_id"],
+            instance_name=session["instance_name"],
+            site_id=session["site_id"],
+            site_name=session["site_name"],
+            host=session["host"],
+            port=session["port"],
+            connected_at=session["connected_at"],
+        )
 
     except Exception as e:
         logger.exception("Unhandled error")
@@ -255,7 +246,7 @@ async def get_current_session(request: Request):
 
 
 @router.post("/connect", response_model=ApiResponse)
-async def connect_to_instance(request: Request, body: ConnectRequest):
+async def connect_to_instance(request: Request, body: ConnectRequest, conn: asyncpg.Connection = Depends(org_conn_admin)):
     """
     Connect to a specific VyOS instance.
 
@@ -270,132 +261,126 @@ async def connect_to_instance(request: Request, body: ConnectRequest):
     user_id = user["id"]
     instance_id = body.instance_id
 
-    # Get database pool
-    db_pool: asyncpg.Pool = request.app.state.db_pool
-    if not db_pool:
-        raise HTTPException(status_code=503, detail="Database not available")
-
     try:
-        async with db_pool.acquire() as conn:
-            # Check if user is site-level ADMIN
-            user_site_role = await conn.fetchval(
+        # Check if user is site-level ADMIN
+        user_site_role = await conn.fetchval(
+            """
+            SELECT role FROM users WHERE id = $1
+            """,
+            user_id
+        )
+
+        # Site ADMIN users can access any instance
+        # Other users need explicit instance-level permissions
+        if user_site_role == "ADMIN":
+            # ADMIN can access any instance - no instance role check needed
+            instance = await conn.fetchrow(
                 """
-                SELECT role FROM users WHERE id = $1
+                SELECT i.id, i.name, i.host, i.port, i."siteId", i."isActive",
+                       i."apiKey", i.protocol, i."verifySsl", i."vyosVersion", i.timeout,
+                       s.name as site_name,
+                       'ADMIN' as role
+                FROM instances i
+                JOIN sites s ON i."siteId" = s.id
+                WHERE i.id = $1
                 """,
-                user_id
+                instance_id,
             )
-
-            # Site ADMIN users can access any instance
-            # Other users need explicit instance-level permissions
-            if user_site_role == "ADMIN":
-                # ADMIN can access any instance - no instance role check needed
-                instance = await conn.fetchrow(
-                    """
-                    SELECT i.id, i.name, i.host, i.port, i."siteId", i."isActive",
-                           i."apiKey", i.protocol, i."verifySsl", i."vyosVersion", i.timeout,
-                           s.name as site_name,
-                           'ADMIN' as role
-                    FROM instances i
-                    JOIN sites s ON i."siteId" = s.id
-                    WHERE i.id = $1
-                    """,
-                    instance_id,
-                )
-            else:
-                # VIEWER users need explicit instance-level role assignment
-                instance = await conn.fetchrow(
-                    """
-                    SELECT i.id, i.name, i.host, i.port, i."siteId", i."isActive",
-                           i."apiKey", i.protocol, i."verifySsl", i."vyosVersion", i.timeout,
-                           s.name as site_name,
-                           uir.role as role
-                    FROM instances i
-                    JOIN sites s ON i."siteId" = s.id
-                    JOIN user_instance_roles uir
-                        ON (uir."instanceId" = i.id OR uir."siteId" = i."siteId")
-                        AND uir."userId" = $1
-                    WHERE i.id = $2
-                    ORDER BY CASE uir.role
-                        WHEN 'ADMIN' THEN 3 WHEN 'OPERATOR' THEN 2 WHEN 'VIEWER' THEN 1 ELSE 0
-                    END DESC
-                    LIMIT 1
-                    """,
-                    user_id,
-                    instance_id,
-                )
-
-            if not instance:
-                raise HTTPException(
-                    status_code=404,
-                    detail="Instance not found or you don't have permission to access it",
-                )
-
-            if not instance["isActive"]:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Instance '{instance['name']}' is not active",
-                )
-
-            # Test the connection to VyOS before creating session
-            try:
-                device_config = VyOSDeviceConfig(
-                    hostname=instance["host"],
-                    apikey=instance["apiKey"],
-                    version=instance["vyosVersion"],
-                    protocol=instance["protocol"],
-                    port=instance["port"],
-                    verify=instance["verifySsl"],
-                    timeout=instance.get("timeout") or 10,
-                )
-                vyos_service = VyOSService(device_config)
-
-                # Test connection by fetching config (this will raise exception if connection fails)
-                await run_in_threadpool(vyos_service.get_full_config)
-
-            except Exception as e:
-                error_msg = str(e)
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Failed to connect to VyOS instance: {error_msg}. Please verify the host, port, API key, and network connectivity.",
-                )
-
-            # Get current auth session token from cookie and verify its signature
-            # This allows us to track which auth session created this VyOS connection
-            cookie_token = request.cookies.get("better-auth.session_token")
-            current_session_token = verify_session_cookie(cookie_token) if cookie_token else None
-
-            # Create or update active session (upsert)
-            # Generate a 32-character ID similar to CUIDs used elsewhere in the database
-            import secrets
-            import string
-            alphabet = string.ascii_letters + string.digits
-            session_id = ''.join(secrets.choice(alphabet) for _ in range(32))
-
-            result = await conn.execute(
+        else:
+            # VIEWER users need explicit instance-level role assignment
+            instance = await conn.fetchrow(
                 """
-                INSERT INTO active_sessions (id, "userId", "instanceId", "sessionToken", "connectedAt")
-                VALUES ($1, $2, $3, $4, NOW())
-                ON CONFLICT ("userId")
-                DO UPDATE SET "instanceId" = $3, "sessionToken" = $4, "connectedAt" = NOW()
+                SELECT i.id, i.name, i.host, i.port, i."siteId", i."isActive",
+                       i."apiKey", i.protocol, i."verifySsl", i."vyosVersion", i.timeout,
+                       s.name as site_name,
+                       uir.role as role
+                FROM instances i
+                JOIN sites s ON i."siteId" = s.id
+                JOIN user_instance_roles uir
+                    ON (uir."instanceId" = i.id OR uir."siteId" = i."siteId")
+                    AND uir."userId" = $1
+                WHERE i.id = $2
+                ORDER BY CASE uir.role
+                    WHEN 'ADMIN' THEN 3 WHEN 'OPERATOR' THEN 2 WHEN 'VIEWER' THEN 1 ELSE 0
+                END DESC
+                LIMIT 1
                 """,
-                session_id,
                 user_id,
                 instance_id,
-                current_session_token,
             )
 
-            return ApiResponse(
-                success=True,
-                message=f"Connected to instance '{instance['name']}'",
-                data={
-                    "instance_id": instance_id,
-                    "instance_name": instance["name"],
-                    "site_id": instance["siteId"],
-                    "site_name": instance["site_name"],
-                    "host": instance["host"],
-                    "port": instance["port"],
-                },
+        if not instance:
+            raise HTTPException(
+                status_code=404,
+                detail="Instance not found or you don't have permission to access it",
             )
+
+        if not instance["isActive"]:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Instance '{instance['name']}' is not active",
+            )
+
+        # Test the connection to VyOS before creating session
+        try:
+            device_config = VyOSDeviceConfig(
+                hostname=instance["host"],
+                apikey=instance["apiKey"],
+                version=instance["vyosVersion"],
+                protocol=instance["protocol"],
+                port=instance["port"],
+                verify=instance["verifySsl"],
+                timeout=instance.get("timeout") or 10,
+            )
+            vyos_service = VyOSService(device_config)
+
+            # Test connection by fetching config (this will raise exception if connection fails)
+            await run_in_threadpool(vyos_service.get_full_config)
+
+        except Exception as e:
+            error_msg = str(e)
+            raise HTTPException(
+                status_code=503,
+                detail=f"Failed to connect to VyOS instance: {error_msg}. Please verify the host, port, API key, and network connectivity.",
+            )
+
+        # Get current auth session token from cookie and verify its signature
+        # This allows us to track which auth session created this VyOS connection
+        cookie_token = request.cookies.get("better-auth.session_token")
+        current_session_token = verify_session_cookie(cookie_token) if cookie_token else None
+
+        # Create or update active session (upsert)
+        # Generate a 32-character ID similar to CUIDs used elsewhere in the database
+        import secrets
+        import string
+        alphabet = string.ascii_letters + string.digits
+        session_id = ''.join(secrets.choice(alphabet) for _ in range(32))
+
+        result = await conn.execute(
+            """
+            INSERT INTO active_sessions (id, "userId", "instanceId", "sessionToken", "connectedAt")
+            VALUES ($1, $2, $3, $4, NOW())
+            ON CONFLICT ("userId")
+            DO UPDATE SET "instanceId" = $3, "sessionToken" = $4, "connectedAt" = NOW()
+            """,
+            session_id,
+            user_id,
+            instance_id,
+            current_session_token,
+        )
+
+        return ApiResponse(
+            success=True,
+            message=f"Connected to instance '{instance['name']}'",
+            data={
+                "instance_id": instance_id,
+                "instance_name": instance["name"],
+                "site_id": instance["siteId"],
+                "site_name": instance["site_name"],
+                "host": instance["host"],
+                "port": instance["port"],
+            },
+        )
 
     except HTTPException:
         raise
@@ -410,7 +395,7 @@ async def connect_to_instance(request: Request, body: ConnectRequest):
 
 
 @router.post("/disconnect", response_model=ApiResponse)
-async def disconnect_from_instance(request: Request):
+async def disconnect_from_instance(request: Request, conn: asyncpg.Connection = Depends(org_conn_admin)):
     """
     Disconnect from the current VyOS instance.
 
@@ -423,32 +408,26 @@ async def disconnect_from_instance(request: Request):
     user = request.state.user
     user_id = user["id"]
 
-    # Get database pool
-    db_pool: asyncpg.Pool = request.app.state.db_pool
-    if not db_pool:
-        raise HTTPException(status_code=503, detail="Database not available")
-
     try:
-        async with db_pool.acquire() as conn:
-            # Delete active session
-            result = await conn.execute(
-                """
-                DELETE FROM active_sessions
-                WHERE "userId" = $1
-                """,
-                user_id,
+        # Delete active session
+        result = await conn.execute(
+            """
+            DELETE FROM active_sessions
+            WHERE "userId" = $1
+            """,
+            user_id,
+        )
+
+        # Check if a session was deleted
+        if result == "DELETE 0":
+            raise HTTPException(
+                status_code=404, detail="No active session to disconnect"
             )
 
-            # Check if a session was deleted
-            if result == "DELETE 0":
-                raise HTTPException(
-                    status_code=404, detail="No active session to disconnect"
-                )
-
-            return ApiResponse(
-                success=True,
-                message="Disconnected from instance",
-            )
+        return ApiResponse(
+            success=True,
+            message="Disconnected from instance",
+        )
 
     except HTTPException:
         raise
@@ -463,7 +442,7 @@ async def disconnect_from_instance(request: Request):
 
 
 @router.get("/sites", response_model=List[SiteResponse])
-async def list_user_sites(request: Request):
+async def list_user_sites(request: Request, conn: asyncpg.Connection = Depends(org_conn_admin)):
     """
     Get all sites the user has access to.
 
@@ -478,85 +457,79 @@ async def list_user_sites(request: Request):
     user = request.state.user
     user_id = user["id"]
 
-    # Get database pool
-    db_pool: asyncpg.Pool = request.app.state.db_pool
-    if not db_pool:
-        raise HTTPException(status_code=503, detail="Database not available")
-
     try:
-        async with db_pool.acquire() as conn:
-            # First, check if user is a site ADMIN
-            user_role = await conn.fetchval(
+        # First, check if user is a site ADMIN
+        user_role = await conn.fetchval(
+            """
+            SELECT role FROM users WHERE id = $1
+            """,
+            user_id,
+        )
+
+        if user_role == "ADMIN":
+            # Site ADMINs see ALL sites with ADMIN role
+            sites = await conn.fetch(
                 """
-                SELECT role FROM users WHERE id = $1
+                SELECT id, name, description, "createdAt", "updatedAt"
+                FROM sites
+                ORDER BY name
+                """,
+            )
+
+            return [
+                SiteResponse(
+                    id=site["id"],
+                    name=site["name"],
+                    description=site["description"],
+                    role="ADMIN",  # Site ADMINs have ADMIN role on all sites
+                    created_at=site["createdAt"],
+                    updated_at=site["updatedAt"],
+                )
+                for site in sites
+            ]
+        else:
+            # Regular users see only sites where they have instance access
+            # Role shown is the highest role the user has across all instances in that site
+            sites = await conn.fetch(
+                """
+                SELECT DISTINCT s.id, s.name, s.description, s."createdAt", s."updatedAt",
+                       MAX(
+                           CASE uir.role
+                               WHEN 'ADMIN' THEN 3
+                               WHEN 'OPERATOR' THEN 2
+                               WHEN 'VIEWER' THEN 1
+                               ELSE 0
+                           END
+                       ) as role_rank,
+                       (ARRAY_AGG(uir.role ORDER BY
+                           CASE uir.role
+                               WHEN 'ADMIN' THEN 3
+                               WHEN 'OPERATOR' THEN 2
+                               WHEN 'VIEWER' THEN 1
+                               ELSE 0
+                           END DESC))[1] as role
+                FROM sites s
+                JOIN instances i ON s.id = i."siteId"
+                JOIN user_instance_roles uir
+                    ON (uir."instanceId" = i.id OR uir."siteId" = s.id)
+                    AND uir."userId" = $1
+                GROUP BY s.id, s.name, s.description, s."createdAt", s."updatedAt"
+                ORDER BY s.name
                 """,
                 user_id,
             )
 
-            if user_role == "ADMIN":
-                # Site ADMINs see ALL sites with ADMIN role
-                sites = await conn.fetch(
-                    """
-                    SELECT id, name, description, "createdAt", "updatedAt"
-                    FROM sites
-                    ORDER BY name
-                    """,
+            return [
+                SiteResponse(
+                    id=site["id"],
+                    name=site["name"],
+                    description=site["description"],
+                    role=site["role"],
+                    created_at=site["createdAt"],
+                    updated_at=site["updatedAt"],
                 )
-
-                return [
-                    SiteResponse(
-                        id=site["id"],
-                        name=site["name"],
-                        description=site["description"],
-                        role="ADMIN",  # Site ADMINs have ADMIN role on all sites
-                        created_at=site["createdAt"],
-                        updated_at=site["updatedAt"],
-                    )
-                    for site in sites
-                ]
-            else:
-                # Regular users see only sites where they have instance access
-                # Role shown is the highest role the user has across all instances in that site
-                sites = await conn.fetch(
-                    """
-                    SELECT DISTINCT s.id, s.name, s.description, s."createdAt", s."updatedAt",
-                           MAX(
-                               CASE uir.role
-                                   WHEN 'ADMIN' THEN 3
-                                   WHEN 'OPERATOR' THEN 2
-                                   WHEN 'VIEWER' THEN 1
-                                   ELSE 0
-                               END
-                           ) as role_rank,
-                           (ARRAY_AGG(uir.role ORDER BY
-                               CASE uir.role
-                                   WHEN 'ADMIN' THEN 3
-                                   WHEN 'OPERATOR' THEN 2
-                                   WHEN 'VIEWER' THEN 1
-                                   ELSE 0
-                               END DESC))[1] as role
-                    FROM sites s
-                    JOIN instances i ON s.id = i."siteId"
-                    JOIN user_instance_roles uir
-                        ON (uir."instanceId" = i.id OR uir."siteId" = s.id)
-                        AND uir."userId" = $1
-                    GROUP BY s.id, s.name, s.description, s."createdAt", s."updatedAt"
-                    ORDER BY s.name
-                    """,
-                    user_id,
-                )
-
-                return [
-                    SiteResponse(
-                        id=site["id"],
-                        name=site["name"],
-                        description=site["description"],
-                        role=site["role"],
-                        created_at=site["createdAt"],
-                        updated_at=site["updatedAt"],
-                    )
-                    for site in sites
-                ]
+                for site in sites
+            ]
 
     except Exception as e:
         logger.exception("Unhandled error")
@@ -569,7 +542,7 @@ async def list_user_sites(request: Request):
 
 
 @router.get("/sites/{site_id}/instances", response_model=List[InstanceResponse])
-async def list_site_instances(request: Request, site_id: str):
+async def list_site_instances(request: Request, site_id: str, conn: asyncpg.Connection = Depends(org_conn_admin)):
     """
     Get all instances for a specific site that the user has access to.
 
@@ -584,80 +557,74 @@ async def list_site_instances(request: Request, site_id: str):
     user = request.state.user
     user_id = user["id"]
 
-    # Get database pool
-    db_pool: asyncpg.Pool = request.app.state.db_pool
-    if not db_pool:
-        raise HTTPException(status_code=503, detail="Database not available")
-
     try:
-        async with db_pool.acquire() as conn:
-            # First, check if user is a site ADMIN
-            user_role = await conn.fetchval(
+        # First, check if user is a site ADMIN
+        user_role = await conn.fetchval(
+            """
+            SELECT role FROM users WHERE id = $1
+            """,
+            user_id,
+        )
+
+        if user_role == "ADMIN":
+            # Site ADMINs see ALL instances in the site
+            instances = await conn.fetch(
                 """
-                SELECT role FROM users WHERE id = $1
+                SELECT id, "siteId", name, description, host, port, protocol, "verifySsl", "isActive",
+                       "vyosVersion", "sshPort", "sshUsername", "sshKeyConfigured",
+                       "commitConfirmEnabled", "commitConfirmMinutes", timeout,
+                       "createdAt", "updatedAt"
+                FROM instances
+                WHERE "siteId" = $1
+                ORDER BY name
                 """,
+                site_id,
+            )
+        else:
+            # Regular users see only instances they have explicit access to
+            instances = await conn.fetch(
+                """
+                SELECT DISTINCT i.id, i."siteId", i.name, i.description, i.host, i.port, i.protocol, i."verifySsl", i."isActive",
+                       i."vyosVersion", i."sshPort", i."sshUsername", i."sshKeyConfigured",
+                       i."commitConfirmEnabled", i."commitConfirmMinutes", i.timeout,
+                       i."createdAt", i."updatedAt"
+                FROM instances i
+                JOIN user_instance_roles uir
+                    ON (uir."instanceId" = i.id OR uir."siteId" = i."siteId")
+                    AND uir."userId" = $2
+                WHERE i."siteId" = $1
+                ORDER BY i.name
+                """,
+                site_id,
                 user_id,
             )
 
-            if user_role == "ADMIN":
-                # Site ADMINs see ALL instances in the site
-                instances = await conn.fetch(
-                    """
-                    SELECT id, "siteId", name, description, host, port, protocol, "verifySsl", "isActive",
-                           "vyosVersion", "sshPort", "sshUsername", "sshKeyConfigured",
-                           "commitConfirmEnabled", "commitConfirmMinutes", timeout,
-                           "createdAt", "updatedAt"
-                    FROM instances
-                    WHERE "siteId" = $1
-                    ORDER BY name
-                    """,
-                    site_id,
-                )
-            else:
-                # Regular users see only instances they have explicit access to
-                instances = await conn.fetch(
-                    """
-                    SELECT DISTINCT i.id, i."siteId", i.name, i.description, i.host, i.port, i.protocol, i."verifySsl", i."isActive",
-                           i."vyosVersion", i."sshPort", i."sshUsername", i."sshKeyConfigured",
-                           i."commitConfirmEnabled", i."commitConfirmMinutes", i.timeout,
-                           i."createdAt", i."updatedAt"
-                    FROM instances i
-                    JOIN user_instance_roles uir
-                        ON (uir."instanceId" = i.id OR uir."siteId" = i."siteId")
-                        AND uir."userId" = $2
-                    WHERE i."siteId" = $1
-                    ORDER BY i.name
-                    """,
-                    site_id,
-                    user_id,
-                )
+        # If no instances found, return empty list (don't throw 404)
+        # This allows the frontend to show "No instances available"
 
-            # If no instances found, return empty list (don't throw 404)
-            # This allows the frontend to show "No instances available"
-
-            return [
-                InstanceResponse(
-                    id=inst["id"],
-                    site_id=inst["siteId"],
-                    name=inst["name"],
-                    description=inst["description"],
-                    host=inst["host"],
-                    port=inst["port"],
-                    protocol=inst.get("protocol") or "https",
-                    verify_ssl=inst.get("verifySsl") or False,
-                    vyos_version=inst.get("vyosVersion"),
-                    is_active=inst["isActive"],
-                    ssh_port=inst["sshPort"],
-                    ssh_username=inst["sshUsername"],
-                    ssh_key_configured=inst["sshKeyConfigured"],
-                    commit_confirm_enabled=inst.get("commitConfirmEnabled") or False,
-                    commit_confirm_minutes=inst.get("commitConfirmMinutes") or 5,
-                    timeout=inst.get("timeout") or 10,
-                    created_at=inst["createdAt"],
-                    updated_at=inst["updatedAt"],
-                )
-                for inst in instances
-            ]
+        return [
+            InstanceResponse(
+                id=inst["id"],
+                site_id=inst["siteId"],
+                name=inst["name"],
+                description=inst["description"],
+                host=inst["host"],
+                port=inst["port"],
+                protocol=inst.get("protocol") or "https",
+                verify_ssl=inst.get("verifySsl") or False,
+                vyos_version=inst.get("vyosVersion"),
+                is_active=inst["isActive"],
+                ssh_port=inst["sshPort"],
+                ssh_username=inst["sshUsername"],
+                ssh_key_configured=inst["sshKeyConfigured"],
+                commit_confirm_enabled=inst.get("commitConfirmEnabled") or False,
+                commit_confirm_minutes=inst.get("commitConfirmMinutes") or 5,
+                timeout=inst.get("timeout") or 10,
+                created_at=inst["createdAt"],
+                updated_at=inst["updatedAt"],
+            )
+            for inst in instances
+        ]
 
     except HTTPException:
         raise
@@ -672,7 +639,7 @@ async def list_site_instances(request: Request, site_id: str):
 
 
 @router.post("/sites", response_model=SiteResponse, status_code=201)
-async def create_site(request: Request, body: SiteCreateRequest):
+async def create_site(request: Request, body: SiteCreateRequest, conn: asyncpg.Connection = Depends(org_conn_admin)):
     """
     Create a new site.
 
@@ -685,54 +652,49 @@ async def create_site(request: Request, body: SiteCreateRequest):
     user = request.state.user
     user_id = user["id"]
 
-    db_pool: asyncpg.Pool = request.app.state.db_pool
-    if not db_pool:
-        raise HTTPException(status_code=503, detail="Database not available")
-
     try:
-        async with db_pool.acquire() as conn:
-            # Check if this is the first site (onboarding)
-            site_count = await conn.fetchval("SELECT COUNT(*) FROM sites")
-            is_first_site = site_count == 0
+        # Check if this is the first site (onboarding)
+        site_count = await conn.fetchval("SELECT COUNT(*) FROM sites")
+        is_first_site = site_count == 0
 
-            # If not first site, verify user is site ADMIN
-            if not is_first_site:
-                user_role = await conn.fetchval(
-                    "SELECT role FROM users WHERE id = $1",
-                    user_id
+        # If not first site, verify user is site ADMIN
+        if not is_first_site:
+            user_role = await conn.fetchval(
+                "SELECT role FROM users WHERE id = $1",
+                user_id
+            )
+            if user_role != "ADMIN":
+                raise HTTPException(
+                    status_code=403,
+                    detail="Only site ADMIN users can create sites"
                 )
-                if user_role != "ADMIN":
-                    raise HTTPException(
-                        status_code=403,
-                        detail="Only site ADMIN users can create sites"
-                    )
 
-            # Generate site ID
-            import secrets
-            import string
-            alphabet = string.ascii_letters + string.digits
-            site_id = ''.join(secrets.choice(alphabet) for _ in range(32))
+        # Generate site ID
+        import secrets
+        import string
+        alphabet = string.ascii_letters + string.digits
+        site_id = ''.join(secrets.choice(alphabet) for _ in range(32))
 
-            # Create site
-            site = await conn.fetchrow(
-                """
-                INSERT INTO sites (id, name, description, "createdAt", "updatedAt")
-                VALUES ($1, $2, $3, NOW(), NOW())
-                RETURNING id, name, description, "createdAt", "updatedAt"
-                """,
-                site_id,
-                body.name,
-                body.description,
-            )
+        # Create site
+        site = await conn.fetchrow(
+            """
+            INSERT INTO sites (id, name, description, "createdAt", "updatedAt")
+            VALUES ($1, $2, $3, NOW(), NOW())
+            RETURNING id, name, description, "createdAt", "updatedAt"
+            """,
+            site_id,
+            body.name,
+            body.description,
+        )
 
-            return SiteResponse(
-                id=site["id"],
-                name=site["name"],
-                description=site["description"],
-                role="ADMIN",  # Site ADMINs have ADMIN role on all sites
-                created_at=site["createdAt"],
-                updated_at=site["updatedAt"],
-            )
+        return SiteResponse(
+            id=site["id"],
+            name=site["name"],
+            description=site["description"],
+            role="ADMIN",  # Site ADMINs have ADMIN role on all sites
+            created_at=site["createdAt"],
+            updated_at=site["updatedAt"],
+        )
 
     except HTTPException:
         raise
@@ -742,7 +704,7 @@ async def create_site(request: Request, body: SiteCreateRequest):
 
 
 @router.put("/sites/{site_id}", response_model=SiteResponse)
-async def update_site(request: Request, site_id: str, body: SiteUpdateRequest):
+async def update_site(request: Request, site_id: str, body: SiteUpdateRequest, conn: asyncpg.Connection = Depends(org_conn_admin)):
     """
     Update a site.
 
@@ -754,72 +716,67 @@ async def update_site(request: Request, site_id: str, body: SiteUpdateRequest):
     user = request.state.user
     user_id = user["id"]
 
-    db_pool: asyncpg.Pool = request.app.state.db_pool
-    if not db_pool:
-        raise HTTPException(status_code=503, detail="Database not available")
-
     try:
-        async with db_pool.acquire() as conn:
-            # Check user is site ADMIN
-            user_role = await conn.fetchval(
-                "SELECT role FROM users WHERE id = $1",
-                user_id
+        # Check user is site ADMIN
+        user_role = await conn.fetchval(
+            "SELECT role FROM users WHERE id = $1",
+            user_id
+        )
+
+        if user_role != "ADMIN":
+            raise HTTPException(
+                status_code=403,
+                detail="Only site ADMIN users can update sites"
             )
 
-            if user_role != "ADMIN":
-                raise HTTPException(
-                    status_code=403,
-                    detail="Only site ADMIN users can update sites"
-                )
+        # Verify site exists
+        site_exists = await conn.fetchval(
+            "SELECT EXISTS(SELECT 1 FROM sites WHERE id = $1)",
+            site_id
+        )
 
-            # Verify site exists
-            site_exists = await conn.fetchval(
-                "SELECT EXISTS(SELECT 1 FROM sites WHERE id = $1)",
+        if not site_exists:
+            raise HTTPException(status_code=404, detail="Site not found")
+
+        # Build update query dynamically
+        updates = []
+        params = [site_id]
+        param_num = 2
+
+        if body.name is not None:
+            updates.append(f'name = ${param_num}')
+            params.append(body.name)
+            param_num += 1
+
+        if body.description is not None:
+            updates.append(f'description = ${param_num}')
+            params.append(body.description)
+            param_num += 1
+
+        if not updates:
+            # No fields to update, return current site
+            site = await conn.fetchrow(
+                'SELECT id, name, description, "createdAt", "updatedAt" FROM sites WHERE id = $1',
                 site_id
             )
+        else:
+            updates.append(f'"updatedAt" = NOW()')
+            query = f"""
+                UPDATE sites
+                SET {', '.join(updates)}
+                WHERE id = $1
+                RETURNING id, name, description, "createdAt", "updatedAt"
+            """
+            site = await conn.fetchrow(query, *params)
 
-            if not site_exists:
-                raise HTTPException(status_code=404, detail="Site not found")
-
-            # Build update query dynamically
-            updates = []
-            params = [site_id]
-            param_num = 2
-
-            if body.name is not None:
-                updates.append(f'name = ${param_num}')
-                params.append(body.name)
-                param_num += 1
-
-            if body.description is not None:
-                updates.append(f'description = ${param_num}')
-                params.append(body.description)
-                param_num += 1
-
-            if not updates:
-                # No fields to update, return current site
-                site = await conn.fetchrow(
-                    'SELECT id, name, description, "createdAt", "updatedAt" FROM sites WHERE id = $1',
-                    site_id
-                )
-            else:
-                updates.append(f'"updatedAt" = NOW()')
-                query = f"""
-                    UPDATE sites
-                    SET {', '.join(updates)}
-                    WHERE id = $1
-                    RETURNING id, name, description, "createdAt", "updatedAt"
-                """
-                site = await conn.fetchrow(query, *params)
-
-            return SiteResponse(
-                id=site["id"],
-                name=site["name"],
-                description=site["description"],
-                role="ADMIN",  # Site ADMINs have ADMIN role on all sites
-                created_at=site["createdAt"],
-                updated_at=site["updatedAt"],
-            )
+        return SiteResponse(
+            id=site["id"],
+            name=site["name"],
+            description=site["description"],
+            role="ADMIN",  # Site ADMINs have ADMIN role on all sites
+            created_at=site["createdAt"],
+            updated_at=site["updatedAt"],
+        )
 
     except HTTPException:
         raise
@@ -829,7 +786,7 @@ async def update_site(request: Request, site_id: str, body: SiteUpdateRequest):
 
 
 @router.delete("/sites/{site_id}", response_model=ApiResponse)
-async def delete_site(request: Request, site_id: str):
+async def delete_site(request: Request, site_id: str, conn: asyncpg.Connection = Depends(org_conn_admin)):
     """
     Delete a site.
 
@@ -842,49 +799,44 @@ async def delete_site(request: Request, site_id: str):
     user = request.state.user
     user_id = user["id"]
 
-    db_pool: asyncpg.Pool = request.app.state.db_pool
-    if not db_pool:
-        raise HTTPException(status_code=503, detail="Database not available")
-
     try:
-        async with db_pool.acquire() as conn:
-            # Check user is site ADMIN
-            user_role = await conn.fetchval(
-                "SELECT role FROM users WHERE id = $1",
-                user_id
+        # Check user is site ADMIN
+        user_role = await conn.fetchval(
+            "SELECT role FROM users WHERE id = $1",
+            user_id
+        )
+
+        if user_role != "ADMIN":
+            raise HTTPException(
+                status_code=403,
+                detail="Only site ADMIN users can delete sites"
             )
 
-            if user_role != "ADMIN":
-                raise HTTPException(
-                    status_code=403,
-                    detail="Only site ADMIN users can delete sites"
-                )
+        # Verify site exists
+        site_exists = await conn.fetchval(
+            "SELECT EXISTS(SELECT 1 FROM sites WHERE id = $1)",
+            site_id
+        )
 
-            # Verify site exists
-            site_exists = await conn.fetchval(
-                "SELECT EXISTS(SELECT 1 FROM sites WHERE id = $1)",
-                site_id
+        if not site_exists:
+            raise HTTPException(status_code=404, detail="Site not found")
+
+        async with conn.transaction():
+            # Delete will cascade to instances and user_instance_roles
+            result = await conn.execute(
+                """
+                DELETE FROM sites WHERE id = $1
+                """,
+                site_id,
             )
 
-            if not site_exists:
+            if result == "DELETE 0":
                 raise HTTPException(status_code=404, detail="Site not found")
 
-            async with conn.transaction():
-                # Delete will cascade to instances and user_instance_roles
-                result = await conn.execute(
-                    """
-                    DELETE FROM sites WHERE id = $1
-                    """,
-                    site_id,
-                )
-
-                if result == "DELETE 0":
-                    raise HTTPException(status_code=404, detail="Site not found")
-
-                return ApiResponse(
-                    success=True,
-                    message="Site deleted successfully",
-                )
+            return ApiResponse(
+                success=True,
+                message="Site deleted successfully",
+            )
 
     except HTTPException:
         raise
@@ -899,7 +851,7 @@ async def delete_site(request: Request, site_id: str):
 
 
 @router.post("/instances", response_model=InstanceResponse, status_code=201)
-async def create_instance(request: Request, body: InstanceCreateRequest):
+async def create_instance(request: Request, body: InstanceCreateRequest, conn: asyncpg.Connection = Depends(org_conn_admin)):
     """
     Create a new instance.
 
@@ -911,98 +863,93 @@ async def create_instance(request: Request, body: InstanceCreateRequest):
     user = request.state.user
     user_id = user["id"]
 
-    db_pool: asyncpg.Pool = request.app.state.db_pool
-    if not db_pool:
-        raise HTTPException(status_code=503, detail="Database not available")
-
     try:
-        async with db_pool.acquire() as conn:
-            # Check user is site ADMIN
-            user_role = await conn.fetchval(
-                "SELECT role FROM users WHERE id = $1",
-                user_id
+        # Check user is site ADMIN
+        user_role = await conn.fetchval(
+            "SELECT role FROM users WHERE id = $1",
+            user_id
+        )
+
+        if user_role != "ADMIN":
+            raise HTTPException(
+                status_code=403,
+                detail="Only site ADMIN users can create instances"
             )
 
-            if user_role != "ADMIN":
-                raise HTTPException(
-                    status_code=403,
-                    detail="Only site ADMIN users can create instances"
-                )
+        # Verify site exists
+        site_exists = await conn.fetchval(
+            "SELECT EXISTS(SELECT 1 FROM sites WHERE id = $1)",
+            body.site_id
+        )
 
-            # Verify site exists
-            site_exists = await conn.fetchval(
-                "SELECT EXISTS(SELECT 1 FROM sites WHERE id = $1)",
-                body.site_id
+        if not site_exists:
+            raise HTTPException(status_code=404, detail="Site not found")
+
+        # Generate instance ID
+        import secrets
+        import string
+        alphabet = string.ascii_letters + string.digits
+        instance_id = ''.join(secrets.choice(alphabet) for _ in range(32))
+
+        # Create instance
+        # Note: username/password are legacy fields, VyOS uses apiKey
+        instance = await conn.fetchrow(
+            """
+            INSERT INTO instances (
+                id, "siteId", name, description, host, port, username, password,
+                "apiKey", "vyosVersion", protocol, "verifySsl", "isActive",
+                "sshPort", "sshUsername",
+                "commitConfirmEnabled", "commitConfirmMinutes", timeout,
+                "createdAt", "updatedAt"
             )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, NOW(), NOW())
+            RETURNING id, "siteId", name, description, host, port, protocol, "verifySsl", "vyosVersion",
+                      "isActive", "sshPort", "sshUsername", "sshKeyConfigured",
+                      "commitConfirmEnabled", "commitConfirmMinutes", timeout,
+                      "createdAt", "updatedAt"
+            """,
+            instance_id,
+            body.site_id,
+            body.name,
+            body.description,
+            body.host,
+            body.port,
+            "api",  # username (legacy field, not used with API key auth)
+            "",  # password (legacy field, not used with API key auth)
+            body.api_key,
+            body.vyos_version,
+            body.protocol,
+            body.verify_ssl,
+            body.is_active,
+            body.ssh_port,
+            body.ssh_username,
+            body.commit_confirm_enabled,
+            body.commit_confirm_minutes,
+            body.timeout,
+        )
 
-            if not site_exists:
-                raise HTTPException(status_code=404, detail="Site not found")
+        clear_session_cache(instance_id)
 
-            # Generate instance ID
-            import secrets
-            import string
-            alphabet = string.ascii_letters + string.digits
-            instance_id = ''.join(secrets.choice(alphabet) for _ in range(32))
-
-            # Create instance
-            # Note: username/password are legacy fields, VyOS uses apiKey
-            instance = await conn.fetchrow(
-                """
-                INSERT INTO instances (
-                    id, "siteId", name, description, host, port, username, password,
-                    "apiKey", "vyosVersion", protocol, "verifySsl", "isActive",
-                    "sshPort", "sshUsername",
-                    "commitConfirmEnabled", "commitConfirmMinutes", timeout,
-                    "createdAt", "updatedAt"
-                )
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, NOW(), NOW())
-                RETURNING id, "siteId", name, description, host, port, protocol, "verifySsl", "vyosVersion",
-                          "isActive", "sshPort", "sshUsername", "sshKeyConfigured",
-                          "commitConfirmEnabled", "commitConfirmMinutes", timeout,
-                          "createdAt", "updatedAt"
-                """,
-                instance_id,
-                body.site_id,
-                body.name,
-                body.description,
-                body.host,
-                body.port,
-                "api",  # username (legacy field, not used with API key auth)
-                "",  # password (legacy field, not used with API key auth)
-                body.api_key,
-                body.vyos_version,
-                body.protocol,
-                body.verify_ssl,
-                body.is_active,
-                body.ssh_port,
-                body.ssh_username,
-                body.commit_confirm_enabled,
-                body.commit_confirm_minutes,
-                body.timeout,
-            )
-
-            clear_session_cache(instance_id)
-
-            return InstanceResponse(
-                id=instance["id"],
-                site_id=instance["siteId"],
-                name=instance["name"],
-                description=instance["description"],
-                host=instance["host"],
-                port=instance["port"],
-                protocol=instance["protocol"] or "https",
-                verify_ssl=instance["verifySsl"] or False,
-                vyos_version=instance["vyosVersion"],
-                is_active=instance["isActive"],
-                ssh_port=instance["sshPort"],
-                ssh_username=instance["sshUsername"],
-                ssh_key_configured=instance["sshKeyConfigured"],
-                commit_confirm_enabled=instance.get("commitConfirmEnabled") or False,
-                commit_confirm_minutes=instance.get("commitConfirmMinutes") or 5,
-                timeout=instance.get("timeout") or 10,
-                created_at=instance["createdAt"],
-                updated_at=instance["updatedAt"],
-            )
+        return InstanceResponse(
+            id=instance["id"],
+            site_id=instance["siteId"],
+            name=instance["name"],
+            description=instance["description"],
+            host=instance["host"],
+            port=instance["port"],
+            protocol=instance["protocol"] or "https",
+            verify_ssl=instance["verifySsl"] or False,
+            vyos_version=instance["vyosVersion"],
+            is_active=instance["isActive"],
+            ssh_port=instance["sshPort"],
+            ssh_username=instance["sshUsername"],
+            ssh_key_configured=instance["sshKeyConfigured"],
+            commit_confirm_enabled=instance.get("commitConfirmEnabled") or False,
+            commit_confirm_minutes=instance.get("commitConfirmMinutes") or 5,
+            timeout=instance.get("timeout") or 10,
+            created_at=instance["createdAt"],
+            updated_at=instance["updatedAt"],
+        )
 
     except HTTPException:
         raise
@@ -1012,7 +959,7 @@ async def create_instance(request: Request, body: InstanceCreateRequest):
 
 
 @router.put("/instances/{instance_id}", response_model=InstanceResponse)
-async def update_instance(request: Request, instance_id: str, body: InstanceUpdateRequest):
+async def update_instance(request: Request, instance_id: str, body: InstanceUpdateRequest, conn: asyncpg.Connection = Depends(org_conn_admin)):
     """
     Update an instance.
 
@@ -1025,180 +972,175 @@ async def update_instance(request: Request, instance_id: str, body: InstanceUpda
     user = request.state.user
     user_id = user["id"]
 
-    db_pool: asyncpg.Pool = request.app.state.db_pool
-    if not db_pool:
-        raise HTTPException(status_code=503, detail="Database not available")
-
     try:
-        async with db_pool.acquire() as conn:
-            # Check user is site ADMIN
-            user_role = await conn.fetchval(
-                "SELECT role FROM users WHERE id = $1",
-                user_id
+        # Check user is site ADMIN
+        user_role = await conn.fetchval(
+            "SELECT role FROM users WHERE id = $1",
+            user_id
+        )
+
+        if user_role != "ADMIN":
+            raise HTTPException(
+                status_code=403,
+                detail="Only site ADMIN users can update instances"
             )
 
-            if user_role != "ADMIN":
-                raise HTTPException(
-                    status_code=403,
-                    detail="Only site ADMIN users can update instances"
-                )
+        # Verify instance exists
+        instance_exists = await conn.fetchval(
+            "SELECT EXISTS(SELECT 1 FROM instances WHERE id = $1)",
+            instance_id
+        )
 
-            # Verify instance exists
-            instance_exists = await conn.fetchval(
-                "SELECT EXISTS(SELECT 1 FROM instances WHERE id = $1)",
+        if not instance_exists:
+            raise HTTPException(status_code=404, detail="Instance not found")
+
+        # If moving to a different site, verify target site exists
+        if body.site_id:
+            target_site_exists = await conn.fetchval(
+                "SELECT EXISTS(SELECT 1 FROM sites WHERE id = $1)",
+                body.site_id
+            )
+            if not target_site_exists:
+                raise HTTPException(status_code=404, detail="Target site not found")
+
+        # Build update query dynamically
+        updates = []
+        params = [instance_id]
+        param_num = 2
+
+        if body.site_id is not None:
+            updates.append(f'"siteId" = ${param_num}')
+            params.append(body.site_id)
+            param_num += 1
+
+        if body.name is not None:
+            updates.append(f'name = ${param_num}')
+            params.append(body.name)
+            param_num += 1
+
+        if body.description is not None:
+            updates.append(f'description = ${param_num}')
+            params.append(body.description)
+            param_num += 1
+
+        if body.host is not None:
+            updates.append(f'host = ${param_num}')
+            params.append(body.host)
+            param_num += 1
+
+        if body.port is not None:
+            updates.append(f'port = ${param_num}')
+            params.append(body.port)
+            param_num += 1
+
+        if body.api_key is not None:
+            updates.append(f'"apiKey" = ${param_num}')
+            params.append(body.api_key)
+            param_num += 1
+            # Also update username/password legacy fields
+            updates.append(f'username = ${param_num}')
+            params.append("api")
+            param_num += 1
+            updates.append(f'password = ${param_num}')
+            params.append("")
+            param_num += 1
+
+        if body.vyos_version is not None:
+            updates.append(f'"vyosVersion" = ${param_num}')
+            params.append(body.vyos_version)
+            param_num += 1
+
+        if body.protocol is not None:
+            updates.append(f'protocol = ${param_num}')
+            params.append(body.protocol)
+            param_num += 1
+
+        if body.verify_ssl is not None:
+            updates.append(f'"verifySsl" = ${param_num}')
+            params.append(body.verify_ssl)
+            param_num += 1
+
+        if body.is_active is not None:
+            updates.append(f'"isActive" = ${param_num}')
+            params.append(body.is_active)
+            param_num += 1
+
+        if body.ssh_port is not None:
+            updates.append(f'"sshPort" = ${param_num}')
+            params.append(body.ssh_port)
+            param_num += 1
+
+        if body.ssh_username is not None:
+            updates.append(f'"sshUsername" = ${param_num}')
+            params.append(body.ssh_username)
+            param_num += 1
+
+        if body.commit_confirm_enabled is not None:
+            updates.append(f'"commitConfirmEnabled" = ${param_num}')
+            params.append(body.commit_confirm_enabled)
+            param_num += 1
+
+        if body.commit_confirm_minutes is not None:
+            updates.append(f'"commitConfirmMinutes" = ${param_num}')
+            params.append(body.commit_confirm_minutes)
+            param_num += 1
+
+        if body.timeout is not None:
+            updates.append(f'timeout = ${param_num}')
+            params.append(body.timeout)
+            param_num += 1
+
+        if not updates:
+            # No fields to update, return current instance
+            instance = await conn.fetchrow(
+                """
+                SELECT id, "siteId", name, description, host, port, protocol, "verifySsl", "vyosVersion",
+                       "isActive", "sshPort", "sshUsername", "sshKeyConfigured",
+                       "commitConfirmEnabled", "commitConfirmMinutes", timeout,
+                       "createdAt", "updatedAt"
+                FROM instances WHERE id = $1
+                """,
                 instance_id
             )
+        else:
+            updates.append(f'"updatedAt" = NOW()')
+            query = f"""
+                UPDATE instances
+                SET {', '.join(updates)}
+                WHERE id = $1
+                RETURNING id, "siteId", name, description, host, port, protocol, "verifySsl", "vyosVersion",
+                          "isActive", "sshPort", "sshUsername", "sshKeyConfigured",
+                          "commitConfirmEnabled", "commitConfirmMinutes", timeout,
+                          "createdAt", "updatedAt"
+            """
+            instance = await conn.fetchrow(query, *params)
 
-            if not instance_exists:
-                raise HTTPException(status_code=404, detail="Instance not found")
+        if not instance:
+            raise HTTPException(status_code=404, detail="Instance not found")
 
-            # If moving to a different site, verify target site exists
-            if body.site_id:
-                target_site_exists = await conn.fetchval(
-                    "SELECT EXISTS(SELECT 1 FROM sites WHERE id = $1)",
-                    body.site_id
-                )
-                if not target_site_exists:
-                    raise HTTPException(status_code=404, detail="Target site not found")
+        # Invalidate cached VyOS service so changes take effect immediately
+        clear_session_cache(instance_id)
 
-            # Build update query dynamically
-            updates = []
-            params = [instance_id]
-            param_num = 2
-
-            if body.site_id is not None:
-                updates.append(f'"siteId" = ${param_num}')
-                params.append(body.site_id)
-                param_num += 1
-
-            if body.name is not None:
-                updates.append(f'name = ${param_num}')
-                params.append(body.name)
-                param_num += 1
-
-            if body.description is not None:
-                updates.append(f'description = ${param_num}')
-                params.append(body.description)
-                param_num += 1
-
-            if body.host is not None:
-                updates.append(f'host = ${param_num}')
-                params.append(body.host)
-                param_num += 1
-
-            if body.port is not None:
-                updates.append(f'port = ${param_num}')
-                params.append(body.port)
-                param_num += 1
-
-            if body.api_key is not None:
-                updates.append(f'"apiKey" = ${param_num}')
-                params.append(body.api_key)
-                param_num += 1
-                # Also update username/password legacy fields
-                updates.append(f'username = ${param_num}')
-                params.append("api")
-                param_num += 1
-                updates.append(f'password = ${param_num}')
-                params.append("")
-                param_num += 1
-
-            if body.vyos_version is not None:
-                updates.append(f'"vyosVersion" = ${param_num}')
-                params.append(body.vyos_version)
-                param_num += 1
-
-            if body.protocol is not None:
-                updates.append(f'protocol = ${param_num}')
-                params.append(body.protocol)
-                param_num += 1
-
-            if body.verify_ssl is not None:
-                updates.append(f'"verifySsl" = ${param_num}')
-                params.append(body.verify_ssl)
-                param_num += 1
-
-            if body.is_active is not None:
-                updates.append(f'"isActive" = ${param_num}')
-                params.append(body.is_active)
-                param_num += 1
-
-            if body.ssh_port is not None:
-                updates.append(f'"sshPort" = ${param_num}')
-                params.append(body.ssh_port)
-                param_num += 1
-
-            if body.ssh_username is not None:
-                updates.append(f'"sshUsername" = ${param_num}')
-                params.append(body.ssh_username)
-                param_num += 1
-
-            if body.commit_confirm_enabled is not None:
-                updates.append(f'"commitConfirmEnabled" = ${param_num}')
-                params.append(body.commit_confirm_enabled)
-                param_num += 1
-
-            if body.commit_confirm_minutes is not None:
-                updates.append(f'"commitConfirmMinutes" = ${param_num}')
-                params.append(body.commit_confirm_minutes)
-                param_num += 1
-
-            if body.timeout is not None:
-                updates.append(f'timeout = ${param_num}')
-                params.append(body.timeout)
-                param_num += 1
-
-            if not updates:
-                # No fields to update, return current instance
-                instance = await conn.fetchrow(
-                    """
-                    SELECT id, "siteId", name, description, host, port, protocol, "verifySsl", "vyosVersion",
-                           "isActive", "sshPort", "sshUsername", "sshKeyConfigured",
-                           "commitConfirmEnabled", "commitConfirmMinutes", timeout,
-                           "createdAt", "updatedAt"
-                    FROM instances WHERE id = $1
-                    """,
-                    instance_id
-                )
-            else:
-                updates.append(f'"updatedAt" = NOW()')
-                query = f"""
-                    UPDATE instances
-                    SET {', '.join(updates)}
-                    WHERE id = $1
-                    RETURNING id, "siteId", name, description, host, port, protocol, "verifySsl", "vyosVersion",
-                              "isActive", "sshPort", "sshUsername", "sshKeyConfigured",
-                              "commitConfirmEnabled", "commitConfirmMinutes", timeout,
-                              "createdAt", "updatedAt"
-                """
-                instance = await conn.fetchrow(query, *params)
-
-            if not instance:
-                raise HTTPException(status_code=404, detail="Instance not found")
-
-            # Invalidate cached VyOS service so changes take effect immediately
-            clear_session_cache(instance_id)
-
-            return InstanceResponse(
-                id=instance["id"],
-                site_id=instance["siteId"],
-                name=instance["name"],
-                description=instance["description"],
-                host=instance["host"],
-                port=instance["port"],
-                protocol=instance["protocol"] or "https",
-                verify_ssl=instance["verifySsl"] or False,
-                vyos_version=instance["vyosVersion"],
-                is_active=instance["isActive"],
-                ssh_port=instance["sshPort"],
-                ssh_username=instance["sshUsername"],
-                ssh_key_configured=instance["sshKeyConfigured"],
-                commit_confirm_enabled=instance.get("commitConfirmEnabled") or False,
-                commit_confirm_minutes=instance.get("commitConfirmMinutes") or 5,
-                timeout=instance.get("timeout") or 10,
-                created_at=instance["createdAt"],
-                updated_at=instance["updatedAt"],
-            )
+        return InstanceResponse(
+            id=instance["id"],
+            site_id=instance["siteId"],
+            name=instance["name"],
+            description=instance["description"],
+            host=instance["host"],
+            port=instance["port"],
+            protocol=instance["protocol"] or "https",
+            verify_ssl=instance["verifySsl"] or False,
+            vyos_version=instance["vyosVersion"],
+            is_active=instance["isActive"],
+            ssh_port=instance["sshPort"],
+            ssh_username=instance["sshUsername"],
+            ssh_key_configured=instance["sshKeyConfigured"],
+            commit_confirm_enabled=instance.get("commitConfirmEnabled") or False,
+            commit_confirm_minutes=instance.get("commitConfirmMinutes") or 5,
+            timeout=instance.get("timeout") or 10,
+            created_at=instance["createdAt"],
+            updated_at=instance["updatedAt"],
+        )
 
     except HTTPException:
         raise
@@ -1208,7 +1150,7 @@ async def update_instance(request: Request, instance_id: str, body: InstanceUpda
 
 
 @router.delete("/instances/{instance_id}", response_model=ApiResponse)
-async def delete_instance(request: Request, instance_id: str):
+async def delete_instance(request: Request, instance_id: str, conn: asyncpg.Connection = Depends(org_conn_admin)):
     """
     Delete an instance.
 
@@ -1221,50 +1163,45 @@ async def delete_instance(request: Request, instance_id: str):
     user = request.state.user
     user_id = user["id"]
 
-    db_pool: asyncpg.Pool = request.app.state.db_pool
-    if not db_pool:
-        raise HTTPException(status_code=503, detail="Database not available")
-
     try:
-        async with db_pool.acquire() as conn:
-            # Check user is site ADMIN
-            user_role = await conn.fetchval(
-                "SELECT role FROM users WHERE id = $1",
-                user_id
+        # Check user is site ADMIN
+        user_role = await conn.fetchval(
+            "SELECT role FROM users WHERE id = $1",
+            user_id
+        )
+
+        if user_role != "ADMIN":
+            raise HTTPException(
+                status_code=403,
+                detail="Only site ADMIN users can delete instances"
             )
 
-            if user_role != "ADMIN":
-                raise HTTPException(
-                    status_code=403,
-                    detail="Only site ADMIN users can delete instances"
-                )
+        # Verify instance exists
+        instance_exists = await conn.fetchval(
+            "SELECT EXISTS(SELECT 1 FROM instances WHERE id = $1)",
+            instance_id
+        )
 
-            # Verify instance exists
-            instance_exists = await conn.fetchval(
-                "SELECT EXISTS(SELECT 1 FROM instances WHERE id = $1)",
-                instance_id
-            )
+        if not instance_exists:
+            raise HTTPException(status_code=404, detail="Instance not found")
 
-            if not instance_exists:
-                raise HTTPException(status_code=404, detail="Instance not found")
+        # Delete instance
+        result = await conn.execute(
+            """
+            DELETE FROM instances WHERE id = $1
+            """,
+            instance_id,
+        )
 
-            # Delete instance
-            result = await conn.execute(
-                """
-                DELETE FROM instances WHERE id = $1
-                """,
-                instance_id,
-            )
+        if result == "DELETE 0":
+            raise HTTPException(status_code=404, detail="Instance not found")
 
-            if result == "DELETE 0":
-                raise HTTPException(status_code=404, detail="Instance not found")
+        clear_session_cache(instance_id)
 
-            clear_session_cache(instance_id)
-
-            return ApiResponse(
-                success=True,
-                message="Instance deleted successfully",
-            )
+        return ApiResponse(
+            success=True,
+            message="Instance deleted successfully",
+        )
 
     except HTTPException:
         raise
@@ -1398,22 +1335,17 @@ def _build_insert(table: str, columns: List[str], col_types: Dict[str, str], mer
 
 
 @router.post("/backup")
-async def create_backup(request: Request, body: BackupRequest):
+async def create_backup(request: Request, body: BackupRequest, conn: asyncpg.Connection = Depends(org_conn_admin)):
     """Create an encrypted full backup of all VyManager configuration."""
-    db_pool: asyncpg.Pool = request.app.state.db_pool
-    if not db_pool:
-        raise HTTPException(status_code=503, detail="Database not available")
-
     try:
-        async with db_pool.acquire() as conn:
-            await _require_backup_admin(conn, request)
+        await _require_backup_admin(conn, request)
 
-            tables: Dict[str, List[Dict[str, Any]]] = {}
-            for table in BACKUP_TABLES:
-                rows = await conn.fetch(f'SELECT * FROM "{table}"')
-                tables[table] = [
-                    {k: _json_safe(v) for k, v in row.items()} for row in rows
-                ]
+        tables: Dict[str, List[Dict[str, Any]]] = {}
+        for table in BACKUP_TABLES:
+            rows = await conn.fetch(f'SELECT * FROM "{table}"')
+            tables[table] = [
+                {k: _json_safe(v) for k, v in row.items()} for row in rows
+            ]
 
         payload = {
             "format_version": BACKUP_FORMAT_VERSION,
@@ -1454,17 +1386,13 @@ async def preview_restore(
     request: Request,
     file: UploadFile = File(...),
     passphrase: str = Form(...),
+    conn: asyncpg.Connection = Depends(org_conn_admin),
 ):
     """Decrypt a backup and report its contents without applying anything.
 
     Lets the restore UI validate the passphrase and show record counts first.
     """
-    db_pool: asyncpg.Pool = request.app.state.db_pool
-    if not db_pool:
-        raise HTTPException(status_code=503, detail="Database not available")
-
-    async with db_pool.acquire() as conn:
-        await _require_backup_admin(conn, request)
+    await _require_backup_admin(conn, request)
 
     contents = await file.read()
     try:
@@ -1496,17 +1424,13 @@ async def restore_backup(
     file: UploadFile = File(...),
     passphrase: str = Form(...),
     mode: str = Form("merge"),
+    conn: asyncpg.Connection = Depends(org_conn_admin),
 ):
     """Restore a backup in "replace" (wipe + restore) or "merge" (upsert) mode."""
     if mode not in ("replace", "merge"):
         raise HTTPException(status_code=400, detail="mode must be 'replace' or 'merge'")
 
-    db_pool: asyncpg.Pool = request.app.state.db_pool
-    if not db_pool:
-        raise HTTPException(status_code=503, detail="Database not available")
-
-    async with db_pool.acquire() as conn:
-        await _require_backup_admin(conn, request)
+    await _require_backup_admin(conn, request)
 
     contents = await file.read()
     try:
@@ -1543,51 +1467,50 @@ async def restore_backup(
     skipped_counts: Dict[str, int] = {}
     affected_instance_ids: List[str] = []
 
-    async with db_pool.acquire() as conn:
-        # Cache each table's real columns so we can cast text -> column type and
-        # ignore any backed-up columns that no longer exist in the schema.
-        col_types = {t: await _table_columns(conn, t) for t in BACKUP_TABLES}
+    # Cache each table's real columns so we can cast text -> column type and
+    # ignore any backed-up columns that no longer exist in the schema.
+    col_types = {t: await _table_columns(conn, t) for t in BACKUP_TABLES}
 
-        async with conn.transaction():
-            if mode == "replace":
-                for table in reversed(BACKUP_TABLES):
-                    await conn.execute(f'DELETE FROM "{table}"')
+    async with conn.transaction():
+        if mode == "replace":
+            for table in reversed(BACKUP_TABLES):
+                await conn.execute(f'DELETE FROM "{table}"')
 
-            for table in BACKUP_TABLES:
-                rows = tables.get(table, [])
-                types = col_types.get(table, {})
-                inserted = updated = skipped = 0
+        for table in BACKUP_TABLES:
+            rows = tables.get(table, [])
+            types = col_types.get(table, {})
+            inserted = updated = skipped = 0
 
-                for row in rows:
-                    columns = [c for c in row.keys() if c in types]
-                    if not columns:
-                        continue
-                    values = [_bind_value(row[c], types[c]) for c in columns]
-                    sql = _build_insert(table, columns, types, merge=(mode == "merge"))
+            for row in rows:
+                columns = [c for c in row.keys() if c in types]
+                if not columns:
+                    continue
+                values = [_bind_value(row[c], types[c]) for c in columns]
+                sql = _build_insert(table, columns, types, merge=(mode == "merge"))
 
-                    try:
-                        if mode == "merge":
-                            # Row-level savepoint so a natural-key collision skips
-                            # just this row instead of aborting the whole restore.
-                            async with conn.transaction():
-                                was_inserted = await conn.fetchval(sql, *values)
-                        else:
+                try:
+                    if mode == "merge":
+                        # Row-level savepoint so a natural-key collision skips
+                        # just this row instead of aborting the whole restore.
+                        async with conn.transaction():
                             was_inserted = await conn.fetchval(sql, *values)
-                    except asyncpg.UniqueViolationError:
-                        skipped += 1
-                        continue
-
-                    if was_inserted:
-                        inserted += 1
                     else:
-                        updated += 1
-                    if table == "instances":
-                        affected_instance_ids.append(row.get("id"))
+                        was_inserted = await conn.fetchval(sql, *values)
+                except asyncpg.UniqueViolationError:
+                    skipped += 1
+                    continue
 
-                inserted_counts[table] = inserted
-                updated_counts[table] = updated
-                if skipped:
-                    skipped_counts[table] = skipped
+                if was_inserted:
+                    inserted += 1
+                else:
+                    updated += 1
+                if table == "instances":
+                    affected_instance_ids.append(row.get("id"))
+
+            inserted_counts[table] = inserted
+            updated_counts[table] = updated
+            if skipped:
+                skipped_counts[table] = skipped
 
     for instance_id in affected_instance_ids:
         if instance_id:
@@ -1647,7 +1570,7 @@ class RevokeSessionRequest(BaseModel):
 
 
 @router.get("/auth-sessions", response_model=ActiveSessionsResponse)
-async def get_active_auth_sessions(request: Request):
+async def get_active_auth_sessions(request: Request, conn: asyncpg.Connection = Depends(org_conn_admin)):
     """
     Get all active authentication sessions for the current user.
 
@@ -1666,44 +1589,39 @@ async def get_active_auth_sessions(request: Request):
     # Verify the signature and extract the session ID
     current_token = verify_session_cookie(cookie_token) if cookie_token else None
 
-    db_pool: asyncpg.Pool = request.app.state.db_pool
-    if not db_pool:
-        raise HTTPException(status_code=503, detail="Database not available")
-
     try:
-        async with db_pool.acquire() as conn:
-            # Get all active sessions for this user from better-auth's session table
-            sessions = await conn.fetch(
-                """
-                SELECT token, "createdAt", "expiresAt", "ipAddress", "userAgent"
-                FROM sessions
-                WHERE "userId" = $1 AND "expiresAt" > NOW()
-                ORDER BY "createdAt" DESC
-                """,
-                user_id,
-            )
+        # Get all active sessions for this user from better-auth's session table
+        sessions = await conn.fetch(
+            """
+            SELECT token, "createdAt", "expiresAt", "ipAddress", "userAgent"
+            FROM sessions
+            WHERE "userId" = $1 AND "expiresAt" > NOW()
+            ORDER BY "createdAt" DESC
+            """,
+            user_id,
+        )
 
-            other_sessions = []
-            for session in sessions:
-                session_token = session["token"]
-                is_current = session_token == current_token
-                if not is_current:
-                    other_sessions.append(
-                        AuthSessionInfo(
-                            token=session["token"],
-                            created_at=session["createdAt"],
-                            expires_at=session["expiresAt"],
-                            ip_address=session["ipAddress"],
-                            user_agent=session["userAgent"],
-                            is_current=False,
-                        )
+        other_sessions = []
+        for session in sessions:
+            session_token = session["token"]
+            is_current = session_token == current_token
+            if not is_current:
+                other_sessions.append(
+                    AuthSessionInfo(
+                        token=session["token"],
+                        created_at=session["createdAt"],
+                        expires_at=session["expiresAt"],
+                        ip_address=session["ipAddress"],
+                        user_agent=session["userAgent"],
+                        is_current=False,
                     )
+                )
 
-            return ActiveSessionsResponse(
-                has_other_sessions=len(other_sessions) > 0,
-                current_session_token=current_token or "",
-                other_sessions=other_sessions,
-            )
+        return ActiveSessionsResponse(
+            has_other_sessions=len(other_sessions) > 0,
+            current_session_token=current_token or "",
+            other_sessions=other_sessions,
+        )
 
     except Exception as e:
         logger.exception("Unhandled error")
@@ -1711,7 +1629,7 @@ async def get_active_auth_sessions(request: Request):
 
 
 @router.post("/revoke-session", response_model=ApiResponse)
-async def revoke_auth_session(request: Request, body: RevokeSessionRequest):
+async def revoke_auth_session(request: Request, body: RevokeSessionRequest, conn: asyncpg.Connection = Depends(org_conn_admin)):
     """
     Revoke a specific authentication session.
 
@@ -1733,46 +1651,41 @@ async def revoke_auth_session(request: Request, body: RevokeSessionRequest):
             detail="Cannot revoke your current session. Use logout instead.",
         )
 
-    db_pool: asyncpg.Pool = request.app.state.db_pool
-    if not db_pool:
-        raise HTTPException(status_code=503, detail="Database not available")
-
     try:
-        async with db_pool.acquire() as conn:
-            # Verify the session belongs to this user before deleting
-            session_check = await conn.fetchrow(
-                """
-                SELECT "userId" FROM sessions
-                WHERE token = $1
-                """,
-                body.session_token,
+        # Verify the session belongs to this user before deleting
+        session_check = await conn.fetchrow(
+            """
+            SELECT "userId" FROM sessions
+            WHERE token = $1
+            """,
+            body.session_token,
+        )
+
+        if not session_check:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        if session_check["userId"] != user_id:
+            raise HTTPException(
+                status_code=403,
+                detail="You can only revoke your own sessions",
             )
 
-            if not session_check:
-                raise HTTPException(status_code=404, detail="Session not found")
+        # Delete the session
+        result = await conn.execute(
+            """
+            DELETE FROM sessions
+            WHERE token = $1
+            """,
+            body.session_token,
+        )
 
-            if session_check["userId"] != user_id:
-                raise HTTPException(
-                    status_code=403,
-                    detail="You can only revoke your own sessions",
-                )
+        if result == "DELETE 0":
+            raise HTTPException(status_code=404, detail="Session not found")
 
-            # Delete the session
-            result = await conn.execute(
-                """
-                DELETE FROM sessions
-                WHERE token = $1
-                """,
-                body.session_token,
-            )
-
-            if result == "DELETE 0":
-                raise HTTPException(status_code=404, detail="Session not found")
-
-            return ApiResponse(
-                success=True,
-                message="Session revoked successfully",
-            )
+        return ApiResponse(
+            success=True,
+            message="Session revoked successfully",
+        )
 
     except HTTPException:
         raise
