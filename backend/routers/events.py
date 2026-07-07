@@ -237,12 +237,14 @@ async def _get_power_status_state(request: Request) -> Dict[str, Any]:
     try:
         instance_id = request.state.instance["id"]
 
+        # scheduledTime is naive UTC; compare against UTC, not a tz-aware
+        # NOW(), or a non-UTC DB session timezone hides pending actions.
         async with request_scoped_conn(request) as conn:
             await conn.execute(
                 """
                 DELETE FROM scheduled_power_actions
                 WHERE "instanceId" = $1
-                  AND "scheduledTime" < NOW()
+                  AND "scheduledTime" < (NOW() AT TIME ZONE 'UTC')
                 """,
                 instance_id,
             )
@@ -253,7 +255,7 @@ async def _get_power_status_state(request: Request) -> Dict[str, Any]:
                        cancelled, "cancelledBy", "cancelledByName"
                 FROM scheduled_power_actions
                 WHERE "instanceId" = $1
-                  AND "scheduledTime" > NOW()
+                  AND "scheduledTime" > (NOW() AT TIME ZONE 'UTC')
                 ORDER BY "createdAt" DESC
                 LIMIT 1
                 """,
@@ -347,7 +349,7 @@ async def _poll_banner_state_for_instance(
                     """
                     DELETE FROM scheduled_power_actions
                     WHERE "instanceId" = $1
-                      AND "scheduledTime" < NOW()
+                      AND "scheduledTime" < (NOW() AT TIME ZONE 'UTC')
                     """,
                     instance_id,
                 )
@@ -358,7 +360,7 @@ async def _poll_banner_state_for_instance(
                            cancelled, "cancelledBy", "cancelledByName"
                     FROM scheduled_power_actions
                     WHERE "instanceId" = $1
-                      AND "scheduledTime" > NOW()
+                      AND "scheduledTime" > (NOW() AT TIME ZONE 'UTC')
                     ORDER BY "createdAt" DESC
                     LIMIT 1
                     """,

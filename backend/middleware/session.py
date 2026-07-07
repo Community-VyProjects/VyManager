@@ -54,7 +54,7 @@ class SessionMiddleware(BaseHTTPMiddleware):
     # These are background polling endpoints - not real user activity
     POLLING_ENDPOINTS = {
         "/vyos/config/diff",
-        "/vyos/config/snapshots",
+        "/vyos/config/snapshot",
         "/session/current",
         "/vyos/power/status",
     }
