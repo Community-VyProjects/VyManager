@@ -23,21 +23,26 @@ PERMANENT_GLOBAL = {
     "org_scope.py":
         "The sanctioned primitive itself - every org-scoped "
         "acquisition goes through it.",
+    "routers/events.py":
+        "Background banner poller: no request, no org context - it "
+        "iterates every instance with active subscribers, a "
+        "deployment-wide system service. The request-path streams in "
+        "the same file use org-scoped connections per tick.",
 }
 
 # Files not yet migrated to org-scoped connections. Each conversion wave
 # removes its entries; the target end state is an empty dict.
 MIGRATION_PENDING = {
-    # Wave B - streaming/scheduling surfaces (per-tick scoped connections)
-    "routers/events.py": "SSE poll tick",
-    "routers/monitoring/monitoring.py": "SSH monitoring streams",
-    "routers/console/console.py": "console websocket sessions",
-    "routers/power.py": "scheduled power actions",
+    # WebSocket handlers authenticate and authorize outside the HTTP
+    # middleware stack; their org scoping lands with the SSE/WS
+    # revocation-bus hardening item. HTTP handlers in these files
+    # already use org-scoped connections.
+    "routers/monitoring/monitoring.py": "monitoring websocket sessions",
+    "routers/console/console.py": "console shell websocket sessions",
     # Wave C - remaining DB-backed handlers
     "middleware/audit.py": "audit log writes",
     "routers/firewall/separators.py": "separator CRUD",
     "routers/dashboard.py": "dashboard layouts",
     "routers/container/container.py": "container feature state",
     "routers/site_updates/site_updates.py": "site update polling",
-    "routers/show.py": "SSE stream session revalidation tick",
 }

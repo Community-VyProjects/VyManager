@@ -20,6 +20,7 @@ import httpx
 from starlette.concurrency import run_in_threadpool
 from session_vyos_service import get_session_vyos_service
 from fastapi_permissions import has_permission, require_read_permission
+from org_scope import request_scoped_conn
 from rbac_permissions import FeatureGroup, PermissionLevel
 from system_updates import SystemUpdatesInfo, parse_system_updates
 from routers.qos.qos import (
@@ -1396,7 +1397,6 @@ async def dashboard_stream(request: Request):
 
     instance_id: str = service.config.instance_id
     user_id: str = request.state.user["id"]
-    db_pool = request.app.state.db_pool
 
     async def event_generator():
         from routers.events import _has_active_session
@@ -1409,8 +1409,16 @@ async def dashboard_stream(request: Request):
                 try:
                     event = await asyncio.wait_for(queue.get(), timeout=30.0)
                 except asyncio.TimeoutError:
-                    # Close the stream if the user's session has expired
-                    if db_pool and not await _has_active_session(db_pool, user_id, instance_id):
+                    # Close the stream if the user's session has expired.
+                    # One short org-scoped connection per tick - a stream
+                    # must never hold a transaction open between ticks.
+                    try:
+                        async with request_scoped_conn(request) as conn:
+                            still_active = await _has_active_session(
+                                conn, user_id, instance_id)
+                    except Exception:
+                        still_active = True  # assume valid when DB is unavailable
+                    if not still_active:
                         break
                     yield ": keep-alive\n\n"
                     continue

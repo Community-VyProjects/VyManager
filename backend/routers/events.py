@@ -21,6 +21,7 @@ from starlette.concurrency import run_in_threadpool
 
 from session_vyos_service import get_session_vyos_service, _session_device_registry
 from fastapi_permissions import require_read_permission
+from org_scope import request_scoped_conn
 from rbac_permissions import FeatureGroup
 from events.event_manager import (
     event_manager,
@@ -43,33 +44,29 @@ POLL_INTERVAL = 10  # seconds
 # Session helpers
 # ============================================================================
 
-async def _has_active_session(db_pool, user_id: str, instance_id: str) -> bool:
-    """Return True if the user still has an active VyOS instance session."""
-    try:
-        async with db_pool.acquire() as conn:
-            row = await conn.fetchrow(
-                'SELECT 1 FROM active_sessions WHERE "userId" = $1 AND "instanceId" = $2',
-                user_id,
-                instance_id,
-            )
-            return row is not None
-    except Exception:
-        return True  # assume valid when DB is unavailable
+async def _has_active_session(conn, user_id: str, instance_id: str) -> bool:
+    """Return True if the user still has an active VyOS instance session.
+
+    Takes an open connection; callers own the acquisition (request paths use
+    an org-scoped connection per tick, the background poller its own).
+    """
+    row = await conn.fetchrow(
+        'SELECT 1 FROM active_sessions WHERE "userId" = $1 AND "instanceId" = $2',
+        user_id,
+        instance_id,
+    )
+    return row is not None
 
 
-async def _get_instance_ids_with_active_sessions(db_pool, instance_ids: list[str]) -> list[str]:
+async def _get_instance_ids_with_active_sessions(conn, instance_ids: list[str]) -> list[str]:
     """Return the subset of instance_ids that have at least one active session."""
     if not instance_ids:
         return []
-    try:
-        async with db_pool.acquire() as conn:
-            rows = await conn.fetch(
-                'SELECT DISTINCT "instanceId" FROM active_sessions WHERE "instanceId" = ANY($1)',
-                instance_ids,
-            )
-            return [row["instanceId"] for row in rows]
-    except Exception:
-        return instance_ids  # assume all valid when DB is unavailable
+    rows = await conn.fetch(
+        'SELECT DISTINCT "instanceId" FROM active_sessions WHERE "instanceId" = ANY($1)',
+        instance_ids,
+    )
+    return [row["instanceId"] for row in rows]
 
 
 # ============================================================================
@@ -114,7 +111,6 @@ async def banner_events(request: Request):
 
     instance_id = instance["id"]
     user_id = request.state.user["id"]
-    db_pool = request.app.state.db_pool
     queue = event_manager.subscribe(instance_id)
 
     async def event_stream():
@@ -129,8 +125,16 @@ async def banner_events(request: Request):
                     payload = await asyncio.wait_for(queue.get(), timeout=30)
                     yield f"data: {payload}\n\n"
                 except asyncio.TimeoutError:
-                    # Close the stream if the user's session has expired
-                    if db_pool and not await _has_active_session(db_pool, user_id, instance_id):
+                    # Close the stream if the user's session has expired.
+                    # One short org-scoped connection per tick — a stream
+                    # must never hold a transaction open between ticks.
+                    try:
+                        async with request_scoped_conn(request) as conn:
+                            still_active = await _has_active_session(
+                                conn, user_id, instance_id)
+                    except Exception:
+                        still_active = True  # assume valid when DB is unavailable
+                    if not still_active:
                         break
                     yield ": keepalive\n\n"
                 except asyncio.CancelledError:
@@ -232,12 +236,8 @@ async def _get_power_status_state(request: Request) -> Dict[str, Any]:
     """Get power status from the database."""
     try:
         instance_id = request.state.instance["id"]
-        db_pool = request.app.state.db_pool
 
-        if not db_pool:
-            return {"scheduled": False}
-
-        async with db_pool.acquire() as conn:
+        async with request_scoped_conn(request) as conn:
             await conn.execute(
                 """
                 DELETE FROM scheduled_power_actions
@@ -407,7 +407,12 @@ async def start_banner_poller(app_state: Any) -> None:
             # the VyOS API (and its FUSE filesystem) for signed-out users.
             db_pool = getattr(app_state, "db_pool", None)
             if db_pool:
-                instance_ids = await _get_instance_ids_with_active_sessions(db_pool, instance_ids)
+                try:
+                    async with db_pool.acquire() as conn:
+                        instance_ids = await _get_instance_ids_with_active_sessions(
+                            conn, instance_ids)
+                except Exception:
+                    pass  # assume all valid when DB is unavailable
             if not instance_ids:
                 continue
 
