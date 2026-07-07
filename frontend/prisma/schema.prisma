@@ -32,6 +32,7 @@ model User {
   activeSession     ActiveSession?
   userInstanceRoles UserInstanceRole[]
   apiTokens         ApiToken[]
+  orgMemberships    OrgMembership[]
 
   @@map("users")
 }
@@ -132,26 +133,47 @@ enum InstanceRole {
   VIEWER   // Can view specific features (defined in FeaturePermission)
 }
 
-// Role Permissions Matrix
-// Define what each role can access
+// ============================================================================
+// Organizations - tenant grouping above sites (inert until enforcement)
+// ============================================================================
 
-model RolePermission {
-  id        String   @id @default(cuid())
-  role      Role
-  resource  String // e.g., "firewall", "dhcp", "nat", "interfaces", "users"
-  action    Action // e.g., READ, CREATE, UPDATE, DELETE
-  createdAt DateTime @default(now())
-
-  @@unique([role, resource, action])
-  @@map("role_permissions")
+// Org-level roles. Deployment-wide User.role is unchanged and orthogonal:
+// users.role=ADMIN is the deployment operator ("System Administrator").
+enum OrgRole {
+  OWNER // Org lifecycle, membership, settings; superset of ADMIN; >=1 per org with members
+  ADMIN // Manage sites/instances and per-instance RBAC within the org
+  MEMBER // Access limited to explicit per-instance grants
 }
 
-enum Action {
-  READ
-  CREATE
-  UPDATE
-  DELETE
-  MANAGE // Full control (all actions)
+model Organization {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  sites       Site[]
+  memberships OrgMembership[]
+
+  @@map("organizations")
+}
+
+model OrgMembership {
+  id        String   @id @default(cuid())
+  userId    String
+  orgId     String
+  orgRole   OrgRole  @default(MEMBER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  org  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, orgId])
+  @@index([orgId])
+  @@map("org_memberships")
 }
 
 // Audit Log for tracking all user actions
@@ -175,18 +197,25 @@ model AuditLog {
 // Multi-Instance Management
 // ============================================================================
 
-// Site - Represents a customer/organization
+// Site - a group of instances within an organization
 model Site {
   id          String   @id @default(cuid())
   name        String   @unique
   description String?
+  // DEFAULT "default" is inert-phase scaffolding: it keeps site creation,
+  // seeding and pre-org backup restores working while nothing reads orgs.
+  // Removed when org enforcement turns on — site creation then requires an
+  // explicit organization.
+  orgId       String   @default("default")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   // Relations
+  org               Organization       @relation(fields: [orgId], references: [id], onDelete: Restrict)
   instances         Instance[]
   userInstanceRoles UserInstanceRole[] // whole-site grants
 
+  @@index([orgId])
   @@map("sites")
 }
 
