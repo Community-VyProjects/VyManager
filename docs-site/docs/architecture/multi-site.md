@@ -16,7 +16,7 @@ A site is a logical group of routers — a location, a customer, a role. An inst
 - `commitConfirmEnabled`, `commitConfirmMinutes` — per-instance commit-confirm settings
 - `isActive` — inactive instances refuse connections
 
-Sites and instances are managed in Site Manager by global admins. Access for other users is granted per instance or per site — see [RBAC and permissions](rbac).
+Sites and instances are managed in Site Manager by global admins. Access for other users is granted per instance or per site — see [RBAC and permissions](rbac). An organization layer above sites is being built incrementally and is inert today — see [Organization groundwork](organizations).
 
 ## One active instance at a time
 
