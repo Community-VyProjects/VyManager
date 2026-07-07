@@ -7,7 +7,8 @@ automatically capped to that user's RBAC. The plaintext token is returned once
 at creation and never again; only its sha256 hash is stored.
 """
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import Depends, APIRouter, HTTPException, Request
+from org_scope import org_conn_admin
 from pydantic import BaseModel, Field
 from typing import List, Optional
 from datetime import datetime, timedelta
@@ -63,13 +64,6 @@ class TokenCreateResponse(BaseModel):
     metadata: TokenMetadata
 
 
-def _get_db_pool(request: Request) -> asyncpg.Pool:
-    pool = getattr(request.app.state, "db_pool", None)
-    if pool is None:
-        raise HTTPException(status_code=503, detail="Database connection not available")
-    return pool
-
-
 def _row_to_metadata(row: asyncpg.Record) -> TokenMetadata:
     return TokenMetadata(
         id=row["id"],
@@ -95,7 +89,7 @@ def _reject_read_only(request: Request) -> None:
 
 
 @router.post("", response_model=TokenCreateResponse)
-async def create_token(request: Request, body: TokenCreateRequest):
+async def create_token(request: Request, body: TokenCreateRequest, conn: asyncpg.Connection = Depends(org_conn_admin)):
     user = get_current_user(request)
     _reject_read_only(request)
 
@@ -116,58 +110,52 @@ async def create_token(request: Request, body: TokenCreateRequest):
 
     plaintext, token_hash, prefix = generate_api_token()
 
-    db_pool = _get_db_pool(request)
-    async with db_pool.acquire() as conn:
-        row = await conn.fetchrow(
-            """
-            INSERT INTO api_tokens
-                (id, "userId", name, "tokenHash", prefix, scopes,
-                 "allowedInstanceIds", "allowedSiteIds", "expiresAt", "createdAt")
-            VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, NOW())
-            RETURNING id, name, prefix, scopes, "allowedInstanceIds", "allowedSiteIds",
-                      "lastUsedAt", "expiresAt", "revokedAt", "createdAt"
-            """,
-            user["id"], body.name, token_hash, prefix, scopes,
-            allowed_instance_ids, allowed_site_ids, expires_at,
-        )
+    row = await conn.fetchrow(
+        """
+        INSERT INTO api_tokens
+            (id, "userId", name, "tokenHash", prefix, scopes,
+             "allowedInstanceIds", "allowedSiteIds", "expiresAt", "createdAt")
+        VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, NOW())
+        RETURNING id, name, prefix, scopes, "allowedInstanceIds", "allowedSiteIds",
+                  "lastUsedAt", "expiresAt", "revokedAt", "createdAt"
+        """,
+        user["id"], body.name, token_hash, prefix, scopes,
+        allowed_instance_ids, allowed_site_ids, expires_at,
+    )
 
     logger.info("API token created for user %s (id=%s)", user["id"], row["id"])
     return TokenCreateResponse(token=plaintext, metadata=_row_to_metadata(row))
 
 
 @router.get("", response_model=List[TokenMetadata])
-async def list_tokens(request: Request):
+async def list_tokens(request: Request, conn: asyncpg.Connection = Depends(org_conn_admin)):
     user = get_current_user(request)
-    db_pool = _get_db_pool(request)
-    async with db_pool.acquire() as conn:
-        rows = await conn.fetch(
-            """
-            SELECT id, name, prefix, scopes, "allowedInstanceIds", "allowedSiteIds",
-                   "lastUsedAt", "expiresAt", "revokedAt", "createdAt"
-            FROM api_tokens
-            WHERE "userId" = $1
-            ORDER BY "createdAt" DESC
-            """,
-            user["id"],
-        )
+    rows = await conn.fetch(
+        """
+        SELECT id, name, prefix, scopes, "allowedInstanceIds", "allowedSiteIds",
+               "lastUsedAt", "expiresAt", "revokedAt", "createdAt"
+        FROM api_tokens
+        WHERE "userId" = $1
+        ORDER BY "createdAt" DESC
+        """,
+        user["id"],
+    )
     return [_row_to_metadata(r) for r in rows]
 
 
 @router.delete("/{token_id}")
-async def revoke_token(request: Request, token_id: str):
+async def revoke_token(request: Request, token_id: str, conn: asyncpg.Connection = Depends(org_conn_admin)):
     user = get_current_user(request)
     _reject_read_only(request)
-    db_pool = _get_db_pool(request)
-    async with db_pool.acquire() as conn:
-        # Scope the revoke to the caller's own tokens; null revokedAt = not yet revoked.
-        result = await conn.execute(
-            """
-            UPDATE api_tokens
-            SET "revokedAt" = NOW()
-            WHERE id = $1 AND "userId" = $2 AND "revokedAt" IS NULL
-            """,
-            token_id, user["id"],
-        )
+    # Scope the revoke to the caller's own tokens; null revokedAt = not yet revoked.
+    result = await conn.execute(
+        """
+        UPDATE api_tokens
+        SET "revokedAt" = NOW()
+        WHERE id = $1 AND "userId" = $2 AND "revokedAt" IS NULL
+        """,
+        token_id, user["id"],
+    )
 
     # asyncpg returns e.g. "UPDATE 1" / "UPDATE 0"; 0 rows = nothing to revoke.
     if int(result.split()[-1]) == 0:

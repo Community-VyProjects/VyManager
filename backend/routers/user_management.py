@@ -6,7 +6,8 @@ ADMIN only.
 """
 import os
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import Depends, APIRouter, HTTPException, Request
+from org_scope import org_conn_admin
 from pydantic import BaseModel, Field, EmailStr
 from typing import List, Dict, Optional, Any
 from datetime import datetime
@@ -137,7 +138,7 @@ class AssignmentResponse(BaseModel):
 # ============================================================================
 
 @router.get("/my-permissions", response_model=MyPermissionsResponse)
-async def get_my_permissions(request: Request):
+async def get_my_permissions(request: Request, conn: asyncpg.Connection = Depends(org_conn_admin)):
     """
     Get the current user's permissions for their active instance.
 
@@ -149,187 +150,173 @@ async def get_my_permissions(request: Request):
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
-    db_pool: asyncpg.Pool = request.app.state.db_pool
+    # Get user's active session to find which instance they're connected to
+    active_session = await conn.fetchrow(
+        """
+        SELECT "instanceId"
+        FROM active_sessions
+        WHERE "userId" = $1
+        LIMIT 1
+        """,
+        user["id"]
+    )
 
-    async with db_pool.acquire() as conn:
-        # Get user's active session to find which instance they're connected to
-        active_session = await conn.fetchrow(
-            """
-            SELECT "instanceId"
-            FROM active_sessions
-            WHERE "userId" = $1
-            LIMIT 1
-            """,
-            user["id"]
-        )
+    if not active_session:
+        # User has no active session - return empty permissions
+        return MyPermissionsResponse(has_active_session=False, permissions={})
 
-        if not active_session:
-            # User has no active session - return empty permissions
-            return MyPermissionsResponse(has_active_session=False, permissions={})
+    instance_id = active_session["instanceId"]
 
-        instance_id = active_session["instanceId"]
+    # Get user's permissions for this instance
+    permissions = await get_user_permissions(conn, user["id"], instance_id)
 
-        # Get user's permissions for this instance
-        permissions = await get_user_permissions(db_pool, user["id"], instance_id)
+    # Convert enum values to strings for JSON serialization
+    permissions_dict = {
+        feature.value: level.value
+        for feature, level in permissions.items()
+    }
 
-        # Convert enum values to strings for JSON serialization
-        permissions_dict = {
-            feature.value: level.value
-            for feature, level in permissions.items()
-        }
-
-        return MyPermissionsResponse(
-            has_active_session=True,
-            instance_id=instance_id,
-            permissions=permissions_dict,
-        )
+    return MyPermissionsResponse(
+        has_active_session=True,
+        instance_id=instance_id,
+        permissions=permissions_dict,
+    )
 
 
 @router.get("/users", response_model=List[UserListItem])
-async def list_users(request: Request):
+async def list_users(request: Request, conn: asyncpg.Connection = Depends(org_conn_admin)):
     """Get list of all users with their instance counts and site roles."""
     await require_super_admin(request)
 
-    db_pool: asyncpg.Pool = request.app.state.db_pool
+    users = await conn.fetch(
+        """
+        SELECT
+            u.id,
+            u.name,
+            u.email,
+            u."emailVerified" as email_verified,
+            u."createdAt" as created_at,
+            u.role as site_role,
+            COUNT(DISTINCT uir."instanceId") as instance_count,
+            EXISTS (
+                SELECT 1 FROM accounts acc
+                JOIN oauth_providers op ON op."providerId" = acc."providerId"
+                WHERE acc."userId" = u.id AND op."roleMappingEnabled" = true
+            ) as sso_role_managed
+        FROM users u
+        LEFT JOIN user_instance_roles uir ON u.id = uir."userId"
+        GROUP BY u.id, u.name, u.email, u."emailVerified", u."createdAt", u.role
+        ORDER BY u."createdAt" DESC
+        """
+    )
 
-    async with db_pool.acquire() as conn:
-        users = await conn.fetch(
-            """
-            SELECT
-                u.id,
-                u.name,
-                u.email,
-                u."emailVerified" as email_verified,
-                u."createdAt" as created_at,
-                u.role as site_role,
-                COUNT(DISTINCT uir."instanceId") as instance_count,
-                EXISTS (
-                    SELECT 1 FROM accounts acc
-                    JOIN oauth_providers op ON op."providerId" = acc."providerId"
-                    WHERE acc."userId" = u.id AND op."roleMappingEnabled" = true
-                ) as sso_role_managed
-            FROM users u
-            LEFT JOIN user_instance_roles uir ON u.id = uir."userId"
-            GROUP BY u.id, u.name, u.email, u."emailVerified", u."createdAt", u.role
-            ORDER BY u."createdAt" DESC
-            """
-        )
-
-        return [UserListItem(
-            id=user["id"],
-            name=user["name"],
-            email=user["email"],
-            email_verified=user["email_verified"],
-            created_at=user["created_at"],
-            instance_count=user["instance_count"],
-            site_role=user["site_role"],
-            sso_role_managed=user["sso_role_managed"]
-        ) for user in users]
+    return [UserListItem(
+        id=user["id"],
+        name=user["name"],
+        email=user["email"],
+        email_verified=user["email_verified"],
+        created_at=user["created_at"],
+        instance_count=user["instance_count"],
+        site_role=user["site_role"],
+        sso_role_managed=user["sso_role_managed"]
+    ) for user in users]
 
 
 @router.get("/users/{user_id}", response_model=UserDetail)
-async def get_user(request: Request, user_id: str):
+async def get_user(request: Request, user_id: str, conn: asyncpg.Connection = Depends(org_conn_admin)):
     """Get detailed information about a specific user."""
     await require_super_admin(request)
 
-    db_pool: asyncpg.Pool = request.app.state.db_pool
+    user = await conn.fetchrow(
+        """
+        SELECT id, name, email, "emailVerified" as email_verified,
+               "createdAt" as created_at, "updatedAt" as updated_at
+        FROM users
+        WHERE id = $1
+        """,
+        user_id
+    )
 
-    async with db_pool.acquire() as conn:
-        user = await conn.fetchrow(
-            """
-            SELECT id, name, email, "emailVerified" as email_verified,
-                   "createdAt" as created_at, "updatedAt" as updated_at
-            FROM users
-            WHERE id = $1
-            """,
-            user_id
-        )
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
 
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-
-        return UserDetail(**dict(user))
+    return UserDetail(**dict(user))
 
 
 @router.get("/users/{user_id}/assignments", response_model=List[UserInstanceAssignment])
-async def get_user_assignments(request: Request, user_id: str):
+async def get_user_assignments(request: Request, user_id: str, conn: asyncpg.Connection = Depends(org_conn_admin)):
     """Get all instance assignments for a specific user."""
     await require_super_admin(request)
 
-    db_pool: asyncpg.Pool = request.app.state.db_pool
+    assignments = await conn.fetch(
+        """
+        SELECT
+            uir.id,
+            uir."userId" as user_id,
+            uir."instanceId" as instance_id,
+            i.name as instance_name,
+            COALESCE(uir."siteId", i."siteId") as site_id,
+            COALESCE(sg.name, s.name) as site_name,
+            (uir."siteId" IS NOT NULL) as is_site_grant,
+            uir.role,
+            uir."createdAt" as assigned_at,
+            uir."assignedBy" as assigned_by
+        FROM user_instance_roles uir
+        LEFT JOIN instances i ON uir."instanceId" = i.id
+        LEFT JOIN sites s ON i."siteId" = s.id
+        LEFT JOIN sites sg ON uir."siteId" = sg.id
+        WHERE uir."userId" = $1
+        ORDER BY COALESCE(sg.name, s.name), i.name NULLS FIRST
+        """,
+        user_id
+    )
 
-    async with db_pool.acquire() as conn:
-        assignments = await conn.fetch(
+    result = []
+    for assignment in assignments:
+        # Get feature permissions for this assignment
+        feature_perms = await conn.fetch(
             """
-            SELECT
-                uir.id,
-                uir."userId" as user_id,
-                uir."instanceId" as instance_id,
-                i.name as instance_name,
-                COALESCE(uir."siteId", i."siteId") as site_id,
-                COALESCE(sg.name, s.name) as site_name,
-                (uir."siteId" IS NOT NULL) as is_site_grant,
-                uir.role,
-                uir."createdAt" as assigned_at,
-                uir."assignedBy" as assigned_by
-            FROM user_instance_roles uir
-            LEFT JOIN instances i ON uir."instanceId" = i.id
-            LEFT JOIN sites s ON i."siteId" = s.id
-            LEFT JOIN sites sg ON uir."siteId" = sg.id
-            WHERE uir."userId" = $1
-            ORDER BY COALESCE(sg.name, s.name), i.name NULLS FIRST
+            SELECT feature, "canEdit" as can_edit, "canView" as can_view
+            FROM user_feature_permissions
+            WHERE "userInstanceRoleId" = $1
             """,
-            user_id
+            assignment["id"]
         )
 
-        result = []
-        for assignment in assignments:
-            # Get feature permissions for this assignment
-            feature_perms = await conn.fetch(
-                """
-                SELECT feature, "canEdit" as can_edit, "canView" as can_view
-                FROM user_feature_permissions
-                WHERE "userInstanceRoleId" = $1
-                """,
-                assignment["id"]
+        permissions = [
+            FeaturePermissionItem(
+                feature=fp["feature"],
+                can_edit=fp["can_edit"],
+                can_view=fp["can_view"]
             )
+            for fp in feature_perms
+        ]
 
-            permissions = [
-                FeaturePermissionItem(
-                    feature=fp["feature"],
-                    can_edit=fp["can_edit"],
-                    can_view=fp["can_view"]
-                )
-                for fp in feature_perms
-            ]
+        result.append(UserInstanceAssignment(
+            id=assignment["id"],
+            user_id=assignment["user_id"],
+            instance_id=assignment["instance_id"],
+            instance_name=assignment["instance_name"],
+            site_id=assignment["site_id"],
+            site_name=assignment["site_name"],
+            is_site_grant=assignment["is_site_grant"],
+            role=assignment["role"],
+            feature_permissions=permissions,
+            assigned_at=assignment["assigned_at"],
+            assigned_by=assignment["assigned_by"]
+        ))
 
-            result.append(UserInstanceAssignment(
-                id=assignment["id"],
-                user_id=assignment["user_id"],
-                instance_id=assignment["instance_id"],
-                instance_name=assignment["instance_name"],
-                site_id=assignment["site_id"],
-                site_name=assignment["site_name"],
-                is_site_grant=assignment["is_site_grant"],
-                role=assignment["role"],
-                feature_permissions=permissions,
-                assigned_at=assignment["assigned_at"],
-                assigned_by=assignment["assigned_by"]
-            ))
-
-        return result
+    return result
 
 
 @router.post("/users", response_model=UserDetail)
-async def create_user(request: Request, body: CreateUserRequest):
+async def create_user(request: Request, body: CreateUserRequest, conn: asyncpg.Connection = Depends(org_conn_admin)):
     """
     Create a new user by calling Better Auth's internal API.
     This ensures password hashing is handled correctly by Better Auth.
     Then sets the site role in the database.
     """
     await require_super_admin(request)
-
-    db_pool: asyncpg.Pool = request.app.state.db_pool
 
     # Validate site_role
     if body.site_role not in ["ADMIN", "VIEWER"]:
@@ -373,39 +360,38 @@ async def create_user(request: Request, body: CreateUserRequest):
             )
 
     # Set the site role in the database
-    async with db_pool.acquire() as conn:
-        await conn.execute(
-            """
-            UPDATE users
-            SET role = $1, "updatedAt" = NOW()
-            WHERE id = $2
-            """,
-            body.site_role,
-            user_id
+    await conn.execute(
+        """
+        UPDATE users
+        SET role = $1, "updatedAt" = NOW()
+        WHERE id = $2
+        """,
+        body.site_role,
+        user_id
+    )
+
+    # Fetch the created user from database
+    user = await conn.fetchrow(
+        """
+        SELECT id, name, email, "emailVerified" as email_verified,
+               "createdAt" as created_at, "updatedAt" as updated_at
+        FROM users
+        WHERE id = $1
+        """,
+        user_id
+    )
+
+    if not user:
+        raise HTTPException(
+            status_code=500,
+            detail="User was created but not found in database"
         )
 
-        # Fetch the created user from database
-        user = await conn.fetchrow(
-            """
-            SELECT id, name, email, "emailVerified" as email_verified,
-                   "createdAt" as created_at, "updatedAt" as updated_at
-            FROM users
-            WHERE id = $1
-            """,
-            user_id
-        )
-
-        if not user:
-            raise HTTPException(
-                status_code=500,
-                detail="User was created but not found in database"
-            )
-
-        return UserDetail(**dict(user))
+    return UserDetail(**dict(user))
 
 
 @router.put("/users/{user_id}", response_model=UserDetail)
-async def update_user(request: Request, user_id: str, body: UpdateUserRequest):
+async def update_user(request: Request, user_id: str, body: UpdateUserRequest, conn: asyncpg.Connection = Depends(org_conn_admin)):
     """
     Update a user.
 
@@ -414,96 +400,91 @@ async def update_user(request: Request, user_id: str, body: UpdateUserRequest):
     """
     await require_super_admin(request)
 
-    db_pool: asyncpg.Pool = request.app.state.db_pool
+    # Check if user exists
+    existing = await conn.fetchval("SELECT id FROM users WHERE id = $1", user_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="User not found")
 
-    async with db_pool.acquire() as conn:
-        # Check if user exists
-        existing = await conn.fetchval("SELECT id FROM users WHERE id = $1", user_id)
-        if not existing:
-            raise HTTPException(status_code=404, detail="User not found")
+    # Validate site_role if provided
+    if body.site_role is not None and body.site_role not in ["ADMIN", "VIEWER"]:
+        raise HTTPException(status_code=400, detail="site_role must be ADMIN or VIEWER")
 
-        # Validate site_role if provided
-        if body.site_role is not None and body.site_role not in ["ADMIN", "VIEWER"]:
-            raise HTTPException(status_code=400, detail="site_role must be ADMIN or VIEWER")
+    # Update user
+    updates = []
+    params = []
+    param_count = 1
 
-        # Update user
-        updates = []
-        params = []
-        param_count = 1
+    if body.name is not None:
+        updates.append(f'name = ${param_count}')
+        params.append(body.name)
+        param_count += 1
 
-        if body.name is not None:
-            updates.append(f'name = ${param_count}')
-            params.append(body.name)
-            param_count += 1
-
-        if body.email is not None:
-            # Check if new email already exists
-            email_exists = await conn.fetchval(
-                "SELECT id FROM users WHERE email = $1 AND id != $2",
-                body.email,
-                user_id
-            )
-            if email_exists:
-                raise HTTPException(status_code=400, detail="Email already exists")
-
-            updates.append(f'email = ${param_count}')
-            params.append(body.email)
-            param_count += 1
-
-        if body.site_role is not None:
-            updates.append(f'role = ${param_count}')
-            params.append(body.site_role)
-            param_count += 1
-
-        if body.password is not None:
-            # Password updates not supported - require password reset flow
-            raise HTTPException(
-                status_code=400,
-                detail="Password updates not supported. Please use the password reset flow."
-            )
-
-        if updates:
-            updates.append(f'"updatedAt" = NOW()')
-            params.append(user_id)
-            query = f"UPDATE users SET {', '.join(updates)} WHERE id = ${param_count}"
-            await conn.execute(query, *params)
-
-        # Fetch updated user
-        user = await conn.fetchrow(
-            """
-            SELECT id, name, email, "emailVerified" as email_verified,
-                   "createdAt" as created_at, "updatedAt" as updated_at
-            FROM users
-            WHERE id = $1
-            """,
+    if body.email is not None:
+        # Check if new email already exists
+        email_exists = await conn.fetchval(
+            "SELECT id FROM users WHERE email = $1 AND id != $2",
+            body.email,
             user_id
         )
+        if email_exists:
+            raise HTTPException(status_code=400, detail="Email already exists")
 
-        return UserDetail(**dict(user))
+        updates.append(f'email = ${param_count}')
+        params.append(body.email)
+        param_count += 1
+
+    if body.site_role is not None:
+        updates.append(f'role = ${param_count}')
+        params.append(body.site_role)
+        param_count += 1
+
+    if body.password is not None:
+        # Password updates not supported - require password reset flow
+        raise HTTPException(
+            status_code=400,
+            detail="Password updates not supported. Please use the password reset flow."
+        )
+
+    if updates:
+        updates.append(f'"updatedAt" = NOW()')
+        params.append(user_id)
+        query = f"UPDATE users SET {', '.join(updates)} WHERE id = ${param_count}"
+        await conn.execute(query, *params)
+
+    # Fetch updated user
+    user = await conn.fetchrow(
+        """
+        SELECT id, name, email, "emailVerified" as email_verified,
+               "createdAt" as created_at, "updatedAt" as updated_at
+        FROM users
+        WHERE id = $1
+        """,
+        user_id
+    )
+
+    return UserDetail(**dict(user))
 
 
 @router.delete("/users/{user_id}", response_model=SuccessResponse)
-async def delete_user(request: Request, user_id: str):
+async def delete_user(request: Request, user_id: str, conn: asyncpg.Connection = Depends(org_conn_admin)):
     """Delete a user."""
     await require_super_admin(request)
 
-    db_pool: asyncpg.Pool = request.app.state.db_pool
     current_user = request.state.user
 
     # Prevent self-deletion
     if user_id == current_user["id"]:
         raise HTTPException(status_code=400, detail="Cannot delete your own account")
 
-    async with db_pool.acquire() as conn:
-        # Check if user exists
-        existing = await conn.fetchval("SELECT id FROM users WHERE id = $1", user_id)
-        if not existing:
-            raise HTTPException(status_code=404, detail="User not found")
+    # Check if user exists
+    existing = await conn.fetchval("SELECT id FROM users WHERE id = $1", user_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="User not found")
 
-        # Delete user (cascades to sessions, accounts, user_instance_roles, etc.)
-        await conn.execute("DELETE FROM users WHERE id = $1", user_id)
+    # Delete user (cascades to sessions, accounts, user_instance_roles, etc.)
+    await conn.execute("DELETE FROM users WHERE id = $1", user_id)
 
-        return SuccessResponse(success=True, message="User deleted successfully")
+    return SuccessResponse(success=True, message="User deleted successfully")
 
 
 # ============================================================================
@@ -511,178 +492,170 @@ async def delete_user(request: Request, user_id: str):
 # ============================================================================
 
 @router.post("/assignments", response_model=AssignmentResponse)
-async def assign_user_to_instances(request: Request, body: AssignUserRequest):
+async def assign_user_to_instances(request: Request, body: AssignUserRequest, conn: asyncpg.Connection = Depends(org_conn_admin)):
     """Assign a user to instance(s) with a role and optional feature permissions."""
     await require_super_admin(request)
 
-    db_pool: asyncpg.Pool = request.app.state.db_pool
     current_user = request.state.user
 
     # Validate role
     if body.role not in ["ADMIN", "OPERATOR", "VIEWER"]:
         raise HTTPException(status_code=400, detail="role must be ADMIN, OPERATOR, or VIEWER")
 
-    async with db_pool.acquire() as conn:
-        # Verify user exists
-        user_exists = await conn.fetchval("SELECT id FROM users WHERE id = $1", body.user_id)
-        if not user_exists:
-            raise HTTPException(status_code=404, detail="User not found")
+    # Verify user exists
+    user_exists = await conn.fetchval("SELECT id FROM users WHERE id = $1", body.user_id)
+    if not user_exists:
+        raise HTTPException(status_code=404, detail="User not found")
 
-        # Verify instances exist
-        for instance_id in body.instance_ids:
-            if not await conn.fetchval("SELECT id FROM instances WHERE id = $1", instance_id):
-                raise HTTPException(status_code=404, detail=f"Instance {instance_id} not found")
+    # Verify instances exist
+    for instance_id in body.instance_ids:
+        if not await conn.fetchval("SELECT id FROM instances WHERE id = $1", instance_id):
+            raise HTTPException(status_code=404, detail=f"Instance {instance_id} not found")
 
-        # Verify sites exist
-        for site_id in body.site_ids:
-            if not await conn.fetchval("SELECT id FROM sites WHERE id = $1", site_id):
-                raise HTTPException(status_code=404, detail=f"Site {site_id} not found")
+    # Verify sites exist
+    for site_id in body.site_ids:
+        if not await conn.fetchval("SELECT id FROM sites WHERE id = $1", site_id):
+            raise HTTPException(status_code=404, detail=f"Site {site_id} not found")
 
-        async def insert_feature_perms(assignment_id: str):
-            # Feature permissions only apply to OPERATOR/VIEWER.
-            if not body.feature_permissions:
-                return
-            for perm in body.feature_permissions:
-                await conn.execute(
-                    """
-                    INSERT INTO user_feature_permissions
-                    (id, "userInstanceRoleId", feature, "canEdit", "canView", "createdAt")
-                    VALUES (gen_random_uuid()::text, $1, $2, $3, $4, NOW())
-                    """,
-                    assignment_id, perm.feature, perm.can_edit, perm.can_view,
-                )
-
-        assignments_created = 0
-
-        # Per-instance grants
-        for instance_id in body.instance_ids:
-            existing = await conn.fetchval(
-                'SELECT id FROM user_instance_roles WHERE "userId" = $1 AND "instanceId" = $2',
-                body.user_id, instance_id,
-            )
-            if existing:
-                continue
-            assignment_id = await conn.fetchval(
+    async def insert_feature_perms(assignment_id: str):
+        # Feature permissions only apply to OPERATOR/VIEWER.
+        if not body.feature_permissions:
+            return
+        for perm in body.feature_permissions:
+            await conn.execute(
                 """
-                INSERT INTO user_instance_roles
-                (id, "userId", "instanceId", role, "createdAt", "updatedAt", "assignedBy")
-                VALUES (gen_random_uuid()::text, $1, $2, $3, NOW(), NOW(), $4)
-                RETURNING id
+                INSERT INTO user_feature_permissions
+                (id, "userInstanceRoleId", feature, "canEdit", "canView", "createdAt")
+                VALUES (gen_random_uuid()::text, $1, $2, $3, $4, NOW())
                 """,
-                body.user_id, instance_id, body.role, current_user["id"],
+                assignment_id, perm.feature, perm.can_edit, perm.can_view,
             )
-            await insert_feature_perms(assignment_id)
-            assignments_created += 1
 
-        # Whole-site grants (cover every instance in the site, incl. future ones)
-        for site_id in body.site_ids:
-            existing = await conn.fetchval(
-                'SELECT id FROM user_instance_roles WHERE "userId" = $1 AND "siteId" = $2',
-                body.user_id, site_id,
-            )
-            if existing:
-                continue
-            assignment_id = await conn.fetchval(
-                """
-                INSERT INTO user_instance_roles
-                (id, "userId", "siteId", role, "createdAt", "updatedAt", "assignedBy")
-                VALUES (gen_random_uuid()::text, $1, $2, $3, NOW(), NOW(), $4)
-                RETURNING id
-                """,
-                body.user_id, site_id, body.role, current_user["id"],
-            )
-            await insert_feature_perms(assignment_id)
-            assignments_created += 1
+    assignments_created = 0
 
-        return AssignmentResponse(
-            success=True,
-            assignments_created=assignments_created,
-            message=f"Created {assignments_created} grant(s) successfully",
+    # Per-instance grants
+    for instance_id in body.instance_ids:
+        existing = await conn.fetchval(
+            'SELECT id FROM user_instance_roles WHERE "userId" = $1 AND "instanceId" = $2',
+            body.user_id, instance_id,
         )
+        if existing:
+            continue
+        assignment_id = await conn.fetchval(
+            """
+            INSERT INTO user_instance_roles
+            (id, "userId", "instanceId", role, "createdAt", "updatedAt", "assignedBy")
+            VALUES (gen_random_uuid()::text, $1, $2, $3, NOW(), NOW(), $4)
+            RETURNING id
+            """,
+            body.user_id, instance_id, body.role, current_user["id"],
+        )
+        await insert_feature_perms(assignment_id)
+        assignments_created += 1
+
+    # Whole-site grants (cover every instance in the site, incl. future ones)
+    for site_id in body.site_ids:
+        existing = await conn.fetchval(
+            'SELECT id FROM user_instance_roles WHERE "userId" = $1 AND "siteId" = $2',
+            body.user_id, site_id,
+        )
+        if existing:
+            continue
+        assignment_id = await conn.fetchval(
+            """
+            INSERT INTO user_instance_roles
+            (id, "userId", "siteId", role, "createdAt", "updatedAt", "assignedBy")
+            VALUES (gen_random_uuid()::text, $1, $2, $3, NOW(), NOW(), $4)
+            RETURNING id
+            """,
+            body.user_id, site_id, body.role, current_user["id"],
+        )
+        await insert_feature_perms(assignment_id)
+        assignments_created += 1
+
+    return AssignmentResponse(
+        success=True,
+        assignments_created=assignments_created,
+        message=f"Created {assignments_created} grant(s) successfully",
+    )
 
 
 @router.delete("/assignments/{assignment_id}", response_model=SuccessResponse)
-async def remove_assignment(request: Request, assignment_id: str):
+async def remove_assignment(request: Request, assignment_id: str, conn: asyncpg.Connection = Depends(org_conn_admin)):
     """Remove a user's access to an instance."""
     await require_super_admin(request)
 
-    db_pool: asyncpg.Pool = request.app.state.db_pool
+    # Check if assignment exists
+    existing = await conn.fetchval("SELECT id FROM user_instance_roles WHERE id = $1", assignment_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Assignment not found")
 
-    async with db_pool.acquire() as conn:
-        # Check if assignment exists
-        existing = await conn.fetchval("SELECT id FROM user_instance_roles WHERE id = $1", assignment_id)
-        if not existing:
-            raise HTTPException(status_code=404, detail="Assignment not found")
+    # Delete assignment
+    await conn.execute("DELETE FROM user_instance_roles WHERE id = $1", assignment_id)
 
-        # Delete assignment
-        await conn.execute("DELETE FROM user_instance_roles WHERE id = $1", assignment_id)
-
-        return SuccessResponse(success=True, message="Assignment removed successfully")
+    return SuccessResponse(success=True, message="Assignment removed successfully")
 
 
 @router.get("/instances/{instance_id}/users", response_model=List[InstanceUserListItem])
-async def get_instance_users(request: Request, instance_id: str):
+async def get_instance_users(request: Request, instance_id: str, conn: asyncpg.Connection = Depends(org_conn_admin)):
     """Get all users with access to a specific instance."""
     await require_super_admin(request)
 
-    db_pool: asyncpg.Pool = request.app.state.db_pool
+    # Verify instance exists
+    instance_exists = await conn.fetchval("SELECT id FROM instances WHERE id = $1", instance_id)
+    if not instance_exists:
+        raise HTTPException(status_code=404, detail="Instance not found")
 
-    async with db_pool.acquire() as conn:
-        # Verify instance exists
-        instance_exists = await conn.fetchval("SELECT id FROM instances WHERE id = $1", instance_id)
-        if not instance_exists:
-            raise HTTPException(status_code=404, detail="Instance not found")
+    # Get users with access and their instance roles
+    users_data = await conn.fetch(
+        """
+        SELECT DISTINCT
+            u.id as user_id,
+            u.name as user_name,
+            u.email as user_email,
+            uir.role as instance_role,
+            uir.id as assignment_id
+        FROM users u
+        JOIN user_instance_roles uir ON u.id = uir."userId"
+        WHERE uir."instanceId" = $1
+        ORDER BY u.name, u.email
+        """,
+        instance_id
+    )
 
-        # Get users with access and their instance roles
-        users_data = await conn.fetch(
-            """
-            SELECT DISTINCT
-                u.id as user_id,
-                u.name as user_name,
-                u.email as user_email,
-                uir.role as instance_role,
-                uir.id as assignment_id
-            FROM users u
-            JOIN user_instance_roles uir ON u.id = uir."userId"
-            WHERE uir."instanceId" = $1
-            ORDER BY u.name, u.email
-            """,
-            instance_id
-        )
+    result = []
+    for user in users_data:
+        role = user["instance_role"]
+        feature_permissions = None
 
-        result = []
-        for user in users_data:
-            role = user["instance_role"]
-            feature_permissions = None
+        # For OPERATOR/VIEWER roles, fetch feature permissions
+        if role in ["OPERATOR", "VIEWER"]:
+            perms_data = await conn.fetch(
+                """
+                SELECT feature, "canEdit" as can_edit, "canView" as can_view
+                FROM user_feature_permissions
+                WHERE "userInstanceRoleId" = $1
+                ORDER BY feature
+                """,
+                user["assignment_id"]
+            )
 
-            # For OPERATOR/VIEWER roles, fetch feature permissions
-            if role in ["OPERATOR", "VIEWER"]:
-                perms_data = await conn.fetch(
-                    """
-                    SELECT feature, "canEdit" as can_edit, "canView" as can_view
-                    FROM user_feature_permissions
-                    WHERE "userInstanceRoleId" = $1
-                    ORDER BY feature
-                    """,
-                    user["assignment_id"]
-                )
+            if perms_data:
+                feature_permissions = [
+                    FeaturePermissionItem(
+                        feature=perm["feature"],
+                        can_edit=perm["can_edit"],
+                        can_view=perm["can_view"]
+                    )
+                    for perm in perms_data
+                ]
 
-                if perms_data:
-                    feature_permissions = [
-                        FeaturePermissionItem(
-                            feature=perm["feature"],
-                            can_edit=perm["can_edit"],
-                            can_view=perm["can_view"]
-                        )
-                        for perm in perms_data
-                    ]
+        result.append(InstanceUserListItem(
+            user_id=user["user_id"],
+            user_name=user["user_name"],
+            user_email=user["user_email"],
+            role=role,
+            feature_permissions=feature_permissions
+        ))
 
-            result.append(InstanceUserListItem(
-                user_id=user["user_id"],
-                user_name=user["user_name"],
-                user_email=user["user_email"],
-                role=role,
-                feature_permissions=feature_permissions
-            ))
-
-        return result
+    return result
