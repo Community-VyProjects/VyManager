@@ -10,6 +10,7 @@ import { BfdContent } from "@/components/bfd/BfdContent";
 import { MplsContent } from "@/components/mpls/MplsContent";
 import { NhrpContent } from "@/components/nhrp/NhrpContent";
 import { RpkiContent } from "@/components/rpki/RpkiContent";
+import { SegmentRoutingContent } from "@/components/segment-routing/SegmentRoutingContent";
 import { TrafficEngineeringContent } from "@/components/traffic-engineering/TrafficEngineeringContent";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -168,6 +169,8 @@ function InfrastructurePageInner() {
             <NhrpContent />
           ) : selectedInfra === "rpki" ? (
             <RpkiContent />
+          ) : selectedInfra === "segment-routing" ? (
+            <SegmentRoutingContent />
           ) : selectedInfra === "traffic-engineering" ? (
             <TrafficEngineeringContent />
           ) : (
