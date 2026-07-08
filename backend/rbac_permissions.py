@@ -17,6 +17,8 @@ from typing import Dict, List, Optional, Union
 from enum import Enum
 import asyncpg
 
+import org_scope
+
 
 # Resolver entry points accept either a pool (acquire per call, the historic
 # shape) or an already org-scoped connection (org_scope.py), so permission
@@ -707,8 +709,27 @@ async def get_user_permissions(
             user_id
         )
 
-        # Site ADMINs have full access to everything
-        if site_role == "ADMIN":
+        # Deployment ADMIN (System Administrator) has full access to
+        # everything. Under org enforcement, an org ADMIN/OWNER of the
+        # instance's organization also gets full access on that org's
+        # instances (org ADMIN superset instance-ADMIN). Inert while
+        # ORG_ENFORCEMENT is off.
+        full_access = site_role == "ADMIN"
+        if not full_access and org_scope.ORG_ENFORCEMENT:
+            org_role = await conn.fetchval(
+                """
+                SELECT m."orgRole"
+                FROM org_memberships m
+                JOIN sites s ON s."orgId" = m."orgId"
+                JOIN instances i ON i."siteId" = s."id"
+                WHERE m."userId" = $1 AND i."id" = $2
+                """,
+                user_id, instance_id,
+            )
+            if org_role in ("ADMIN", "OWNER"):
+                full_access = True
+
+        if full_access:
             all_features = [
                 FeatureGroup.FIREWALL,
                 FeatureGroup.FIREWALL_GROUPS,
