@@ -62,6 +62,22 @@ def test_rls_org_isolation_and_audit_append_only():
                 'password,"createdAt","updatedAt") VALUES '
                 "('rlsIA','rlsA','r','1.1.1.1','v','p',NOW(),NOW()),"
                 "('rlsIB','rlsB','r','2.2.2.2','v','p',NOW(),NOW())")
+            await owner.execute(
+                "DELETE FROM users WHERE id = 'rlsU'")
+            await owner.execute(
+                'INSERT INTO users (id,email,name,role,"emailVerified",'
+                '"createdAt","updatedAt") VALUES '
+                "('rlsU','rls@u.test','U','VIEWER',true,NOW(),NOW())")
+            await owner.execute(
+                'INSERT INTO user_instance_roles (id,"userId","instanceId",'
+                'role,"assignedBy","createdAt","updatedAt") VALUES '
+                "('rlsGA','rlsU','rlsIA','OPERATOR','rlsU',NOW(),NOW()),"
+                "('rlsGB','rlsU','rlsIB','VIEWER','rlsU',NOW(),NOW())")
+            await owner.execute(
+                'INSERT INTO user_feature_permissions (id,'
+                '"userInstanceRoleId",feature,"canEdit","canView") VALUES '
+                "('rlsFA','rlsGA','FIREWALL',true,true),"
+                "('rlsFB','rlsGB','NAT',false,true)")
 
             async def as_runtime(setup_sql, query):
                 conn = await asyncpg.connect(os.environ["DATABASE_URL"])
@@ -82,6 +98,18 @@ def test_rls_org_isolation_and_audit_append_only():
                 "SET app.org_id = 'rlsOA'; SET app.is_system_admin = 'false'",
                 "SELECT id FROM instances WHERE id IN ('rlsIA','rlsIB')")
             assert {r["id"] for r in a_inst} == {"rlsIA"}
+
+            # Per-user authz tables are org-isolated too.
+            a_grants = await as_runtime(
+                "SET app.org_id = 'rlsOA'; SET app.is_system_admin = 'false'",
+                "SELECT id FROM user_instance_roles WHERE id IN ('rlsGA','rlsGB')")
+            assert {r["id"] for r in a_grants} == {"rlsGA"}
+
+            a_perms = await as_runtime(
+                "SET app.org_id = 'rlsOA'; SET app.is_system_admin = 'false'",
+                "SELECT id FROM user_feature_permissions "
+                "WHERE id IN ('rlsFA','rlsFB')")
+            assert {r["id"] for r in a_perms} == {"rlsFA"}
 
             # Operator bypass sees both orgs.
             all_sites = await as_runtime(
@@ -106,6 +134,7 @@ def test_rls_org_isolation_and_audit_append_only():
             finally:
                 await conn.close()
         finally:
+            await owner.execute("DELETE FROM users WHERE id = 'rlsU'")
             await owner.execute("DELETE FROM sites WHERE id IN ('rlsA','rlsB')")
             await owner.execute(
                 "DELETE FROM organizations WHERE id IN ('rlsOA','rlsOB')")
