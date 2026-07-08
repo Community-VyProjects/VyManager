@@ -248,6 +248,7 @@ async def websocket_console(websocket: WebSocket):
             private_key_pem = decrypt_private_key(
                 instance["sshEncryptedPrivKey"],
                 instance["sshKeyNonce"],
+                instance_id,
             )
 
             private_key = asyncssh.import_private_key(
