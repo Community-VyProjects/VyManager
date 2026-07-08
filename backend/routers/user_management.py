@@ -7,7 +7,7 @@ ADMIN only.
 import os
 
 from fastapi import Depends, APIRouter, HTTPException, Request
-from org_scope import org_conn_admin
+from org_scope import assert_row_in_acting_org, org_conn_admin
 from pydantic import BaseModel, Field, EmailStr
 from typing import List, Dict, Optional, Any
 from datetime import datetime
@@ -585,10 +585,22 @@ async def remove_assignment(request: Request, assignment_id: str, conn: asyncpg.
     """Remove a user's access to an instance."""
     await require_super_admin(request)
 
-    # Check if assignment exists
-    existing = await conn.fetchval("SELECT id FROM user_instance_roles WHERE id = $1", assignment_id)
-    if not existing:
+    # Resolve the grant's organization (via its instance's site, or its
+    # whole-site grant) and confirm it is in the caller's org before deleting.
+    grant_org = await conn.fetchval(
+        '''
+        SELECT COALESCE(si."orgId", ss."orgId")
+        FROM user_instance_roles uir
+        LEFT JOIN instances i ON uir."instanceId" = i.id
+        LEFT JOIN sites si ON i."siteId" = si.id
+        LEFT JOIN sites ss ON uir."siteId" = ss.id
+        WHERE uir.id = $1
+        ''',
+        assignment_id,
+    )
+    if grant_org is None:
         raise HTTPException(status_code=404, detail="Assignment not found")
+    await assert_row_in_acting_org(request, conn, grant_org)
 
     # Delete assignment
     await conn.execute("DELETE FROM user_instance_roles WHERE id = $1", assignment_id)

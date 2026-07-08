@@ -24,11 +24,20 @@ dependency; the permission check path is read-only and uses one short
 acquisition of its own.
 """
 
+import os
 from contextlib import asynccontextmanager
 from typing import AsyncIterator, Optional
 
 import asyncpg
 from fastapi import HTTPException, Query, Request
+
+
+# Master switch for organization enforcement. Off by default: the whole
+# hardening chain lands behind it so each step is inert on today's single-org
+# deployments and only becomes load-bearing when this flips on.
+ORG_ENFORCEMENT = os.getenv("ORG_ENFORCEMENT", "").strip().lower() in (
+    "1", "true", "yes", "on"
+)
 
 
 def _require_pool(request: Request) -> asyncpg.Pool:
@@ -169,6 +178,9 @@ async def _handler_conn(
                 org_id or "",
                 "true" if is_admin else "false",
             )
+            # Exposed for by-id row-org checks (assert_row_in_acting_org).
+            request.state.acting_org_id = org_id
+            request.state.is_system_admin = is_admin
             request.state.org_conn = conn
             try:
                 yield conn
@@ -229,3 +241,40 @@ async def request_scoped_conn(request: Request) -> AsyncIterator[asyncpg.Connect
         pool, org_id_from_state(request), known_admin
     ) as conn:
         yield conn
+
+
+async def assert_row_in_acting_org(
+    request: Request,
+    conn: asyncpg.Connection,
+    row_org_id: Optional[str],
+) -> None:
+    """Assert a by-id target belongs to the caller's acting organization.
+
+    The deny-by-default half of the IDOR defense: a mutation keyed on a
+    user-supplied id must confirm the target row is in the caller's org, not
+    only that the caller has the role. Returns 404 (not 403) on a cross-org
+    id so row existence does not leak.
+
+    Inert unless ORG_ENFORCEMENT is on, so it is a no-op on today's single-org
+    deployments and only becomes load-bearing at the enforcement flip. System
+    Administrators bypass. RLS is the eventual backstop for the same class.
+    """
+    if not ORG_ENFORCEMENT:
+        return
+    if await _resolve_system_admin(conn, request):
+        return
+
+    acting = (getattr(request.state, "acting_org_id", None)
+              or org_id_from_state(request))
+    if acting is None:
+        user = getattr(request.state, "user", None)
+        if user:
+            rows = await conn.fetch(
+                'SELECT "orgId" FROM org_memberships WHERE "userId" = $1'
+                ' ORDER BY "orgId" LIMIT 2',
+                user["id"])
+            if len(rows) == 1:
+                acting = rows[0]["orgId"]
+
+    if row_org_id is None or acting is None or row_org_id != acting:
+        raise HTTPException(status_code=404, detail="Not found")

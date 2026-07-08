@@ -9,8 +9,14 @@ import os
 from types import SimpleNamespace
 
 import pytest
+from fastapi import HTTPException
 
-from org_scope import is_system_admin_from_state, org_id_from_state
+import org_scope
+from org_scope import (
+    assert_row_in_acting_org,
+    is_system_admin_from_state,
+    org_id_from_state,
+)
 
 requires_db = pytest.mark.skipif(
     not os.environ.get("DATABASE_URL"),
@@ -34,6 +40,89 @@ def test_org_id_from_state_reads_middleware_org():
 def test_org_id_from_state_none_without_org():
     assert org_id_from_state(request_with_state(org=None)) is None
     assert org_id_from_state(request_with_state()) is None
+
+
+# ---------------------------------------------------------------------------
+# assert_row_in_acting_org — the by-id IDOR row check (no DB; fake conn)
+# ---------------------------------------------------------------------------
+
+class FakeConn:
+    """Minimal asyncpg-conn stand-in for the row-check branches."""
+
+    def __init__(self, role="ADMIN", membership_orgs=None):
+        self._role = role
+        self._orgs = membership_orgs or []
+
+    async def fetchval(self, query, *args):
+        # _resolve_system_admin's "SELECT role FROM users WHERE id = $1"
+        return self._role
+
+    async def fetch(self, query, *args):
+        # sole-membership lookup
+        return [{"orgId": o} for o in self._orgs]
+
+
+def run(coro):
+    return asyncio.run(coro)
+
+
+def test_row_check_noop_when_enforcement_off(monkeypatch):
+    monkeypatch.setattr(org_scope, "ORG_ENFORCEMENT", False)
+    req = request_with_state(user={"id": "u1"}, acting_org_id="orgA")
+    # Cross-org id, but enforcement off → must not raise.
+    run(assert_row_in_acting_org(req, FakeConn(role="VIEWER"), "orgB"))
+
+
+def test_row_check_system_admin_bypasses(monkeypatch):
+    monkeypatch.setattr(org_scope, "ORG_ENFORCEMENT", True)
+    req = request_with_state(user={"id": "u1"}, acting_org_id="orgA")
+    # role ADMIN → System Administrator → bypass even on a cross-org id.
+    run(assert_row_in_acting_org(req, FakeConn(role="ADMIN"), "orgB"))
+
+
+def test_row_check_same_org_passes(monkeypatch):
+    monkeypatch.setattr(org_scope, "ORG_ENFORCEMENT", True)
+    req = request_with_state(user={"id": "u1"}, acting_org_id="orgA")
+    run(assert_row_in_acting_org(req, FakeConn(role="VIEWER"), "orgA"))
+
+
+def test_row_check_cross_org_404(monkeypatch):
+    monkeypatch.setattr(org_scope, "ORG_ENFORCEMENT", True)
+    req = request_with_state(user={"id": "u1"}, acting_org_id="orgA")
+    with pytest.raises(HTTPException) as exc:
+        run(assert_row_in_acting_org(req, FakeConn(role="VIEWER"), "orgB"))
+    assert exc.value.status_code == 404
+
+
+def test_row_check_falls_back_to_sole_membership(monkeypatch):
+    monkeypatch.setattr(org_scope, "ORG_ENFORCEMENT", True)
+    # No acting_org_id/state.org; resolve from the sole membership.
+    req = request_with_state(user={"id": "u1"})
+    run(assert_row_in_acting_org(
+        req, FakeConn(role="VIEWER", membership_orgs=["orgA"]), "orgA"))
+    with pytest.raises(HTTPException) as exc:
+        run(assert_row_in_acting_org(
+            req, FakeConn(role="VIEWER", membership_orgs=["orgA"]), "orgB"))
+    assert exc.value.status_code == 404
+
+
+def test_row_check_null_row_org_404(monkeypatch):
+    monkeypatch.setattr(org_scope, "ORG_ENFORCEMENT", True)
+    req = request_with_state(user={"id": "u1"}, acting_org_id="orgA")
+    with pytest.raises(HTTPException) as exc:
+        run(assert_row_in_acting_org(req, FakeConn(role="VIEWER"), None))
+    assert exc.value.status_code == 404
+
+
+def test_enforcement_flag_env_parsing(monkeypatch):
+    import importlib
+    for val, expected in (("1", True), ("true", True), ("ON", True),
+                          ("", False), ("0", False), ("no", False)):
+        monkeypatch.setenv("ORG_ENFORCEMENT", val)
+        reloaded = importlib.reload(org_scope)
+        assert reloaded.ORG_ENFORCEMENT is expected, val
+    monkeypatch.delenv("ORG_ENFORCEMENT", raising=False)
+    importlib.reload(org_scope)
 
 
 def test_system_admin_flag_tristate():
