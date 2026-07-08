@@ -108,10 +108,37 @@ def test_org_admin_sees_instances_of_their_org_site(adversarial_world):
 
 @ENFORCEMENT_OFF
 def test_token_creation_rejects_foreign_org_instance_ids(adversarial_world):
-    # Token allowed-ids must be FK-validated and org-confined at creation.
+    # Target semantics with enforcement OFF: a cross-org allowed-id is inert
+    # (FK passes, request-time grant intersection is the backstop). This
+    # xfails today and flips strict at the enforcement flip; the enforced
+    # behavior is proven in the ON test below.
     response = as_user(adversarial_world, "a_member").post(
         "/tokens",
         json={"name": "adv-cross-org-probe", "scopes": ["read"],
               "allowed_instance_ids": [IDS["instance_b"]],
               "allowed_site_ids": []})
     assert response.status_code in (400, 403, 422)
+
+
+def test_token_creation_org_confined_under_enforcement(
+        adversarial_world, monkeypatch):
+    # Token creation is member-reachable, so org confinement bites members
+    # under enforcement without waiting for the ADMIN-per-org item. A
+    # cross-org allowed-id is folded into "unknown" (400), indistinguishable
+    # from a nonexistent id so existence does not leak; a same-org id passes.
+    import org_scope
+    monkeypatch.setattr(org_scope, "ORG_ENFORCEMENT", True)
+
+    cross = as_user(adversarial_world, "a_member").post(
+        "/tokens",
+        json={"name": "adv-cross", "scopes": ["read"],
+              "allowed_instance_ids": [IDS["instance_b"]],
+              "allowed_site_ids": []})
+    assert cross.status_code == 400
+
+    same = as_user(adversarial_world, "a_member").post(
+        "/tokens",
+        json={"name": "adv-same", "scopes": ["read"],
+              "allowed_instance_ids": [IDS["instance_a"]],
+              "allowed_site_ids": []})
+    assert same.status_code == 200
