@@ -209,6 +209,56 @@ async def org_conn_admin(
         yield conn
 
 
+def _ws_pool(websocket) -> asyncpg.Pool:
+    pool = getattr(websocket.app.state, "db_pool", None)
+    if pool is None:
+        raise RuntimeError("Database not available")
+    return pool
+
+
+@asynccontextmanager
+async def ws_conn(websocket) -> AsyncIterator[asyncpg.Connection]:
+    """Identity-resolution connection for a WebSocket, which authenticates
+    outside the HTTP middleware. No org context yet — this is the pre-org
+    "who is this and what is their active instance" lookup, the WS analogue
+    of the auth middleware. Keeping the pool access here (not in the router)
+    keeps the WS routers off the unscoped-connection canary."""
+    pool = _ws_pool(websocket)
+    async with pool.acquire() as conn:
+        yield conn
+
+
+@asynccontextmanager
+async def ws_org_conn(
+    websocket, user_id: str, instance_id: str
+) -> AsyncIterator[asyncpg.Connection]:
+    """One short org-scoped connection for a WebSocket unit of work.
+
+    Resolves the instance's org and the user's deployment role, applies the
+    org context, and yields. A WS holds a long-lived SSH stream, so — like the
+    /vyos permission path — it must take short scoped connections per unit of
+    work, never hold one across the stream.
+    """
+    pool = _ws_pool(websocket)
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            row = await conn.fetchrow(
+                'SELECT s."orgId" AS org_id,'
+                ' (SELECT role FROM users WHERE id = $2) AS role'
+                ' FROM instances i JOIN sites s ON i."siteId" = s.id'
+                ' WHERE i.id = $1',
+                instance_id, user_id)
+            org_id = row["org_id"] if row else None
+            is_admin = bool(row and row["role"] == "ADMIN")
+            await conn.execute(
+                "SELECT set_config('app.org_id', $1, true),"
+                "       set_config('app.is_system_admin', $2, true)",
+                org_id or "",
+                "true" if is_admin else "false",
+            )
+            yield conn
+
+
 @asynccontextmanager
 async def request_scoped_conn(request: Request) -> AsyncIterator[asyncpg.Connection]:
     """Org-scoped connection for code called from request context.

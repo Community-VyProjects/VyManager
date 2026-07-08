@@ -133,6 +133,57 @@ def test_system_admin_flag_tristate():
 
 
 # ---------------------------------------------------------------------------
+# WebSocket org context (real database)
+# ---------------------------------------------------------------------------
+
+@requires_db
+def test_ws_org_conn_resolves_instance_org_and_role():
+    import asyncpg
+    from org_scope import ws_org_conn
+
+    async def main():
+        pool = await asyncpg.create_pool(
+            os.environ["DATABASE_URL"], min_size=1, max_size=2)
+        conn0 = await pool.acquire()
+        try:
+            await conn0.execute("DELETE FROM users WHERE id = 'u_ws'")
+            await conn0.execute("DELETE FROM sites WHERE id = 's_ws'")
+            await conn0.execute(
+                "INSERT INTO organizations (id,name,\"createdAt\",\"updatedAt\")"
+                " VALUES ('org_ws','WS Org',NOW(),NOW())"
+                " ON CONFLICT (id) DO NOTHING")
+            await conn0.execute(
+                "INSERT INTO users (id,email,name,role,\"emailVerified\","
+                "\"createdAt\",\"updatedAt\") VALUES "
+                "('u_ws','ws@t.test','WS','ADMIN',true,NOW(),NOW())")
+            await conn0.execute(
+                "INSERT INTO sites (id,name,\"orgId\",\"createdAt\",\"updatedAt\")"
+                " VALUES ('s_ws','WS Site','org_ws',NOW(),NOW())")
+            await conn0.execute(
+                "INSERT INTO instances (id,\"siteId\",name,host,username,"
+                "password,\"createdAt\",\"updatedAt\") VALUES "
+                "('i_ws','s_ws','ws-r','192.0.2.9','v','p',NOW(),NOW())")
+
+            fake_ws = SimpleNamespace(app=SimpleNamespace(
+                state=SimpleNamespace(db_pool=pool)))
+            async with ws_org_conn(fake_ws, "u_ws", "i_ws") as conn:
+                assert await conn.fetchval(
+                    "SELECT current_setting('app.org_id', true)") == "org_ws"
+                # user u_ws is a deployment ADMIN -> System Administrator flag
+                assert await conn.fetchval(
+                    "SELECT current_setting('app.is_system_admin', true)"
+                ) == "true"
+        finally:
+            await conn0.execute("DELETE FROM users WHERE id = 'u_ws'")
+            await conn0.execute("DELETE FROM sites WHERE id = 's_ws'")
+            await conn0.execute("DELETE FROM organizations WHERE id = 'org_ws'")
+            await pool.release(conn0)
+            await pool.close()
+
+    asyncio.run(main())
+
+
+# ---------------------------------------------------------------------------
 # Connection scoping (real database)
 # ---------------------------------------------------------------------------
 
