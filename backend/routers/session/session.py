@@ -6,7 +6,7 @@ Handles connect/disconnect operations and instance selection.
 """
 
 from fastapi import Depends, APIRouter, HTTPException, Request, UploadFile, File, Form
-from org_scope import assert_row_in_acting_org, org_conn_admin
+from org_scope import assert_row_in_acting_org, org_conn_admin, org_conn_self
 from starlette.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
@@ -51,6 +51,23 @@ class SiteResponse(BaseModel):
     role: str  # User's role in this site (OWNER, ADMIN, VIEWER)
     created_at: datetime
     updated_at: datetime
+
+
+class OrganizationMembership(BaseModel):
+    """An organization the caller belongs to, with their role in it."""
+
+    id: str
+    name: str
+    org_role: str  # OWNER, ADMIN, or MEMBER
+
+
+class OrganizationsResponse(BaseModel):
+    """The caller's organizations. org_ui_visible mirrors the frontend rule
+    (more than one membership) so the org UI is suppressed for single-team
+    deployments without the client re-deriving it."""
+
+    organizations: List[OrganizationMembership]
+    org_ui_visible: bool
 
 
 class SiteCreateRequest(BaseModel):
@@ -440,6 +457,37 @@ async def disconnect_from_instance(request: Request, conn: asyncpg.Connection = 
 # ============================================================================
 # Endpoint: List User's Sites
 # ============================================================================
+
+
+@router.get("/organizations", response_model=OrganizationsResponse)
+async def list_user_organizations(request: Request, conn: asyncpg.Connection = Depends(org_conn_self)):
+    """The caller's organization memberships.
+
+    Backs the frontend's org UI: the grouping header and switcher render only
+    when the caller belongs to more than one organization (org_ui_visible),
+    so single-team deployments never see the org layer.
+    """
+    if not hasattr(request.state, "user") or not request.state.user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    rows = await conn.fetch(
+        """
+        SELECT o.id, o.name, m."orgRole" AS org_role
+        FROM org_memberships m
+        JOIN organizations o ON o.id = m."orgId"
+        WHERE m."userId" = $1
+        ORDER BY o.name
+        """,
+        request.state.user["id"],
+    )
+    orgs = [
+        OrganizationMembership(id=r["id"], name=r["name"], org_role=r["org_role"])
+        for r in rows
+    ]
+    return OrganizationsResponse(
+        organizations=orgs,
+        org_ui_visible=len(orgs) > 1,
+    )
 
 
 @router.get("/sites", response_model=List[SiteResponse])

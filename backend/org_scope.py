@@ -204,6 +204,22 @@ async def org_conn(request: Request) -> AsyncIterator[asyncpg.Connection]:
         yield conn
 
 
+async def org_conn_self(request: Request) -> AsyncIterator[asyncpg.Connection]:
+    """Connection for endpoints that read only the caller's OWN rows
+    (userId-scoped, e.g. listing the caller's organization memberships).
+
+    Sets the operator bypass so those reads succeed under RLS without needing
+    a single acting org; safe because every query on this connection is scoped
+    to the caller's user id, so nothing else can be returned.
+    """
+    pool = _require_pool(request)
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            await conn.execute(
+                "SELECT set_config('app.is_system_admin', 'true', true)")
+            yield conn
+
+
 async def org_conn_admin(
     request: Request,
     org_id: Optional[str] = Query(
