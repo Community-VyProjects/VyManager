@@ -21,8 +21,9 @@ from starlette.concurrency import run_in_threadpool
 
 from session_vyos_service import get_session_vyos_service, _session_device_registry
 from fastapi_permissions import require_read_permission
-from org_scope import request_scoped_conn
-from rbac_permissions import FeatureGroup
+from org_scope import org_id_from_state, request_scoped_conn
+from rbac_permissions import FeatureGroup, PermissionLevel, check_permission
+import revocation_bus
 from events.event_manager import (
     event_manager,
     EVENT_CONFIG_DIFF,
@@ -112,6 +113,20 @@ async def banner_events(request: Request):
     instance_id = instance["id"]
     user_id = request.state.user["id"]
     queue = event_manager.subscribe(instance_id)
+    revocations = revocation_bus.subscribe()
+
+    async def _access_revoked() -> bool:
+        """Re-check the user still has read access on this instance."""
+        try:
+            async with request_scoped_conn(request) as conn:
+                if not await _has_active_session(conn, user_id, instance_id):
+                    return True
+                return not await check_permission(
+                    conn, user_id, instance_id,
+                    FeatureGroup.CONFIGURATION, PermissionLevel.READ,
+                    org_id=org_id_from_state(request))
+        except Exception:
+            return False  # assume valid when the database is unavailable
 
     async def event_stream():
         try:
@@ -120,29 +135,39 @@ async def banner_events(request: Request):
             yield _format_sse("banner_state", initial)
 
             while True:
-                try:
-                    # Wait for events with a timeout for keepalive
-                    payload = await asyncio.wait_for(queue.get(), timeout=30)
-                    yield f"data: {payload}\n\n"
-                except asyncio.TimeoutError:
-                    # Close the stream if the user's session has expired.
-                    # One short org-scoped connection per tick — a stream
-                    # must never hold a transaction open between ticks.
-                    try:
-                        async with request_scoped_conn(request) as conn:
-                            still_active = await _has_active_session(
-                                conn, user_id, instance_id)
-                    except Exception:
-                        still_active = True  # assume valid when DB is unavailable
-                    if not still_active:
-                        break
-                    yield ": keepalive\n\n"
-                except asyncio.CancelledError:
+                # Wake on a banner event, a revocation notification, or the
+                # keepalive timeout — whichever comes first.
+                get_event = asyncio.ensure_future(queue.get())
+                get_revoke = asyncio.ensure_future(revocations.get())
+                done, pending = await asyncio.wait(
+                    {get_event, get_revoke}, timeout=30,
+                    return_when=asyncio.FIRST_COMPLETED)
+                for fut in pending:
+                    fut.cancel()
+
+                if get_revoke in done:
+                    payload = get_revoke.result()
+                    if revocation_bus.payload_matches(
+                            payload, user_id=user_id, instance_id=instance_id):
+                        if await _access_revoked():
+                            break
+                    continue
+
+                if get_event in done:
+                    yield f"data: {get_event.result()}\n\n"
+                    continue
+
+                # Timeout: the poll-tick floor re-checks access even if no
+                # notification arrived (a stream must never hold a transaction
+                # open between ticks).
+                if await _access_revoked():
                     break
+                yield ": keepalive\n\n"
         except asyncio.CancelledError:
             pass
         finally:
             event_manager.unsubscribe(instance_id, queue)
+            revocation_bus.unsubscribe(revocations)
 
     return StreamingResponse(
         event_stream(),

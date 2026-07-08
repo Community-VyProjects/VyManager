@@ -111,6 +111,7 @@ from routers.console import console as console_router
 from routers import version as version_router
 from routers import events as events_router
 from routers.events import start_poller, stop_poller
+import revocation_bus
 
 # Global variables
 db_pool: Optional[asyncpg.Pool] = None
@@ -234,6 +235,14 @@ async def lifespan(app: FastAPI):
     poller_task = start_poller(app.state)
     print("  ✓ SSE banner poller started")
 
+    # Start the revocation bus listener
+    if db_pool:
+        try:
+            await revocation_bus.start(db_pool)
+            print("  ✓ Revocation bus listening")
+        except Exception as e:
+            print(f"  ⚠ Revocation bus not started: {e}")
+
     print("\n" + "=" * 60)
     print("✓ API Ready")
     print("=" * 60)
@@ -245,6 +254,12 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     print("\n🛑 Shutting down VyManager API...")
+
+    # Stop the revocation bus listener
+    try:
+        await revocation_bus.stop()
+    except Exception:
+        pass
 
     # Stop SSE banner poller
     stop_poller()
