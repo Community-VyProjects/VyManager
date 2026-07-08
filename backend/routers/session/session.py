@@ -676,16 +676,22 @@ async def create_site(request: Request, body: SiteCreateRequest, conn: asyncpg.C
         alphabet = string.ascii_letters + string.digits
         site_id = ''.join(secrets.choice(alphabet) for _ in range(32))
 
-        # Create site
+        # Create the site in the caller's acting organization. Set it
+        # explicitly (the org_conn_admin dependency resolved it) rather than
+        # relying on the column's DEFAULT, so the DEFAULT can be dropped at
+        # the enforcement flip. Falls back to the default org when there is
+        # no org context (single-org / pre-flip).
+        acting_org = getattr(request.state, "acting_org_id", None) or "default"
         site = await conn.fetchrow(
             """
-            INSERT INTO sites (id, name, description, "createdAt", "updatedAt")
-            VALUES ($1, $2, $3, NOW(), NOW())
+            INSERT INTO sites (id, name, description, "orgId", "createdAt", "updatedAt")
+            VALUES ($1, $2, $3, $4, NOW(), NOW())
             RETURNING id, name, description, "createdAt", "updatedAt"
             """,
             site_id,
             body.name,
             body.description,
+            acting_org,
         )
 
         return SiteResponse(
