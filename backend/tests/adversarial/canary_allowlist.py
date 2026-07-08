@@ -30,13 +30,9 @@ PERMANENT_GLOBAL = {
         "the same file use org-scoped connections per tick.",
 }
 
-# Files not yet migrated to org-scoped connections. Each conversion wave
-# removes its entries; the target end state is an empty dict.
-MIGRATION_PENDING = {
-    # WebSocket handlers authenticate and authorize outside the HTTP
-    # middleware stack; their org scoping lands with the SSE/WS
-    # revocation-bus hardening item. HTTP handlers in these files
-    # already use org-scoped connections.
-    "routers/monitoring/monitoring.py": "monitoring websocket sessions",
-    "routers/console/console.py": "console shell websocket sessions",
-}
+# Files not yet migrated to org-scoped connections. The conversion waves
+# have emptied this list: every backend database access now goes through an
+# org-scoped connection (org_scope), and the WebSocket surfaces resolve org
+# context via ws_org_conn. A new entry here must carry a justification in the
+# PR that adds it.
+MIGRATION_PENDING = {}

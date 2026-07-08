@@ -30,7 +30,8 @@ from fastapi import APIRouter, HTTPException, Request, WebSocket, WebSocketDisco
 from pydantic import BaseModel
 
 from fastapi_permissions import require_read_permission
-from org_scope import request_scoped_conn
+from org_scope import request_scoped_conn, ws_conn, ws_org_conn
+import revocation_bus
 from rbac_permissions import FeatureGroup, PermissionLevel, check_permission
 from session_cookie import verify_session_cookie
 from ssh_key_manager import decrypt_private_key
@@ -146,7 +147,6 @@ async def websocket_console(websocket: WebSocket):
     user_id = user_info["user_id"]
     instance_id = user_info["instance_id"]
 
-    db_pool = websocket.app.state.db_pool
 
     # If the user has an existing console session, cancel it so this new one can
     # take over. This handles browser refreshes, React Strict Mode double-mount in
@@ -172,13 +172,14 @@ async def websocket_console(websocket: WebSocket):
     _active_console_sessions.pop(user_id, None)
 
     # RBAC: require SSH_CONSOLE WRITE permission
-    has_perm = await check_permission(
-        db_pool,
-        user_id,
-        instance_id,
-        FeatureGroup.SSH_CONSOLE,
-        PermissionLevel.WRITE,
-    )
+    async with ws_org_conn(websocket, user_id, instance_id) as conn:
+        has_perm = await check_permission(
+            conn,
+            user_id,
+            instance_id,
+            FeatureGroup.SSH_CONSOLE,
+            PermissionLevel.WRITE,
+        )
 
     if not has_perm:
         await websocket.send_json({
@@ -193,7 +194,7 @@ async def websocket_console(websocket: WebSocket):
     ssh_process = None
 
     try:
-        async with db_pool.acquire() as conn:
+        async with ws_org_conn(websocket, user_id, instance_id) as conn:
             instance = await conn.fetchrow(
                 """
                 SELECT host,
@@ -451,7 +452,7 @@ async def websocket_console(websocket: WebSocket):
                 await asyncio.sleep(30)
                
                 try:
-                    async with db_pool.acquire() as conn:
+                    async with ws_conn(websocket) as conn:
                         session = await conn.fetchrow(
                             """
                             SELECT s."expiresAt"
@@ -513,13 +514,15 @@ async def websocket_console(websocket: WebSocket):
 
                             return
 
-                    still_allowed = await check_permission(
-                        db_pool,
-                        user_id,
-                        instance_id,
-                        FeatureGroup.SSH_CONSOLE,
-                        PermissionLevel.WRITE,
-                    )
+                    async with ws_org_conn(
+                            websocket, user_id, instance_id) as conn:
+                        still_allowed = await check_permission(
+                            conn,
+                            user_id,
+                            instance_id,
+                            FeatureGroup.SSH_CONSOLE,
+                            PermissionLevel.WRITE,
+                        )
 
                     if not still_allowed:
                         logger.warning(
@@ -564,10 +567,39 @@ async def websocket_console(websocket: WebSocket):
 
                     return
 
+        async def watch_revocation():
+            """Close the shell instantly when a revocation removes access
+            (the 30s monitor_auth loop is the floor)."""
+            queue = revocation_bus.subscribe()
+            try:
+                while True:
+                    payload = await queue.get()
+                    if not revocation_bus.payload_matches(
+                            payload, user_id=user_id, instance_id=instance_id):
+                        continue
+                    try:
+                        async with ws_org_conn(
+                                websocket, user_id, instance_id) as conn:
+                            still = await check_permission(
+                                conn, user_id, instance_id,
+                                FeatureGroup.SSH_CONSOLE,
+                                PermissionLevel.WRITE)
+                    except Exception:
+                        still = True  # DB unavailable: do not tear down
+                    if not still:
+                        await _safe_send(websocket, {
+                            "type": "disconnected",
+                            "reason": "Permissions revoked",
+                        })
+                        return
+            finally:
+                revocation_bus.unsubscribe(queue)
+
         output_task = asyncio.create_task(stream_output())
         input_task = asyncio.create_task(forward_input())
         duration_task = asyncio.create_task(check_max_duration())
         auth_task = asyncio.create_task(monitor_auth())
+        revocation_task = asyncio.create_task(watch_revocation())
 
         done, pending = await asyncio.wait(
             [
@@ -575,6 +607,7 @@ async def websocket_console(websocket: WebSocket):
                 input_task,
                 duration_task,
                 auth_task,
+                revocation_task,
             ],
             return_when=asyncio.FIRST_COMPLETED,
         )
@@ -739,7 +772,7 @@ async def _authenticate_websocket(websocket: WebSocket) -> Optional[dict]:
         await websocket.close()
         return None
 
-    async with db_pool.acquire() as conn:
+    async with ws_conn(websocket) as conn:
         session = await conn.fetchrow(
             """
             SELECT s.id,

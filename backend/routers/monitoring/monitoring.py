@@ -23,7 +23,13 @@ from pydantic import BaseModel, Field
 from monitoring_commands import build_command, get_available_commands
 from rbac_permissions import FeatureGroup, check_permission, PermissionLevel
 from fastapi_permissions import require_read_permission, require_super_admin
-from org_scope import assert_row_in_acting_org, request_scoped_conn
+from org_scope import (
+    assert_row_in_acting_org,
+    request_scoped_conn,
+    ws_conn,
+    ws_org_conn,
+)
+import revocation_bus
 from session_cookie import verify_session_cookie
 from ssh_key_manager import decrypt_private_key, generate_keypair
 
@@ -283,7 +289,6 @@ async def websocket_monitor(websocket: WebSocket):
 
     user_id = user_info["user_id"]
     instance_id = user_info["instance_id"]
-    db_pool = websocket.app.state.db_pool
 
     # Check if user already has an active monitoring session
     if user_id in _active_sessions and not _active_sessions[user_id].done():
@@ -294,10 +299,12 @@ async def websocket_monitor(websocket: WebSocket):
         await websocket.close()
         return
 
-    # Check WRITE permission for MONITORING
-    has_permission = await check_permission(
-        db_pool, user_id, instance_id, FeatureGroup.MONITORING, PermissionLevel.WRITE
-    )
+    # Check WRITE permission for MONITORING on a short org-scoped connection.
+    async with ws_org_conn(websocket, user_id, instance_id) as conn:
+        has_permission = await check_permission(
+            conn, user_id, instance_id,
+            FeatureGroup.MONITORING, PermissionLevel.WRITE,
+        )
     if not has_permission:
         await websocket.send_json({
             "type": "error",
@@ -331,8 +338,8 @@ async def websocket_monitor(websocket: WebSocket):
             await websocket.close()
             return
 
-        # Get instance SSH config
-        async with db_pool.acquire() as conn:
+        # Get instance SSH config (short org-scoped connection)
+        async with ws_org_conn(websocket, user_id, instance_id) as conn:
             instance = await conn.fetchrow(
                 """
                 SELECT host, "sshPort", "sshUsername", "sshEncryptedPrivKey",
@@ -466,12 +473,35 @@ async def websocket_monitor(websocket: WebSocket):
                     })
                     return
 
+        async def watch_revocation():
+            """Close the stream when a revocation removes MONITORING access."""
+            queue = revocation_bus.subscribe()
+            try:
+                while True:
+                    payload = await queue.get()
+                    if not revocation_bus.payload_matches(
+                            payload, user_id=user_id, instance_id=instance_id):
+                        continue
+                    try:
+                        async with ws_org_conn(
+                                websocket, user_id, instance_id) as conn:
+                            still = await check_permission(
+                                conn, user_id, instance_id,
+                                FeatureGroup.MONITORING, PermissionLevel.WRITE)
+                    except Exception:
+                        still = True  # DB unavailable: do not tear down
+                    if not still:
+                        return
+            finally:
+                revocation_bus.unsubscribe(queue)
+
         output_task = asyncio.create_task(stream_output())
         stop_task = asyncio.create_task(listen_for_stop())
         duration_task = asyncio.create_task(check_max_duration())
+        revocation_task = asyncio.create_task(watch_revocation())
 
         done, pending = await asyncio.wait(
-            [output_task, stop_task, duration_task],
+            [output_task, stop_task, duration_task, revocation_task],
             return_when=asyncio.FIRST_COMPLETED,
         )
 
@@ -525,8 +555,7 @@ async def _authenticate_websocket(websocket: WebSocket) -> Optional[dict]:
     Authenticate WebSocket connection using session cookie.
     Returns user_info dict or None if auth fails.
     """
-    db_pool = getattr(websocket.app.state, "db_pool", None)
-    if not db_pool:
+    if getattr(websocket.app.state, "db_pool", None) is None:
         await websocket.send_json({"type": "error", "data": "Database not available"})
         await websocket.close()
         return None
@@ -547,7 +576,7 @@ async def _authenticate_websocket(websocket: WebSocket) -> Optional[dict]:
         await websocket.close()
         return None
 
-    async with db_pool.acquire() as conn:
+    async with ws_conn(websocket) as conn:
         session = await conn.fetchrow(
             """
             SELECT s.id, s."userId", s."expiresAt", u.email, u.name
