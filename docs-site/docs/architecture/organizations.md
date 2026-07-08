@@ -82,9 +82,35 @@ GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO vym_runtime;
 REVOKE UPDATE, DELETE ON "audit_logs" FROM vym_runtime;  -- append-only
 ```
 
-At the flip the app connects as `vym_runtime` (Prisma keeps migrating as the
-owner), policies get `FORCE`d, and the policy coverage extends to the remaining
-authz tables.
+## Enabling enforcement (operator runbook)
+
+Enforcement is opt-in and off by default. When you are ready to turn the org
+boundary on for a deployment, in order:
+
+1. Create the low-privilege runtime role and grant it least privilege (the SQL
+   under "Row-level security" above), keeping `audit_logs` append-only.
+2. `FORCE` row-level security so the app — connecting as the non-owning runtime
+   role — is subject to the policies:
+
+   ```sql
+   ALTER TABLE organizations           FORCE ROW LEVEL SECURITY;
+   ALTER TABLE sites                   FORCE ROW LEVEL SECURITY;
+   ALTER TABLE org_memberships         FORCE ROW LEVEL SECURITY;
+   ALTER TABLE instances               FORCE ROW LEVEL SECURITY;
+   ALTER TABLE user_instance_roles     FORCE ROW LEVEL SECURITY;
+   ALTER TABLE user_feature_permissions FORCE ROW LEVEL SECURITY;
+   ```
+
+3. Point the backend's `DATABASE_URL` at the `vym_runtime` role (Prisma keeps
+   migrating as the owner via its own connection string).
+4. Set `ORG_ENFORCEMENT=1` on the backend.
+
+The context that RLS keys on is derived per request: the identity/instance
+resolution reads run with a short, user-scoped operator bypass so they can
+find *which* org before the policies apply, then every handler query runs
+under the real org context. The System Administrator (`users.role=ADMIN`)
+bypasses org isolation; org `ADMIN`/`OWNER` members get full access on their
+own org's instances; everyone else is confined to their grants.
 
 ## What is deliberately not here yet
 
