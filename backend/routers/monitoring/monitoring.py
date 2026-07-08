@@ -110,7 +110,7 @@ async def generate_ssh_key(instance_id: str, request: Request):
     """Generate a new SSH keypair for an instance. Requires site ADMIN."""
     await require_super_admin(request)
 
-    keypair = generate_keypair()
+    keypair = generate_keypair(instance_id)
 
     async with request_scoped_conn(request) as conn:
         await _assert_instance_in_acting_org(request, conn, instance_id)
@@ -377,6 +377,7 @@ async def websocket_monitor(websocket: WebSocket):
             private_key_pem = decrypt_private_key(
                 instance["sshEncryptedPrivKey"],
                 instance["sshKeyNonce"],
+                instance_id,
             )
             private_key = asyncssh.import_private_key(private_key_pem.decode("utf-8"))
         except Exception:

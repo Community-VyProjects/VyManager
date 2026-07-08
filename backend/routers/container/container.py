@@ -353,7 +353,7 @@ async def _run_container_ssh_command(
 
     # --- Key decryption ---
     try:
-        private_key_pem = decrypt_private_key(row["sshEncryptedPrivKey"], row["sshKeyNonce"])
+        private_key_pem = decrypt_private_key(row["sshEncryptedPrivKey"], row["sshKeyNonce"], instance_id)
         private_key = asyncssh.import_private_key(private_key_pem.decode("utf-8"))
     except Exception as exc:
         logger.exception("Failed to decrypt SSH key for instance %s", instance_id)
@@ -434,7 +434,7 @@ async def _get_ssh_connection(request: Request) -> tuple:
         raise HTTPException(status_code=409, detail="SSH private key missing.")
 
     try:
-        private_key_pem = decrypt_private_key(row["sshEncryptedPrivKey"], row["sshKeyNonce"])
+        private_key_pem = decrypt_private_key(row["sshEncryptedPrivKey"], row["sshKeyNonce"], instance["id"])
         private_key = asyncssh.import_private_key(private_key_pem.decode("utf-8"))
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to decrypt SSH key: {exc}")
