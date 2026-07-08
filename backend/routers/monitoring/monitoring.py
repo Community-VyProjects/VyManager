@@ -23,7 +23,7 @@ from pydantic import BaseModel, Field
 from monitoring_commands import build_command, get_available_commands
 from rbac_permissions import FeatureGroup, check_permission, PermissionLevel
 from fastapi_permissions import require_read_permission, require_super_admin
-from org_scope import request_scoped_conn
+from org_scope import assert_row_in_acting_org, request_scoped_conn
 from session_cookie import verify_session_cookie
 from ssh_key_manager import decrypt_private_key, generate_keypair
 
@@ -83,6 +83,22 @@ class CommandsListResponse(BaseModel):
 # SSH Key Management Endpoints (instance-id based, site ADMIN required)
 # ============================================================================
 
+async def _assert_instance_in_acting_org(request, conn, instance_id: str) -> None:
+    """Confirm a path instance_id belongs to the caller's organization.
+
+    These SSH-key endpoints take an instance id in the path rather than the
+    caller's active instance, so the id must be org-checked directly.
+    """
+    org_id = await conn.fetchval(
+        'SELECT s."orgId" FROM instances i'
+        ' JOIN sites s ON i."siteId" = s.id WHERE i.id = $1',
+        instance_id,
+    )
+    if org_id is None:
+        raise HTTPException(status_code=404, detail="Instance not found")
+    await assert_row_in_acting_org(request, conn, org_id)
+
+
 @router.post("/instances/{instance_id}/ssh-key/generate", response_model=SSHKeyGenerateResponse)
 async def generate_ssh_key(instance_id: str, request: Request):
     """Generate a new SSH keypair for an instance. Requires site ADMIN."""
@@ -91,6 +107,7 @@ async def generate_ssh_key(instance_id: str, request: Request):
     keypair = generate_keypair()
 
     async with request_scoped_conn(request) as conn:
+        await _assert_instance_in_acting_org(request, conn, instance_id)
         updated = await conn.fetchval(
             """
             UPDATE instances
@@ -122,6 +139,7 @@ async def get_ssh_key_status(instance_id: str, request: Request):
     await require_super_admin(request)
 
     async with request_scoped_conn(request) as conn:
+        await _assert_instance_in_acting_org(request, conn, instance_id)
         row = await conn.fetchrow(
             """
             SELECT "sshPublicKey", "sshKeyConfigured", "sshPort", "sshUsername"
@@ -148,6 +166,7 @@ async def mark_ssh_key_configured(instance_id: str, request: Request, body: Mark
     await require_super_admin(request)
 
     async with request_scoped_conn(request) as conn:
+        await _assert_instance_in_acting_org(request, conn, instance_id)
         has_key = await conn.fetchval(
             'SELECT "sshPublicKey" IS NOT NULL FROM instances WHERE id = $1',
             instance_id,
@@ -179,6 +198,7 @@ async def delete_ssh_key(instance_id: str, request: Request):
     await require_super_admin(request)
 
     async with request_scoped_conn(request) as conn:
+        await _assert_instance_in_acting_org(request, conn, instance_id)
         updated = await conn.fetchval(
             """
             UPDATE instances

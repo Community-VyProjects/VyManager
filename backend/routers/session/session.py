@@ -6,7 +6,7 @@ Handles connect/disconnect operations and instance selection.
 """
 
 from fastapi import Depends, APIRouter, HTTPException, Request, UploadFile, File, Form
-from org_scope import org_conn_admin
+from org_scope import assert_row_in_acting_org, org_conn_admin
 from starlette.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
@@ -729,14 +729,15 @@ async def update_site(request: Request, site_id: str, body: SiteUpdateRequest, c
                 detail="Only site ADMIN users can update sites"
             )
 
-        # Verify site exists
-        site_exists = await conn.fetchval(
-            "SELECT EXISTS(SELECT 1 FROM sites WHERE id = $1)",
+        # Verify site exists and belongs to the caller's organization
+        site_org = await conn.fetchval(
+            'SELECT "orgId" FROM sites WHERE id = $1',
             site_id
         )
 
-        if not site_exists:
+        if site_org is None:
             raise HTTPException(status_code=404, detail="Site not found")
+        await assert_row_in_acting_org(request, conn, site_org)
 
         # Build update query dynamically
         updates = []
@@ -812,14 +813,15 @@ async def delete_site(request: Request, site_id: str, conn: asyncpg.Connection =
                 detail="Only site ADMIN users can delete sites"
             )
 
-        # Verify site exists
-        site_exists = await conn.fetchval(
-            "SELECT EXISTS(SELECT 1 FROM sites WHERE id = $1)",
+        # Verify site exists and belongs to the caller's organization
+        site_org = await conn.fetchval(
+            'SELECT "orgId" FROM sites WHERE id = $1',
             site_id
         )
 
-        if not site_exists:
+        if site_org is None:
             raise HTTPException(status_code=404, detail="Site not found")
+        await assert_row_in_acting_org(request, conn, site_org)
 
         async with conn.transaction():
             # Delete will cascade to instances and user_instance_roles
@@ -876,14 +878,15 @@ async def create_instance(request: Request, body: InstanceCreateRequest, conn: a
                 detail="Only site ADMIN users can create instances"
             )
 
-        # Verify site exists
-        site_exists = await conn.fetchval(
-            "SELECT EXISTS(SELECT 1 FROM sites WHERE id = $1)",
+        # Verify target site exists and belongs to the caller's organization
+        site_org = await conn.fetchval(
+            'SELECT "orgId" FROM sites WHERE id = $1',
             body.site_id
         )
 
-        if not site_exists:
+        if site_org is None:
             raise HTTPException(status_code=404, detail="Site not found")
+        await assert_row_in_acting_org(request, conn, site_org)
 
         # Generate instance ID
         import secrets
@@ -985,23 +988,27 @@ async def update_instance(request: Request, instance_id: str, body: InstanceUpda
                 detail="Only site ADMIN users can update instances"
             )
 
-        # Verify instance exists
-        instance_exists = await conn.fetchval(
-            "SELECT EXISTS(SELECT 1 FROM instances WHERE id = $1)",
+        # Verify instance exists and its site is in the caller's organization
+        instance_org = await conn.fetchval(
+            'SELECT s."orgId" FROM instances i'
+            ' JOIN sites s ON i."siteId" = s.id WHERE i.id = $1',
             instance_id
         )
 
-        if not instance_exists:
+        if instance_org is None:
             raise HTTPException(status_code=404, detail="Instance not found")
+        await assert_row_in_acting_org(request, conn, instance_org)
 
-        # If moving to a different site, verify target site exists
+        # If moving to a different site, verify the target site exists and
+        # is in the caller's organization (no cross-org moves).
         if body.site_id:
-            target_site_exists = await conn.fetchval(
-                "SELECT EXISTS(SELECT 1 FROM sites WHERE id = $1)",
+            target_site_org = await conn.fetchval(
+                'SELECT "orgId" FROM sites WHERE id = $1',
                 body.site_id
             )
-            if not target_site_exists:
+            if target_site_org is None:
                 raise HTTPException(status_code=404, detail="Target site not found")
+            await assert_row_in_acting_org(request, conn, target_site_org)
 
         # Build update query dynamically
         updates = []
@@ -1176,14 +1183,16 @@ async def delete_instance(request: Request, instance_id: str, conn: asyncpg.Conn
                 detail="Only site ADMIN users can delete instances"
             )
 
-        # Verify instance exists
-        instance_exists = await conn.fetchval(
-            "SELECT EXISTS(SELECT 1 FROM instances WHERE id = $1)",
+        # Verify instance exists and its site is in the caller's organization
+        instance_org = await conn.fetchval(
+            'SELECT s."orgId" FROM instances i'
+            ' JOIN sites s ON i."siteId" = s.id WHERE i.id = $1',
             instance_id
         )
 
-        if not instance_exists:
+        if instance_org is None:
             raise HTTPException(status_code=404, detail="Instance not found")
+        await assert_row_in_acting_org(request, conn, instance_org)
 
         # Delete instance
         result = await conn.execute(
