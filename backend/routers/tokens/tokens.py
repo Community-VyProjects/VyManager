@@ -9,6 +9,7 @@ at creation and never again; only its sha256 hash is stored.
 
 from fastapi import Depends, APIRouter, HTTPException, Request
 from org_scope import assert_row_in_acting_org, org_conn_admin
+import revocation_bus
 from pydantic import BaseModel, Field
 from typing import List, Optional
 from datetime import datetime, timedelta
@@ -187,6 +188,10 @@ async def revoke_token(request: Request, token_id: str, conn: asyncpg.Connection
     # asyncpg returns e.g. "UPDATE 1" / "UPDATE 0"; 0 rows = nothing to revoke.
     if int(result.split()[-1]) == 0:
         raise HTTPException(status_code=404, detail="Token not found or already revoked")
+
+    # Same transaction as the revoke: close the owner's live streams at once.
+    await revocation_bus.emit(conn, "token", token_id)
+    await revocation_bus.emit(conn, "user", user["id"])
 
     logger.info("API token revoked for user %s (id=%s)", user["id"], token_id)
     return {"success": True}

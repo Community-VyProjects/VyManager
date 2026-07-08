@@ -8,6 +8,7 @@ import os
 
 from fastapi import Depends, APIRouter, HTTPException, Request
 from org_scope import assert_row_in_acting_org, org_conn_admin
+import revocation_bus
 from pydantic import BaseModel, Field, EmailStr
 from typing import List, Dict, Optional, Any
 from datetime import datetime
@@ -586,10 +587,12 @@ async def remove_assignment(request: Request, assignment_id: str, conn: asyncpg.
     await require_super_admin(request)
 
     # Resolve the grant's organization (via its instance's site, or its
-    # whole-site grant) and confirm it is in the caller's org before deleting.
-    grant_org = await conn.fetchval(
+    # whole-site grant) and the grantee, then confirm the org is in the
+    # caller's org before deleting.
+    grant = await conn.fetchrow(
         '''
-        SELECT COALESCE(si."orgId", ss."orgId")
+        SELECT uir."userId" AS grantee,
+               COALESCE(si."orgId", ss."orgId") AS org_id
         FROM user_instance_roles uir
         LEFT JOIN instances i ON uir."instanceId" = i.id
         LEFT JOIN sites si ON i."siteId" = si.id
@@ -598,12 +601,14 @@ async def remove_assignment(request: Request, assignment_id: str, conn: asyncpg.
         ''',
         assignment_id,
     )
-    if grant_org is None:
+    if grant is None or grant["org_id"] is None:
         raise HTTPException(status_code=404, detail="Assignment not found")
-    await assert_row_in_acting_org(request, conn, grant_org)
+    await assert_row_in_acting_org(request, conn, grant["org_id"])
 
-    # Delete assignment
+    # Delete assignment and, in the same transaction, revoke the grantee's
+    # live streams so lost access takes effect at once, not on the next tick.
     await conn.execute("DELETE FROM user_instance_roles WHERE id = $1", assignment_id)
+    await revocation_bus.emit(conn, "user", grant["grantee"])
 
     return SuccessResponse(success=True, message="Assignment removed successfully")
 
