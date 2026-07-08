@@ -1,7 +1,7 @@
 import { betterAuth } from "better-auth";
 import { genericOAuth } from "better-auth/plugins";
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { PrismaClient, type InstanceRole } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 import {
   extractClaimValues,
   resolveRoleMapping,
@@ -14,11 +14,6 @@ import {
 
 const prisma = new PrismaClient();
 
-// Marks UserInstanceRole rows that are managed by SSO group mapping, so the
-// reconciler only ever adds/removes its own assignments and never deletes
-// instance access an admin granted manually.
-const SSO_ASSIGNED_BY = "sso";
-
 // New users don't exist yet when mapProfileToUser runs, so their resolved
 // grants are stashed by email and consumed in the user.create.after hook once
 // the row exists. Keyed by email; entries are short-lived (set and consumed
@@ -28,134 +23,44 @@ const pendingGrants = new Map<
   { instanceGrants: ResolvedInstanceGrant[]; siteGrants: ResolvedSiteGrant[] }
 >();
 
-// Most-privileged role wins when an instance is granted more than once (e.g. via
-// a whole-site grant plus an explicit instance grant).
-const INSTANCE_ROLE_RANK: Record<string, number> = {
-  ADMIN: 3,
-  OPERATOR: 2,
-  EDITOR: 2,
-  VIEWER: 1,
-};
-
-function mergePerms(
-  base: InstanceFeaturePermission[],
-  extra: InstanceFeaturePermission[],
-): InstanceFeaturePermission[] {
-  const byFeature = new Map<string, InstanceFeaturePermission>();
-  for (const p of [...base, ...extra]) {
-    const ex = byFeature.get(p.feature);
-    if (!ex) byFeature.set(p.feature, { ...p });
-    else {
-      ex.canEdit = ex.canEdit || p.canEdit;
-      ex.canView = ex.canView || p.canView;
-    }
-  }
-  return Array.from(byFeature.values());
-}
-
-interface DesiredGrant {
-  instanceRole: InstanceRole;
-  featurePermissions: InstanceFeaturePermission[];
-}
-
 /**
- * Reconcile a user's SSO-managed instance assignments (issue #359). Site grants
- * are expanded to every instance in the site, then explicit instance grants are
- * merged on top (most-privileged role + union of feature permissions). The IdP
- * is authoritative: SSO-managed rows not in the desired set are removed. Manual
- * (non-SSO) assignments are left intact unless SSO also grants that instance.
+ * Notify the backend to reconcile a user's SSO-managed grants (Golden Rule,
+ * RFC 3.3). The frontend is banned from writing authorization tables
+ * (user_instance_roles / user_feature_permissions); it no longer computes or
+ * writes grants here. It only tells the backend that an SSO login happened,
+ * by user reference. The backend re-derives the IdP claims from the user's
+ * stored account token — never from anything the frontend asserts — and
+ * applies oauth_role_mappings itself.
+ *
+ * TIMING (verify on a live IdP before merge): the backend reads the stored
+ * account id_token, so this notification must fire AFTER Better Auth has
+ * persisted the fresh token for this login. If a reconcile lags one login,
+ * move this call to an account.create/update after-hook.
  */
-async function reconcileGrants(
-  userId: string,
-  instanceGrants: ResolvedInstanceGrant[],
-  siteGrants: ResolvedSiteGrant[],
-): Promise<void> {
-  const desired = new Map<string, DesiredGrant>();
-  const add = (
-    instanceId: string,
-    role: InstanceRole,
-    perms: InstanceFeaturePermission[],
-  ) => {
-    const ex = desired.get(instanceId);
-    if (!ex) {
-      desired.set(instanceId, { instanceRole: role, featurePermissions: mergePerms([], perms) });
-      return;
-    }
-    if ((INSTANCE_ROLE_RANK[role] ?? 0) > (INSTANCE_ROLE_RANK[ex.instanceRole] ?? 0)) {
-      ex.instanceRole = role;
-    }
-    ex.featurePermissions = mergePerms(ex.featurePermissions, perms);
-  };
-
-  // Expand whole-site grants to each instance in the site.
-  if (siteGrants.length) {
-    const bySite = new Map(siteGrants.map((g) => [g.siteId, g]));
-    const instances = await prisma.instance.findMany({
-      where: { siteId: { in: [...bySite.keys()] } },
-      select: { id: true, siteId: true },
-    });
-    for (const inst of instances) {
-      const g = bySite.get(inst.siteId);
-      if (g) add(inst.id, g.instanceRole, g.featurePermissions);
-    }
+async function reconcileGrants(userId: string): Promise<void> {
+  const backendUrl = process.env.BACKEND_URL;
+  const secret =
+    process.env.INTERNAL_API_SECRET || process.env.BETTER_AUTH_SECRET;
+  if (!backendUrl || !secret) {
+    console.error(
+      "[SSO] BACKEND_URL / internal secret missing; cannot reconcile grants",
+    );
+    return;
   }
-  for (const g of instanceGrants) add(g.instanceId, g.instanceRole, g.featurePermissions);
-
-  // Only act on instances that still exist (avoids FK errors on stale rules).
-  const validInstanceIds = new Set<string>();
-  if (desired.size) {
-    const rows = await prisma.instance.findMany({
-      where: { id: { in: [...desired.keys()] } },
-      select: { id: true },
-    });
-    for (const r of rows) validInstanceIds.add(r.id);
-  }
-
-  // Remove SSO-managed assignments no longer desired (validInstanceIds is the
-  // intersection of desired and existing).
-  const ssoAssignments = await prisma.userInstanceRole.findMany({
-    where: { userId, assignedBy: SSO_ASSIGNED_BY },
-    select: { id: true, instanceId: true },
-  });
-  for (const assignment of ssoAssignments) {
-    if (!assignment.instanceId || !validInstanceIds.has(assignment.instanceId)) {
-      // Cascade deletes the assignment's UserFeaturePermission rows.
-      await prisma.userInstanceRole.delete({ where: { id: assignment.id } });
-    }
-  }
-
-  // Upsert each desired assignment and rebuild its feature permissions.
-  for (const [instanceId, grant] of desired) {
-    if (!validInstanceIds.has(instanceId)) continue;
-
-    const assignment = await prisma.userInstanceRole.upsert({
-      where: { userId_instanceId: { userId, instanceId } },
-      update: { role: grant.instanceRole, assignedBy: SSO_ASSIGNED_BY },
-      create: {
-        userId,
-        instanceId,
-        role: grant.instanceRole,
-        assignedBy: SSO_ASSIGNED_BY,
+  try {
+    const res = await fetch(`${backendUrl.replace(/\/$/, "")}/internal/sso-reconcile`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Internal-Auth": secret,
       },
+      body: JSON.stringify({ user_id: userId }),
     });
-
-    // Feature permissions only apply to OPERATOR/VIEWER; ADMIN = full access.
-    await prisma.userFeaturePermission.deleteMany({
-      where: { userInstanceRoleId: assignment.id },
-    });
-    if (grant.instanceRole !== "ADMIN" && grant.featurePermissions.length) {
-      // `feature` is a free-text column; values come from the frontend
-      // FeatureGroup taxonomy and are validated by the UI / API, not here.
-      await prisma.userFeaturePermission.createMany({
-        data: grant.featurePermissions.map((fp) => ({
-          userInstanceRoleId: assignment.id,
-          feature: fp.feature,
-          canEdit: fp.canEdit,
-          canView: fp.canView,
-        })),
-        skipDuplicates: true,
-      });
+    if (!res.ok) {
+      console.error(`[SSO] backend reconcile failed: ${res.status}`);
     }
+  } catch (e) {
+    console.error("[SSO] backend reconcile request error:", e);
   }
 }
 
@@ -255,7 +160,7 @@ async function buildAuth() {
           data: { role: resolved.siteRole },
         });
       }
-      await reconcileGrants(existing.id, resolved.instanceGrants, resolved.siteGrants);
+      await reconcileGrants(existing.id);
     } else if (
       email &&
       (resolved.instanceGrants.length > 0 || resolved.siteGrants.length > 0)
@@ -319,7 +224,7 @@ async function buildAuth() {
             const grants = pendingGrants.get(email);
             if (!grants) return;
             pendingGrants.delete(email);
-            await reconcileGrants(user.id, grants.instanceGrants, grants.siteGrants);
+            await reconcileGrants(user.id);
           },
         },
       },
