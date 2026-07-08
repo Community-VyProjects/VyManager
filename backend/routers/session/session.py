@@ -14,6 +14,7 @@ from typing import List, Dict, Optional, Any
 from datetime import datetime
 import asyncpg
 import json
+import os
 from vyos_service import VyOSService, VyOSDeviceConfig
 from session_vyos_service import clear_session_cache
 from session_cookie import verify_session_cookie
@@ -1273,11 +1274,18 @@ class BackupRequest(BaseModel):
     passphrase: str = Field(..., min_length=1, description="Encrypts the backup file")
 
 
-async def _require_backup_admin(conn: asyncpg.Connection, request: Request) -> None:
-    """Allow platform ADMINs, or anyone when the system has no users yet.
+def _empty_restore_enabled() -> bool:
+    return os.getenv("VYMANAGER_ALLOW_EMPTY_RESTORE", "").strip().lower() in (
+        "1", "true", "yes", "on"
+    )
 
-    The zero-users case covers disaster recovery onto a fresh install, where no
-    admin account exists to authenticate as.
+
+async def _require_backup_admin(conn: asyncpg.Connection, request: Request) -> None:
+    """Allow platform ADMINs. The zero-users case (disaster recovery onto a
+    fresh install, where no admin exists to authenticate as) is an
+    unauthenticated full-DB write, so it is closed by default and must be
+    explicitly enabled by the operator for the recovery via
+    VYMANAGER_ALLOW_EMPTY_RESTORE.
     """
     user = getattr(request.state, "user", None)
     if user:
@@ -1286,7 +1294,16 @@ async def _require_backup_admin(conn: asyncpg.Connection, request: Request) -> N
             return
     user_count = await conn.fetchval("SELECT COUNT(*) FROM users")
     if user_count == 0:
-        return
+        if _empty_restore_enabled():
+            logger.warning(
+                "Empty-system backup/restore permitted via "
+                "VYMANAGER_ALLOW_EMPTY_RESTORE")
+            return
+        raise HTTPException(
+            status_code=403,
+            detail="Restore on an empty system is disabled. Set "
+                   "VYMANAGER_ALLOW_EMPTY_RESTORE to enable disaster recovery.",
+        )
     raise HTTPException(status_code=403, detail="Only site ADMIN users can do this")
 
 
@@ -1433,11 +1450,20 @@ async def restore_backup(
     file: UploadFile = File(...),
     passphrase: str = Form(...),
     mode: str = Form("merge"),
+    confirm: str = Form(""),
     conn: asyncpg.Connection = Depends(org_conn_admin),
 ):
     """Restore a backup in "replace" (wipe + restore) or "merge" (upsert) mode."""
     if mode not in ("replace", "merge"):
         raise HTTPException(status_code=400, detail="mode must be 'replace' or 'merge'")
+
+    # Typed confirmation: the destructive action must be named back explicitly,
+    # defeating accidental and CSRF-style restores.
+    if confirm != mode:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Restore requires confirm='{mode}' to proceed",
+        )
 
     await _require_backup_admin(conn, request)
 
