@@ -140,6 +140,15 @@ async def _handler_conn(
     user = getattr(request.state, "user", None)
     async with pool.acquire() as conn:
         async with conn.transaction():
+            # Bootstrap bypass: the org-context derivation below reads
+            # org-scoped tables (org_memberships) to find WHO/WHERE before org
+            # context exists. Under FORCE RLS as the fenced role those reads
+            # would be denied, so run them with a temporary operator bypass.
+            # The real context is set below; the derivation queries are
+            # userId-scoped, so the bypass cannot leak another user's rows.
+            await conn.execute(
+                "SELECT set_config('app.is_system_admin', 'true', true)")
+
             org_id = org_id_from_state(request)
             is_admin = is_system_admin_from_state(request)
 
@@ -242,6 +251,10 @@ async def ws_org_conn(
     pool = _ws_pool(websocket)
     async with pool.acquire() as conn:
         async with conn.transaction():
+            # Bootstrap bypass to derive the instance's org before org context
+            # exists (see _handler_conn); overwritten with real context below.
+            await conn.execute(
+                "SELECT set_config('app.is_system_admin', 'true', true)")
             row = await conn.fetchrow(
                 'SELECT s."orgId" AS org_id,'
                 ' (SELECT role FROM users WHERE id = $2) AS role'

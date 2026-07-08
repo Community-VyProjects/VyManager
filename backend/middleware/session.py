@@ -236,35 +236,44 @@ class SessionMiddleware(BaseHTTPMiddleware):
 
         try:
             async with db_pool.acquire() as conn:
-                # Site ADMINs reach every instance; regular users need a grant.
-                user_site_role = await conn.fetchval(
-                    "SELECT role FROM users WHERE id = $1",
-                    user_id,
-                )
-                # Deployment-operator flag for org-scoped connections
-                # (org_scope.py) — resolved here anyway, so keep it.
-                request.state.user_role = user_site_role
+                # This middleware CREATES the org context by reading org-scoped
+                # tables (instances, sites) to resolve the active instance. That
+                # read happens before any org context exists, so under FORCE RLS
+                # as the fenced role it would be denied. Run the resolution in a
+                # transaction with a temporary operator bypass; every query here
+                # is scoped to this user, so the bypass cannot leak other rows.
+                async with conn.transaction():
+                    await conn.execute(
+                        "SELECT set_config('app.is_system_admin', 'true', true)")
+                    # Site ADMINs reach every instance; regular users need a grant.
+                    user_site_role = await conn.fetchval(
+                        "SELECT role FROM users WHERE id = $1",
+                        user_id,
+                    )
+                    # Deployment-operator flag for org-scoped connections
+                    # (org_scope.py) — resolved here anyway, so keep it.
+                    request.state.user_role = user_site_role
 
-                if is_token_auth:
-                    instance_id = request.headers.get("X-VyOS-Instance-Id")
-                    if instance_id:
-                        session = await self._resolve_instance_for_user(
-                            conn, user_id, user_site_role, instance_id
-                        )
-                        # Beyond the user's grant, a scoped token may only reach
-                        # the instances/sites it was restricted to.
-                        if session and not self._token_allows_instance(
-                            request, session["instance_id"], session["site_id"]
-                        ):
+                    if is_token_auth:
+                        instance_id = request.headers.get("X-VyOS-Instance-Id")
+                        if instance_id:
+                            session = await self._resolve_instance_for_user(
+                                conn, user_id, user_site_role, instance_id
+                            )
+                            # Beyond the user's grant, a scoped token may only
+                            # reach the instances/sites it was restricted to.
+                            if session and not self._token_allows_instance(
+                                request, session["instance_id"], session["site_id"]
+                            ):
+                                session = None
+                        else:
+                            # No instance named - downstream read/write handlers
+                            # report "no active instance" as for a disconnect.
                             session = None
                     else:
-                        # No instance named - downstream read/write handlers will
-                        # report "no active instance" as for a disconnected session.
-                        session = None
-                else:
-                    session = await self._resolve_cookie_instance(
-                        conn, request, path, user_id, user_site_role
-                    )
+                        session = await self._resolve_cookie_instance(
+                            conn, request, path, user_id, user_site_role
+                        )
 
                 if session:
                     # User has an active session - inject instance details.
