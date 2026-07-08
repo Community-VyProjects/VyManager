@@ -30,13 +30,15 @@ def test_rls_org_isolation_and_audit_append_only():
 
     async def main():
         owner = await asyncpg.connect(os.environ["DATABASE_URL"])
+        created = False
         try:
             try:
                 await owner.execute(f"DROP ROLE IF EXISTS {RUNTIME}")
                 await owner.execute(
                     f"CREATE ROLE {RUNTIME} NOLOGIN")
+                created = True
             except asyncpg.InsufficientPrivilegeError:
-                pytest.skip("no privilege to CREATE ROLE for the RLS proof")
+                return "skip"
 
             # The ops-step grants (mirrors the migration's guarded block).
             await owner.execute(f"GRANT USAGE ON SCHEMA public TO {RUNTIME}")
@@ -138,15 +140,16 @@ def test_rls_org_isolation_and_audit_append_only():
             await owner.execute("DELETE FROM sites WHERE id IN ('rlsA','rlsB')")
             await owner.execute(
                 "DELETE FROM organizations WHERE id IN ('rlsOA','rlsOB')")
-            await owner.execute(
-                "GRANT UPDATE, DELETE ON ALL TABLES IN SCHEMA public "
-                f"TO {RUNTIME}")  # harmless if role about to drop
-            await owner.execute(
-                "REVOKE ALL ON ALL TABLES IN SCHEMA public "
-                f"FROM {RUNTIME}")
-            await owner.execute(
-                f"REVOKE USAGE ON SCHEMA public FROM {RUNTIME}")
-            await owner.execute(f"DROP ROLE IF EXISTS {RUNTIME}")
+            if created:
+                # Revoke the role's privileges so it can be dropped.
+                await owner.execute(
+                    "REVOKE ALL ON ALL TABLES IN SCHEMA public "
+                    f"FROM {RUNTIME}")
+                await owner.execute(
+                    f"REVOKE USAGE ON SCHEMA public FROM {RUNTIME}")
+                await owner.execute(f"DROP ROLE IF EXISTS {RUNTIME}")
             await owner.close()
+        return "ok"
 
-    asyncio.run(main())
+    if asyncio.run(main()) == "skip":
+        pytest.skip("no privilege to CREATE ROLE for the RLS proof")
