@@ -59,10 +59,37 @@ file that resolves a database connection outside the sanctioned org-scoped
 path fails the suite unless it is on a reviewed allowlist that carries a
 justification per entry.
 
+## Row-level security (foundation in place, inert)
+
+The database carries row-level-security policies on the organization-hierarchy
+tables (`organizations`, `sites`, `org_memberships`, `instances`), keyed on the
+request's `app.org_id` with an operator bypass on `app.is_system_admin` — the
+same settings the org-scoped connections apply. RLS is `ENABLE`d but not
+`FORCE`d, so the table owner (the role the app connects as today) bypasses it
+entirely: **the policies are inert until the app connects as a separate,
+low-privilege runtime role at the enforcement flip.**
+
+That runtime role is created out of band — it needs a login credential and
+`CREATEROLE`, which the app's own database role usually lacks — so it is not
+created by the migration. When you are ready to enforce, create it and grant
+least privilege (audit logs stay append-only):
+
+```sql
+CREATE ROLE vym_runtime LOGIN PASSWORD '…';
+GRANT USAGE ON SCHEMA public TO vym_runtime;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO vym_runtime;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO vym_runtime;
+REVOKE UPDATE, DELETE ON "audit_logs" FROM vym_runtime;  -- append-only
+```
+
+At the flip the app connects as `vym_runtime` (Prisma keeps migrating as the
+owner), policies get `FORCE`d, and the policy coverage extends to the remaining
+authz tables.
+
 ## What is deliberately not here yet
 
-Organization management UI and APIs, org-scoped enforcement, row-level
-security and the related security hardening ship in later releases, each
-gated by an adversarial test suite that already runs today (cross-org
-negatives execute on every CI run; the target-state expectations are marked
-expected-fail until enforcement turns on).
+Organization management UI and APIs, org-scoped enforcement, the fenced-role
+connection and `FORCE` RLS, and the related security hardening ship in later
+releases, each gated by an adversarial test suite that already runs today
+(cross-org negatives execute on every CI run; the target-state expectations are
+marked expected-fail until enforcement turns on).
