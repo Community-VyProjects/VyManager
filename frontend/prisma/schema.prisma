@@ -188,8 +188,16 @@ model AuditLog {
   userAgent String?
   createdAt DateTime @default(now())
 
+  // Real context columns (nullable): the org/site/instance the action
+  // touched. The actor is userId/userEmail above.
+  orgId      String?
+  siteId     String?
+  instanceId String?
+
   @@index([userId])
   @@index([createdAt])
+  @@index([orgId])
+  @@index([instanceId])
   @@map("audit_logs")
 }
 
