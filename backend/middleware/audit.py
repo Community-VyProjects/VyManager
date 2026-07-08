@@ -26,18 +26,26 @@ logger = logging.getLogger(__name__)
 class AuditMiddleware(BaseHTTPMiddleware):
     AUDITED_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 
+    # Prefixes whose mutating calls are authz-relevant: VyOS config changes
+    # plus the admin surface (site/instance/user/grant/token/backup lifecycle).
+    AUDITED_PREFIXES = ("/vyos/", "/session/", "/user-management", "/tokens")
+
     def _should_audit(self, request) -> bool:
         if request.method not in self.AUDITED_METHODS:
             return False
-        # Config-mutating surface only. Reads (GET) and auth/session plumbing are
-        # excluded; the /vyos/* prefix covers every feature batch endpoint.
-        return request.url.path.startswith("/vyos/")
+        path = request.url.path
+        return any(path.startswith(p) for p in self.AUDITED_PREFIXES)
 
     @staticmethod
     def _feature_from_path(path: str) -> str:
-        # "/vyos/nat/batch" -> "nat"; "/vyos/firewall/ipv4/batch" -> "firewall"
+        # "/vyos/nat/batch" -> "nat"; "/vyos/firewall/ipv4/batch" -> "firewall";
+        # "/tokens" -> "tokens"; "/user-management/users" -> "user-management".
         parts = [p for p in path.split("/") if p]
-        return parts[1] if len(parts) >= 2 else "unknown"
+        if not parts:
+            return "unknown"
+        if parts[0] == "vyos":
+            return parts[1] if len(parts) >= 2 else "unknown"
+        return parts[0]
 
     async def dispatch(self, request, call_next):
         if not self._should_audit(request):
@@ -61,6 +69,11 @@ class AuditMiddleware(BaseHTTPMiddleware):
         path = request.url.path
         feature = self._feature_from_path(path)
         instance = getattr(request.state, "instance", None) or {}
+        site = getattr(request.state, "site", None) or {}
+        org = getattr(request.state, "org", None) or {}
+        # Admin-surface endpoints have no active instance, so state.org is
+        # unset; the org they acted in is the org_conn_admin acting org.
+        org_id = org.get("id") or getattr(request.state, "acting_org_id", None)
         success = response.status_code < 400
 
         details = {
@@ -84,8 +97,10 @@ class AuditMiddleware(BaseHTTPMiddleware):
                 """
                 INSERT INTO audit_logs
                     (id, "userId", "userEmail", action, resource, details,
-                     "ipAddress", "userAgent", "createdAt")
-                VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5::jsonb, $6, $7, NOW())
+                     "ipAddress", "userAgent", "orgId", "siteId", "instanceId",
+                     "createdAt")
+                VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5::jsonb, $6,
+                        $7, $8, $9, $10, NOW())
                 """,
                 user["id"],
                 user.get("email") or "",
@@ -94,4 +109,7 @@ class AuditMiddleware(BaseHTTPMiddleware):
                 json.dumps(details),
                 ip,
                 user_agent,
+                org_id,
+                site.get("id"),
+                instance.get("id"),
             )
