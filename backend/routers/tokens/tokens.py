@@ -8,7 +8,7 @@ at creation and never again; only its sha256 hash is stored.
 """
 
 from fastapi import Depends, APIRouter, HTTPException, Request
-from org_scope import org_conn_admin
+from org_scope import assert_row_in_acting_org, org_conn_admin
 from pydantic import BaseModel, Field
 from typing import List, Optional
 from datetime import datetime, timedelta
@@ -97,10 +97,37 @@ async def create_token(request: Request, body: TokenCreateRequest, conn: asyncpg
     if invalid:
         raise HTTPException(status_code=400, detail=f"Unknown scopes: {sorted(invalid)}")
     scopes = sorted(set(body.scopes))
-    # Enforcement intersects scope with the user's grants, so over-broad lists are
-    # harmless; we just dedupe what the caller asked for.
     allowed_instance_ids = sorted(set(body.allowed_instance_ids))
     allowed_site_ids = sorted(set(body.allowed_site_ids))
+
+    # FK-validate every allowed id and, under enforcement, confine it to the
+    # caller's organization so a token cannot be scoped across the org
+    # boundary at creation. A cross-org id is folded into "unknown" (same
+    # 400) rather than reported separately, so it does not leak existence of
+    # another org's instances/sites.
+    async def _validate_ids(ids, kind, query):
+        if not ids:
+            return
+        valid = set()
+        for row in await conn.fetch(query, ids):
+            try:
+                await assert_row_in_acting_org(request, conn, row["org_id"])
+                valid.add(row["id"])
+            except HTTPException:
+                pass  # cross-org: indistinguishable from unknown
+        unknown = set(ids) - valid
+        if unknown:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unknown {kind} ids: {sorted(unknown)}")
+
+    await _validate_ids(
+        allowed_instance_ids, "instance",
+        'SELECT i.id, s."orgId" AS org_id FROM instances i'
+        ' JOIN sites s ON i."siteId" = s.id WHERE i.id = ANY($1)')
+    await _validate_ids(
+        allowed_site_ids, "site",
+        'SELECT id, "orgId" AS org_id FROM sites WHERE id = ANY($1)')
 
     expires_at = (
         datetime.utcnow() + timedelta(days=body.expires_in_days)
