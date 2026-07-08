@@ -60,6 +60,7 @@ from routers.site_updates import site_updates as site_updates_router
 from routers import dashboard as dashboard_router
 from routers import user_management as user_management_router
 from routers.tokens import tokens as tokens_router
+from routers.internal import sso_reconcile as sso_reconcile_router
 from routers.operations import operations as operations_router
 from routers.monitoring import monitoring as monitoring_router
 from routers.high_availability import high_availability as high_availability_router
@@ -401,6 +402,7 @@ app.include_router(site_updates_router.router)
 app.include_router(dashboard_router.router)
 app.include_router(user_management_router.router)
 app.include_router(tokens_router.router)
+app.include_router(sso_reconcile_router.router)
 app.include_router(operations_router.router)
 app.include_router(monitoring_router.router)
 app.include_router(high_availability_router.router)

@@ -23,6 +23,11 @@ PERMANENT_GLOBAL = {
     "org_scope.py":
         "The sanctioned primitive itself - every org-scoped "
         "acquisition goes through it.",
+    "routers/internal/sso_reconcile.py":
+        "Backend-owned SSO grant reconciliation: a deployment-level "
+        "system operation triggered by the IdP (SSO is deployment-global "
+        "per the RFC), reconciling a user's grants across all their "
+        "providers - not an org-scoped user request.",
     "routers/events.py":
         "Background banner poller: no request, no org context - it "
         "iterates every instance with active subscribers, a "
