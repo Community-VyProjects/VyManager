@@ -59,6 +59,31 @@ file that resolves a database connection outside the sanctioned org-scoped
 path fails the suite unless it is on a reviewed allowlist that carries a
 justification per entry.
 
+## The Golden Rule (frontend cannot write authorization tables)
+
+Authorization tables — `org_memberships`, `user_instance_roles`,
+`user_feature_permissions`, `organizations` — are backend/migration owned. The
+frontend must not be able to write them, so a compromised frontend cannot mint
+grants or memberships. This is enforced structurally at the database: the
+frontend's Postgres role is granted write access only to the Better Auth core
+tables and nothing else. A proof in the adversarial suite connects as such a
+role and asserts every authz-table write fails at the grant level.
+
+When you separate the frontend's database role (recommended alongside
+enforcement), grant it narrowly:
+
+```sql
+GRANT USAGE ON SCHEMA public TO vym_frontend;
+GRANT SELECT, INSERT, UPDATE, DELETE ON users, sessions, accounts, verifications
+    TO vym_frontend;
+-- No grant on org_memberships / user_instance_roles /
+-- user_feature_permissions / organizations: the frontend never writes them.
+```
+
+`oauth_role_mappings` is not yet in the ban — the frontend still writes it via
+the OAuth-config UI; relocating that write to the backend (as the SSO reconcile
+relocation did for grants) is the remaining step before it joins the list.
+
 ## Row-level security (foundation in place, inert)
 
 The database carries row-level-security policies on the organization-hierarchy
