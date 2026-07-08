@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
+import { requireInternalAuth } from "../create-user/route";
 
 /**
  * Internal API endpoint for generating bcryptjs-compatible password hashes.
  * Used by the backend user management system to create Better Auth compatible users.
  *
- * This endpoint should only be accessible from the backend container (not public).
+ * This endpoint is only reachable with the internal shared secret.
  */
 export async function POST(request: NextRequest) {
+  const unauthorized = requireInternalAuth(request);
+  if (unauthorized) return unauthorized;
   try {
     const body = await request.json();
     const { password } = body;

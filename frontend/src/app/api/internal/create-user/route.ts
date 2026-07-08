@@ -1,14 +1,41 @@
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 import { getAuth } from "@/lib/auth";
 import { ApiError } from "@/lib/types/api";
+
+/**
+ * Guard an internal route with a shared secret. The secret is
+ * INTERNAL_API_SECRET, falling back to BETTER_AUTH_SECRET (which both the
+ * frontend and backend already have, so no new configuration is needed).
+ * Returns a NextResponse to short-circuit on failure, or null when allowed.
+ */
+export function requireInternalAuth(request: NextRequest): NextResponse | null {
+  const expected =
+    process.env.INTERNAL_API_SECRET || process.env.BETTER_AUTH_SECRET;
+  if (!expected) {
+    return NextResponse.json(
+      { error: "Server is not configured for internal requests" },
+      { status: 500 }
+    );
+  }
+  const provided = request.headers.get("x-internal-auth") || "";
+  const a = Buffer.from(provided);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length || !timingSafeEqual(a, b)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  return null;
+}
 
 /**
  * Internal API endpoint for creating users from the backend.
  * Uses Better Auth's internal user creation to ensure proper password hashing.
  *
- * This endpoint should only be accessible from the backend container.
+ * This endpoint is only reachable with the internal shared secret.
  */
 export async function POST(request: NextRequest) {
+  const unauthorized = requireInternalAuth(request);
+  if (unauthorized) return unauthorized;
   try {
     const body = await request.json();
     const { email, password, name } = body;

@@ -336,7 +336,16 @@ async def create_user(request: Request, body: CreateUserRequest, conn: asyncpg.C
                     "password": body.password,
                     "name": body.name,
                 },
-                headers={"Content-Type": "application/json"},
+                headers={
+                    "Content-Type": "application/json",
+                    # Shared secret for the internal route; both services have
+                    # BETTER_AUTH_SECRET, so no new configuration is required.
+                    "X-Internal-Auth": (
+                        os.getenv("INTERNAL_API_SECRET")
+                        or os.getenv("BETTER_AUTH_SECRET")
+                        or ""
+                    ),
+                },
             )
 
             if response.status_code != 200:
