@@ -137,10 +137,20 @@ under the real org context. The System Administrator (`users.role=ADMIN`)
 bypasses org isolation; org `ADMIN`/`OWNER` members get full access on their
 own org's instances; everyone else is confined to their grants.
 
-## What is deliberately not here yet
+## Status
 
-Organization management UI and APIs, org-scoped enforcement, the fenced-role
-connection and `FORCE` RLS, and the related security hardening ship in later
-releases, each gated by an adversarial test suite that already runs today
-(cross-org negatives execute on every CI run; the target-state expectations are
-marked expected-fail until enforcement turns on).
+Organization management UI and APIs (create/rename/delete organizations and
+manage their memberships, System Administrator only), the fenced-role
+connection, `FORCE` RLS, and org-scoped enforcement have all shipped. The
+capability is complete and gated by the adversarial suite, which asserts the
+org-role semantics **under enforcement** on every CI run — the cross-org
+negatives and the org-role target-state checks are strict now, no longer
+expected-fail.
+
+Enforcement remains **opt-in and off by default** (the operator runbook above
+turns it on for a deployment); with it off, everything is inert and single-team
+deployments are unaffected. The end-to-end flip — fenced `vym_runtime` role,
+`FORCE` RLS on the six protected tables, and org creation/membership/site/
+instance access through that role — has been rehearsed and verified, as has SSO
+role mapping against a live OIDC provider (a permitted group signs in with the
+mapped role; a non-permitted account is denied).
