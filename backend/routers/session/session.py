@@ -6,6 +6,7 @@ Handles connect/disconnect operations and instance selection.
 """
 
 from fastapi import Depends, APIRouter, HTTPException, Request, UploadFile, File, Form
+import org_scope
 from org_scope import assert_row_in_acting_org, org_conn_admin, org_conn_self
 from starlette.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse
@@ -577,8 +578,9 @@ async def list_user_sites(request: Request, conn: asyncpg.Connection = Depends(o
                 user_id,
             )
 
-            return [
-                SiteResponse(
+            by_id: dict = {}
+            for site in sites:
+                by_id[site["id"]] = SiteResponse(
                     id=site["id"],
                     name=site["name"],
                     description=site["description"],
@@ -588,8 +590,41 @@ async def list_user_sites(request: Request, conn: asyncpg.Connection = Depends(o
                     created_at=site["createdAt"],
                     updated_at=site["updatedAt"],
                 )
-                for site in sites
-            ]
+
+            # Under org enforcement, an org ADMIN/OWNER also sees every site in
+            # their organization(s), with ADMIN role (org admin superset
+            # instance admin) — mirroring the permission layer, which grants
+            # org ADMIN/OWNER full access on their org's instances. Inert while
+            # ORG_ENFORCEMENT is off, so single-team deployments are unchanged.
+            if org_scope.ORG_ENFORCEMENT:
+                org_admin_sites = await conn.fetch(
+                    """
+                    SELECT s.id, s.name, s.description, s."orgId",
+                           o.name AS org_name, s."createdAt", s."updatedAt"
+                    FROM sites s
+                    JOIN org_memberships m
+                        ON m."orgId" = s."orgId" AND m."userId" = $1
+                        AND m."orgRole" IN ('ADMIN', 'OWNER')
+                    LEFT JOIN organizations o ON o.id = s."orgId"
+                    """,
+                    user_id,
+                )
+                for site in org_admin_sites:
+                    by_id[site["id"]] = SiteResponse(
+                        id=site["id"],
+                        name=site["name"],
+                        description=site["description"],
+                        role="ADMIN",
+                        org_id=site["orgId"],
+                        org_name=site["org_name"],
+                        created_at=site["createdAt"],
+                        updated_at=site["updatedAt"],
+                    )
+
+            return sorted(
+                by_id.values(),
+                key=lambda s: ((s.org_name or ""), s.name),
+            )
 
     except Exception as e:
         logger.exception("Unhandled error")

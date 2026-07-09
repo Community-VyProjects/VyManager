@@ -79,3 +79,67 @@ def test_org_admin_full_access_gated_by_flag(monkeypatch):
         assert on[FeatureGroup.USER_MANAGEMENT] == PermissionLevel.WRITE
     finally:
         asyncio.run(cleanup())
+
+
+@requires_db
+def test_org_admin_sees_org_sites_under_enforcement(monkeypatch):
+    """list_user_sites must show an org ADMIN/OWNER their org's sites when
+    enforcement is on (mirrors the permission layer), and never another org's.
+    Inert when off."""
+    import asyncpg
+    from types import SimpleNamespace
+
+    from routers.session.session import list_user_sites
+
+    db = os.environ["DATABASE_URL"]
+    ids = ("u_ov", "o_ov", "s_ov", "o_ov2", "s_ov2")
+
+    async def seed():
+        conn = await asyncpg.connect(db)
+        await conn.execute("DELETE FROM users WHERE id = 'u_ov'")
+        await conn.execute("DELETE FROM sites WHERE id IN ('s_ov','s_ov2')")
+        await conn.execute("DELETE FROM organizations WHERE id IN ('o_ov','o_ov2')")
+        await conn.execute(
+            'INSERT INTO organizations (id,name,"createdAt","updatedAt") VALUES'
+            " ('o_ov','OV',NOW(),NOW()),('o_ov2','OV2',NOW(),NOW())")
+        await conn.execute(
+            'INSERT INTO users (id,email,name,role,"emailVerified","createdAt",'
+            '"updatedAt") VALUES (\'u_ov\',\'ov@t.test\',\'OV\',\'VIEWER\',true,NOW(),NOW())')
+        # org ADMIN of o_ov only; not a member of o_ov2.
+        await conn.execute(
+            'INSERT INTO org_memberships (id,"userId","orgId","orgRole","createdAt",'
+            '"updatedAt") VALUES (\'om_ov\',\'u_ov\',\'o_ov\',\'ADMIN\',NOW(),NOW())')
+        await conn.execute(
+            'INSERT INTO sites (id,name,"orgId","createdAt","updatedAt") VALUES'
+            " ('s_ov','SOV','o_ov',NOW(),NOW()),('s_ov2','SOV2','o_ov2',NOW(),NOW())")
+        await conn.close()
+
+    async def cleanup():
+        conn = await asyncpg.connect(db)
+        await conn.execute("DELETE FROM users WHERE id = 'u_ov'")
+        await conn.execute("DELETE FROM sites WHERE id IN ('s_ov','s_ov2')")
+        await conn.execute("DELETE FROM organizations WHERE id IN ('o_ov','o_ov2')")
+        await conn.close()
+
+    async def list_sites():
+        conn = await asyncpg.connect(db)
+        try:
+            req = SimpleNamespace(state=SimpleNamespace(user={"id": "u_ov"}))
+            result = await list_user_sites(req, conn)
+            return {s.id for s in result}
+        finally:
+            await conn.close()
+
+    asyncio.run(seed())
+    try:
+        # OFF: org ADMIN with no instance grant sees no sites.
+        monkeypatch.setattr(org_scope, "ORG_ENFORCEMENT", False)
+        assert asyncio.run(list_sites()) == set()
+
+        # ON: sees their org's site, never the other org's.
+        monkeypatch.setattr(org_scope, "ORG_ENFORCEMENT", True)
+        seen = asyncio.run(list_sites())
+        assert "s_ov" in seen, seen
+        assert "s_ov2" not in seen, seen
+    finally:
+        asyncio.run(cleanup())
