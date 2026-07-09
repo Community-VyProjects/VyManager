@@ -210,11 +210,10 @@ model Site {
   id          String   @id @default(cuid())
   name        String   @unique
   description String?
-  // DEFAULT "default" is inert-phase scaffolding: it keeps site creation,
-  // seeding and pre-org backup restores working while nothing reads orgs.
-  // Removed when org enforcement turns on — site creation then requires an
-  // explicit organization.
-  orgId       String   @default("default")
+  // Every insert path sets orgId explicitly (site creation, seed, backup
+  // restore), so the column carries no DEFAULT: a forgotten orgId must fail
+  // rather than silently land a site in the default org once enforcement is on.
+  orgId       String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
