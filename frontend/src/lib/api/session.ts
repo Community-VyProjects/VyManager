@@ -8,6 +8,7 @@
  */
 
 import { apiClient } from "./client";
+import { orgQuery } from "./org-context";
 import { ApiError } from "@/lib/types/api";
 
 // ============================================================================
@@ -19,8 +20,21 @@ export interface Site {
   name: string;
   description?: string | null;
   role: "ADMIN" | "OPERATOR" | "VIEWER";
+  org_id?: string | null;
+  org_name?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface OrganizationMembership {
+  id: string;
+  name: string;
+  org_role: "OWNER" | "ADMIN" | "MEMBER";
+}
+
+export interface OrganizationsResponse {
+  organizations: OrganizationMembership[];
+  org_ui_visible: boolean;
 }
 
 export interface Instance {
@@ -190,10 +204,17 @@ class SessionService {
   }
 
   /**
-   * List all sites the user has access to
+   * The caller's organization memberships + whether the org UI should show.
+   */
+  async listOrganizations(): Promise<OrganizationsResponse> {
+    return apiClient.get<OrganizationsResponse>("/session/organizations");
+  }
+
+  /**
+   * List all sites the user has access to (scoped to the active org when set).
    */
   async listSites(): Promise<Site[]> {
-    return apiClient.get<Site[]>("/session/sites");
+    return apiClient.get<Site[]>(`/session/sites${orgQuery()}`);
   }
 
   /**
@@ -204,10 +225,10 @@ class SessionService {
   }
 
   /**
-   * Create a new site
+   * Create a new site (in the active org when set).
    */
   async createSite(data: SiteCreateRequest): Promise<Site> {
-    return apiClient.post<Site>("/session/sites", data);
+    return apiClient.post<Site>(`/session/sites${orgQuery()}`, data);
   }
 
   /**

@@ -39,6 +39,8 @@ import {
 import { signOut, useSession } from "@/lib/auth-client";
 import { Site, Instance, sessionService } from "@/lib/api/session";
 import { useSessionStore } from "@/store/session-store";
+import { useOrgStore } from "@/store/org-store";
+import { OrgSwitcher } from "@/components/organizations/OrgSwitcher";
 import { InstanceCard } from "@/components/sites/InstanceCard";
 import { InstanceTableView } from "@/components/sites/InstanceTableView";
 import { SiteUpdatesPanel } from "@/components/sites/SiteUpdatesPanel";
@@ -70,6 +72,10 @@ export default function SitesPage() {
   // Zustand store
   const { activeSession, loadSession, connectToInstance, disconnectFromInstance } =
     useSessionStore();
+
+  // Organization context (org UI is suppressed for single-team deployments)
+  const { orgUiVisible, activeOrgId, loaded: orgsLoaded, loadOrganizations } =
+    useOrgStore();
 
   // Navigation state
   const [selectedSection, setSelectedSection] = useState<NavSection>("sites");
@@ -120,10 +126,17 @@ export default function SitesPage() {
   // Full backup / restore
   const [backupRestoreOpen, setBackupRestoreOpen] = useState(false);
 
+  // Load the caller's organizations first; sites load (and reload) keyed on
+  // the active org so a multi-org user's site list is org-scoped.
   useEffect(() => {
-    loadData();
+    loadOrganizations();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (orgsLoaded) loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgsLoaded, activeOrgId]);
 
   // Auto-select first site when sites load
   useEffect(() => {
@@ -288,6 +301,12 @@ export default function SitesPage() {
           {/* Navigation Items */}
           <ScrollArea className="flex-1 px-3">
             <div className="space-y-1 py-3">
+              {/* Organization switcher (multi-org users only) */}
+              {orgUiVisible && (
+                <div className="pb-2">
+                  <OrgSwitcher />
+                </div>
+              )}
               {/* Sites */}
               <button
                 onClick={() => setSelectedSection("sites")}
@@ -414,6 +433,11 @@ export default function SitesPage() {
                   <p className="text-xs font-semibold text-foreground truncate">
                     {session?.user?.name || session?.user?.email || "User"}
                   </p>
+                  {(session?.user as { role?: string })?.role === "ADMIN" && (
+                    <p className="text-[10px] text-muted-foreground truncate">
+                      System Administrator
+                    </p>
+                  )}
                 </div>
               </div>
               <Button
@@ -508,9 +532,17 @@ export default function SitesPage() {
                 </div>
               ) : (
                 <div className="space-y-1 py-3">
-                  {filteredSites.map((site) => (
+                  {filteredSites.map((site, idx) => (
+                    <div key={site.id}>
+                    {orgUiVisible && site.org_name &&
+                      (idx === 0 ||
+                        filteredSites[idx - 1].org_name !== site.org_name) && (
+                        <div className="flex items-center gap-1.5 px-2 pt-3 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          <Building2 className="h-3 w-3" />
+                          {site.org_name}
+                        </div>
+                      )}
                     <div
-                      key={site.id}
                       className={cn(
                         "w-full rounded-lg transition-all relative group",
                         selectedSite?.id === site.id
@@ -588,6 +620,7 @@ export default function SitesPage() {
                           </DropdownMenu>
                         </div>
                       )}
+                    </div>
                     </div>
                   ))}
                 </div>
