@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { proxyRoleMapping } from "@/lib/oauth-proxy";
+import { proxyOauthConfig } from "@/lib/oauth-proxy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,7 +13,7 @@ export async function GET(
   { params }: { params: Promise<{ providerId: string }> }
 ) {
   const { providerId } = await params;
-  return proxyRoleMapping(
+  return proxyOauthConfig(
     request,
     `/oauth-config/${encodeURIComponent(providerId)}/role-mappings`,
     "GET"
@@ -26,7 +26,7 @@ export async function POST(
   { params }: { params: Promise<{ providerId: string }> }
 ) {
   const { providerId } = await params;
-  return proxyRoleMapping(
+  return proxyOauthConfig(
     request,
     `/oauth-config/${encodeURIComponent(providerId)}/role-mappings`,
     "POST"

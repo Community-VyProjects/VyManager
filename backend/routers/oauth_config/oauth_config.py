@@ -9,6 +9,7 @@ Postgres directly. ADMIN only.
 import json
 import secrets
 import string
+import uuid
 from datetime import datetime
 from typing import Any, Dict, Optional
 
@@ -16,7 +17,7 @@ import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
-from org_scope import org_conn_admin
+from org_scope import org_conn, org_conn_admin
 from fastapi_permissions import require_super_admin
 
 router = APIRouter(prefix="/oauth-config", tags=["oauth-config"])
@@ -279,4 +280,270 @@ async def delete_role_mapping(
     if not existing or existing["providerId"] != provider_id:
         raise HTTPException(status_code=404, detail="Mapping not found")
     await conn.execute("DELETE FROM oauth_role_mappings WHERE id = $1", mapping_id)
+    return {"success": True}
+
+
+# ============================================================================
+# OAuth providers
+#
+# better-auth reads oauth_providers at login (in the frontend) to configure the
+# OAuth flow; these endpoints own the writes. The frontend proxies to them and
+# drops the better-auth cache on a successful write, same as the role mappings.
+# ============================================================================
+
+
+class ProviderUpsertInput(BaseModel):
+    """Create/update body. providerId/displayName/clientId/clientSecret are
+    required on create; update patches whatever is supplied."""
+
+    providerId: Optional[str] = None
+    displayName: Optional[str] = None
+    clientId: Optional[str] = None
+    clientSecret: Optional[str] = None
+    enabled: Optional[bool] = None
+    discoveryUrl: Optional[str] = None
+    authorizationUrl: Optional[str] = None
+    tokenUrl: Optional[str] = None
+    userInfoUrl: Optional[str] = None
+    scopes: Optional[str] = None
+    pkce: Optional[bool] = None
+    roleMappingEnabled: Optional[bool] = None
+    groupsClaim: Optional[str] = None
+
+
+class ProviderEnabledInput(BaseModel):
+    enabled: bool
+
+
+def _iso(value: Any) -> Any:
+    return value.isoformat() if isinstance(value, datetime) else value
+
+
+def _serialize_provider(row: asyncpg.Record, include_secret: bool = False) -> Dict[str, Any]:
+    """Shape a provider row for the frontend. The client secret is only ever
+    returned on the single-item GET (for editing), never on lists or writes."""
+    data = {
+        "id": row["id"],
+        "providerId": row["providerId"],
+        "displayName": row["displayName"],
+        "enabled": row["enabled"],
+        "clientId": row["clientId"],
+        "discoveryUrl": row["discoveryUrl"],
+        "authorizationUrl": row["authorizationUrl"],
+        "tokenUrl": row["tokenUrl"],
+        "userInfoUrl": row["userInfoUrl"],
+        "scopes": row["scopes"],
+        "pkce": row["pkce"],
+        "roleMappingEnabled": row["roleMappingEnabled"],
+        "groupsClaim": row["groupsClaim"],
+        "createdAt": _iso(row["createdAt"]),
+        "updatedAt": _iso(row["updatedAt"]),
+    }
+    if include_secret:
+        data["clientSecret"] = row["clientSecret"]
+    return data
+
+
+@router.get("")
+async def list_providers(
+    request: Request, conn: asyncpg.Connection = Depends(org_conn_admin)
+):
+    """List all configured providers (never includes client secrets)."""
+    await require_super_admin(request)
+    rows = await conn.fetch('SELECT * FROM oauth_providers ORDER BY "createdAt" ASC')
+    return {"providers": [_serialize_provider(r) for r in rows]}
+
+
+@router.post("")
+async def upsert_provider(
+    body: ProviderUpsertInput,
+    request: Request,
+    conn: asyncpg.Connection = Depends(org_conn_admin),
+):
+    """Create a provider, or update it in place when the providerId exists."""
+    await require_super_admin(request)
+    if not (body.providerId and body.displayName and body.clientId and body.clientSecret):
+        raise HTTPException(
+            status_code=400,
+            detail="providerId, displayName, clientId, and clientSecret are required",
+        )
+    row = await conn.fetchrow(
+        """
+        INSERT INTO oauth_providers
+            (id, "providerId", "displayName", "clientId", "clientSecret", enabled,
+             "discoveryUrl", "authorizationUrl", "tokenUrl", "userInfoUrl", scopes,
+             pkce, "roleMappingEnabled", "groupsClaim", "createdAt", "updatedAt")
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
+                NOW(), NOW())
+        ON CONFLICT ("providerId") DO UPDATE SET
+            "displayName" = EXCLUDED."displayName",
+            "clientId" = EXCLUDED."clientId",
+            "clientSecret" = EXCLUDED."clientSecret",
+            enabled = EXCLUDED.enabled,
+            "discoveryUrl" = EXCLUDED."discoveryUrl",
+            "authorizationUrl" = EXCLUDED."authorizationUrl",
+            "tokenUrl" = EXCLUDED."tokenUrl",
+            "userInfoUrl" = EXCLUDED."userInfoUrl",
+            scopes = EXCLUDED.scopes,
+            pkce = EXCLUDED.pkce,
+            "roleMappingEnabled" = EXCLUDED."roleMappingEnabled",
+            "groupsClaim" = EXCLUDED."groupsClaim",
+            "updatedAt" = NOW()
+        RETURNING *
+        """,
+        str(uuid.uuid4()),
+        body.providerId,
+        body.displayName,
+        body.clientId,
+        body.clientSecret,
+        bool(body.enabled) if body.enabled is not None else False,
+        body.discoveryUrl or None,
+        body.authorizationUrl or None,
+        body.tokenUrl or None,
+        body.userInfoUrl or None,
+        body.scopes or None,
+        bool(body.pkce) if body.pkce is not None else True,
+        bool(body.roleMappingEnabled) if body.roleMappingEnabled is not None else False,
+        body.groupsClaim or None,
+    )
+    return {"provider": _serialize_provider(row)}
+
+
+# Declared before /{provider_id} so "public" is not captured as a provider id.
+@router.get("/public")
+async def list_public_providers(conn: asyncpg.Connection = Depends(org_conn)):
+    """Enabled providers with no secrets, for the pre-auth login page."""
+    rows = await conn.fetch(
+        'SELECT "providerId", "displayName", enabled FROM oauth_providers'
+        ' WHERE enabled = true ORDER BY "createdAt" ASC'
+    )
+    return {
+        "providers": [
+            {
+                "providerId": r["providerId"],
+                "displayName": r["displayName"],
+                "enabled": r["enabled"],
+            }
+            for r in rows
+        ]
+    }
+
+
+@router.get("/{provider_id}")
+async def get_provider(
+    provider_id: str,
+    request: Request,
+    conn: asyncpg.Connection = Depends(org_conn_admin),
+):
+    """Get a single provider, including its client secret for editing."""
+    await require_super_admin(request)
+    row = await conn.fetchrow(
+        'SELECT * FROM oauth_providers WHERE "providerId" = $1', provider_id
+    )
+    if not row:
+        raise HTTPException(status_code=404, detail="Provider not found")
+    return {"provider": _serialize_provider(row, include_secret=True)}
+
+
+@router.put("/{provider_id}")
+async def update_provider(
+    provider_id: str,
+    body: ProviderUpsertInput,
+    request: Request,
+    conn: asyncpg.Connection = Depends(org_conn_admin),
+):
+    """Full update. Unset fields keep their stored value; the client secret is
+    only rewritten when a non-empty value is supplied."""
+    await require_super_admin(request)
+    existing = await conn.fetchrow(
+        'SELECT * FROM oauth_providers WHERE "providerId" = $1', provider_id
+    )
+    if not existing:
+        raise HTTPException(status_code=404, detail="Provider not found")
+
+    def keep_nullable(new: Optional[str], key: str) -> Optional[str]:
+        return (new or None) if new is not None else existing[key]
+
+    display_name = body.displayName if body.displayName is not None else existing["displayName"]
+    client_id = body.clientId if body.clientId is not None else existing["clientId"]
+    client_secret = body.clientSecret if body.clientSecret else existing["clientSecret"]
+    enabled = body.enabled if body.enabled is not None else existing["enabled"]
+    pkce = body.pkce if body.pkce is not None else existing["pkce"]
+    role_mapping = (
+        body.roleMappingEnabled
+        if body.roleMappingEnabled is not None
+        else existing["roleMappingEnabled"]
+    )
+
+    row = await conn.fetchrow(
+        """
+        UPDATE oauth_providers SET
+            "displayName" = $2,
+            "clientId" = $3,
+            "clientSecret" = $4,
+            enabled = $5,
+            "discoveryUrl" = $6,
+            "authorizationUrl" = $7,
+            "tokenUrl" = $8,
+            "userInfoUrl" = $9,
+            scopes = $10,
+            pkce = $11,
+            "roleMappingEnabled" = $12,
+            "groupsClaim" = $13,
+            "updatedAt" = NOW()
+        WHERE "providerId" = $1
+        RETURNING *
+        """,
+        provider_id,
+        display_name,
+        client_id,
+        client_secret,
+        enabled,
+        keep_nullable(body.discoveryUrl, "discoveryUrl"),
+        keep_nullable(body.authorizationUrl, "authorizationUrl"),
+        keep_nullable(body.tokenUrl, "tokenUrl"),
+        keep_nullable(body.userInfoUrl, "userInfoUrl"),
+        keep_nullable(body.scopes, "scopes"),
+        pkce,
+        role_mapping,
+        keep_nullable(body.groupsClaim, "groupsClaim"),
+    )
+    return {"provider": _serialize_provider(row)}
+
+
+@router.patch("/{provider_id}")
+async def set_provider_enabled(
+    provider_id: str,
+    body: ProviderEnabledInput,
+    request: Request,
+    conn: asyncpg.Connection = Depends(org_conn_admin),
+):
+    """Toggle just the enabled flag."""
+    await require_super_admin(request)
+    if not await conn.fetchval(
+        'SELECT 1 FROM oauth_providers WHERE "providerId" = $1', provider_id
+    ):
+        raise HTTPException(status_code=404, detail="Provider not found")
+    row = await conn.fetchrow(
+        'UPDATE oauth_providers SET enabled = $2, "updatedAt" = NOW()'
+        ' WHERE "providerId" = $1 RETURNING *',
+        provider_id,
+        body.enabled,
+    )
+    return {"provider": _serialize_provider(row)}
+
+
+@router.delete("/{provider_id}")
+async def delete_provider(
+    provider_id: str,
+    request: Request,
+    conn: asyncpg.Connection = Depends(org_conn_admin),
+):
+    """Delete a provider (cascades its role mappings)."""
+    await require_super_admin(request)
+    if not await conn.fetchval(
+        'SELECT 1 FROM oauth_providers WHERE "providerId" = $1', provider_id
+    ):
+        raise HTTPException(status_code=404, detail="Provider not found")
+    await conn.execute('DELETE FROM oauth_providers WHERE "providerId" = $1', provider_id)
     return {"success": True}

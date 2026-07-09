@@ -1,39 +1,22 @@
-import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-import { getAuth, invalidateAuth } from "@/lib/auth";
+import { NextRequest } from "next/server";
+import { proxyOauthConfig } from "@/lib/oauth-proxy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const prisma = new PrismaClient();
+// oauth_providers is owned by the backend; these handlers proxy to it and
+// invalidate better-auth's cache on a successful write (see oauth-proxy).
 
-async function getAdminUser(request: NextRequest) {
-  const auth = await getAuth();
-  const session = await auth.api.getSession({ headers: request.headers });
-  if (!session?.user) return null;
+const backendPath = (providerId: string) =>
+  `/oauth-config/${encodeURIComponent(providerId)}`;
 
-  const user = await prisma.user.findUnique({ where: { id: session.user.id } });
-  if (!user || user.role !== "ADMIN") return null;
-  return user;
-}
-
-// GET /api/oauth-config/[providerId] — get single provider (includes clientSecret for editing)
+// GET /api/oauth-config/[providerId] — single provider (includes clientSecret)
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ providerId: string }> }
 ) {
-  const user = await getAdminUser(request);
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   const { providerId } = await params;
-  const provider = await prisma.oAuthProvider.findUnique({ where: { providerId } });
-  if (!provider) {
-    return NextResponse.json({ error: "Provider not found" }, { status: 404 });
-  }
-
-  return NextResponse.json({ provider });
+  return proxyOauthConfig(request, backendPath(providerId), "GET");
 }
 
 // PUT /api/oauth-config/[providerId] — full update
@@ -41,41 +24,8 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ providerId: string }> }
 ) {
-  const user = await getAdminUser(request);
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   const { providerId } = await params;
-  const body = await request.json();
-
-  const existing = await prisma.oAuthProvider.findUnique({ where: { providerId } });
-  if (!existing) {
-    return NextResponse.json({ error: "Provider not found" }, { status: 404 });
-  }
-
-  const updated = await prisma.oAuthProvider.update({
-    where: { providerId },
-    data: {
-      displayName: body.displayName ?? existing.displayName,
-      clientId: body.clientId ?? existing.clientId,
-      // Only update secret if a non-empty value is provided
-      ...(body.clientSecret ? { clientSecret: body.clientSecret } : {}),
-      enabled: body.enabled ?? existing.enabled,
-      discoveryUrl: body.discoveryUrl !== undefined ? (body.discoveryUrl || null) : existing.discoveryUrl,
-      authorizationUrl: body.authorizationUrl !== undefined ? (body.authorizationUrl || null) : existing.authorizationUrl,
-      tokenUrl: body.tokenUrl !== undefined ? (body.tokenUrl || null) : existing.tokenUrl,
-      userInfoUrl: body.userInfoUrl !== undefined ? (body.userInfoUrl || null) : existing.userInfoUrl,
-      scopes: body.scopes !== undefined ? (body.scopes || null) : existing.scopes,
-      pkce: body.pkce ?? existing.pkce,
-      roleMappingEnabled: body.roleMappingEnabled ?? existing.roleMappingEnabled,
-      groupsClaim: body.groupsClaim !== undefined ? (body.groupsClaim || null) : existing.groupsClaim,
-    },
-  });
-
-  invalidateAuth();
-
-  return NextResponse.json({ provider: { ...updated, clientSecret: undefined } });
+  return proxyOauthConfig(request, backendPath(providerId), "PUT");
 }
 
 // PATCH /api/oauth-config/[providerId] — toggle enabled only
@@ -83,27 +33,8 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ providerId: string }> }
 ) {
-  const user = await getAdminUser(request);
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   const { providerId } = await params;
-  const body = await request.json();
-
-  const existing = await prisma.oAuthProvider.findUnique({ where: { providerId } });
-  if (!existing) {
-    return NextResponse.json({ error: "Provider not found" }, { status: 404 });
-  }
-
-  const updated = await prisma.oAuthProvider.update({
-    where: { providerId },
-    data: { enabled: body.enabled },
-  });
-
-  invalidateAuth();
-
-  return NextResponse.json({ provider: { ...updated, clientSecret: undefined } });
+  return proxyOauthConfig(request, backendPath(providerId), "PATCH");
 }
 
 // DELETE /api/oauth-config/[providerId] — remove provider
@@ -111,20 +42,6 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ providerId: string }> }
 ) {
-  const user = await getAdminUser(request);
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   const { providerId } = await params;
-
-  const existing = await prisma.oAuthProvider.findUnique({ where: { providerId } });
-  if (!existing) {
-    return NextResponse.json({ error: "Provider not found" }, { status: 404 });
-  }
-
-  await prisma.oAuthProvider.delete({ where: { providerId } });
-  invalidateAuth();
-
-  return NextResponse.json({ success: true });
+  return proxyOauthConfig(request, backendPath(providerId), "DELETE");
 }

@@ -38,6 +38,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         "/api/auth/sign-out",
         "/api/auth/session",
         "/session/onboarding-status",  # Must be public to check if first-time setup is needed
+        "/oauth-config/public",  # Login page lists enabled providers before auth
         "/vyos/monitoring/ws/monitor",  # WebSocket auth handled inside handler
         "/vyos/version/check",  # Version check is public
         "/internal/sso-reconcile",  # Internal shared-secret auth (not a session)
