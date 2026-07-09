@@ -216,6 +216,16 @@ async function buildAuth() {
     databaseHooks: {
       user: {
         create: {
+          // The very first user (onboarding) is promoted to ADMIN as part of
+          // creation, so there is no window where the first account exists as a
+          // powerless VIEWER. Later users keep the default role; post-onboarding
+          // sign-up is blocked by the auth route gate.
+          before: async (user) => {
+            const userCount = await prisma.user.count();
+            if (userCount === 0) {
+              return { data: { ...user, role: "ADMIN" } };
+            }
+          },
           // Brand-new SSO users have no row when mapProfileToUser runs, so their
           // resolved instance grants are reconciled here, once the row exists.
           after: async (user) => {
