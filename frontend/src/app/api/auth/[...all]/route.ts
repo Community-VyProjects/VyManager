@@ -36,7 +36,17 @@ function checkLoginRateLimit(ip: string): boolean {
 export async function GET(request: NextRequest) {
   const auth = await getAuth();
   const handlers = toNextJsHandler(auth);
-  return handlers.GET(request);
+  const response = await handlers.GET(request);
+  // A denied SSO login (the role mapping throws when the account is in no
+  // permitted group) surfaces as a 5xx from the OAuth callback. Turn that into
+  // a friendly redirect to the login page instead of a raw error page.
+  if (
+    request.nextUrl.pathname.includes("/oauth2/callback/") &&
+    response.status >= 500
+  ) {
+    return NextResponse.redirect(new URL("/login?error=oauth", request.url));
+  }
+  return response;
 }
 
 export async function POST(request: NextRequest) {

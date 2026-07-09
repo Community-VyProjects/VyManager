@@ -64,6 +64,13 @@ export default function LoginPage() {
       if (f && f !== "/login" && f !== "/onboarding") {
         setFrom(f);
       }
+      // A failed OAuth callback redirects back here with ?error=oauth.
+      if (params.get("error")) {
+        setError(
+          "Single sign-on was denied. Your account may not be a member of a " +
+            "group permitted to access VyManager. Contact your administrator."
+        );
+      }
     } catch {
       // ignore
     }
@@ -159,6 +166,10 @@ export default function LoginPage() {
       await authClient.signIn.oauth2({
         providerId,
         callbackURL: from,
+        // On a failed callback (e.g. role mapping denies access because the
+        // account is in no permitted group) return to the login page with a
+        // friendly message instead of a raw 500.
+        errorCallbackURL: "/login?error=oauth",
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "OAuth sign-in failed");
