@@ -173,11 +173,15 @@ async def _handler_conn(
                     orgs = row["orgs"]
                     if len(orgs) == 1:
                         org_id = orgs[0]
-                    elif len(orgs) > 1:
+                    elif len(orgs) > 1 and not is_admin:
                         raise HTTPException(
                             status_code=400,
                             detail="You belong to multiple organizations;"
                                    " pass org_id")
+                    # A system admin is cross-org by design: with no explicit
+                    # org_id they act globally (org_id stays empty and the
+                    # is_system_admin bypass applies), rather than being forced
+                    # to pick one org. Non-admin multi-org members must choose.
 
             if is_admin is None:
                 is_admin = False

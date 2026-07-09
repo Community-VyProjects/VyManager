@@ -341,3 +341,71 @@ def test_middleware_derives_org_from_active_instance():
     finally:
         session_cookie._secret = original_secret
         asyncio.run(cleanup())
+
+
+# ---------------------------------------------------------------------------
+# Multi-org context resolution: a system admin acts globally with no org_id;
+# a non-admin member must still choose an org.
+# ---------------------------------------------------------------------------
+
+def _fake_request(pool, user_id):
+    return SimpleNamespace(
+        app=SimpleNamespace(state=SimpleNamespace(db_pool=pool)),
+        state=SimpleNamespace(user={"id": user_id}),
+    )
+
+
+@requires_db
+def test_multi_org_admin_acts_globally_without_org_id():
+    import asyncpg
+
+    async def body():
+        pool = await asyncpg.create_pool(os.environ["DATABASE_URL"])
+        try:
+            async with pool.acquire() as c:
+                await c.execute(
+                    'INSERT INTO organizations (id,name,"createdAt","updatedAt")'
+                    " VALUES ('org_g2','Org G2',NOW(),NOW())"
+                    " ON CONFLICT (id) DO NOTHING")
+                await c.execute(
+                    'INSERT INTO users (id,email,name,role,"emailVerified",'
+                    '"createdAt","updatedAt") VALUES'
+                    " ('u_admin_g','admin_g@t.test','AG','ADMIN',true,NOW(),NOW()),"
+                    " ('u_member_g','member_g@t.test','MG','VIEWER',true,NOW(),NOW())")
+                for uid in ("u_admin_g", "u_member_g"):
+                    await c.execute(
+                        'INSERT INTO org_memberships (id,"userId","orgId","orgRole",'
+                        '"createdAt","updatedAt") VALUES'
+                        " ($1,$2,'default','MEMBER',NOW(),NOW()),"
+                        " ($3,$2,'org_g2','MEMBER',NOW(),NOW())",
+                        f"omg_{uid}_1", uid, f"omg_{uid}_2")
+
+            # System admin, two orgs, no org_id -> global (bypass, empty org).
+            req = _fake_request(pool, "u_admin_g")
+            async with org_scope._handler_conn(req, None) as conn:
+                sysadmin = await conn.fetchval(
+                    "SELECT current_setting('app.is_system_admin', true)")
+                org = await conn.fetchval(
+                    "SELECT current_setting('app.org_id', true)")
+            assert sysadmin == "true"
+            assert org == ""
+            assert req.state.is_system_admin is True
+            assert req.state.acting_org_id is None
+
+            # Non-admin, two orgs, no org_id -> must choose (400).
+            req2 = _fake_request(pool, "u_member_g")
+            raised = None
+            try:
+                async with org_scope._handler_conn(req2, None):
+                    pass
+            except HTTPException as exc:
+                raised = exc
+            assert raised is not None and raised.status_code == 400
+        finally:
+            async with pool.acquire() as c:
+                await c.execute(
+                    "DELETE FROM users WHERE id IN ('u_admin_g','u_member_g')")
+                await c.execute("DELETE FROM organizations WHERE id='org_g2'")
+            await pool.close()
+
+    asyncio.run(body())
