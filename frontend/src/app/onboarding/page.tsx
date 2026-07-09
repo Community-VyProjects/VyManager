@@ -215,18 +215,8 @@ export default function OnboardingPage() {
       // Wait a moment for session cookie to be fully set
       await new Promise((resolve) => setTimeout(resolve, 500));
 
-      // Step 1.75: Set first user as ADMIN
-      console.log("[Onboarding] Setting user as ADMIN...");
-      const setAdminResult = await fetch("/api/session/set-first-user-admin", {
-        method: "POST",
-      });
-
-      if (!setAdminResult.ok) {
-        console.error("[Onboarding] Warning: Failed to set user as ADMIN");
-        // Don't fail the entire onboarding, but log it
-      } else {
-        console.log("[Onboarding] ✓ User set as ADMIN");
-      }
+      // The first user is created as ADMIN atomically (Better Auth
+      // user.create.before hook), so there is no separate promotion step.
 
       // Step 2: Create site
       console.log("[Onboarding] Step 2/3: Creating site...");
