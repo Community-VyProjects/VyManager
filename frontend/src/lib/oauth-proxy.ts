@@ -5,18 +5,19 @@ import { invalidateAuth } from "@/lib/auth";
 const getBackendUrl = () => process.env.BACKEND_URL || "http://backend:8000";
 
 /**
- * Forward a role-mapping request to the backend, which owns oauth_role_mappings.
+ * Forward an oauth-config request (providers or role mappings) to the backend,
+ * which owns oauth_providers and oauth_role_mappings.
  *
  * The backend performs the auth check and the write; on a successful write we
- * drop better-auth's in-process rule cache so the next login re-reads the rules.
+ * drop better-auth's in-process cache so the next login re-reads the config.
  * That cache lives here in the frontend (better-auth runs in this process), so
  * the backend cannot invalidate it — hence this thin proxy instead of pointing
  * the client straight at the backend.
  */
-export async function proxyRoleMapping(
+export async function proxyOauthConfig(
   request: NextRequest,
   backendPath: string,
-  method: "GET" | "POST" | "PUT" | "DELETE",
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
 ): Promise<NextResponse> {
   const sessionToken = request.cookies.get("better-auth.session_token");
 
@@ -26,7 +27,7 @@ export async function proxyRoleMapping(
   }
 
   let body: string | undefined;
-  if (method === "POST" || method === "PUT") {
+  if (method === "POST" || method === "PUT" || method === "PATCH") {
     headers["Content-Type"] = "application/json";
     body = await request.text();
   }
