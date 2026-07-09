@@ -676,23 +676,50 @@ async def list_site_instances(request: Request, site_id: str, conn: asyncpg.Conn
                 site_id,
             )
         else:
-            # Regular users see only instances they have explicit access to
-            instances = await conn.fetch(
+            # Under org enforcement, an org ADMIN/OWNER of the site's
+            # organization sees all of its instances (mirrors the permission
+            # layer and the site listing). Inert while enforcement is off.
+            org_admin = org_scope.ORG_ENFORCEMENT and await conn.fetchval(
                 """
-                SELECT DISTINCT i.id, i."siteId", i.name, i.description, i.host, i.port, i.protocol, i."verifySsl", i."isActive",
-                       i."vyosVersion", i."sshPort", i."sshUsername", i."sshKeyConfigured",
-                       i."commitConfirmEnabled", i."commitConfirmMinutes", i.timeout,
-                       i."createdAt", i."updatedAt"
-                FROM instances i
-                JOIN user_instance_roles uir
-                    ON (uir."instanceId" = i.id OR uir."siteId" = i."siteId")
-                    AND uir."userId" = $2
-                WHERE i."siteId" = $1
-                ORDER BY i.name
+                SELECT 1 FROM sites s
+                JOIN org_memberships m ON m."orgId" = s."orgId"
+                WHERE s.id = $1 AND m."userId" = $2
+                      AND m."orgRole" IN ('ADMIN', 'OWNER')
                 """,
                 site_id,
                 user_id,
             )
+            if org_admin:
+                instances = await conn.fetch(
+                    """
+                    SELECT id, "siteId", name, description, host, port, protocol, "verifySsl", "isActive",
+                           "vyosVersion", "sshPort", "sshUsername", "sshKeyConfigured",
+                           "commitConfirmEnabled", "commitConfirmMinutes", timeout,
+                           "createdAt", "updatedAt"
+                    FROM instances
+                    WHERE "siteId" = $1
+                    ORDER BY name
+                    """,
+                    site_id,
+                )
+            else:
+                # Regular users see only instances they have explicit access to
+                instances = await conn.fetch(
+                    """
+                    SELECT DISTINCT i.id, i."siteId", i.name, i.description, i.host, i.port, i.protocol, i."verifySsl", i."isActive",
+                           i."vyosVersion", i."sshPort", i."sshUsername", i."sshKeyConfigured",
+                           i."commitConfirmEnabled", i."commitConfirmMinutes", i.timeout,
+                           i."createdAt", i."updatedAt"
+                    FROM instances i
+                    JOIN user_instance_roles uir
+                        ON (uir."instanceId" = i.id OR uir."siteId" = i."siteId")
+                        AND uir."userId" = $2
+                    WHERE i."siteId" = $1
+                    ORDER BY i.name
+                    """,
+                    site_id,
+                    user_id,
+                )
 
         # If no instances found, return empty list (don't throw 404)
         # This allows the frontend to show "No instances available"
