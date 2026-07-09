@@ -38,6 +38,26 @@
         "summary": "Get Onboarding Status",
         "description": "Check if the system needs initial onboarding setup.\n\nReturns True if no users exist in the system.",
         "operationId": "get_onboarding_status_session_onboarding_status_get",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Organization to act in; defaults to your sole organization.",
+              "title": "Org Id"
+            },
+            "description": "Organization to act in; defaults to your sole organization."
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -45,6 +65,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/OnboardingStatusResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -60,6 +90,26 @@
         "summary": "Get Current Session",
         "description": "Get the user's current active session (which instance they're connected to).\n\nReturns null if no active session.",
         "operationId": "get_current_session_session_current_get",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Organization to act in; defaults to your sole organization.",
+              "title": "Org Id"
+            },
+            "description": "Organization to act in; defaults to your sole organization."
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -78,6 +128,16 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
           }
         }
       }
@@ -90,15 +150,35 @@
         "summary": "Connect To Instance",
         "description": "Connect to a specific VyOS instance.\n\nThis sets the user's active session to the specified instance.\nOnly one instance can be active at a time per user.",
         "operationId": "connect_to_instance_session_connect_post",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Organization to act in; defaults to your sole organization.",
+              "title": "Org Id"
+            },
+            "description": "Organization to act in; defaults to your sole organization."
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ConnectRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -132,6 +212,26 @@
         "summary": "Disconnect From Instance",
         "description": "Disconnect from the current VyOS instance.\n\nThis removes the user's active session.",
         "operationId": "disconnect_from_instance_session_disconnect_post",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Organization to act in; defaults to your sole organization.",
+              "title": "Org Id"
+            },
+            "description": "Organization to act in; defaults to your sole organization."
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -139,6 +239,38 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/session/organizations": {
+      "get": {
+        "tags": [
+          "session"
+        ],
+        "summary": "List User Organizations",
+        "description": "The caller's organization memberships.\n\nBacks the frontend's org UI: the grouping header and switcher render only\nwhen the caller belongs to more than one organization (org_ui_visible),\nso single-team deployments never see the org layer.",
+        "operationId": "list_user_organizations_session_organizations_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationsResponse"
                 }
               }
             }
@@ -154,17 +286,47 @@
         "summary": "List User Sites",
         "description": "Get all sites the user has access to.\n\nSite ADMIN users (role='ADMIN' in users table) see ALL sites.\nOther users see only sites where they have instance access.\nUses new RBAC system (user_instance_roles and users.role).",
         "operationId": "list_user_sites_session_sites_get",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Organization to act in; defaults to your sole organization.",
+              "title": "Org Id"
+            },
+            "description": "Organization to act in; defaults to your sole organization."
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
+                  "type": "array",
                   "items": {
                     "$ref": "#/components/schemas/SiteResponse"
                   },
-                  "type": "array",
                   "title": "Response List User Sites Session Sites Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -178,15 +340,35 @@
         "summary": "Create Site",
         "description": "Create a new site.\n\nOnly site ADMIN users can create sites.\nDuring onboarding (no sites exist), any authenticated user can create the first site.",
         "operationId": "create_site_session_sites_post",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Organization to act in; defaults to your sole organization.",
+              "title": "Org Id"
+            },
+            "description": "Organization to act in; defaults to your sole organization."
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/SiteCreateRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "201": {
@@ -229,6 +411,24 @@
               "type": "string",
               "title": "Site Id"
             }
+          },
+          {
+            "name": "org_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Organization to act in; defaults to your sole organization.",
+              "title": "Org Id"
+            },
+            "description": "Organization to act in; defaults to your sole organization."
           }
         ],
         "responses": {
@@ -276,6 +476,24 @@
               "type": "string",
               "title": "Site Id"
             }
+          },
+          {
+            "name": "org_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Organization to act in; defaults to your sole organization.",
+              "title": "Org Id"
+            },
+            "description": "Organization to act in; defaults to your sole organization."
           }
         ],
         "requestBody": {
@@ -327,6 +545,24 @@
               "type": "string",
               "title": "Site Id"
             }
+          },
+          {
+            "name": "org_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Organization to act in; defaults to your sole organization.",
+              "title": "Org Id"
+            },
+            "description": "Organization to act in; defaults to your sole organization."
           }
         ],
         "responses": {
@@ -361,15 +597,35 @@
         "summary": "Create Instance",
         "description": "Create a new instance.\n\nOnly site ADMIN users can create instances.",
         "operationId": "create_instance_session_instances_post",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Organization to act in; defaults to your sole organization.",
+              "title": "Org Id"
+            },
+            "description": "Organization to act in; defaults to your sole organization."
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/InstanceCreateRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "201": {
@@ -412,6 +668,24 @@
               "type": "string",
               "title": "Instance Id"
             }
+          },
+          {
+            "name": "org_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Organization to act in; defaults to your sole organization.",
+              "title": "Org Id"
+            },
+            "description": "Organization to act in; defaults to your sole organization."
           }
         ],
         "requestBody": {
@@ -463,6 +737,24 @@
               "type": "string",
               "title": "Instance Id"
             }
+          },
+          {
+            "name": "org_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Organization to act in; defaults to your sole organization.",
+              "title": "Org Id"
+            },
+            "description": "Organization to act in; defaults to your sole organization."
           }
         ],
         "responses": {
@@ -497,15 +789,35 @@
         "summary": "Create Backup",
         "description": "Create an encrypted full backup of all VyManager configuration.",
         "operationId": "create_backup_session_backup_post",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Organization to act in; defaults to your sole organization.",
+              "title": "Org Id"
+            },
+            "description": "Organization to act in; defaults to your sole organization."
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/BackupRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -537,15 +849,35 @@
         "summary": "Preview Restore",
         "description": "Decrypt a backup and report its contents without applying anything.\n\nLets the restore UI validate the passphrase and show record counts first.",
         "operationId": "preview_restore_session_restore_preview_post",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Organization to act in; defaults to your sole organization.",
+              "title": "Org Id"
+            },
+            "description": "Organization to act in; defaults to your sole organization."
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "multipart/form-data": {
               "schema": {
                 "$ref": "#/components/schemas/Body_preview_restore_session_restore_preview_post"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -579,15 +911,35 @@
         "summary": "Restore Backup",
         "description": "Restore a backup in \"replace\" (wipe + restore) or \"merge\" (upsert) mode.",
         "operationId": "restore_backup_session_restore_post",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Organization to act in; defaults to your sole organization.",
+              "title": "Org Id"
+            },
+            "description": "Organization to act in; defaults to your sole organization."
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "multipart/form-data": {
               "schema": {
                 "$ref": "#/components/schemas/Body_restore_backup_session_restore_post"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -621,6 +973,26 @@
         "summary": "Get Active Auth Sessions",
         "description": "Get all active authentication sessions for the current user.\n\nUsed to detect if user is logged in from multiple devices/browsers.",
         "operationId": "get_active_auth_sessions_session_auth_sessions_get",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Organization to act in; defaults to your sole organization.",
+              "title": "Org Id"
+            },
+            "description": "Organization to act in; defaults to your sole organization."
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -628,6 +1000,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ActiveSessionsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -643,15 +1025,35 @@
         "summary": "Revoke Auth Session",
         "description": "Revoke a specific authentication session.\n\nThis allows a user to force logout from another device/browser.",
         "operationId": "revoke_auth_session_session_revoke_session_post",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Organization to act in; defaults to your sole organization.",
+              "title": "Org Id"
+            },
+            "description": "Organization to act in; defaults to your sole organization."
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/RevokeSessionRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -8022,6 +8424,26 @@
         "summary": "Get My Permissions",
         "description": "Get the current user's permissions for their active instance.\n\nReturns a dictionary mapping feature groups to permission levels.\nThis endpoint does NOT require admin permission - any authenticated user\ncan check their own permissions.",
         "operationId": "get_my_permissions_user_management_my_permissions_get",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Organization to act in; defaults to your sole organization.",
+              "title": "Org Id"
+            },
+            "description": "Organization to act in; defaults to your sole organization."
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -8029,6 +8451,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/MyPermissionsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -8044,17 +8476,47 @@
         "summary": "List Users",
         "description": "Get list of all users with their instance counts and site roles.",
         "operationId": "list_users_user_management_users_get",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Organization to act in; defaults to your sole organization.",
+              "title": "Org Id"
+            },
+            "description": "Organization to act in; defaults to your sole organization."
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
+                  "type": "array",
                   "items": {
                     "$ref": "#/components/schemas/UserListItem"
                   },
-                  "type": "array",
                   "title": "Response List Users User Management Users Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -8068,15 +8530,35 @@
         "summary": "Create User",
         "description": "Create a new user by calling Better Auth's internal API.\nThis ensures password hashing is handled correctly by Better Auth.\nThen sets the site role in the database.",
         "operationId": "create_user_user_management_users_post",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Organization to act in; defaults to your sole organization.",
+              "title": "Org Id"
+            },
+            "description": "Organization to act in; defaults to your sole organization."
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CreateUserRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -8119,6 +8601,24 @@
               "type": "string",
               "title": "User Id"
             }
+          },
+          {
+            "name": "org_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Organization to act in; defaults to your sole organization.",
+              "title": "Org Id"
+            },
+            "description": "Organization to act in; defaults to your sole organization."
           }
         ],
         "responses": {
@@ -8160,6 +8660,24 @@
               "type": "string",
               "title": "User Id"
             }
+          },
+          {
+            "name": "org_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Organization to act in; defaults to your sole organization.",
+              "title": "Org Id"
+            },
+            "description": "Organization to act in; defaults to your sole organization."
           }
         ],
         "requestBody": {
@@ -8211,6 +8729,24 @@
               "type": "string",
               "title": "User Id"
             }
+          },
+          {
+            "name": "org_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Organization to act in; defaults to your sole organization.",
+              "title": "Org Id"
+            },
+            "description": "Organization to act in; defaults to your sole organization."
           }
         ],
         "responses": {
@@ -8254,6 +8790,24 @@
               "type": "string",
               "title": "User Id"
             }
+          },
+          {
+            "name": "org_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Organization to act in; defaults to your sole organization.",
+              "title": "Org Id"
+            },
+            "description": "Organization to act in; defaults to your sole organization."
           }
         ],
         "responses": {
@@ -8292,15 +8846,35 @@
         "summary": "Assign User To Instances",
         "description": "Assign a user to instance(s) with a role and optional feature permissions.",
         "operationId": "assign_user_to_instances_user_management_assignments_post",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Organization to act in; defaults to your sole organization.",
+              "title": "Org Id"
+            },
+            "description": "Organization to act in; defaults to your sole organization."
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/AssignUserRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -8343,6 +8917,24 @@
               "type": "string",
               "title": "Assignment Id"
             }
+          },
+          {
+            "name": "org_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Organization to act in; defaults to your sole organization.",
+              "title": "Org Id"
+            },
+            "description": "Organization to act in; defaults to your sole organization."
           }
         ],
         "responses": {
@@ -8386,6 +8978,24 @@
               "type": "string",
               "title": "Instance Id"
             }
+          },
+          {
+            "name": "org_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Organization to act in; defaults to your sole organization.",
+              "title": "Org Id"
+            },
+            "description": "Organization to act in; defaults to your sole organization."
           }
         ],
         "responses": {
@@ -8417,44 +9027,41 @@
       }
     },
     "/tokens": {
-      "get": {
-        "tags": [
-          "tokens"
-        ],
-        "summary": "List Tokens",
-        "operationId": "list_tokens_tokens_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/TokenMetadata"
-                  },
-                  "type": "array",
-                  "title": "Response List Tokens Tokens Get"
-                }
-              }
-            }
-          }
-        }
-      },
       "post": {
         "tags": [
           "tokens"
         ],
         "summary": "Create Token",
         "operationId": "create_token_tokens_post",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Organization to act in; defaults to your sole organization.",
+              "title": "Org Id"
+            },
+            "description": "Organization to act in; defaults to your sole organization."
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/TokenCreateRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -8463,6 +9070,59 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/TokenCreateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "tokens"
+        ],
+        "summary": "List Tokens",
+        "operationId": "list_tokens_tokens_get",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Organization to act in; defaults to your sole organization.",
+              "title": "Org Id"
+            },
+            "description": "Organization to act in; defaults to your sole organization."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TokenMetadata"
+                  },
+                  "title": "Response List Tokens Tokens Get"
                 }
               }
             }
@@ -8496,6 +9156,24 @@
               "type": "string",
               "title": "Token Id"
             }
+          },
+          {
+            "name": "org_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Organization to act in; defaults to your sole organization.",
+              "title": "Org Id"
+            },
+            "description": "Organization to act in; defaults to your sole organization."
           }
         ],
         "responses": {
@@ -8504,6 +9182,68 @@
             "content": {
               "application/json": {
                 "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/sso-reconcile": {
+      "post": {
+        "tags": [
+          "internal"
+        ],
+        "summary": "Sso Reconcile",
+        "description": "Re-derive the user's SSO grants from their stored account and apply\noauth_role_mappings server-side. The request body carries no claims.",
+        "operationId": "sso_reconcile_internal_sso_reconcile_post",
+        "parameters": [
+          {
+            "name": "x-internal-auth",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Auth"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SsoReconcileRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Sso Reconcile Internal Sso Reconcile Post"
+                }
               }
             }
           },
@@ -10896,6 +11636,112 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/routers__rpki__rpki__VyOSResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/vyos/segment-routing/capabilities": {
+      "get": {
+        "tags": [
+          "segment-routing"
+        ],
+        "summary": "Get Segment Routing Capabilities",
+        "description": "Return Segment Routing feature capabilities based on the device VyOS version.\n\nversion_info.modify_requires_recreate is true on VyOS 1.4, where FRR\nrejects any modification of an existing segment-routing tree: clients\nmust delete the tree and recreate it in two separate batches to edit.",
+        "operationId": "get_segment_routing_capabilities_vyos_segment_routing_capabilities_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/vyos/segment-routing/config": {
+      "get": {
+        "tags": [
+          "segment-routing"
+        ],
+        "summary": "Get Segment Routing Config",
+        "description": "Return the full Segment Routing configuration in a normalized format.",
+        "operationId": "get_segment_routing_config_vyos_segment_routing_config_get",
+        "parameters": [
+          {
+            "name": "refresh",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Refresh"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SegmentRoutingConfig"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/vyos/segment-routing/batch": {
+      "post": {
+        "tags": [
+          "segment-routing"
+        ],
+        "summary": "Segment Routing Batch Configure",
+        "description": "Execute a batch of Segment Routing configuration operations atomically.",
+        "operationId": "segment_routing_batch_configure_vyos_segment_routing_batch_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SegmentRoutingBatchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/routers__segment_routing__segment_routing__VyOSResponse"
                 }
               }
             }
@@ -18002,6 +18848,11 @@
             "type": "string",
             "title": "Mode",
             "default": "merge"
+          },
+          "confirm": {
+            "type": "string",
+            "title": "Confirm",
+            "default": ""
           }
         },
         "type": "object",
@@ -40393,6 +41244,52 @@
         "type": "object",
         "title": "OpenvpnTls"
       },
+      "OrganizationMembership": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "org_role": {
+            "type": "string",
+            "title": "Org Role"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "org_role"
+        ],
+        "title": "OrganizationMembership",
+        "description": "An organization the caller belongs to, with their role in it."
+      },
+      "OrganizationsResponse": {
+        "properties": {
+          "organizations": {
+            "items": {
+              "$ref": "#/components/schemas/OrganizationMembership"
+            },
+            "type": "array",
+            "title": "Organizations"
+          },
+          "org_ui_visible": {
+            "type": "boolean",
+            "title": "Org Ui Visible"
+          }
+        },
+        "type": "object",
+        "required": [
+          "organizations",
+          "org_ui_visible"
+        ],
+        "title": "OrganizationsResponse",
+        "description": "The caller's organizations. org_ui_visible mirrors the frontend rule\n(more than one membership) so the org UI is suppressed for single-team\ndeployments without the client re-deriving it."
+      },
       "OspfArea": {
         "properties": {
           "area_id": {
@@ -49280,6 +50177,70 @@
         "title": "SaveLayoutResponse",
         "description": "Response model for saving dashboard layout."
       },
+      "SegmentRoutingBatchOperation": {
+        "properties": {
+          "op": {
+            "type": "string",
+            "title": "Op",
+            "description": "Builder method name"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value",
+            "description": "Comma-separated arguments"
+          }
+        },
+        "type": "object",
+        "required": [
+          "op"
+        ],
+        "title": "SegmentRoutingBatchOperation"
+      },
+      "SegmentRoutingBatchRequest": {
+        "properties": {
+          "operations": {
+            "items": {
+              "$ref": "#/components/schemas/SegmentRoutingBatchOperation"
+            },
+            "type": "array",
+            "title": "Operations"
+          }
+        },
+        "type": "object",
+        "required": [
+          "operations"
+        ],
+        "title": "SegmentRoutingBatchRequest"
+      },
+      "SegmentRoutingConfig": {
+        "properties": {
+          "locators": {
+            "items": {
+              "$ref": "#/components/schemas/Srv6Locator"
+            },
+            "type": "array",
+            "title": "Locators",
+            "default": []
+          },
+          "interfaces": {
+            "items": {
+              "$ref": "#/components/schemas/SrInterface"
+            },
+            "type": "array",
+            "title": "Interfaces",
+            "default": []
+          }
+        },
+        "type": "object",
+        "title": "SegmentRoutingConfig"
+      },
       "SeparatorBatchRequest": {
         "properties": {
           "upserts": {
@@ -50541,6 +51502,92 @@
         ],
         "title": "SquidGuardTimePeriod"
       },
+      "SrInterface": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "hmac": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hmac"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "SrInterface"
+      },
+      "Srv6Locator": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "prefix": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prefix"
+          },
+          "block_len": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Block Len"
+          },
+          "node_len": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Node Len"
+          },
+          "func_bits": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Func Bits"
+          },
+          "behavior_usid": {
+            "type": "boolean",
+            "title": "Behavior Usid",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "Srv6Locator"
+      },
       "SshClientOptions": {
         "properties": {
           "source_address": {
@@ -50568,6 +51615,19 @@
         },
         "type": "object",
         "title": "SshClientOptions"
+      },
+      "SsoReconcileRequest": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id"
+        ],
+        "title": "SsoReconcileRequest"
       },
       "SstpcAuthentication": {
         "properties": {
@@ -68668,6 +69728,42 @@
         "title": "VyOSResponse"
       },
       "routers__salt_minion__salt_minion__VyOSResponse": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "VyOSResponse"
+      },
+      "routers__segment_routing__segment_routing__VyOSResponse": {
         "properties": {
           "success": {
             "type": "boolean",
