@@ -31,6 +31,7 @@ from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
 from fastapi_permissions import require_read_permission
+import org_scope
 from org_scope import request_scoped_conn
 from rbac_permissions import FeatureGroup
 from system_updates import SystemUpdatesInfo, parse_system_updates
@@ -190,7 +191,21 @@ async def get_site_updates(request: Request, site_id: str, refresh: bool = False
             "SELECT role FROM users WHERE id = $1", user_id
         )
 
-        if user_site_role == "ADMIN":
+        # Under org enforcement, an org ADMIN/OWNER of the site's organization
+        # also sees all of its instances (mirrors the site/instance listings
+        # and the permission layer). Inert while enforcement is off.
+        org_admin = org_scope.ORG_ENFORCEMENT and await conn.fetchval(
+            """
+            SELECT 1 FROM sites s
+            JOIN org_memberships m ON m."orgId" = s."orgId"
+            WHERE s.id = $1 AND m."userId" = $2
+                  AND m."orgRole" IN ('ADMIN', 'OWNER')
+            """,
+            site_id,
+            user_id,
+        )
+
+        if user_site_role == "ADMIN" or org_admin:
             instances = await conn.fetch(
                 """
                 SELECT id, name, host, port, "apiKey", protocol, "verifySsl",
