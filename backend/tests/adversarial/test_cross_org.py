@@ -1,18 +1,13 @@
-"""Cross-organization negatives and target-state expectations.
+"""Cross-organization negatives and org-role semantics.
 
-Two kinds of tests, deliberately mixed in one file so the boundary reads
-as one story:
+- Plain assertions: invariants that hold with enforcement off (today's
+  default) and must keep holding through every step of the organization
+  work. A regression here is a broken build, full stop.
 
-- Plain assertions: invariants that hold TODAY and must keep holding
-  through every step of the organization work. A regression here is a
-  broken build, full stop.
-
-- xfail assertions: the TARGET semantics of org roles, which arrive with
-  org enforcement. They execute the real request today and document
-  current behavior; the enforcement-flip PR converts them to strict
-  assertions. An early XPASS is a SIGNAL, not noise - it means an
-  endpoint started enforcing (or otherwise changed) ahead of the flip,
-  and must be reported and explained, whether it is good news or bad.
+- Enforcement-on assertions: the org-role semantics that activate under
+  ORG_ENFORCEMENT. Each turns the flag on for the request and asserts the
+  enforced behavior directly (no longer xfail placeholders — the
+  enforcement path has landed and is proven by the FORCE-RLS rehearsal).
 """
 
 import pytest
@@ -20,11 +15,6 @@ import pytest
 from conftest import IDS, as_user
 
 pytestmark = pytest.mark.usefixtures("adversarial_world")
-
-ENFORCEMENT_OFF = pytest.mark.xfail(
-    reason="target org-role semantics; enforced at the org-enforcement flip",
-    strict=False,
-)
 
 
 # ---------------------------------------------------------------------------
@@ -85,39 +75,29 @@ def test_system_administrator_sees_all_orgs(adversarial_world):
 
 
 # ---------------------------------------------------------------------------
-# Target-state expectations (xfail until the enforcement flip)
+# Org-role semantics under enforcement (proven workable by the FORCE-RLS
+# rehearsal; asserted here with the flag on). These were xfail placeholders
+# until the enforcement path landed and is verified; they are strict now.
 # ---------------------------------------------------------------------------
 
-@ENFORCEMENT_OFF
-def test_org_admin_sees_all_sites_of_their_org(adversarial_world):
+def test_org_admin_sees_all_sites_of_their_org(adversarial_world, monkeypatch):
     # Composition rule: org ADMIN is at least instance-ADMIN on every
     # instance in the org - the site listing must include all org-A sites
     # without per-site grants.
+    import org_scope
+    monkeypatch.setattr(org_scope, "ORG_ENFORCEMENT", True)
     response = as_user(adversarial_world, "a_admin").get("/session/sites")
     assert response.status_code == 200
     assert IDS["site_a"] in [s["id"] for s in response.json()]
 
 
-@ENFORCEMENT_OFF
-def test_org_admin_sees_instances_of_their_org_site(adversarial_world):
+def test_org_admin_sees_instances_of_their_org_site(adversarial_world, monkeypatch):
+    import org_scope
+    monkeypatch.setattr(org_scope, "ORG_ENFORCEMENT", True)
     response = as_user(adversarial_world, "a_admin").get(
         f"/session/sites/{IDS['site_a']}/instances")
     assert response.status_code == 200
     assert IDS["instance_a"] in [i["id"] for i in response.json()]
-
-
-@ENFORCEMENT_OFF
-def test_token_creation_rejects_foreign_org_instance_ids(adversarial_world):
-    # Target semantics with enforcement OFF: a cross-org allowed-id is inert
-    # (FK passes, request-time grant intersection is the backstop). This
-    # xfails today and flips strict at the enforcement flip; the enforced
-    # behavior is proven in the ON test below.
-    response = as_user(adversarial_world, "a_member").post(
-        "/tokens",
-        json={"name": "adv-cross-org-probe", "scopes": ["read"],
-              "allowed_instance_ids": [IDS["instance_b"]],
-              "allowed_site_ids": []})
-    assert response.status_code in (400, 403, 422)
 
 
 def test_token_creation_org_confined_under_enforcement(
