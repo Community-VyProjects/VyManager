@@ -26,6 +26,7 @@ async function main() {
     create: {
       name: "Default Site",
       description: "Default site for existing VyOS instance",
+      orgId: "default",
     },
   });
 

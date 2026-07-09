@@ -288,8 +288,8 @@ def test_middleware_derives_org_from_active_instance():
                     NOW() + interval '1 hour', NOW(), NOW())
         """)
         await conn.execute("""
-            INSERT INTO sites (id, name, "createdAt", "updatedAt")
-            VALUES ('s_orgscope', 'Org Scope Site', NOW(), NOW())
+            INSERT INTO sites (id, name, "orgId", "createdAt", "updatedAt")
+            VALUES ('s_orgscope', 'Org Scope Site', 'default', NOW(), NOW())
         """)
         await conn.execute("""
             INSERT INTO instances (id, "siteId", name, host, username,

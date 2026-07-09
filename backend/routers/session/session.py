@@ -1582,6 +1582,11 @@ async def restore_backup(
             inserted = updated = skipped = 0
 
             for row in rows:
+                # Pre-org backups predate sites.orgId; the column has no DEFAULT
+                # anymore, so land those sites in the default org (never wiped by
+                # a restore, so the FK always resolves).
+                if table == "sites" and "orgId" in types and not row.get("orgId"):
+                    row = {**row, "orgId": "default"}
                 columns = [c for c in row.keys() if c in types]
                 if not columns:
                     continue
