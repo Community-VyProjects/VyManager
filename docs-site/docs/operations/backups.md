@@ -16,6 +16,12 @@ One exception: SSH private keys inside the backup are stored as the database hol
 
 Restore supports **Merge** (upsert, nothing deleted) and **Replace** (wipe and restore exactly; signs everyone out). Restore is also available before onboarding, so a fresh install can be seeded from a backup.
 
+### Who can back up, and organization scope
+
+Backup and restore are platform-administrator operations: only a user with the platform **ADMIN** role can create or restore a `.vymgr` file. An organization admin (the `ADMIN` role *within* an organization) cannot — the backup is a whole-system disaster-recovery tool, not a per-organization export.
+
+This still holds once [organization enforcement](../architecture/organizations) is enabled. The export runs with the system administrator's row-level-security bypass, so it captures every organization's sites, instances and grants in one file; there is no org-scoped partial export, and restore likewise rewrites the whole system.
+
 ## PostgreSQL
 
 The `.vymgr` backup covers the same data, but a database-level backup protects against botched upgrades and gives point-in-time recovery. Either dump:
