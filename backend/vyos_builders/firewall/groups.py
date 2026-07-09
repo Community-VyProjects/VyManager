@@ -8,6 +8,20 @@ from typing import List, Dict, Any
 from vyos_mappers import CommandMapperRegistry
 
 
+def _version_to_float(version: str) -> float:
+    """Best-effort numeric form of a VyOS version for display.
+
+    Handles "x.y" and "x.y.z" (e.g. "1.4.4" -> 1.4); returns 0.0 when the
+    string cannot be parsed. float("1.4.4") raises, so the major.minor pair is
+    used rather than the raw string.
+    """
+    parts = str(version).split(".")
+    try:
+        return float(f"{parts[0]}.{parts[1]}") if len(parts) >= 2 else float(parts[0])
+    except (ValueError, IndexError):
+        return 0.0
+
+
 class FirewallGroupsBatchBuilder:
     """Complete batch builder for firewall group operations"""
 
@@ -581,7 +595,7 @@ class FirewallGroupsBatchBuilder:
         # Base capabilities for all versions
         capabilities = {
             "version": self.version,
-            "version_number": float(self.version),
+            "version_number": _version_to_float(self.version),
             "group_types": {
                 "address_group": {
                     "supported": True,
