@@ -56,12 +56,13 @@ import { DeleteInstanceModal } from "@/components/sites/DeleteInstanceModal";
 import { BackupRestoreModal } from "@/components/session/BackupRestoreModal";
 import { UserManagement } from "@/components/user-management/UserManagement";
 import { AuthenticationSettings } from "@/components/authentication/AuthenticationSettings";
+import { OrgManagement } from "@/components/organizations/OrgManagement";
 import { ApiTokensPanel } from "@/components/tokens/ApiTokensPanel";
 import { ThemeSelector } from "@/components/ui/theme-selector";
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/types/api";
 
-type NavSection = "sites" | "user-management" | "authentication" | "api-tokens";
+type NavSection = "sites" | "user-management" | "authentication" | "api-tokens" | "organizations";
 
 export default function SitesPage() {
   const router = useRouter();
@@ -414,6 +415,35 @@ export default function SitesPage() {
                   )}
                 </div>
               </button>
+
+              {/* Organizations (System Administrators only) */}
+              {(session?.user as { role?: string })?.role === "ADMIN" && (
+                <button
+                  onClick={() => setSelectedSection("organizations")}
+                  className={cn(
+                    "w-full text-left rounded-lg px-3 py-3 transition-all",
+                    selectedSection === "organizations"
+                      ? "bg-accent text-accent-foreground shadow-sm"
+                      : "hover:bg-accent/50"
+                  )}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={cn(
+                      "rounded-md p-1.5",
+                      selectedSection === "organizations" ? "bg-primary/10" : "bg-muted"
+                    )}>
+                      <Building2 className={cn(
+                        "h-4 w-4",
+                        selectedSection === "organizations" ? "text-primary" : "text-muted-foreground"
+                      )} />
+                    </div>
+                    <span className="font-medium text-sm">Organizations</span>
+                    {selectedSection === "organizations" && (
+                      <ChevronRight className="h-4 w-4 text-primary ml-auto" />
+                    )}
+                  </div>
+                </button>
+              )}
             </div>
           </ScrollArea>
 
@@ -787,6 +817,10 @@ export default function SitesPage() {
           ) : selectedSection === "api-tokens" ? (
             <div className="flex-1 overflow-auto p-6">
               <ApiTokensPanel />
+            </div>
+          ) : selectedSection === "organizations" ? (
+            <div className="flex-1 overflow-auto p-6">
+              <OrgManagement />
             </div>
           ) : (
             <div className="flex-1 flex items-center justify-center">
