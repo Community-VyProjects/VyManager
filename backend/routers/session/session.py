@@ -49,6 +49,8 @@ class SiteResponse(BaseModel):
     name: str
     description: Optional[str] = None
     role: str  # User's role in this site (OWNER, ADMIN, VIEWER)
+    org_id: Optional[str] = None
+    org_name: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -519,9 +521,11 @@ async def list_user_sites(request: Request, conn: asyncpg.Connection = Depends(o
             # Site ADMINs see ALL sites with ADMIN role
             sites = await conn.fetch(
                 """
-                SELECT id, name, description, "createdAt", "updatedAt"
-                FROM sites
-                ORDER BY name
+                SELECT s.id, s.name, s.description, s."orgId",
+                       o.name AS org_name, s."createdAt", s."updatedAt"
+                FROM sites s
+                LEFT JOIN organizations o ON o.id = s."orgId"
+                ORDER BY o.name, s.name
                 """,
             )
 
@@ -531,6 +535,8 @@ async def list_user_sites(request: Request, conn: asyncpg.Connection = Depends(o
                     name=site["name"],
                     description=site["description"],
                     role="ADMIN",  # Site ADMINs have ADMIN role on all sites
+                    org_id=site["orgId"],
+                    org_name=site["org_name"],
                     created_at=site["createdAt"],
                     updated_at=site["updatedAt"],
                 )
@@ -541,7 +547,8 @@ async def list_user_sites(request: Request, conn: asyncpg.Connection = Depends(o
             # Role shown is the highest role the user has across all instances in that site
             sites = await conn.fetch(
                 """
-                SELECT DISTINCT s.id, s.name, s.description, s."createdAt", s."updatedAt",
+                SELECT DISTINCT s.id, s.name, s.description, s."orgId",
+                       o.name AS org_name, s."createdAt", s."updatedAt",
                        MAX(
                            CASE uir.role
                                WHEN 'ADMIN' THEN 3
@@ -562,8 +569,10 @@ async def list_user_sites(request: Request, conn: asyncpg.Connection = Depends(o
                 JOIN user_instance_roles uir
                     ON (uir."instanceId" = i.id OR uir."siteId" = s.id)
                     AND uir."userId" = $1
-                GROUP BY s.id, s.name, s.description, s."createdAt", s."updatedAt"
-                ORDER BY s.name
+                LEFT JOIN organizations o ON o.id = s."orgId"
+                GROUP BY s.id, s.name, s.description, s."orgId", o.name,
+                         s."createdAt", s."updatedAt"
+                ORDER BY o.name, s.name
                 """,
                 user_id,
             )
@@ -574,6 +583,8 @@ async def list_user_sites(request: Request, conn: asyncpg.Connection = Depends(o
                     name=site["name"],
                     description=site["description"],
                     role=site["role"],
+                    org_id=site["orgId"],
+                    org_name=site["org_name"],
                     created_at=site["createdAt"],
                     updated_at=site["updatedAt"],
                 )
