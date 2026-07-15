@@ -67,7 +67,7 @@ export function VrfStaticRoutesTab({
   // Create form state
   const [newDest, setNewDest] = useState("");
   const [newDesc, setNewDesc] = useState("");
-  const [newType, setNewType] = useState<"next-hop" | "interface" | "blackhole" | "reject">("next-hop");
+  const [newType, setNewType] = useState<"empty" | "next-hop" | "interface" | "blackhole" | "reject">("next-hop");
   const [newNextHop, setNewNextHop] = useState("");
   const [newInterface, setNewInterface] = useState("");
   const [newDistance, setNewDistance] = useState("");
@@ -144,7 +144,9 @@ export function VrfStaticRoutesTab({
         description: newDesc.trim() || undefined,
       };
 
-      if (newType === "next-hop" && newNextHop.trim()) {
+      if (newType === "empty") {
+        // Empty type: just destination and description, no route target
+      } else if (newType === "next-hop" && newNextHop.trim()) {
         config.next_hops = [{
           address: newNextHop.trim(),
           distance: newDistance.trim() || undefined,
@@ -372,6 +374,7 @@ export function VrfStaticRoutesTab({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="empty">Empty (destination only)</SelectItem>
                   <SelectItem value="next-hop">Next-hop</SelectItem>
                   <SelectItem value="interface">Interface</SelectItem>
                   <SelectItem value="blackhole">Blackhole</SelectItem>
@@ -402,30 +405,32 @@ export function VrfStaticRoutesTab({
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Distance</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  max={255}
-                  placeholder="1-255"
-                  value={newDistance}
-                  onChange={(e) => setNewDistance(e.target.value)}
-                />
-              </div>
-              {(newType === "next-hop" || newType === "interface") && (
+            {newType !== "empty" && (
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>VRF (route leaking)</Label>
-                  <VrfSelect
-                    placeholder="Target VRF"
-                    value={newNhVrf}
-                    onValueChange={setNewNhVrf}
-                    extraOptions={[{ label: "Default", value: "default" }]}
+                  <Label>Distance</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={255}
+                    placeholder="1-255"
+                    value={newDistance}
+                    onChange={(e) => setNewDistance(e.target.value)}
                   />
                 </div>
-              )}
-            </div>
+                {(newType === "next-hop" || newType === "interface") && (
+                  <div className="space-y-2">
+                    <Label>VRF (route leaking)</Label>
+                    <VrfSelect
+                      placeholder="Target VRF"
+                      value={newNhVrf}
+                      onValueChange={setNewNhVrf}
+                      extraOptions={[{ label: "Default", value: "default" }]}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <DialogFooter>
