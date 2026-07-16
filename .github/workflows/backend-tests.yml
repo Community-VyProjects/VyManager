@@ -1,0 +1,103 @@
+name: Backend Tests
+
+# Runs the backend pytest suite against a real Postgres with the Prisma
+# schema applied, so the DB-gated security tests (adversarial suite, RLS,
+# Golden Rule, revocation bus, audit coverage, ...) actually execute
+# instead of skipping silently. A second pass fails the build if any
+# security test was collected but skipped — a vacuously green suite is
+# treated as a failure.
+
+on:
+  pull_request:
+    paths:
+      - 'backend/**'
+      - 'frontend/prisma/**'
+      - '.github/workflows/backend-tests.yml'
+  push:
+    branches:
+      - beta
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: vymanager_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # The CI role is the postgres superuser, so the CREATEROLE-gated
+      # tests (RLS proof, Golden Rule) run too.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/vymanager_test
+      BETTER_AUTH_SECRET: ci-only-test-secret
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          # Matches the backend production image (python:3.11-slim)
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install backend dependencies
+        run: pip install -r backend/requirements.txt
+
+      - name: Set up Node (Prisma CLI)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Apply Prisma migrations
+        run: npx --yes prisma@6 migrate deploy --schema frontend/prisma/schema.prisma
+
+      - name: Run backend test suite
+        working-directory: backend
+        run: python -m pytest tests -q
+
+      - name: Security tests must have run (no silent skips)
+        working-directory: backend
+        run: |
+          python -m pytest \
+            tests/adversarial \
+            tests/test_rls.py \
+            tests/test_org_admin.py \
+            tests/test_org_scope.py \
+            tests/test_revocation_bus.py \
+            tests/test_audit_coverage.py \
+            tests/test_sso_reconcile.py \
+            tests/test_backup_safety.py \
+            tests/test_organizations_endpoint.py \
+            -q -rs --junit-xml=security-report.xml
+          python - <<'EOF'
+          import xml.etree.ElementTree as ET
+
+          root = ET.parse("security-report.xml").getroot()
+          suite = root if root.tag == "testsuite" else root.find("testsuite")
+          tests = int(suite.get("tests", 0))
+          skipped = int(suite.get("skipped", 0))
+          print(f"security tests: {tests} collected, {skipped} skipped")
+          if tests == 0:
+              raise SystemExit("no security tests were collected")
+          if skipped:
+              raise SystemExit(
+                  "security tests were skipped — the suite passed vacuously. "
+                  "Check DATABASE_URL/migrations in this workflow."
+              )
+          EOF
