@@ -150,35 +150,15 @@
         "summary": "Connect To Instance",
         "description": "Connect to a specific VyOS instance.\n\nThis sets the user's active session to the specified instance.\nOnly one instance can be active at a time per user.",
         "operationId": "connect_to_instance_session_connect_post",
-        "parameters": [
-          {
-            "name": "org_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Organization to act in; defaults to your sole organization.",
-              "title": "Org Id"
-            },
-            "description": "Organization to act in; defaults to your sole organization."
-          }
-        ],
         "requestBody": {
-          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ConnectRequest"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "200": {
