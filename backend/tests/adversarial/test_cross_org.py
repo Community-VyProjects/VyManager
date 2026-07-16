@@ -122,3 +122,27 @@ def test_token_creation_org_confined_under_enforcement(
               "allowed_instance_ids": [IDS["instance_a"]],
               "allowed_site_ids": []})
     assert same.status_code == 200
+
+
+def test_token_use_cannot_cross_the_org_boundary(adversarial_world):
+    # Token confinement at USE (RFC §8), not just at creation. a_member
+    # mints a token scoped to their own org-A instance, then presents it
+    # with an X-VyOS-Instance-Id header naming the org-B instance. Two
+    # independent barriers reject it — no grant on the B instance and the
+    # token's allow-list — so no active instance is ever resolved and the
+    # request is denied (never a 2xx, and never a 503 that would mean the
+    # B instance had been selected and contacted).
+    created = as_user(adversarial_world, "a_member").post(
+        "/tokens",
+        json={"name": "adv-use", "scopes": ["read"],
+              "allowed_instance_ids": [IDS["instance_a"]],
+              "allowed_site_ids": []})
+    assert created.status_code == 200
+    token = created.json()["token"]
+
+    cross = adversarial_world.get(
+        "/vyos/access-list/config",
+        headers={"Authorization": f"Bearer {token}",
+                 "X-VyOS-Instance-Id": IDS["instance_b"]})
+    assert cross.status_code in (400, 403, 404)
+    assert cross.status_code not in (200, 503)
