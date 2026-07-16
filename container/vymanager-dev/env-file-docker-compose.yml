@@ -21,6 +21,29 @@ services:
       retries: 5
       start_period: 10s
 
+  # One-shot migration runner: applies Prisma migrations before the
+  # backend serves and before the frontend starts (the backend healthcheck
+  # used to gate the frontend, which ran the migrations — so on upgrades
+  # the backend served against the old schema until the frontend came up).
+  migrate:
+    build:
+      context: ../../frontend
+      dockerfile: Dockerfile
+    container_name: vymanager-migrate
+    entrypoint: ["sh", "-c", "npx prisma generate && npx prisma migrate deploy"]
+    volumes:
+      - ../../frontend:/app
+      - /app/node_modules
+      - /app/.next
+    env_file:
+      - ../../frontend/.env
+    restart: "no"
+    networks:
+      - vymanager-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   backend:
     build:
       context: ../../backend
@@ -41,6 +64,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/docs"]
       interval: 30s
