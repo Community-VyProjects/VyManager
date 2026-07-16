@@ -359,8 +359,8 @@ async def get_bridge_config(request: Request, refresh: bool = False):
         for chain_name in base_chain_names:
             if chain_name in bridge_config:
                 raw_chain_data = bridge_config[chain_name]
-                # VyOS 1.5 uses filter table structure
-                if is_v15 and isinstance(raw_chain_data, dict) and "filter" in raw_chain_data:
+                # Base chains nest under the filter table on both 1.4 and 1.5
+                if isinstance(raw_chain_data, dict) and "filter" in raw_chain_data:
                     chain_data = raw_chain_data["filter"]
                 else:
                     chain_data = raw_chain_data

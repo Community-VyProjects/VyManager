@@ -39,16 +39,15 @@ class BridgeFirewallMapper(BaseFeatureMapper):
         return chain in base_chains
 
     def _get_chain_base(self, chain: str, is_custom: bool = False) -> List[str]:
-        """Get base path for a chain. VyOS 1.5 uses 'filter' table for base chains."""
+        """Get base path for a chain. Base chains sit under the 'filter' table."""
         # Check if it's a custom chain (either explicitly flagged or not a base chain name)
         if is_custom or not self._is_base_chain(chain):
             # Custom chains use: firewall bridge name <chain-name>
             return ["firewall", "bridge", "name", chain]
 
-        # Base chains use: firewall bridge <chain> [filter] (filter only for VyOS 1.5)
-        if self._is_v15:
-            return ["firewall", "bridge", chain, "filter"]
-        return ["firewall", "bridge", chain]
+        # Base chains use: firewall bridge <chain> filter — on both 1.4 and
+        # 1.5; sagitta rejects the path without the filter keyword.
+        return ["firewall", "bridge", chain, "filter"]
 
     def get_chain_path(self, chain: str) -> List[str]:
         """Get command path for a chain."""
