@@ -67,6 +67,15 @@ jobs:
       - name: Apply Prisma migrations
         run: npx --yes prisma@6 migrate deploy --schema frontend/prisma/schema.prisma
 
+      - name: Capture permission golden file
+        # The golden harness is capture-then-compare; a fresh CI database
+        # has no pre-upgrade snapshot, so capture one first — the suite's
+        # compare pass then proves the harness itself works.
+        working-directory: backend
+        env:
+          GOLDEN_PERMISSIONS_MODE: capture
+        run: python -m pytest tests/test_permission_golden.py -q
+
       - name: Run backend test suite
         working-directory: backend
         run: python -m pytest tests -q
