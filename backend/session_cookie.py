@@ -52,3 +52,21 @@ def verify_session_cookie(signed_value: str) -> str | None:
         return None
 
     return session_id
+
+
+# The browser cookie name depends on the deployment: Better Auth prefixes
+# it with __Secure- when secure cookies are enabled (HTTPS). Every read
+# must accept both or secure deployments silently lose session tracking.
+SESSION_COOKIE_NAMES = (
+    "better-auth.session_token",
+    "__Secure-better-auth.session_token",
+)
+
+
+def get_session_cookie(request) -> str | None:
+    """Return the signed session cookie under whichever name is present."""
+    for name in SESSION_COOKIE_NAMES:
+        value = request.cookies.get(name)
+        if value:
+            return value
+    return None

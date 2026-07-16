@@ -287,16 +287,29 @@ class OspfBatchBuilder:
     # Redistribute
     # ========================================================================
 
+    # Protocols that only exist as redistribute sources from VyOS 1.5.
+    _V15_ONLY_REDISTRIBUTE = frozenset({"nhrp"})
+
+    def _check_redistribute_supported(self, protocol: str) -> None:
+        if protocol in self._V15_ONLY_REDISTRIBUTE and "1.4" in self.version:
+            raise ValueError(
+                f"redistribute {protocol} requires VyOS 1.5+. "
+                "Current device is running v1.4")
+
     def set_redistribute(self, protocol: str) -> "OspfBatchBuilder":
+        self._check_redistribute_supported(protocol)
         return self.add_set(self.m.get_redistribute(protocol))
 
     def set_redistribute_metric(self, protocol: str, value: str) -> "OspfBatchBuilder":
+        self._check_redistribute_supported(protocol)
         return self.add_set(self.m.get_redistribute_metric(protocol, value))
 
     def set_redistribute_metric_type(self, protocol: str, value: str) -> "OspfBatchBuilder":
+        self._check_redistribute_supported(protocol)
         return self.add_set(self.m.get_redistribute_metric_type(protocol, value))
 
     def set_redistribute_route_map(self, protocol: str, value: str) -> "OspfBatchBuilder":
+        self._check_redistribute_supported(protocol)
         return self.add_set(self.m.get_redistribute_route_map(protocol, value))
 
     def delete_redistribute(self, protocol: str) -> "OspfBatchBuilder":

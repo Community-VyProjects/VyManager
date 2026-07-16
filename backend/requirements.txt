@@ -13,4 +13,5 @@ passlib==1.7.4
 email-validator==2.3.0
 asyncssh==2.23.0
 cryptography==48.0.1
+PyJWT==2.10.1
 tzdata==2026.2

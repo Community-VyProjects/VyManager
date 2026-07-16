@@ -543,6 +543,8 @@ _INSTANCE_ADMIN_FEATURES = [
     FeatureGroup.FIREWALL_POLICIES,
     FeatureGroup.FIREWALL_ZONES,
     FeatureGroup.FIREWALL_GLOBAL_OPTIONS,
+    FeatureGroup.FIREWALL_BRIDGE,
+    FeatureGroup.FIREWALL_FLOWTABLES,
     FeatureGroup.NETWORK,
     FeatureGroup.NAT,
     FeatureGroup.NAT64,
@@ -736,6 +738,8 @@ async def get_user_permissions(
                 FeatureGroup.FIREWALL_POLICIES,
                 FeatureGroup.FIREWALL_ZONES,
                 FeatureGroup.FIREWALL_GLOBAL_OPTIONS,
+                FeatureGroup.FIREWALL_BRIDGE,
+                FeatureGroup.FIREWALL_FLOWTABLES,
                 FeatureGroup.NETWORK,
                 FeatureGroup.NAT,
                 FeatureGroup.NAT64,
@@ -1021,7 +1025,8 @@ def _apply_parent_child_permissions(permissions: Dict[FeatureGroup, PermissionLe
     permission to all child features.
 
     Parent-Child relationships:
-    - FIREWALL → FIREWALL_GROUPS, FIREWALL_POLICIES, FIREWALL_ZONES
+    - FIREWALL → FIREWALL_GROUPS, FIREWALL_POLICIES, FIREWALL_ZONES,
+                 FIREWALL_GLOBAL_OPTIONS, FIREWALL_BRIDGE, FIREWALL_FLOWTABLES
     - NETWORK → INTERFACES, DHCP, VRF, LOAD_BALANCING, NAT
     - VPN → IPSEC, WIREGUARD
     - ROUTING → UNICAST_PROTOCOLS
@@ -1037,7 +1042,7 @@ def _apply_parent_child_permissions(permissions: Dict[FeatureGroup, PermissionLe
     firewall_perm = permissions.get(FeatureGroup.FIREWALL, PermissionLevel.NONE)
     if firewall_perm != PermissionLevel.NONE:
         # Grant parent permission to children if they don't have a higher permission
-        for child in [FeatureGroup.FIREWALL_GROUPS, FeatureGroup.FIREWALL_POLICIES, FeatureGroup.FIREWALL_ZONES, FeatureGroup.FIREWALL_GLOBAL_OPTIONS]:
+        for child in [FeatureGroup.FIREWALL_GROUPS, FeatureGroup.FIREWALL_POLICIES, FeatureGroup.FIREWALL_ZONES, FeatureGroup.FIREWALL_GLOBAL_OPTIONS, FeatureGroup.FIREWALL_BRIDGE, FeatureGroup.FIREWALL_FLOWTABLES]:
             current = permissions.get(child, PermissionLevel.NONE)
             # Only upgrade permission, never downgrade
             if firewall_perm == PermissionLevel.WRITE:
