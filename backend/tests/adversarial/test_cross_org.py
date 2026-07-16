@@ -10,9 +10,12 @@
   enforcement path has landed and is proven by the FORCE-RLS rehearsal).
 """
 
+import asyncio
+import os
+
 import pytest
 
-from conftest import IDS, as_user
+from conftest import IDS, USERS, as_user
 
 pytestmark = pytest.mark.usefixtures("adversarial_world")
 
@@ -36,9 +39,11 @@ def test_member_cannot_connect_to_foreign_org_instance(adversarial_world):
 
 
 def test_explicit_org_param_rejects_non_members(adversarial_world):
+    # Uniform 404 (same as a nonexistent org) so org ids cannot be
+    # enumerated by non-members.
     response = as_user(adversarial_world, "a_member").get(
         "/session/sites", params={"org_id": IDS["org_b"]})
-    assert response.status_code == 403
+    assert response.status_code == 404
 
 
 def test_explicit_org_param_rejects_unknown_org(adversarial_world):
@@ -122,3 +127,57 @@ def test_token_creation_org_confined_under_enforcement(
               "allowed_instance_ids": [IDS["instance_a"]],
               "allowed_site_ids": []})
     assert same.status_code == 200
+
+
+def test_cross_org_grant_is_never_minted(adversarial_world, monkeypatch):
+    # assign_user_to_instances resolves each target's org and asserts it
+    # is the caller's acting org (mirroring remove_assignment). Today the
+    # endpoint is also super-admin-gated, so an org admin sees 403; when
+    # that gate opens to org roles the row check answers 404. Either way
+    # the invariant is: the request fails and no grant row appears.
+    import asyncpg
+    import org_scope
+    monkeypatch.setattr(org_scope, "ORG_ENFORCEMENT", True)
+
+    response = as_user(adversarial_world, "a_admin").post(
+        "/user-management/assignments",
+        json={"user_id": USERS["a_member"][0],
+              "instance_ids": [IDS["instance_b"]],
+              "site_ids": [],
+              "role": "VIEWER"})
+    assert response.status_code >= 400
+
+    async def cross_org_grants() -> int:
+        conn = await asyncpg.connect(os.environ["DATABASE_URL"])
+        try:
+            return await conn.fetchval(
+                'SELECT count(*) FROM user_instance_roles '
+                'WHERE "userId" = $1 AND "instanceId" = $2',
+                USERS["a_member"][0], IDS["instance_b"])
+        finally:
+            await conn.close()
+
+    assert asyncio.run(cross_org_grants()) == 0
+
+def test_token_use_cannot_cross_the_org_boundary(adversarial_world):
+    # Token confinement at USE (RFC §8), not just at creation. a_member
+    # mints a token scoped to their own org-A instance, then presents it
+    # with an X-VyOS-Instance-Id header naming the org-B instance. Two
+    # independent barriers reject it — no grant on the B instance and the
+    # token's allow-list — so no active instance is ever resolved and the
+    # request is denied (never a 2xx, and never a 503 that would mean the
+    # B instance had been selected and contacted).
+    created = as_user(adversarial_world, "a_member").post(
+        "/tokens",
+        json={"name": "adv-use", "scopes": ["read"],
+              "allowed_instance_ids": [IDS["instance_a"]],
+              "allowed_site_ids": []})
+    assert created.status_code == 200
+    token = created.json()["token"]
+
+    cross = adversarial_world.get(
+        "/vyos/access-list/config",
+        headers={"Authorization": f"Bearer {token}",
+                 "X-VyOS-Instance-Id": IDS["instance_b"]})
+    assert cross.status_code in (400, 403, 404)
+    assert cross.status_code not in (200, 503)

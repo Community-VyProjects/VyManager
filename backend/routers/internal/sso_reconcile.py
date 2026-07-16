@@ -13,12 +13,22 @@ auth.ts reconcileGrants, with claim extraction moved server-side.
 
 import base64
 import json
+import logging
 import os
 from typing import Any, Dict, List, Optional
 
 import asyncpg
 from fastapi import APIRouter, Header, HTTPException, Request
 from pydantic import BaseModel
+
+from sso_jwt_verify import (
+    TokenInvalid,
+    VerificationUnavailable,
+    require_verification,
+    verified_claims,
+)
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/internal", tags=["internal"])
 
@@ -247,14 +257,43 @@ async def sso_reconcile(
             for acc in accounts:
                 provider = await conn.fetchrow(
                     'SELECT "providerId", enabled, "roleMappingEnabled",'
-                    ' "groupsClaim" FROM oauth_providers'
+                    ' "groupsClaim", "discoveryUrl", "clientId"'
+                    ' FROM oauth_providers'
                     ' WHERE "providerId" = $1 AND enabled = true',
                     acc["providerId"])
                 if not provider or not provider["roleMappingEnabled"]:
                     continue
 
                 claim_name = provider["groupsClaim"] or DEFAULT_GROUPS_CLAIM
-                claims = _decode_jwt_claims(acc["idToken"] or "")
+                # Verify the stored id_token against the provider's JWKS
+                # before trusting its groups: accounts is frontend-writable,
+                # so an unverified decode would let a planted token mint
+                # grants (audit D1-03).
+                try:
+                    claims = await verified_claims(
+                        acc["idToken"] or "",
+                        provider["discoveryUrl"],
+                        provider["clientId"])
+                except TokenInvalid as e:
+                    # A token that FAILS verification is never trusted —
+                    # skip this provider entirely (no grant changes).
+                    logger.warning(
+                        "sso-reconcile: id_token for provider %s failed "
+                        "verification (%s); skipping", acc["providerId"], e)
+                    continue
+                except VerificationUnavailable as e:
+                    if require_verification():
+                        logger.warning(
+                            "sso-reconcile: verification unavailable for "
+                            "provider %s (%s) and "
+                            "VYMANAGER_SSO_REQUIRE_JWT_VERIFY=1; skipping",
+                            acc["providerId"], e)
+                        continue
+                    logger.info(
+                        "sso-reconcile: verification unavailable for "
+                        "provider %s (%s); using unverified claims",
+                        acc["providerId"], e)
+                    claims = _decode_jwt_claims(acc["idToken"] or "")
                 claim_values = extract_claim_values(claims, claim_name)
 
                 rules = [dict(r) for r in await conn.fetch(

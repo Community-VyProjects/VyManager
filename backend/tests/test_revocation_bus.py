@@ -117,7 +117,11 @@ def test_token_revoke_emits_through_bus(monkeypatch):
                 revoked = client.delete(f"/tokens/{token_id}")
                 assert revoked.status_code == 200
 
-                # The revoke emits token:<id> and user:<owner>.
+                # The revoke emits a single user-scoped payload; the owner's
+                # streams (cookie- and token-authenticated alike) key on the
+                # user id, so user:<owner> tears them all down. The old
+                # token:<id> emit was dead — payload_matches has no token
+                # branch — and was dropped, so it must NOT appear.
                 seen = set()
 
                 async def drain():
@@ -128,8 +132,8 @@ def test_token_revoke_emits_through_bus(monkeypatch):
                         pass
 
                 asyncio.run(drain())
-                assert f"token:{token_id}" in seen
                 assert "user:u_rb" in seen
+                assert f"token:{token_id}" not in seen
             finally:
                 revocation_bus.unsubscribe(q)
     finally:
