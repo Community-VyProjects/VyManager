@@ -85,6 +85,17 @@ export async function POST(request: NextRequest) {
             { status: 403 }
           );
         }
+      } else if (!allowOnboardingFailOpen) {
+        // A non-2xx answer must fail closed like a network error —
+        // otherwise any backend hiccup reopens registration.
+        return NextResponse.json(
+          {
+            error: {
+              message: "Unable to verify onboarding status. Please try again later.",
+            },
+          },
+          { status: 503 }
+        );
       }
     } catch (err) {
       console.error("[Auth] Error checking onboarding status:", err);

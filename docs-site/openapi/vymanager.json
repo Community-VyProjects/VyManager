@@ -40921,19 +40921,14 @@
           "needs_onboarding": {
             "type": "boolean",
             "title": "Needs Onboarding"
-          },
-          "user_count": {
-            "type": "integer",
-            "title": "User Count"
           }
         },
         "type": "object",
         "required": [
-          "needs_onboarding",
-          "user_count"
+          "needs_onboarding"
         ],
         "title": "OnboardingStatusResponse",
-        "description": "Response indicating if system needs onboarding."
+        "description": "Response indicating if system needs onboarding.\n\nPublic pre-auth endpoint: deliberately only the boolean \u2014 the exact\nuser count is unauthenticated info disclosure."
       },
       "OpenfabricBatchOperation": {
         "properties": {
