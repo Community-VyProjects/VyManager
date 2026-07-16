@@ -10,9 +10,12 @@
   enforcement path has landed and is proven by the FORCE-RLS rehearsal).
 """
 
+import asyncio
+import os
+
 import pytest
 
-from conftest import IDS, as_user
+from conftest import IDS, USERS, as_user
 
 pytestmark = pytest.mark.usefixtures("adversarial_world")
 
@@ -122,3 +125,34 @@ def test_token_creation_org_confined_under_enforcement(
               "allowed_instance_ids": [IDS["instance_a"]],
               "allowed_site_ids": []})
     assert same.status_code == 200
+
+
+def test_cross_org_grant_is_never_minted(adversarial_world, monkeypatch):
+    # assign_user_to_instances resolves each target's org and asserts it
+    # is the caller's acting org (mirroring remove_assignment). Today the
+    # endpoint is also super-admin-gated, so an org admin sees 403; when
+    # that gate opens to org roles the row check answers 404. Either way
+    # the invariant is: the request fails and no grant row appears.
+    import asyncpg
+    import org_scope
+    monkeypatch.setattr(org_scope, "ORG_ENFORCEMENT", True)
+
+    response = as_user(adversarial_world, "a_admin").post(
+        "/user-management/assignments",
+        json={"user_id": USERS["a_member"][0],
+              "instance_ids": [IDS["instance_b"]],
+              "site_ids": [],
+              "role": "VIEWER"})
+    assert response.status_code >= 400
+
+    async def cross_org_grants() -> int:
+        conn = await asyncpg.connect(os.environ["DATABASE_URL"])
+        try:
+            return await conn.fetchval(
+                'SELECT count(*) FROM user_instance_roles '
+                'WHERE "userId" = $1 AND "instanceId" = $2',
+                USERS["a_member"][0], IDS["instance_b"])
+        finally:
+            await conn.close()
+
+    assert asyncio.run(cross_org_grants()) == 0
