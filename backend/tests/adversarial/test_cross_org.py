@@ -36,9 +36,11 @@ def test_member_cannot_connect_to_foreign_org_instance(adversarial_world):
 
 
 def test_explicit_org_param_rejects_non_members(adversarial_world):
+    # Uniform 404 (same as a nonexistent org) so org ids cannot be
+    # enumerated by non-members.
     response = as_user(adversarial_world, "a_member").get(
         "/session/sites", params={"org_id": IDS["org_b"]})
-    assert response.status_code == 403
+    assert response.status_code == 404
 
 
 def test_explicit_org_param_rejects_unknown_org(adversarial_world):
