@@ -119,9 +119,9 @@ async def _resolve_admin_org(
             ' WHERE "userId" = $1 AND "orgId" = $2',
             user["id"], requested_org_id)
         if not member:
-            raise HTTPException(
-                status_code=403,
-                detail="You are not a member of this organization")
+            # Same 404 as a nonexistent org: a 403 here was an existence
+            # oracle (non-members could enumerate valid org ids).
+            raise HTTPException(status_code=404, detail="Organization not found")
     return requested_org_id
 
 
@@ -144,8 +144,10 @@ async def _handler_conn(
             # org-scoped tables (org_memberships) to find WHO/WHERE before org
             # context exists. Under FORCE RLS as the fenced role those reads
             # would be denied, so run them with a temporary operator bypass.
-            # The real context is set below; the derivation queries are
-            # userId-scoped, so the bypass cannot leak another user's rows.
+            # The real context is set below. The derivation queries are
+            # userId-scoped except the org-existence check, whose only
+            # signal (404 for nonexistent AND non-member orgs alike) does
+            # not distinguish existence — no oracle.
             await conn.execute(
                 "SELECT set_config('app.is_system_admin', 'true', true)")
 
@@ -238,6 +240,20 @@ async def org_conn_admin(
         yield conn
 
 
+@asynccontextmanager
+async def org_unit_of_work(
+    request: Request,
+    requested_org_id: Optional[str] = None,
+) -> AsyncIterator[asyncpg.Connection]:
+    """Explicit org-scoped unit of work for handlers that cannot hold one
+    transaction across their whole body — e.g. /session/connect, whose
+    reachability test is a blocking network call that must not pin a
+    pooled connection idle-in-transaction. Same context derivation as
+    org_conn_admin; open one per unit of work instead of per handler."""
+    async with _handler_conn(request, requested_org_id) as conn:
+        yield conn
+
+
 def _ws_pool(websocket) -> asyncpg.Pool:
     pool = getattr(websocket.app.state, "db_pool", None)
     if pool is None:
@@ -267,6 +283,13 @@ async def ws_org_conn(
     org context, and yields. A WS holds a long-lived SSH stream, so — like the
     /vyos permission path — it must take short scoped connections per unit of
     work, never hold one across the stream.
+
+    CONTRACT: instance_id must be SERVER-derived (the caller's
+    active_sessions row), never a client-supplied value — the org context
+    is derived from it under the bootstrap bypass with no membership
+    check, so a client-chosen id would set app.org_id to a foreign org.
+    Both current callers (monitoring/console WS) satisfy this; a future
+    caller passing a client value must add a grant check first.
     """
     pool = _ws_pool(websocket)
     async with pool.acquire() as conn:

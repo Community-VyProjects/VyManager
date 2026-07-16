@@ -517,15 +517,25 @@ async def assign_user_to_instances(request: Request, body: AssignUserRequest, co
     if not user_exists:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Verify instances exist
+    # Verify instances exist AND sit in the caller's acting org (mirrors
+    # remove_assignment) — existence alone would let an org admin mint
+    # grants on another org's instances once this surface opens beyond
+    # super admins.
     for instance_id in body.instance_ids:
-        if not await conn.fetchval("SELECT id FROM instances WHERE id = $1", instance_id):
+        instance_org = await conn.fetchval(
+            'SELECT s."orgId" FROM instances i JOIN sites s ON i."siteId" = s.id WHERE i.id = $1',
+            instance_id,
+        )
+        if instance_org is None:
             raise HTTPException(status_code=404, detail=f"Instance {instance_id} not found")
+        await assert_row_in_acting_org(request, conn, instance_org)
 
-    # Verify sites exist
+    # Same for whole-site grants
     for site_id in body.site_ids:
-        if not await conn.fetchval("SELECT id FROM sites WHERE id = $1", site_id):
+        site_org = await conn.fetchval('SELECT "orgId" FROM sites WHERE id = $1', site_id)
+        if site_org is None:
             raise HTTPException(status_code=404, detail=f"Site {site_id} not found")
+        await assert_row_in_acting_org(request, conn, site_org)
 
     async def insert_feature_perms(assignment_id: str):
         # Feature permissions only apply to OPERATOR/VIEWER.
