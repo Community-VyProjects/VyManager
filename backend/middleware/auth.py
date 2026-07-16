@@ -56,7 +56,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
     # These are background polling endpoints - not real user activity
     POLLING_ENDPOINTS = {
         "/vyos/config/diff",
-        "/vyos/config/snapshots",
+        "/vyos/config/snapshot",
         "/session/current",
         "/vyos/power/status",  # Polls for scheduled reboot/poweroff status
         "/vyos/events/banners",  # SSE stream - long-lived connection
