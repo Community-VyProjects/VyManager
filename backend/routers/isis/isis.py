@@ -302,6 +302,8 @@ async def isis_batch_configure(http_request: Request, body: IsisBatchRequest):
         )
     except AttributeError as e:
         raise HTTPException(status_code=400, detail=f"Unknown operation: {e}")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")

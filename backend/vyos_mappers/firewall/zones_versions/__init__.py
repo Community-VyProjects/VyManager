@@ -23,13 +23,11 @@ def get_firewall_zones_mapper(version: str) -> "FirewallZonesMapper":
     from .v1_4 import FirewallZonesMapper_v1_4
     from .v1_5 import FirewallZonesMapper_v1_5
 
-    version_map = {
-        "1.4": FirewallZonesMapper_v1_4,
-        "1.5": FirewallZonesMapper_v1_5,
-    }
-
-    mapper_class = version_map.get(version, FirewallZonesMapper_v1_5)
-    return mapper_class(version)
+    # Substring match like every other factory: exact-key lookup silently
+    # fell back to the 1.5 mapper for strings like "1.4.0" or "sagitta".
+    if "1.4" in version:
+        return FirewallZonesMapper_v1_4(version)
+    return FirewallZonesMapper_v1_5(version)
 
 
 __all__ = ["get_firewall_zones_mapper"]

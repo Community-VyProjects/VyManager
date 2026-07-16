@@ -27,15 +27,11 @@ def get_ethernet_mapper(version: str) -> "EthernetInterfaceMapper":
     from .v1_4 import EthernetMapper_v1_4
     from .v1_5 import EthernetMapper_v1_5
 
-    version_map = {
-        "1.4": EthernetMapper_v1_4,
-        "1.5": EthernetMapper_v1_5,
-    }
-
-    # Get mapper class for version, fallback to latest (1.5) for unknown versions
-    mapper_class = version_map.get(version, EthernetMapper_v1_5)
-
-    return mapper_class(version)
+    # Substring match like every other factory: exact-key lookup silently
+    # fell back to the 1.5 mapper for strings like "1.4.0" or "sagitta".
+    if "1.4" in version:
+        return EthernetMapper_v1_4(version)
+    return EthernetMapper_v1_5(version)
 
 
 __all__ = ["get_ethernet_mapper"]
