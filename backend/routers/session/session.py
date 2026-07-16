@@ -7,7 +7,7 @@ Handles connect/disconnect operations and instance selection.
 
 from fastapi import Depends, APIRouter, HTTPException, Request, UploadFile, File, Form
 import org_scope
-from org_scope import assert_row_in_acting_org, org_conn_admin, org_conn_self
+from org_scope import assert_row_in_acting_org, org_conn_admin, org_conn_self, org_unit_of_work
 from starlette.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
@@ -267,7 +267,7 @@ async def get_current_session(request: Request, conn: asyncpg.Connection = Depen
 
 
 @router.post("/connect", response_model=ApiResponse)
-async def connect_to_instance(request: Request, body: ConnectRequest, conn: asyncpg.Connection = Depends(org_conn_admin)):
+async def connect_to_instance(request: Request, body: ConnectRequest):
     """
     Connect to a specific VyOS instance.
 
@@ -283,52 +283,57 @@ async def connect_to_instance(request: Request, body: ConnectRequest, conn: asyn
     instance_id = body.instance_id
 
     try:
-        # Check if user is site-level ADMIN
-        user_site_role = await conn.fetchval(
-            """
-            SELECT role FROM users WHERE id = $1
-            """,
-            user_id
-        )
+        # Unit of work 1: permission check + instance read. Deliberately
+        # NOT one handler-wide transaction: the reachability test below
+        # is a blocking network call and must not pin a pooled
+        # connection idle-in-transaction.
+        async with org_unit_of_work(request) as conn:
+            # Check if user is site-level ADMIN
+            user_site_role = await conn.fetchval(
+                """
+                SELECT role FROM users WHERE id = $1
+                """,
+                user_id
+            )
 
-        # Site ADMIN users can access any instance
-        # Other users need explicit instance-level permissions
-        if user_site_role == "ADMIN":
-            # ADMIN can access any instance - no instance role check needed
-            instance = await conn.fetchrow(
-                """
-                SELECT i.id, i.name, i.host, i.port, i."siteId", i."isActive",
-                       i."apiKey", i.protocol, i."verifySsl", i."vyosVersion", i.timeout,
-                       s.name as site_name,
-                       'ADMIN' as role
-                FROM instances i
-                JOIN sites s ON i."siteId" = s.id
-                WHERE i.id = $1
-                """,
-                instance_id,
-            )
-        else:
-            # VIEWER users need explicit instance-level role assignment
-            instance = await conn.fetchrow(
-                """
-                SELECT i.id, i.name, i.host, i.port, i."siteId", i."isActive",
-                       i."apiKey", i.protocol, i."verifySsl", i."vyosVersion", i.timeout,
-                       s.name as site_name,
-                       uir.role as role
-                FROM instances i
-                JOIN sites s ON i."siteId" = s.id
-                JOIN user_instance_roles uir
-                    ON (uir."instanceId" = i.id OR uir."siteId" = i."siteId")
-                    AND uir."userId" = $1
-                WHERE i.id = $2
-                ORDER BY CASE uir.role
-                    WHEN 'ADMIN' THEN 3 WHEN 'OPERATOR' THEN 2 WHEN 'VIEWER' THEN 1 ELSE 0
-                END DESC
-                LIMIT 1
-                """,
-                user_id,
-                instance_id,
-            )
+            # Site ADMIN users can access any instance
+            # Other users need explicit instance-level permissions
+            if user_site_role == "ADMIN":
+                # ADMIN can access any instance - no instance role check needed
+                instance = await conn.fetchrow(
+                    """
+                    SELECT i.id, i.name, i.host, i.port, i."siteId", i."isActive",
+                           i."apiKey", i.protocol, i."verifySsl", i."vyosVersion", i.timeout,
+                           s.name as site_name,
+                           'ADMIN' as role
+                    FROM instances i
+                    JOIN sites s ON i."siteId" = s.id
+                    WHERE i.id = $1
+                    """,
+                    instance_id,
+                )
+            else:
+                # VIEWER users need explicit instance-level role assignment
+                instance = await conn.fetchrow(
+                    """
+                    SELECT i.id, i.name, i.host, i.port, i."siteId", i."isActive",
+                           i."apiKey", i.protocol, i."verifySsl", i."vyosVersion", i.timeout,
+                           s.name as site_name,
+                           uir.role as role
+                    FROM instances i
+                    JOIN sites s ON i."siteId" = s.id
+                    JOIN user_instance_roles uir
+                        ON (uir."instanceId" = i.id OR uir."siteId" = i."siteId")
+                        AND uir."userId" = $1
+                    WHERE i.id = $2
+                    ORDER BY CASE uir.role
+                        WHEN 'ADMIN' THEN 3 WHEN 'OPERATOR' THEN 2 WHEN 'VIEWER' THEN 1 ELSE 0
+                    END DESC
+                    LIMIT 1
+                    """,
+                    user_id,
+                    instance_id,
+                )
 
         if not instance:
             raise HTTPException(
@@ -377,18 +382,21 @@ async def connect_to_instance(request: Request, body: ConnectRequest, conn: asyn
         alphabet = string.ascii_letters + string.digits
         session_id = ''.join(secrets.choice(alphabet) for _ in range(32))
 
-        result = await conn.execute(
-            """
-            INSERT INTO active_sessions (id, "userId", "instanceId", "sessionToken", "connectedAt")
-            VALUES ($1, $2, $3, $4, NOW())
-            ON CONFLICT ("userId")
-            DO UPDATE SET "instanceId" = $3, "sessionToken" = $4, "connectedAt" = NOW()
-            """,
-            session_id,
-            user_id,
-            instance_id,
-            current_session_token,
-        )
+        # Unit of work 2: record the active session (short transaction,
+        # opened only after the device answered).
+        async with org_unit_of_work(request) as conn:
+            result = await conn.execute(
+                """
+                INSERT INTO active_sessions (id, "userId", "instanceId", "sessionToken", "connectedAt")
+                VALUES ($1, $2, $3, $4, NOW())
+                ON CONFLICT ("userId")
+                DO UPDATE SET "instanceId" = $3, "sessionToken" = $4, "connectedAt" = NOW()
+                """,
+                session_id,
+                user_id,
+                instance_id,
+                current_session_token,
+            )
 
         return ApiResponse(
             success=True,
