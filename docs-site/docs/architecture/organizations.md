@@ -74,15 +74,24 @@ enforcement), grant it narrowly:
 
 ```sql
 GRANT USAGE ON SCHEMA public TO vym_frontend;
-GRANT SELECT, INSERT, UPDATE, DELETE ON users, sessions, accounts, verifications
+GRANT SELECT, INSERT, DELETE ON users TO vym_frontend;
+-- UPDATE on users is column-scoped: everything EXCEPT role. The site-admin
+-- bit is backend-owned (/internal/sso-reconcile applies it), so a
+-- compromised frontend cannot self-promote. role is still set at INSERT
+-- (first-user promotion, SSO mapping at creation) — creation-time only.
+GRANT UPDATE (name, email, "emailVerified", image, "createdAt", "updatedAt")
+    ON users TO vym_frontend;
+GRANT SELECT, INSERT, UPDATE, DELETE ON sessions, accounts, verifications
     TO vym_frontend;
 -- No grant on org_memberships / user_instance_roles /
--- user_feature_permissions / organizations: the frontend never writes them.
+-- user_feature_permissions / organizations / oauth_role_mappings / sites /
+-- instances: the frontend never writes them (oauth config and role
+-- mappings write via backend endpoints since #484/#487).
 ```
 
-`oauth_role_mappings` is not yet in the ban — the frontend still writes it via
-the OAuth-config UI; relocating that write to the backend (as the SSO reconcile
-relocation did for grants) is the remaining step before it joins the list.
+Verify the live role after the switch with
+`DATABASE_URL=<frontend-role-url> python -m scripts.prove_runtime_role`,
+which also asserts `users.role` is not updatable.
 
 ## Row-level security (foundation in place, inert)
 

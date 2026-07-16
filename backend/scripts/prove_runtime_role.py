@@ -61,6 +61,15 @@ async def main() -> int:
                     break
                 if allowed:
                     failures.append(f"role has {privilege} on {table}")
+
+        # The D1-01 vector: UPDATE on users.role lets a compromised
+        # frontend self-promote to site ADMIN.
+        role_update = await conn.fetchval(
+            "SELECT has_column_privilege(current_user, 'users', 'role',"
+            " 'UPDATE')")
+        if role_update:
+            failures.append(
+                "role can UPDATE users.role — frontend self-promotion open")
     finally:
         await conn.close()
 
