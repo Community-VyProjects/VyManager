@@ -385,7 +385,7 @@ async def connect_to_instance(request: Request, body: ConnectRequest):
         # Unit of work 2: record the active session (short transaction,
         # opened only after the device answered).
         async with org_unit_of_work(request) as conn:
-            result = await conn.execute(
+            await conn.execute(
                 """
                 INSERT INTO active_sessions (id, "userId", "instanceId", "sessionToken", "connectedAt")
                 VALUES ($1, $2, $3, $4, NOW())
