@@ -10,9 +10,12 @@ The proof creates a restricted role mirroring the intended frontend grants —
 write access to the Better Auth core tables only — and asserts that INSERT and
 UPDATE on each authz table fail. Needs CREATE ROLE; skips otherwise.
 
-Note: oauth_role_mappings is not covered here — the frontend still writes it
-via the OAuth-config UI. Relocating that write to the backend (like the SSO
-reconcile relocation) is the remaining step before it joins this ban.
+oauth_role_mappings joined the ban once its writes relocated to the backend
+(PR #484); sites and instances are backend-owned and join it too. A second proof
+checks the REAL runtime role instead of a synthetic one — run it on a
+deployment after the enforcement flip (flip-runbook step, not CI):
+
+    DATABASE_URL=<frontend-role-url> python -m scripts.prove_runtime_role
 """
 
 import asyncio
@@ -35,6 +38,11 @@ BANNED_TABLES = [
     "user_instance_roles",
     "user_feature_permissions",
     "organizations",
+    # writes relocated to the backend; the frontend only proxies
+    "oauth_role_mappings",
+    # backend-owned resources — the frontend never writes them directly
+    "sites",
+    "instances",
 ]
 
 
@@ -99,3 +107,4 @@ def test_frontend_role_cannot_write_authz_tables():
 
     if asyncio.run(main()) == "skip":
         pytest.skip("no privilege to CREATE ROLE for the Golden Rule proof")
+
