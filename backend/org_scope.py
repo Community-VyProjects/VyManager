@@ -238,6 +238,20 @@ async def org_conn_admin(
         yield conn
 
 
+@asynccontextmanager
+async def org_unit_of_work(
+    request: Request,
+    requested_org_id: Optional[str] = None,
+) -> AsyncIterator[asyncpg.Connection]:
+    """Explicit org-scoped unit of work for handlers that cannot hold one
+    transaction across their whole body — e.g. /session/connect, whose
+    reachability test is a blocking network call that must not pin a
+    pooled connection idle-in-transaction. Same context derivation as
+    org_conn_admin; open one per unit of work instead of per handler."""
+    async with _handler_conn(request, requested_org_id) as conn:
+        yield conn
+
+
 def _ws_pool(websocket) -> asyncpg.Pool:
     pool = getattr(websocket.app.state, "db_pool", None)
     if pool is None:
