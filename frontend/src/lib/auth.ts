@@ -154,12 +154,11 @@ async function buildAuth() {
       : null;
 
     if (existing) {
-      if (resolved.siteRole) {
-        await prisma.user.update({
-          where: { id: existing.id },
-          data: { role: resolved.siteRole },
-        });
-      }
+      // users.role is backend-owned: /internal/sso-reconcile re-derives the
+      // claims from the stored account token and applies the site role
+      // itself. Writing it here too would keep the frontend DB role needing
+      // UPDATE on users.role — the exact privilege the Golden Rule wants
+      // revoked (a compromised frontend could self-promote to ADMIN).
       await reconcileGrants(existing.id);
     } else if (
       email &&

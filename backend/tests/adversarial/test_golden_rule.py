@@ -64,6 +64,22 @@ def test_frontend_role_cannot_write_authz_tables():
             await owner.execute(f"GRANT USAGE ON SCHEMA public TO {FRONTEND}")
             # Frontend gets write access to the Better Auth core tables only.
             for table in CORE_TABLES:
+                if table == "users":
+                    # UPDATE is column-scoped to exclude role: the site-admin
+                    # bit is backend-owned (sso-reconcile applies it), so a
+                    # compromised frontend must not be able to self-promote.
+                    # INSERT stays table-wide — role is legitimately set at
+                    # creation (first-user promotion, SSO mapping).
+                    cols = [r["column_name"] for r in await owner.fetch(
+                        "SELECT column_name FROM information_schema.columns"
+                        " WHERE table_schema = current_schema()"
+                        " AND table_name = 'users' AND column_name <> 'role'")]
+                    quoted = ", ".join(f'"{c}"' for c in cols)
+                    await owner.execute(
+                        f'GRANT SELECT, INSERT, DELETE ON "users" TO {FRONTEND}')
+                    await owner.execute(
+                        f'GRANT UPDATE ({quoted}) ON "users" TO {FRONTEND}')
+                    continue
                 await owner.execute(
                     f'GRANT SELECT, INSERT, UPDATE, DELETE ON "{table}" '
                     f"TO {FRONTEND}")
@@ -81,7 +97,8 @@ def test_frontend_role_cannot_write_authz_tables():
                 finally:
                     await conn.close()
 
-            # Sanity: the frontend role CAN write a core table (users).
+            # Sanity: the frontend role CAN write a core table (users) —
+            # and specifically CANNOT set users.role (the D1-01 vector).
             conn = await asyncpg.connect(os.environ["DATABASE_URL"])
             try:
                 await conn.execute(f"SET ROLE {FRONTEND}")
@@ -92,6 +109,13 @@ def test_frontend_role_cannot_write_authz_tables():
                         "INSERT INTO users (id) VALUES ('u_probe')")
                 assert not isinstance(
                     exc.value, asyncpg.InsufficientPrivilegeError)
+                # Self-promotion must be a privilege error, not a data error.
+                with pytest.raises(asyncpg.InsufficientPrivilegeError):
+                    await conn.execute(
+                        "UPDATE users SET role = 'ADMIN'")
+                # A non-role column update is within the grant (0 rows,
+                # but a privilege failure would raise).
+                await conn.execute("UPDATE users SET name = name WHERE false")
             finally:
                 await conn.close()
         finally:
