@@ -7,7 +7,7 @@ Handles connect/disconnect operations and instance selection.
 
 from fastapi import Depends, APIRouter, HTTPException, Request, UploadFile, File, Form
 import org_scope
-from org_scope import assert_row_in_acting_org, org_conn_admin, org_conn_self
+from org_scope import assert_row_in_acting_org, org_conn_admin, org_conn_self, org_unit_of_work
 from starlette.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
@@ -18,7 +18,7 @@ import json
 import os
 from vyos_service import VyOSService, VyOSDeviceConfig
 from session_vyos_service import clear_session_cache
-from session_cookie import verify_session_cookie
+from session_cookie import get_session_cookie, verify_session_cookie
 from backup_crypto import (
     encrypt_backup,
     decrypt_backup,
@@ -37,10 +37,12 @@ router = APIRouter(prefix="/session", tags=["session"])
 
 
 class OnboardingStatusResponse(BaseModel):
-    """Response indicating if system needs onboarding."""
+    """Response indicating if system needs onboarding.
+
+    Public pre-auth endpoint: deliberately only the boolean — the exact
+    user count is unauthenticated info disclosure."""
 
     needs_onboarding: bool
-    user_count: int
 
 
 class SiteResponse(BaseModel):
@@ -195,7 +197,6 @@ async def get_onboarding_status(request: Request, conn: asyncpg.Connection = Dep
 
         return OnboardingStatusResponse(
             needs_onboarding=user_count == 0,
-            user_count=user_count
         )
     except Exception as e:
         logger.exception("Unhandled error")
@@ -267,7 +268,7 @@ async def get_current_session(request: Request, conn: asyncpg.Connection = Depen
 
 
 @router.post("/connect", response_model=ApiResponse)
-async def connect_to_instance(request: Request, body: ConnectRequest, conn: asyncpg.Connection = Depends(org_conn_admin)):
+async def connect_to_instance(request: Request, body: ConnectRequest):
     """
     Connect to a specific VyOS instance.
 
@@ -283,52 +284,57 @@ async def connect_to_instance(request: Request, body: ConnectRequest, conn: asyn
     instance_id = body.instance_id
 
     try:
-        # Check if user is site-level ADMIN
-        user_site_role = await conn.fetchval(
-            """
-            SELECT role FROM users WHERE id = $1
-            """,
-            user_id
-        )
+        # Unit of work 1: permission check + instance read. Deliberately
+        # NOT one handler-wide transaction: the reachability test below
+        # is a blocking network call and must not pin a pooled
+        # connection idle-in-transaction.
+        async with org_unit_of_work(request) as conn:
+            # Check if user is site-level ADMIN
+            user_site_role = await conn.fetchval(
+                """
+                SELECT role FROM users WHERE id = $1
+                """,
+                user_id
+            )
 
-        # Site ADMIN users can access any instance
-        # Other users need explicit instance-level permissions
-        if user_site_role == "ADMIN":
-            # ADMIN can access any instance - no instance role check needed
-            instance = await conn.fetchrow(
-                """
-                SELECT i.id, i.name, i.host, i.port, i."siteId", i."isActive",
-                       i."apiKey", i.protocol, i."verifySsl", i."vyosVersion", i.timeout,
-                       s.name as site_name,
-                       'ADMIN' as role
-                FROM instances i
-                JOIN sites s ON i."siteId" = s.id
-                WHERE i.id = $1
-                """,
-                instance_id,
-            )
-        else:
-            # VIEWER users need explicit instance-level role assignment
-            instance = await conn.fetchrow(
-                """
-                SELECT i.id, i.name, i.host, i.port, i."siteId", i."isActive",
-                       i."apiKey", i.protocol, i."verifySsl", i."vyosVersion", i.timeout,
-                       s.name as site_name,
-                       uir.role as role
-                FROM instances i
-                JOIN sites s ON i."siteId" = s.id
-                JOIN user_instance_roles uir
-                    ON (uir."instanceId" = i.id OR uir."siteId" = i."siteId")
-                    AND uir."userId" = $1
-                WHERE i.id = $2
-                ORDER BY CASE uir.role
-                    WHEN 'ADMIN' THEN 3 WHEN 'OPERATOR' THEN 2 WHEN 'VIEWER' THEN 1 ELSE 0
-                END DESC
-                LIMIT 1
-                """,
-                user_id,
-                instance_id,
-            )
+            # Site ADMIN users can access any instance
+            # Other users need explicit instance-level permissions
+            if user_site_role == "ADMIN":
+                # ADMIN can access any instance - no instance role check needed
+                instance = await conn.fetchrow(
+                    """
+                    SELECT i.id, i.name, i.host, i.port, i."siteId", i."isActive",
+                           i."apiKey", i.protocol, i."verifySsl", i."vyosVersion", i.timeout,
+                           s.name as site_name,
+                           'ADMIN' as role
+                    FROM instances i
+                    JOIN sites s ON i."siteId" = s.id
+                    WHERE i.id = $1
+                    """,
+                    instance_id,
+                )
+            else:
+                # VIEWER users need explicit instance-level role assignment
+                instance = await conn.fetchrow(
+                    """
+                    SELECT i.id, i.name, i.host, i.port, i."siteId", i."isActive",
+                           i."apiKey", i.protocol, i."verifySsl", i."vyosVersion", i.timeout,
+                           s.name as site_name,
+                           uir.role as role
+                    FROM instances i
+                    JOIN sites s ON i."siteId" = s.id
+                    JOIN user_instance_roles uir
+                        ON (uir."instanceId" = i.id OR uir."siteId" = i."siteId")
+                        AND uir."userId" = $1
+                    WHERE i.id = $2
+                    ORDER BY CASE uir.role
+                        WHEN 'ADMIN' THEN 3 WHEN 'OPERATOR' THEN 2 WHEN 'VIEWER' THEN 1 ELSE 0
+                    END DESC
+                    LIMIT 1
+                    """,
+                    user_id,
+                    instance_id,
+                )
 
         if not instance:
             raise HTTPException(
@@ -367,7 +373,7 @@ async def connect_to_instance(request: Request, body: ConnectRequest, conn: asyn
 
         # Get current auth session token from cookie and verify its signature
         # This allows us to track which auth session created this VyOS connection
-        cookie_token = request.cookies.get("better-auth.session_token")
+        cookie_token = get_session_cookie(request)
         current_session_token = verify_session_cookie(cookie_token) if cookie_token else None
 
         # Create or update active session (upsert)
@@ -377,18 +383,21 @@ async def connect_to_instance(request: Request, body: ConnectRequest, conn: asyn
         alphabet = string.ascii_letters + string.digits
         session_id = ''.join(secrets.choice(alphabet) for _ in range(32))
 
-        result = await conn.execute(
-            """
-            INSERT INTO active_sessions (id, "userId", "instanceId", "sessionToken", "connectedAt")
-            VALUES ($1, $2, $3, $4, NOW())
-            ON CONFLICT ("userId")
-            DO UPDATE SET "instanceId" = $3, "sessionToken" = $4, "connectedAt" = NOW()
-            """,
-            session_id,
-            user_id,
-            instance_id,
-            current_session_token,
-        )
+        # Unit of work 2: record the active session (short transaction,
+        # opened only after the device answered).
+        async with org_unit_of_work(request) as conn:
+            await conn.execute(
+                """
+                INSERT INTO active_sessions (id, "userId", "instanceId", "sessionToken", "connectedAt")
+                VALUES ($1, $2, $3, $4, NOW())
+                ON CONFLICT ("userId")
+                DO UPDATE SET "instanceId" = $3, "sessionToken" = $4, "connectedAt" = NOW()
+                """,
+                session_id,
+                user_id,
+                instance_id,
+                current_session_token,
+            )
 
         return ApiResponse(
             success=True,
@@ -1656,12 +1665,12 @@ async def restore_backup(
                 sql = _build_insert(table, columns, types, merge=(mode == "merge"))
 
                 try:
-                    if mode == "merge":
-                        # Row-level savepoint so a natural-key collision skips
-                        # just this row instead of aborting the whole restore.
-                        async with conn.transaction():
-                            was_inserted = await conn.fetchval(sql, *values)
-                    else:
+                    # Row-level savepoint so a natural-key collision skips
+                    # just this row instead of poisoning the outer
+                    # transaction (without it, replace mode turned one
+                    # duplicate into InFailedSQLTransaction 500s for every
+                    # following row).
+                    async with conn.transaction():
                         was_inserted = await conn.fetchval(sql, *values)
                 except asyncpg.UniqueViolationError:
                     skipped += 1
@@ -1750,7 +1759,7 @@ async def get_active_auth_sessions(request: Request, conn: asyncpg.Connection = 
     user_id = user["id"]
 
     # Get current session token from cookie
-    cookie_token = request.cookies.get("better-auth.session_token")
+    cookie_token = get_session_cookie(request)
 
     # Better-auth stores compound tokens in the format: {session_id}.{base64(HMAC-SHA256)}
     # Verify the signature and extract the session ID
@@ -1809,7 +1818,7 @@ async def revoke_auth_session(request: Request, body: RevokeSessionRequest, conn
     user_id = user["id"]
 
     # Get current session token to prevent self-logout; verify its signature
-    cookie_token = request.cookies.get("better-auth.session_token")
+    cookie_token = get_session_cookie(request)
     current_token = verify_session_cookie(cookie_token) if cookie_token else None
 
     if body.session_token == current_token:

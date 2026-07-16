@@ -189,8 +189,9 @@ async def revoke_token(request: Request, token_id: str, conn: asyncpg.Connection
     if int(result.split()[-1]) == 0:
         raise HTTPException(status_code=404, detail="Token not found or already revoked")
 
-    # Same transaction as the revoke: close the owner's live streams at once.
-    await revocation_bus.emit(conn, "token", token_id)
+    # Same transaction as the revoke: close the owner's live streams at
+    # once. A single user-scoped emit suffices — payload_matches has no
+    # token branch, so a token-scoped emit matched nothing (dead).
     await revocation_bus.emit(conn, "user", user["id"])
 
     logger.info("API token revoked for user %s (id=%s)", user["id"], token_id)

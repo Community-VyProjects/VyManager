@@ -263,10 +263,19 @@ async def add_member(
 
 
 async def _would_orphan_owner(
-    conn: asyncpg.Connection, organization_id: str, user_id: str
+    conn: asyncpg.Connection,
+    organization_id: str,
+    user_id: str,
+    removing: bool = False,
 ) -> bool:
-    """True if the user is the only OWNER while other members remain — the org
-    would be left with members but no owner."""
+    """True if the operation would leave members with no OWNER.
+
+    Invariant: any remaining member implies at least one owner. Demoting
+    the sole OWNER always violates it (they remain as an owner-less
+    member — the old member_count > 1 boundary let a solo owner demote
+    themselves into exactly that state). Removing the sole OWNER only
+    violates it while other members remain; removing the last member
+    empties the org, which is valid."""
     is_owner = await conn.fetchval(
         'SELECT 1 FROM org_memberships WHERE "orgId" = $1 AND "userId" = $2'
         ' AND "orgRole" = \'OWNER\'',
@@ -280,10 +289,15 @@ async def _would_orphan_owner(
         " WHERE \"orgId\" = $1 AND \"orgRole\" = 'OWNER'",
         organization_id,
     )
-    member_count = await conn.fetchval(
-        'SELECT COUNT(*) FROM org_memberships WHERE "orgId" = $1', organization_id
-    )
-    return owner_count == 1 and member_count > 1
+    if owner_count > 1:
+        return False
+    if removing:
+        member_count = await conn.fetchval(
+            'SELECT COUNT(*) FROM org_memberships WHERE "orgId" = $1',
+            organization_id,
+        )
+        return member_count > 1
+    return True
 
 
 @router.patch("/{organization_id}/members/{user_id}")
@@ -335,7 +349,7 @@ async def remove_member(
         user_id,
     ):
         raise HTTPException(status_code=404, detail="Membership not found")
-    if await _would_orphan_owner(conn, organization_id, user_id):
+    if await _would_orphan_owner(conn, organization_id, user_id, removing=True):
         raise HTTPException(
             status_code=409,
             detail="Organization must keep at least one owner",

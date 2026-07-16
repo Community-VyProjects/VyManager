@@ -22,6 +22,23 @@ services:
       retries: 5
       start_period: 10s
 
+  # One-shot migration runner: applies Prisma migrations before the
+  # backend serves and before the frontend starts. The frontend
+  # entrypoint still runs migrate deploy itself (harmless no-op here) so
+  # non-compose deployments keep working.
+  migrate:
+    image: ghcr.io/community-vyprojects/vymanager-frontend:beta
+    container_name: vymanager-migrate
+    entrypoint: ["sh", "-c", "npx prisma generate && npx prisma migrate deploy"]
+    env_file:
+      - ../../frontend/.env
+    restart: "no"
+    networks:
+      - vymanager-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   backend:
     image: ghcr.io/community-vyprojects/vymanager-backend:beta
     container_name: vymanager-backend
@@ -35,6 +52,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/docs"]
       interval: 30s
@@ -52,6 +71,11 @@ services:
     restart: unless-stopped
     networks:
       - vymanager-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
 
 networks:
   vymanager-network:

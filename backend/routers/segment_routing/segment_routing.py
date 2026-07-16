@@ -186,6 +186,10 @@ async def segment_routing_batch_configure(http_request: Request, body: SegmentRo
         builder = SegmentRoutingBatchBuilder(version=service.get_version())
 
         for operation in body.operations:
+            if operation.op.startswith("_"):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid operation: {operation.op}")
             method = getattr(builder, operation.op)
             sig = inspect.signature(method)
             params = [p for p in sig.parameters.keys() if p != "self"]
@@ -193,14 +197,22 @@ async def segment_routing_batch_configure(http_request: Request, body: SegmentRo
             if len(params) == 0:
                 method()
             elif len(params) == 1:
-                if operation.value is not None:
-                    method(operation.value)
-            elif len(params) == 2 and operation.value is not None:
-                values = operation.value.split(",", 1)
-                if len(values) == 2:
-                    method(values[0], values[1])
-                else:
-                    method(operation.value, "")
+                if operation.value is None:
+                    # Silently skipping used to make the batch report
+                    # success while applying fewer ops than requested.
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Operation {operation.op} requires a value")
+                method(operation.value)
+            elif len(params) == 2:
+                values = (operation.value or "").split(",", 1)
+                if len(values) != 2 or not values[0] or not values[1]:
+                    # Padding with "" built broken paths like `hmac ""`.
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Operation {operation.op} requires two "
+                               'comma-separated values')
+                method(values[0], values[1])
 
         response = service.execute_batch(builder)
 
@@ -209,6 +221,8 @@ async def segment_routing_batch_configure(http_request: Request, body: SegmentRo
             data={"message": "Segment Routing configuration updated"},
             error=response.error if response.error else None,
         )
+    except HTTPException:
+        raise
     except AttributeError as e:
         raise HTTPException(status_code=400, detail=f"Unknown operation: {str(e)}")
     except Exception:

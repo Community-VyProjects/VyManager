@@ -115,6 +115,7 @@ from routers import version as version_router
 from routers import events as events_router
 from routers.events import start_poller, stop_poller
 import revocation_bus
+from schema_gate import wait_for_schema
 
 # Global variables
 db_pool: Optional[asyncpg.Pool] = None
@@ -210,6 +211,10 @@ async def lifespan(app: FastAPI):
         database_url = os.getenv("DATABASE_URL")
         if not database_url:
             raise ValueError("DATABASE_URL environment variable is required")
+
+        # Migrations run in the frontend container; don't serve requests
+        # against a half-migrated schema (bounded wait, see schema_gate).
+        await wait_for_schema(database_url)
 
         db_pool = await asyncpg.create_pool(
             database_url,
