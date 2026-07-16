@@ -37,10 +37,12 @@ router = APIRouter(prefix="/session", tags=["session"])
 
 
 class OnboardingStatusResponse(BaseModel):
-    """Response indicating if system needs onboarding."""
+    """Response indicating if system needs onboarding.
+
+    Public pre-auth endpoint: deliberately only the boolean — the exact
+    user count is unauthenticated info disclosure."""
 
     needs_onboarding: bool
-    user_count: int
 
 
 class SiteResponse(BaseModel):
@@ -195,7 +197,6 @@ async def get_onboarding_status(request: Request, conn: asyncpg.Connection = Dep
 
         return OnboardingStatusResponse(
             needs_onboarding=user_count == 0,
-            user_count=user_count
         )
     except Exception as e:
         logger.exception("Unhandled error")
