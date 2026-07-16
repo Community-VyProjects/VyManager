@@ -13,6 +13,13 @@ from session_vyos_service import get_session_vyos_service
 from vyos_builders import RouteMapBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
+
+# Builder plumbing methods that must not be reachable via a client-supplied
+# operation name in /batch (mirrors route.py).
+_INTERNAL_BUILDER_METHODS = frozenset({
+    "add_set", "add_delete", "get_operations", "is_empty", "clear",
+    "operation_count", "get_capabilities",
+})
 import inspect
 import logging
 logger = logging.getLogger(__name__)
@@ -234,6 +241,9 @@ async def get_route_map_config(http_request: Request, refresh: bool = False):
     Returns:
         Generalized configuration data optimized for frontend consumption
     """
+    # Check RBAC permission
+    await require_read_permission(http_request, FeatureGroup.ROUTE_MAP)
+
     try:
         service = get_session_vyos_service(http_request)
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
@@ -473,6 +483,9 @@ async def route_map_batch_configure(http_request: Request, body: RouteMapBatchRe
 
     Allows multiple changes in a single VyOS commit for efficiency.
     """
+    # Check RBAC permission
+    await require_write_permission(http_request, FeatureGroup.ROUTE_MAP)
+
     try:
         service = get_session_vyos_service(http_request)
         version = service.get_version()
@@ -480,7 +493,11 @@ async def route_map_batch_configure(http_request: Request, body: RouteMapBatchRe
 
         # Process operations using inspect for dynamic method calls
         for operation in body.operations:
-            method = getattr(builder, operation.op)
+            if operation.op.startswith("_") or operation.op in _INTERNAL_BUILDER_METHODS:
+                raise HTTPException(status_code=400, detail=f"Invalid operation: {operation.op}")
+            method = getattr(builder, operation.op, None)
+            if not callable(method):
+                raise HTTPException(status_code=400, detail=f"Unknown operation: {operation.op}")
             sig = inspect.signature(method)
             params = list(sig.parameters.keys())
 
@@ -514,6 +531,8 @@ async def route_map_batch_configure(http_request: Request, body: RouteMapBatchRe
             data={"message": "Configuration updated"},
             error=response.error if response.error else None
         )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -548,6 +567,9 @@ async def reorder_route_map_rules(http_request: Request, body: ReorderRouteMapRe
     Returns:
         VyOSResponse with success/failure information
     """
+    # Check RBAC permission
+    await require_write_permission(http_request, FeatureGroup.ROUTE_MAP)
+
     try:
         service = get_session_vyos_service(http_request)
         version = service.get_version()

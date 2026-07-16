@@ -235,6 +235,9 @@ async def get_route_config(http_request: Request, refresh: bool = False):
     Returns:
         Both IPv4 (route) and IPv6 (route6) policies
     """
+    # Check RBAC permission
+    await require_read_permission(http_request, FeatureGroup.ROUTE_POLICY)
+
     try:
         service = get_session_vyos_service(http_request)
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
@@ -653,6 +656,9 @@ async def route_batch_configure(http_request: Request, body: RouteBatchRequest):
 
     Allows multiple changes in a single VyOS commit for efficiency.
     """
+    # Check RBAC permission
+    await require_write_permission(http_request, FeatureGroup.ROUTE_POLICY)
+
     try:
         service = get_session_vyos_service(http_request)
         version = service.get_version()
@@ -736,6 +742,8 @@ async def route_batch_configure(http_request: Request, body: RouteBatchRequest):
             data={"message": "Configuration updated"},
             error=response.error if response.error else None
         )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -1115,6 +1123,9 @@ async def reorder_rules(http_request: Request, body: ReorderRequest):
 
     Deletes all rules and recreates them in the new order using batch operations.
     """
+    # Check RBAC permission
+    await require_write_permission(http_request, FeatureGroup.ROUTE_POLICY)
+
     try:
         service = get_session_vyos_service(http_request)
         version = service.get_version()
