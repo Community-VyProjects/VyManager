@@ -12,10 +12,13 @@ from canary_allowlist import MIGRATION_PENDING, PERMANENT_GLOBAL
 
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 
-# Direct pool access markers. org-scoped code never mentions db_pool:
-# handlers take a connection from the org_conn dependencies, and the
-# permission path goes through request_scoped_conn.
-MARKERS = ("db_pool.acquire(", "state.db_pool")
+# Direct pool access markers. org-scoped code never mentions db_pool or
+# acquires connections itself: handlers take a connection from the
+# org_conn dependencies, and the permission path goes through
+# request_scoped_conn. The generic ".acquire(" marker also catches
+# aliased acquisitions (a Pool passed under another name) that the old
+# literal markers were blind to.
+MARKERS = (".acquire(", '"db_pool"', "'db_pool'", "state.db_pool")
 
 EXCLUDED_DIRS = {"tests", "__pycache__", "venv", ".venv", "node_modules"}
 

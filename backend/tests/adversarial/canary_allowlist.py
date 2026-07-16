@@ -33,6 +33,19 @@ PERMANENT_GLOBAL = {
         "iterates every instance with active subscribers, a "
         "deployment-wide system service. The request-path streams in "
         "the same file use org-scoped connections per tick.",
+    "revocation_bus.py":
+        "Holds one dedicated LISTEN connection for the deployment-wide "
+        "revocation channel; no request, no org context by nature.",
+    "rbac_permissions.py":
+        "_acquire accepts a Pool on the short-lived /vyos permission "
+        "path (the sanctioned request_scoped_conn design); flagged by "
+        "the broadened .acquire( marker, reviewed as correct.",
+    "routers/console/console.py":
+        "getattr(state, 'db_pool') presence check only - every actual "
+        "acquisition in the WS handler goes through ws_conn/ws_org_conn.",
+    "routers/monitoring/monitoring.py":
+        "getattr(state, 'db_pool') presence check only - acquisitions "
+        "go through ws_conn/ws_org_conn.",
 }
 
 # Files not yet migrated to org-scoped connections. The conversion waves
