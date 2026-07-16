@@ -1656,12 +1656,12 @@ async def restore_backup(
                 sql = _build_insert(table, columns, types, merge=(mode == "merge"))
 
                 try:
-                    if mode == "merge":
-                        # Row-level savepoint so a natural-key collision skips
-                        # just this row instead of aborting the whole restore.
-                        async with conn.transaction():
-                            was_inserted = await conn.fetchval(sql, *values)
-                    else:
+                    # Row-level savepoint so a natural-key collision skips
+                    # just this row instead of poisoning the outer
+                    # transaction (without it, replace mode turned one
+                    # duplicate into InFailedSQLTransaction 500s for every
+                    # following row).
+                    async with conn.transaction():
                         was_inserted = await conn.fetchval(sql, *values)
                 except asyncpg.UniqueViolationError:
                     skipped += 1
