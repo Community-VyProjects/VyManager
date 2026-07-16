@@ -13,6 +13,13 @@ from session_vyos_service import get_session_vyos_service
 from vyos_builders import LocalRouteBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
+
+# Builder plumbing methods that must not be reachable via a client-supplied
+# operation name in /batch (mirrors route.py).
+_INTERNAL_BUILDER_METHODS = frozenset({
+    "add_set", "add_delete", "get_operations", "is_empty", "clear",
+    "operation_count", "get_capabilities",
+})
 import inspect
 import logging
 logger = logging.getLogger(__name__)
@@ -107,6 +114,9 @@ async def get_local_route_capabilities(http_request: Request):
 
     Returns feature flags indicating which operations are supported.
     """
+    # Check RBAC permission
+    await require_read_permission(http_request, FeatureGroup.LOCAL_ROUTE)
+
     try:
         service = get_session_vyos_service(http_request)
         version = service.get_version()
@@ -158,6 +168,9 @@ async def get_local_route_config(http_request: Request, refresh: bool = False):
     Returns:
         Generalized configuration data for IPv4 and IPv6 rules
     """
+    # Check RBAC permission
+    await require_read_permission(http_request, FeatureGroup.LOCAL_ROUTE)
+
     try:
         service = get_session_vyos_service(http_request)
         full_config = await run_in_threadpool(service.get_full_config, refresh=refresh)
@@ -222,6 +235,9 @@ async def local_route_batch_configure(http_request: Request, body: LocalRouteBat
 
     Allows multiple changes in a single VyOS commit for efficiency.
     """
+    # Check RBAC permission
+    await require_write_permission(http_request, FeatureGroup.LOCAL_ROUTE)
+
     try:
         service = get_session_vyos_service(http_request)
         version = service.get_version()
@@ -229,7 +245,11 @@ async def local_route_batch_configure(http_request: Request, body: LocalRouteBat
 
         # Process operations using inspect for dynamic method calls
         for operation in body.operations:
-            method = getattr(builder, operation.op)
+            if operation.op.startswith("_") or operation.op in _INTERNAL_BUILDER_METHODS:
+                raise HTTPException(status_code=400, detail=f"Invalid operation: {operation.op}")
+            method = getattr(builder, operation.op, None)
+            if not callable(method):
+                raise HTTPException(status_code=400, detail=f"Unknown operation: {operation.op}")
             sig = inspect.signature(method)
             params = list(sig.parameters.keys())
 
@@ -250,6 +270,8 @@ async def local_route_batch_configure(http_request: Request, body: LocalRouteBat
             data={"message": "Configuration updated"},
             error=response.error if response.error else None,
         )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -268,6 +290,9 @@ async def local_route_reorder_rules(http_request: Request, body: LocalRouteReord
     This is done by deleting all rules and recreating them with new numbers
     in a single batch operation.
     """
+    # Check RBAC permission
+    await require_write_permission(http_request, FeatureGroup.LOCAL_ROUTE)
+
     try:
         service = get_session_vyos_service(http_request)
         version = service.get_version()
