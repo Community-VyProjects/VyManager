@@ -51,8 +51,11 @@ async function proxyRequest(
   const BACKEND_URL = getBackendUrl();
 
   try {
-    // Get the session token from request cookies
-    const sessionToken = request.cookies.get("better-auth.session_token");
+    // Get the session token from request cookies (secure deployments
+    // prefix the cookie name with __Secure-)
+    const sessionToken =
+      request.cookies.get("better-auth.session_token") ??
+      request.cookies.get("__Secure-better-auth.session_token");
 
     // Build the backend URL
     const backendPath = `/user-management/${path.join("/")}`;
@@ -69,7 +72,7 @@ async function proxyRequest(
 
     // Add the session token cookie if it exists
     if (sessionToken) {
-      headers["Cookie"] = `better-auth.session_token=${sessionToken.value}`;
+      headers["Cookie"] = `${sessionToken.name}=${sessionToken.value}`;
     }
 
     // Handle request body

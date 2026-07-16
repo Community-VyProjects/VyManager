@@ -19,11 +19,15 @@ export async function proxyOauthConfig(
   backendPath: string,
   method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
 ): Promise<NextResponse> {
-  const sessionToken = request.cookies.get("better-auth.session_token");
+  // Secure-cookie deployments prefix the name with __Secure-; forward
+  // whichever is present under its original name (the backend accepts both).
+  const sessionToken =
+    request.cookies.get("better-auth.session_token") ??
+    request.cookies.get("__Secure-better-auth.session_token");
 
   const headers: Record<string, string> = {};
   if (sessionToken) {
-    headers["Cookie"] = `better-auth.session_token=${sessionToken.value}`;
+    headers["Cookie"] = `${sessionToken.name}=${sessionToken.value}`;
   }
 
   let body: string | undefined;
