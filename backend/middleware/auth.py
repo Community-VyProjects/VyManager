@@ -13,7 +13,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 from datetime import datetime
 import asyncpg
-from session_cookie import verify_session_cookie
+from session_cookie import get_session_cookie, verify_session_cookie
 from api_token_crypto import hash_api_token, looks_like_api_token
 
 logger = logging.getLogger(__name__)
@@ -183,10 +183,9 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             # A non-vym Bearer credential falls through to cookie handling below.
 
         # Extract session token from cookie
-        session_token = request.cookies.get("better-auth.session_token")
-        session_token2 = request.cookies.get("__Secure-better-auth.session_token")
+        session_token = get_session_cookie(request)
 
-        if not session_token and not session_token2:
+        if not session_token:
             if optional_auth:
                 return await call_next(request)
             return JSONResponse(
@@ -197,7 +196,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
-        token_to_use = session_token if session_token else session_token2
+        token_to_use = session_token
 
         try:
             # Better-auth uses signed session cookies: {session_id}.{base64(HMAC-SHA256)}

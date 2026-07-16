@@ -18,7 +18,7 @@ import json
 import os
 from vyos_service import VyOSService, VyOSDeviceConfig
 from session_vyos_service import clear_session_cache
-from session_cookie import verify_session_cookie
+from session_cookie import get_session_cookie, verify_session_cookie
 from backup_crypto import (
     encrypt_backup,
     decrypt_backup,
@@ -367,7 +367,7 @@ async def connect_to_instance(request: Request, body: ConnectRequest, conn: asyn
 
         # Get current auth session token from cookie and verify its signature
         # This allows us to track which auth session created this VyOS connection
-        cookie_token = request.cookies.get("better-auth.session_token")
+        cookie_token = get_session_cookie(request)
         current_session_token = verify_session_cookie(cookie_token) if cookie_token else None
 
         # Create or update active session (upsert)
@@ -1750,7 +1750,7 @@ async def get_active_auth_sessions(request: Request, conn: asyncpg.Connection = 
     user_id = user["id"]
 
     # Get current session token from cookie
-    cookie_token = request.cookies.get("better-auth.session_token")
+    cookie_token = get_session_cookie(request)
 
     # Better-auth stores compound tokens in the format: {session_id}.{base64(HMAC-SHA256)}
     # Verify the signature and extract the session ID
@@ -1809,7 +1809,7 @@ async def revoke_auth_session(request: Request, body: RevokeSessionRequest, conn
     user_id = user["id"]
 
     # Get current session token to prevent self-logout; verify its signature
-    cookie_token = request.cookies.get("better-auth.session_token")
+    cookie_token = get_session_cookie(request)
     current_token = verify_session_cookie(cookie_token) if cookie_token else None
 
     if body.session_token == current_token:

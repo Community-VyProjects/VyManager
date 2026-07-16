@@ -11,7 +11,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 import asyncpg
 from typing import Optional
-from session_cookie import verify_session_cookie
+from session_cookie import get_session_cookie, verify_session_cookie
 
 
 class _SecureStr:
@@ -84,7 +84,7 @@ class SessionMiddleware(BaseHTTPMiddleware):
 
     async def _resolve_cookie_instance(self, conn, request: Request, path: str, user_id: str, user_site_role):
         """Resolve the user's single active instance from active_sessions (browser cookie flow)."""
-        cookie_token = request.cookies.get("better-auth.session_token")
+        cookie_token = get_session_cookie(request)
         current_session_token = verify_session_cookie(cookie_token) if cookie_token else None
 
         # Site ADMINs don't need user_instance_roles entries - they get ADMIN role automatically
