@@ -13,14 +13,17 @@ async function proxy(
   path: string[] | undefined,
   method: string,
 ) {
-  const sessionToken = request.cookies.get("better-auth.session_token");
+  // Secure-cookie deployments prefix the name with __Secure-; read whichever is present
+  const sessionToken =
+    request.cookies.get("better-auth.session_token") ??
+    request.cookies.get("__Secure-better-auth.session_token");
   const suffix = path && path.length ? `/${path.map(encodeURIComponent).join("/")}` : "";
   const url = new URL(`${getBackendUrl()}/organizations${suffix}`);
   request.nextUrl.searchParams.forEach((v, k) => url.searchParams.append(k, v));
 
   const headers: Record<string, string> = {};
   if (sessionToken) {
-    headers["Cookie"] = `better-auth.session_token=${sessionToken.value}`;
+    headers["Cookie"] = `${sessionToken.name}=${sessionToken.value}`;
   }
 
   let body: string | undefined;
