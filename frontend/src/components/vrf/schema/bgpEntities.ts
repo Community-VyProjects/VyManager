@@ -192,6 +192,46 @@ const GLOBAL_AF_SCHEMA: SectionSpec[] = [
   },
 ];
 
+const BGP_AF_REDISTRIBUTE_GROUP: EntityGroupSpec = {
+  label: "Redistribute",
+  rawKey: "redistribute",
+  createOp: "vrf_bgp_af_redistribute",
+  fixedIds: [
+    { value: "connected", label: "Connected" },
+    { value: "static", label: "Static" },
+    { value: "kernel", label: "Kernel" },
+    { value: "ospf", label: "OSPF" },
+    { value: "rip", label: "RIP" },
+    { value: "babel", label: "Babel" },
+    { value: "isis", label: "IS-IS" },
+  ],
+  schema: [
+    {
+      title: "Redistribute",
+      fields: [
+        { op: "vrf_bgp_af_redistribute_metric", delOp: "vrf_bgp_af_redistribute", label: "Metric", type: "number", path: ["metric"] },
+        { op: "vrf_bgp_af_redistribute_route_map", delOp: "vrf_bgp_af_redistribute", label: "Route map", type: "text", path: ["route-map"] },
+      ],
+    },
+  ],
+};
+
+const BGP_AF_REDISTRIBUTE_TABLE_GROUP: EntityGroupSpec = {
+  label: "Redistribute Table",
+  rawKey: ["redistribute", "table"],
+  createOp: "vrf_bgp_af_redistribute_table",
+  idPlaceholder: "1",
+  schema: [
+    {
+      title: "Redistribute Table",
+      fields: [
+        { op: "vrf_bgp_af_redistribute_table_metric", delOp: "vrf_bgp_af_redistribute_table", label: "Metric", type: "number", path: ["metric"] },
+        { op: "vrf_bgp_af_redistribute_table_route_map", delOp: "vrf_bgp_af_redistribute_table", label: "Route map", type: "text", path: ["route-map"] },
+      ],
+    },
+  ],
+};
+
 const NEIGHBOR_AF_GROUP: EntityGroupSpec = {
   label: "Address Family",
   rawKey: "address-family",
@@ -232,4 +272,5 @@ export const BGP_AF_GROUP: EntityGroupSpec = {
   createOp: "vrf_bgp_af",
   schema: GLOBAL_AF_SCHEMA,
   fixedIds: AFI_OPTIONS,
+  children: [BGP_AF_REDISTRIBUTE_GROUP, BGP_AF_REDISTRIBUTE_TABLE_GROUP],
 };
