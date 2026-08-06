@@ -8,9 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useSearch } from "@/contexts/SearchContext";
+import { useUnifiedView } from "@/contexts/UnifiedViewContext";
 import { SearchResultIcon } from "@/lib/search/icon-resolver";
 import type { SearchResult, SearchEntityKind, SearchFilters, SearchColumn } from "@/lib/search/types";
 import { getResultTypeLabel, humanizeKind } from "@/lib/search/labels";
+import { getQuickViewSelection } from "@/lib/search/quick-view";
 
 const FEATURE_COLORS: Record<string, string> = {
   Firewall: "bg-red-500/15 text-red-700 dark:text-red-300 border-red-500/25",
@@ -28,7 +30,17 @@ const FEATURE_COLORS: Record<string, string> = {
   Monitoring: "bg-orange-500/15 text-orange-800 dark:text-orange-200 border-orange-500/25",
 };
 
-function navigateToResult(result: SearchResult, router: ReturnType<typeof useRouter>) {
+function navigateToResult(
+  result: SearchResult,
+  router: ReturnType<typeof useRouter>,
+  openUnifiedView: (type: "subnet" | "client", data: unknown) => void
+) {
+  const quickView = getQuickViewSelection(result);
+  if (quickView) {
+    openUnifiedView(quickView.type, quickView.data);
+    return;
+  }
+
   if (result.href) {
     router.push(result.href);
     return;
@@ -61,6 +73,7 @@ interface SearchOverlayProps {
 
 export function SearchOverlay({ open, onOpenChange }: SearchOverlayProps) {
   const router = useRouter();
+  const { openUnifiedView } = useUnifiedView();
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(-1);
@@ -107,10 +120,10 @@ export function SearchOverlay({ open, onOpenChange }: SearchOverlayProps) {
 
   const handleSelect = useCallback(
     (result: SearchResult) => {
-      navigateToResult(result, router);
+      navigateToResult(result, router, openUnifiedView);
       close();
     },
-    [router, close]
+    [router, close, openUnifiedView]
   );
 
   useEffect(() => {
