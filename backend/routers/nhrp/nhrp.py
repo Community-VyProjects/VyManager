@@ -37,7 +37,7 @@ class NhrpMapEntry(BaseModel):
     tunnel_ip: str
     nbma_address: Optional[str] = None
     cisco: bool = False          # VyOS 1.4 only
-    register: bool = False       # VyOS 1.4 only
+    register_flag: bool = Field(default=False, alias="register")  # VyOS 1.4 only
 
 
 class NhrpDynamicMap(BaseModel):
@@ -321,7 +321,7 @@ def _parse_maps_v1_4(raw: dict) -> List[NhrpMapEntry]:
             tunnel_ip=tunnel_ip,
             nbma_address=map_cfg.get("nbma-address") if isinstance(map_cfg, dict) else None,
             cisco="cisco" in map_cfg if isinstance(map_cfg, dict) else False,
-            register="register" in map_cfg if isinstance(map_cfg, dict) else False,
+            register_flag="register" in map_cfg if isinstance(map_cfg, dict) else False,
         )
         maps.append(entry)
     return sorted(maps, key=lambda m: m.tunnel_ip)
