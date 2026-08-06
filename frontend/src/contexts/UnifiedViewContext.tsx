@@ -3,12 +3,12 @@
 import React, { createContext, useContext, useState } from "react";
 
 interface UnifiedViewData {
-  type: 'subnet' | 'client';
+  type: string;
   data: unknown;
 }
 
 interface UnifiedViewContextType {
-  openUnifiedView: (type: 'subnet' | 'client', data: unknown) => void;
+  openUnifiedView: (type: string, data: unknown) => void;
   closeUnifiedView: () => void;
   unifiedViewData: UnifiedViewData | null;
 }
@@ -18,7 +18,7 @@ const UnifiedViewContext = createContext<UnifiedViewContextType | undefined>(und
 export function UnifiedViewProvider({ children }: { children: React.ReactNode }) {
   const [unifiedViewData, setUnifiedViewData] = useState<UnifiedViewData | null>(null);
 
-  const openUnifiedView = (type: 'subnet' | 'client', data: unknown) => {
+  const openUnifiedView = (type: string, data: unknown) => {
     setUnifiedViewData({ type, data });
   };
 
@@ -39,8 +39,8 @@ export function UnifiedViewProvider({ children }: { children: React.ReactNode })
 
 export function useUnifiedView() {
   const context = useContext(UnifiedViewContext);
-  if (context === undefined) {
-    throw new Error('useUnifiedView must be used within a UnifiedViewProvider');
+  if (!context) {
+    throw new Error("useUnifiedView must be used within UnifiedViewProvider");
   }
   return context;
 }

@@ -38,6 +38,8 @@ export function ClickableSubnet({
         network: { name: networkName || 'Unknown Network' },
         subnet: {
           subnet,
+          name_servers: [],
+          static_mappings: [],
         }
       };
       openUnifiedView('subnet', subnetData);
@@ -102,6 +104,7 @@ export function ClickableClient({
         interface: { name: interfaceName || 'Unknown Interface' },
         peer: {
           name: clientName,
+          allowed_ips: [],
         }
       };
       openUnifiedView('client', clientData);

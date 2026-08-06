@@ -114,7 +114,7 @@ export const navigation: NavItem[] = [
       { title: "Config Sync", href: "/service/config-sync", requiredPermission: FeatureGroup.CONFIG_SYNC },
       { title: "Conntrack Sync", href: "/service/conntrack-sync", requiredPermission: FeatureGroup.CONNTRACK_SYNC },
       { title: "Console Server", href: "/service/console-server", requiredPermission: FeatureGroup.CONSOLE_SERVER },
-      { title: "DHCP", href: "/network/dhcp", requiredPermission: FeatureGroup.DHCP},
+      { title: "DHCP Server", href: "/network/dhcp", requiredPermission: FeatureGroup.DHCP},
       { title: "DHCP Relay", href: "/service/dhcp-relay", requiredPermission: FeatureGroup.DHCP_RELAY },
       { title: "DHCPv6 Relay", href: "/service/dhcpv6-relay", requiredPermission: FeatureGroup.DHCPV6_RELAY },
       { title: "DHCPv6 Server", href: "/service/dhcpv6-server", requiredPermission: FeatureGroup.DHCPV6_SERVER },
