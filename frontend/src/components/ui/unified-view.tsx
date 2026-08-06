@@ -8,457 +8,255 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-import { Network, Database, Shield, Route, Activity, Users, Wifi, ExternalLink, Loader2 } from "lucide-react";
+import { ExternalLink, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { dhcpService, type DHCPLease } from "@/lib/api/dhcp";
+import { getUnifiedViewConfig, type UnifiedViewSection } from "@/lib/unified-view/registry";
 
 interface UnifiedViewProps {
   isOpen: boolean;
   onClose: () => void;
-  type: 'subnet' | 'client';
+  type: string;
   data: unknown;
 }
 
 export function UnifiedView({ isOpen, onClose, type, data }: UnifiedViewProps) {
   const router = useRouter();
-  const [leases, setLeases] = useState<DHCPLease[]>([]);
-  const [leasesLoading, setLeasesLoading] = useState(false);
+  const [fetchedData, setFetchedData] = useState<unknown>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Fetch leases when dialog opens for subnet view
+  const config = getUnifiedViewConfig(type);
+
+  // Fetch additional data when dialog opens
   useEffect(() => {
-    if (isOpen && type === 'subnet') {
-      const fetchLeases = async () => {
-        setLeasesLoading(true);
+    if (isOpen && config?.dataFetcher) {
+      const fetchData = async () => {
+        setIsLoading(true);
         try {
-          const leasesData = await dhcpService.getLeases();
-          setLeases(leasesData.leases);
+          const result = await config.dataFetcher!(data);
+          setFetchedData(result);
         } catch (error) {
-          console.error("Failed to fetch leases:", error);
-          setLeases([]);
+          console.error("Failed to fetch data:", error);
+          setFetchedData(null);
         } finally {
-          setLeasesLoading(false);
+          setIsLoading(false);
         }
       };
-      fetchLeases();
+      fetchData();
+    } else {
+      setFetchedData(null);
     }
-  }, [isOpen, type]);
+  }, [isOpen, type, config]);
 
-  const renderSubnetView = () => {
-    const { network, subnet } = data as {
-      network: { name: string };
-      subnet: {
-        subnet: string;
-        default_router?: string;
-        lease?: string;
-        name_servers: string[];
-        static_mappings: Array<{ name: string; ip_address?: string; mac_address?: string; disable?: boolean }>;
-      };
-    };
+  if (!config) {
+    return null;
+  }
 
-    // Filter leases for this subnet
-    const subnetLeases = leases.filter(lease =>
-      network.name === lease.pool ||
-      subnet.subnet === lease.pool
-    );
+  const Icon = config.icon;
+
+  // Merge original data with fetched data
+  const mergedData = fetchedData ? { ...(data as Record<string, unknown>), ...(fetchedData as Record<string, unknown>) } : data;
+
+  const renderField = (label: string, value: string | number | boolean | undefined, format?: string) => {
+    if (value === undefined || value === null || value === "") {
+      return null;
+    }
+
+    if (format === "badge") {
+      return (
+        <div>
+          <label className="text-sm font-medium">{label}</label>
+          <div className="mt-1">
+            <Badge variant="secondary">{String(value)}</Badge>
+          </div>
+        </div>
+      );
+    }
+
+    if (format === "badge-array") {
+      const values = String(value).split(", ").filter(Boolean);
+      return (
+        <div>
+          <label className="text-sm font-medium">{label}</label>
+          <div className="flex flex-wrap gap-1 mt-1">
+            {values.map((v, i) => (
+              <Badge key={i} variant="secondary">{v}</Badge>
+            ))}
+          </div>
+        </div>
+      );
+    }
 
     return (
-      <div className="space-y-6">
-        {/* Basic Info */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Network className="h-5 w-5" />
-              Subnet: {subnet.subnet}
-            </CardTitle>
-            <CardDescription>
-              DHCP subnet in shared network &quot;{network.name}&quot;
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-medium">Default Router</label>
-                <p className="text-sm text-muted-foreground">{subnet.default_router || 'Not set'}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium">Lease Time</label>
-                <p className="text-sm text-muted-foreground">{subnet.lease || 'Default'}</p>
-              </div>
-            </div>
-            <div>
-              <label className="text-sm font-medium">DNS Servers</label>
-              <div className="flex flex-wrap gap-1 mt-1">
-                {subnet.name_servers.map((server: string, index: number) => (
-                  <Badge key={index} variant="secondary">{server}</Badge>
-                ))}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Tabs defaultValue="clients" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="clients">Clients</TabsTrigger>
-            <TabsTrigger value="firewall">Firewall</TabsTrigger>
-            <TabsTrigger value="routing">Routing</TabsTrigger>
-            <TabsTrigger value="monitoring">Monitoring</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="clients" className="space-y-4">
-            {/* Active Leases */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Activity className="h-5 w-5" />
-                  Active Leases ({subnetLeases.filter(l => l.state === 'active').length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {leasesLoading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                  </div>
-                ) : subnetLeases.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Activity className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p>No active leases for this subnet</p>
-                  </div>
-                ) : (
-                  <ScrollArea className="h-64">
-                    <div className="space-y-2">
-                      {subnetLeases.map((lease) => (
-                        <div key={lease.ip_address} className="flex items-center justify-between p-3 border rounded-lg">
-                          <div>
-                            <p className="font-medium">{lease.hostname || lease.ip_address}</p>
-                            <p className="text-sm text-muted-foreground">
-                              IP: {lease.ip_address} | MAC: {lease.mac_address}
-                            </p>
-                          </div>
-                          <Badge variant={lease.state === 'active' ? 'default' : 'secondary'}>
-                            {lease.state}
-                          </Badge>
-                        </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Static Mappings */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  Static Mappings ({subnet.static_mappings.length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {subnet.static_mappings.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p>No static mappings for this subnet</p>
-                  </div>
-                ) : (
-                  <ScrollArea className="h-64">
-                    <div className="space-y-2">
-                      {subnet.static_mappings.map((mapping) => (
-                        <div key={mapping.name} className="flex items-center justify-between p-3 border rounded-lg">
-                          <div>
-                            <p className="font-medium">{mapping.name}</p>
-                            <p className="text-sm text-muted-foreground">
-                              IP: {mapping.ip_address || 'Not set'} | MAC: {mapping.mac_address || 'Not set'}
-                            </p>
-                          </div>
-                          <Badge variant={mapping.disable ? "destructive" : "default"}>
-                            {mapping.disable ? "Disabled" : "Enabled"}
-                          </Badge>
-                        </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="firewall" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Shield className="h-5 w-5" />
-                  Firewall Rules
-                </CardTitle>
-                <CardDescription>
-                  Firewall rules that may affect this subnet
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-8 text-muted-foreground">
-                  <Shield className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p>No specific firewall rules found for this subnet</p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-2"
-                    onClick={() => router.push('/firewall/policies')}
-                  >
-                    <ExternalLink className="h-3 w-3 mr-1" />
-                    View Firewall Policies
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="routing" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Route className="h-5 w-5" />
-                  Routing Configuration
-                </CardTitle>
-                <CardDescription>
-                  Routes and NAT rules affecting this subnet
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-8 text-muted-foreground">
-                  <Route className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p>No specific routing rules found for this subnet</p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-2"
-                    onClick={() => router.push('/routing/static-failover')}
-                  >
-                    <ExternalLink className="h-3 w-3 mr-1" />
-                    View Routing Configuration
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="monitoring" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Activity className="h-5 w-5" />
-                  Monitoring & Logs
-                </CardTitle>
-                <CardDescription>
-                  Recent activity and logs for this subnet
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-8 text-muted-foreground">
-                  <Activity className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p>No monitoring data available</p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-2"
-                    onClick={() => router.push('/monitoring')}
-                  >
-                    <ExternalLink className="h-3 w-3 mr-1" />
-                    View System Monitoring
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+      <div>
+        <label className="text-sm font-medium">{label}</label>
+        <p className="text-sm text-muted-foreground">{String(value)}</p>
       </div>
     );
   };
 
-  const renderClientView = () => {
-    const { interface: wgInterface, peer } = data as {
-      interface: { name: string };
-      peer: {
-        name: string;
-        public_key?: string;
-        address?: string;
-        port?: string | number;
-        allowed_ips: string[];
-        description?: string;
-      };
-    };
+  const renderSection = (section: UnifiedViewSection, sectionData: unknown) => {
+    const SectionIcon = section.icon;
 
-    return (
-      <div className="space-y-6">
-        {/* Basic Info */}
+    if (section.type === "custom" && section.component) {
+      const CustomComponent = section.component;
+      return <CustomComponent data={sectionData} />;
+    }
+
+    if (section.type === "info") {
+      const fields = typeof section.fields === "function" ? section.fields(sectionData) : section.fields || [];
+      const title = typeof section.title === "function" ? section.title(sectionData) : section.title;
+      const description = typeof section.description === "function" ? section.description(sectionData) : section.description;
+      
+      return (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Database className="h-5 w-5" />
-              WireGuard Peer: {peer.name}
+              {SectionIcon && <SectionIcon className="h-5 w-5" />}
+              {title}
             </CardTitle>
-            <CardDescription>
-              Peer on interface {wgInterface.name}
-            </CardDescription>
+            {description && <CardDescription>{description}</CardDescription>}
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-medium">Public Key</label>
-                <p className="text-sm text-muted-foreground font-mono break-all">
-                  {peer.public_key || 'Not set'}
-                </p>
+            {fields.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                {section.emptyIcon && <section.emptyIcon className="h-8 w-8 mx-auto mb-2 opacity-50" />}
+                <p>{section.emptyMessage || "No information available"}</p>
               </div>
-              <div>
-                <label className="text-sm font-medium">Endpoint</label>
-                <p className="text-sm text-muted-foreground">
-                  {peer.address && peer.port ? `${peer.address}:${peer.port}` : 'Not set'}
-                </p>
-              </div>
-            </div>
-            <div>
-              <label className="text-sm font-medium">Allowed IPs</label>
-              <div className="flex flex-wrap gap-1 mt-1">
-                {peer.allowed_ips.map((ip: string, index: number) => (
-                  <Badge key={index} variant="secondary">{ip}</Badge>
-                ))}
-              </div>
-            </div>
-            {peer.description && (
-              <div>
-                <label className="text-sm font-medium">Description</label>
-                <p className="text-sm text-muted-foreground">{peer.description}</p>
-              </div>
+            ) : (
+              <ScrollArea className="h-64">
+                <div className="grid grid-cols-2 gap-4 pr-4">
+                  {fields.map((field, idx) => (
+                    <div key={idx}>{renderField(field.label, field.value, field.format)}</div>
+                  ))}
+                </div>
+              </ScrollArea>
             )}
           </CardContent>
         </Card>
+      );
+    }
 
-        <Tabs defaultValue="connection" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="connection">Connection</TabsTrigger>
-            <TabsTrigger value="firewall">Firewall</TabsTrigger>
-            <TabsTrigger value="routing">Routing</TabsTrigger>
-            <TabsTrigger value="logs">Logs</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="connection" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Wifi className="h-5 w-5" />
-                  Connection Status
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-8 text-muted-foreground">
-                  <Wifi className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p>Connection status monitoring not available</p>
-                  <p className="text-xs mt-1">Check WireGuard interface status for details</p>
+    if (section.type === "list") {
+      const items = typeof section.items === "function" ? section.items(sectionData) : section.items || [];
+      const title = typeof section.title === "function" ? section.title(sectionData) : section.title;
+      const description = typeof section.description === "function" ? section.description(sectionData) : section.description;
+      
+      return (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              {SectionIcon && <SectionIcon className="h-5 w-5" />}
+              {title}
+            </CardTitle>
+            {description && <CardDescription>{description}</CardDescription>}
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : items.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                {section.emptyIcon && <section.emptyIcon className="h-8 w-8 mx-auto mb-2 opacity-50" />}
+                <p>{section.emptyMessage || "No items to display"}</p>
+              </div>
+            ) : (
+              <ScrollArea className="h-64">
+                <div className="space-y-2">
+                  {items.map((item) => (
+                    <div key={item.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div>
+                        <p className="font-medium">{item.title}</p>
+                        {item.subtitle && (
+                          <p className="text-sm text-muted-foreground">{item.subtitle}</p>
+                        )}
+                      </div>
+                      {item.badge && (
+                        <Badge
+                          variant={
+                            typeof item.badge === "string"
+                              ? "secondary"
+                              : item.badge.variant || "secondary"
+                          }
+                        >
+                          {typeof item.badge === "string" ? item.badge : item.badge.text}
+                        </Badge>
+                      )}
+                    </div>
+                  ))}
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+              </ScrollArea>
+            )}
+          </CardContent>
+        </Card>
+      );
+    }
 
-          <TabsContent value="firewall" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Shield className="h-5 w-5" />
-                  Firewall Rules
-                </CardTitle>
-                <CardDescription>
-                  Firewall rules that may affect this client
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-8 text-muted-foreground">
-                  <Shield className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p>No specific firewall rules found for this client</p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-2"
-                    onClick={() => router.push('/firewall/policies')}
-                  >
-                    <ExternalLink className="h-3 w-3 mr-1" />
-                    View Firewall Policies
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+    return null;
+  };
 
-          <TabsContent value="routing" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Route className="h-5 w-5" />
-                  Routing Configuration
-                </CardTitle>
-                <CardDescription>
-                  Routes affecting this client&apos;s traffic
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-8 text-muted-foreground">
-                  <Route className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p>No specific routing rules found for this client</p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-2"
-                    onClick={() => router.push('/routing/static-failover')}
-                  >
-                    <ExternalLink className="h-3 w-3 mr-1" />
-                    View Routing Configuration
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+  const renderTabs = () => {
+    const headerSections = config.headerSections || [];
+    const mainSections = config.sections || [];
 
-          <TabsContent value="logs" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Activity className="h-5 w-5" />
-                  Connection Logs
-                </CardTitle>
-                <CardDescription>
-                  Recent connection attempts and activity
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-8 text-muted-foreground">
-                  <Activity className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p>No logs available for this client</p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-2"
-                    onClick={() => router.push('/monitoring')}
-                  >
-                    <ExternalLink className="h-3 w-3 mr-1" />
-                    View System Logs
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </div>
-    );
+    if (!config.tabs && mainSections.length > 0) {
+      // Single view without tabs
+      return (
+        <div className="space-y-4">
+          {headerSections.map((section, idx) => (
+            <div key={`header-${idx}`}>{renderSection(section, mergedData)}</div>
+          ))}
+          {mainSections.map((section, idx) => (
+            <div key={`main-${idx}`}>{renderSection(section, mergedData)}</div>
+          ))}
+        </div>
+      );
+    }
+
+    if (config.tabs) {
+      const defaultTab = config.tabs[0]?.id;
+      return (
+        <div className="space-y-6">
+          {headerSections.map((section, idx) => (
+            <div key={`header-${idx}`}>{renderSection(section, mergedData)}</div>
+          ))}
+          <Tabs defaultValue={defaultTab} className="w-full">
+            <TabsList className="grid w-full" style={{ gridTemplateColumns: `repeat(${config.tabs.length}, 1fr)` }}>
+              {config.tabs.map((tab) => {
+                const TabIcon = tab.icon;
+                return (
+                  <TabsTrigger key={tab.id} value={tab.id}>
+                    {TabIcon && <TabIcon className="h-4 w-4 mr-2" />}
+                    {tab.label}
+                  </TabsTrigger>
+                );
+              })}
+            </TabsList>
+            {config.tabs.map((tab) => (
+              <TabsContent key={tab.id} value={tab.id} className="space-y-4">
+                {tab.sections.map((section, idx) => (
+                  <div key={idx}>{renderSection(section, mergedData)}</div>
+                ))}
+              </TabsContent>
+            ))}
+          </Tabs>
+        </div>
+      );
+    }
+
+    return null;
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>
-            {type === 'subnet' ? 'Subnet Overview' : 'Client Overview'}
+          <DialogTitle className="flex items-center gap-2">
+            {Icon && <Icon className="h-5 w-5" />}
+            {config.title}
           </DialogTitle>
         </DialogHeader>
-        <ScrollArea className="flex-1 pr-6">
-          {type === 'subnet' ? renderSubnetView() : renderClientView()}
-        </ScrollArea>
+        <div className="pr-1">{renderTabs()}</div>
       </DialogContent>
     </Dialog>
   );

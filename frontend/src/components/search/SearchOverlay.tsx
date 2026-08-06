@@ -12,7 +12,7 @@ import { useUnifiedView } from "@/contexts/UnifiedViewContext";
 import { SearchResultIcon } from "@/lib/search/icon-resolver";
 import type { SearchResult, SearchEntityKind, SearchFilters, SearchColumn } from "@/lib/search/types";
 import { getResultTypeLabel, humanizeKind } from "@/lib/search/labels";
-import { getQuickViewSelection } from "@/lib/search/quick-view";
+import { getUnifiedViewSelection } from "@/lib/search/unified-view";
 
 const FEATURE_COLORS: Record<string, string> = {
   Firewall: "bg-red-500/15 text-red-700 dark:text-red-300 border-red-500/25",
@@ -35,9 +35,9 @@ function navigateToResult(
   router: ReturnType<typeof useRouter>,
   openUnifiedView: (type: "subnet" | "client", data: unknown) => void
 ) {
-  const quickView = getQuickViewSelection(result);
-  if (quickView) {
-    openUnifiedView(quickView.type, quickView.data);
+  const unifiedView = getUnifiedViewSelection(result);
+  if (unifiedView) {
+    openUnifiedView(unifiedView.type, unifiedView.data);
     return;
   }
 
@@ -278,12 +278,15 @@ export function SearchOverlay({ open, onOpenChange }: SearchOverlayProps) {
               <div className="py-12 text-center text-sm text-muted-foreground">
                 {query.trim()
                   ? "No results found"
-                  : "No starred items yet — star results to save them here"}
+                  : "Start typing to find what you are looking for"}
               </div>
             ) : (
               <div className="p-2">
                 {!query.trim() && (
-                  <p className="px-3 py-1.5 text-xs font-medium text-muted-foreground">Starred</p>
+                  <p className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-muted-foreground">
+                    <Star className="h-3.5 w-3.5 text-amber-400" />
+                    Starred
+                  </p>
                 )}
                 {displayResults.map((result, index) => {
                   const isSelected = index === selectedIndex;
