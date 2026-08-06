@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,18 +8,40 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-import { Network, Database, Shield, Route, Activity, Users, Wifi, ExternalLink } from "lucide-react";
+import { Network, Database, Shield, Route, Activity, Users, Wifi, ExternalLink, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { dhcpService, type DHCPLease } from "@/lib/api/dhcp";
 
 interface UnifiedViewProps {
   isOpen: boolean;
   onClose: () => void;
-  type: 'subnet' | 'client' | 'peer';
+  type: 'subnet' | 'client';
   data: unknown;
 }
 
 export function UnifiedView({ isOpen, onClose, type, data }: UnifiedViewProps) {
   const router = useRouter();
+  const [leases, setLeases] = useState<DHCPLease[]>([]);
+  const [leasesLoading, setLeasesLoading] = useState(false);
+
+  // Fetch leases when dialog opens for subnet view
+  useEffect(() => {
+    if (isOpen && type === 'subnet') {
+      const fetchLeases = async () => {
+        setLeasesLoading(true);
+        try {
+          const leasesData = await dhcpService.getLeases();
+          setLeases(leasesData.leases);
+        } catch (error) {
+          console.error("Failed to fetch leases:", error);
+          setLeases([]);
+        } finally {
+          setLeasesLoading(false);
+        }
+      };
+      fetchLeases();
+    }
+  }, [isOpen, type]);
 
   const renderSubnetView = () => {
     const { network, subnet } = data as {
@@ -31,6 +54,12 @@ export function UnifiedView({ isOpen, onClose, type, data }: UnifiedViewProps) {
         static_mappings: Array<{ name: string; ip_address?: string; mac_address?: string; disable?: boolean }>;
       };
     };
+
+    // Filter leases for this subnet
+    const subnetLeases = leases.filter(lease =>
+      network.name === lease.pool ||
+      subnet.subnet === lease.pool
+    );
 
     return (
       <div className="space-y-6">
@@ -76,31 +105,79 @@ export function UnifiedView({ isOpen, onClose, type, data }: UnifiedViewProps) {
           </TabsList>
 
           <TabsContent value="clients" className="space-y-4">
+            {/* Active Leases */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Activity className="h-5 w-5" />
+                  Active Leases ({subnetLeases.filter(l => l.state === 'active').length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {leasesLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : subnetLeases.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Activity className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p>No active leases for this subnet</p>
+                  </div>
+                ) : (
+                  <ScrollArea className="h-64">
+                    <div className="space-y-2">
+                      {subnetLeases.map((lease) => (
+                        <div key={lease.ip_address} className="flex items-center justify-between p-3 border rounded-lg">
+                          <div>
+                            <p className="font-medium">{lease.hostname || lease.ip_address}</p>
+                            <p className="text-sm text-muted-foreground">
+                              IP: {lease.ip_address} | MAC: {lease.mac_address}
+                            </p>
+                          </div>
+                          <Badge variant={lease.state === 'active' ? 'default' : 'secondary'}>
+                            {lease.state}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Static Mappings */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Users className="h-5 w-5" />
-                  DHCP Clients ({subnet.static_mappings.length} static)
+                  Static Mappings ({subnet.static_mappings.length})
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <ScrollArea className="h-64">
-                  <div className="space-y-2">
-                    {subnet.static_mappings.map((mapping) => (
-                      <div key={mapping.name} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div>
-                          <p className="font-medium">{mapping.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            IP: {mapping.ip_address} | MAC: {mapping.mac_address}
-                          </p>
-                        </div>
-                        <Badge variant={mapping.disable ? "destructive" : "default"}>
-                          {mapping.disable ? "Disabled" : "Enabled"}
-                        </Badge>
-                      </div>
-                    ))}
+                {subnet.static_mappings.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p>No static mappings for this subnet</p>
                   </div>
-                </ScrollArea>
+                ) : (
+                  <ScrollArea className="h-64">
+                    <div className="space-y-2">
+                      {subnet.static_mappings.map((mapping) => (
+                        <div key={mapping.name} className="flex items-center justify-between p-3 border rounded-lg">
+                          <div>
+                            <p className="font-medium">{mapping.name}</p>
+                            <p className="text-sm text-muted-foreground">
+                              IP: {mapping.ip_address || 'Not set'} | MAC: {mapping.mac_address || 'Not set'}
+                            </p>
+                          </div>
+                          <Badge variant={mapping.disable ? "destructive" : "default"}>
+                            {mapping.disable ? "Disabled" : "Enabled"}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

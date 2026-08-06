@@ -95,7 +95,7 @@ export function ClickableClient({
 
   const handleClick = () => {
     if (data) {
-      openUnifiedView('peer', data);
+      openUnifiedView('client', data);
     } else {
       // Fallback with minimal data
       const clientData = {
@@ -104,7 +104,7 @@ export function ClickableClient({
           name: clientName,
         }
       };
-      openUnifiedView('peer', clientData);
+      openUnifiedView('client', clientData);
     }
   };
 
