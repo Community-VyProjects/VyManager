@@ -71,6 +71,120 @@ type GenericOAuthProviderConfig = NonNullable<
   Parameters<typeof genericOAuth>[0]["config"]
 >[number];
 
+/**
+ * Decode a JWT payload WITHOUT verifying its signature.
+ *
+ * We only use these claims for the frontend deny-gate (does this login match a
+ * permitted group?). The authoritative, security-sensitive read happens in the
+ * backend /internal/sso-reconcile, which re-verifies the stored id_token against
+ * the provider JWKS before trusting its groups. Here we just need the claim
+ * values, and the id_token was handed to us directly over the back-channel token
+ * exchange, so no untrusted party sat in between.
+ */
+function decodeJwtClaims(
+  token: string | undefined | null,
+): Record<string, unknown> | null {
+  if (!token) return null;
+  const parts = token.split(".");
+  if (parts.length < 2) return null;
+  try {
+    const payload = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const json = Buffer.from(payload, "base64").toString("utf8");
+    const parsed = JSON.parse(json);
+    return typeof parsed === "object" && parsed !== null
+      ? (parsed as Record<string, unknown>)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+// OIDC discovery cache: discoveryUrl -> userinfo_endpoint (or null if the doc
+// has none / the fetch failed). Populated lazily on first login per provider.
+const discoveredUserInfoUrls = new Map<string, string | null>();
+
+async function resolveUserInfoUrl(
+  userInfoUrl: string | null,
+  discoveryUrl: string | null,
+): Promise<string | null> {
+  if (userInfoUrl) return userInfoUrl;
+  if (!discoveryUrl) return null;
+  if (discoveredUserInfoUrls.has(discoveryUrl)) {
+    return discoveredUserInfoUrls.get(discoveryUrl) ?? null;
+  }
+  let endpoint: string | null = null;
+  try {
+    const res = await fetch(discoveryUrl);
+    if (res.ok) {
+      const doc = (await res.json()) as { userinfo_endpoint?: string };
+      endpoint = doc.userinfo_endpoint ?? null;
+    }
+  } catch (e) {
+    console.error("[SSO] OIDC discovery fetch failed:", e);
+  }
+  discoveredUserInfoUrls.set(discoveryUrl, endpoint);
+  return endpoint;
+}
+
+type OAuthTokensLike = {
+  idToken?: string | null;
+  accessToken?: string | null;
+};
+
+/**
+ * Custom getUserInfo that preserves the FULL id_token claim set.
+ *
+ * Better Auth's default getUserInfo decodes the id_token but reduces it to a
+ * fixed whitelist (sub/email/email_verified/name/picture), silently dropping
+ * `groups`. Some IdPs (notably Microsoft Entra) emit group claims ONLY in the
+ * id_token and never via the /userinfo endpoint, so the default profile arrives
+ * with no groups and the role-mapping deny-gate rejects every Entra login even
+ * when the user is in a permitted group. (Authentik works because it returns
+ * groups from /userinfo.)
+ *
+ * We therefore: keep every id_token claim (so `groups` survives), and backfill
+ * from /userinfo for providers that keep identity fields out of the id_token.
+ */
+function buildGetUserInfo(userInfoUrl: string | null, discoveryUrl: string | null) {
+  return async (tokens: OAuthTokensLike): Promise<Record<string, unknown> | null> => {
+    const idClaims = decodeJwtClaims(tokens.idToken);
+
+    let userInfo: Record<string, unknown> | null = null;
+    const url = await resolveUserInfoUrl(userInfoUrl, discoveryUrl);
+    if (url && tokens.accessToken) {
+      try {
+        const res = await fetch(url, {
+          headers: {
+            Authorization: `Bearer ${tokens.accessToken}`,
+            Accept: "application/json",
+          },
+        });
+        if (res.ok) userInfo = (await res.json()) as Record<string, unknown>;
+      } catch (e) {
+        console.error("[SSO] userinfo fetch failed:", e);
+      }
+    }
+
+    if (!idClaims && !userInfo) return null;
+
+    // id_token claims win over /userinfo: they carry the group claim Entra only
+    // exposes there and hold the authoritative sub/email. /userinfo backfills
+    // any fields a provider leaves out of the id_token.
+    const claims = { ...(userInfo ?? {}), ...(idClaims ?? {}) };
+
+    // Normalize the standard identity fields Better Auth consumes, while keeping
+    // every raw claim (incl. `groups`) for mapProfileToUser/applyRoleMapping.
+    return {
+      ...claims,
+      id: claims.sub ?? claims.id,
+      email: claims.email,
+      emailVerified: claims.email_verified ?? false,
+      name: claims.name ?? claims.preferred_username ?? claims.email,
+      image: claims.picture ?? claims.image,
+    };
+  };
+}
+
 const isProd = process.env.NODE_ENV === "production";
 
 const trustedOrigins = process.env.TRUSTED_ORIGINS
@@ -181,9 +295,13 @@ async function buildAuth() {
     ...(p.discoveryUrl ? { discoveryUrl: p.discoveryUrl } : {}),
     ...(p.authorizationUrl ? { authorizationUrl: p.authorizationUrl } : {}),
     ...(p.tokenUrl ? { tokenUrl: p.tokenUrl } : {}),
-    ...(p.userInfoUrl ? { getUserInfo: undefined, userInfoUrl: p.userInfoUrl } : {}),
+    ...(p.userInfoUrl ? { userInfoUrl: p.userInfoUrl } : {}),
     scopes: p.scopes ? p.scopes.split(" ").filter(Boolean) : ["openid", "email", "profile"],
     pkce: p.pkce,
+    // Override profile fetching so group claims that live only in the id_token
+    // (e.g. Microsoft Entra) survive into mapProfileToUser. See buildGetUserInfo.
+    getUserInfo: buildGetUserInfo(p.userInfoUrl, p.discoveryUrl) as unknown as
+      GenericOAuthProviderConfig["getUserInfo"],
     // Cast: the returned `role` is a declared additionalField, persisted at
     // runtime, but absent from the plugin's base-user return type.
     mapProfileToUser: ((profile: Record<string, unknown>) =>
