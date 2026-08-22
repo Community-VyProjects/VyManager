@@ -44,7 +44,15 @@ export async function GET(request: NextRequest) {
     request.nextUrl.pathname.includes("/oauth2/callback/") &&
     response.status >= 500
   ) {
-    return NextResponse.redirect(new URL("/login?error=oauth", request.url));
+    // Build the redirect off the configured PUBLIC base URL, not request.url.
+    // Behind a TLS-terminating reverse proxy the incoming request host is the
+    // internal container address (e.g. https://localhost:3000), so redirecting
+    // relative to request.url sends the browser to a dead internal origin.
+    const publicBase =
+      process.env.BETTER_AUTH_URL ||
+      process.env.NEXT_PUBLIC_APP_URL ||
+      request.nextUrl.origin;
+    return NextResponse.redirect(new URL("/login?error=oauth", publicBase));
   }
   return response;
 }
