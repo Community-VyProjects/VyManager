@@ -511,7 +511,6 @@ function InterfacesPageInner() {
   );
 
   const totalInterfaces = interfaces.length;
-  const totalVlans = allVifs.length + allVifS.length + allVifC.length;
   const totalWireGuard = wireGuardInterfaces.length;
   const totalVxlan = vxlanInterfaces.length;
   const totalTunnel = tunnelInterfaces.length;
@@ -586,6 +585,7 @@ function InterfacesPageInner() {
       } as unknown as VIFCWithParent))
     )
   );
+  const totalVlans = allVifs.length + allVifS.length + allVifC.length + bondVifs.length + bondVifS.length + bondVifC.length;
 
   // Active VLAN lists + the modal wiring depend on the selected parent type tab
   const isBondVlan = vlanParent === "bonding";
@@ -990,7 +990,7 @@ function InterfacesPageInner() {
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Interfaces</h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {totalInterfaces + totalVlans + totalWireGuard + totalVxlan + totalTunnel + totalDummy + totalGeneve + totalInput + totalLoopback + totalMacsec + totalBonding + totalBridge + totalPppoe + totalPseudoEthernet + totalSstpc + totalVirtualEthernet + totalVti + totalWireless + totalWwan} total
+                  {totalInterfaces + totalVlans + totalWireGuard + totalVxlan + totalTunnel + totalDummy + totalGeneve + totalInput + totalL2tpv3 + totalLoopback + totalMacsec + totalBonding + totalBridge + totalPppoe + totalPseudoEthernet + totalSstpc + totalVirtualEthernet + totalVpp + totalVti + totalWireless + totalWwan} total
                 </p>
               </div>
               <Button
