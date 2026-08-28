@@ -18,13 +18,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, RefreshCw, AlertCircle, Search, Cable, Pencil, Trash2, Network, ChevronRight, ChevronDown, Shield, Boxes, Waypoints, Link2, GitMerge, Box, Layers, ArrowDownToLine, Repeat, Lock, ArrowLeftRight, Wifi, Signal } from "lucide-react";
+import { Plus, RefreshCw, AlertCircle, Search, Cable, Pencil, Trash2, Network, ChevronRight, ChevronDown, Shield, Boxes, Waypoints, Link2, GitMerge, Box, Layers, ArrowDownToLine, Repeat, Lock, ArrowLeftRight, Wifi, Signal, Thermometer } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { ethernetService } from "@/lib/api/ethernet";
-import type { EthernetInterface, EthernetCapabilities, VIFConfig, VIFSConfig } from "@/lib/api/types/ethernet";
+import type { EthernetInterface, EthernetCapabilities, TransceiverStatus, VIFConfig, VIFSConfig } from "@/lib/api/types/ethernet";
 import { wireguardService, type WireGuardInterface } from "@/lib/api/wireguard";
 import { vxlanService, type VxlanInterface, type VxlanCapabilities } from "@/lib/api/vxlan";
 import { tunnelService, type TunnelInterface, type TunnelCapabilities } from "@/lib/api/tunnel";
@@ -105,6 +105,8 @@ import { ComprehensiveEthernetModal } from "@/components/network/ComprehensiveEt
 import { ComprehensiveVLANModal } from "@/components/network/ComprehensiveVLANModal";
 import { ComprehensiveVIFSModal } from "@/components/network/ComprehensiveVIFSModal";
 import { ComprehensiveVIFCModal } from "@/components/network/ComprehensiveVIFCModal";
+import { TransceiverDiagnosticsDialog } from "@/components/network/TransceiverDiagnosticsDialog";
+import { HardwareSensorsDialog } from "@/components/network/HardwareSensorsDialog";
 import { DeleteEthernetModal } from "@/components/network/DeleteEthernetModal";
 import { DeleteVLANModal } from "@/components/network/DeleteVLANModal";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
@@ -185,6 +187,9 @@ function InterfacesPageInner() {
   const [isCreateInterfaceModalOpen, setIsCreateInterfaceModalOpen] = useState(false);
   const [editingInterface, setEditingInterface] = useState<EthernetInterface | null>(null);
   const [deletingInterface, setDeletingInterface] = useState<EthernetInterface | null>(null);
+  const [transceiverStatuses, setTransceiverStatuses] = useState<Record<string, TransceiverStatus | null>>({});
+  const [diagnosticsInterface, setDiagnosticsInterface] = useState<string | null>(null);
+  const [hardwareSensorsOpen, setHardwareSensorsOpen] = useState(false);
 
   // VIF Modal states
   const [isCreateVLANModalOpen, setIsCreateVLANModalOpen] = useState(false);
@@ -479,6 +484,27 @@ function InterfacesPageInner() {
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => {
+    if (!interfaces.length) return;
+    let cancelled = false;
+    const refreshTransceivers = async () => {
+      const entries = await Promise.all(interfaces.map(async (iface) => {
+        try {
+          return [iface.name, await ethernetService.getTransceiver(iface.name)] as const;
+        } catch {
+          return [iface.name, null] as const;
+        }
+      }));
+      if (!cancelled) setTransceiverStatuses(Object.fromEntries(entries));
+    };
+    void refreshTransceivers();
+    const timer = window.setInterval(refreshTransceivers, 15000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [interfaces]);
 
   // Extract VIF (802.1Q) sub-interfaces
   const allVifs: VLANWithParent[] = interfaces.flatMap((iface) =>
@@ -1002,6 +1028,17 @@ function InterfacesPageInner() {
               >
                 <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
               </Button>
+              {selectedType === "ethernet" && (
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setHardwareSensorsOpen(true)}
+                  disabled={!canRead(FeatureGroup.INTERFACES)}
+                  title="View hardware health"
+                >
+                  <Thermometer className="h-4 w-4" />
+                </Button>
+              )}
             </div>
           </div>
 
@@ -2028,12 +2065,14 @@ function InterfacesPageInner() {
                           <TableHead>VRF</TableHead>
                           <TableHead>MAC / HW ID</TableHead>
                           <TableHead>VLANs</TableHead>
+                          <TableHead>Optic</TableHead>
                           <TableHead className="w-[80px]"></TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {filteredInterfaces.map((iface) => {
-                          const vlanCount = (iface.vif?.length || 0) + (iface.vif_s?.length || 0);
+                          const vlanCount = (iface.vif?.length || 0) + (iface.vif_s?.length || 0) +
+                            (iface.vif_s?.reduce((count, serviceVlan) => count + (serviceVlan.vif_c?.length || 0), 0) || 0);
                           return (
                             <TableRow key={iface.name}>
                               <TableCell>
@@ -2091,7 +2130,26 @@ function InterfacesPageInner() {
                                 )}
                               </TableCell>
                               <TableCell>
+                                {(() => {
+                                  const status = transceiverStatuses[iface.name];
+                                  if (!status) return <span className="text-muted-foreground">-</span>;
+                                  if (status.alarms.length) return <Badge variant="destructive" className="cursor-pointer" onClick={() => setDiagnosticsInterface(iface.name)} title="Optic alarm">Alarm</Badge>;
+                                  if (status.warnings.length || !status.present) return <Badge variant="outline" className="cursor-pointer border-yellow-500/30 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400" onClick={() => setDiagnosticsInterface(iface.name)} title="Optic warning">Warning</Badge>;
+                                  return <Badge variant="outline" className="cursor-pointer border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-400" onClick={() => setDiagnosticsInterface(iface.name)} title="Optic healthy">Healthy</Badge>;
+                                })()}
+                              </TableCell>
+                              <TableCell>
                                 <div className="flex gap-1 justify-end">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setDiagnosticsInterface(iface.name)}
+                                    className="h-7 w-7 p-0"
+                                    disabled={!canRead(FeatureGroup.INTERFACES)}
+                                    title="View transceiver diagnostics"
+                                  >
+                                    <Signal className="h-3.5 w-3.5" />
+                                  </Button>
                                   <Button
                                     variant="ghost"
                                     size="sm"
@@ -3957,6 +4015,13 @@ function InterfacesPageInner() {
           }}
         />
       )}
+
+      <TransceiverDiagnosticsDialog
+        interfaceName={diagnosticsInterface}
+        open={!!diagnosticsInterface}
+        onOpenChange={(open) => !open && setDiagnosticsInterface(null)}
+      />
+      <HardwareSensorsDialog open={hardwareSensorsOpen} onOpenChange={setHardwareSensorsOpen} />
 
       {/* VIF (802.1Q) Modals */}
       <ComprehensiveVLANModal
