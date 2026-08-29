@@ -10,10 +10,6 @@ const config: Config = {
   tagline: 'Centralized management for multi-site VyOS routers',
   favicon: 'img/vy-icon.png',
 
-  future: {
-    v4: true,
-  },
-
   url: 'https://docs.vyprojects.org',
   baseUrl: '/',
 
