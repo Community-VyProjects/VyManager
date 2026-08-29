@@ -24072,6 +24072,61 @@
         ],
         "title": "ContainerImageRequest"
       },
+      "ContainerImageUpdateStatus": {
+        "properties": {
+          "available": {
+            "type": "boolean",
+            "title": "Available",
+            "default": false
+          },
+          "current_tag": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Tag"
+          },
+          "latest_tag": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Tag"
+          },
+          "registry": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Registry"
+          },
+          "checked_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checked At"
+          }
+        },
+        "type": "object",
+        "title": "ContainerImageUpdateStatus"
+      },
       "ContainerImagesResponse": {
         "properties": {
           "images": {
@@ -24344,6 +24399,16 @@
             "type": "array",
             "title": "Volumes",
             "default": []
+          },
+          "update_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContainerImageUpdateStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
