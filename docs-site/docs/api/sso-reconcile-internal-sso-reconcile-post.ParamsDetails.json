@@ -1,0 +1,1 @@
+{"parameters":[{"name":"x-internal-auth","in":"header","required":false,"schema":{"anyOf":[{"type":"string"},{"type":"null"}],"title":"X-Internal-Auth"}}]}

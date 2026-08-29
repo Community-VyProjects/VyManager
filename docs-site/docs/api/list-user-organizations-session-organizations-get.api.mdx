@@ -1,0 +1,63 @@
+---
+id: list-user-organizations-session-organizations-get
+title: "List User Organizations"
+description: "The caller's organization memberships."
+sidebar_label: "List User Organizations"
+hide_title: true
+hide_table_of_contents: true
+api: eJzlVU1v00AQ/SujuQCS2yKOvhUJUCSgCAiXJoo29tQeut41M+uUEPm/o7HTJk75upODE8/Ozpt9+95kh8lVivk1KqlyDLjMsCQthNtkrzl+rgkK5z3JE4UolQv8w9kaNNSsSbTmVs8XYRFeuuJWIdUENxJDolCOO2A+y4dwJbFrOVRQkytJwIUS9I5TUZOAULBYDH67CHc1hWHLiAxr8jFUCilCE4Ug1S5ADDRt6GmUatXxasPKa0/PskXQCMqh8nSWyDVQUuvjtqGQFAJtSECJBiDr07styTlmGFuSoeSsxBw9a1p1SrI6RtPVnrKTaEUJMxTSNgYlxXyHL54/t68pr5+6oiDVm87Dx30yZlgMxCVLd23ruRiqXnxV27NDLWpqnP1qxZpMPCJMWrAAJ2r0cR6X9kzbljBHTcKhwgwTJ2+BWYl9hsE19Kes97beZ4a5kuj/mHslFXy0nL7P7pPi+isVI0ffOhYqTX5c4h75qPByUujhgO8edIenYr0MU0X8UkIZ3HGqbY0FDAg4AKdzPPToRNwWfw2v94c/KO2IgnWMnlw44WDO8GWf+jcmplf5COk3nOiRhv7Rv3oO09rQsEiUqYVBOk+L8HRqu4P1n4HGBwPNZ8AK2rWtkCqVcBPl2H+LcGxAu4XYpfGSPFNIIHRWkvDGhsRwI/bJsKFUR7PiaK7WpRpzvNgb8OKUMg43cbiSPVFftlef4J0LriJDhssPs0c0vXaaLj/MYO2KWzu2dd7YFmtlKFDShgsa24YNiUGfuTsnBEVsGhdKw94vYI4lbUwpbdTUuMG9o7PwLWuCuZLA1Unjk5Z2h2HwXw7hvUkSfU8XrXccjM1O/DDVBgUc/rWyE9ssM6yjJkvZ7dZOaS6+7y38rSPZYn69zHDjhN3g3utln+HIB+bXO7ylrQ2ToqDW9LZxvhumwulE7pdH2nzz6jP2/U+sHJ2h
+sidebar_class_name: "get api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"List User Organizations"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/session/organizations"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+The caller's organization memberships.
+
+Backs the frontend's org UI: the grouping header and switcher render only
+when the caller belongs to more than one organization (org_ui_visible),
+so single-team deployments never see the org layer.
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./list-user-organizations-session-organizations-get.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./list-user-organizations-session-organizations-get.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

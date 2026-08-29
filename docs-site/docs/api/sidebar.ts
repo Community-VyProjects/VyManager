@@ -48,6 +48,12 @@ const sidebar: SidebarsConfig = {
         },
         {
           type: "doc",
+          id: "api/list-user-organizations-session-organizations-get",
+          label: "List User Organizations",
+          className: "api-method get",
+        },
+        {
+          type: "doc",
           id: "api/list-user-sites-session-sites-get",
           label: "List User Sites",
           className: "api-method get",
@@ -1782,20 +1788,158 @@ const sidebar: SidebarsConfig = {
       items: [
         {
           type: "doc",
-          id: "api/list-tokens-tokens-get",
-          label: "List Tokens",
-          className: "api-method get",
-        },
-        {
-          type: "doc",
           id: "api/create-token-tokens-post",
           label: "Create Token",
           className: "api-method post",
         },
         {
           type: "doc",
+          id: "api/list-tokens-tokens-get",
+          label: "List Tokens",
+          className: "api-method get",
+        },
+        {
+          type: "doc",
           id: "api/revoke-token-tokens-token-id-delete",
           label: "Revoke Token",
+          className: "api-method delete",
+        },
+      ],
+    },
+    {
+      type: "category",
+      label: "internal",
+      items: [
+        {
+          type: "doc",
+          id: "api/sso-reconcile-internal-sso-reconcile-post",
+          label: "Sso Reconcile",
+          className: "api-method post",
+        },
+      ],
+    },
+    {
+      type: "category",
+      label: "oauth-config",
+      items: [
+        {
+          type: "doc",
+          id: "api/list-role-mappings-oauth-config-provider-id-role-mappings-get",
+          label: "List Role Mappings",
+          className: "api-method get",
+        },
+        {
+          type: "doc",
+          id: "api/create-role-mapping-oauth-config-provider-id-role-mappings-post",
+          label: "Create Role Mapping",
+          className: "api-method post",
+        },
+        {
+          type: "doc",
+          id: "api/update-role-mapping-oauth-config-provider-id-role-mappings-mapping-id-put",
+          label: "Update Role Mapping",
+          className: "api-method put",
+        },
+        {
+          type: "doc",
+          id: "api/delete-role-mapping-oauth-config-provider-id-role-mappings-mapping-id-delete",
+          label: "Delete Role Mapping",
+          className: "api-method delete",
+        },
+        {
+          type: "doc",
+          id: "api/list-providers-oauth-config-get",
+          label: "List Providers",
+          className: "api-method get",
+        },
+        {
+          type: "doc",
+          id: "api/upsert-provider-oauth-config-post",
+          label: "Upsert Provider",
+          className: "api-method post",
+        },
+        {
+          type: "doc",
+          id: "api/list-public-providers-oauth-config-public-get",
+          label: "List Public Providers",
+          className: "api-method get",
+        },
+        {
+          type: "doc",
+          id: "api/get-provider-oauth-config-provider-id-get",
+          label: "Get Provider",
+          className: "api-method get",
+        },
+        {
+          type: "doc",
+          id: "api/update-provider-oauth-config-provider-id-put",
+          label: "Update Provider",
+          className: "api-method put",
+        },
+        {
+          type: "doc",
+          id: "api/set-provider-enabled-oauth-config-provider-id-patch",
+          label: "Set Provider Enabled",
+          className: "api-method patch",
+        },
+        {
+          type: "doc",
+          id: "api/delete-provider-oauth-config-provider-id-delete",
+          label: "Delete Provider",
+          className: "api-method delete",
+        },
+      ],
+    },
+    {
+      type: "category",
+      label: "organizations",
+      items: [
+        {
+          type: "doc",
+          id: "api/list-organizations-organizations-get",
+          label: "List Organizations",
+          className: "api-method get",
+        },
+        {
+          type: "doc",
+          id: "api/create-organization-organizations-post",
+          label: "Create Organization",
+          className: "api-method post",
+        },
+        {
+          type: "doc",
+          id: "api/update-organization-organizations-organization-id-patch",
+          label: "Update Organization",
+          className: "api-method patch",
+        },
+        {
+          type: "doc",
+          id: "api/delete-organization-organizations-organization-id-delete",
+          label: "Delete Organization",
+          className: "api-method delete",
+        },
+        {
+          type: "doc",
+          id: "api/list-members-organizations-organization-id-members-get",
+          label: "List Members",
+          className: "api-method get",
+        },
+        {
+          type: "doc",
+          id: "api/add-member-organizations-organization-id-members-post",
+          label: "Add Member",
+          className: "api-method post",
+        },
+        {
+          type: "doc",
+          id: "api/set-member-role-organizations-organization-id-members-user-id-patch",
+          label: "Set Member Role",
+          className: "api-method patch",
+        },
+        {
+          type: "doc",
+          id: "api/remove-member-organizations-organization-id-members-user-id-delete",
+          label: "Remove Member",
           className: "api-method delete",
         },
       ],
@@ -2306,6 +2450,30 @@ const sidebar: SidebarsConfig = {
           type: "doc",
           id: "api/rpki-batch-configure-vyos-rpki-batch-post",
           label: "Rpki Batch Configure",
+          className: "api-method post",
+        },
+      ],
+    },
+    {
+      type: "category",
+      label: "segment-routing",
+      items: [
+        {
+          type: "doc",
+          id: "api/get-segment-routing-capabilities-vyos-segment-routing-capabilities-get",
+          label: "Get Segment Routing Capabilities",
+          className: "api-method get",
+        },
+        {
+          type: "doc",
+          id: "api/get-segment-routing-config-vyos-segment-routing-config-get",
+          label: "Get Segment Routing Config",
+          className: "api-method get",
+        },
+        {
+          type: "doc",
+          id: "api/segment-routing-batch-configure-vyos-segment-routing-batch-post",
+          label: "Segment Routing Batch Configure",
           className: "api-method post",
         },
       ],

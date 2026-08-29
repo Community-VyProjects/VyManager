@@ -5,7 +5,7 @@ description: "Get the current user's permissions for their active instance."
 sidebar_label: "Get My Permissions"
 hide_title: true
 hide_table_of_contents: true
-api: eJzlVMFS2zAQ/ZUdXXpJCNMjNw4t5UCTAdoLMJ6NtIkFtmQkOdSTyb93V3ESG5j+QE+xVm/fvuy+1VYlXEd18aDaSGFao8M11eSSepooQ1EH2yTrnbpQV5QglQS6DYEBIAlfIjQUahsjYyKsfBCIDYA62Q2BdTGh03T26B7dLaU2MArBWC2kGDqosWmsW8OKkG8J1sG3TYTkB8RQ0YaqyCT3pY1AzjTesgLjKcLP+T0Eem0tJ6OprRsmTgFdB9iyKJesxkQm6350Gh3okvRLL9i/DRPjmZooz2cUndeG//6aUlF3xQBTCFNxatn7a85glkCx4RNxk7fq6/m5/Iwbe9dqTTGu2gpuezDnae+SzIHh3KJKxDN89hwlZ6sii69RvpogQpPdVygxFvvmF1wz2j06dQ1xpaX3FaFj9mRTJZEfGOFyP6u7Hr6bqMPYCmtyfdfNV+yRI09MgWfGyGPEtVWldk8n4uueArh5zDjoS2Y0xmYHVIuR+vf8h4BfPpNOA92LAd/uE1zvCCPO/qQlY0ED2TfdgHkwjfHEDhcHw/9rJ9iFn68E696J9JpS6XuHiTBMJR9m7/ZxVnfToWYZ0srnnvXSf3fzO7g5JsDl4vqD8O8YE8dhifqF1yjrzzVkBTOBoY1lN8KbTSVsKEi1Kb4hb5f2NWON1O4vmJHxeb4+Jr4UPQ5r6p+Lmw4WI80jNduTx/+/x6U3bKI/adZUaPPetaHKG50t8PFJZq+MTcDGLbnxgt1ulxjpV6h2Owm/thQ6jvPnBoPFpVjk4YlrlISGQt7mF2KIuuTXpxHyDVataPrw3MheH1169e2enfsXBQw+SQ==
+api: eJzlVk1v4zYQ/SvEXHpRkkXQk3sK2u3WQNMYG3cvSWCMybHEjURqyZGzqqH/XgylxHTs9PvWkw1y+Pj43iNHO2AsI8zuoIsUzhp0WFJDjuGhAENRB9uy9Q5m8IFYcUVKdyGQYyULvomqpdDYGK13UW18kBIbFGq2W1LWRUan6fze3buPxF1wUaEyVgsohl412LbWlWpDyF0gVQbftVGxz4BVTVuq4/m9W1Y2KnKm9daxMp6i+uVmqQJ96WwghaaxLl94ptD1CjuuyLHVyGQS73un0SldkX6cCPunfGE8hwJ8SwGF59zADEriVdOvspqVIK32kr2eLomhgBYDNsQUROUdOGwIZuBDubIGCrAi7ZeOQg8FTOcwMNtgHamAqCtqEGY7QNffbBIC960gRA7WlTAULyOuq2sYjny7CSU6+1s6ieiKmpV13ylDG+xqTlr3vgsq+pqUz6pFBLZc04ii5gaG/xJduAaKrXeRohzy8t07+Tnc4bbTmmLcdLX6OBVDAdo7lpiKNG1bi7fWu4vPUdbsMuHaID6yHXeoMK7GbK4iJZ9kdBJw7X1N6LJT/4RRXY1Rvp3KB/FsTLU4+DeteQaeTxCTpllsEqIxNl2QenHA/jX+84BffybNGe9FhjecqNsH7e6UJIeEMtrXfYacuXHo2PPE83vwR0+GpObkiwHDIMy/vbw8jsQnrK0ZI/c+BB/+eR4MMdpa/lmmJh4X1F4fzP4Fs61jKinA8LBXHkPAPjPoZz8SFBObWB6bm2lOMWJJe7vfLk1iqKXMppi2XRJkHzoZGArQ/DWDOUrP96LlV/7T5Ig2I/2pLkvK3qLRobel+GG04NRmL9dwuVwcAY75aIgrP73P6bXlCmZw8aqbXTT9WR5pEWfjc20+9Te36vplgbpazI9y/SNGvlrM1Rr1IzmT4p32kAaWAAxtraaonixXaktBdjvDJwyktG8adEb2niZgBoa26fr7yA2moE79QZrtda8WB5wP2Oz2kf//teYpKJLSi7ZGm+5RF9JFHiNw/EFTwKsQPBRQ+chSu9utMdKvoR4GGR77sVxyYyOu66wjv+nBv2yzpw70SH3+qbDFupOi1Ei2GKwwg9mdPDMVoaGQKI+rrrSmlrNVR6+ioLzcng/vlzAMvwODRJDp
 sidebar_class_name: "get api-method"
 info_path: api/vyos-management-api
 custom_edit_url: null
@@ -43,7 +43,17 @@ Returns a dictionary mapping feature groups to permission levels.
 This endpoint does NOT require admin permission - any authenticated user
 can check their own permissions.
 
-<ParamsDetails>
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails
+  {...require("./get-my-permissions-user-management-my-permissions-get.ParamsDetails.json")}
+>
   
 </ParamsDetails>
 

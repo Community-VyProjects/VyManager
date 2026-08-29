@@ -5,7 +5,7 @@ description: "Disconnect from the current VyOS instance."
 sidebar_label: "Disconnect From Instance"
 hide_title: true
 hide_table_of_contents: true
-api: eJy1U8Fu4jAQ/RXLl72wUO2RW6WqEocKtLS9tAgN8UDcOrZrO+miKP++M8GQlJ57ihPPvPcy700rExyinL/IiDFqZ+VmIhXGImif+HUu73QsnLVYJLEPrhKpRFHUIaBN4vm4XAttYwJb4PTVvtrHUkcRsHINxr60jhh+RQFF0g2KzDKVE+k8BmCOhSIWdWHZMsv2DLrNHdtRgXcxEUDA6J2lezlv5Z+bG358lb6ui4La97URf3Mx9RFMIvFcDt4bXfQqZm+Re1oZixIr4JMPrDHpE0M8gfExHT0S/M45g2AJMulkcCCU3URW9IQDjspjCtoeRtUPuYSqFaSeEuxxuSc76KSUZl1gViMZKdQ4OQO63RuNg9ovFLY2RnabgeKOcbvuuoWH91HrgKq3PqseRI8Qbr0eze5qvmSRgqDE7WohznZMia/r+gmk0rG32S8PqaS3WXZ0NjhKl9ruXT+rTNsn6wEsqak4acTwjf4eYmLmHRTvaJXYuyAqbqExn6KpsNH0a+JTp1I0GJj3N3xCoAi7imoV/3W+4BRiw26wYLpkPRYq/LoE97wEixzPa03tkK4fW5xsZcJ/aeYNaMuS62D6yPYzHrZ5MlosdrVkK+i+bXcQ8SmYruPPHzWGI32nYwNBw449eNkQbomgMPSJfMcj54Gy4tmxBkzNOr7tEOfv4v1quX6kQPwHcJaMbA==
+api: eJy1VUtvEzEQ/ivWXLgsLao4LaeKgohE1YiGXloUTezJxuC1t2NvIET739HsbhLTtALxOGVjf57H981jCwmrCOUtRIrRBg+fCjAUNdsmyd8SLmzUwXvSSS051CqtSOmWmXxSN5ura2V9TOg1ndz5Oz9b2aiY6rCm2EPbSPwsKtTJrkmNXk6ggNAQo/iYGCjB7L3Mxct8Z3Q+vphngCbEBAU0yFhTIpb4t+CxJighcDW3BgqwEvx9S7yBApjuW8tkoFyii1RA1CuqEcotoN9cLXsLadOIhZjY+gq6Yn/iW+egO2Lmiiv09nufhEpBclTWv1KGlti6FOVsE1pWMThSIUNL/skmR4MVNTHQ/UvrEitTbIKPFCXJsxcv5OdnD9et1hTjsnXqwwiGAnTwiXzqqWkaZ3Vv8/RzlDfbjLiGRcJkBw9xMCafI2uLEByhz1IdHUquNcWIFWXwkfYD+nKECDOYHmiFxliJC900CyNxS8XOYFh8Jp0e1XHn4kLsdt3DJ3m93O4zOwSdWThvbMbdA34TeoNs1Pl0onZynEDXiceXZ2fHitygs2ZQ/A1z4D+Xw1BC6+TLJqrjMcAF/dPtb7SB9YkqYug+HRhDZtxkor0PQ4C9xrH6TX0HyNPQngw1k9tOOrtpe0J215P+oCtAp2+Zmb2aO9xr4fJb+qXiws0Q/ojLBD9INCj0NBUXgwSPOdtB3s1m0yODQ33UlFZBJuN+2qUVlHA6zsPTwzzsZ90y5IT0c/kSPVZUy5w+n06OqvMtxiSFuUD9hbxRy8CqlifWV8NgN7S2mqL6atNKrYnF73P8ikxKh7pGb6QpxguZ4bQWOiTgGvvqHGdytkLeygqZjMP9YUzbQ7X/t7UzSiF1cNo4tH2ltty3ysDxYRcW2VqSGliJFOUtbLcLjPSRXdfJ8bBkpHWMjbhw2Zp5Mr2/3B2PJfGFNvn+W6NrBdQPvDWylcigvJXmXREa4j7k4dW51tSk7NXRrBEr+5qcXl3PoOt+ABSx3ww=
 sidebar_class_name: "post api-method"
 info_path: api/vyos-management-api
 custom_edit_url: null
@@ -41,7 +41,17 @@ Disconnect from the current VyOS instance.
 
 This removes the user's active session.
 
-<ParamsDetails>
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails
+  {...require("./disconnect-from-instance-session-disconnect-post.ParamsDetails.json")}
+>
   
 </ParamsDetails>
 

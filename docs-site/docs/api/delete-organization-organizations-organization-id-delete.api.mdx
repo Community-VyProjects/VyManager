@@ -1,0 +1,71 @@
+---
+id: delete-organization-organizations-organization-id-delete
+title: "Delete Organization"
+description: "Delete an organization. The default org cannot be deleted, and an org"
+sidebar_label: "Delete Organization"
+hide_title: true
+hide_table_of_contents: true
+api: eJzVVU1v00AQ/SurOVHJ0KriFE4VLSISqBUELlBVE3sSL6x33Z1xSoj839GsncZOWkQFF062Z+fj7ZuZ5w0ILhkmXyDEJXr7E8UGz3CdQUGcR1vrN0zgnBwJGfRm6PjCzEoyBS2wcaInJkfvg5i5WjWiyAz6oo/76qVEMSzWORPuPBu2QmyqhsWUuCIjJVWmCisqTIgmUve6sJHFPKuomlPk0tb81WOk+/M7K6WGao2jF5BBqCkmgNMCJtAhuRkCH33wzfjMFjc3XQxkUGPEioSisrQBjxXBBPb8IQOrLNUoJWQQ6baxkQqYSGwoA85LqhAmG5B1reEs0folZCBWnBouB/nMtIC2zYa1BiVuG4rrUY0FOh4VQb++XCS043Kas7f4xjloD7o8giHBYC7G+lfbDrPa1qGJhoOj8SSML5Pu8C+zK9ZIXAfPxHrJ05MTfYwrfGzynJgXjTMfemfIIA9eyEuipq6dzVPO42+sMZsdcW3bthm8PD09TPwZnS064BcxhviErFBHHUexHe6CBK3TNytU8aGDC/no9A+6ab3QkiK01222tWGMuB405V3oAGpbKl7+bhjfEzMuCe6TPe6ayDAzPW11QOsmEbI9niZDm0EuPwZpwvwb5TJI81q5/CE69gc+u0H/krjp4Pd+17scuxZ1HXqcivOuBQ8V27q8nc2uDhJ281GRlGEnK0kipIQJHI805XizpxFt2uBFGPLzeX350bxHj0uqyIs5u5rC/ta8QZazq6mZY/6dfGEWIZpKQ6xfmpSgoJXNiTsZXFFkG/xzvFOFzENVoS8YMugPEvCVslMHlgrTsPZK04v8cE/34Wx2c/+f/RP6VuucHdcObdqEJqZV7Dq4/xPMYLKv89cZlIFFfTebOTJ9iq5t1dzpsq5pYRnnbqDMjxL4l3L70IW+03r4y1iha9Qp6ecKo1VkT0T57EO/gUfmsarbRfPrYc0BmhGJSaZKwoJigtJ5neU51TKIP1BVvcP99p1fvLuYXUDb/gJDcxGm
+sidebar_class_name: "delete api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Delete Organization"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"delete"}
+  path={"/organizations/{organization_id}"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Delete an organization. The default org cannot be deleted, and an org
+that still owns sites must have them moved or removed first (memberships
+are removed with the org).
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails
+  {...require("./delete-organization-organizations-organization-id-delete.ParamsDetails.json")}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./delete-organization-organizations-organization-id-delete.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./delete-organization-organizations-organization-id-delete.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

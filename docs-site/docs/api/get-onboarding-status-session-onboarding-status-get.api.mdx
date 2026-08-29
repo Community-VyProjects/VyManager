@@ -5,7 +5,7 @@ description: "Check if the system needs initial onboarding setup."
 sidebar_label: "Get Onboarding Status"
 hide_title: true
 hide_table_of_contents: true
-api: eJy9U8Fu2zAM/RVB5zYpdsytKLaih61D0+6SBgEtM7EaW1IlOm1g+N9HKi7sIDvvZJl6fHziIztNsEt6sdIJU7Le6fWVLjGZaAPJ70LfVWj2ym4VVajSMRE2yiGWSVlnyUKtvCs8xNK6nUpIbZi9ulf3xKfoknqOLUq286pNGJPCT5uIcyd8M32lfcAIUvKh5KI7pM1Iu0kE1KbNoPEfN4xnjogpeMcovej0t5sb+Zw/ZtkawyTbtlZPA5jzjHeEjgQOIdTWZCHztyQ5nU6mwgbkFKLIJHuqkLswESMxOgbkOoX3NYJjbrJUS+RXbtnjCO6vtDRkY3x7Kj2kWtaywzhJfWGYusuwnrMGnC/e0Jxe/d7aiKW4eCHprMh65ByFLHMHJ90479jXBTtW5sawy2zn2SCM9WassBeRDVLlByeZMwBV/DMfHJyPGdcnBxlj3dbnPgwS/xwfl+onONhhw+6o298PF+p+QCKOqwLMHl2ptj6qRlJEZiYo8WDZcvVhqVIHHkBOvIYPiKiMbxhbSu3hghkZL9YEn4gvs83QiJx7pIl9avkl+0xQN87S/1qcYRwIP2kearAuT1as87zmto/LzWt20XgeioofK7CuKyDhS6z7XsLvLcYjx/l4gGihEFtWa6avEEoe0cWq03tkiL7ltQpi9AHqVuRc7FG/ngzF/fdnHpS//nqY3A==
+api: eJy9VcFuIzcM/RWC50myCHpyT8F2uzXQbYKNu5ckCGSJHmujkWYlypupMUA/ol+4X1JQM7bHcIIWbdGTPRL1SD4+kltkVSec3WGilGzw+FChoaSjbVk+Z/h2TfoJ7Ap4TZC6xNSAJzIJrLdslYPgl0FFY30NiTi35/f+3n8kztEnWMRM8toHyIliAnq2icH6Cd45Vhhaikpczg3OsCZ+PMA+Jlac0+MY4ws3NTFW2KqoGmKKktEWvWoIZxhi/WgNVmglnS+ZYocVRvqSbSSDs5VyiSpMek2NwtkWle+uVwWBu1YQEkfra+yr/YnPzmF/wtV1rJW3v5U8gAMoLZl+D4ZWKjtOctaFHCEFRxAm1kIBW3Y0oMDcYP9fokuskVIbfKIkSV6+eSM/xx5us9aU0io7+DgaY4U6eCbPhZq2dVYXzIvPSd5sJ8S1UarIdvBQRDKplZyN9C1DcKT8JOdfiqKuD8Z9X+2sw/IzaT6q2d0p+sOEwP3pbZHHJJfjfHcXYL0paflatHqk8oOLouubvHRWQxvpTGVeA3nTBut5BoacXYqIyXUQvOuKwsdU4dvvf5Rvelaa7730AuiQPYNNkL1gkWcJggxYvwpgbNIupBzpHPte+Pju8vK0Zp+Us2bQxLsYQ/znBTPEyjr5Z5madGrggj66/RuNYj1TTRH7h0M9VYyqm9T+5zAEKIpv0lQnI97B9AOlpGrCPdjrpoUMWMhtL73f5kLI7npeDvoKNT9PYPZa29m9FS6f+S/1KNwM4Y92Ez0eSjRU6HUqfhhK8JKznclPi8XNCeCgj4Z4HcbxWcYhr3GGF+PYvDgo+WwYm2UmrsKUlk/d9S18UF7V1JBnuLqZn3TNjyrx1c0clko/kTewChEaeSLtUwAMbaymBF8tr2FDUdyfqa8qEujQNMob8T1e4AwNbYSUNiRuVNHoOLvfE0+GAtzuwj4KaHsQ/P+1rcbiiDIuWqds0W6OpXkG2g8btcJT4h8qXIfEYrbdLlWiX6Prezke9pP0lLFJLd1kQ72a9L9cOy/l8kTddHVulMtiVPbIRkUrkeHsTrp6TcpQLCEPr660ppYnr06GkKDsxfr+3QL7/k9+XwMl
 sidebar_class_name: "get api-method"
 info_path: api/vyos-management-api
 custom_edit_url: null
@@ -41,7 +41,17 @@ Check if the system needs initial onboarding setup.
 
 Returns True if no users exist in the system.
 
-<ParamsDetails>
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails
+  {...require("./get-onboarding-status-session-onboarding-status-get.ParamsDetails.json")}
+>
   
 </ParamsDetails>
 

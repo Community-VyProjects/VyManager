@@ -1,0 +1,63 @@
+---
+id: get-segment-routing-capabilities-vyos-segment-routing-capabilities-get
+title: "Get Segment Routing Capabilities"
+description: "Return Segment Routing feature capabilities based on the device VyOS version."
+sidebar_label: "Get Segment Routing Capabilities"
+hide_title: true
+hide_table_of_contents: true
+api: eJztlM9u2zAMxl+F4FlNumEn34JhLXoYViTbLklgMDITq7UlV6KTGobffaDjoU0LDH2A+WJD4p+PH39wj0KHhNkaEx9q9nIVQyvOH3BrsOBko2vEBY8ZLlna6GF1joPlOQ72TNJGBksN7VzlxHGCHSUuIHiQkqHgo7MMv7sfKzhyTC742cZv/PSdO78PszoUbt/lkZ9aFznlkW1kEgaXQGLLWmys8Gn2xcCp5Mhws1xufOQHtpKAfAdjEWdJFUPYA3ngZ5dGnW/mA4nMGdjKsZe08XWbBAquWHgUrddAvoAXIQLOg5wCJG4o6tGOxJacQAJw4WSGBkPDcex/V2CGB5Z8apxPjfPXRuXHLqR/RxxY0GDk1ASfOGHW4+fra31drmfVWssp7dsKllMwGrTBC3vRcGqaavJm/pA0p8dkS64Js37Qx2DNUoZJOBpsSErMcK4q528MnL9WiQZ1i1pSnFSMGY7L+k6eDjzysri/w7dI3VCSxf0d7Mg+si9gHyLUmqILGguc2UlwclL+heeKTqTAhbomX2jv6QIzLPiIg8EmJKlpHNFTrXJuWd6h+/Vyggtt/Yt1/8n/EPnSNWq08LPMm4qc10W0sVIvzyCtUUFC8+5fY/ACpq3BMiTRhL5XQ3/Fahj0+Knl2GG23ho8UnS0U9TW28FgyVRwxGzd4yN3mOHCWm4U4iNVrQp7x/+wfQX87befOAx/ACAO06g=
+sidebar_class_name: "get api-method"
+info_path: api/vyos-management-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Get Segment Routing Capabilities"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/vyos/segment-routing/capabilities"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Return Segment Routing feature capabilities based on the device VyOS version.
+
+version_info.modify_requires_recreate is true on VyOS 1.4, where FRR
+rejects any modification of an existing segment-routing tree: clients
+must delete the tree and recreate it in two separate batches to edit.
+
+<ParamsDetails>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./get-segment-routing-capabilities-vyos-segment-routing-capabilities-get.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./get-segment-routing-capabilities-vyos-segment-routing-capabilities-get.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

@@ -5,7 +5,7 @@ description: "Get the user's current active session (which instance they're conn
 sidebar_label: "Get Current Session"
 hide_title: true
 hide_table_of_contents: true
-api: eJzFVE1v2zAM/SuCLt2AtCl2zC0oti6HrUWz7ZIGgSIzsVpbciU6WWD4v49U5MRNinW3nWRTj1+Pj2okqnWQo5kMEIJxVs4HMoOgvamQf0fyFlBgDqIO4C+C0LX3YFEojWYDIrmJD9vc6FwYG1BZDeyxu/AgtLMWNEIm0H28erSP9gGw9jYIWxeFMCth3UmsKzmQrgKvuIBJRiWsARcp7yKBDmdnJwz5eQiVs3QnR438dH3Nx+t2prXW5LqqC/GQwORHZSJFYbiqqsLomHz4FNinkUHnUKp4a3d3K+KrkZXnItHsc3WNL0zGv7irgJIF9MauKT4aLNgw6fihvtrB0cuqEv7J7zsDyTMYfC/XlCApT0S/lyPiu/i5C/g38Fe+J1zlfB9niMY1+B7wngFtZHgvhIV6M/DK+ZJvZKYQLtGU0Atyc1DRmIJRtOTtlk9kjnN/qY2HjJXcH8UpxUfi+qSkdlM3J7XOj2WMo06ne+X11PNaYd2FKF0GhaDGzgTeDg4E8BrItpfk4M6Ld5O2LeU8nJ2dMMRHy5SUgLlL28KtKMzpZ5hyDtOeREZWLk4gJfy1u5uKb8qqNZQcc3w/OevpiwpIdrFU+hlsFpsq2YWGJ2KADDaGFktsDeZiA56TXqqtim9ASdgsUNR0wWOGzV4/AemS69nrU77R9mk5zXFf/8/zlGaH8BuHVaGM5VZqX3Bpe+KPDyrJKVE/79ZqJptmqQL89EXbsvmlBr8jO31ulDdqyYOZzXkPQWW0T/zgPMMualBDxWPcqKLmIs7eKxbTQQy3n3+QQP4AZmQPbg==
+api: eJzFVk1v3DYQ/SvEXNICShwYPamnRZq6CzS1Ebu5OIYxpmYlJhKpkKN1tgv992JISav9cJyiBXoSlnzz9eYNZ7fAWAbIbyFQCMZZuMugoKC9aVl+5nBBrLgi1QXyL4LSnfdkWaFmsyY1mKkfHiujK2VsYLSaxGLzwpPSzlrSTIVi9+Orj/ajfU/ceRuU7epamZWy7sDXK8jAteRRElgWkENJfD/EvR9A03c8L4khgxY9NsTkpaYtWGwIcnC+vDcFZGCkoC8d+Q1k4OlLZzwVkK+wDpRB0BU1CPkW0G4uV9EDb1rxENgbW0KfTSeSPvRHbF36Eq35K+auOJamjP1ZFbTCruYgZxvXeRVcTcrN0FI2G64peVHLAvr/0rvk6im0zgYKUuT569fy2Y9w3WlNIay6Wr0fwJCBdpbJcqSmbWujo8+zT0FstieJa730kE2KNepC2pAfsrqreznKJxU/WaU+fofdHwLsMwiGn4t1bXiME9HPxYj40X/lAn8L/Jvc9xm0zs9xxjKV5GfAKwH0keE0J/d40vHK+UZuoECml2wamjl5Mw3ZgqHvs9HaPXwizXtSv91rxSHFO+LmpAzlDtUc5Hq3S2MRx/g6DeZMPfsKGy9U4wqq1cr5o/k/NWZjkMlc3qU3w2M0xJy+4/kFCR/CyE/n58di/4C1KdIwvfXe+X+i9H19F8Ro6qh0piYcA2qn926/44UZxdLf7TqK3uNm1vnfXUpQJNSE8luSfEchYBnVmyBPQyMZ6kZu4xS2XdLkNG1yIKLlrzM3k9pmsmT6+rwihZuU/oCbtXvXotShp6n4JbXgVLBpKm9uro4cJn00xJUbdk3cI1xBDmeDJM+GLRMHZuXmZHzYXF6rd2ixpEYkt7haHkn+Vwy8uFqqB9SfyRZR842YGFuq6KCgtdEU1KPhSq3JS9CX+IhxgzYN2iJABsOFvAK0Ts9L4AajModVd2IqDtPZ7kT+/yz3oT2ijbO2RhPV2/k4Pon43d+RDEbq78ZX9xa22wcM9Kev+16O00KXWSpMwId6ttKfLPxf7ulTFXymzfy/xhrrTkDx9VqjN5IZ5LcyzRVhQT6mnKwWWlPLM6ujx0e8TCK9eHsDff83iQZiDg==
 sidebar_class_name: "get api-method"
 info_path: api/vyos-management-api
 custom_edit_url: null
@@ -41,7 +41,17 @@ Get the user's current active session (which instance they're connected to).
 
 Returns null if no active session.
 
-<ParamsDetails>
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails
+  {...require("./get-current-session-session-current-get.ParamsDetails.json")}
+>
   
 </ParamsDetails>
 

@@ -1,0 +1,1 @@
+{"title":"Body","body":{"required":true,"content":{"application/json":{"schema":{"properties":{"userId":{"type":"string","minLength":1,"title":"Userid"},"orgRole":{"type":"string","title":"Orgrole","default":"MEMBER"}},"type":"object","required":["userId"],"title":"MemberAddInput"}}}}}

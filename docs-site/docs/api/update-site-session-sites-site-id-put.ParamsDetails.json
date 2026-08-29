@@ -1,1 +1,1 @@
-{"parameters":[{"name":"site_id","in":"path","required":true,"schema":{"type":"string","title":"Site Id"}}]}
+{"parameters":[{"name":"site_id","in":"path","required":true,"schema":{"type":"string","title":"Site Id"}},{"name":"org_id","in":"query","required":false,"schema":{"anyOf":[{"type":"string"},{"type":"null"}],"description":"Organization to act in; defaults to your sole organization.","title":"Org Id"},"description":"Organization to act in; defaults to your sole organization."}]}
