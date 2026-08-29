@@ -16,9 +16,12 @@ Endpoints:
 import asyncio
 import re
 import shlex
+from datetime import datetime, timezone
 
 import asyncssh
 import asyncpg
+import httpx
+from packaging.version import InvalidVersion, Version
 
 from fastapi import APIRouter, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
@@ -99,6 +102,14 @@ class ContainerVolume(BaseModel):
     propagation: Optional[str] = None
 
 
+class ContainerImageUpdateStatus(BaseModel):
+    available: bool = False
+    current_tag: Optional[str] = None
+    latest_tag: Optional[str] = None
+    registry: Optional[str] = None
+    checked_at: Optional[str] = None
+
+
 class ContainerInstance(BaseModel):
     name: str
     image: Optional[str] = None
@@ -129,6 +140,7 @@ class ContainerInstance(BaseModel):
     sysctl_params: List[ContainerSysctlParam] = []
     tmpfs_mounts: List[ContainerTmpfs] = []
     volumes: List[ContainerVolume] = []
+    update_status: Optional[ContainerImageUpdateStatus] = None
 
 
 class ContainerNetworkConfig(BaseModel):
@@ -524,8 +536,19 @@ async def get_container_config(http_request: Request, refresh: bool = False):
         networks = _parse_container_networks(container_raw.get("network", {}))
         registries = _parse_container_registries(container_raw.get("registry", {}))
 
+        resolved = []
+        status_tasks = []
+        for container in sorted(containers, key=lambda c: c.name):
+            if container.image:
+                status_tasks.append((container, asyncio.create_task(_check_container_image_update_status(http_request, container.image))))
+            else:
+                resolved.append(container.model_copy(update={"update_status": None}))
+
+        for container, task in status_tasks:
+            resolved.append(container.model_copy(update={"update_status": await task}))
+
         return ContainerConfig(
-            containers=sorted(containers, key=lambda c: c.name),
+            containers=sorted(resolved, key=lambda c: c.name),
             networks=sorted(networks, key=lambda n: n.name),
             registries=sorted(registries, key=lambda r: r.name),
         )
@@ -617,6 +640,129 @@ class ContainerImageRefRequest(BaseModel):
 def _validate_image_ref(image: str):
     if not image or not _IMAGE_REF_RE.match(image):
         raise HTTPException(status_code=400, detail="Invalid image reference.")
+
+
+def _normalize_image_ref(image: str) -> str:
+    value = image.strip()
+    if not value:
+        return value
+    if ":" not in value.split("/")[-1]:
+        value = f"{value}:latest"
+    return value
+
+
+def _parse_image_reference(image: str) -> tuple[str, str, str]:
+    ref = image.strip()
+    if not ref:
+        return "", "", "latest"
+
+    if "@" in ref:
+        ref = ref.split("@", 1)[0]
+
+    if "/" not in ref:
+        if ":" in ref:
+            name, tag = ref.rsplit(":", 1)
+            return "docker.io", name, tag
+        return "docker.io", ref, "latest"
+
+    first, remainder = ref.split("/", 1)
+    if "." in first or ":" in first or first == "localhost":
+        registry = first
+        path = remainder
+    else:
+        registry = "docker.io"
+        path = ref
+
+    if ":" in path.rsplit("/", 1)[-1]:
+        path_no_tag, tag = path.rsplit(":", 1)
+        return registry, path_no_tag, tag
+
+    return registry, path, "latest"
+
+
+def _is_newer_image_tag(current_tag: Optional[str], latest_tag: Optional[str]) -> bool:
+    if not current_tag or not latest_tag or current_tag == latest_tag:
+        return False
+    if current_tag.lower() == "latest" or latest_tag.lower() == "latest":
+        return False
+
+    def _coerce_version(value: str):
+        cleaned = value.strip().lower()
+        if cleaned.startswith("v"):
+            cleaned = cleaned[1:]
+        try:
+            return Version(cleaned)
+        except InvalidVersion:
+            return None
+
+    current_version = _coerce_version(current_tag)
+    latest_version = _coerce_version(latest_tag)
+
+    if current_version is None or latest_version is None:
+        return False
+    return latest_version > current_version
+
+
+async def _check_container_image_update_status(request: Request, image: str) -> Optional[ContainerImageUpdateStatus]:
+    image_ref = (image or "").strip()
+    if not image_ref:
+        return None
+
+    normalized = _normalize_image_ref(image_ref)
+    registry, repository, current_tag = _parse_image_reference(normalized)
+    if not repository or not current_tag:
+        return None
+
+    if current_tag.lower() == "latest":
+        return ContainerImageUpdateStatus(
+            available=False,
+            current_tag=current_tag,
+            latest_tag=current_tag,
+            registry=registry,
+            checked_at=datetime.now(timezone.utc).isoformat(),
+        )
+
+    if registry != "docker.io" or "/" not in repository:
+        return None
+
+    try:
+        namespace, name = repository.split("/", 1)
+        latest_url = f"https://hub.docker.com/v2/repositories/{namespace}/{name}/tags?page_size=100"
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(latest_url)
+        if response.status_code != 200:
+            return None
+
+        payload = response.json() or {}
+        results = payload.get("results") or []
+        latest = None
+        for entry in results:
+            tag = (entry or {}).get("name")
+            if not tag or tag.lower() == "latest":
+                continue
+            if _is_newer_image_tag(current_tag, tag):
+                latest = tag
+                break
+
+        if latest is None:
+            return ContainerImageUpdateStatus(
+                available=False,
+                current_tag=current_tag,
+                latest_tag=current_tag,
+                registry=registry,
+                checked_at=datetime.now(timezone.utc).isoformat(),
+            )
+
+        return ContainerImageUpdateStatus(
+            available=True,
+            current_tag=current_tag,
+            latest_tag=latest,
+            registry=registry,
+            checked_at=datetime.now(timezone.utc).isoformat(),
+        )
+    except Exception:
+        logger.exception("Failed to resolve Docker tag metadata for %s", image_ref)
+        return None
 
 
 @router.post("/image/pull", response_model=ContainerSSHResponse)
