@@ -80,6 +80,11 @@ def _is_threshold_label(value: str) -> bool:
     return any(token in normalized for token in ("low", "high", "alarm", "warning", "crit"))
 
 
+def _is_flag_label(value: str) -> bool:
+    normalized = _key(value)
+    return any(token in normalized for token in ("low alarm", "low warning", "high alarm", "high warning", "alarm", "warning"))
+
+
 def _measurement_key(value: str) -> Optional[str]:
     normalized = _key(value)
     for name, result in _MEASUREMENT_NAMES.items():
@@ -129,11 +134,6 @@ def parse_transceiver_output(interface: str, text: str) -> TransceiverStatus:
         if _is_threshold_label(label_key):
             continue
 
-        measurement = _measurement_key(label_key)
-        if measurement:
-            measurements[measurement] = _measurement(value)
-            continue
-
         lower = label_key.lower()
         if "flags implemented" in lower or ("implemented" in lower and "flag" in lower):
             continue
@@ -142,10 +142,16 @@ def parse_transceiver_output(interface: str, text: str) -> TransceiverStatus:
             if value and value.lower() not in _INACTIVE_FLAG_VALUES:
                 target.append(value)
             continue
-        if "alarm" in lower or "warning" in lower:
+
+        if _is_flag_label(label_key):
+            target = status.alarms if "alarm" in lower else status.warnings
             if value and value.lower() not in _INACTIVE_FLAG_VALUES:
-                # Ignore single boolean state lines such as "... high alarm: Off".
-                pass
+                target.append(value)
+            continue
+
+        measurement = _measurement_key(label_key)
+        if measurement:
+            measurements[measurement] = _measurement(value)
             continue
 
     status.measurements = measurements
