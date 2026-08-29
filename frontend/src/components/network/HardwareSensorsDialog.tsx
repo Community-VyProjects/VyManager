@@ -23,9 +23,24 @@ export function HardwareSensorsDialog({ open, onOpenChange }: { open: boolean; o
 
   useEffect(() => {
     if (!open) return;
-    void showService.getHardwareSensors().then(setData).catch((err) => {
-      setError(err instanceof Error ? err.message : "Unable to load hardware sensors");
-    });
+    let cancelled = false;
+    setError(null);
+    setLoading(true);
+    void showService.getHardwareSensors()
+      .then((result) => {
+        if (!cancelled) setData(result);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Unable to load hardware sensors");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [open]);
 
   return (

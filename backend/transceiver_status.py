@@ -28,10 +28,15 @@ class TransceiverStatus(BaseModel):
 
 
 _FIELD_NAMES = {
+    "identifier": "transceiver",
     "transceiver type": "transceiver",
+    "transceiver": "transceiver",
     "vendor name": "vendor",
     "vendor": "vendor",
+    "vendor pn": "part_number",
     "part number": "part_number",
+    "part": "part_number",
+    "vendor sn": "serial_number",
     "serial number": "serial_number",
 }
 
@@ -42,15 +47,37 @@ _MEASUREMENT_NAMES = {
     "voltage": "voltage",
     "laser bias current": "laser_bias",
     "laser bias": "laser_bias",
+    "laser output power": "tx_power",
     "tx optical power": "tx_power",
     "tx power": "tx_power",
+    "receiver signal average optical power": "rx_power",
     "rx optical power": "rx_power",
     "rx power": "rx_power",
+}
+
+_INACTIVE_FLAG_VALUES = {
+    "none",
+    "normal",
+    "no",
+    "off",
+    "false",
+    "disabled",
+    "not implemented",
+    "inactive",
+    "n/a",
+    "na",
 }
 
 
 def _key(value: str) -> str:
     return re.sub(r"\s+", " ", value.strip().lower().rstrip(":"))
+
+
+def _is_threshold_label(value: str) -> bool:
+    normalized = _key(value)
+    if "threshold" not in normalized:
+        return False
+    return any(token in normalized for token in ("low", "high", "alarm", "warning", "crit"))
 
 
 def _measurement_key(value: str) -> Optional[str]:
@@ -99,16 +126,27 @@ def parse_transceiver_output(interface: str, text: str) -> TransceiverStatus:
             setattr(status, _FIELD_NAMES[label_key], value)
             continue
 
+        if _is_threshold_label(label_key):
+            continue
+
         measurement = _measurement_key(label_key)
         if measurement:
             measurements[measurement] = _measurement(value)
             continue
 
-        lower = line.lower()
-        if "alarm" in lower or "warning" in lower:
+        lower = label_key.lower()
+        if "flags implemented" in lower or ("implemented" in lower and "flag" in lower):
+            continue
+        if lower in {"alarm flags", "alarm flag", "warning flags", "warning flag"}:
             target = status.alarms if "alarm" in lower else status.warnings
-            if value and value.lower() not in ("none", "normal", "no"):
+            if value and value.lower() not in _INACTIVE_FLAG_VALUES:
                 target.append(value)
+            continue
+        if "alarm" in lower or "warning" in lower:
+            if value and value.lower() not in _INACTIVE_FLAG_VALUES:
+                # Ignore single boolean state lines such as "... high alarm: Off".
+                pass
+            continue
 
     status.measurements = measurements
     return status

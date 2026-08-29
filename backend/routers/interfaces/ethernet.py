@@ -996,7 +996,7 @@ async def get_ethernet_transceiver(
             service.device.show,
             path=["interfaces", "ethernet", interface, "transceiver"],
         )
-        if response.status != 200:
+        if response.status != 200 or response.error:
             raise HTTPException(status_code=502, detail=response.error or "Unable to read transceiver diagnostics")
         output = response.result.get("data", "") if isinstance(response.result, dict) else response.result
         return parse_transceiver_output(interface, output or "")

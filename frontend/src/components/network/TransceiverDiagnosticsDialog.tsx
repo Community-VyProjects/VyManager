@@ -52,10 +52,33 @@ export function TransceiverDiagnosticsDialog({
   };
 
   useEffect(() => {
-    if (!open || !interfaceName) return;
-    void ethernetService.getTransceiver(interfaceName).then(setStatus).catch((err) => {
-      setError(err instanceof Error ? err.message : "Unable to load diagnostics");
-    });
+    if (!open || !interfaceName) {
+      setStatus(null);
+      setError(null);
+      return;
+    }
+
+    let cancelled = false;
+    setStatus(null);
+    setError(null);
+    setLoading(true);
+
+    void ethernetService.getTransceiver(interfaceName)
+      .then((result) => {
+        if (!cancelled) setStatus(result);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Unable to load diagnostics");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [open, interfaceName]);
 
   const currentSeverity = severity(status);

@@ -89,7 +89,7 @@ async def get_hardware_sensors(request: Request):
     try:
         service = get_session_vyos_service(request)
         response = await run_in_threadpool(service.device.show, path=["system", "sensors"])
-        if response.status != 200:
+        if response.status != 200 or response.error:
             raise HTTPException(status_code=502, detail=response.error or "Unable to read hardware sensors")
         output = response.result.get("data", "") if isinstance(response.result, dict) else response.result
         return parse_hardware_sensors(output or "")

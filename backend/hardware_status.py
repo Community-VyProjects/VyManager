@@ -19,6 +19,15 @@ class HardwareSensorsResponse(BaseModel):
     raw: str = ""
 
 
+def _as_numeric(value: Optional[str]) -> Optional[float]:
+    if value is None:
+        return None
+    match = re.search(r"[-+]?\d+(?:\.\d+)?", value)
+    if not match:
+        return None
+    return float(match.group(0))
+
+
 def parse_hardware_sensors(text: str) -> HardwareSensorsResponse:
     """Parse common ``sensors``/``show system sensors`` key/value formats."""
     sensors: List[HardwareSensor] = []
@@ -31,12 +40,31 @@ def parse_hardware_sensors(text: str) -> HardwareSensorsResponse:
             continue
         name, raw_value = match.groups()
         lower = line.lower()
-        status = "critical" if "crit" in lower or "alarm" in lower else "warning" if "warn" in lower else "ok"
-        high = re.search(r"high\s*[:=]\s*([^,)]+)", raw_value, re.I)
-        critical = re.search(r"crit(?:ical)?\s*[:=]\s*([^,)]+)", raw_value, re.I)
+
+        sensor_value = raw_value.split("(", 1)[0].strip()
+        high_match = re.search(r"high\s*[:=]\s*([-+]?\d+(?:\.\d+)?)\s*(?:°?[CFK])?", raw_value, re.I)
+        critical_match = re.search(r"crit(?:ical)?\s*[:=]\s*([-+]?\d+(?:\.\d+)?)\s*(?:°?[CFK])?", raw_value, re.I)
+        reading = _as_numeric(sensor_value)
+        high_value = _as_numeric(high_match.group(1) if high_match else None)
+        critical_value = _as_numeric(critical_match.group(1) if critical_match else None)
+
+        if reading is not None:
+            if critical_value is not None and reading >= critical_value:
+                status = "critical"
+            elif high_value is not None and reading >= high_value:
+                status = "warning"
+            else:
+                status = "ok"
+        elif "alarm" in lower or "crit" in lower:
+            status = "critical"
+        elif "warn" in lower:
+            status = "warning"
+        else:
+            status = "ok"
+
         sensors.append(HardwareSensor(
-            name=name.strip(), value=raw_value.split("(", 1)[0].strip(), status=status,
-            high=high.group(1).strip() if high else None,
-            critical=critical.group(1).strip() if critical else None,
+            name=name.strip(), value=sensor_value, status=status,
+            high=high_match.group(1).strip() if high_match else None,
+            critical=critical_match.group(1).strip() if critical_match else None,
         ))
     return HardwareSensorsResponse(sensors=sensors, raw=text or "")
