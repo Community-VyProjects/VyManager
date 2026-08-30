@@ -214,6 +214,27 @@ export interface EthernetCapabilities {
   };
 }
 
+export interface TransceiverMeasurement {
+  value?: string | null;
+  low_alarm?: string | null;
+  low_warning?: string | null;
+  high_warning?: string | null;
+  high_alarm?: string | null;
+}
+
+export interface TransceiverStatus {
+  interface: string;
+  present: boolean;
+  transceiver?: string | null;
+  vendor?: string | null;
+  part_number?: string | null;
+  serial_number?: string | null;
+  measurements: Record<string, TransceiverMeasurement>;
+  alarms: string[];
+  warnings: string[];
+  raw: string;
+}
+
 // Batch operation types
 export interface BatchOperation {
   op: string;

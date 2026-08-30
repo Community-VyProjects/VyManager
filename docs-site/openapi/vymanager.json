@@ -1105,6 +1105,50 @@
         }
       }
     },
+    "/vyos/ethernet/{interface}/transceiver": {
+      "get": {
+        "tags": [
+          "ethernet-interface"
+        ],
+        "summary": "Get Ethernet Transceiver",
+        "description": "Return live SFP/SFP+ DDM diagnostics for one Ethernet interface.",
+        "operationId": "get_ethernet_transceiver_vyos_ethernet__interface__transceiver_get",
+        "parameters": [
+          {
+            "name": "interface",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^eth\\d+(?:\\.\\d+)?$",
+              "title": "Interface"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransceiverStatus"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/vyos/ethernet/batch": {
       "post": {
         "tags": [
@@ -8166,6 +8210,28 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SaveConfigResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/vyos/show/hardware-sensors": {
+      "get": {
+        "tags": [
+          "show"
+        ],
+        "summary": "Get Hardware Sensors",
+        "description": "Return CPU, NIC, and other temperatures from VyOS sensors.",
+        "operationId": "get_hardware_sensors_vyos_show_hardware_sensors_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HardwareSensorsResponse"
                 }
               }
             }
@@ -32013,6 +32079,69 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "HardwareSensor": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "value": {
+            "type": "string",
+            "title": "Value"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": "ok"
+          },
+          "high": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "High"
+          },
+          "critical": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Critical"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "value"
+        ],
+        "title": "HardwareSensor"
+      },
+      "HardwareSensorsResponse": {
+        "properties": {
+          "sensors": {
+            "items": {
+              "$ref": "#/components/schemas/HardwareSensor"
+            },
+            "type": "array",
+            "title": "Sensors"
+          },
+          "raw": {
+            "type": "string",
+            "title": "Raw",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "title": "HardwareSensorsResponse"
+      },
       "HeBeamform": {
         "properties": {
           "multi_user_beamformer": {
@@ -55766,6 +55895,155 @@
         },
         "type": "object",
         "title": "TrafficEngineeringConfig"
+      },
+      "TransceiverMeasurement": {
+        "properties": {
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "low_alarm": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Low Alarm"
+          },
+          "low_warning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Low Warning"
+          },
+          "high_warning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "High Warning"
+          },
+          "high_alarm": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "High Alarm"
+          }
+        },
+        "type": "object",
+        "title": "TransceiverMeasurement"
+      },
+      "TransceiverStatus": {
+        "properties": {
+          "interface": {
+            "type": "string",
+            "title": "Interface"
+          },
+          "present": {
+            "type": "boolean",
+            "title": "Present",
+            "default": true
+          },
+          "transceiver": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transceiver"
+          },
+          "vendor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vendor"
+          },
+          "part_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Part Number"
+          },
+          "serial_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Serial Number"
+          },
+          "measurements": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/TransceiverMeasurement"
+            },
+            "type": "object",
+            "title": "Measurements"
+          },
+          "alarms": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Alarms"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          },
+          "raw": {
+            "type": "string",
+            "title": "Raw",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "interface"
+        ],
+        "title": "TransceiverStatus"
       },
       "TunnelBatchOperation": {
         "properties": {

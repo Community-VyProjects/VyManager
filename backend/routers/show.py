@@ -34,6 +34,7 @@ from openvpn_status import openvpn_configured, openvpn_gql_fields, build_openvpn
 from vrrp_status import vrrp_configured, vrrp_gql_fields, build_vrrp_status
 from bgp_status import bgp_configured, bgp_gql_fields, build_bgp_status
 from ipsec_status import ipsec_configured, ipsec_gql_fields, build_ipsec_status
+from hardware_status import HardwareSensorsResponse, parse_hardware_sensors
 import logging
 logger = logging.getLogger(__name__)
 
@@ -79,6 +80,24 @@ class InterfaceCountersResponse(BaseModel):
     """Response containing interface counter data."""
     interfaces: List[InterfaceCounter]
     total: int
+
+
+@router.get("/hardware-sensors", response_model=HardwareSensorsResponse)
+async def get_hardware_sensors(request: Request):
+    """Return CPU, NIC, and other temperatures from VyOS sensors."""
+    await require_read_permission(request, FeatureGroup.INTERFACES)
+    try:
+        service = get_session_vyos_service(request)
+        response = await run_in_threadpool(service.device.show, path=["system", "sensors"])
+        if response.status != 200 or response.error:
+            raise HTTPException(status_code=502, detail=response.error or "Unable to read hardware sensors")
+        output = response.result.get("data", "") if isinstance(response.result, dict) else response.result
+        return parse_hardware_sensors(output or "")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Unable to read hardware sensors")
+        raise HTTPException(status_code=500, detail="Unable to read hardware sensors") from e
 
 
 # ========================================================================

@@ -4,7 +4,7 @@ Ethernet Interface Configuration Endpoints
 All ethernet-specific endpoints for VyOS configuration.
 """
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Path
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Dict, List, Optional, Any
@@ -12,6 +12,7 @@ from typing import Dict, List, Optional, Any
 from session_vyos_service import get_session_vyos_service
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
+from transceiver_status import TransceiverStatus, parse_transceiver_output
 import logging
 logger = logging.getLogger(__name__)
 
@@ -980,6 +981,30 @@ async def get_ethernet_config(http_request: Request) -> EthernetInterfacesConfig
     except Exception as e:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/{interface}/transceiver", response_model=TransceiverStatus)
+async def get_ethernet_transceiver(
+    http_request: Request,
+    interface: str = Path(..., pattern=r"^eth\d+(?:\.\d+)?$"),
+) -> TransceiverStatus:
+    """Return live SFP/SFP+ DDM diagnostics for one Ethernet interface."""
+    await require_read_permission(http_request, FeatureGroup.INTERFACES)
+    try:
+        service = get_session_vyos_service(http_request)
+        response = await run_in_threadpool(
+            service.device.show,
+            path=["interfaces", "ethernet", interface, "transceiver"],
+        )
+        if response.status != 200 or response.error:
+            raise HTTPException(status_code=502, detail=response.error or "Unable to read transceiver diagnostics")
+        output = response.result.get("data", "") if isinstance(response.result, dict) else response.result
+        return parse_transceiver_output(interface, output or "")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Unable to read transceiver diagnostics for %s", interface)
+        raise HTTPException(status_code=500, detail="Unable to read transceiver diagnostics") from e
 
 
 # ============================================================================

@@ -1,0 +1,158 @@
+"""Parser and response models for VyOS Ethernet transceiver diagnostics."""
+
+import re
+from typing import Dict, List, Optional
+
+from pydantic import BaseModel, Field
+
+
+class TransceiverMeasurement(BaseModel):
+    value: Optional[str] = None
+    low_alarm: Optional[str] = None
+    low_warning: Optional[str] = None
+    high_warning: Optional[str] = None
+    high_alarm: Optional[str] = None
+
+
+class TransceiverStatus(BaseModel):
+    interface: str
+    present: bool = True
+    transceiver: Optional[str] = None
+    vendor: Optional[str] = None
+    part_number: Optional[str] = None
+    serial_number: Optional[str] = None
+    measurements: Dict[str, TransceiverMeasurement] = Field(default_factory=dict)
+    alarms: List[str] = Field(default_factory=list)
+    warnings: List[str] = Field(default_factory=list)
+    raw: str = ""
+
+
+_FIELD_NAMES = {
+    "identifier": "transceiver",
+    "transceiver type": "transceiver",
+    "transceiver": "transceiver",
+    "vendor name": "vendor",
+    "vendor": "vendor",
+    "vendor pn": "part_number",
+    "part number": "part_number",
+    "part": "part_number",
+    "vendor sn": "serial_number",
+    "serial number": "serial_number",
+}
+
+_MEASUREMENT_NAMES = {
+    "module temperature": "temperature",
+    "temperature": "temperature",
+    "module voltage": "voltage",
+    "voltage": "voltage",
+    "laser bias current": "laser_bias",
+    "laser bias": "laser_bias",
+    "laser output power": "tx_power",
+    "tx optical power": "tx_power",
+    "tx power": "tx_power",
+    "receiver signal average optical power": "rx_power",
+    "rx optical power": "rx_power",
+    "rx power": "rx_power",
+}
+
+_INACTIVE_FLAG_VALUES = {
+    "none",
+    "normal",
+    "no",
+    "off",
+    "false",
+    "disabled",
+    "not implemented",
+    "inactive",
+    "n/a",
+    "na",
+}
+
+
+def _key(value: str) -> str:
+    return re.sub(r"\s+", " ", value.strip().lower().rstrip(":"))
+
+
+def _is_threshold_label(value: str) -> bool:
+    normalized = _key(value)
+    if "threshold" not in normalized:
+        return False
+    return any(token in normalized for token in ("low", "high", "alarm", "warning", "crit"))
+
+
+def _is_flag_label(value: str) -> bool:
+    normalized = _key(value)
+    return any(token in normalized for token in ("low alarm", "low warning", "high alarm", "high warning", "alarm", "warning"))
+
+
+def _measurement_key(value: str) -> Optional[str]:
+    normalized = _key(value)
+    for name, result in _MEASUREMENT_NAMES.items():
+        if normalized.startswith(name):
+            return result
+    return None
+
+
+def _measurement(value: str) -> TransceiverMeasurement:
+    """Split a current value from inline alarm/warning thresholds."""
+    thresholds = {}
+    for label, field in (("low alarm", "low_alarm"), ("low warning", "low_warning"),
+                         ("high warning", "high_warning"), ("high alarm", "high_alarm")):
+        match = re.search(rf"{label}\s*[:=]\s*([^,;)]+)", value, re.I)
+        if match:
+            thresholds[field] = match.group(1).strip()
+    current = value.split("(", 1)[0].strip()
+    return TransceiverMeasurement(value=current, **thresholds)
+
+
+def parse_transceiver_output(interface: str, text: str) -> TransceiverStatus:
+    """Parse key/value output from ``show interfaces ethernet ... transceiver``."""
+    status = TransceiverStatus(interface=interface, raw=text or "")
+    measurements: Dict[str, TransceiverMeasurement] = {}
+
+    for raw_line in (text or "").splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        if "not present" in line.lower() or "no transceiver" in line.lower():
+            status.present = False
+
+        if ":" in line:
+            label, value = line.split(":", 1)
+        else:
+            match = re.match(r"^(.+?)\s{2,}(.+)$", line)
+            if not match:
+                continue
+            label, value = match.groups()
+        label_key = _key(label)
+        value = value.strip()
+
+        if label_key in _FIELD_NAMES:
+            setattr(status, _FIELD_NAMES[label_key], value)
+            continue
+
+        if _is_threshold_label(label_key):
+            continue
+
+        lower = label_key.lower()
+        if "flags implemented" in lower or ("implemented" in lower and "flag" in lower):
+            continue
+        if lower in {"alarm flags", "alarm flag", "warning flags", "warning flag"}:
+            target = status.alarms if "alarm" in lower else status.warnings
+            if value and value.lower() not in _INACTIVE_FLAG_VALUES:
+                target.append(value)
+            continue
+
+        if _is_flag_label(label_key):
+            target = status.alarms if "alarm" in lower else status.warnings
+            if value and value.lower() not in _INACTIVE_FLAG_VALUES:
+                target.append(value)
+            continue
+
+        measurement = _measurement_key(label_key)
+        if measurement:
+            measurements[measurement] = _measurement(value)
+            continue
+
+    status.measurements = measurements
+    return status

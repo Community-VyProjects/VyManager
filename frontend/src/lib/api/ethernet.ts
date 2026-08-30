@@ -10,6 +10,7 @@ import type {
   BatchRequest,
   VyOSResponse,
   BatchOperation,
+  TransceiverStatus,
 } from "./types/ethernet";
 
 class EthernetService {
@@ -25,6 +26,12 @@ class EthernetService {
    */
   async getConfig(): Promise<EthernetConfigResponse> {
     return apiClient.get<EthernetConfigResponse>("/vyos/ethernet/config");
+  }
+
+  async getTransceiver(interfaceName: string): Promise<TransceiverStatus> {
+    return apiClient.get<TransceiverStatus>(
+      `/vyos/ethernet/${encodeURIComponent(interfaceName)}/transceiver`,
+    );
   }
 
   /**

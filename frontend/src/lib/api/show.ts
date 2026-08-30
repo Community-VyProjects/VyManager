@@ -32,6 +32,19 @@ export interface AllInterfacesResponse {
   total: number;
 }
 
+export interface HardwareSensor {
+  name: string;
+  value: string;
+  status: "ok" | "warning" | "critical";
+  high?: string | null;
+  critical?: string | null;
+}
+
+export interface HardwareSensorsResponse {
+  sensors: HardwareSensor[];
+  raw: string;
+}
+
 // ============================================================================
 // API Service
 // ============================================================================
@@ -58,6 +71,10 @@ class ShowService {
    */
   async getAvailableEthernetInterfaces(): Promise<{ interfaces: string[] }> {
     return apiClient.get<{ interfaces: string[] }>("/vyos/show/available-ethernet-interfaces");
+  }
+
+  async getHardwareSensors(): Promise<HardwareSensorsResponse> {
+    return apiClient.get<HardwareSensorsResponse>("/vyos/show/hardware-sensors");
   }
 }
 
