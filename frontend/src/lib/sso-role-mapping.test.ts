@@ -84,6 +84,15 @@ test("enabled + matching claim is allowed", () => {
   assert.equal(r.denied, false);
   assert.equal(r.siteRole, ADMIN);
 });
+test("matches Entra GUID strings case-insensitively and ignores braces", () => {
+  const guid = "{11111111-2222-3333-4444-555555555555}";
+  const r = resolveRoleMapping(
+    config([rule({ claimValue: guid, siteRole: ADMIN })]),
+    ["11111111-2222-3333-4444-555555555555"],
+  );
+  assert.equal(r.denied, false);
+  assert.equal(r.siteRole, ADMIN);
+});
 
 console.log("resolveRoleMapping — site role precedence");
 test("ADMIN outranks VIEWER when both match", () => {
