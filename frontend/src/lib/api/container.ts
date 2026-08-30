@@ -60,6 +60,14 @@ export interface ContainerVolume {
   propagation?: string | null;
 }
 
+export interface ContainerImageUpdateStatus {
+  available: boolean;
+  current_tag?: string | null;
+  latest_tag?: string | null;
+  registry?: string | null;
+  checked_at?: string | null;
+}
+
 export interface ContainerInstance {
   name: string;
   image?: string | null;
@@ -90,6 +98,7 @@ export interface ContainerInstance {
   sysctl_params: ContainerSysctlParam[];
   tmpfs_mounts: ContainerTmpfs[];
   volumes: ContainerVolume[];
+  update_status?: ContainerImageUpdateStatus | null;
 }
 
 export interface ContainerNetworkConfig {

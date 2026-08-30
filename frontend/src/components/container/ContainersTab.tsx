@@ -163,9 +163,16 @@ export function ContainersTab({ config, capabilities, hasWritePermission, onRelo
                         : <span className="text-muted-foreground">—</span>}
                     </TableCell>
                     <TableCell>
-                      {c.disabled
-                        ? <Badge variant="secondary" className="bg-muted text-muted-foreground">Disabled</Badge>
-                        : <Badge variant="secondary" className="bg-green-500/10 text-green-600">Active</Badge>}
+                      <div className="flex flex-wrap items-center gap-2">
+                        {c.disabled
+                          ? <Badge variant="secondary" className="bg-muted text-muted-foreground">Disabled</Badge>
+                          : <Badge variant="secondary" className="bg-green-500/10 text-green-600">Active</Badge>}
+                        {c.update_status?.available && (
+                          <Badge variant="outline" className="border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300">
+                            Update available
+                          </Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       {c.networks.length > 0 ? (
