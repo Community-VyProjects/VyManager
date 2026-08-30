@@ -100,6 +100,16 @@ export function extractClaimValues(
   return [];
 }
 
+function normalizeClaimValue(value: string): string {
+  const trimmed = value.trim();
+  const withoutBraces = trimmed.replace(/[{}]/g, "").trim();
+  const lowered = withoutBraces.toLowerCase();
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(lowered)) {
+    return lowered.replace(/-/g, "");
+  }
+  return lowered;
+}
+
 /**
  * Resolve a provider's mapping rules against the claim values seen on a login.
  *
@@ -115,8 +125,10 @@ export function resolveRoleMapping(
     return { denied: false, siteRole: null, instanceGrants: [], siteGrants: [] };
   }
 
-  const claimSet = new Set(claimValues);
-  const matched = config.rules.filter((rule) => claimSet.has(rule.claimValue));
+  const claimSet = new Set(claimValues.map((value) => normalizeClaimValue(value)));
+  const matched = config.rules.filter((rule) =>
+    claimSet.has(normalizeClaimValue(rule.claimValue)),
+  );
 
   if (matched.length === 0) {
     return { denied: true, siteRole: null, instanceGrants: [], siteGrants: [] };

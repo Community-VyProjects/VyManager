@@ -62,6 +62,16 @@ def test_resolve_instance_grant():
     assert r["instanceGrants"][0]["instanceRole"] == "OPERATOR"
 
 
+def test_resolve_guid_group_claims_case_insensitive():
+    admin_guid = "{11111111-2222-3333-4444-555555555555}"
+    rules = [{"claimValue": admin_guid, "siteRole": "ADMIN",
+              "instanceId": None, "siteId": None,
+              "instanceRole": None, "featurePermissions": None}]
+    resolved = resolve_role_mapping(True, rules, ["11111111-2222-3333-4444-555555555555"])
+    assert resolved["denied"] is False
+    assert resolved["siteRole"] == "ADMIN"
+
+
 # ---------------------------------------------------------------------------
 # Endpoint (real DB): reconciliation + forged-claims property
 # ---------------------------------------------------------------------------

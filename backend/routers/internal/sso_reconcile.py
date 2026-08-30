@@ -15,6 +15,7 @@ import base64
 import json
 import logging
 import os
+import re
 from typing import Any, Dict, List, Optional
 
 import asyncpg
@@ -119,13 +120,29 @@ def _build_grants(matched: List[dict], key: str) -> List[dict]:
     return list(by_id.values())
 
 
+def _normalize_claim_value(value: Any) -> str:
+    if not isinstance(value, str):
+        return ""
+    cleaned = value.strip().removeprefix("{").removesuffix("}").strip()
+    lowered = cleaned.lower()
+    if re.fullmatch(
+        r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+        lowered,
+    ):
+        return lowered.replace("-", "")
+    return lowered
+
+
 def resolve_role_mapping(enabled: bool, rules: List[dict],
                          claim_values: List[str]) -> dict:
     if not enabled:
         return {"denied": False, "siteRole": None,
                 "instanceGrants": [], "siteGrants": []}
-    claim_set = set(claim_values)
-    matched = [r for r in rules if r["claimValue"] in claim_set]
+    normalized_claims = {_normalize_claim_value(v) for v in claim_values}
+    matched = [
+        r for r in rules
+        if _normalize_claim_value(r.get("claimValue")) in normalized_claims
+    ]
     if not matched:
         return {"denied": True, "siteRole": None,
                 "instanceGrants": [], "siteGrants": []}
