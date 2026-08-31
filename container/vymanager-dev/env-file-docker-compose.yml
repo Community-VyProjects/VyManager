@@ -58,6 +58,8 @@ services:
       - /app/include
     env_file:
       - ../../backend/.env
+    environment:
+      SSH_ENCRYPTION_KEY: "${SSH_ENCRYPTION_KEY:?SSH_ENCRYPTION_KEY must be set}"
     restart: unless-stopped
     networks:
       - vymanager-network
