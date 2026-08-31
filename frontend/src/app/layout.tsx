@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { SearchProvider } from "@/contexts/SearchContext";
 import { UnifiedViewProvider } from "@/contexts/UnifiedViewContext";
+import { AppLayout } from "@/components/layout/AppLayout";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -36,7 +37,7 @@ export default function RootLayout({
         <ThemeProvider>
           <SearchProvider>
             <UnifiedViewProvider>
-              {children}
+              <AppLayout>{children}</AppLayout>
             </UnifiedViewProvider>
           </SearchProvider>
         </ThemeProvider>

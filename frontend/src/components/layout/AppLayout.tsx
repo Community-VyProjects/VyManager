@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { createContext, useContext, useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { Sidebar } from "./Sidebar";
 import { UnsavedChangesBanner } from "../config/UnsavedChangesBanner";
 import { PowerActionBanner } from "../system/PowerActionBanner";
@@ -23,6 +23,12 @@ interface AppLayoutProps {
    * disconnected state (currently the dashboard's zero-instance panel).
    */
   allowWithoutInstance?: boolean;
+}
+
+const AppLayoutContext = createContext(false);
+
+function isPublicRoute(pathname: string) {
+  return pathname === "/login" || pathname.startsWith("/onboarding") || pathname === "/sites";
 }
 
 function AppLayoutInner({ children, allowWithoutInstance = false }: AppLayoutProps) {
@@ -108,5 +114,20 @@ function AppLayoutInner({ children, allowWithoutInstance = false }: AppLayoutPro
 }
 
 export function AppLayout({ children, allowWithoutInstance }: AppLayoutProps) {
-  return <AppLayoutInner allowWithoutInstance={allowWithoutInstance}>{children}</AppLayoutInner>;
+  const pathname = usePathname();
+  const isNestedLayout = useContext(AppLayoutContext);
+
+  if (isNestedLayout || isPublicRoute(pathname)) {
+    return <>{children}</>;
+  }
+
+  return (
+    <AppLayoutContext.Provider value>
+      <AppLayoutInner
+        allowWithoutInstance={allowWithoutInstance ?? pathname === "/"}
+      >
+        {children}
+      </AppLayoutInner>
+    </AppLayoutContext.Provider>
+  );
 }

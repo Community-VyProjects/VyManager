@@ -522,11 +522,8 @@ Ensure the `DATABASE_URL` in `.env` uses `postgres` as the hostname (the Docker 
 When making changes (e.g., reordering NAT rules) and the commit via the API takes longer than the default timeout, the operation may appear to fail or the UI may refresh before the commit completes.
 
 **Solution:**
-- Increase the **API timeout** in VyManager to a higher value (maximum 300 seconds). You can set this in the instance settings or via the `VYOS_API_TIMEOUT` environment variable (if supported).
-- Verify that the commit actually applied by manually reloading the configuration or checking the logs.
-
-> [!TIP]  
-> If you notice the UI refreshing too quickly, try increasing the timeout further and avoid performing large operations simultaneously.
+- Increase the **API timeout** in VyManager to a higher value (maximum 300 seconds). You can set this in the instance settings.
+- Verify that the commit actually applied
 
 ### SSH Key Generation Fails
 
@@ -551,7 +548,7 @@ VyManager uses this key to encrypt the generated SSH private key before storing 
 4. Try generating the SSH key again via the VyManager UI.
 
 > [!IMPORTANT]  
-> Also verify that you have entered the correct SSH username and port (e.g., `imam` and port `7842`). The SSH service on VyOS must be running and the user must have sufficient privileges.
+> Also verify that you have entered the correct SSH username and port. The SSH service on VyOS must be running and the user must have sufficient privileges.
 
 > [!TIP]  
 > Check the backend logs for errors:
