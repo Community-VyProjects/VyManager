@@ -5,7 +5,7 @@
 [![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?style=flat-square&logo=discord)](https://discord.gg/k9SSkK7wPQ)
 [![Docs](https://img.shields.io/badge/Docs-VyProjects-0078D4?style=flat-square&logo=gitbook)](https://docs.vyprojects.org/)
 [![GitHub stars](https://img.shields.io/github/stars/Community-VyProjects/VyManager?style=flat-square)](https://github.com/Community-VyProjects/VyManager/stargazers)
-[![Docker Pulls](https://img.shields.io/docker/pulls/ghcr.io/community-vyprojects/vymanager-backend?style=flat-square)](https://github.com/Community-VyProjects/VyManager/pkgs/container/vymanager-backend)
+[![Container Registry](https://img.shields.io/badge/ghcr.io-vymanager-2496ed?style=flat-square&logo=docker)](https://github.com/Community-VyProjects/VyManager/pkgs/container/vymanager-backend)
 
 [Quick Start](#-quick-start) · [Documentation](https://docs.vyprojects.org/) · [Discord](https://discord.gg/k9SSkK7wPQ)
 
