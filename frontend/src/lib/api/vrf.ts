@@ -170,13 +170,24 @@ export interface VrfIsisSummary {
   raw_config: Record<string, unknown> | null;
 }
 
+export interface VrfBgpNetwork {
+  prefix: string;
+  route_map: string | null;
+  backdoor: boolean;
+}
+
+export interface VrfBgpAddressFamily {
+  afi: string;
+  networks: VrfBgpNetwork[];
+}
+
 export interface VrfBgpSummary {
   configured: boolean;
   system_as: number | null;
   router_id: string | null;
   neighbors: string[];
   peer_groups: string[];
-  address_families: string[];
+  address_families: VrfBgpAddressFamily[];
   raw_config: Record<string, unknown> | null;
 }
 

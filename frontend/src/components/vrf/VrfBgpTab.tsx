@@ -65,7 +65,7 @@ export function VrfBgpTab({ vrf, capabilities, canWrite, onRefresh }: VrfBgpTabP
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-5 gap-4">
+      <div className="grid grid-cols-6 gap-4">
         <Card className="border-0 shadow-none bg-muted/50">
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground mb-1">System AS</p>
@@ -94,6 +94,14 @@ export function VrfBgpTab({ vrf, capabilities, canWrite, onRefresh }: VrfBgpTabP
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground mb-1">Address Families</p>
             <p className="text-lg font-semibold">{bgp.address_families.length}</p>
+          </CardContent>
+        </Card>
+        <Card className="border-0 shadow-none bg-muted/50">
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground mb-1">Networks</p>
+            <p className="text-lg font-semibold">
+              {bgp.address_families.reduce((sum, af) => sum + af.networks.length, 0)}
+            </p>
           </CardContent>
         </Card>
       </div>

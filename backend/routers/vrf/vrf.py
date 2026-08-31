@@ -223,6 +223,19 @@ class VrfIsisSummary(BaseModel):
     raw_config: Optional[Dict[str, Any]] = None
 
 
+class VrfBgpNetwork(BaseModel):
+    """BGP network within an address family."""
+    prefix: str
+    route_map: Optional[str] = None
+    backdoor: bool = False
+
+
+class VrfBgpAddressFamily(BaseModel):
+    """BGP address family within a VRF."""
+    afi: str
+    networks: List[VrfBgpNetwork] = []
+
+
 class VrfBgpSummary(BaseModel):
     """BGP summary within a VRF."""
     configured: bool = False
@@ -230,7 +243,7 @@ class VrfBgpSummary(BaseModel):
     router_id: Optional[str] = None
     neighbors: List[str] = []
     peer_groups: List[str] = []
-    address_families: List[str] = []
+    address_families: List[VrfBgpAddressFamily] = []
     raw_config: Optional[Dict[str, Any]] = None
 
 
@@ -780,7 +793,28 @@ def parse_bgp_summary(protocols_config: dict) -> Optional[VrfBgpSummary]:
 
     neighbors = list(bgp_config.get("neighbor", {}).keys()) if isinstance(bgp_config.get("neighbor"), dict) else []
     peer_groups = list(bgp_config.get("peer-group", {}).keys()) if isinstance(bgp_config.get("peer-group"), dict) else []
-    address_families = list(bgp_config.get("address-family", {}).keys()) if isinstance(bgp_config.get("address-family"), dict) else []
+    
+    # Parse address families with networks
+    address_families = []
+    af_config = bgp_config.get("address-family", {})
+    if isinstance(af_config, dict):
+        for afi, af_data in af_config.items():
+            if af_data and isinstance(af_data, dict):
+                networks = []
+                network_config = af_data.get("network", {})
+                if isinstance(network_config, dict):
+                    for prefix, net_data in network_config.items():
+                        if net_data is None:
+                            net_data = {}
+                        networks.append(VrfBgpNetwork(
+                            prefix=prefix,
+                            route_map=net_data.get("route-map"),
+                            backdoor="backdoor" in net_data,
+                        ))
+                address_families.append(VrfBgpAddressFamily(
+                    afi=afi,
+                    networks=networks,
+                ))
 
     return VrfBgpSummary(
         configured=True,
