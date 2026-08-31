@@ -150,6 +150,12 @@ const sidebar: SidebarsConfig = {
         },
         {
           type: "doc",
+          id: "api/get-ethernet-transceiver-vyos-ethernet-interface-transceiver-get",
+          label: "Get Ethernet Transceiver",
+          className: "api-method get",
+        },
+        {
+          type: "doc",
           id: "api/configure-interface-batch-vyos-ethernet-batch-post",
           label: "Configure Interface Batch",
           className: "api-method post",
@@ -1654,6 +1660,12 @@ const sidebar: SidebarsConfig = {
       type: "category",
       label: "show",
       items: [
+        {
+          type: "doc",
+          id: "api/get-hardware-sensors-vyos-show-hardware-sensors-get",
+          label: "Get Hardware Sensors",
+          className: "api-method get",
+        },
         {
           type: "doc",
           id: "api/get-interface-counters-vyos-show-interface-counters-get",

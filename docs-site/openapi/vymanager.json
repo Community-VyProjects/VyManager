@@ -57605,6 +57605,58 @@
         "title": "VrfBatchRequest",
         "description": "Model for batch configuration."
       },
+      "VrfBgpAddressFamily": {
+        "properties": {
+          "afi": {
+            "type": "string",
+            "title": "Afi"
+          },
+          "networks": {
+            "items": {
+              "$ref": "#/components/schemas/VrfBgpNetwork"
+            },
+            "type": "array",
+            "title": "Networks",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "afi"
+        ],
+        "title": "VrfBgpAddressFamily",
+        "description": "BGP address family within a VRF."
+      },
+      "VrfBgpNetwork": {
+        "properties": {
+          "prefix": {
+            "type": "string",
+            "title": "Prefix"
+          },
+          "route_map": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Route Map"
+          },
+          "backdoor": {
+            "type": "boolean",
+            "title": "Backdoor",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "prefix"
+        ],
+        "title": "VrfBgpNetwork",
+        "description": "BGP network within an address family."
+      },
       "VrfBgpSummary": {
         "properties": {
           "configured": {
@@ -57652,7 +57704,7 @@
           },
           "address_families": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/VrfBgpAddressFamily"
             },
             "type": "array",
             "title": "Address Families",
