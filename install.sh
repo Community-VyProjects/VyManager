@@ -140,6 +140,35 @@ install_docker() {
 }
 
 # ============================================================================
+# Check KVM / Docker Desktop warning
+# ============================================================================
+check_kvm_warning() {
+  # Detect if running on Docker Desktop (macOS/Windows) by checking for typical
+  # kernel version strings or presence of /.dockerenv with known Desktop patterns.
+  # Also check if /dev/kvm exists; if not, warn about macvlan limitations.
+  local kvm_warned=0
+  if [ ! -e /dev/kvm ]; then
+    # If /dev/kvm is missing, we are likely not on a bare-metal KVM host.
+    # Additionally, check if we are inside a Docker container (e.g., Docker Desktop).
+    if grep -q "Docker Desktop" /proc/version 2>/dev/null || \
+       grep -q "moby" /proc/version 2>/dev/null || \
+       grep -q "Microsoft" /proc/version 2>/dev/null; then
+      warn "Docker Desktop detected (macOS/Windows) – KVM is not available."
+      warn "macvlan networking will not work. Consider using a native Linux host."
+      kvm_warned=1
+    else
+      # Could be a Linux host without KVM support (e.g., VM without nested virt)
+      warn "/dev/kvm not found. If you are using Docker Desktop, macvlan will not work."
+      warn "For production, we recommend a native Linux host with KVM support."
+      kvm_warned=1
+    fi
+  fi
+  if [ $kvm_warned -eq 1 ]; then
+    echo -e "  ${DIM}See: https://docs.vyprojects.org/ for more details.${RESET}\n"
+  fi
+}
+
+# ============================================================================
 # Generate Secrets
 # ============================================================================
 generate_secret() {
@@ -159,7 +188,7 @@ generate_db_pass() {
 # ============================================================================
 # Main
 # ============================================================================
-TOTAL_STEPS=5
+TOTAL_STEPS=6   # we added a step for KVM warning, but we'll embed it after Docker install, not as a separate step
 INSTALL_DIR="/opt/vymanager"
 REGISTRY="ghcr.io/community-vyprojects/vymanager"
 
@@ -176,6 +205,11 @@ echo
 step 1 "Install Docker"
 # ──────────────────────────────────────────────────────────────────────────────
 install_docker
+
+# ──────────────────────────────────────────────────────────────────────────────
+# KVM warning (after Docker installation)
+# ──────────────────────────────────────────────────────────────────────────────
+check_kvm_warning
 
 # ──────────────────────────────────────────────────────────────────────────────
 step 2 "Configure VyManager"
