@@ -1,0 +1,1 @@
+{"parameters":[{"name":"interface","in":"path","required":true,"schema":{"type":"string","pattern":"^eth\\d+(?:\\.\\d+)?$","title":"Interface"}}]}
