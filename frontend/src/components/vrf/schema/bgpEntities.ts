@@ -232,6 +232,22 @@ const BGP_AF_REDISTRIBUTE_TABLE_GROUP: EntityGroupSpec = {
   ],
 };
 
+const BGP_AF_NETWORK_GROUP: EntityGroupSpec = {
+  label: "Network",
+  rawKey: "network",
+  createOp: "vrf_bgp_af_network",
+  idPlaceholder: "192.0.2.0/24",
+  schema: [
+    {
+      title: "Network",
+      fields: [
+        { op: "vrf_bgp_af_network_route_map", delOp: "vrf_bgp_af_network", label: "Route map", type: "text", path: ["route-map"] },
+        { op: "vrf_bgp_af_network_backdoor", delOp: "vrf_bgp_af_network", label: "Backdoor", type: "toggle", path: ["backdoor"] },
+      ],
+    },
+  ],
+};
+
 const NEIGHBOR_AF_GROUP: EntityGroupSpec = {
   label: "Address Family",
   rawKey: "address-family",
@@ -272,5 +288,5 @@ export const BGP_AF_GROUP: EntityGroupSpec = {
   createOp: "vrf_bgp_af",
   schema: GLOBAL_AF_SCHEMA,
   fixedIds: AFI_OPTIONS,
-  children: [BGP_AF_REDISTRIBUTE_GROUP, BGP_AF_REDISTRIBUTE_TABLE_GROUP],
+  children: [BGP_AF_NETWORK_GROUP, BGP_AF_REDISTRIBUTE_GROUP, BGP_AF_REDISTRIBUTE_TABLE_GROUP],
 };
