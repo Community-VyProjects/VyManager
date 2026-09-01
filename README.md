@@ -15,13 +15,14 @@ Give us a ⭐ star to support us❤️
 
 ## 📖 Table of Contents
 
+- [Screenshots](#-screenshots)
 - [About VyManager](#-about-vymanager)
 - [Features](#-features)
-- [Screenshots](#-screenshots)
 - [Quick Start](#-quick-start)
+- [Prerequisites](#-prerequisites)
 - [Installation](#-installation)
   - [Automated Script (Linux)](#automated-script-linux)
-  - [Manual Docker Setup](#manual-docker-setup)
+  - [Docker Setup](#docker-setup)
 - [Configuration](#-configuration)
 - [Post‑Installation Setup Wizard](#-postinstallation-setup-wizard)
 - [Managing Your Deployment](#-managing-your-deployment)
@@ -73,8 +74,45 @@ VyManager is an open‑source, enterprise‑grade control plane for **VyOS** rou
 
 The fastest way to get VyManager running is with our **automated install script** (Linux only) or the **manual Docker Compose** method.
 
+> **Before you begin**, make sure your VyOS routers are API‑ready – see the [Prerequisites](#-prerequisites) section below.
+
 - **Documentation**: [https://docs.vyprojects.org/](https://docs.vyprojects.org/)
 - **Community**: [Discord](https://discord.gg/k9SSkK7wPQ)
+
+---
+
+## 📋 Prerequisites
+
+Regardless of which installation method you choose, you must first prepare your VyOS routers.
+
+### 1. Docker & Docker Compose (for Docker setup)
+
+- If you use the **automated script**, it will install Docker and Docker Compose for you.
+- If you prefer Docker setup, ensure Docker and Docker Compose (v2) are installed on your host.
+
+### 2. Enable the VyOS REST API and GraphQL
+
+On **each VyOS router** you want to manage, SSH in and run:
+
+```bash
+configure
+set service https api keys id vymanager key YOUR_SECURE_API_KEY
+set service https api rest
+set service https api graphql
+set service https api graphql authentication type key
+commit
+save
+exit
+```
+
+> [!IMPORTANT]  
+> - GraphQL is required for live dashboard data.  
+> - The API key you set here will be used in VyManager when adding the instance.  
+> - Keep this key secure – it grants full access to the router’s API.
+
+**Verify the API is reachable** from the machine where VyManager will run (e.g., `curl -k https://<router-ip>/api/version`).
+
+Once these prerequisites are satisfied, proceed with your preferred installation method below.
 
 ---
 
@@ -98,50 +136,27 @@ The script will:
 - Show you the access URL.
 
 > [!NOTE]  
+> Your VyOS routers must already have the REST API and GraphQL enabled (see [Prerequisites](#-prerequisites)). The script does not configure your routers – only VyManager itself.
+
+> [!NOTE]  
 > If you are on a system that does **not** support KVM (e.g., Docker Desktop on macOS/Windows), the script will warn you about macvlan limitations. See the [Troubleshooting](#-troubleshooting) section.
 
 ---
 
-### Manual Docker Setup
+### Docker Setup
 
-If you prefer full control, or you’re running on a platform not covered by the script, follow these steps.
+#### Prerequisites (already covered above)
 
-#### Prerequisites
+- Docker and Docker Compose (v2) installed.
+- VyOS routers with the REST API and GraphQL enabled.
 
-- **Docker** and **Docker Compose** (v2) installed.
-- A **VyOS router** with the REST API and GraphQL enabled (see [Enable the VyOS REST API](#enable-the-vyos-rest-api)).
-
----
-
-#### 1. Enable the VyOS REST API
-
-On each VyOS router you want to manage, SSH in and run:
-
-```bash
-configure
-set service https api keys id vymanager key YOUR_SECURE_API_KEY
-set service https api rest
-set service https api graphql
-set service https api graphql authentication type key
-commit
-save
-exit
-```
-
-> [!IMPORTANT]  
-> GraphQL is required for live dashboard data. The API key you set here will be used in VyManager.
-
----
-
-#### 2. Create the Project Directory
+#### 1. Create the Project Directory
 
 ```bash
 mkdir vymanager && cd vymanager
 ```
 
----
-
-#### 3. Create `docker-compose.yml`
+#### 2. Create `docker-compose.yml`
 
 Copy the [docker-compose.yml](https://raw.githubusercontent.com/Community-VyProjects/VyManager/main/docker-compose.yml) from the repository, or use the snippet below:
 
@@ -215,9 +230,7 @@ volumes:
     driver: local
 ```
 
----
-
-#### 4. Create the `.env` File
+#### 3. Create the `.env` File
 
 Create a `.env` file in the same directory. **You must change the following values**:
 
@@ -252,9 +265,7 @@ TRUSTED_ORIGINS=http://<YOUR_SERVER_IP>:3000,http://localhost:3000
 > [!WARNING]  
 > Never commit the `.env` file to version control. Keep your secrets safe.
 
----
-
-#### 5. Start VyManager
+#### 4. Start VyManager
 
 ```bash
 docker compose up -d
@@ -562,6 +573,8 @@ VyManager uses this key to encrypt the generated SSH private key before storing 
 
 > **Want to let AI agents manage your VyOS routers?**  
 > Check out **[VyMCP](https://github.com/Community-VyProjects/VyMCP)** – an MCP server that wraps the VyManager API, giving Claude, IDEs, and automation tools safe, audited access to your routers.
+
+<img width="1587" height="825" alt="image" src="https://github.com/user-attachments/assets/7c4863ac-988f-44c7-ac48-462d6c881793" />
 
 VyMCP inherits VyManager's **per‑user authentication, RBAC, audit logging, and commit‑confirm safety** – so every action is attributed, scoped, and reversible.
 
