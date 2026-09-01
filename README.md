@@ -7,7 +7,7 @@
 [![GitHub stars](https://img.shields.io/github/stars/Community-VyProjects/VyManager?style=flat-square)](https://github.com/Community-VyProjects/VyManager/stargazers)
 [![Container Registry](https://img.shields.io/badge/ghcr.io-vymanager-2496ed?style=flat-square&logo=docker)](https://github.com/Community-VyProjects/VyManager/pkgs/container/vymanager-backend)
 
-[Quick Start](#-quick-start) · [Documentation](https://docs.vyprojects.org/) · [Discord](https://discord.gg/k9SSkK7wPQ)
+[Quick Start](#-quick-start) · [Documentation](https://docs.vyprojects.org/) · [Discord](https://discord.gg/k9SSkK7wPQ) · [Troubleshooting](https://docs.vyprojects.org/operations/troubleshooting)
 
 Give us a ⭐ star to support us❤️
 
@@ -535,6 +535,15 @@ When making changes (e.g., reordering NAT rules) and the commit via the API take
 **Solution:**
 - Increase the **API timeout** in VyManager to a higher value (maximum 300 seconds). You can set this in the instance settings.
 - Verify that the commit actually applied
+
+### Monitoring and Console tabs do not work or connect
+
+The monitoring and console pages open WebSocket connections to the same origin at /vyos/monitoring/ws/... and /vyos/console/ws/...; the proxy must upgrade those paths and forward them to the backend, or those two pages will not work.
+
+**Solution:**
+- These pages need per-instance SSH set up first (Site Manager → edit instance → SSH); the page says so if the key is missing. Verify the public key is committed on the router and the SSH port is reachable.
+- Put a reverse proxy with TLS in front of VyManager: https://docs.vyprojects.org/operations/reverse-proxy/
+- The backend checks the WebSocket Origin header against TRUSTED_ORIGINS — the browser URL must be listed there.
 
 ### SSH Key Generation Fails
 
