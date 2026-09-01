@@ -39,7 +39,7 @@ prompt() {
   if [[ -n "$default" ]]; then
     echo -en "  ${CYAN}?${RESET} ${prompt_text} ${DIM}(${default})${RESET}: "
     read -r input
-    eval "$var_name=\"${input:-$default}\""
+    input="${input:-$default}"
   else
     echo -en "  ${CYAN}?${RESET} ${prompt_text}: "
     read -r input
@@ -47,8 +47,9 @@ prompt() {
       echo -en "  ${RED}!${RESET} This field is required: "
       read -r input
     done
-    eval "$var_name=\"$input\""
   fi
+  # Safe assignment without eval
+  printf -v "$var_name" "%s" "$input"
 }
 
 prompt_secret() {
@@ -61,7 +62,7 @@ prompt_secret() {
     read -rs input
     echo
   done
-  eval "$var_name=\"$input\""
+  printf -v "$var_name" "%s" "$input"
 }
 
 prompt_yn() {
@@ -188,7 +189,7 @@ generate_db_pass() {
 # ============================================================================
 # Main
 # ============================================================================
-TOTAL_STEPS=6   # we added a step for KVM warning, but we'll embed it after Docker install, not as a separate step
+TOTAL_STEPS=6
 INSTALL_DIR="/opt/vymanager"
 REGISTRY="ghcr.io/community-vyprojects/vymanager"
 
