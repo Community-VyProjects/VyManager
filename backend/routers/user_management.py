@@ -643,18 +643,58 @@ async def get_instance_users(request: Request, instance_id: str, conn: asyncpg.C
         raise HTTPException(status_code=404, detail="Instance not found")
 
     # Get users with access and their instance roles
+    # Include per-instance grants, whole-site grants, and implicit site admins.
+    # The ordering matches the runtime permission resolver: the highest role wins.
     users_data = await conn.fetch(
         """
-        SELECT DISTINCT
-            u.id as user_id,
-            u.name as user_name,
-            u.email as user_email,
-            uir.role as instance_role,
-            uir.id as assignment_id
-        FROM users u
-        JOIN user_instance_roles uir ON u.id = uir."userId"
-        WHERE uir."instanceId" = $1
-        ORDER BY u.name, u.email
+        WITH matching_access AS (
+            SELECT
+                u.id as user_id,
+                u.name as user_name,
+                u.email as user_email,
+                uir.role as instance_role,
+                uir.id as assignment_id,
+                false as is_site_admin
+            FROM users u
+            JOIN user_instance_roles uir ON u.id = uir."userId"
+            JOIN instances i ON i.id = $1
+            WHERE uir."instanceId" = i.id
+               OR uir."siteId" = i."siteId"
+
+            UNION ALL
+
+            SELECT
+                u.id as user_id,
+                u.name as user_name,
+                u.email as user_email,
+                'ADMIN' as instance_role,
+                NULL as assignment_id,
+                true as is_site_admin
+            FROM users u
+            WHERE u.role = 'ADMIN'
+        ),
+        effective_access AS (
+            SELECT DISTINCT ON (user_id)
+                user_id,
+                user_name,
+                user_email,
+                instance_role,
+                assignment_id
+            FROM matching_access
+            ORDER BY
+                user_id,
+                CASE instance_role
+                    WHEN 'ADMIN' THEN 3
+                    WHEN 'OPERATOR' THEN 2
+                    WHEN 'VIEWER' THEN 1
+                    ELSE 0
+                END DESC,
+                is_site_admin DESC
+        )
+        SELECT user_id, user_name, user_email,
+               instance_role, assignment_id
+        FROM effective_access
+        ORDER BY user_name NULLS LAST, user_email
         """,
         instance_id
     )
