@@ -319,7 +319,13 @@ class SessionService {
     passphrase: string,
     mode: "replace" | "merge",
   ): Promise<RestoreSummary> {
-    const data = await this.postBackupFile("/api/session/restore", file, passphrase, mode);
+    const data = await this.postBackupFile(
+      "/api/session/restore",
+      file,
+      passphrase,
+      mode,
+      mode,
+    );
     return data.data as RestoreSummary;
   }
 
@@ -328,11 +334,13 @@ class SessionService {
     file: File,
     passphrase: string,
     mode?: "replace" | "merge",
+    confirm?: "replace" | "merge",
   ): Promise<{ success: boolean; message: string; data?: unknown }> {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("passphrase", passphrase);
     if (mode) formData.append("mode", mode);
+    if (confirm) formData.append("confirm", confirm);
 
     const response = await fetch(path, {
       method: "POST",
