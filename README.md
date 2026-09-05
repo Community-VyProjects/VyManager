@@ -313,6 +313,17 @@ After completing the wizard, you’ll be logged in and redirected to the dashboa
 
 ## 🛠️ Managing Your Deployment
 
+### Updating VyManager
+
+Run the update from the directory containing your `docker-compose.yml` file. For installations created by the automated script, this is `/opt/vymanager`:
+
+```bash
+cd /opt/vymanager
+docker compose pull && docker compose build --no-cache && docker compose up -d --force-recreate
+```
+
+This pulls the latest images, rebuilds the local services without using cached layers, and recreates the containers. Your PostgreSQL data remains in the `postgres_data` volume. If you created the deployment manually, run the same command from your project directory instead.
+
 ### Common Docker Commands
 
 ```bash
@@ -325,7 +336,7 @@ docker compose down
 # Restart
 docker compose restart
 
-# Update to latest images
+# Pull latest images and restart services
 docker compose pull
 docker compose up -d
 
