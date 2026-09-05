@@ -1,6 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Keep Turbopack scoped to this app when the repository has multiple lockfiles.
+  turbopack: {
+    root: process.cwd(),
+  },
+
   // IMPORTANT: We do NOT use rewrites here because they are evaluated at BUILD TIME
   // and cannot be configured at runtime. Instead, all API proxying is done through
   // API route handlers in src/app/api/* which read BACKEND_URL at RUNTIME.
