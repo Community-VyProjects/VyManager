@@ -208,9 +208,9 @@ step 1 "Install Docker"
 install_docker
 
 # ──────────────────────────────────────────────────────────────────────────────
-# KVM warning (after Docker installation)
+# [DISABLED] KVM warning
 # ──────────────────────────────────────────────────────────────────────────────
-check_kvm_warning
+# check_kvm_warning
 
 # ──────────────────────────────────────────────────────────────────────────────
 step 2 "Configure VyManager"
@@ -290,7 +290,7 @@ services:
       test: ["CMD", "curl", "-f", "http://localhost:8000/"]
       interval: 30s
       timeout: 10s
-      retries: 3
+      retries: 10
       start_period: 40s
 
   frontend:

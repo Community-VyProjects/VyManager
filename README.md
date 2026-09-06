@@ -17,9 +17,9 @@ Give us a ⭐ star to support us❤️
 
 ## 📖 Table of Contents
 
-- [Screenshots](#-screenshots)
 - [About VyManager](#-about-vymanager)
 - [Features](#-features)
+- [Screenshots](#-screenshots)
 - [Quick Start](#-quick-start)
 - [Prerequisites](#-prerequisites)
 - [Installation](#-installation)
@@ -41,15 +41,6 @@ Give us a ⭐ star to support us❤️
 
 ---
 
-## 🖼️ Screenshots
-
-*User Interface supports Light, Dark and Custom themes.*  
-<img width="3799" height="1849" alt="Screenshot 1" src="https://github.com/user-attachments/assets/898081db-678f-4645-909d-f147baed23e7" />
-<img width="3790" height="624" alt="Screenshot 2" src="https://github.com/user-attachments/assets/2bf95cc6-4ca8-4694-9822-d97bb90db1b8" />
-<img width="3799" height="1335" alt="Screenshot 3" src="https://github.com/user-attachments/assets/74ccf55e-2839-492f-ad0e-4e9db2df5774" />
-
----
-
 ## 🚀 About VyManager
 
 VyManager is an open‑source, enterprise‑grade control plane for **VyOS** routers. It provides a modern web interface to manage **multiple instances** across different sites, with role‑based access control, live dashboards, and configuration deployment – all from a single pane of glass.
@@ -68,7 +59,16 @@ VyManager is an open‑source, enterprise‑grade control plane for **VyOS** rou
 - **Role‑Based Access Control** – OWNER, ADMIN, VIEWER per site.
 - **Multi‑Version Support** – automatically adapts features based on the connected VyOS version.
 - **Docker‑First Deployment** – runs anywhere with Docker Compose.
-- **Light & Dark Themes** – choose what suits you.
+- **Light, Dark & Custom Themes** – choose what suits you.
+
+---
+
+## 🖼️ Screenshots
+
+*User Interface supports Light, Dark and Custom themes.*  
+<img width="3799" height="1849" alt="Screenshot 1" src="https://github.com/user-attachments/assets/898081db-678f-4645-909d-f147baed23e7" />
+<img width="3790" height="624" alt="Screenshot 2" src="https://github.com/user-attachments/assets/2bf95cc6-4ca8-4694-9822-d97bb90db1b8" />
+<img width="3799" height="1335" alt="Screenshot 3" src="https://github.com/user-attachments/assets/74ccf55e-2839-492f-ad0e-4e9db2df5774" />
 
 ---
 
@@ -112,8 +112,6 @@ exit
 > - The API key you set here will be used in VyManager when adding the instance.  
 > - Keep this key secure – it grants full access to the router’s API.
 
-**Verify the API is reachable** from the machine where VyManager will run (e.g., `curl -k https://<router-ip>/api/version`).
-
 Once these prerequisites are satisfied, proceed with your preferred installation method below.
 
 ---
@@ -128,7 +126,7 @@ Once these prerequisites are satisfied, proceed with your preferred installation
 Run the following command as **root** or a user with `sudo` privileges:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Community-VyProjects/VyManager/beta/install.sh | bash
+wget https://raw.githubusercontent.com/Community-VyProjects/VyManager/beta/install.sh && bash install.sh
 ```
 
 The script will:
@@ -140,9 +138,10 @@ The script will:
 > [!NOTE]  
 > Your VyOS routers must already have the REST API and GraphQL enabled (see [Prerequisites](#-prerequisites)). The script does not configure your routers – only VyManager itself.
 
+<!--
 > [!NOTE]  
 > If you are on a system that does **not** support KVM (e.g., Docker Desktop on macOS/Windows), the script will warn you about macvlan limitations. See the [Troubleshooting](#-troubleshooting) section.
-
+-->
 ---
 
 ### Docker Setup
@@ -530,6 +529,7 @@ docker compose logs frontend
 
 Ensure the `DATABASE_URL` in `.env` uses `postgres` as the hostname (the Docker service name) and the credentials match.
 
+<!--
 ### Docker Desktop & KVM Limitations
 
 > [!IMPORTANT]  
@@ -537,6 +537,7 @@ Ensure the `DATABASE_URL` in `.env` uses `postgres` as the hostname (the Docker 
 
 > [!NOTE]  
 > The install script will detect this and warn you accordingly.
+-->
 
 ### VyOS API Timeouts with Large Configurations
 
