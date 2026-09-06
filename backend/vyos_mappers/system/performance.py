@@ -72,6 +72,8 @@ class SystemPerformanceMapper(BaseFeatureMapper):
         if isinstance(perf_node, dict) and perf_node:
             keys = list(perf_node.keys())
             return keys[0] if keys else None
+        if isinstance(perf_node, list):
+            return perf_node[0] if perf_node else None
         if isinstance(perf_node, str):
             return perf_node
         return None
