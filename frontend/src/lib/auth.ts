@@ -8,20 +8,9 @@ import {
   DEFAULT_GROUPS_CLAIM,
   type ProviderMappingConfig,
   type InstanceFeaturePermission,
-  type ResolvedInstanceGrant,
-  type ResolvedSiteGrant,
 } from "./sso-role-mapping";
 
 const prisma = new PrismaClient();
-
-// New users don't exist yet when mapProfileToUser runs, so their resolved
-// grants are stashed by email and consumed in the user.create.after hook once
-// the row exists. Keyed by email; entries are short-lived (set and consumed
-// within the same login request).
-const pendingGrants = new Map<
-  string,
-  { instanceGrants: ResolvedInstanceGrant[]; siteGrants: ResolvedSiteGrant[] }
->();
 
 /**
  * Notify the backend to reconcile a user's SSO-managed grants (Golden Rule,
@@ -32,10 +21,8 @@ const pendingGrants = new Map<
  * stored account token — never from anything the frontend asserts — and
  * applies oauth_role_mappings itself.
  *
- * TIMING (verify on a live IdP before merge): the backend reads the stored
- * account id_token, so this notification must fire AFTER Better Auth has
- * persisted the fresh token for this login. If a reconcile lags one login,
- * move this call to an account.create/update after-hook.
+ * The caller must invoke this after Better Auth has persisted the fresh
+ * account token for this login.
  */
 async function reconcileGrants(userId: string): Promise<void> {
   const backendUrl = process.env.BACKEND_URL;
@@ -240,11 +227,9 @@ async function buildAuth() {
     });
   }
 
-  // Runs on every OAuth login. Resolves the IdP claims, denies access when
-  // mapping is enabled and no rule matches, and re-syncs both the site role and
-  // instance assignments (the IdP is authoritative). Existing users are synced
-  // inline; brand-new users (no row yet) have their instance grants stashed for
-  // the user.create.after hook. Returned fields persist on user creation.
+  // Runs on every OAuth login. Resolves the IdP claims and denies access when
+  // mapping is enabled and no rule matches. Account hooks reconcile the
+  // persisted token after the OAuth account is created or updated.
   async function applyRoleMapping(
     providerId: string,
     profile: Record<string, unknown>,
@@ -260,29 +245,6 @@ async function buildAuth() {
       throw new Error(
         "Access denied: your account is not a member of any group permitted to access VyManager.",
       );
-    }
-
-    const email = typeof profile.email === "string" ? profile.email : null;
-    const existing = email
-      ? await prisma.user.findUnique({ where: { email }, select: { id: true } })
-      : null;
-
-    if (existing) {
-      // users.role is backend-owned: /internal/sso-reconcile re-derives the
-      // claims from the stored account token and applies the site role
-      // itself. Writing it here too would keep the frontend DB role needing
-      // UPDATE on users.role — the exact privilege the Golden Rule wants
-      // revoked (a compromised frontend could self-promote to ADMIN).
-      await reconcileGrants(existing.id);
-    } else if (
-      email &&
-      (resolved.instanceGrants.length > 0 || resolved.siteGrants.length > 0)
-    ) {
-      // New user: reconcile once the row exists (see user.create.after).
-      pendingGrants.set(email, {
-        instanceGrants: resolved.instanceGrants,
-        siteGrants: resolved.siteGrants,
-      });
     }
 
     return resolved.siteRole ? { role: resolved.siteRole } : {};
@@ -343,15 +305,19 @@ async function buildAuth() {
               return { data: { ...user, role: "ADMIN" } };
             }
           },
-          // Brand-new SSO users have no row when mapProfileToUser runs, so their
-          // resolved instance grants are reconciled here, once the row exists.
-          after: async (user) => {
-            const email = (user as { email?: string }).email;
-            if (!email) return;
-            const grants = pendingGrants.get(email);
-            if (!grants) return;
-            pendingGrants.delete(email);
-            await reconcileGrants(user.id);
+        },
+      },
+      account: {
+        // The backend reads the stored id_token, so reconcile only after
+        // Better Auth has persisted the current OAuth account token.
+        create: {
+          after: async (account) => {
+            await reconcileGrants(account.userId);
+          },
+        },
+        update: {
+          after: async (account) => {
+            await reconcileGrants(account.userId);
           },
         },
       },
