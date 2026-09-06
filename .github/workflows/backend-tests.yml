@@ -46,10 +46,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           # Matches the backend production image (python:3.11-slim)
           python-version: '3.11'
@@ -60,7 +60,7 @@ jobs:
         run: pip install -r backend/requirements.txt
 
       - name: Set up Node (Prisma CLI)
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '20'
 
