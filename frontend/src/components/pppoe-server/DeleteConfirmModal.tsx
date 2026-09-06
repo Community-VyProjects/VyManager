@@ -22,6 +22,8 @@ interface DeleteConfirmModalProps {
   itemName: string;
   onDelete: () => Promise<VyOSResponse>;
   warning?: string;
+  actionLabel?: string;
+  actionVerb?: string;
 }
 
 export function DeleteConfirmModal({
@@ -32,6 +34,8 @@ export function DeleteConfirmModal({
   itemName,
   onDelete,
   warning,
+  actionLabel = "Delete",
+  actionVerb = "delete",
 }: DeleteConfirmModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -63,7 +67,7 @@ export function DeleteConfirmModal({
             Delete {itemType}: {itemName}
           </AlertDialogTitle>
           <AlertDialogDescription className="space-y-2">
-            <p>Are you sure you want to delete this {itemType.toLowerCase()}? This action cannot be undone.</p>
+            <p>Are you sure you want to {actionVerb} this {itemType.toLowerCase()}? This action cannot be undone.</p>
             {warning && (
               <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-3 mt-2">
                 <p className="text-sm text-amber-600 font-medium">{warning}</p>
@@ -82,9 +86,9 @@ export function DeleteConfirmModal({
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
           <Button variant="destructive" onClick={handleDelete} disabled={loading}>
             {loading ? (
-              <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Deleting...</>
+              <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{actionLabel}...</>
             ) : (
-              `Delete ${itemType}`
+              `${actionLabel} ${itemType}`
             )}
           </Button>
         </AlertDialogFooter>

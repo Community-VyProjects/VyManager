@@ -158,6 +158,25 @@ export interface PPPoEConfigResponse {
   };
 }
 
+export interface PPPoESession {
+  interface: string;
+  username: string;
+  ip?: string | null;
+  ipv6?: string | null;
+  ipv6_delegated?: string | null;
+  calling_sid?: string | null;
+  rate_limit?: string | null;
+  state: string;
+  uptime?: string | null;
+  rx_bytes: number;
+  tx_bytes: number;
+}
+
+export interface PPPoESessionsResponse {
+  sessions: PPPoESession[];
+  total: number;
+}
+
 export interface PPPoECapabilities {
   version: string;
   features: {
@@ -210,6 +229,16 @@ class PPPoEServerService {
     return apiClient.get<PPPoEConfigResponse>("/vyos/pppoe-server/config", {
       refresh: refresh.toString(),
     });
+  }
+
+  async getSessions(): Promise<PPPoESessionsResponse> {
+    return apiClient.get<PPPoESessionsResponse>("/vyos/pppoe-server/sessions");
+  }
+
+  async resetSession(username: string): Promise<VyOSResponse> {
+    return apiClient.post<VyOSResponse>(
+      `/vyos/pppoe-server/sessions/${encodeURIComponent(username)}/reset`,
+    );
   }
 
   private async refreshConfig(): Promise<VyOSResponse> {

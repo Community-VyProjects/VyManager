@@ -3072,6 +3072,18 @@ const sidebar: SidebarsConfig = {
         },
         {
           type: "doc",
+          id: "api/get-pppoe-sessions-vyos-pppoe-server-sessions-get",
+          label: "Get Pppoe Sessions",
+          className: "api-method get",
+        },
+        {
+          type: "doc",
+          id: "api/reset-pppoe-session-vyos-pppoe-server-sessions-username-reset-post",
+          label: "Reset Pppoe Session",
+          className: "api-method post",
+        },
+        {
+          type: "doc",
           id: "api/pppoe-batch-configure-vyos-pppoe-server-batch-post",
           label: "Pppoe Batch Configure",
           className: "api-method post",

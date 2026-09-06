@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,8 @@ import {
   Network,
   Key,
   User,
+  Activity,
+  RotateCcw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -40,6 +42,7 @@ import {
   type PPPoERadiusServer,
   type PPPoEIPv4Pool,
   type PPPoEIPv6Pool,
+  type PPPoESession,
 } from "@/lib/api/pppoe-server";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
@@ -67,6 +70,10 @@ function PPPoEPageInner() {
   const [error, setError] = useState<string | null>(null);
   const [config, setConfig] = useState<PPPoEConfigResponse | null>(null);
   const [capabilities, setCapabilities] = useState<PPPoECapabilities | null>(null);
+  const [sessions, setSessions] = useState<SessionWithRates[]>([]);
+  const [sessionLoading, setSessionLoading] = useState(false);
+  const [sessionError, setSessionError] = useState<string | null>(null);
+  const previousSessionCounters = useRef<Record<string, { rx: number; tx: number; at: number }>>({});
   const [activeTab, setActiveTab] = useState("overview");
 
   // Modal state
@@ -96,6 +103,8 @@ function PPPoEPageInner() {
     name: string;
     onDelete: () => Promise<import("@/lib/api/pppoe-server").VyOSResponse>;
     warning?: string;
+    actionLabel?: string;
+    actionVerb?: string;
   } | null>(null);
 
   const fetchConfig = async (refresh = false) => {
@@ -115,6 +124,32 @@ function PPPoEPageInner() {
     }
   };
 
+  const fetchSessions = async () => {
+    try {
+      setSessionLoading(true);
+      setSessionError(null);
+      const response = await pppoeServerService.getSessions();
+      const now = Date.now();
+      const nextSessions = response.sessions.map((session) => {
+        const key = `${session.interface}:${session.username}:${session.calling_sid ?? ""}`;
+        const previous = previousSessionCounters.current[key];
+        const elapsed = previous ? (now - previous.at) / 1000 : 0;
+        const result: SessionWithRates = { ...session };
+        if (previous && elapsed > 0) {
+          result.rxRate = Math.max(0, (session.rx_bytes - previous.rx) * 8 / elapsed);
+          result.txRate = Math.max(0, (session.tx_bytes - previous.tx) * 8 / elapsed);
+        }
+        previousSessionCounters.current[key] = { rx: session.rx_bytes, tx: session.tx_bytes, at: now };
+        return result;
+      });
+      setSessions(nextSessions);
+    } catch (err) {
+      setSessionError(err instanceof Error ? err.message : "Failed to load active sessions");
+    } finally {
+      setSessionLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (hasRead) fetchConfig();
   }, [hasRead]);
@@ -123,7 +158,15 @@ function PPPoEPageInner() {
     setActiveTab(searchParams.get("tab") ?? "overview");
   }, [searchParams]);
 
+  useEffect(() => {
+    if (!hasRead) return;
+    void fetchSessions();
+    const timer = window.setInterval(() => void fetchSessions(), 5000);
+    return () => window.clearInterval(timer);
+  }, [hasRead]);
+
   const onSuccess = () => fetchConfig(true);
+  const onSessionReset = () => { void fetchSessions(); };
 
   const authMode = config?.authentication.mode;
   const isLocalAuth = authMode === "local";
@@ -206,7 +249,16 @@ function PPPoEPageInner() {
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-4 gap-3 mt-4">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-4">
+            <Card className="p-3">
+              <div className="flex items-center gap-2">
+                <Activity className="h-4 w-4 text-emerald-500" />
+                <div>
+                  <p className="text-xs text-muted-foreground">Connected Clients</p>
+                  <p className="font-semibold">{sessions.length}</p>
+                </div>
+              </div>
+            </Card>
             <Card className="p-3">
               <div className="flex items-center gap-2">
                 {isLocalAuth ? (
@@ -256,6 +308,7 @@ function PPPoEPageInner() {
             <div className="px-6 pt-4 border-b">
               <TabsList>
                 <TabsTrigger value="overview">Overview</TabsTrigger>
+                <TabsTrigger value="sessions">Sessions</TabsTrigger>
                 <TabsTrigger value="interfaces">Interfaces</TabsTrigger>
                 <TabsTrigger value="auth">Authentication</TabsTrigger>
                 <TabsTrigger value="pools">IP Pools</TabsTrigger>
@@ -322,6 +375,78 @@ function PPPoEPageInner() {
                       </div>
                     </Card>
                   </div>
+                </TabsContent>
+
+                <TabsContent value="sessions" className="mt-0">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="font-semibold">Active PPPoE Sessions</h3>
+                      <p className="text-sm text-muted-foreground">Live counters refresh every 5 seconds.</p>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => void fetchSessions()} disabled={sessionLoading}>
+                      <RefreshCw className={cn("h-4 w-4 mr-2", sessionLoading && "animate-spin")} />
+                      Refresh
+                    </Button>
+                  </div>
+                  {sessionError ? (
+                    <div className="rounded-md border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+                      {sessionError}
+                    </div>
+                  ) : sessions.length === 0 ? (
+                    <EmptyState icon={Activity} label={sessionLoading ? "Loading active sessions..." : "No active PPPoE sessions"} />
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>User</TableHead>
+                          <TableHead>Interface</TableHead>
+                          <TableHead>IP address</TableHead>
+                          <TableHead>Calling SID</TableHead>
+                          <TableHead>Uptime</TableHead>
+                          <TableHead>RX rate</TableHead>
+                          <TableHead>TX rate</TableHead>
+                          <TableHead className="text-right">Traffic total</TableHead>
+                          {hasWrite && <TableHead className="text-right">Actions</TableHead>}
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {sessions.map((session) => (
+                          <TableRow key={`${session.interface}:${session.username}:${session.calling_sid ?? ""}`}>
+                            <TableCell className="font-medium">{session.username}</TableCell>
+                            <TableCell className="font-mono">{session.interface}</TableCell>
+                            <TableCell className="font-mono">{session.ip || "-"}</TableCell>
+                            <TableCell className="font-mono text-xs">{session.calling_sid || "-"}</TableCell>
+                            <TableCell>{session.uptime || "-"}</TableCell>
+                            <TableCell>{formatRate(session.rxRate)}</TableCell>
+                            <TableCell>{formatRate(session.txRate)}</TableCell>
+                            <TableCell className="text-right whitespace-nowrap">
+                              {formatBytes(session.rx_bytes)} / {formatBytes(session.tx_bytes)}
+                            </TableCell>
+                            {hasWrite && (
+                              <TableCell className="text-right">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 hover:bg-destructive/10"
+                                  title={`Reset sessions for ${session.username}`}
+                                  onClick={() => setDeleteTarget({
+                                    type: "PPPoE session",
+                                    name: session.username,
+                                    onDelete: () => pppoeServerService.resetSession(session.username),
+                                    actionLabel: "Reset",
+                                    actionVerb: "reset",
+                                    warning: "This will terminate all active PPPoE sessions for this username and force the client to reconnect.",
+                                  })}
+                                >
+                                  <RotateCcw className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </TableCell>
+                            )}
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
                 </TabsContent>
 
                 {/* Interfaces Tab */}
@@ -908,11 +1033,13 @@ function PPPoEPageInner() {
         <DeleteConfirmModal
           open={!!deleteTarget}
           onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
-          onSuccess={onSuccess}
+          onSuccess={deleteTarget.actionLabel === "Reset" ? onSessionReset : onSuccess}
           itemType={deleteTarget.type}
           itemName={deleteTarget.name}
           onDelete={deleteTarget.onDelete}
           warning={deleteTarget.warning}
+          actionLabel={deleteTarget.actionLabel}
+          actionVerb={deleteTarget.actionVerb}
         />
       )}
     </AppLayout>
@@ -926,6 +1053,22 @@ function InfoRow({ label, value }: { label: string; value?: string | null }) {
       <span>{value || "-"}</span>
     </div>
   );
+}
+
+type SessionWithRates = PPPoESession & { rxRate?: number; txRate?: number };
+
+function formatBytes(value: number): string {
+  if (value >= 1024 ** 3) return `${(value / 1024 ** 3).toFixed(1)} GiB`;
+  if (value >= 1024 ** 2) return `${(value / 1024 ** 2).toFixed(1)} MiB`;
+  if (value >= 1024) return `${(value / 1024).toFixed(1)} KiB`;
+  return `${value} B`;
+}
+
+function formatRate(value?: number): string {
+  if (value === undefined) return "-";
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)} Mbit/s`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(1)} kbit/s`;
+  return `${Math.round(value)} bit/s`;
 }
 
 function EmptyState({ icon: Icon, label }: { icon: React.ComponentType<{ className?: string }>; label: string }) {

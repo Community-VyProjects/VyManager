@@ -7,11 +7,13 @@ API endpoints for managing VyOS PPPoE server configuration.
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
+from urllib.parse import unquote
 from session_vyos_service import get_session_vyos_service
 from vyos_builders.pppoe_server import PPPoEServerBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 from starlette.concurrency import run_in_threadpool
+from pppoe_status import PPPoESessionsResponse, parse_pppoe_sessions
 import inspect
 import logging
 
@@ -81,6 +83,68 @@ async def get_pppoe_config(http_request: Request, refresh: bool = False):
         raise
     except Exception:
         logger.exception("Unhandled error in pppoe config")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+# ========================================================================
+# Endpoint 3: Active sessions
+# ========================================================================
+
+@router.get("/sessions", response_model=PPPoESessionsResponse)
+async def get_pppoe_sessions(http_request: Request):
+    """Return active PPPoE sessions and their cumulative traffic counters."""
+    await require_read_permission(http_request, FeatureGroup.PPPOE)
+    try:
+        service = get_session_vyos_service(http_request)
+        response = await run_in_threadpool(
+            service.device.show, path=["pppoe-server", "sessions"]
+        )
+        if response.status != 200:
+            raise HTTPException(
+                status_code=502,
+                detail=response.error or "Unable to read PPPoE sessions",
+            )
+        output = response.result.get("data", "") if isinstance(response.result, dict) else response.result
+        sessions = parse_pppoe_sessions(output or "")
+        return PPPoESessionsResponse(sessions=sessions, total=len(sessions))
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Unhandled error in pppoe sessions")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+# ========================================================================
+# Endpoint 4: Reset a user session
+# ========================================================================
+
+@router.post("/sessions/{username}/reset", response_model=VyOSResponse)
+async def reset_pppoe_session(http_request: Request, username: str):
+    """Terminate all active PPPoE sessions belonging to a username."""
+    await require_write_permission(http_request, FeatureGroup.PPPOE)
+    username = unquote(username).strip()
+    if not username or username in {".", ".."} or any(char in username for char in "\r\n"):
+        raise HTTPException(status_code=400, detail="Invalid PPPoE username")
+
+    try:
+        service = get_session_vyos_service(http_request)
+        response = await run_in_threadpool(
+            service.device.reset,
+            path=["pppoe-server", "username", username],
+        )
+        if response.status != 200:
+            return VyOSResponse(
+                success=False,
+                error=response.error or f"Failed to reset PPPoE sessions for {username}",
+            )
+        return VyOSResponse(
+            success=True,
+            data={"message": f"PPPoE sessions reset for {username}"},
+        )
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Unhandled error resetting PPPoE sessions for %s", username)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 

@@ -15487,6 +15487,71 @@
         }
       }
     },
+    "/vyos/pppoe-server/sessions": {
+      "get": {
+        "tags": [
+          "pppoe-server"
+        ],
+        "summary": "Get Pppoe Sessions",
+        "description": "Return active PPPoE sessions and their cumulative traffic counters.",
+        "operationId": "get_pppoe_sessions_vyos_pppoe_server_sessions_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PPPoESessionsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/vyos/pppoe-server/sessions/{username}/reset": {
+      "post": {
+        "tags": [
+          "pppoe-server"
+        ],
+        "summary": "Reset Pppoe Session",
+        "description": "Terminate all active PPPoE sessions belonging to a username.",
+        "operationId": "reset_pppoe_session_vyos_pppoe_server_sessions__username__reset_post",
+        "parameters": [
+          {
+            "name": "username",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Username"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/routers__pppoe_server__pppoe_server__VyOSResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/vyos/pppoe-server/batch": {
       "post": {
         "tags": [
@@ -44567,6 +44632,126 @@
           "operations"
         ],
         "title": "PPPoEBatchRequest"
+      },
+      "PPPoESession": {
+        "properties": {
+          "interface": {
+            "type": "string",
+            "title": "Interface"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "ip": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ip"
+          },
+          "ipv6": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ipv6"
+          },
+          "ipv6_delegated": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ipv6 Delegated"
+          },
+          "calling_sid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Calling Sid"
+          },
+          "rate_limit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rate Limit"
+          },
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "uptime": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uptime"
+          },
+          "rx_bytes": {
+            "type": "integer",
+            "title": "Rx Bytes",
+            "default": 0
+          },
+          "tx_bytes": {
+            "type": "integer",
+            "title": "Tx Bytes",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "interface",
+          "username",
+          "state"
+        ],
+        "title": "PPPoESession"
+      },
+      "PPPoESessionsResponse": {
+        "properties": {
+          "sessions": {
+            "items": {
+              "$ref": "#/components/schemas/PPPoESession"
+            },
+            "type": "array",
+            "title": "Sessions"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sessions",
+          "total"
+        ],
+        "title": "PPPoESessionsResponse"
       },
       "PTRRecord": {
         "properties": {

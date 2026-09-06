@@ -107,7 +107,7 @@ const config: Config = {
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} Community-VyProjects. Built with Docusaurus.`,
+      copyright: `Copyright © ${new Date().getFullYear()} <a href='https://github.com/Community-VyProjects/VyManager' target='_blank' rel='noopener noreferrer'>Community-VyProjects</a>. Built with Docusaurus.`,
     },
     prism: {
       theme: prismThemes.github,
