@@ -71,9 +71,18 @@ export function SNMPMultiValueField({
             setFieldError(null);
           }}
           onKeyDown={handleKeyDown}
+          onBlur={(e) => {
+            if (!e.relatedTarget?.hasAttribute("data-add-value")) handleAdd();
+          }}
           className="flex-1"
         />
-        <Button type="button" size="sm" variant="outline" onClick={handleAdd}>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          data-add-value
+          onClick={handleAdd}
+        >
           <Plus className="h-4 w-4" />
         </Button>
       </div>
