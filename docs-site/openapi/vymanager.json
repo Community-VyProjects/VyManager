@@ -15495,6 +15495,31 @@
         "summary": "Get Pppoe Sessions",
         "description": "Return active PPPoE sessions and their cumulative traffic counters.",
         "operationId": "get_pppoe_sessions_vyos_pppoe_server_sessions_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": 1,
+              "default": 500,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -15502,6 +15527,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PPPoESessionsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -15535,6 +15570,70 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/routers__pppoe_server__pppoe_server__VyOSResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/vyos/pppoe-server/sessions/{interface}/connections": {
+      "get": {
+        "tags": [
+          "pppoe-server"
+        ],
+        "summary": "Get Pppoe Session Connections",
+        "description": "Return conntrack entries containing the selected PPPoE client's IP.",
+        "operationId": "get_pppoe_session_connections_vyos_pppoe_server_sessions__interface__connections_get",
+        "parameters": [
+          {
+            "name": "interface",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Interface"
+            }
+          },
+          {
+            "name": "ip",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ip"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 2000,
+              "minimum": 1,
+              "default": 500,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PPPoEConnectionsResponse"
                 }
               }
             }
@@ -44633,6 +44732,37 @@
         ],
         "title": "PPPoEBatchRequest"
       },
+      "PPPoEConnectionsResponse": {
+        "properties": {
+          "interface": {
+            "type": "string",
+            "title": "Interface"
+          },
+          "ip": {
+            "type": "string",
+            "title": "Ip"
+          },
+          "connections": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Connections"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "interface",
+          "ip",
+          "connections",
+          "total"
+        ],
+        "title": "PPPoEConnectionsResponse"
+      },
       "PPPoESession": {
         "properties": {
           "interface": {
@@ -44722,6 +44852,38 @@
             "type": "integer",
             "title": "Tx Bytes",
             "default": 0
+          },
+          "rx_packets": {
+            "type": "integer",
+            "title": "Rx Packets",
+            "default": 0
+          },
+          "tx_packets": {
+            "type": "integer",
+            "title": "Tx Packets",
+            "default": 0
+          },
+          "vlan": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vlan"
+          },
+          "mtu": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mtu"
           }
         },
         "type": "object",

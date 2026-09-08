@@ -17,6 +17,10 @@ class PPPoESession(BaseModel):
     uptime: Optional[str] = None
     rx_bytes: int = 0
     tx_bytes: int = 0
+    rx_packets: int = 0
+    tx_packets: int = 0
+    vlan: Optional[str] = None
+    mtu: Optional[int] = None
 
 
 class PPPoESessionsResponse(BaseModel):
@@ -66,6 +70,11 @@ def parse_pppoe_sessions(output: str) -> List[PPPoESession]:
         row: Dict[str, Any] = dict(zip(headers, cells))
         if not row.get("ifname") or not row.get("username"):
             continue
+        mtu_value = row.get("mtu") or None
+        try:
+            mtu = int(mtu_value) if mtu_value else None
+        except ValueError:
+            mtu = None
         sessions.append(PPPoESession(
             interface=row["ifname"],
             username=row["username"],
@@ -78,5 +87,7 @@ def parse_pppoe_sessions(output: str) -> List[PPPoESession]:
             uptime=row.get("uptime") or None,
             rx_bytes=_parse_bytes(row.get("rx-bytes", "0")),
             tx_bytes=_parse_bytes(row.get("tx-bytes", "0")),
+            vlan=row.get("vlan") or row.get("vlan-id") or None,
+            mtu=mtu,
         ))
     return sessions

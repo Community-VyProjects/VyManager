@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Network, Plus, Server, Shield, Lock, TrendingUp, Gauge, ShieldCheck, Waypoints, Route } from "lucide-react";
+import { Network, Plus, Server, Shield, Lock, TrendingUp, Gauge, ShieldCheck, Waypoints, Route, Activity } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 
@@ -48,6 +48,13 @@ const AVAILABLE_CARDS: AvailableCard[] = [
     name: "Network Speed",
     description: "Real-time download and upload speed graph for any interface over a 2-minute rolling window",
     icon: TrendingUp,
+  },
+  {
+    type: "pppoe-statistics",
+    name: "PPPoE Statistics",
+    description: "Aggregate PPPoE RX/TX rate, packet rate, and total traffic over a rolling window",
+    icon: Activity,
+    requiredPermission: FeatureGroup.PPPOE,
   },
   {
     type: "qos-statistics",

@@ -170,10 +170,21 @@ export interface PPPoESession {
   uptime?: string | null;
   rx_bytes: number;
   tx_bytes: number;
+  rx_packets: number;
+  tx_packets: number;
+  vlan?: string | null;
+  mtu?: number | null;
 }
 
 export interface PPPoESessionsResponse {
   sessions: PPPoESession[];
+  total: number;
+}
+
+export interface PPPoEConnectionsResponse {
+  interface: string;
+  ip: string;
+  connections: string[];
   total: number;
 }
 
@@ -231,13 +242,23 @@ class PPPoEServerService {
     });
   }
 
-  async getSessions(): Promise<PPPoESessionsResponse> {
-    return apiClient.get<PPPoESessionsResponse>("/vyos/pppoe-server/sessions");
+  async getSessions(limit = 500, offset = 0): Promise<PPPoESessionsResponse> {
+    return apiClient.get<PPPoESessionsResponse>("/vyos/pppoe-server/sessions", {
+      limit: String(limit),
+      offset: String(offset),
+    });
   }
 
   async resetSession(username: string): Promise<VyOSResponse> {
     return apiClient.post<VyOSResponse>(
       `/vyos/pppoe-server/sessions/${encodeURIComponent(username)}/reset`,
+    );
+  }
+
+  async getSessionConnections(interfaceName: string, ip: string, limit = 500): Promise<PPPoEConnectionsResponse> {
+    return apiClient.get<PPPoEConnectionsResponse>(
+      `/vyos/pppoe-server/sessions/${encodeURIComponent(interfaceName)}/connections`,
+      { ip, limit: String(limit) },
     );
   }
 

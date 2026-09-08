@@ -1,0 +1,1 @@
+{"parameters":[{"name":"interface","in":"path","required":true,"schema":{"type":"string","title":"Interface"}},{"name":"ip","in":"query","required":true,"schema":{"type":"string","title":"Ip"}},{"name":"limit","in":"query","required":false,"schema":{"type":"integer","maximum":2000,"minimum":1,"default":500,"title":"Limit"}}]}

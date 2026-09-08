@@ -28,3 +28,15 @@ ppp0 | test | 192.0.2.10 | 2001:db8::10/64 | 2001:db8:1::/56 | 00:53:00:12:42:eb
     assert sessions[0].ipv6_delegated == "2001:db8:1::/56"
     assert sessions[0].rx_bytes == 2150
     assert sessions[0].tx_bytes == 1_000_000
+
+
+def test_parse_optional_vlan_and_mtu_columns():
+    output = """
+ifname | username | ip | vlan-id | mtu | state | rx-bytes | tx-bytes
+ppp0 | test | 192.0.2.10 | 120 | 1492 | active | 1 KiB | 2 KiB
+"""
+
+    session = parse_pppoe_sessions(output)[0]
+
+    assert session.vlan == "120"
+    assert session.mtu == 1492
