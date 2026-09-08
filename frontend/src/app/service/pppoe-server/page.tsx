@@ -6,8 +6,16 @@ import { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
@@ -31,6 +39,13 @@ import {
   User,
   Activity,
   RotateCcw,
+  Cable,
+  ChevronLeft,
+  ChevronRight,
+  Pause,
+  Play,
+  Search,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -58,7 +73,9 @@ import {
   InterfaceModal,
   PPPOptionsModal,
   AdvancedSettingsModal,
+  PPPoEStatsChart,
 } from "@/components/pppoe-server";
+import type { PPPoEStatsPoint } from "@/components/pppoe-server/PPPoEStatsChart";
 
 function PPPoEPageInner() {
   const searchParams = useSearchParams();
@@ -71,9 +88,30 @@ function PPPoEPageInner() {
   const [config, setConfig] = useState<PPPoEConfigResponse | null>(null);
   const [capabilities, setCapabilities] = useState<PPPoECapabilities | null>(null);
   const [sessions, setSessions] = useState<SessionWithRates[]>([]);
+  const [sessionTotal, setSessionTotal] = useState(0);
   const [sessionLoading, setSessionLoading] = useState(false);
   const [sessionError, setSessionError] = useState<string | null>(null);
-  const previousSessionCounters = useRef<Record<string, { rx: number; tx: number; at: number }>>({});
+  const previousSessionCounters = useRef<Record<string, { rx: number; tx: number; rxPackets: number; txPackets: number; at: number }>>({});
+  const [statsHistory, setStatsHistory] = useState<Record<string, PPPoEStatsPoint[]>>({});
+  const [selectedStatsKey, setSelectedStatsKey] = useState<string | null>(null);
+  const [sessionPaused, setSessionPaused] = useState(false);
+  const [refreshInterval, setRefreshInterval] = useState(5);
+  const [sessionSearch, setSessionSearch] = useState("");
+  const [minPps, setMinPps] = useState("");
+  const [maxPps, setMaxPps] = useState("");
+  const [ipv6Filter, setIpv6Filter] = useState<"all" | "yes" | "no">("all");
+  const [vlanFilter, setVlanFilter] = useState("");
+  const [mtuFilter, setMtuFilter] = useState("");
+  const [sessionPage, setSessionPage] = useState(1);
+  const sessionPageSize = 50;
+  const [connectionDialog, setConnectionDialog] = useState<{
+    username: string;
+    interfaceName: string;
+    ip: string;
+  } | null>(null);
+  const [connections, setConnections] = useState<string[]>([]);
+  const [connectionsLoading, setConnectionsLoading] = useState(false);
+  const [connectionsError, setConnectionsError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("overview");
 
   // Modal state
@@ -128,7 +166,7 @@ function PPPoEPageInner() {
     try {
       setSessionLoading(true);
       setSessionError(null);
-      const response = await pppoeServerService.getSessions();
+      const response = await pppoeServerService.getSessions(500);
       const now = Date.now();
       const nextSessions = response.sessions.map((session) => {
         const key = `${session.interface}:${session.username}:${session.calling_sid ?? ""}`;
@@ -138,11 +176,40 @@ function PPPoEPageInner() {
         if (previous && elapsed > 0) {
           result.rxRate = Math.max(0, (session.rx_bytes - previous.rx) * 8 / elapsed);
           result.txRate = Math.max(0, (session.tx_bytes - previous.tx) * 8 / elapsed);
+          result.rxPps = Math.max(0, (session.rx_packets - previous.rxPackets) / elapsed);
+          result.txPps = Math.max(0, (session.tx_packets - previous.txPackets) / elapsed);
         }
-        previousSessionCounters.current[key] = { rx: session.rx_bytes, tx: session.tx_bytes, at: now };
+        previousSessionCounters.current[key] = {
+          rx: session.rx_bytes,
+          tx: session.tx_bytes,
+          rxPackets: session.rx_packets,
+          txPackets: session.tx_packets,
+          at: now,
+        };
         return result;
       });
       setSessions(nextSessions);
+      setSessionTotal(response.total);
+      setStatsHistory((previous) => {
+        const next = { ...previous };
+        for (const session of nextSessions) {
+          const key = `${session.interface}:${session.username}:${session.calling_sid ?? ""}`;
+          const point: PPPoEStatsPoint = {
+            timestamp: now,
+            rxRate: session.rxRate ?? 0,
+            txRate: session.txRate ?? 0,
+            rxPps: session.rxPps ?? 0,
+            txPps: session.txPps ?? 0,
+            rxBytes: session.rx_bytes,
+            txBytes: session.tx_bytes,
+          };
+          next[key] = [...(next[key] ?? []), point]
+            .filter((item) => item.timestamp >= now - 120_000)
+            .slice(-120);
+        }
+        return next;
+      });
+      setSessionPage((page) => Math.min(page, Math.max(1, Math.ceil(nextSessions.length / sessionPageSize))));
     } catch (err) {
       setSessionError(err instanceof Error ? err.message : "Failed to load active sessions");
     } finally {
@@ -161,12 +228,47 @@ function PPPoEPageInner() {
   useEffect(() => {
     if (!hasRead) return;
     void fetchSessions();
-    const timer = window.setInterval(() => void fetchSessions(), 5000);
+    if (sessionPaused || refreshInterval === 0) return;
+    const timer = window.setInterval(() => void fetchSessions(), refreshInterval * 1000);
     return () => window.clearInterval(timer);
-  }, [hasRead]);
+  }, [hasRead, sessionPaused, refreshInterval]);
 
   const onSuccess = () => fetchConfig(true);
   const onSessionReset = () => { void fetchSessions(); };
+  const sessionKey = (session: SessionWithRates) => `${session.interface}:${session.username}:${session.calling_sid ?? ""}`;
+
+  const inspectConnections = async (session: SessionWithRates) => {
+    if (!session.ip) return;
+    setConnectionDialog({ username: session.username, interfaceName: session.interface, ip: session.ip });
+    setConnections([]);
+    setConnectionsError(null);
+    setConnectionsLoading(true);
+    try {
+      const result = await pppoeServerService.getSessionConnections(session.interface, session.ip);
+      setConnections(result.connections);
+    } catch (err) {
+      setConnectionsError(err instanceof Error ? err.message : "Failed to load connections");
+    } finally {
+      setConnectionsLoading(false);
+    }
+  };
+
+  const filteredSessions = sessions.filter((session) => {
+    const search = sessionSearch.trim().toLowerCase();
+    const haystack = `${session.username} ${session.interface} ${session.ip ?? ""} ${session.ipv6 ?? ""} ${session.calling_sid ?? ""}`.toLowerCase();
+    const pps = Math.max(session.rxPps ?? 0, session.txPps ?? 0);
+    const minimum = minPps === "" ? null : Number(minPps);
+    const maximum = maxPps === "" ? null : Number(maxPps);
+    if (search && !haystack.includes(search)) return false;
+    if (minimum !== null && (!Number.isFinite(minimum) || pps < minimum)) return false;
+    if (maximum !== null && (!Number.isFinite(maximum) || pps > maximum)) return false;
+    if (ipv6Filter === "yes" && !session.ipv6) return false;
+    if (ipv6Filter === "no" && session.ipv6) return false;
+    if (vlanFilter && !(session.vlan ?? "").toLowerCase().includes(vlanFilter.toLowerCase())) return false;
+    if (mtuFilter && String(session.mtu ?? "") !== mtuFilter.trim()) return false;
+    return true;
+  });
+  const filteredPageCount = Math.max(1, Math.ceil(filteredSessions.length / sessionPageSize));
 
   const authMode = config?.authentication.mode;
   const isLocalAuth = authMode === "local";
@@ -381,12 +483,54 @@ function PPPoEPageInner() {
                   <div className="flex items-center justify-between mb-4">
                     <div>
                       <h3 className="font-semibold">Active PPPoE Sessions</h3>
-                      <p className="text-sm text-muted-foreground">Live counters refresh every 5 seconds.</p>
+                      <p className="text-sm text-muted-foreground">
+                        {sessionPaused ? "Updates paused." : refreshInterval === 0 ? "Manual refresh only." : `Live counters refresh every ${refreshInterval} seconds.`}
+                      </p>
                     </div>
-                    <Button variant="outline" size="sm" onClick={() => void fetchSessions()} disabled={sessionLoading}>
-                      <RefreshCw className={cn("h-4 w-4 mr-2", sessionLoading && "animate-spin")} />
-                      Refresh
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">{sessionTotal} sessions</span>
+                      <select
+                        value={refreshInterval}
+                        onChange={(event) => setRefreshInterval(Number(event.target.value))}
+                        className="h-9 rounded-md border bg-background px-2 text-sm"
+                        aria-label="Session refresh interval"
+                      >
+                        <option value="1">1s</option>
+                        <option value="5">5s</option>
+                        <option value="10">10s</option>
+                        <option value="30">30s</option>
+                        <option value="0">Manual</option>
+                      </select>
+                      <Button variant="outline" size="sm" onClick={() => setSessionPaused((paused) => !paused)}>
+                        {sessionPaused ? <Play className="h-4 w-4 mr-2" /> : <Pause className="h-4 w-4 mr-2" />}
+                        {sessionPaused ? "Resume" : "Pause"}
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => void fetchSessions()} disabled={sessionLoading}>
+                        <RefreshCw className={cn("h-4 w-4 mr-2", sessionLoading && "animate-spin")} />
+                        Refresh
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 mb-4 rounded-md border bg-muted/20 p-3">
+                    <div className="relative">
+                      <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                      <Input value={sessionSearch} onChange={(event) => setSessionSearch(event.target.value)} placeholder="Search user, IP, interface" className="h-8 w-52 pl-8 text-xs" />
+                    </div>
+                    <Input value={minPps} onChange={(event) => setMinPps(event.target.value)} inputMode="numeric" placeholder="Min PPS" className="h-8 w-24 text-xs" />
+                    <Input value={maxPps} onChange={(event) => setMaxPps(event.target.value)} inputMode="numeric" placeholder="Max PPS" className="h-8 w-24 text-xs" />
+                    <select value={ipv6Filter} onChange={(event) => setIpv6Filter(event.target.value as "all" | "yes" | "no")} className="h-8 rounded-md border bg-background px-2 text-xs">
+                      <option value="all">IPv6: All</option>
+                      <option value="yes">IPv6: Present</option>
+                      <option value="no">IPv6: Absent</option>
+                    </select>
+                    <Input value={vlanFilter} onChange={(event) => setVlanFilter(event.target.value)} placeholder="VLAN" className="h-8 w-20 text-xs" />
+                    <Input value={mtuFilter} onChange={(event) => setMtuFilter(event.target.value)} inputMode="numeric" placeholder="MTU" className="h-8 w-20 text-xs" />
+                    {(sessionSearch || minPps || maxPps || ipv6Filter !== "all" || vlanFilter || mtuFilter) && (
+                      <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => { setSessionSearch(""); setMinPps(""); setMaxPps(""); setIpv6Filter("all"); setVlanFilter(""); setMtuFilter(""); }}>
+                        <X className="h-3.5 w-3.5 mr-1" /> Clear
+                      </Button>
+                    )}
+                    <span className="ml-auto text-xs text-muted-foreground">{filteredSessions.length} matching</span>
                   </div>
                   {sessionError ? (
                     <div className="rounded-md border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
@@ -394,6 +538,8 @@ function PPPoEPageInner() {
                     </div>
                   ) : sessions.length === 0 ? (
                     <EmptyState icon={Activity} label={sessionLoading ? "Loading active sessions..." : "No active PPPoE sessions"} />
+                  ) : filteredSessions.length === 0 ? (
+                    <EmptyState icon={Search} label="No sessions match the current filters" />
                   ) : (
                     <Table>
                       <TableHeader>
@@ -401,29 +547,46 @@ function PPPoEPageInner() {
                           <TableHead>User</TableHead>
                           <TableHead>Interface</TableHead>
                           <TableHead>IP address</TableHead>
+                          <TableHead>VLAN</TableHead>
+                          <TableHead>MTU</TableHead>
                           <TableHead>Calling SID</TableHead>
                           <TableHead>Uptime</TableHead>
                           <TableHead>RX rate</TableHead>
                           <TableHead>TX rate</TableHead>
                           <TableHead className="text-right">Traffic total</TableHead>
-                          {hasWrite && <TableHead className="text-right">Actions</TableHead>}
+                          <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {sessions.map((session) => (
+                        {filteredSessions.slice((sessionPage - 1) * sessionPageSize, sessionPage * sessionPageSize).map((session) => (
                           <TableRow key={`${session.interface}:${session.username}:${session.calling_sid ?? ""}`}>
                             <TableCell className="font-medium">{session.username}</TableCell>
                             <TableCell className="font-mono">{session.interface}</TableCell>
                             <TableCell className="font-mono">{session.ip || "-"}</TableCell>
+                            <TableCell>{session.vlan || "-"}</TableCell>
+                            <TableCell>{session.mtu || "-"}</TableCell>
                             <TableCell className="font-mono text-xs">{session.calling_sid || "-"}</TableCell>
                             <TableCell>{session.uptime || "-"}</TableCell>
-                            <TableCell>{formatRate(session.rxRate)}</TableCell>
-                            <TableCell>{formatRate(session.txRate)}</TableCell>
+                            <TableCell>{formatRate(session.rxRate)} <span className="text-xs text-muted-foreground">/ {formatPps(session.rxPps)}</span></TableCell>
+                            <TableCell>{formatRate(session.txRate)} <span className="text-xs text-muted-foreground">/ {formatPps(session.txPps)}</span></TableCell>
                             <TableCell className="text-right whitespace-nowrap">
                               {formatBytes(session.rx_bytes)} / {formatBytes(session.tx_bytes)}
                             </TableCell>
+                            <TableCell className="text-right whitespace-nowrap">
+                              <Button variant="ghost" size="icon" className="h-8 w-8" title={`Graph statistics for ${session.username}`} onClick={() => setSelectedStatsKey(sessionKey(session))}>
+                                <Activity className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                title={`Inspect connections for ${session.username}`}
+                                onClick={() => void inspectConnections(session)}
+                                disabled={!session.ip}
+                              >
+                                <Cable className="h-4 w-4" />
+                              </Button>
                             {hasWrite && (
-                              <TableCell className="text-right">
                                 <Button
                                   variant="ghost"
                                   size="icon"
@@ -440,12 +603,53 @@ function PPPoEPageInner() {
                                 >
                                   <RotateCcw className="h-4 w-4 text-destructive" />
                                 </Button>
-                              </TableCell>
                             )}
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
                     </Table>
+                  )}
+                  {selectedStatsKey && statsHistory[selectedStatsKey] && (
+                    <Card className="mt-4 p-4">
+                      <div className="mb-3 flex items-center justify-between">
+                        <div>
+                          <h4 className="font-medium">Session traffic history</h4>
+                          <p className="text-xs text-muted-foreground">Select rate, PPS, or total traffic from the graph.</p>
+                        </div>
+                        <Button variant="ghost" size="sm" onClick={() => setSelectedStatsKey(null)}>Close</Button>
+                      </div>
+                      <PPPoEStatsChart points={statsHistory[selectedStatsKey]} />
+                    </Card>
+                  )}
+                  {filteredSessions.length > sessionPageSize && (
+                    <div className="flex items-center justify-between border-t mt-3 pt-3">
+                      <span className="text-xs text-muted-foreground">
+                        Page {sessionPage} of {Math.max(1, Math.ceil(filteredSessions.length / sessionPageSize))}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => setSessionPage((page) => Math.max(1, page - 1))}
+                          disabled={sessionPage === 1}
+                          title="Previous page"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => setSessionPage((page) => Math.min(filteredPageCount, page + 1))}
+                          disabled={sessionPage === filteredPageCount}
+                          title="Next page"
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
                   )}
                 </TabsContent>
 
@@ -962,6 +1166,26 @@ function PPPoEPageInner() {
         </div>
       </div>
 
+      <Dialog open={!!connectionDialog} onOpenChange={(open) => { if (!open) setConnectionDialog(null); }}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Connections for {connectionDialog?.username}</DialogTitle>
+            <DialogDescription>
+              Conntrack entries matching {connectionDialog?.ip} on {connectionDialog?.interfaceName}.
+            </DialogDescription>
+          </DialogHeader>
+          {connectionsLoading ? (
+            <div className="py-8 text-center text-sm text-muted-foreground">Loading connections...</div>
+          ) : connectionsError ? (
+            <div className="rounded-md border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">{connectionsError}</div>
+          ) : connections.length === 0 ? (
+            <div className="py-8 text-center text-sm text-muted-foreground">No tracked connections found.</div>
+          ) : (
+            <pre className="max-h-[60vh] overflow-auto rounded-md bg-muted p-4 text-xs leading-5 whitespace-pre-wrap">{connections.join("\n")}</pre>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Modals */}
       {config && (
         <>
@@ -1055,7 +1279,12 @@ function InfoRow({ label, value }: { label: string; value?: string | null }) {
   );
 }
 
-type SessionWithRates = PPPoESession & { rxRate?: number; txRate?: number };
+type SessionWithRates = PPPoESession & {
+  rxRate?: number;
+  txRate?: number;
+  rxPps?: number;
+  txPps?: number;
+};
 
 function formatBytes(value: number): string {
   if (value >= 1024 ** 3) return `${(value / 1024 ** 3).toFixed(1)} GiB`;
@@ -1069,6 +1298,10 @@ function formatRate(value?: number): string {
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)} Mbit/s`;
   if (value >= 1_000) return `${(value / 1_000).toFixed(1)} kbit/s`;
   return `${Math.round(value)} bit/s`;
+}
+
+function formatPps(value?: number): string {
+  return value === undefined ? "-" : `${Math.round(value)} pps`;
 }
 
 function EmptyState({ icon: Icon, label }: { icon: React.ComponentType<{ className?: string }>; label: string }) {

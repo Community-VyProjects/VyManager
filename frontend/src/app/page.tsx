@@ -22,6 +22,7 @@ import { InterfaceStatisticsCard } from "@/components/dashboard/InterfaceStatist
 import { SystemInfoCard } from "@/components/dashboard/SystemInfoCard";
 import { WireGuardPeersCard } from "@/components/dashboard/WireGuardPeersCard";
 import { NetworkSpeedCard } from "@/components/dashboard/NetworkSpeedCard";
+import { PppoeStatsCard } from "@/components/dashboard/PppoeStatsCard";
 import { QoSStatsCard } from "@/components/dashboard/QoSStatsCard";
 import { OpenVpnCard } from "@/components/dashboard/OpenVpnCard";
 import { VrrpStatusCard } from "@/components/dashboard/VrrpStatusCard";
@@ -458,6 +459,8 @@ export default function Home() {
         return <WireGuardPeersCard {...baseProps} />;
       case "network-speed":
         return <NetworkSpeedCard {...baseProps} />;
+      case "pppoe-statistics":
+        return <PppoeStatsCard {...baseProps} />;
       case "qos-statistics":
         return <QoSStatsCard {...baseProps} />;
       case "openvpn-status":

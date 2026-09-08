@@ -4,16 +4,21 @@ PPPoE Server Router
 API endpoints for managing VyOS PPPoE server configuration.
 """
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
+import ipaddress
 from urllib.parse import unquote
 from session_vyos_service import get_session_vyos_service
 from vyos_builders.pppoe_server import PPPoEServerBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 from starlette.concurrency import run_in_threadpool
-from pppoe_status import PPPoESessionsResponse, parse_pppoe_sessions
+from pppoe_status import (
+    PPPoESessionsResponse,
+    parse_pppoe_sessions,
+)
+from routers.show import parse_interface_counters
 import inspect
 import logging
 
@@ -45,6 +50,13 @@ class VyOSResponse(BaseModel):
     success: bool
     data: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
+
+
+class PPPoEConnectionsResponse(BaseModel):
+    interface: str
+    ip: str
+    connections: List[str]
+    total: int
 
 
 # ========================================================================
@@ -91,14 +103,16 @@ async def get_pppoe_config(http_request: Request, refresh: bool = False):
 # ========================================================================
 
 @router.get("/sessions", response_model=PPPoESessionsResponse)
-async def get_pppoe_sessions(http_request: Request):
+async def get_pppoe_sessions(
+    http_request: Request,
+    limit: int = Query(default=500, ge=1, le=1000),
+    offset: int = Query(default=0, ge=0),
+):
     """Return active PPPoE sessions and their cumulative traffic counters."""
     await require_read_permission(http_request, FeatureGroup.PPPOE)
     try:
         service = get_session_vyos_service(http_request)
-        response = await run_in_threadpool(
-            service.device.show, path=["pppoe-server", "sessions"]
-        )
+        response = await run_in_threadpool(service.device.show, path=["pppoe-server", "sessions"])
         if response.status != 200:
             raise HTTPException(
                 status_code=502,
@@ -106,7 +120,29 @@ async def get_pppoe_sessions(http_request: Request):
             )
         output = response.result.get("data", "") if isinstance(response.result, dict) else response.result
         sessions = parse_pppoe_sessions(output or "")
-        return PPPoESessionsResponse(sessions=sessions, total=len(sessions))
+        counter_response = await run_in_threadpool(
+            service.device.show, path=["interfaces", "counters"]
+        )
+        if counter_response.status == 200:
+            counter_output = (
+                counter_response.result.get("data", "")
+                if isinstance(counter_response.result, dict)
+                else counter_response.result
+            )
+            counters = {
+                counter.interface: counter
+                for counter in parse_interface_counters(counter_output or "")
+            }
+            for session in sessions:
+                counter = counters.get(session.interface)
+                if counter:
+                    session.rx_packets = counter.rx_packets
+                    session.tx_packets = counter.tx_packets
+        total = len(sessions)
+        return PPPoESessionsResponse(
+            sessions=sessions[offset:offset + limit],
+            total=total,
+        )
     except HTTPException:
         raise
     except Exception:
@@ -145,6 +181,50 @@ async def reset_pppoe_session(http_request: Request, username: str):
         raise
     except Exception:
         logger.exception("Unhandled error resetting PPPoE sessions for %s", username)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/sessions/{interface}/connections", response_model=PPPoEConnectionsResponse)
+async def get_pppoe_session_connections(
+    http_request: Request,
+    interface: str,
+    ip: str,
+    limit: int = Query(default=500, ge=1, le=2000),
+):
+    """Return conntrack entries containing the selected PPPoE client's IP."""
+    await require_read_permission(http_request, FeatureGroup.PPPOE)
+    try:
+        ipaddress.ip_interface(ip)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Invalid PPPoE session IP") from exc
+    if not interface or any(char in interface for char in "\r\n|;"):
+        raise HTTPException(status_code=400, detail="Invalid PPPoE session interface")
+
+    try:
+        service = get_session_vyos_service(http_request)
+        response = await run_in_threadpool(service.device.show, path=["conntrack"])
+        if response.status != 200:
+            raise HTTPException(
+                status_code=502,
+                detail=response.error or "Unable to read conntrack entries",
+            )
+        output = response.result.get("data", "") if isinstance(response.result, dict) else response.result
+        address = str(ipaddress.ip_interface(ip).ip)
+        connections = [
+            line.strip()
+            for line in (output or "").splitlines()
+            if address in line
+        ]
+        return PPPoEConnectionsResponse(
+            interface=interface,
+            ip=address,
+            connections=connections[:limit],
+            total=len(connections),
+        )
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Unhandled error reading PPPoE connections for %s", interface)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 

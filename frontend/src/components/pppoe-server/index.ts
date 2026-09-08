@@ -9,3 +9,4 @@ export { IPv6PoolModal } from "./IPv6PoolModal";
 export { InterfaceModal } from "./InterfaceModal";
 export { PPPOptionsModal } from "./PPPOptionsModal";
 export { AdvancedSettingsModal } from "./AdvancedSettingsModal";
+export { PPPoEStatsChart } from "./PPPoEStatsChart";
