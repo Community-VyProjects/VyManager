@@ -1,0 +1,1 @@
+{"parameters":[{"name":"limit","in":"query","required":false,"schema":{"type":"integer","maximum":1000,"minimum":1,"default":500,"title":"Limit"}},{"name":"offset","in":"query","required":false,"schema":{"type":"integer","minimum":0,"default":0,"title":"Offset"}}]}
