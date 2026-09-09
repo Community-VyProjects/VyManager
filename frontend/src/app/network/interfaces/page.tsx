@@ -536,6 +536,16 @@ function InterfacesPageInner() {
     )
   );
 
+  const countNestedVlanInterfaces = <T extends {
+    vif?: unknown[];
+    vif_s?: Array<{ vif_c?: unknown[] }>;
+    vifs?: unknown[];
+  }>(items: T[]) => items.reduce(
+    (total, iface) => total + 1 + (iface.vif?.length ?? 0) + (iface.vifs?.length ?? 0) +
+      (iface.vif_s?.length ?? 0) + (iface.vif_s?.reduce((subTotal, vifS) => subTotal + (vifS.vif_c?.length ?? 0), 0) ?? 0),
+    0
+  );
+
   const totalInterfaces = interfaces.length;
   const totalWireGuard = wireGuardInterfaces.length;
   const totalVxlan = vxlanInterfaces.length;
@@ -547,11 +557,11 @@ function InterfacesPageInner() {
   const totalLoopback = loopbackInterfaces.length;
   const totalMacsec = macsecInterfaces.length;
   const totalBonding = bondingInterfaces.length;
-  const totalBridge = bridgeInterfaces.length;
+  const totalBridge = countNestedVlanInterfaces(bridgeInterfaces);
   const totalPppoe = pppoeInterfaces.length;
-  const totalPseudoEthernet = pseudoEthernetInterfaces.length;
+  const totalPseudoEthernet = countNestedVlanInterfaces(pseudoEthernetInterfaces);
   const totalSstpc = sstpcInterfaces.length;
-  const totalVirtualEthernet = virtualEthernetInterfaces.length;
+  const totalVirtualEthernet = countNestedVlanInterfaces(virtualEthernetInterfaces);
   const totalVpp = vppBonding.length + vppBridge.length + vppGre.length + vppIpip.length + vppLoopback.length + vppVxlanIfaces.length + vppXconnect.length;
   const totalVti = vtiInterfaces.length;
   const totalWireless = wirelessInterfaces.length;
@@ -611,7 +621,9 @@ function InterfacesPageInner() {
       } as unknown as VIFCWithParent))
     )
   );
-  const totalVlans = allVifs.length + allVifS.length + allVifC.length + bondVifs.length + bondVifS.length + bondVifC.length;
+  const totalEthernetVlans = allVifs.length + allVifS.length + allVifC.length;
+  const totalBondingVlans = bondVifs.length + bondVifS.length + bondVifC.length;
+  const totalVlans = totalEthernetVlans + totalBondingVlans;
 
   // Active VLAN lists + the modal wiring depend on the selected parent type tab
   const isBondVlan = vlanParent === "bonding";
@@ -1950,11 +1962,11 @@ function InterfacesPageInner() {
                   <TabsList>
                     <TabsTrigger value="ethernet" className="gap-1.5">
                       Ethernet
-                      <Badge variant="secondary" className="text-xs px-1.5 py-0 ml-1">{allVifs.length + allVifS.length + allVifC.length}</Badge>
+                      <Badge variant="secondary" className="text-xs px-1.5 py-0 ml-1">{totalEthernetVlans}</Badge>
                     </TabsTrigger>
                     <TabsTrigger value="bonding" className="gap-1.5">
                       Bonding
-                      <Badge variant="secondary" className="text-xs px-1.5 py-0 ml-1">{bondVifs.length + bondVifS.length + bondVifC.length}</Badge>
+                      <Badge variant="secondary" className="text-xs px-1.5 py-0 ml-1">{totalBondingVlans}</Badge>
                     </TabsTrigger>
                   </TabsList>
                 </Tabs>
