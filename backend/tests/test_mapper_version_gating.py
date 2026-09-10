@@ -11,7 +11,10 @@
 
 import pytest
 
+from vyos_builders.babel.babel_batch_builder import BabelBatchBuilder
+from vyos_builders.bgp.bgp_batch_builder import BgpBatchBuilder
 from vyos_builders.ospf.ospf_batch_builder import OspfBatchBuilder
+from vyos_builders.vrf.vrf_batch_builder import VrfBatchBuilder
 from vyos_mappers.firewall.zones_versions import get_firewall_zones_mapper
 from vyos_mappers.interfaces.ethernet_versions import get_ethernet_mapper
 from vyos_mappers.isis.isis_versions.v1_4 import IsisMapperV1_4
@@ -40,6 +43,74 @@ def test_ospf_15_allows_redistribute_nhrp():
     builder = OspfBatchBuilder(version="1.5")
     builder.set_redistribute("nhrp")
     assert builder.get_operations()[-1]["path"][-1] == "nhrp"
+
+
+def test_babel_14_rejects_redistribute_nhrp():
+    builder = BabelBatchBuilder(version="1.4")
+    with pytest.raises(ValueError, match="1.5"):
+        builder.set_redistribute_ipv4("nhrp")
+    with pytest.raises(ValueError, match="1.5"):
+        builder.set_redistribute_ipv6("nhrp")
+    # supported protocols still pass through
+    builder.set_redistribute_ipv4("bgp")
+    assert builder.get_operations()
+
+
+def test_babel_15_allows_redistribute_nhrp():
+    builder = BabelBatchBuilder(version="1.5")
+    builder.set_redistribute_ipv4("nhrp")
+    builder.set_redistribute_ipv6("nhrp")
+    ops = builder.get_operations()
+    assert ops[0]["path"] == ["protocols", "babel", "redistribute", "ipv4", "nhrp"]
+    assert ops[1]["path"] == ["protocols", "babel", "redistribute", "ipv6", "nhrp"]
+
+
+def test_bgp_14_rejects_redistribute_nhrp():
+    builder = BgpBatchBuilder(version="1.4")
+    with pytest.raises(ValueError, match="1.5"):
+        builder.set_af_redistribute("ipv4-unicast", "nhrp")
+    with pytest.raises(ValueError, match="1.5"):
+        builder.set_af_redistribute_metric("ipv4-unicast", "nhrp", "10")
+    with pytest.raises(ValueError, match="1.5"):
+        builder.set_af_redistribute_route_map("ipv4-unicast", "nhrp", "RM")
+    # supported protocols still pass through
+    builder.set_af_redistribute("ipv4-unicast", "connected")
+    assert builder.get_operations()
+
+
+def test_bgp_15_allows_redistribute_nhrp():
+    builder = BgpBatchBuilder(version="1.5")
+    builder.set_af_redistribute("ipv4-unicast", "nhrp")
+    assert builder.get_operations()[-1]["path"][-1] == "nhrp"
+
+
+def test_vrf_bgp_14_rejects_redistribute_nhrp():
+    builder = VrfBatchBuilder(version="1.4")
+    with pytest.raises(ValueError, match="1.5"):
+        builder.set_vrf_bgp_af_redistribute("blue", "ipv4-unicast,nhrp")
+    with pytest.raises(ValueError, match="1.5"):
+        builder.set_vrf_bgp_af_redistribute_metric("blue", "ipv4-unicast,nhrp,10")
+    with pytest.raises(ValueError, match="1.5"):
+        builder.set_vrf_bgp_af_redistribute_route_map("blue", "ipv4-unicast,nhrp,RM")
+
+
+def test_vrf_ospf_14_rejects_redistribute_nhrp():
+    builder = VrfBatchBuilder(version="1.4")
+    with pytest.raises(ValueError, match="1.5"):
+        builder.set_vrf_ospf_redistribute("blue", "nhrp")
+    with pytest.raises(ValueError, match="1.5"):
+        builder.set_vrf_ospf_redistribute_metric("blue", "nhrp,10")
+    with pytest.raises(ValueError, match="1.5"):
+        builder.set_vrf_ospf_redistribute_metric_type("blue", "nhrp,2")
+    with pytest.raises(ValueError, match="1.5"):
+        builder.set_vrf_ospf_redistribute_route_map("blue", "nhrp,RM")
+
+
+def test_vrf_15_allows_redistribute_nhrp():
+    builder = VrfBatchBuilder(version="1.5")
+    builder.set_vrf_bgp_af_redistribute("blue", "ipv4-unicast,nhrp")
+    builder.set_vrf_ospf_redistribute("blue", "nhrp")
+    assert builder.get_operations()
 
 
 @pytest.mark.parametrize("version", ["1.4", "1.4.0", "1.4.4 sagitta"])
