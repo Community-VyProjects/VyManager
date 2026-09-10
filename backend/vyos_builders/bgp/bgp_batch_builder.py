@@ -977,13 +977,26 @@ class BgpBatchBuilder:
         return self.add_delete(self.m.get_af_maximum_paths_delete(afi))
 
     # Redistribute
+
+    # Protocols that only exist as redistribute sources from VyOS 1.5.
+    _V15_ONLY_REDISTRIBUTE = frozenset({"nhrp"})
+
+    def _check_redistribute_supported(self, protocol: str) -> None:
+        if protocol in self._V15_ONLY_REDISTRIBUTE and "1.4" in self.version:
+            raise ValueError(
+                f"redistribute {protocol} requires VyOS 1.5+. "
+                "Current device is running v1.4")
+
     def set_af_redistribute(self, afi: str, protocol: str) -> "BgpBatchBuilder":
+        self._check_redistribute_supported(protocol)
         return self.add_set(self.m.get_af_redistribute(afi, protocol))
 
     def set_af_redistribute_metric(self, afi: str, protocol: str, value: str) -> "BgpBatchBuilder":
+        self._check_redistribute_supported(protocol)
         return self.add_set(self.m.get_af_redistribute_metric(afi, protocol, value))
 
     def set_af_redistribute_route_map(self, afi: str, protocol: str, value: str) -> "BgpBatchBuilder":
+        self._check_redistribute_supported(protocol)
         return self.add_set(self.m.get_af_redistribute_route_map(afi, protocol, value))
 
     def set_af_redistribute_table(self, afi: str, table: str) -> "BgpBatchBuilder":

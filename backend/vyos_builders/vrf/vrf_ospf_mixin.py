@@ -1012,6 +1012,7 @@ class VrfOspfMixin:
 
     def set_vrf_ospf_redistribute(self, name: str, value: str) -> "VrfOspfMixin":
         """Value is the protocol (babel/bgp/connected/isis/kernel/rip/static)."""
+        self._check_redistribute_supported(value)
         path = self.mappers["vrf_ospf"].get_ospf_redistribute(name, value)
         return self.add_set(path)
 
@@ -1024,6 +1025,7 @@ class VrfOspfMixin:
         """Value format: 'protocol,metric'."""
         parts = value.split(",", 1)
         if len(parts) == 2:
+            self._check_redistribute_supported(parts[0])
             path = self.mappers["vrf_ospf"].get_ospf_redistribute_metric(name, parts[0], parts[1])
             return self.add_set(path)
         return self
@@ -1037,6 +1039,7 @@ class VrfOspfMixin:
         """Value format: 'protocol,metric_type'."""
         parts = value.split(",", 1)
         if len(parts) == 2:
+            self._check_redistribute_supported(parts[0])
             path = self.mappers["vrf_ospf"].get_ospf_redistribute_metric_type(name, parts[0], parts[1])
             return self.add_set(path)
         return self
@@ -1050,6 +1053,7 @@ class VrfOspfMixin:
         """Value format: 'protocol,route_map'."""
         parts = value.split(",", 1)
         if len(parts) == 2:
+            self._check_redistribute_supported(parts[0])
             path = self.mappers["vrf_ospf"].get_ospf_redistribute_route_map(name, parts[0], parts[1])
             return self.add_set(path)
         return self
