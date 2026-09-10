@@ -11,7 +11,7 @@ Version-specific logic is in version-specific files.
 """
 
 from typing import List
-from ..base import BaseFeatureMapper
+from ..base import BaseFeatureMapper, reject_nhrp_redistribute_on_14
 
 
 class OspfMapper(BaseFeatureMapper):
@@ -281,15 +281,19 @@ class OspfMapper(BaseFeatureMapper):
     # ========================================================================
 
     def get_redistribute(self, protocol: str) -> List[str]:
+        reject_nhrp_redistribute_on_14(self.version, protocol)
         return self._redistribute(protocol)
 
     def get_redistribute_metric(self, protocol: str, value: str) -> List[str]:
+        reject_nhrp_redistribute_on_14(self.version, protocol)
         return self._redistribute(protocol) + ["metric", value]
 
     def get_redistribute_metric_type(self, protocol: str, value: str) -> List[str]:
+        reject_nhrp_redistribute_on_14(self.version, protocol)
         return self._redistribute(protocol) + ["metric-type", value]
 
     def get_redistribute_route_map(self, protocol: str, value: str) -> List[str]:
+        reject_nhrp_redistribute_on_14(self.version, protocol)
         return self._redistribute(protocol) + ["route-map", value]
 
     def get_redistribute_delete(self, protocol: str) -> List[str]:

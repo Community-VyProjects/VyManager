@@ -82,7 +82,7 @@ If you're adding a new feature, look at an existing one that's similar in comple
 
 - Routers go in `routers/{feature}/`.
 - Builders go in `vyos_builders/{feature}/`.
-- Mappers go in `vyos_mappers/{feature}/` with version subdirectories.
+- Mappers go in `vyos_mappers/{feature}/` with version subdirectories. Path existence belongs in the mapper: a 1.4 mapper must raise on a 1.5-only path. Builders assemble ops and do not version-check command presence.
 - Use the RBAC permission decorators on every endpoint. No unprotected configuration endpoints.
 - Async everywhere. No blocking calls.
 - Sensitive data (API keys, SSH keys, passwords) must be encrypted at rest using the existing encryption utilities.

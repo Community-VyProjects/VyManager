@@ -6,7 +6,7 @@ Version-specific logic is in version-specific files.
 """
 
 from typing import List
-from ..base import BaseFeatureMapper
+from ..base import BaseFeatureMapper, reject_nhrp_redistribute_on_14
 
 
 class BabelMapper(BaseFeatureMapper):
@@ -76,9 +76,17 @@ class BabelMapper(BaseFeatureMapper):
     # ========================================================================
 
     def get_redistribute_ipv4(self, protocol: str) -> List[str]:
+        reject_nhrp_redistribute_on_14(self.version, protocol)
+        return ["protocols", "babel", "redistribute", "ipv4", protocol]
+
+    def get_redistribute_ipv4_delete(self, protocol: str) -> List[str]:
         return ["protocols", "babel", "redistribute", "ipv4", protocol]
 
     def get_redistribute_ipv6(self, protocol: str) -> List[str]:
+        reject_nhrp_redistribute_on_14(self.version, protocol)
+        return ["protocols", "babel", "redistribute", "ipv6", protocol]
+
+    def get_redistribute_ipv6_delete(self, protocol: str) -> List[str]:
         return ["protocols", "babel", "redistribute", "ipv6", protocol]
 
     # ========================================================================

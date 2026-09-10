@@ -9,7 +9,7 @@ Version-specific logic is in version-specific files.
 """
 
 from typing import List
-from ..base import BaseFeatureMapper
+from ..base import BaseFeatureMapper, reject_nhrp_redistribute_on_14
 
 
 class BgpMapper(BaseFeatureMapper):
@@ -831,12 +831,15 @@ class BgpMapper(BaseFeatureMapper):
 
     # Redistribute
     def get_af_redistribute(self, afi: str, protocol: str) -> List[str]:
+        reject_nhrp_redistribute_on_14(self.version, protocol)
         return self._af(afi) + ["redistribute", protocol]
 
     def get_af_redistribute_metric(self, afi: str, protocol: str, value: str) -> List[str]:
+        reject_nhrp_redistribute_on_14(self.version, protocol)
         return self._af(afi) + ["redistribute", protocol, "metric", value]
 
     def get_af_redistribute_route_map(self, afi: str, protocol: str, value: str) -> List[str]:
+        reject_nhrp_redistribute_on_14(self.version, protocol)
         return self._af(afi) + ["redistribute", protocol, "route-map", value]
 
     def get_af_redistribute_table(self, afi: str, table: str) -> List[str]:

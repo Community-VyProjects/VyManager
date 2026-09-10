@@ -27,10 +27,14 @@ Config tree: vrf name <NAME> protocols ospf
 """
 
 from typing import List
+from ..base import reject_nhrp_redistribute_on_14
 
 
 class VrfOspfMapper:
     """Mapper for VRF OSPF paths. Common between VyOS 1.4 and 1.5."""
+
+    def __init__(self, version: str = ""):
+        self.version = version
 
     def _base(self, name: str) -> List[str]:
         return ["vrf", "name", name, "protocols", "ospf"]
@@ -339,15 +343,22 @@ class VrfOspfMapper:
     # ========================================================================
 
     def get_ospf_redistribute(self, name: str, protocol: str) -> List[str]:
+        reject_nhrp_redistribute_on_14(self.version, protocol)
+        return self._base(name) + ["redistribute", protocol]
+
+    def get_ospf_redistribute_delete(self, name: str, protocol: str) -> List[str]:
         return self._base(name) + ["redistribute", protocol]
 
     def get_ospf_redistribute_metric(self, name: str, protocol: str, value: str) -> List[str]:
+        reject_nhrp_redistribute_on_14(self.version, protocol)
         return self._base(name) + ["redistribute", protocol, "metric", value]
 
     def get_ospf_redistribute_metric_type(self, name: str, protocol: str, value: str) -> List[str]:
+        reject_nhrp_redistribute_on_14(self.version, protocol)
         return self._base(name) + ["redistribute", protocol, "metric-type", value]
 
     def get_ospf_redistribute_route_map(self, name: str, protocol: str, value: str) -> List[str]:
+        reject_nhrp_redistribute_on_14(self.version, protocol)
         return self._base(name) + ["redistribute", protocol, "route-map", value]
 
     def get_ospf_redistribute_table(self, name: str, table: str) -> List[str]:

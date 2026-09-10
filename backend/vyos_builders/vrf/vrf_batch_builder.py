@@ -56,15 +56,6 @@ class VrfBatchBuilder(
             self._operations.append({"op": "delete", "path": path})
         return self
 
-    # Protocols that only exist as redistribute sources from VyOS 1.5.
-    _V15_ONLY_REDISTRIBUTE = frozenset({"nhrp"})
-
-    def _check_redistribute_supported(self, protocol: str) -> None:
-        if protocol in self._V15_ONLY_REDISTRIBUTE and "1.4" in self.version:
-            raise ValueError(
-                f"redistribute {protocol} requires VyOS 1.5+. "
-                "Current device is running v1.4")
-
     def get_operations(self) -> List[Dict[str, Any]]:
         return self._operations.copy()
 
