@@ -71,6 +71,8 @@ DYNAMIC_DISPATCH_FILES = [
     "large_community_list/large_community_list.py",
     "route/route.py",
     "route_map/route_map.py",
+    "access_list/access_list.py",
+    "bgp/bgp.py",
 ]
 
 

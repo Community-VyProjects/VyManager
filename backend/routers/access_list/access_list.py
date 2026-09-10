@@ -19,6 +19,13 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/access-list", tags=["access-list"])
 
+# Builder plumbing methods that must not be reachable via a client-supplied
+# operation name in /batch (mirrors as_path_list.py).
+_INTERNAL_BUILDER_METHODS = frozenset({
+    "add_set", "add_delete", "get_operations", "is_empty", "clear",
+    "operation_count", "get_capabilities",
+})
+
 # Stub functions for backwards compatibility with app.py
 def set_device_registry(registry):
     """Legacy function - no longer used."""
@@ -352,7 +359,11 @@ async def access_list_batch_configure(http_request: Request, body: AccessListBat
         
         # Process operations using inspect for dynamic method calls
         for operation in body.operations:
-            method = getattr(builder, operation.op)
+            if operation.op.startswith("_") or operation.op in _INTERNAL_BUILDER_METHODS:
+                raise HTTPException(status_code=400, detail=f"Invalid operation: {operation.op}")
+            method = getattr(builder, operation.op, None)
+            if not callable(method):
+                raise HTTPException(status_code=400, detail=f"Unknown operation: {operation.op}")
             sig = inspect.signature(method)
             params = list(sig.parameters.keys())
 
@@ -384,6 +395,8 @@ async def access_list_batch_configure(http_request: Request, body: AccessListBat
             data={"message": "Configuration updated"},
             error=response.error if response.error else None
         )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
