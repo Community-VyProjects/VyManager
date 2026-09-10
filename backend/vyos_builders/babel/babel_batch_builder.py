@@ -178,7 +178,17 @@ class BabelBatchBuilder:
     # Redistribute Operations
     # ========================================================================
 
+    # Protocols that only exist as redistribute sources from VyOS 1.5.
+    _V15_ONLY_REDISTRIBUTE = frozenset({"nhrp"})
+
+    def _check_redistribute_supported(self, protocol: str) -> None:
+        if protocol in self._V15_ONLY_REDISTRIBUTE and "1.4" in self.version:
+            raise ValueError(
+                f"redistribute {protocol} requires VyOS 1.5+. "
+                "Current device is running v1.4")
+
     def set_redistribute_ipv4(self, protocol: str) -> "BabelBatchBuilder":
+        self._check_redistribute_supported(protocol)
         path = self.mappers[self.mapper_key].get_redistribute_ipv4(protocol)
         return self.add_set(path)
 
@@ -187,6 +197,7 @@ class BabelBatchBuilder:
         return self.add_delete(path)
 
     def set_redistribute_ipv6(self, protocol: str) -> "BabelBatchBuilder":
+        self._check_redistribute_supported(protocol)
         path = self.mappers[self.mapper_key].get_redistribute_ipv6(protocol)
         return self.add_set(path)
 

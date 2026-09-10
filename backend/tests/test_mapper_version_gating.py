@@ -11,6 +11,7 @@
 
 import pytest
 
+from vyos_builders.babel.babel_batch_builder import BabelBatchBuilder
 from vyos_builders.ospf.ospf_batch_builder import OspfBatchBuilder
 from vyos_mappers.firewall.zones_versions import get_firewall_zones_mapper
 from vyos_mappers.interfaces.ethernet_versions import get_ethernet_mapper
@@ -40,6 +41,26 @@ def test_ospf_15_allows_redistribute_nhrp():
     builder = OspfBatchBuilder(version="1.5")
     builder.set_redistribute("nhrp")
     assert builder.get_operations()[-1]["path"][-1] == "nhrp"
+
+
+def test_babel_14_rejects_redistribute_nhrp():
+    builder = BabelBatchBuilder(version="1.4")
+    with pytest.raises(ValueError, match="1.5"):
+        builder.set_redistribute_ipv4("nhrp")
+    with pytest.raises(ValueError, match="1.5"):
+        builder.set_redistribute_ipv6("nhrp")
+    # supported protocols still pass through
+    builder.set_redistribute_ipv4("bgp")
+    assert builder.get_operations()
+
+
+def test_babel_15_allows_redistribute_nhrp():
+    builder = BabelBatchBuilder(version="1.5")
+    builder.set_redistribute_ipv4("nhrp")
+    builder.set_redistribute_ipv6("nhrp")
+    ops = builder.get_operations()
+    assert ops[0]["path"] == ["protocols", "babel", "redistribute", "ipv4", "nhrp"]
+    assert ops[1]["path"] == ["protocols", "babel", "redistribute", "ipv6", "nhrp"]
 
 
 @pytest.mark.parametrize("version", ["1.4", "1.4.0", "1.4.4 sagitta"])
