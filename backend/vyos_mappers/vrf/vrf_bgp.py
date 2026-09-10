@@ -12,10 +12,14 @@ bmp local-rib, peer-group solo) will be in version-specific files.
 """
 
 from typing import List
+from ..base import reject_nhrp_redistribute_on_14
 
 
 class VrfBgpMapper:
     """Mapper for VRF BGP paths. Common between VyOS 1.4 and 1.5."""
+
+    def __init__(self, version: str = ""):
+        self.version = version
 
     def _base(self, name: str) -> List[str]:
         return ["vrf", "name", name, "protocols", "bgp"]
@@ -911,12 +915,15 @@ class VrfBgpMapper:
 
     # Redistribute
     def get_bgp_af_redistribute(self, name: str, afi: str, protocol: str) -> List[str]:
+        reject_nhrp_redistribute_on_14(self.version, protocol)
         return self._af(name, afi) + ["redistribute", protocol]
 
     def get_bgp_af_redistribute_metric(self, name: str, afi: str, protocol: str, value: str) -> List[str]:
+        reject_nhrp_redistribute_on_14(self.version, protocol)
         return self._af(name, afi) + ["redistribute", protocol, "metric", value]
 
     def get_bgp_af_redistribute_route_map(self, name: str, afi: str, protocol: str, value: str) -> List[str]:
+        reject_nhrp_redistribute_on_14(self.version, protocol)
         return self._af(name, afi) + ["redistribute", protocol, "route-map", value]
 
     def get_bgp_af_redistribute_table(self, name: str, afi: str, table: str) -> List[str]:

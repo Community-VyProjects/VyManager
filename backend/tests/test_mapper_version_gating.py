@@ -15,9 +15,14 @@ from vyos_builders.babel.babel_batch_builder import BabelBatchBuilder
 from vyos_builders.bgp.bgp_batch_builder import BgpBatchBuilder
 from vyos_builders.ospf.ospf_batch_builder import OspfBatchBuilder
 from vyos_builders.vrf.vrf_batch_builder import VrfBatchBuilder
+from vyos_mappers.babel.babel_versions import get_babel_mapper
+from vyos_mappers.bgp.bgp_versions import get_bgp_mapper
 from vyos_mappers.firewall.zones_versions import get_firewall_zones_mapper
 from vyos_mappers.interfaces.ethernet_versions import get_ethernet_mapper
 from vyos_mappers.isis.isis_versions.v1_4 import IsisMapperV1_4
+from vyos_mappers.ospf.ospf_versions import get_ospf_mapper
+from vyos_mappers.vrf.vrf_bgp import VrfBgpMapper
+from vyos_mappers.vrf.vrf_ospf import VrfOspfMapper
 
 
 def test_isis_v14_rejects_ti_lfa_instead_of_silent_noop():
@@ -28,6 +33,33 @@ def test_isis_v14_rejects_ti_lfa_instead_of_silent_noop():
         mapper.get_sr_srv6_locator_path("LOC1")
     with pytest.raises(ValueError, match="1.5"):
         mapper.get_te_export_path()
+
+
+def test_mappers_14_reject_redistribute_nhrp():
+    babel = get_babel_mapper("1.4")
+    with pytest.raises(ValueError, match="1.5"):
+        babel.get_redistribute_ipv4("nhrp")
+    with pytest.raises(ValueError, match="1.5"):
+        babel.get_redistribute_ipv6("nhrp")
+    ospf = get_ospf_mapper("1.4")
+    with pytest.raises(ValueError, match="1.5"):
+        ospf.get_redistribute("nhrp")
+    bgp = get_bgp_mapper("1.4")
+    with pytest.raises(ValueError, match="1.5"):
+        bgp.get_af_redistribute("ipv4-unicast", "nhrp")
+    vrf_ospf = VrfOspfMapper("1.4")
+    with pytest.raises(ValueError, match="1.5"):
+        vrf_ospf.get_ospf_redistribute("blue", "nhrp")
+    vrf_bgp = VrfBgpMapper("1.4")
+    with pytest.raises(ValueError, match="1.5"):
+        vrf_bgp.get_bgp_af_redistribute("blue", "ipv4-unicast", "nhrp")
+
+
+def test_mappers_14_delete_redistribute_nhrp():
+    babel = get_babel_mapper("1.4")
+    assert babel.get_redistribute_ipv4_delete("nhrp")[-1] == "nhrp"
+    assert get_ospf_mapper("1.4").get_redistribute_delete("nhrp")[-1] == "nhrp"
+    assert VrfOspfMapper("1.4").get_ospf_redistribute_delete("blue", "nhrp")[-1] == "nhrp"
 
 
 def test_ospf_14_rejects_redistribute_nhrp():
@@ -54,6 +86,8 @@ def test_babel_14_rejects_redistribute_nhrp():
     # supported protocols still pass through
     builder.set_redistribute_ipv4("bgp")
     assert builder.get_operations()
+    builder.delete_redistribute_ipv4("nhrp")
+    assert builder.get_operations()[-1]["op"] == "delete"
 
 
 def test_babel_15_allows_redistribute_nhrp():

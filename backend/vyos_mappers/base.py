@@ -8,6 +8,18 @@ from abc import ABC, abstractmethod
 from typing import List, Dict, Type, Union, Callable
 
 
+def reject_nhrp_redistribute_on_14(version: str, protocol: str) -> None:
+    """Raise when a 1.4 mapper is asked to emit redistribute nhrp.
+
+    Deletes must not call this. Removing a stale 1.4-invalid node is a no-op
+    on the router and should still succeed through the API.
+    """
+    if protocol == "nhrp" and "1.4" in version:
+        raise ValueError(
+            "redistribute nhrp requires VyOS 1.5+. "
+            "Current device is running v1.4")
+
+
 class BaseFeatureMapper(ABC):
     """
     Base class for feature-specific mappers.

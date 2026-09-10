@@ -1501,7 +1501,6 @@ class VrfBgpMixin:
         """Value format: 'afi,protocol'."""
         parts = value.split(",", 1)
         if len(parts) == 2:
-            self._check_redistribute_supported(parts[1])
             path = self.mappers["vrf_bgp"].get_bgp_af_redistribute(name, parts[0], parts[1])
             return self.add_set(path)
         return self
@@ -1510,7 +1509,6 @@ class VrfBgpMixin:
         """Value format: 'afi,protocol,metric'."""
         parts = value.split(",", 2)
         if len(parts) == 3:
-            self._check_redistribute_supported(parts[1])
             path = self.mappers["vrf_bgp"].get_bgp_af_redistribute_metric(name, parts[0], parts[1], parts[2])
             return self.add_set(path)
         return self
@@ -1519,7 +1517,6 @@ class VrfBgpMixin:
         """Value format: 'afi,protocol,route-map'."""
         parts = value.split(",", 2)
         if len(parts) == 3:
-            self._check_redistribute_supported(parts[1])
             path = self.mappers["vrf_bgp"].get_bgp_af_redistribute_route_map(name, parts[0], parts[1], parts[2])
             return self.add_set(path)
         return self
