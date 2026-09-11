@@ -8085,26 +8085,8 @@
           "config"
         ],
         "summary": "Save Config",
-        "description": "Save the current running configuration to disk for the active instance.\n\nThis calls VyOS's config-file save operation to write the running config\nto /config/config.boot. After successful save, updates the snapshot to\nmatch the current config.\n\nArgs:\n    file: Optional path to save config to (default is /config/config.boot)",
+        "description": "Save the current running configuration to disk for the active instance.\n\nThis calls VyOS's config-file save operation to write the running config\nto /config/config.boot. After successful save, updates the snapshot to\nmatch the current config.",
         "operationId": "save_config_vyos_config_save_post",
-        "parameters": [
-          {
-            "name": "file",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "File"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -8112,16 +8094,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SaveConfigResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
