@@ -18,7 +18,7 @@ import logging
 
 from middleware.auth import get_current_user
 from api_token_crypto import generate_api_token
-from fastapi_permissions import is_read_only_token
+from fastapi_permissions import reject_read_only_token
 
 logger = logging.getLogger(__name__)
 
@@ -82,11 +82,10 @@ def _row_to_metadata(row: asyncpg.Record) -> TokenMetadata:
 
 def _reject_read_only(request: Request) -> None:
     """Read-only tokens manage nothing — block them from minting/revoking tokens."""
-    if is_read_only_token(request):
-        raise HTTPException(
-            status_code=403,
-            detail="This API token is read-only and cannot manage tokens."
-        )
+    reject_read_only_token(
+        request,
+        detail="This API token is read-only and cannot manage tokens.",
+    )
 
 
 @router.post("", response_model=TokenCreateResponse)

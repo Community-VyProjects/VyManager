@@ -35,6 +35,15 @@ def is_read_only_token(request: Request) -> bool:
     return bool(scopes) and "read" in scopes
 
 
+def reject_read_only_token(
+    request: Request,
+    detail: str = "This API token is read-only and cannot perform write operations.",
+) -> None:
+    """403 if this request was authenticated with a read-only API token."""
+    if is_read_only_token(request):
+        raise HTTPException(status_code=403, detail=detail)
+
+
 async def require_permission(
     request: Request,
     feature: FeatureGroup,
@@ -64,11 +73,8 @@ async def require_permission(
 
     # Read-only API tokens cannot write — enforced before the site-ADMIN bypass
     # so even an admin's read-only token is denied write operations.
-    if level == PermissionLevel.WRITE and is_read_only_token(request):
-        raise HTTPException(
-            status_code=403,
-            detail="This API token is read-only and cannot perform write operations."
-        )
+    if level == PermissionLevel.WRITE:
+        reject_read_only_token(request)
 
     # The active instance is resolved by SessionMiddleware for both auth paths:
     # the browser cookie session, or (for token clients) the X-VyOS-Instance-Id
