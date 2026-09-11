@@ -84,6 +84,15 @@ class VrfOspfMapper:
     def get_ospf_area_type_stub_no_summary(self, name: str, area: str) -> List[str]:
         return self._base(name) + ["area", area, "area-type", "stub", "no-summary"]
 
+    def get_ospf_area_type_stub_default_cost_delete(self, name: str, area: str) -> List[str]:
+        return self._base(name) + ["area", area, "area-type", "stub", "default-cost"]
+
+    def get_ospf_area_type_nssa_default_cost_delete(self, name: str, area: str) -> List[str]:
+        return self._base(name) + ["area", area, "area-type", "nssa", "default-cost"]
+
+    def get_ospf_area_type_nssa_translate_delete(self, name: str, area: str) -> List[str]:
+        return self._base(name) + ["area", area, "area-type", "nssa", "translate"]
+
     # --- Area Authentication ---
 
     def get_ospf_area_authentication(self, name: str, area: str, value: str) -> List[str]:
@@ -211,6 +220,9 @@ class VrfOspfMapper:
 
     def get_ospf_interface(self, name: str, iface: str) -> List[str]:
         return self._base(name) + ["interface", iface]
+
+    def get_ospf_interface_authentication(self, name: str, iface: str) -> List[str]:
+        return self.get_ospf_interface(name, iface) + ["authentication"]
 
     def get_ospf_interface_area(self, name: str, iface: str, value: str) -> List[str]:
         return self._base(name) + ["interface", iface, "area", value]

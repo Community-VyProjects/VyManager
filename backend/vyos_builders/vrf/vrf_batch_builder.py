@@ -4,10 +4,8 @@ VRF Batch Builder
 Provides all batch operations for VRF (Virtual Routing and Forwarding) configuration.
 Handles version-specific differences through the mapper layer.
 
-Inherits from protocol/service mixins to support full VRF subtree management:
-- Static routes, RPKI, Failover
-- OSPF, OSPFv3, ISIS, BGP
-- DHCP server, DHCPv6 server
+Inherits from service mixins and prefixes global protocol builders for
+OSPF, OSPFv3, ISIS, and BGP (vrf name <vrf> + the global protocol tree).
 """
 
 from typing import List, Dict, Any
@@ -15,22 +13,15 @@ from vyos_mappers import CommandMapperRegistry
 from .vrf_static_mixin import VrfStaticMixin
 from .vrf_rpki_mixin import VrfRpkiMixin
 from .vrf_failover_mixin import VrfFailoverMixin
-from .vrf_ospf_mixin import VrfOspfMixin
-from .vrf_ospfv3_mixin import VrfOspfv3Mixin
-from .vrf_isis_mixin import VrfIsisMixin
-from .vrf_bgp_mixin import VrfBgpMixin
 from .vrf_dhcp_mixin import VrfDhcpMixin
 from .vrf_dhcpv6_mixin import VrfDhcpv6Mixin
+from .vrf_protocol import parse_vrf_protocol_op, run_vrf_protocol_op, vrf_protocol_op_exists
 
 
 class VrfBatchBuilder(
     VrfStaticMixin,
     VrfRpkiMixin,
     VrfFailoverMixin,
-    VrfOspfMixin,
-    VrfOspfv3Mixin,
-    VrfIsisMixin,
-    VrfBgpMixin,
     VrfDhcpMixin,
     VrfDhcpv6Mixin,
 ):
@@ -55,6 +46,19 @@ class VrfBatchBuilder(
             ),
             version,
         )
+
+    def __getattr__(self, name: str):
+        parsed = parse_vrf_protocol_op(name)
+        if parsed is None:
+            raise AttributeError(name)
+        verb, proto, suffix = parsed
+        if not vrf_protocol_op_exists(self, verb, proto, suffix):
+            raise AttributeError(name)
+
+        def _op(vrf_name: str, value: str | None = None) -> "VrfBatchBuilder":
+            return run_vrf_protocol_op(self, verb, proto, suffix, vrf_name, value)
+
+        return _op
 
     # ========================================================================
     # Core Batch Operations

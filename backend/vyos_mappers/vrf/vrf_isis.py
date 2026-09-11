@@ -164,6 +164,9 @@ class VrfIsisMapper:
     def get_isis_interface(self, name: str, iface: str) -> List[str]:
         return self._base(name) + ["interface", iface]
 
+    def get_isis_interface_password(self, name: str, iface: str) -> List[str]:
+        return self.get_isis_interface(name, iface) + ["password"]
+
     def get_isis_interface_bfd(self, name: str, iface: str) -> List[str]:
         return self._base(name) + ["interface", iface, "bfd"]
 
@@ -360,8 +363,14 @@ class VrfIsisMapper:
     def get_isis_segment_routing_maximum_label_depth(self, name: str, value: str) -> List[str]:
         return self._base(name) + ["segment-routing", "maximum-label-depth", value]
 
+    def get_isis_segment_routing_prefix(self, name: str, prefix: str) -> List[str]:
+        return self._base(name) + ["segment-routing", "prefix", prefix]
+
     def get_isis_segment_routing_prefix_index_value(self, name: str, prefix: str, value: str) -> List[str]:
         return self._base(name) + ["segment-routing", "prefix", prefix, "index", "value", value]
+
+    def get_isis_segment_routing_prefix_index_value_delete(self, name: str, prefix: str) -> List[str]:
+        return self._base(name) + ["segment-routing", "prefix", prefix, "index", "value"]
 
     def get_isis_segment_routing_prefix_index_explicit_null(self, name: str, prefix: str) -> List[str]:
         return self._base(name) + ["segment-routing", "prefix", prefix, "index", "explicit-null"]
@@ -371,6 +380,9 @@ class VrfIsisMapper:
 
     def get_isis_segment_routing_prefix_absolute_value(self, name: str, prefix: str, value: str) -> List[str]:
         return self._base(name) + ["segment-routing", "prefix", prefix, "absolute", "value", value]
+
+    def get_isis_segment_routing_prefix_absolute_value_delete(self, name: str, prefix: str) -> List[str]:
+        return self._base(name) + ["segment-routing", "prefix", prefix, "absolute", "value"]
 
     def get_isis_segment_routing_prefix_absolute_explicit_null(self, name: str, prefix: str) -> List[str]:
         return self._base(name) + ["segment-routing", "prefix", prefix, "absolute", "explicit-null"]

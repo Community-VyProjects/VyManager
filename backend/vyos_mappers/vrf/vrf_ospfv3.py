@@ -89,6 +89,33 @@ class VrfOspfv3Mapper:
     def get_ospfv3_area_area_type_nssa_default_information_originate(self, name: str, area: str) -> List[str]:
         return self._base(name) + ["area", area, "area-type", "nssa", "default-information-originate"]
 
+    def get_ospfv3_area_type_stub(self, name: str, area: str) -> List[str]:
+        return self.get_ospfv3_area_area_type_stub(name, area)
+
+    def get_ospfv3_area_type_stub_default_cost(self, name: str, area: str, value: str) -> List[str]:
+        return self.get_ospfv3_area_area_type_stub_default_cost(name, area, value)
+
+    def get_ospfv3_area_type_stub_no_summary(self, name: str, area: str) -> List[str]:
+        return self.get_ospfv3_area_area_type_stub_no_summary(name, area)
+
+    def get_ospfv3_area_type_nssa(self, name: str, area: str) -> List[str]:
+        return self.get_ospfv3_area_area_type_nssa(name, area)
+
+    def get_ospfv3_area_type_nssa_default_cost(self, name: str, area: str, value: str) -> List[str]:
+        return self.get_ospfv3_area_area_type_nssa_default_cost(name, area, value)
+
+    def get_ospfv3_area_type_nssa_no_summary(self, name: str, area: str) -> List[str]:
+        return self.get_ospfv3_area_area_type_nssa_no_summary(name, area)
+
+    def get_ospfv3_area_type_nssa_default_information_originate(self, name: str, area: str) -> List[str]:
+        return self.get_ospfv3_area_area_type_nssa_default_information_originate(name, area)
+
+    def get_ospfv3_area_type_stub_default_cost_delete(self, name: str, area: str) -> List[str]:
+        return self.get_ospfv3_area_area_type_stub(name, area) + ["default-cost"]
+
+    def get_ospfv3_area_type_nssa_default_cost_delete(self, name: str, area: str) -> List[str]:
+        return self.get_ospfv3_area_area_type_nssa(name, area) + ["default-cost"]
+
     # ========================================================================
     # Auto-Cost
     # ========================================================================
