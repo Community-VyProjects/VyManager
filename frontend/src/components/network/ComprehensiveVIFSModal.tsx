@@ -719,7 +719,6 @@ export function ComprehensiveVIFSModal({
                       <div className="space-y-2">
                         <Label htmlFor="ipv6-interface-id">Interface Identifier</Label>
                         <Input id="ipv6-interface-id" placeholder="::1" value={ipv6InterfaceIdentifier} onChange={(e) => setIpv6InterfaceIdentifier(e.target.value)} />
-                        <p className="text-xs text-muted-foreground">VyOS 1.5+ only</p>
                       </div>
                     )}
                   </div>
@@ -831,13 +830,13 @@ export function ComprehensiveVIFSModal({
                     {feat?.vif_dhcpv6_options_no_request_dns && (
                       <div className="flex items-center space-x-2">
                         <Checkbox id="dhcpv6-no-request-dns" checked={dhcpv6NoRequestDns} onCheckedChange={(c) => setDhcpv6NoRequestDns(c as boolean)} />
-                        <Label htmlFor="dhcpv6-no-request-dns" className="cursor-pointer text-sm">No Request DNS (1.5+)</Label>
+                        <Label htmlFor="dhcpv6-no-request-dns" className="cursor-pointer text-sm">No Request DNS</Label>
                       </div>
                     )}
                     {feat?.vif_dhcpv6_options_no_request_domain_name && (
                       <div className="flex items-center space-x-2">
                         <Checkbox id="dhcpv6-no-request-domain-name" checked={dhcpv6NoRequestDomainName} onCheckedChange={(c) => setDhcpv6NoRequestDomainName(c as boolean)} />
-                        <Label htmlFor="dhcpv6-no-request-domain-name" className="cursor-pointer text-sm">No Request Domain (1.5+)</Label>
+                        <Label htmlFor="dhcpv6-no-request-domain-name" className="cursor-pointer text-sm">No Request Domain</Label>
                       </div>
                     )}
                   </div>
