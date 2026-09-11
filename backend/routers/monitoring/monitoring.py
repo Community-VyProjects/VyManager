@@ -11,7 +11,6 @@ Architecture:
 
 import asyncio
 import logging
-import os
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -32,6 +31,7 @@ from org_scope import (
 import revocation_bus
 from session_cookie import verify_session_cookie
 from ssh_key_manager import decrypt_private_key, generate_keypair
+from trusted_origins import websocket_origin_allowed
 
 logger = logging.getLogger(__name__)
 
@@ -43,12 +43,6 @@ _active_sessions: dict[str, asyncio.Task] = {}
 # Timeouts
 IDLE_TIMEOUT_SECONDS = 300   # 5 minutes
 MAX_DURATION_SECONDS = 1800  # 30 minutes
-
-# Defense against Cross-Site WebSocket Hijacking: only accept connections whose
-# Origin header matches an entry in TRUSTED_ORIGINS (comma-separated). Falls back
-# to FRONTEND_URL if TRUSTED_ORIGINS is not set.
-_trusted_origins_raw = os.getenv("TRUSTED_ORIGINS") or os.getenv("FRONTEND_URL", "")
-_TRUSTED_ORIGINS = {o.strip() for o in _trusted_origins_raw.split(",") if o.strip()}
 
 
 # ============================================================================
@@ -275,7 +269,7 @@ async def websocket_monitor(websocket: WebSocket):
     # Origin allowlist (defense against Cross-Site WebSocket Hijacking). Done
     # BEFORE accept() so a forged cross-origin handshake never gets upgraded.
     origin = websocket.headers.get("origin")
-    if _TRUSTED_ORIGINS and (not origin or origin not in _TRUSTED_ORIGINS):
+    if not websocket_origin_allowed(origin):
         logger.warning("Rejected monitoring WebSocket from untrusted origin: %r", origin)
         await websocket.close(code=1008)  # Policy Violation
         return

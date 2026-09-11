@@ -20,7 +20,6 @@ WebSocket protocol:
 
 import asyncio
 import logging
-import os
 from datetime import datetime
 from typing import Optional
 
@@ -35,6 +34,7 @@ import revocation_bus
 from rbac_permissions import FeatureGroup, PermissionLevel, check_permission
 from session_cookie import verify_session_cookie
 from ssh_key_manager import decrypt_private_key
+from trusted_origins import websocket_origin_allowed
 
 logger = logging.getLogger(__name__)
 
@@ -50,12 +50,6 @@ DEFAULT_COLS = 220
 DEFAULT_ROWS = 50
 MAX_COLS = 500
 MAX_ROWS = 500
-
-# Defense against Cross-Site WebSocket Hijacking: only accept connections whose
-# Origin header matches an entry in TRUSTED_ORIGINS (comma-separated). Falls back
-# to FRONTEND_URL if TRUSTED_ORIGINS is not set.
-_trusted_origins_raw = os.getenv("TRUSTED_ORIGINS") or os.getenv("FRONTEND_URL", "")
-_TRUSTED_ORIGINS = {o.strip() for o in _trusted_origins_raw.split(",") if o.strip()}
 
 # Hard cap on a single inbound WebSocket "input" payload (raw stdin bytes).
 # Real keystrokes and pastes are tiny; anything larger is almost certainly abuse.
@@ -128,7 +122,7 @@ async def websocket_console(websocket: WebSocket):
 
     origin = websocket.headers.get("origin")
 
-    if _TRUSTED_ORIGINS and (not origin or origin not in _TRUSTED_ORIGINS):
+    if not websocket_origin_allowed(origin):
         logger.warning(
             "Rejected console WebSocket from untrusted origin: %r",
             origin,
