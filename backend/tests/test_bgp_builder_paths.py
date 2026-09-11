@@ -15,6 +15,8 @@ CASES = [
     ("delete_timers_holdtime", (), "delete", ["protocols", "bgp", "timers", "holdtime"]),
     ("set_parameters_router_id", ("192.0.2.10",), "set", ["protocols", "bgp", "parameters", "router-id", "192.0.2.10"]),
     ("set_parameters_log_neighbor_changes", (), "set", ["protocols", "bgp", "parameters", "log-neighbor-changes"]),
+    ("set_parameters_no_ipv6_auto_ra", (), "set", ["protocols", "bgp", "parameters", "no-ipv6-auto-ra"]),
+    ("delete_parameters_no_ipv6_auto_ra", (), "delete", ["protocols", "bgp", "parameters", "no-ipv6-auto-ra"]),
     ("delete_parameters_bestpath_bandwidth", (), "delete", ["protocols", "bgp", "parameters", "bestpath", "bandwidth"]),
     ("set_neighbor", (NEIGHBOR,), "set", ["protocols", "bgp", "neighbor", NEIGHBOR]),
     ("set_neighbor_remote_as", (NEIGHBOR, "65100"), "set", ["protocols", "bgp", "neighbor", NEIGHBOR, "remote-as", "65100"]),

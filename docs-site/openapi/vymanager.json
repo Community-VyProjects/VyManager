@@ -18834,6 +18834,7 @@
               "shutdown": false,
               "no_hard_administrative_reset": false,
               "no_suppress_duplicates": false,
+              "no_ipv6_auto_ra": false,
               "bestpath": {
                 "as_path_confed": false,
                 "as_path_ignore": false,
@@ -19816,6 +19817,11 @@
           "no_suppress_duplicates": {
             "type": "boolean",
             "title": "No Suppress Duplicates",
+            "default": false
+          },
+          "no_ipv6_auto_ra": {
+            "type": "boolean",
+            "title": "No Ipv6 Auto Ra",
             "default": false
           },
           "bestpath": {
@@ -23091,11 +23097,6 @@
           "system_flow_accounting": {
             "type": "boolean",
             "title": "System Flow Accounting",
-            "default": false
-          },
-          "system_login": {
-            "type": "boolean",
-            "title": "System Login",
             "default": false
           },
           "system_option": {
