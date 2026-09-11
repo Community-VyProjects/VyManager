@@ -90,29 +90,37 @@ class PPPoEPpsTracker:
 
 
 class PPPoEStatsStore:
-    """Backend-owned cache honoring a configurable rolling sample window.
+    """Backend-owned cache with a configurable sample window.
 
-    The store enforces a load-splitting policy: if the API sees N active PPPoE
-    sessions, then each session interface is sampled at most once every
-    poll_window_seconds / N seconds, effectively spreading the sampling burst
-    across the whole configured window.
+    The intention is that each PPPoE interface should be sampled at most once
+    per window cycle and the load is spread dynamically across the active
+    sessions count.
     """
 
     def __init__(
         self,
         poll_window_seconds: int = 300,
-        max_concurrent_samples: int = 20,
+        sample_batch_size: int = 1,
+        max_concurrent_samples: int = 1,
         min_sample_interval: float = 1.0,
     ) -> None:
-        self.poll_window_seconds = int(os.getenv("PPPOE_STATS_POLL_WINDOW_SECONDS", str(poll_window_seconds)))
-        self.max_concurrent_samples = int(os.getenv("PPPOE_STATS_POLL_CONCURRENCY", str(max_concurrent_samples)))
+        self.poll_window_seconds = int(
+            os.getenv("PPPOE_STATS_POLL_WINDOW_SECONDS", str(poll_window_seconds))
+        )
+        self.sample_batch_size = int(
+            os.getenv("PPPOE_STATS_SAMPLE_BATCH_SIZE", str(sample_batch_size))
+        )
+        self.max_concurrent_samples = int(
+            os.getenv("PPPOE_STATS_POLL_CONCURRENCY", str(max_concurrent_samples))
+        )
         self.min_sample_interval = float(min_sample_interval)
         self._last_sample_at: Dict[str, float] = {}
         self._snapshots: Dict[str, Dict[str, Any]] = {}
         self._tracker = PPPoEPpsTracker(min_sample_interval=self.min_sample_interval)
+        self._rotate = 0
 
     def sample_interval_for_session_count(self, session_count: int) -> float:
-        """Return the dynamic per-session sample cadence for the current light load."""
+        """Return the per-session sample cadence, assuming one sample per session per window."""
         if session_count <= 0:
             return float(self.poll_window_seconds)
         return max(float(self.poll_window_seconds) / float(session_count), 1.0)
@@ -128,23 +136,22 @@ class PPPoEStatsStore:
             session.tx_pps = cache.get("tx_pps", session.tx_pps)
 
     async def sample_due_sessions(self, service, sessions: List[PPPoESession]) -> None:
-        """Sample only sessions whose per-session cadence says they are now due.
+        """Sample only a tiny round-robin subset of sessions each sessions read.
 
-        Due sessions are decided uniformly across the configured polling window,
-        which means the total request pressure is spread by session count instead
-        of hitting every interface on every sessions call.
+        This keeps PPS and packet counter updates backend-owned while making the
+        request pressure far lighter: the API only asks for one interface's
+        statistics table per response instead of issuing one per session.
         """
         if not sessions:
             return
 
         session_count = len(sessions)
         sample_interval = self.sample_interval_for_session_count(session_count)
-        due_sessions: List[PPPoESession] = []
         now = time.monotonic()
 
+        due_sessions = []
         for session in sessions:
-            interface = session.interface
-            last_sample_at = self._last_sample_at.get(interface)
+            last_sample_at = self._last_sample_at.get(session.interface)
             if last_sample_at is None or (now - last_sample_at) >= sample_interval:
                 due_sessions.append(session)
 
@@ -152,12 +159,18 @@ class PPPoEStatsStore:
             self.annotate_sessions_from_cache(sessions)
             return
 
+        # Rotate the due list so we do not hammer the same interfaces repeatedly
+        # and spread the requests evenly through the configured window.
+        batch_size = min(self.sample_batch_size, len(due_sessions))
+        start = self._rotate % len(due_sessions)
+        ordered_due = due_sessions[start:] + due_sessions[:start]
+        selected_sessions = ordered_due[:batch_size]
+        self._rotate = (self._rotate + batch_size) % len(due_sessions)
+
         semaphore = asyncio.Semaphore(self.max_concurrent_samples)
 
         async def fetch_one(session: PPPoESession) -> None:
             async with semaphore:
-                # Block out access into the VyOS device API using a threadpool and
-                # avoid starving the event loop while the backend samples stats.
                 stats_response = await run_in_threadpool(
                     service.device.show,
                     path=["interfaces", "pppoe", session.interface, "statistics"],
@@ -190,10 +203,13 @@ class PPPoEStatsStore:
             session.rx_pps = rx_pps
             session.tx_pps = tx_pps
 
-        try:
-            await asyncio.gather(*(fetch_one(session) for session in due_sessions))
-        finally:
-            self.annotate_sessions_from_cache(sessions)
+        for session in selected_sessions:
+            try:
+                await fetch_one(session)
+            except Exception:
+                logger.exception("Unhandled error while sampling PPPoE interface statistics for %s", session.interface)
+
+        self.annotate_sessions_from_cache(sessions)
 
 
 def _parse_bytes(value: str) -> int:
