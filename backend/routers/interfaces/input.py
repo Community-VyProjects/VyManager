@@ -31,8 +31,6 @@ router = APIRouter(prefix="/vyos/input", tags=["input-interface"])
 # ============================================================================
 
 
-
-
 class InputInterfaceConfig(BaseModel):
     name: str
     type: str

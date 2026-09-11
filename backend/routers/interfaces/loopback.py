@@ -32,8 +32,6 @@ router = APIRouter(prefix="/vyos/loopback", tags=["loopback-interface"])
 # ============================================================================
 
 
-
-
 class LoopbackInterfaceConfig(BaseModel):
     name: str
     type: str

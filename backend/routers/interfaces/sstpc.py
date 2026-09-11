@@ -32,8 +32,6 @@ router = APIRouter(prefix="/vyos/sstpc", tags=["sstpc-interface"])
 # ============================================================================
 
 
-
-
 class SstpcAuthentication(BaseModel):
     username: Optional[str] = None
     password: Optional[str] = None

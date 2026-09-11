@@ -33,8 +33,6 @@ router = APIRouter(prefix="/vyos/pseudo-ethernet", tags=["pseudo-ethernet-interf
 # ============================================================================
 
 
-
-
 class DhcpOptions(BaseModel):
     client_id: Optional[str] = None
     host_name: Optional[str] = None

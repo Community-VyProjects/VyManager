@@ -32,8 +32,6 @@ router = APIRouter(prefix="/vyos/pppoe", tags=["pppoe-interface"])
 # ============================================================================
 
 
-
-
 class PppoeAuthentication(BaseModel):
     username: Optional[str] = None
     password: Optional[str] = None

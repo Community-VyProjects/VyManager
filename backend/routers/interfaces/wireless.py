@@ -32,8 +32,6 @@ router = APIRouter(prefix="/vyos/wireless", tags=["wireless-interface"])
 # ============================================================================
 
 
-
-
 class WpaRadiusServer(BaseModel):
     server: str
     key: Optional[str] = None

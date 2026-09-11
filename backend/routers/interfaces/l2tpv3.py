@@ -30,8 +30,6 @@ router = APIRouter(prefix="/vyos/l2tpv3", tags=["l2tpv3-interface"])
 # ============================================================================
 
 
-
-
 class L2TPv3InterfaceConfig(BaseModel):
     name: str
     type: str

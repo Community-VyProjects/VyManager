@@ -147,3 +147,21 @@ def test_builder_error_becomes_500():
     with pytest.raises(HTTPException) as ei:
         run_interface_batch(service, Boom(), req)
     assert ei.value.status_code == 500
+
+
+def test_version_gate_not_implemented_becomes_400():
+    # Builders raise NotImplementedError for version-gated operations; the
+    # dispatcher maps that to 400, not the generic 500.
+    class Gated(FakeBuilder):
+        def set_interface_disable(self, interface):
+            raise NotImplementedError("requires VyOS 1.5")
+
+    service = FakeService()
+    req = BatchRequest(
+        interface="eth0",
+        operations=[BatchOperation(op="set_interface_disable")],
+    )
+    with pytest.raises(HTTPException) as ei:
+        run_interface_batch(service, Gated(), req)
+    assert ei.value.status_code == 400
+    assert "not supported" in ei.value.detail

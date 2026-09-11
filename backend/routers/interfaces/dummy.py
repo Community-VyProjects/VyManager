@@ -31,8 +31,6 @@ router = APIRouter(prefix="/vyos/dummy", tags=["dummy-interface"])
 # ============================================================================
 
 
-
-
 class DummyInterfaceConfig(BaseModel):
     name: str
     type: str

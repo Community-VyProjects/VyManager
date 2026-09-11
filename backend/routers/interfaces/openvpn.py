@@ -34,8 +34,6 @@ router = APIRouter(prefix="/vyos/openvpn", tags=["openvpn-interface"])
 # ============================================================================
 
 
-
-
 class OpenvpnAuthentication(BaseModel):
     username: Optional[str] = None
     password: Optional[str] = None
@@ -305,6 +303,13 @@ async def batch_configure(http_request: Request, request: BatchRequest) -> VyOSR
     service = get_session_vyos_service(http_request)
     batch = service.create_openvpn_batch()
     return run_interface_batch(service, batch, request)
+
+
+# ============================================================================
+# Client config export (operational `generate openvpn client-config`)
+# ============================================================================
+
+
 def _certificate_cn(cert_b64: Optional[str]) -> Optional[str]:
     """Decode the Common Name from a base64 DER certificate (as stored in PKI).
 

@@ -31,8 +31,6 @@ router = APIRouter(prefix="/vyos/geneve", tags=["geneve-interface"])
 # ============================================================================
 
 
-
-
 class GeneveInterfaceConfig(BaseModel):
     name: str
     type: str

@@ -32,8 +32,6 @@ router = APIRouter(prefix="/vyos/macsec", tags=["macsec-interface"])
 # ============================================================================
 
 
-
-
 class MacsecMkaConfig(BaseModel):
     cak: Optional[str] = None
     ckn: Optional[str] = None

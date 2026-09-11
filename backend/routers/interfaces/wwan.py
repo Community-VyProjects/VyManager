@@ -31,8 +31,6 @@ router = APIRouter(prefix="/vyos/wwan", tags=["wwan-interface"])
 # ============================================================================
 
 
-
-
 class Dhcpv6PdInterface(BaseModel):
     interface: str
     address: List[str] = Field(default_factory=list)

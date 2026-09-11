@@ -32,8 +32,6 @@ router = APIRouter(prefix="/vyos/vti", tags=["vti-interface"])
 # ============================================================================
 
 
-
-
 class VtiInterfaceConfig(BaseModel):
     name: str
     type: str

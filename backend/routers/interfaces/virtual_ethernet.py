@@ -33,8 +33,6 @@ router = APIRouter(prefix="/vyos/virtual-ethernet", tags=["virtual-ethernet-inte
 # ============================================================================
 
 
-
-
 class DhcpOptions(BaseModel):
     client_id: Optional[str] = None
     host_name: Optional[str] = None
