@@ -212,7 +212,9 @@ export function HardwareSensorsCard({
                   </Badge>
                 </div>
               ) : null}
+            </div>
 
+            <div className="grid gap-3 sm:grid-cols-2 max-h-[260px] overflow-y-auto pr-1">
               {otherSensors.map((sensor) => (
                 <div
                   key={`${sensor.name}-${sensor.value}`}
