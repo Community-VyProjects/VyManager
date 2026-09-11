@@ -2,103 +2,27 @@
  * Dashboard API Proxy Route
  *
  * Forwards all /api/dashboard/* requests to the backend.
- * Uses BACKEND_URL environment variable (runtime configurable).
  */
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
+import { proxyToBackend } from "@/lib/backend-proxy";
 
-// Runtime environment variable - NOT NEXT_PUBLIC_ so it's read at runtime
-// This allows users to configure the backend URL without rebuilding
-const getBackendUrl = () => process.env.BACKEND_URL || "http://backend:8000";
+type Ctx = { params: Promise<{ path: string[] }> };
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ path: string[] }> }
-) {
+async function handle(request: NextRequest, params: Ctx["params"], method: string) {
   const { path } = await params;
-  return proxyRequest(request, path, "GET");
+  return proxyToBackend(request, {
+    path: `/dashboard/${path.join("/")}`,
+    method,
+    response: "json-or-text",
+    logLabel: "DashboardProxy",
+  });
 }
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ path: string[] }> }
-) {
-  const { path } = await params;
-  return proxyRequest(request, path, "POST");
+export async function GET(request: NextRequest, { params }: Ctx) {
+  return handle(request, params, "GET");
 }
 
-async function proxyRequest(
-  request: NextRequest,
-  path: string[],
-  method: string
-) {
-  const BACKEND_URL = getBackendUrl();
-
-  try {
-    // Get the session token from request cookies
-    // Secure-cookie deployments prefix the name with __Secure-; read whichever is present
-    const sessionToken =
-      request.cookies.get("better-auth.session_token") ??
-      request.cookies.get("__Secure-better-auth.session_token");
-
-    // Build the backend URL
-    const backendPath = `/dashboard/${path.join("/")}`;
-    const backendUrl = `${BACKEND_URL}${backendPath}`;
-
-    // Copy search params
-    const url = new URL(backendUrl);
-    request.nextUrl.searchParams.forEach((value, key) => {
-      url.searchParams.append(key, value);
-    });
-
-    // Prepare headers
-    const headers: HeadersInit = {};
-
-    // Add the session token cookie if it exists
-    if (sessionToken) {
-      headers["Cookie"] = `${sessionToken.name}=${sessionToken.value}`;
-    }
-
-    // Handle request body
-    let body: BodyInit | undefined;
-
-    if (method === "POST") {
-      headers["Content-Type"] = "application/json";
-      try {
-        const json = await request.json();
-        body = JSON.stringify(json);
-      } catch {
-        // No body or invalid JSON
-      }
-    }
-
-    // Forward the request to the backend
-    const response = await fetch(url.toString(), {
-      method,
-      headers,
-      body,
-    });
-
-    // Parse response
-    const responseText = await response.text();
-
-    try {
-      const data = JSON.parse(responseText);
-      return NextResponse.json(data, { status: response.status });
-    } catch {
-      return new NextResponse(responseText, {
-        status: response.status,
-        headers: { "Content-Type": response.headers.get("Content-Type") || "text/plain" },
-      });
-    }
-  } catch (error) {
-    console.error("[DashboardProxy] Error:", error);
-    return NextResponse.json(
-      {
-        error: "Failed to proxy request to backend",
-        details: error instanceof Error ? error.message : String(error),
-      },
-      { status: 500 }
-    );
-  }
+export async function POST(request: NextRequest, { params }: Ctx) {
+  return handle(request, params, "POST");
 }
