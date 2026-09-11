@@ -10,10 +10,9 @@ Uses session-based architecture - VyOS instance comes from user's active session
 from fastapi import APIRouter, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
-from typing import Optional, Dict, Any, Literal
+from typing import Optional, Literal
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
-import asyncpg
 import re
 import uuid
 

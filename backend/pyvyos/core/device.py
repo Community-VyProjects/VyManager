@@ -1,7 +1,7 @@
 import warnings
 from typing import List, Literal
 
-from .rest_client import ApiResponse, RestClient
+from .rest_client import RestClient
 
 
 class VyDevice(RestClient):

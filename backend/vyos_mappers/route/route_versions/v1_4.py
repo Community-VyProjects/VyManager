@@ -2,7 +2,6 @@
 VyOS 1.4 specific route policy commands.
 """
 
-from typing import List
 
 
 class RouteMapperV1_4:

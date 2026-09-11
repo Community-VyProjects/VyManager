@@ -1,6 +1,5 @@
 """VyOS 1.5 specific WireGuard commands."""
 
-from typing import List
 
 
 class WireGuardMapperV1_5:

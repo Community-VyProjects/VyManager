@@ -6,7 +6,6 @@ Much cleaner and easier to maintain!
 """
 
 from typing import Optional, Union, Dict, Any, List
-from contextlib import contextmanager
 import json
 import requests as _requests
 

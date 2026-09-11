@@ -5,7 +5,7 @@ Provides all batch operations for WireGuard VPN configuration.
 Handles version-specific differences through the mapper layer.
 """
 
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from vyos_mappers import CommandMapperRegistry
 
 

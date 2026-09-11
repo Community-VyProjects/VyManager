@@ -5,11 +5,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-import { ExternalLink, Loader2 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
 import { getUnifiedViewConfig, type UnifiedViewSection } from "@/lib/unified-view/registry";
 
 interface UnifiedViewProps {
@@ -20,7 +18,6 @@ interface UnifiedViewProps {
 }
 
 export function UnifiedView({ isOpen, onClose, type, data }: UnifiedViewProps) {
-  const router = useRouter();
   const [fetchedData, setFetchedData] = useState<unknown>(null);
   const [isLoading, setIsLoading] = useState(false);
 

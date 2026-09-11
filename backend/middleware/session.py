@@ -10,7 +10,6 @@ import logging
 
 from fastapi import Request, HTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.responses import JSONResponse
 import asyncpg
 from typing import Optional
 from session_cookie import get_session_cookie, verify_session_cookie

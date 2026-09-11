@@ -8,11 +8,9 @@ Layouts are stored per user + per instance.
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 from typing import Dict, Any, Optional
-import asyncpg
 import json
 import uuid
 
-from session_vyos_service import get_session_vyos_service
 from fastapi_permissions import require_read_permission, require_write_permission
 from org_scope import request_scoped_conn
 from rbac_permissions import FeatureGroup
