@@ -156,11 +156,8 @@ class AccessListBatchBuilder:
     def set_rule_source_network(
         self, number: str, rule: str, address: str, mask: str
     ) -> "AccessListBatchBuilder":
-        """Set IPv4 rule source network."""
-        path = self.mappers[self.mapper_key].get_rule_source_network(
-            number, rule, address, mask
-        )
-        return self.add_set(path)
+        """IPv4 network plus mask is two sibling leaves, same as inverse-mask."""
+        return self.set_rule_source_inverse_mask(number, rule, address, mask)
 
     def delete_rule_source(
         self, number: str, rule: str
@@ -205,11 +202,8 @@ class AccessListBatchBuilder:
     def set_rule_destination_network(
         self, number: str, rule: str, address: str, mask: str
     ) -> "AccessListBatchBuilder":
-        """Set IPv4 rule destination network."""
-        path = self.mappers[self.mapper_key].get_rule_destination_network(
-            number, rule, address, mask
-        )
-        return self.add_set(path)
+        """IPv4 network plus mask is two sibling leaves, same as inverse-mask."""
+        return self.set_rule_destination_inverse_mask(number, rule, address, mask)
 
     def delete_rule_destination(
         self, number: str, rule: str
