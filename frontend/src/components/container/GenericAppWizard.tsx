@@ -135,7 +135,6 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
   const [networkMode, setNetworkMode] = useState<NetworkMode>(initialMode);
   const [existingNetwork, setExistingNetwork] = useState("");
   const [netAddress, setNetAddress] = useState("");
-  const [netMac, setNetMac] = useState("");
   const [newNetName, setNewNetName] = useState(app.defaultContainerName);
   const [newNetPrefix, setNewNetPrefix] = useState("172.20.0.0/24");
 
@@ -260,12 +259,10 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
 
       running(idx);
 
-      const showMac = netCfg?.allowMac && capabilities?.features?.network_attachment_mac?.supported !== false;
-
-      let networks: Array<{ name: string; addresses: string[]; mac: string | null }> = [];
+      let networks: Array<{ name: string; addresses: string[] }> = [];
       if (hasNetwork && networkMode !== "host") {
         const netName = networkMode === "existing" ? existingNetwork : newNetName.trim();
-        networks = [{ name: netName, addresses: netAddress ? [netAddress] : [], mac: showMac ? (netMac || null) : null }];
+        networks = [{ name: netName, addresses: netAddress ? [netAddress] : [] }];
       }
 
       const ports = (hasNetwork && networkMode === "host") ? [] : (ic.ports ?? []).map(p => ({
@@ -290,14 +287,6 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
       }));
 
       const memoryStr = ic.memory ? resolve(ic.memory, resolvedValues) : null;
-
-      const supportsHealthCheck = capabilities?.features?.health_check?.supported !== false;
-      const healthCheck = (ic.healthCheck && supportsHealthCheck) ? {
-        command:  ic.healthCheck.command  ?? null,
-        interval: ic.healthCheck.interval ?? null,
-        retry:    ic.healthCheck.retry?.toString() ?? null,
-        timeout:  ic.healthCheck.timeout  ?? null,
-      } : null;
 
       const supportsLogDriver = capabilities?.features?.log_driver?.supported !== false;
       const logDriver = (ic.logDriver && supportsLogDriver) ? ic.logDriver : null;
@@ -335,7 +324,6 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
         name_servers: ic.nameServers ?? [],
         devices: (ic.devices ?? []).map(d => ({ name: d.name, source: d.source, destination: d.destination })),
         labels: (ic.labels ?? []).map(l => ({ name: l.name, value: resolve(l.value, resolvedValues) })),
-        health_check: healthCheck,
         sysctl_params: (ic.sysctl ?? []).map(s => ({ name: s.name, value: s.value })),
         tmpfs_mounts: tmpfsMounts,
         environments,
@@ -363,7 +351,7 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
       setContainerName(app.defaultContainerName);
       setFieldValues(Object.fromEntries((ic.fields ?? []).map(f => [f.name, String(f.default ?? "")])));
       setNetworkMode(initialMode);
-      setExistingNetwork(""); setNetAddress(""); setNetMac("");
+      setExistingNetwork(""); setNetAddress("");
       setNewNetName(app.defaultContainerName); setNewNetPrefix("172.20.0.0/24");
       setTasks([]); setDeploying(false); setDeployed(false); setDeployError(null);
     }
@@ -531,15 +519,11 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
                     <p className="text-xs text-muted-foreground">No networks configured yet.</p>
                   )}
                 </div>
-                {(netCfg?.allowStaticIp || netCfg?.allowMac) && (
+                {netCfg?.allowStaticIp && (
                   <IpMacFields
                     allowStaticIp={netCfg?.allowStaticIp}
-                    allowMac={netCfg?.allowMac}
-                    capabilities={capabilities}
                     netAddress={netAddress}
                     setNetAddress={setNetAddress}
-                    netMac={netMac}
-                    setNetMac={setNetMac}
                   />
                 )}
               </div>
@@ -570,15 +554,11 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
                     placeholder="172.20.0.0/24"
                   />
                 </div>
-                {(netCfg?.allowStaticIp || netCfg?.allowMac) && (
+                {netCfg?.allowStaticIp && (
                   <IpMacFields
                     allowStaticIp={netCfg?.allowStaticIp}
-                    allowMac={netCfg?.allowMac}
-                    capabilities={capabilities}
                     netAddress={netAddress}
                     setNetAddress={setNetAddress}
-                    netMac={netMac}
-                    setNetMac={setNetMac}
                   />
                 )}
               </div>
@@ -686,23 +666,18 @@ export function GenericAppWizard({ open, onOpenChange, config, capabilities, onC
 
 interface IpMacFieldsProps {
   allowStaticIp?: boolean;
-  allowMac?: boolean;
-  capabilities: import("@/lib/api/container").ContainerCapabilities | null;
   netAddress: string;
   setNetAddress: (v: string) => void;
-  netMac: string;
-  setNetMac: (v: string) => void;
 }
 
 // Extracted to avoid repeating the IP/MAC grid in both "existing" and "new" branches
-function IpMacFields({ allowStaticIp, allowMac, capabilities, netAddress, setNetAddress, netMac, setNetMac }: IpMacFieldsProps) {
+function IpMacFields({ allowStaticIp, netAddress, setNetAddress }: IpMacFieldsProps) {
   const showIp  = allowStaticIp;
-  const showMac = allowMac && capabilities?.features?.network_attachment_mac?.supported !== false;
 
-  if (!showIp && !showMac) return null;
+  if (!showIp) return null;
 
   return (
-    <div className={cn("grid gap-3", showIp && showMac ? "grid-cols-2" : "grid-cols-1")}>
+    <div className="grid gap-3 grid-cols-1">
       {showIp && (
         <div className="space-y-1.5">
           <Label>IP Address <span className="text-muted-foreground font-normal">(optional)</span></Label>
@@ -711,17 +686,6 @@ function IpMacFields({ allowStaticIp, allowMac, capabilities, netAddress, setNet
             onChange={e => setNetAddress(e.target.value)}
             className="font-mono"
             placeholder="172.20.0.2"
-          />
-        </div>
-      )}
-      {showMac && (
-        <div className="space-y-1.5">
-          <Label>MAC Address <span className="text-muted-foreground font-normal">(optional)</span></Label>
-          <Input
-            value={netMac}
-            onChange={e => setNetMac(e.target.value)}
-            className="font-mono"
-            placeholder="02:1f:f4:05:ce:00"
           />
         </div>
       )}

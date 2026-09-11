@@ -20,17 +20,9 @@ export interface ContainerLabel {
   value?: string | null;
 }
 
-export interface ContainerHealthCheck {
-  command?: string | null;
-  interval?: string | null;
-  retry?: string | null;
-  timeout?: string | null;
-}
-
 export interface ContainerNetworkAttachment {
   name: string;
   addresses: string[];
-  mac?: string | null;
 }
 
 export interface ContainerPort {
@@ -92,7 +84,6 @@ export interface ContainerInstance {
   devices: ContainerDevice[];
   environments: ContainerEnvironment[];
   labels: ContainerLabel[];
-  health_check?: ContainerHealthCheck | null;
   networks: ContainerNetworkAttachment[];
   ports: ContainerPort[];
   sysctl_params: ContainerSysctlParam[];
@@ -151,11 +142,9 @@ export interface ContainerCapabilities {
     allow_host_pid:         { supported: boolean };
     privileged:             { supported: boolean };
     capabilities:           { supported: boolean; values: string[] };
-    health_check:           { supported: boolean };
     log_driver:             { supported: boolean; values: string[] };
     restart_policy:         { supported: boolean; values: string[] };
     volume_propagation:     { supported: boolean; values: string[] };
-    network_attachment_mac: { supported: boolean };
     network_gateway:        { supported: boolean };
     network_mtu:            { supported: boolean };
     network_type_bridge:    { supported: boolean };
@@ -268,7 +257,6 @@ class ContainerService {
       for (const addr of net.addresses) {
         ops.push({ op: "set_name_network_address", value: `${c.name},${net.name},${addr}` });
       }
-      if (net.mac) ops.push({ op: "set_name_network_mac", value: `${c.name},${net.name},${net.mac}` });
     }
     for (const port of c.ports) {
       ops.push({ op: "set_name_port", value: `${c.name},${port.name}` });
@@ -282,13 +270,6 @@ class ContainerService {
     for (const sp of c.sysctl_params) {
       ops.push({ op: "set_name_sysctl_parameter", value: `${c.name},${sp.name}` });
       if (sp.value != null) ops.push({ op: "set_name_sysctl_parameter_value", value: `${c.name},${sp.name},${sp.value}` });
-    }
-    if (c.health_check) {
-      ops.push({ op: "set_name_health_check", value: c.name });
-      if (c.health_check.command)  ops.push({ op: "set_name_health_check_command",  value: `${c.name},${c.health_check.command}` });
-      if (c.health_check.interval) ops.push({ op: "set_name_health_check_interval", value: `${c.name},${c.health_check.interval}` });
-      if (c.health_check.retry)    ops.push({ op: "set_name_health_check_retry",    value: `${c.name},${c.health_check.retry}` });
-      if (c.health_check.timeout)  ops.push({ op: "set_name_health_check_timeout",  value: `${c.name},${c.health_check.timeout}` });
     }
 
     return this.batch(ops);
@@ -440,7 +421,6 @@ class ContainerService {
       for (const net of updated.networks) {
         ops.push({ op: "set_name_network", value: `${n},${net.name}` });
         for (const addr of net.addresses) ops.push({ op: "set_name_network_address", value: `${n},${net.name},${addr}` });
-        if (net.mac) ops.push({ op: "set_name_network_mac", value: `${n},${net.name},${net.mac}` });
       }
     }
 
@@ -464,19 +444,6 @@ class ContainerService {
       for (const sp of updated.sysctl_params) {
         ops.push({ op: "set_name_sysctl_parameter", value: `${n},${sp.name}` });
         if (sp.value != null) ops.push({ op: "set_name_sysctl_parameter_value", value: `${n},${sp.name},${sp.value}` });
-      }
-    }
-
-    // Health check — replace if changed
-    const hcChanged = JSON.stringify(original.health_check) !== JSON.stringify(updated.health_check);
-    if (hcChanged) {
-      if (original.health_check) ops.push({ op: "delete_name_health_check", value: n });
-      if (updated.health_check) {
-        ops.push({ op: "set_name_health_check", value: n });
-        if (updated.health_check.command)  ops.push({ op: "set_name_health_check_command",  value: `${n},${updated.health_check.command}` });
-        if (updated.health_check.interval) ops.push({ op: "set_name_health_check_interval", value: `${n},${updated.health_check.interval}` });
-        if (updated.health_check.retry)    ops.push({ op: "set_name_health_check_retry",    value: `${n},${updated.health_check.retry}` });
-        if (updated.health_check.timeout)  ops.push({ op: "set_name_health_check_timeout",  value: `${n},${updated.health_check.timeout}` });
       }
     }
 

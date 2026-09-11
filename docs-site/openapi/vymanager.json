@@ -24197,56 +24197,6 @@
         ],
         "title": "ContainerFileWriteRequest"
       },
-      "ContainerHealthCheck": {
-        "properties": {
-          "command": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Command"
-          },
-          "interval": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Interval"
-          },
-          "retry": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Retry"
-          },
-          "timeout": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Timeout"
-          }
-        },
-        "type": "object",
-        "title": "ContainerHealthCheck"
-      },
       "ContainerImageRefRequest": {
         "properties": {
           "image": {
@@ -24553,16 +24503,6 @@
             "title": "Labels",
             "default": []
           },
-          "health_check": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ContainerHealthCheck"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "networks": {
             "items": {
               "$ref": "#/components/schemas/ContainerNetworkAttachment"
@@ -24674,17 +24614,6 @@
             "type": "array",
             "title": "Addresses",
             "default": []
-          },
-          "mac": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Mac"
           }
         },
         "type": "object",

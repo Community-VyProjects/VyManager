@@ -299,7 +299,7 @@ export function EditDHCPServerModal({
         network_name: networkName,
         subnet: subnet.subnet,
         // Disable state
-        disable: disabled !== (subnet.disable ?? false) ? disabled : undefined,
+        disable: capabilities?.fields.subnet_disable.supported && disabled !== (subnet.disable ?? false) ? disabled : undefined,
         // Description
         description: descTrimmed !== oldDesc && descTrimmed ? descTrimmed : undefined,
         delete_description: descTrimmed !== oldDesc && !descTrimmed && !!oldDesc,
@@ -460,6 +460,7 @@ export function EditDHCPServerModal({
                   </p>
                 </div>
 
+                {capabilities?.fields.subnet_disable.supported && (
                 <div className="flex items-center gap-3 rounded-lg border p-4">
                   <Checkbox
                     id="subnetDisabled"
@@ -473,6 +474,7 @@ export function EditDHCPServerModal({
                     </p>
                   </div>
                 </div>
+                )}
 
                 <div className="space-y-2">
                   <Label htmlFor="subnetDescription">Description</Label>
@@ -945,7 +947,7 @@ export function EditDHCPServerModal({
                         Enable Failover
                       </Label>
                       <p className="text-xs text-muted-foreground">
-                        Enable high availability for this subnet (VyOS 1.4 only)
+                        Enable high availability for this subnet
                       </p>
                     </div>
                   </div>

@@ -62,17 +62,9 @@ class ContainerLabel(BaseModel):
     value: Optional[str] = None
 
 
-class ContainerHealthCheck(BaseModel):
-    command: Optional[str] = None
-    interval: Optional[str] = None
-    retry: Optional[str] = None
-    timeout: Optional[str] = None
-
-
 class ContainerNetworkAttachment(BaseModel):
     name: str
     addresses: List[str] = []
-    mac: Optional[str] = None
 
 
 class ContainerPort(BaseModel):
@@ -134,7 +126,6 @@ class ContainerInstance(BaseModel):
     devices: List[ContainerDevice] = []
     environments: List[ContainerEnvironment] = []
     labels: List[ContainerLabel] = []
-    health_check: Optional[ContainerHealthCheck] = None
     networks: List[ContainerNetworkAttachment] = []
     ports: List[ContainerPort] = []
     sysctl_params: List[ContainerSysctlParam] = []
@@ -1048,17 +1039,6 @@ def _parse_container_instance(name: str, cfg: dict) -> ContainerInstance:
             value=label_cfg.get("value"),
         ))
 
-    # Health check
-    health_check = None
-    hc_raw = cfg.get("health-check")
-    if hc_raw and isinstance(hc_raw, dict):
-        health_check = ContainerHealthCheck(
-            command=hc_raw.get("command"),
-            interval=hc_raw.get("interval"),
-            retry=hc_raw.get("retry"),
-            timeout=hc_raw.get("timeout"),
-        )
-
     # Network attachments
     networks = []
     for net_name, net_cfg in (cfg.get("network") or {}).items():
@@ -1067,7 +1047,6 @@ def _parse_container_instance(name: str, cfg: dict) -> ContainerInstance:
         networks.append(ContainerNetworkAttachment(
             name=net_name,
             addresses=_parse_multi(net_cfg.get("address")),
-            mac=net_cfg.get("mac"),
         ))
 
     # Ports
@@ -1141,7 +1120,6 @@ def _parse_container_instance(name: str, cfg: dict) -> ContainerInstance:
         devices=sorted(devices, key=lambda d: d.name),
         environments=sorted(environments, key=lambda e: e.name),
         labels=sorted(labels, key=lambda l: l.name),
-        health_check=health_check,
         networks=sorted(networks, key=lambda n: n.name),
         ports=sorted(ports, key=lambda p: p.name),
         sysctl_params=sorted(sysctl_params, key=lambda s: s.name),

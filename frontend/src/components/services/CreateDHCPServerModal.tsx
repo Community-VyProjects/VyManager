@@ -993,7 +993,7 @@ export function CreateDHCPServerModal({
                         Enable Failover
                       </Label>
                       <p className="text-xs text-muted-foreground">
-                        Enable high availability for this subnet (VyOS 1.4 only)
+                        Enable high availability for this subnet
                       </p>
                     </div>
                   </div>
