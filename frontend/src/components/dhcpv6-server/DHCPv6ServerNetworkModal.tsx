@@ -100,7 +100,6 @@ export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSucce
 
   // ── Subnet fields (create only) ──
   const [subnetCidr, setSubnetCidr] = useState("");
-  const [subnetDisabled, setSubnetDisabled] = useState(false);
   const [leaseDefault, setLeaseDefault] = useState("");
   const [leaseMinimum, setLeaseMinimum] = useState("");
   const [leaseMaximum, setLeaseMaximum] = useState("");
@@ -140,7 +139,7 @@ export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSucce
     setError(null);
     setActiveTab("network");
 
-    setSubnetCidr(""); setSubnetDisabled(false);
+    setSubnetCidr("");
     setLeaseDefault(""); setLeaseMinimum(""); setLeaseMaximum("");
     setSubNsServers([]); setSubNsInput("");
     setSubDomainSearch([]); setSubDsInput("");
@@ -206,7 +205,6 @@ export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSucce
       const subIrt = subInfoRefreshTime.trim() !== "" ? parseInt(subInfoRefreshTime.trim(), 10) : null;
       const subnet = {
         subnet: subnetCidr.trim(),
-        disabled: subnetDisabled,
         subnet_id: caps.features.subnet_id.supported ? 1 : null,
         lease_default: leaseDefault.trim() !== "" ? parseInt(leaseDefault.trim(), 10) : null,
         lease_minimum: leaseMinimum.trim() !== "" ? parseInt(leaseMinimum.trim(), 10) : null,
@@ -331,15 +329,6 @@ export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSucce
                         value={subnetCidr}
                         onChange={(e) => setSubnetCidr(e.target.value)}
                       />
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <Checkbox
-                        id="sub-disabled"
-                        checked={subnetDisabled}
-                        onCheckedChange={(v) => setSubnetDisabled(Boolean(v))}
-                      />
-                      <Label htmlFor="sub-disabled" className="cursor-pointer">Disable this subnet</Label>
                     </div>
 
                     <div className="grid grid-cols-3 gap-2">
