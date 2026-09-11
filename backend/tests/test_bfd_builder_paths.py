@@ -20,6 +20,12 @@ CASES = [
         ["protocols", "bfd", "peer", PEER, "echo-mode"],
     ),
     (
+        "delete_peer_echo_mode",
+        (PEER,),
+        "delete",
+        ["protocols", "bfd", "peer", PEER, "echo-mode"],
+    ),
+    (
         "set_peer_interval_echo_interval",
         (PEER, "50"),
         "set",
@@ -86,9 +92,21 @@ CASES = [
         ["protocols", "bfd", "peer", PEER, "multihop"],
     ),
     (
+        "delete_peer_multihop",
+        (PEER,),
+        "delete",
+        ["protocols", "bfd", "peer", PEER, "multihop"],
+    ),
+    (
         "set_peer_passive",
         (PEER,),
         "set",
+        ["protocols", "bfd", "peer", PEER, "passive"],
+    ),
+    (
+        "delete_peer_passive",
+        (PEER,),
+        "delete",
         ["protocols", "bfd", "peer", PEER, "passive"],
     ),
     (
@@ -107,6 +125,12 @@ CASES = [
         "set_peer_shutdown",
         (PEER,),
         "set",
+        ["protocols", "bfd", "peer", PEER, "shutdown"],
+    ),
+    (
+        "delete_peer_shutdown",
+        (PEER,),
+        "delete",
         ["protocols", "bfd", "peer", PEER, "shutdown"],
     ),
     (
@@ -156,6 +180,12 @@ CASES = [
         "set_profile_echo_mode",
         (PROFILE,),
         "set",
+        ["protocols", "bfd", "profile", PROFILE, "echo-mode"],
+    ),
+    (
+        "delete_profile_echo_mode",
+        (PROFILE,),
+        "delete",
         ["protocols", "bfd", "profile", PROFILE, "echo-mode"],
     ),
     (
@@ -225,9 +255,21 @@ CASES = [
         ["protocols", "bfd", "profile", PROFILE, "passive"],
     ),
     (
+        "delete_profile_passive",
+        (PROFILE,),
+        "delete",
+        ["protocols", "bfd", "profile", PROFILE, "passive"],
+    ),
+    (
         "set_profile_shutdown",
         (PROFILE,),
         "set",
+        ["protocols", "bfd", "profile", PROFILE, "shutdown"],
+    ),
+    (
+        "delete_profile_shutdown",
+        (PROFILE,),
+        "delete",
         ["protocols", "bfd", "profile", PROFILE, "shutdown"],
     ),
 ]
