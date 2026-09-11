@@ -356,3 +356,7 @@ class DHCPMapperV1_5:
     def has_subnet_id(self) -> bool:
         """Returns True - subnet-id is required in VyOS 1.5."""
         return True
+
+    def can_clear_inactive_leases(self) -> bool:
+        """1.5 GraphQL ClearDhcpServerLeaseDhcp clears any lease state."""
+        return True

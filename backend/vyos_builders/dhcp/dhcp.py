@@ -808,7 +808,9 @@ class DHCPBatchBuilder:
 
     def get_capabilities(self) -> Dict[str, Any]:
         """Get capabilities for the current VyOS version."""
-        has_subnet_id = self.mappers[self.mapper_key].has_subnet_id()
+        mapper = self.mappers[self.mapper_key]
+        has_subnet_id = mapper.has_subnet_id()
+        can_clear_inactive_leases = mapper.can_clear_inactive_leases()
         is_v15_or_later = "1.5" in self.version or "latest" in self.version
         is_v14 = "1.4" in self.version
 
@@ -920,6 +922,10 @@ class DHCPBatchBuilder:
                 "enable_failover": {
                     "supported": is_v14,
                     "description": "High availability failover (VyOS 1.4 only)",
+                },
+                "clear_inactive_lease": {
+                    "supported": can_clear_inactive_leases,
+                    "description": "Clear leases that are not in the active state",
                 },
             },
             "version_notes": {

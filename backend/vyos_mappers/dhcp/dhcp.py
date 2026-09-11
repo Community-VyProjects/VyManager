@@ -801,3 +801,7 @@ class DHCPMapper(BaseFeatureMapper):
     def has_subnet_id(self) -> bool:
         """Check if this version supports subnet-id."""
         return self.version_mapper.has_subnet_id()
+
+    def can_clear_inactive_leases(self) -> bool:
+        """Whether operational lease clear works for non-active states."""
+        return self.version_mapper.can_clear_inactive_leases()

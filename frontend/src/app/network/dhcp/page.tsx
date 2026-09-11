@@ -1234,8 +1234,7 @@ function DHCPPageInner() {
                                           Add Static
                                         </Button>
                                       )}
-                                      {/* VyOS 1.4 can only release active leases; 1.5 can clear any state */}
-                                      {(!capabilities?.version?.includes("1.4") || lease.state === "active") && (
+                                      {(lease.state === "active" || capabilities?.fields.clear_inactive_lease?.supported) && (
                                         <Button
                                           variant="ghost"
                                           size="icon"
