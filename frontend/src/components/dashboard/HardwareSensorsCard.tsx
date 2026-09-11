@@ -159,7 +159,7 @@ export function HardwareSensorsCard({
           <div className="space-y-3">
             <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/30 p-3">
               <div className="flex items-center gap-2">
-                {showData.summary === "all okay" ? (
+                {showData.summary === "No issues" ? (
                   <CheckCircle2 className="h-4 w-4 text-green-600" />
                 ) : showData.summary?.includes("critical") ? (
                   <CircleAlert className="h-4 w-4 text-red-600" />

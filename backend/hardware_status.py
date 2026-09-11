@@ -35,7 +35,7 @@ def _build_hardware_summary(sensors: List[HardwareSensor]) -> str:
     warning_count = sum(1 for sensor in sensors if sensor.status == "warning")
 
     if critical_count == 0 and warning_count == 0:
-        return "all okay"
+        return "No issues"
 
     parts: List[str] = []
     if critical_count:

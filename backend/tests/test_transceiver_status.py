@@ -70,7 +70,7 @@ temp1:        +54.6°C  (high = +70.0°C)
 fam15h_power-pci-00c4
 power1:        3.28 W  (interval =   0.01 s, crit =   6.00 W)""")
 
-    assert result.summary == "all okay"
+    assert result.summary == "No issues"
 
 
 def test_parse_hardware_sensors_full_format():
