@@ -341,6 +341,7 @@ async def refresh_config(request: Request):
 
     This is called after any configuration change to ensure the cache is current.
     """
+    await require_read_permission(request, FeatureGroup.CONFIGURATION)
     try:
         service = get_session_vyos_service(request)
         await run_in_threadpool(service.get_full_config, refresh=True)
