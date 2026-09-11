@@ -190,6 +190,11 @@ export interface PPPoEConnectionsResponse {
   total: number;
 }
 
+export interface PPPoEPpsSettings {
+  enabled: boolean;
+  min_sample_interval: number;
+}
+
 export interface PPPoECapabilities {
   version: string;
   features: {
@@ -238,16 +243,25 @@ class PPPoEServerService {
     return apiClient.get<PPPoECapabilities>("/vyos/pppoe-server/capabilities");
   }
 
+  async getPpsSettings(): Promise<PPPoEPpsSettings> {
+    return apiClient.get<PPPoEPpsSettings>("/vyos/pppoe-server/pps-settings");
+  }
+
+  async setPpsSettings(settings: PPPoEPpsSettings): Promise<PPPoEPpsSettings> {
+    return apiClient.post<PPPoEPpsSettings>("/vyos/pppoe-server/pps-settings", settings);
+  }
+
   async getConfig(refresh = false): Promise<PPPoEConfigResponse> {
     return apiClient.get<PPPoEConfigResponse>("/vyos/pppoe-server/config", {
       refresh: refresh.toString(),
     });
   }
 
-  async getSessions(limit = 500, offset = 0): Promise<PPPoESessionsResponse> {
+  async getSessions(limit = 500, offset = 0, minSampleInterval = 1.0): Promise<PPPoESessionsResponse> {
     return apiClient.get<PPPoESessionsResponse>("/vyos/pppoe-server/sessions", {
       limit: String(limit),
       offset: String(offset),
+      min_sample_interval: String(minSampleInterval),
     });
   }
 

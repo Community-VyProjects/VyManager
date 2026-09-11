@@ -58,6 +58,7 @@ import {
   type PPPoEIPv4Pool,
   type PPPoEIPv6Pool,
   type PPPoESession,
+  type PPPoEPpsSettings,
 } from "@/lib/api/pppoe-server";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
@@ -91,6 +92,8 @@ function PPPoEPageInner() {
   const [sessionTotal, setSessionTotal] = useState(0);
   const [sessionLoading, setSessionLoading] = useState(false);
   const [sessionError, setSessionError] = useState<string | null>(null);
+  const [ppsSettings, setPpsSettings] = useState<PPPoEPpsSettings>({ enabled: true, min_sample_interval: 1.0 });
+  const [ppsSaving, setPpsSaving] = useState(false);
   const previousSessionBytes = useRef<Record<string, { rx: number; tx: number; at: number }>>({});
   const [statsHistory, setStatsHistory] = useState<Record<string, PPPoEStatsPoint[]>>({});
   const [selectedStatsKey, setSelectedStatsKey] = useState<string | null>(null);
@@ -162,11 +165,32 @@ function PPPoEPageInner() {
     }
   };
 
+  const fetchPpsSettings = async () => {
+    try {
+      const settings = await pppoeServerService.getPpsSettings();
+      setPpsSettings(settings);
+    } catch (err) {
+      setSessionError(err instanceof Error ? err.message : "Failed to load PPS settings");
+    }
+  };
+
+  const savePpsSettings = async (next: PPPoEPpsSettings) => {
+    try {
+      setPpsSaving(true);
+      const settings = await pppoeServerService.setPpsSettings(next);
+      setPpsSettings(settings);
+    } catch (err) {
+      setSessionError(err instanceof Error ? err.message : "Failed to update PPS settings");
+    } finally {
+      setPpsSaving(false);
+    }
+  };
+
   const fetchSessions = async () => {
     try {
       setSessionLoading(true);
       setSessionError(null);
-      const response = await pppoeServerService.getSessions(500);
+      const response = await pppoeServerService.getSessions(500, 0, ppsSettings.min_sample_interval);
       const now = Date.now();
       const nextSessions = response.sessions.map((session) => {
         const key = `${session.interface}:${session.username}:${session.calling_sid ?? ""}`;
@@ -212,7 +236,10 @@ function PPPoEPageInner() {
   };
 
   useEffect(() => {
-    if (hasRead) fetchConfig();
+    if (hasRead) {
+      void fetchConfig();
+      void fetchPpsSettings();
+    }
   }, [hasRead]);
 
   useEffect(() => {
@@ -499,6 +526,33 @@ function PPPoEPageInner() {
                         {sessionPaused ? <Play className="h-4 w-4 mr-2" /> : <Pause className="h-4 w-4 mr-2" />}
                         {sessionPaused ? "Resume" : "Pause"}
                       </Button>
+                      <select
+                        value={ppsSettings.min_sample_interval}
+                        onChange={(event) => {
+                          const next = { ...ppsSettings, min_sample_interval: Number(event.target.value) };
+                          void savePpsSettings(next);
+                        }}
+                        className="h-9 rounded-md border bg-background px-2 text-sm"
+                        aria-label="PPS sample interval"
+                      >
+                        <option value="0">PPS off-gate</option>
+                        <option value="1">1s</option>
+                        <option value="5">5s</option>
+                        <option value="10">10s</option>
+                        <option value="30">30s</option>
+                      </select>
+                      <Button
+                        variant={ppsSettings.enabled ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => {
+                          const next = { ...ppsSettings, enabled: !ppsSettings.enabled };
+                          void savePpsSettings(next);
+                        }}
+                        disabled={ppsSaving}
+                      >
+                        <Activity className="h-4 w-4 mr-2" />
+                        {ppsSettings.enabled ? "Disable PPS" : "Enable PPS"}
+                      </Button>
                       <Button variant="outline" size="sm" onClick={() => void fetchSessions()} disabled={sessionLoading}>
                         <RefreshCw className={cn("h-4 w-4 mr-2", sessionLoading && "animate-spin")} />
                         Refresh
@@ -608,18 +662,21 @@ function PPPoEPageInner() {
                       </TableBody>
                     </Table>
                   )}
-                  {selectedStatsKey && statsHistory[selectedStatsKey] && (
-                    <Card className="mt-4 p-4">
-                      <div className="mb-3 flex items-center justify-between">
-                        <div>
-                          <h4 className="font-medium">Session traffic history</h4>
-                          <p className="text-xs text-muted-foreground">Select rate, PPS, or total traffic from the graph.</p>
+                  <Dialog open={Boolean(selectedStatsKey && statsHistory[selectedStatsKey])} onOpenChange={(open) => {
+                    if (!open) setSelectedStatsKey(null);
+                  }}>
+                    <DialogContent className="max-w-4xl">
+                      <DialogHeader>
+                        <DialogTitle>Session traffic history</DialogTitle>
+                        <DialogDescription>Select rate, PPS, or total traffic from the graph.</DialogDescription>
+                      </DialogHeader>
+                      {selectedStatsKey && statsHistory[selectedStatsKey] && (
+                        <div className="mt-2">
+                          <PPPoEStatsChart points={statsHistory[selectedStatsKey]} height={320} />
                         </div>
-                        <Button variant="ghost" size="sm" onClick={() => setSelectedStatsKey(null)}>Close</Button>
-                      </div>
-                      <PPPoEStatsChart points={statsHistory[selectedStatsKey]} />
-                    </Card>
-                  )}
+                      )}
+                    </DialogContent>
+                  </Dialog>
                   {filteredSessions.length > sessionPageSize && (
                     <div className="flex items-center justify-between border-t mt-3 pt-3">
                       <span className="text-xs text-muted-foreground">
