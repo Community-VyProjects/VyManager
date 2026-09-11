@@ -44,6 +44,7 @@ import {
   type NeighborProxyNd,
 } from "@/lib/api/static-routes";
 import { cn } from "@/lib/utils";
+import { staticRouteTabFromSearch } from "@/lib/query-tabs";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { CreateStaticRouteModal } from "@/components/routing/CreateStaticRouteModal";
 import { EditStaticRouteModal } from "@/components/routing/EditStaticRouteModal";
@@ -112,8 +113,8 @@ function StaticRoutesPageInner() {
   }, []);
 
   useEffect(() => {
-    const section = searchParams.get("section") ?? searchParams.get("tab");
-    if (section === "routes" || section === "arp" || section === "mroute" || section === "neighbor-proxy" || section === "tables") {
+    const section = staticRouteTabFromSearch((key) => searchParams.get(key));
+    if (section) {
       setActiveTab(section);
     }
   }, [searchParams]);

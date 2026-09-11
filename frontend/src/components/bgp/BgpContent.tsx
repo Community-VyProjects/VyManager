@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
+import { bgpTabFromSearch } from "@/lib/query-tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -146,14 +147,8 @@ export function BgpContent() {
   }, [loadData]);
 
   useEffect(() => {
-    const tab = searchParams.get("tab");
-    if (
-      tab === "overview" ||
-      tab === "neighbors" ||
-      tab === "peer-groups" ||
-      tab === "address-families" ||
-      tab === "parameters"
-    ) {
+    const tab = bgpTabFromSearch((key) => searchParams.get(key));
+    if (tab) {
       setActiveTab(tab);
     }
   }, [searchParams]);

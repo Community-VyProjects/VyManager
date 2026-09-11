@@ -29,6 +29,10 @@ import {
 } from "@/lib/api/isis";
 import { showService, InterfaceName } from "@/lib/api/show";
 import { InterfaceSelect } from "@/components/ui/interface-select";
+import {
+  isisRemoteLfaSupported,
+  isisTiLfaSupported,
+} from "@/lib/isis-feature-flags";
 
 interface IsisInterfaceModalProps {
   open: boolean;
@@ -47,8 +51,8 @@ export function IsisInterfaceModal({
   capabilities,
 }: IsisInterfaceModalProps) {
   const isEdit = !!existingInterface;
-  const tiLfaSupported = capabilities?.features.ti_lfa.supported ?? false;
-  const remoteLfaSupported = capabilities?.features.remote_lfa.supported ?? false;
+  const tiLfaSupported = isisTiLfaSupported(capabilities?.features);
+  const remoteLfaSupported = isisRemoteLfaSupported(capabilities?.features);
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
