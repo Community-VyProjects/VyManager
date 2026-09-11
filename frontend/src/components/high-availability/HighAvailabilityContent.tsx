@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -307,6 +308,7 @@ function GlobalSettingsPanel({ config, onSaved }: { config: HAConfig; onSaved: (
 // ============================================================================
 
 export function HighAvailabilityContent() {
+  const searchParams = useSearchParams();
   const [config, setConfig] = useState<HAConfig | null>(null);
   const [, setCapabilities] = useState<HACapabilities | null>(null);
   const [loading, setLoading] = useState(true);
@@ -356,13 +358,11 @@ export function HighAvailabilityContent() {
   }, [loadData]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const params = new URLSearchParams(window.location.search);
-    const tabParam = params.get("tab");
+    const tabParam = searchParams.get("tab");
     if (tabParam === "vrrp" || tabParam === "sync" || tabParam === "vs") {
       setSelectedTab(tabParam);
     }
-  }, []);
+  }, [searchParams]);
 
   const handleToggleHA = async () => {
     setTogglingHA(true);

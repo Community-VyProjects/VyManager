@@ -30,6 +30,8 @@ import {
   Layers
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { DndContext, type DragStartEvent, type DragEndEvent, closestCenter, DragOverlay, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { natService, type NATConfigResponse, type NATCapabilities, type SourceNATRule, type DestinationNATRule, type StaticNATRule } from "@/lib/api/nat";
@@ -52,7 +54,8 @@ import { FeatureGroup } from "@/lib/api/user-management";
 
 type RuleType = "source" | "destination" | "static" | "cgnat";
 
-export default function NATPage() {
+function NATPageInner() {
+  const searchParams = useSearchParams();
   const { canRead, canWrite, isLoading: permissionsLoading } = usePermissions();
   const [config, setConfig] = useState<NATConfigResponse | null>(null);
   const [capabilities, setCapabilities] = useState<NATCapabilities | null>(null);
@@ -78,6 +81,15 @@ export default function NATPage() {
   const [hasChanges, setHasChanges] = useState(false);
   const [activeId, setActiveId] = useState<number | null>(null);
   const [savingReorder, setSavingReorder] = useState(false);
+
+  useEffect(() => {
+    const requestedType = searchParams.get("type");
+    const validTypes: RuleType[] = ["source", "destination", "static", "cgnat"];
+
+    if (requestedType && validTypes.includes(requestedType as RuleType)) {
+      setSelectedType(requestedType as RuleType);
+    }
+  }, [searchParams]);
 
   // Drag and drop sensors - require 8px movement before drag starts to prevent accidental drags
   const sensors = useSensors(
@@ -969,5 +981,13 @@ export default function NATPage() {
         onSuccess={() => fetchConfig(true)}
       />
     </AppLayout>
+  );
+}
+
+export default function NATPage() {
+  return (
+    <Suspense>
+      <NATPageInner />
+    </Suspense>
   );
 }
