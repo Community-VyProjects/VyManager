@@ -17,6 +17,7 @@ class HardwareSensor(BaseModel):
 class HardwareSensorsResponse(BaseModel):
     sensors: List[HardwareSensor] = Field(default_factory=list)
     raw: str = ""
+    summary: str = ""
 
 
 def _as_numeric(value: Optional[str]) -> Optional[float]:
@@ -26,6 +27,23 @@ def _as_numeric(value: Optional[str]) -> Optional[float]:
     if not match:
         return None
     return float(match.group(0))
+
+
+def _build_hardware_summary(sensors: List[HardwareSensor]) -> str:
+    """Return a compact global status sentence from the parsed sensor states."""
+    critical_count = sum(1 for sensor in sensors if sensor.status == "critical")
+    warning_count = sum(1 for sensor in sensors if sensor.status == "warning")
+
+    if critical_count == 0 and warning_count == 0:
+        return "all okay"
+
+    parts: List[str] = []
+    if critical_count:
+        parts.append(f"{critical_count} in critical" if critical_count != 1 else "1 in critical")
+    if warning_count:
+        parts.append(f"{warning_count} in warning" if warning_count != 1 else "1 in warning")
+
+    return " and ".join(parts)
 
 
 def parse_hardware_sensors(text: str) -> HardwareSensorsResponse:
@@ -50,7 +68,7 @@ def parse_hardware_sensors(text: str) -> HardwareSensorsResponse:
     # Check for no sensors available
     lower_text = (text or "").lower().strip()
     if "no sensors available" in lower_text or "no sensors found" in lower_text:
-        return HardwareSensorsResponse(sensors=[], raw=text or "")
+        return HardwareSensorsResponse(sensors=[], raw=text or "", summary="")
     
     lines = (text or "").splitlines()
     current_adapter = None
@@ -72,7 +90,7 @@ def parse_hardware_sensors(text: str) -> HardwareSensorsResponse:
         match = re.match(r"^([^:]+):\s*(.+)$", stripped)
         if not match:
             continue
-            
+        
         sensor_name, raw_value = match.groups()
         
         # Build full sensor name with adapter prefix
@@ -117,4 +135,4 @@ def parse_hardware_sensors(text: str) -> HardwareSensorsResponse:
             critical=critical_match.group(1).strip() if critical_match else None,
         ))
     
-    return HardwareSensorsResponse(sensors=sensors, raw=text or "")
+    return HardwareSensorsResponse(sensors=sensors, raw=text or "", summary=_build_hardware_summary(sensors))

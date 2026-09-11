@@ -43,6 +43,7 @@ export interface HardwareSensor {
 export interface HardwareSensorsResponse {
   sensors: HardwareSensor[];
   raw: string;
+  summary?: string;
 }
 
 // ============================================================================
