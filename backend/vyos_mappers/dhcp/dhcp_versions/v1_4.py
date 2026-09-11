@@ -91,3 +91,7 @@ class DHCPMapperV1_4:
     def has_subnet_id(self) -> bool:
         """Returns False - subnet-id does not exist in VyOS 1.4."""
         return False
+
+    def can_clear_inactive_leases(self) -> bool:
+        """1.4 GraphQL ClearReleaseLeaseDhcp only releases active leases."""
+        return False

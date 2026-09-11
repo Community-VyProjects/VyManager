@@ -134,6 +134,8 @@ export interface DHCPCapabilitiesResponse {
     // Options
     ping_check: DHCPFieldCapability;
     enable_failover: DHCPFieldCapability;
+    // Operational lease clear
+    clear_inactive_lease: DHCPFieldCapability;
     // Disable / description
     description: DHCPFieldCapability;
     global_disable: DHCPFieldCapability;
