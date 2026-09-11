@@ -177,11 +177,11 @@ export function HardwareSensorsCard({
                       Per-core temps
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="max-w-xl">
+                  <DialogContent className="max-w-[min(680px,calc(100vw-2rem))] max-h-[80vh] overflow-hidden">
                     <DialogHeader>
                       <DialogTitle>CPU Core Temperatures</DialogTitle>
                     </DialogHeader>
-                    <div className="space-y-2">
+                    <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
                       {cpuSensors.map((sensor) => (
                         <div key={sensor.name} className="flex items-center justify-between rounded-md border p-2">
                           <span className="text-sm font-medium truncate pr-3">{sensor.name}</span>
