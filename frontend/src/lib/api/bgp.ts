@@ -244,7 +244,6 @@ export interface BgpCapabilities {
     address_families: { supported: boolean; description: string };
     listen_ranges: { supported: boolean; description: string };
     bmp: { supported: boolean; description: string };
-    bmp_local_rib: { supported: boolean; description: string };
     srv6: { supported: boolean; description: string };
     local_role: { supported: boolean; description: string };
     path_attribute: { supported: boolean; description: string };

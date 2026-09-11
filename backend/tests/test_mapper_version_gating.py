@@ -167,6 +167,44 @@ def test_capabilities_read_mapper_allowlist():
     assert "nhrp" in babel_15["redistribute_protocols"]["ipv4"]
 
 
+@pytest.mark.parametrize("version", ["1.4", "1.5"])
+def test_bgp_rejects_bmp_monitor_local_rib(version):
+    # local-rib is not a real CLI node on 1.4 or 1.5.
+    mapper = get_bgp_mapper(version)
+    with pytest.raises(ValueError, match="not supported"):
+        mapper.get_bmp_target_monitor("T1", "ipv4-unicast", "local-rib")
+    builder = BgpBatchBuilder(version=version)
+    with pytest.raises(ValueError, match="not supported"):
+        builder.set_bmp_target_monitor("T1", "ipv4-unicast", "local-rib")
+    # real policies still pass through
+    assert mapper.get_bmp_target_monitor("T1", "ipv4-unicast", "pre-policy")[-1] == "pre-policy"
+    assert mapper.get_bmp_target_monitor("T1", "ipv4-unicast", "post-policy")[-1] == "post-policy"
+
+
+def test_bgp_capabilities_drop_bmp_local_rib():
+    for version in ("1.4", "1.5"):
+        caps = BgpBatchBuilder(version=version).get_capabilities()
+        assert "bmp_local_rib" not in caps["features"]
+
+
+@pytest.mark.parametrize("version", ["1.4", "1.5"])
+def test_vrf_bgp_rejects_bmp_monitor_local_rib(version):
+    mapper = VrfBgpMapper(version)
+    with pytest.raises(ValueError, match="not supported"):
+        mapper.get_bgp_bmp_target_monitor("blue", "T1", "ipv4-unicast", "local-rib")
+    builder = VrfBatchBuilder(version=version)
+    with pytest.raises(ValueError, match="not supported"):
+        builder.set_vrf_bgp_bmp_target_monitor("blue", "T1,ipv4-unicast,local-rib")
+    # real policy still passes through
+    assert mapper.get_bgp_bmp_target_monitor("blue", "T1", "ipv4-unicast", "pre-policy")[-1] == "pre-policy"
+
+
+@pytest.mark.parametrize("version", ["1.4", "1.5"])
+def test_allowlist_rejects_unknown_bmp_monitor_policy(version):
+    with pytest.raises(ValueError, match="not supported"):
+        get_bgp_mapper(version).get_bmp_target_monitor("T1", "ipv4-unicast", "not-a-policy")
+
+
 @pytest.mark.parametrize("version", ["1.4", "1.4.0", "1.4.4 sagitta"])
 def test_factories_substring_match_14(version):
     assert type(get_ethernet_mapper(version)).__name__ == "EthernetMapper_v1_4"

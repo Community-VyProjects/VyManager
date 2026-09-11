@@ -1163,10 +1163,6 @@ class BgpBatchBuilder:
                     "supported": True,
                     "description": "BGP Monitoring Protocol",
                 },
-                "bmp_local_rib": {
-                    "supported": is_1_5,
-                    "description": "BMP local-rib monitoring (VyOS 1.5+)",
-                },
                 "srv6": {
                     "supported": True,
                     "description": "Segment Routing v6",

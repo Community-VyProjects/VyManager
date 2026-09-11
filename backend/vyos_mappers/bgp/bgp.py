@@ -19,6 +19,12 @@ class BgpMapper(BaseFeatureMapper):
         "connected", "kernel", "ospf", "rip", "static", "babel", "isis",
     )
 
+    # BMP monitor policies that exist as CLI nodes. local-rib is not a real
+    # node on 1.4 or 1.5, so it is excluded on every version.
+    _BMP_MONITOR_POLICIES = (
+        "pre-policy", "post-policy",
+    )
+
     def __init__(self, version: str):
         super().__init__(version)
 
@@ -31,6 +37,14 @@ class BgpMapper(BaseFeatureMapper):
         if protocol not in self.redistribute_protocols():
             raise ValueError(
                 f"redistribute {protocol} is not supported on this device")
+
+    def bmp_monitor_policies(self) -> FrozenSet[str]:
+        return frozenset(self._BMP_MONITOR_POLICIES)
+
+    def _require_bmp_monitor_policy(self, policy: str) -> None:
+        if policy not in self.bmp_monitor_policies():
+            raise ValueError(
+                f"BMP monitor policy {policy} is not supported on this device")
 
     # ========================================================================
     # Helper base paths
@@ -1081,6 +1095,7 @@ class BgpMapper(BaseFeatureMapper):
         return self._bgp() + ["bmp", "target", name, "mirror"]
 
     def get_bmp_target_monitor(self, name: str, afi: str, policy: str) -> List[str]:
+        self._require_bmp_monitor_policy(policy)
         return self._bgp() + ["bmp", "target", name, "monitor", afi, policy]
 
     def get_bmp_target_delete(self, name: str) -> List[str]:
