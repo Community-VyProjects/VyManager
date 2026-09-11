@@ -211,6 +211,12 @@ class BgpBatchBuilder:
     def delete_parameters_no_suppress_duplicates(self) -> "BgpBatchBuilder":
         return self.add_delete(self.m.get_parameters_flag("no-suppress-duplicates"))
 
+    def set_parameters_no_ipv6_auto_ra(self) -> "BgpBatchBuilder":
+        return self.add_set(self.m.get_parameters_flag("no-ipv6-auto-ra"))
+
+    def delete_parameters_no_ipv6_auto_ra(self) -> "BgpBatchBuilder":
+        return self.add_delete(self.m.get_parameters_flag("no-ipv6-auto-ra"))
+
     # ========================================================================
     # Parameters - Bestpath
     # ========================================================================

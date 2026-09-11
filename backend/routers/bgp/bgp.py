@@ -95,6 +95,7 @@ class BgpParameters(BaseModel):
     shutdown: bool = False
     no_hard_administrative_reset: bool = False
     no_suppress_duplicates: bool = False
+    no_ipv6_auto_ra: bool = False
     bestpath: BgpBestpath = BgpBestpath()
     dampening: BgpDampening = BgpDampening()
     confederation: BgpConfederation = BgpConfederation()
@@ -457,6 +458,7 @@ def parse_parameters(raw: dict) -> BgpParameters:
         shutdown="shutdown" in raw,
         no_hard_administrative_reset="no-hard-administrative-reset" in raw,
         no_suppress_duplicates="no-suppress-duplicates" in raw,
+        no_ipv6_auto_ra="no-ipv6-auto-ra" in raw,
         bestpath=BgpBestpath(
             as_path_confed=as_path_confed,
             as_path_ignore=as_path_ignore,

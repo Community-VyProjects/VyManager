@@ -66,6 +66,7 @@ export interface BgpParameters {
   shutdown: boolean;
   no_hard_administrative_reset: boolean;
   no_suppress_duplicates: boolean;
+  no_ipv6_auto_ra: boolean;
   bestpath: BgpBestpath;
   dampening: BgpDampening;
   confederation: BgpConfederation;
@@ -802,6 +803,8 @@ class BgpService {
       { key: "route_reflector_allow_outbound_policy", op: "parameters_route_reflector_allow_outbound_policy" },
       { key: "suppress_fib_pending", op: "parameters_suppress_fib_pending" },
       { key: "shutdown", op: "parameters_shutdown" },
+      { key: "no_suppress_duplicates", op: "parameters_no_suppress_duplicates" },
+      { key: "no_ipv6_auto_ra", op: "parameters_no_ipv6_auto_ra" },
     ];
 
     for (const flag of flags) {

@@ -1318,6 +1318,8 @@ export function BgpContent() {
                         { key: "reject_as_sets" as const, label: "Reject AS-Sets", desc: "Reject routes with AS_SET or AS_CONFED_SET" },
                         { key: "route_reflector_allow_outbound_policy" as const, label: "RR Allow Outbound Policy", desc: "Apply outbound policy on reflected routes" },
                         { key: "suppress_fib_pending" as const, label: "Suppress FIB Pending", desc: "Do not advertise routes pending FIB installation" },
+                        { key: "no_suppress_duplicates" as const, label: "No Suppress Duplicates", desc: "Do not suppress duplicate BGP routes" },
+                        { key: "no_ipv6_auto_ra" as const, label: "No IPv6 Auto RA", desc: "Disable automatic IPv6 router advertisements" },
                         { key: "shutdown" as const, label: "Shutdown", desc: "Administratively shut down BGP", destructive: true },
                       ] as const).map((item) => {
                         const { key, label, desc } = item;
