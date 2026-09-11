@@ -31,8 +31,6 @@ def vrf_protocol_op_exists(owner: Any, verb: str, proto: str, suffix: Optional[s
     inner_cls = PROTOCOL_BUILDERS[proto]
     if hasattr(inner_cls, f"{verb}_{suffix}"):
         return True
-    if verb == "delete" and hasattr(inner_cls, f"set_{suffix}"):
-        return True
     mapper = owner.mappers.get(f"vrf_{proto}")
     if mapper is None:
         return False
@@ -42,7 +40,6 @@ def vrf_protocol_op_exists(owner: Any, verb: str, proto: str, suffix: Optional[s
             f"get_{proto}_{suffix}",
             f"get_{suffix}",
             f"get_{proto}_{suffix}_delete",
-            f"_{suffix}",
         )
     )
 
@@ -87,7 +84,6 @@ def _mapper_path(mapper: Any, proto: str, suffix: str, vrf_name: str, value: Opt
         f"get_{proto}_{suffix}",
         f"get_{suffix}",
         f"get_{proto}_{suffix}_delete",
-        f"_{suffix}",
     ):
         getter = getattr(mapper, candidate, None)
         if getter is None:
@@ -136,16 +132,5 @@ def run_vrf_protocol_op(
         path = _mapper_path(mapper, proto, suffix, vrf_name, value)
         if path is not None:
             return owner.add_set(path) if verb == "set" else owner.add_delete(path)
-
-    # Mixins often expose delete_* when the global builder only has set_*.
-    # Discover the path via set, then queue a delete of that path.
-    if verb == "delete":
-        set_method = getattr(inner, f"set_{suffix}", None)
-        if set_method is not None:
-            _call_with_packed_value(set_method, value)
-            for op in inner.get_operations():
-                path = op.get("path") or []
-                owner._operations.append({"op": "delete", "path": prefix + list(path)})
-            return owner
 
     raise AttributeError(inner_name)

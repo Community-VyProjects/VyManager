@@ -47,3 +47,13 @@ def test_unknown_protocol_suffix_raises():
     vrf = VrfBatchBuilder("1.5")
     with pytest.raises(AttributeError):
         vrf.set_vrf_ospf_not_a_real_op("blue")
+
+
+def test_private_mapper_helpers_are_not_ops():
+    vrf = VrfBatchBuilder("1.5")
+    with pytest.raises(AttributeError):
+        getattr(vrf, "set_vrf_bgp_base")
+    with pytest.raises(AttributeError):
+        getattr(vrf, "set_vrf_bgp_REDIST")
+    with pytest.raises(AttributeError):
+        getattr(vrf, "set_vrf_isis_fr_lfa")
