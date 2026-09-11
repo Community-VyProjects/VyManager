@@ -180,17 +180,7 @@ export default function Home() {
 
       if (!session?.user) {
         try {
-          const response = await fetch(`/api/session/onboarding-status`, {
-            method: "GET",
-          });
-
-          if (!response.ok) {
-            console.error("[RootPage] Onboarding status check failed:", response.status);
-            router.push("/login");
-            return;
-          }
-
-          const data = await response.json();
+          const data = await sessionService.getOnboardingStatus();
 
           if (data.needs_onboarding) {
             console.log("[RootPage] Onboarding needed - redirecting to /onboarding");

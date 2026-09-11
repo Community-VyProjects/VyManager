@@ -28,7 +28,6 @@ import {
 import {
   nat64Service,
   type NAT64ConfigResponse,
-  type NAT64Capabilities,
   type NAT64SourceRule,
   type NAT64TranslationPool,
 } from "@/lib/api/nat64";
@@ -43,7 +42,6 @@ import { FeatureGroup } from "@/lib/api/user-management";
 export default function NAT64Page() {
   const { canRead, canWrite, isLoading: permissionsLoading } = usePermissions();
   const [config, setConfig] = useState<NAT64ConfigResponse | null>(null);
-  const [, setCapabilities] = useState<NAT64Capabilities | null>(null);
   const [selectedRule, setSelectedRule] = useState<NAT64SourceRule | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -82,7 +80,6 @@ export default function NAT64Page() {
 
   useEffect(() => {
     fetchConfig();
-    nat64Service.getCapabilities().then(setCapabilities).catch(console.error);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

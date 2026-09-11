@@ -37,17 +37,7 @@ export default function OnboardingPage() {
     const checkOnboardingAccess = async () => {
       try {
         console.log("[OnboardingPage] Checking if onboarding is needed...");
-        const response = await fetch("/api/session/onboarding-status", {
-          method: "GET",
-        });
-
-        if (!response.ok) {
-          console.error("[OnboardingPage] Failed to check onboarding status");
-          router.push("/login");
-          return;
-        }
-
-        const data = await response.json();
+        const data = await sessionService.getOnboardingStatus();
 
         if (!data.needs_onboarding) {
           // Users already exist - onboarding is not allowed
@@ -164,19 +154,13 @@ export default function OnboardingPage() {
       // SECURITY: Re-check onboarding status before creating account
       // Prevents race condition if someone else completed onboarding while form was open
       console.log("[Onboarding] Validating onboarding is still needed...");
-      const statusCheck = await fetch("/api/session/onboarding-status", {
-        method: "GET",
-      });
-
-      if (statusCheck.ok) {
-        const statusData = await statusCheck.json();
-        if (!statusData.needs_onboarding) {
-          setError("Onboarding has already been completed by another user. Please log in.");
-          setLoading(false);
-          setIsSubmitting(false);
-          setTimeout(() => router.push("/login"), 2000);
-          return;
-        }
+      const statusData = await sessionService.getOnboardingStatus();
+      if (!statusData.needs_onboarding) {
+        setError("Onboarding has already been completed by another user. Please log in.");
+        setLoading(false);
+        setIsSubmitting(false);
+        setTimeout(() => router.push("/login"), 2000);
+        return;
       }
 
       // Step 1: Create admin account
