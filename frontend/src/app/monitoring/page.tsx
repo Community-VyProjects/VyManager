@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 import { Badge } from "@/components/ui/badge";
 import {
   Activity,
@@ -30,7 +31,6 @@ import {
 } from "lucide-react";
 import { monitoringService, MonitoringCommand, MonitoringStatus } from "@/lib/api/monitoring";
 import { sessionService, ActiveSession } from "@/lib/api/session";
-import { showService, InterfaceName } from "@/lib/api/show";
 import { useMonitoringWebSocket } from "@/hooks/useMonitoringWebSocket";
 import { MonitoringTerminal } from "@/components/monitoring/MonitoringTerminal";
 import { TrafficTable } from "@/components/monitoring/TrafficTable";
@@ -61,7 +61,6 @@ function MonitoringPageInner() {
   const [session, setSession] = useState<ActiveSession | null>(null);
   const [sshStatus, setSSHStatus] = useState<MonitoringStatus | null>(null);
   const [commands, setCommands] = useState<MonitoringCommand[]>([]);
-  const [interfaces, setInterfaces] = useState<InterfaceName[]>([]);
   const [selectedCommand, setSelectedCommand] = useState<string>("");
   const [logLines, setLogLines] = useState("50");
   const [loading, setLoading] = useState(true);
@@ -97,14 +96,12 @@ function MonitoringPageInner() {
         setSession(currentSession);
         if (!currentSession) return;
 
-        const [statusData, commandsData, ifacesData] = await Promise.all([
+        const [statusData, commandsData] = await Promise.all([
           monitoringService.getMonitoringStatus(),
           monitoringService.getCommands(),
-          showService.getAllInterfaces().catch(() => ({ interfaces: [], total: 0 })),
         ]);
         setSSHStatus(statusData);
         setCommands(commandsData.commands);
-        setInterfaces(ifacesData.interfaces);
         if (commandsData.commands.length > 0) {
           setSelectedCommand(commandsData.commands[0].name);
         }
@@ -162,10 +159,10 @@ function MonitoringPageInner() {
     if (requestedCommand && commands.some((cmd) => cmd.name === requestedCommand)) {
       setSelectedCommand(requestedCommand);
       if (requestedCommand === "monitor_traffic") {
-        setCaptureIface(requestedIface || (interfaces.length > 0 ? "any" : ""));
+        setCaptureIface(requestedIface || "any");
       }
     }
-  }, [commands, interfaces, searchParams]);
+  }, [commands, searchParams]);
 
   const currentCommandDef = commands.find((c) => c.name === selectedCommand);
   const tableView = activeCommand ? getTableView(activeCommand) : null;
@@ -366,31 +363,20 @@ function MonitoringPageInner() {
                         Interface{" "}
                         <span className="text-destructive">*</span>
                       </Label>
-                      <Select
+                      <InterfaceSelect
                         value={captureIface}
                         onValueChange={(v) => {
                           setCaptureIface(v);
                           setIfaceError(false);
                         }}
                         disabled={isRunning}
-                      >
-                        <SelectTrigger
-                          className={cn(
-                            "w-36 h-8 text-sm",
-                            ifaceError && "border-destructive ring-destructive/20"
-                          )}
-                        >
-                          <SelectValue placeholder="Select…" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="any">any</SelectItem>
-                          {interfaces.map((iface) => (
-                            <SelectItem key={iface.name} value={iface.name}>
-                              {iface.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        placeholder="Select…"
+                        className={cn(
+                          "w-36 h-8 text-sm",
+                          ifaceError && "border-destructive ring-destructive/20"
+                        )}
+                        noneOption={{ label: "any", value: "any" }}
+                      />
                       {ifaceError && (
                         <p className="text-[10px] text-destructive">Required</p>
                       )}
