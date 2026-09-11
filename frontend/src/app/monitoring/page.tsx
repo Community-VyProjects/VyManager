@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect } from "react";
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,7 +22,6 @@ import { Badge } from "@/components/ui/badge";
 import {
   Activity,
   AlertCircle,
-  ExternalLink,
   Loader2,
   Play,
   SlidersHorizontal,
@@ -245,13 +245,11 @@ function MonitoringPageInner() {
                 SSH key monitoring is not set up for{" "}
                 <span className="font-medium">{session.instance_name}</span>.
               </p>
-              <p className="text-sm text-muted-foreground flex items-center justify-center gap-1 pt-1">
-                Go to{" "}
-                <span className="font-medium inline-flex items-center gap-1">
-                  Sites &rarr; Edit Instance &rarr; SSH
-                  <ExternalLink className="h-3 w-3" />
-                </span>{" "}
-                to configure.
+              <p className="text-sm text-muted-foreground pt-1">
+                <Link href="/sites" className="font-medium text-foreground underline underline-offset-4 hover:text-primary">
+                  Open Site Manager
+                </Link>{" "}
+                to configure SSH.
               </p>
             </CardContent>
           </Card>
