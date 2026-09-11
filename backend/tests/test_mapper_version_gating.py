@@ -37,21 +37,21 @@ def test_isis_v14_rejects_ti_lfa_instead_of_silent_noop():
 
 def test_mappers_14_reject_redistribute_nhrp():
     babel = get_babel_mapper("1.4")
-    with pytest.raises(ValueError, match="1.5"):
+    with pytest.raises(ValueError, match="not supported"):
         babel.get_redistribute_ipv4("nhrp")
-    with pytest.raises(ValueError, match="1.5"):
+    with pytest.raises(ValueError, match="not supported"):
         babel.get_redistribute_ipv6("nhrp")
     ospf = get_ospf_mapper("1.4")
-    with pytest.raises(ValueError, match="1.5"):
+    with pytest.raises(ValueError, match="not supported"):
         ospf.get_redistribute("nhrp")
     bgp = get_bgp_mapper("1.4")
-    with pytest.raises(ValueError, match="1.5"):
+    with pytest.raises(ValueError, match="not supported"):
         bgp.get_af_redistribute("ipv4-unicast", "nhrp")
     vrf_ospf = VrfOspfMapper("1.4")
-    with pytest.raises(ValueError, match="1.5"):
+    with pytest.raises(ValueError, match="not supported"):
         vrf_ospf.get_ospf_redistribute("blue", "nhrp")
     vrf_bgp = VrfBgpMapper("1.4")
-    with pytest.raises(ValueError, match="1.5"):
+    with pytest.raises(ValueError, match="not supported"):
         vrf_bgp.get_bgp_af_redistribute("blue", "ipv4-unicast", "nhrp")
 
 
@@ -64,7 +64,7 @@ def test_mappers_14_delete_redistribute_nhrp():
 
 def test_ospf_14_rejects_redistribute_nhrp():
     builder = OspfBatchBuilder(version="1.4")
-    with pytest.raises(ValueError, match="1.5"):
+    with pytest.raises(ValueError, match="not supported"):
         builder.set_redistribute("nhrp")
     # supported protocols still pass through
     builder.set_redistribute("bgp")
@@ -79,9 +79,9 @@ def test_ospf_15_allows_redistribute_nhrp():
 
 def test_babel_14_rejects_redistribute_nhrp():
     builder = BabelBatchBuilder(version="1.4")
-    with pytest.raises(ValueError, match="1.5"):
+    with pytest.raises(ValueError, match="not supported"):
         builder.set_redistribute_ipv4("nhrp")
-    with pytest.raises(ValueError, match="1.5"):
+    with pytest.raises(ValueError, match="not supported"):
         builder.set_redistribute_ipv6("nhrp")
     # supported protocols still pass through
     builder.set_redistribute_ipv4("bgp")
@@ -101,11 +101,11 @@ def test_babel_15_allows_redistribute_nhrp():
 
 def test_bgp_14_rejects_redistribute_nhrp():
     builder = BgpBatchBuilder(version="1.4")
-    with pytest.raises(ValueError, match="1.5"):
+    with pytest.raises(ValueError, match="not supported"):
         builder.set_af_redistribute("ipv4-unicast", "nhrp")
-    with pytest.raises(ValueError, match="1.5"):
+    with pytest.raises(ValueError, match="not supported"):
         builder.set_af_redistribute_metric("ipv4-unicast", "nhrp", "10")
-    with pytest.raises(ValueError, match="1.5"):
+    with pytest.raises(ValueError, match="not supported"):
         builder.set_af_redistribute_route_map("ipv4-unicast", "nhrp", "RM")
     # supported protocols still pass through
     builder.set_af_redistribute("ipv4-unicast", "connected")
@@ -120,23 +120,23 @@ def test_bgp_15_allows_redistribute_nhrp():
 
 def test_vrf_bgp_14_rejects_redistribute_nhrp():
     builder = VrfBatchBuilder(version="1.4")
-    with pytest.raises(ValueError, match="1.5"):
+    with pytest.raises(ValueError, match="not supported"):
         builder.set_vrf_bgp_af_redistribute("blue", "ipv4-unicast,nhrp")
-    with pytest.raises(ValueError, match="1.5"):
+    with pytest.raises(ValueError, match="not supported"):
         builder.set_vrf_bgp_af_redistribute_metric("blue", "ipv4-unicast,nhrp,10")
-    with pytest.raises(ValueError, match="1.5"):
+    with pytest.raises(ValueError, match="not supported"):
         builder.set_vrf_bgp_af_redistribute_route_map("blue", "ipv4-unicast,nhrp,RM")
 
 
 def test_vrf_ospf_14_rejects_redistribute_nhrp():
     builder = VrfBatchBuilder(version="1.4")
-    with pytest.raises(ValueError, match="1.5"):
+    with pytest.raises(ValueError, match="not supported"):
         builder.set_vrf_ospf_redistribute("blue", "nhrp")
-    with pytest.raises(ValueError, match="1.5"):
+    with pytest.raises(ValueError, match="not supported"):
         builder.set_vrf_ospf_redistribute_metric("blue", "nhrp,10")
-    with pytest.raises(ValueError, match="1.5"):
+    with pytest.raises(ValueError, match="not supported"):
         builder.set_vrf_ospf_redistribute_metric_type("blue", "nhrp,2")
-    with pytest.raises(ValueError, match="1.5"):
+    with pytest.raises(ValueError, match="not supported"):
         builder.set_vrf_ospf_redistribute_route_map("blue", "nhrp,RM")
 
 
@@ -145,6 +145,26 @@ def test_vrf_15_allows_redistribute_nhrp():
     builder.set_vrf_bgp_af_redistribute("blue", "ipv4-unicast,nhrp")
     builder.set_vrf_ospf_redistribute("blue", "nhrp")
     assert builder.get_operations()
+
+
+def test_allowlist_rejects_unknown_redistribute_protocol():
+    with pytest.raises(ValueError, match="not supported"):
+        get_ospf_mapper("1.5").get_redistribute("not-a-protocol")
+    with pytest.raises(ValueError, match="not supported"):
+        get_babel_mapper("1.5").get_redistribute_ipv4("not-a-protocol")
+
+
+def test_capabilities_read_mapper_allowlist():
+    caps_14 = OspfBatchBuilder(version="1.4").get_capabilities()
+    assert "nhrp" not in caps_14["redistribute_protocols"]
+    assert caps_14["features"]["redistribute_nhrp"]["supported"] is False
+    caps_15 = OspfBatchBuilder(version="1.5").get_capabilities()
+    assert "nhrp" in caps_15["redistribute_protocols"]
+    assert caps_15["features"]["redistribute_nhrp"]["supported"] is True
+    babel_14 = BabelBatchBuilder(version="1.4").get_capabilities()
+    assert "nhrp" not in babel_14["redistribute_protocols"]["ipv4"]
+    babel_15 = BabelBatchBuilder(version="1.5").get_capabilities()
+    assert "nhrp" in babel_15["redistribute_protocols"]["ipv4"]
 
 
 @pytest.mark.parametrize("version", ["1.4", "1.4.0", "1.4.4 sagitta"])

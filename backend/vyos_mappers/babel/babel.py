@@ -5,15 +5,42 @@ Handles command path generation for Babel routing protocol configuration.
 Version-specific logic is in version-specific files.
 """
 
-from typing import List
-from ..base import BaseFeatureMapper, reject_nhrp_redistribute_on_14
+from typing import FrozenSet, List
+from ..base import BaseFeatureMapper
 
 
 class BabelMapper(BaseFeatureMapper):
     """Base mapper with common operations shared between VyOS 1.4 and 1.5."""
 
+    _REDIST_IPV4 = frozenset(
+        {"bgp", "connected", "isis", "kernel", "openfabric", "ospf", "rip", "static"}
+    )
+    _REDIST_IPV6 = frozenset(
+        {"bgp", "connected", "isis", "kernel", "openfabric", "ospfv3", "ripng", "static"}
+    )
+
     def __init__(self, version: str):
         super().__init__(version)
+
+    def redistribute_ipv4_protocols(self) -> FrozenSet[str]:
+        if "1.4" in self.version:
+            return self._REDIST_IPV4
+        return self._REDIST_IPV4 | {"nhrp"}
+
+    def redistribute_ipv6_protocols(self) -> FrozenSet[str]:
+        if "1.4" in self.version:
+            return self._REDIST_IPV6
+        return self._REDIST_IPV6 | {"nhrp"}
+
+    def _require_redistribute_ipv4(self, protocol: str) -> None:
+        if protocol not in self.redistribute_ipv4_protocols():
+            raise ValueError(
+                f"redistribute {protocol} is not supported on this device")
+
+    def _require_redistribute_ipv6(self, protocol: str) -> None:
+        if protocol not in self.redistribute_ipv6_protocols():
+            raise ValueError(
+                f"redistribute {protocol} is not supported on this device")
 
     # ========================================================================
     # Interface Paths
@@ -76,14 +103,14 @@ class BabelMapper(BaseFeatureMapper):
     # ========================================================================
 
     def get_redistribute_ipv4(self, protocol: str) -> List[str]:
-        reject_nhrp_redistribute_on_14(self.version, protocol)
+        self._require_redistribute_ipv4(protocol)
         return ["protocols", "babel", "redistribute", "ipv4", protocol]
 
     def get_redistribute_ipv4_delete(self, protocol: str) -> List[str]:
         return ["protocols", "babel", "redistribute", "ipv4", protocol]
 
     def get_redistribute_ipv6(self, protocol: str) -> List[str]:
-        reject_nhrp_redistribute_on_14(self.version, protocol)
+        self._require_redistribute_ipv6(protocol)
         return ["protocols", "babel", "redistribute", "ipv6", protocol]
 
     def get_redistribute_ipv6_delete(self, protocol: str) -> List[str]:

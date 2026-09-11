@@ -8,15 +8,29 @@ listen ranges, BMP, SID, SRv6, and interface MPLS settings.
 Version-specific logic is in version-specific files.
 """
 
-from typing import List
-from ..base import BaseFeatureMapper, reject_nhrp_redistribute_on_14
+from typing import FrozenSet, List
+from ..base import BaseFeatureMapper
 
 
 class BgpMapper(BaseFeatureMapper):
     """Base mapper with common operations shared between VyOS 1.4 and 1.5."""
 
+    _REDIST = (
+        "connected", "kernel", "ospf", "rip", "static", "babel", "isis",
+    )
+
     def __init__(self, version: str):
         super().__init__(version)
+
+    def redistribute_protocols(self) -> FrozenSet[str]:
+        if "1.4" in self.version:
+            return frozenset(self._REDIST)
+        return frozenset(self._REDIST) | {"nhrp"}
+
+    def _require_redistribute(self, protocol: str) -> None:
+        if protocol not in self.redistribute_protocols():
+            raise ValueError(
+                f"redistribute {protocol} is not supported on this device")
 
     # ========================================================================
     # Helper base paths
@@ -831,15 +845,15 @@ class BgpMapper(BaseFeatureMapper):
 
     # Redistribute
     def get_af_redistribute(self, afi: str, protocol: str) -> List[str]:
-        reject_nhrp_redistribute_on_14(self.version, protocol)
+        self._require_redistribute(protocol)
         return self._af(afi) + ["redistribute", protocol]
 
     def get_af_redistribute_metric(self, afi: str, protocol: str, value: str) -> List[str]:
-        reject_nhrp_redistribute_on_14(self.version, protocol)
+        self._require_redistribute(protocol)
         return self._af(afi) + ["redistribute", protocol, "metric", value]
 
     def get_af_redistribute_route_map(self, afi: str, protocol: str, value: str) -> List[str]:
-        reject_nhrp_redistribute_on_14(self.version, protocol)
+        self._require_redistribute(protocol)
         return self._af(afi) + ["redistribute", protocol, "route-map", value]
 
     def get_af_redistribute_table(self, afi: str, table: str) -> List[str]:
