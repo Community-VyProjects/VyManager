@@ -315,11 +315,6 @@ async def firewall_global_options_batch_configure(http_request: Request, body: G
         # Process operations using inspect for dynamic method calls
         for operation in body.operations:
             method = resolve_batch_method(builder, operation.op)
-            if method is None:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Unknown operation: {operation.op}"
-                )
 
             sig = inspect.signature(method)
             params = list(sig.parameters.keys())

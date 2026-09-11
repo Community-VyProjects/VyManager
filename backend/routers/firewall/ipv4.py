@@ -849,11 +849,6 @@ async def firewall_ipv4_batch_configure(http_request: Request, request: Firewall
         # Process operations using inspect for dynamic method calls
         for operation in request.operations:
             method_name = operation.op
-            if not hasattr(builder, method_name):
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Unknown operation: {method_name}"
-                )
 
             method = resolve_batch_method(builder, method_name)
             sig = inspect.signature(method)

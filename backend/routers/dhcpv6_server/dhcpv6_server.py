@@ -357,11 +357,6 @@ async def dhcpv6_server_batch_configure(
         builder = DHCPv6ServerBatchBuilder(version=service.get_version())
 
         for operation in body.operations:
-            if not hasattr(builder, operation.op):
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Unknown operation: {operation.op}",
-                )
 
             method = resolve_batch_method(builder, operation.op)
             sig = inspect.signature(method)

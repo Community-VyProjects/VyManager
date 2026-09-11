@@ -184,11 +184,6 @@ async def wireguard_interface_batch(request: Request, body: WireGuardInterfaceBa
             method_name = operation.op
             method = resolve_batch_method(builder, method_name)
 
-            if method is None:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Unknown operation: {method_name}"
-                )
 
             sig = inspect.signature(method)
             params = list(sig.parameters.keys())
@@ -209,11 +204,6 @@ async def wireguard_interface_batch(request: Request, body: WireGuardInterfaceBa
                     peer_method_name = operation.op
                     peer_method = resolve_batch_method(builder, peer_method_name)
 
-                    if peer_method is None:
-                        raise HTTPException(
-                            status_code=400,
-                            detail=f"Unknown peer operation: {peer_method_name}"
-                        )
 
                     sig = inspect.signature(peer_method)
                     params = list(sig.parameters.keys())
@@ -268,11 +258,6 @@ async def wireguard_peer_batch(request: Request, body: WireGuardPeerBatchRequest
             method_name = operation.op
             method = resolve_batch_method(builder, method_name)
 
-            if method is None:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Unknown operation: {method_name}"
-                )
 
             sig = inspect.signature(method)
             params = list(sig.parameters.keys())
