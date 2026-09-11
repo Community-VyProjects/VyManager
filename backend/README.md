@@ -478,12 +478,6 @@ router = APIRouter(prefix="/vyos/{device_name}/bridge", tags=["bridge-interface"
 device_registry: VyOSDeviceRegistry = None
 
 
-def set_device_registry(registry: VyOSDeviceRegistry):
-    """Set the device registry for this router."""
-    global device_registry
-    device_registry = registry
-
-
 # ============================================================================
 # Request Models (for WRITE operations)
 # ============================================================================
@@ -651,7 +645,6 @@ __all__ = [..., "BridgeBatchBuilder"]
 **Router** (`app.py`):
 ```python
 from routers.interfaces import bridge
-bridge.set_device_registry(device_registry)
 app.include_router(bridge.router)
 ```
 

@@ -21,17 +21,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/vyos/l2tpv3", tags=["l2tpv3-interface"])
 
 
-# Stub functions for backwards compatibility with app.py
-def set_device_registry(registry):
-    """Legacy function - no longer used."""
-    pass
-
-
-def set_configured_device_name(name):
-    """Legacy function - no longer used."""
-    pass
-
-
 # ============================================================================
 # Request / Response Models
 # ============================================================================

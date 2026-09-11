@@ -18,18 +18,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/vyos/firewall/groups", tags=["firewall-groups"])
 
 
-# Stub functions for backwards compatibility with app.py
-# These are no longer used since we use session-based services
-def set_device_registry(registry):
-    """Legacy function - no longer used."""
-    pass
-
-
-def set_configured_device_name(name):
-    """Legacy function - no longer used."""
-    pass
-
-
 # Request/Response Models
 class GroupBatchOperation(BaseModel):
     """Single operation in a batch request."""
