@@ -1,4 +1,9 @@
-from pppoe_status import PPPoEPpsTracker, parse_pppoe_interface_statistics, parse_pppoe_sessions
+from pppoe_status import (
+    PPPoEStatsStore,
+    PPPoEPpsTracker,
+    parse_pppoe_interface_statistics,
+    parse_pppoe_sessions,
+)
 
 
 def test_pppoe_pps_tracker_uses_counter_delta_and_elapsed_time():
@@ -22,6 +27,14 @@ def test_pppoe_pps_tracker_throttles_sampling_by_min_interval():
     assert tracker.update("device:ppp0", 100, 200, timestamp=10.0) == (None, None)
     assert tracker.update("device:ppp0", 160, 320, timestamp=10.5) == (None, None)
     assert tracker.update("device:ppp0", 220, 440, timestamp=11.0) == (120.0, 240.0)
+
+
+def test_pppoe_stats_store_spread_window_scales_with_session_count():
+    store = PPPoEStatsStore(poll_window_seconds=300)
+
+    assert store.sample_interval_for_session_count(1) == 300.0
+    assert store.sample_interval_for_session_count(100) == 3.0
+    assert store.sample_interval_for_session_count(0) == 300.0
 
 
 def test_parse_pppoe_interface_statistics():
