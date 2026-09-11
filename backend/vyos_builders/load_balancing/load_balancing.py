@@ -23,8 +23,8 @@ class LoadBalancingBatchBuilder:
     def __init__(self, version: str):
         self.version = version
         self._operations: List[Dict[str, Any]] = []
-        self.mappers = CommandMapperRegistry.get_all_mappers(version)
         self.mapper_key = "load_balancing"
+        self.mappers = {self.mapper_key: CommandMapperRegistry.get_mapper(self.mapper_key, version)}
 
     def _m(self):
         return self.mappers[self.mapper_key]

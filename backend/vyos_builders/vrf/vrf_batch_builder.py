@@ -39,8 +39,22 @@ class VrfBatchBuilder(
     def __init__(self, version: str):
         self.version = version
         self._operations: List[Dict[str, Any]] = []
-        self.mappers = CommandMapperRegistry.get_all_mappers(version)
         self.mapper_key = "vrf"
+        self.mappers = CommandMapperRegistry.get_mappers(
+            (
+                "vrf",
+                "vrf_static",
+                "vrf_rpki",
+                "vrf_failover",
+                "vrf_ospf",
+                "vrf_ospfv3",
+                "vrf_isis",
+                "vrf_bgp",
+                "vrf_dhcp",
+                "vrf_dhcpv6",
+            ),
+            version,
+        )
 
     # ========================================================================
     # Core Batch Operations

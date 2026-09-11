@@ -16,9 +16,8 @@ class NATBatchBuilder:
         self.version = version
         self._operations: List[Dict[str, Any]] = []
 
-        # Get NAT mapper for this version
-        self.mappers = CommandMapperRegistry.get_all_mappers(version)
         self.mapper_key = "nat"
+        self.mappers = {self.mapper_key: CommandMapperRegistry.get_mapper(self.mapper_key, version)}
 
     # ========================================================================
     # Core Batch Operations

@@ -24,8 +24,7 @@ class DNSForwardingBatchBuilder:
     def __init__(self, version: str):
         self.version = version
         self._operations: List[Dict[str, Any]] = []
-        self.mappers = CommandMapperRegistry.get_all_mappers(version)
-        self.m = self.mappers["dns_forwarding"]
+        self.m = CommandMapperRegistry.get_mapper("dns_forwarding", version)
 
     # -----------------------------------------------------------------------
     # Core helpers

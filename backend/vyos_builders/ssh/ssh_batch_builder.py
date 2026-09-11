@@ -76,8 +76,7 @@ class SSHBatchBuilder:
     def __init__(self, version: str):
         self.version = version
         self._operations: List[Dict[str, Any]] = []
-        self.mappers = CommandMapperRegistry.get_all_mappers(version)
-        self.m = self.mappers["ssh"]
+        self.m = CommandMapperRegistry.get_mapper("ssh", version)
 
     # -----------------------------------------------------------------------
     # Core helpers

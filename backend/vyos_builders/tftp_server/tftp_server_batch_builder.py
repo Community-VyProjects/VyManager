@@ -17,8 +17,7 @@ class TFTPServerBatchBuilder:
     def __init__(self, version: str):
         self.version = version
         self._operations: List[Dict[str, Any]] = []
-        self.mappers = CommandMapperRegistry.get_all_mappers(version)
-        self.m = self.mappers["tftp_server"]
+        self.m = CommandMapperRegistry.get_mapper("tftp_server", version)
 
     # -----------------------------------------------------------------------
     # Core helpers

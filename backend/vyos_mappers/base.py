@@ -5,7 +5,7 @@ Provides the foundation for version-specific command translation.
 """
 
 from abc import ABC
-from typing import Dict, Type, Union, Callable
+from typing import Dict, Iterable, Type, Union, Callable
 
 
 class BaseFeatureMapper(ABC):
@@ -83,6 +83,11 @@ class CommandMapperRegistry:
             return mapper_or_factory(version)
 
     @classmethod
+    def get_mappers(cls, features: Iterable[str], version: str) -> Dict[str, BaseFeatureMapper]:
+        """Get mapper instances for the given feature names only."""
+        return {name: cls.get_mapper(name, version) for name in features}
+
+    @classmethod
     def get_all_mappers(cls, version: str) -> Dict[str, BaseFeatureMapper]:
         """
         Get all mapper instances for a specific version.
@@ -93,7 +98,4 @@ class CommandMapperRegistry:
         Returns:
             Dictionary mapping feature names to mapper instances
         """
-        return {
-            name: cls.get_mapper(name, version)
-            for name in cls._features.keys()
-        }
+        return cls.get_mappers(tuple(cls._features), version)
