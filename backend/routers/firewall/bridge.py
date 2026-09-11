@@ -18,9 +18,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/vyos/firewall/bridge", tags=["firewall-bridge"])
 
 
-# Stub functions for backwards compatibility
-
-
 # Request/Response Models
 class BridgeBatchOperation(BaseModel):
     """Single operation in a batch request."""
