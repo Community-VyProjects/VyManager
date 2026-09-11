@@ -30,7 +30,6 @@ import {
   ChevronRight,
   Trash2,
   CheckCircle2,
-  Info,
 } from "lucide-react";
 import { useEffect, useState, useCallback } from "react";
 import {
@@ -391,18 +390,6 @@ export default function BridgeFirewallPage() {
               </div>
             </div>
 
-            {/* Version Notice */}
-            {!isV15 && capabilities && (
-              <div className="bg-amber-500/10 border border-amber-500/20 rounded-md px-3 py-2 mb-4">
-                <div className="flex items-start gap-2">
-                  <Info className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
-                  <p className="text-xs text-amber-600 dark:text-amber-400">
-                    VyOS 1.4: Only forward chain available
-                  </p>
-                </div>
-              </div>
-            )}
-
             <Separator className="mb-3" />
 
             <ScrollArea className="flex-1">
@@ -437,84 +424,85 @@ export default function BridgeFirewallPage() {
                   </div>
                 </button>
 
-                {/* VyOS 1.5+ chains */}
-                {isV15 && (
-                  <>
-                    <button
-                      onClick={() => handleChainSelect("input", false)}
-                      className={cn(
-                        "w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all",
-                        selectedChain === "input" && !isCustomChain
-                          ? "bg-accent text-accent-foreground shadow-sm"
-                          : "hover:bg-accent/50 text-foreground"
-                      )}
-                    >
-                      <span className="font-medium">Input</span>
-                      <div className="flex items-center gap-1.5">
-                        {getDefaultAction("input", false) && (
-                          <Badge
-                            variant="outline"
-                            className={cn("uppercase text-xs", getDefaultActionBadgeClass(getDefaultAction("input", false)))}
-                          >
-                            {getDefaultAction("input", false)}
-                          </Badge>
-                        )}
-                        <Badge variant="secondary">
-                          {getChainByName("input")?.rule_count || 0}
+                {capabilities?.features.input_chain.supported && (
+                  <button
+                    onClick={() => handleChainSelect("input", false)}
+                    className={cn(
+                      "w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all",
+                      selectedChain === "input" && !isCustomChain
+                        ? "bg-accent text-accent-foreground shadow-sm"
+                        : "hover:bg-accent/50 text-foreground"
+                    )}
+                  >
+                    <span className="font-medium">Input</span>
+                    <div className="flex items-center gap-1.5">
+                      {getDefaultAction("input", false) && (
+                        <Badge
+                          variant="outline"
+                          className={cn("uppercase text-xs", getDefaultActionBadgeClass(getDefaultAction("input", false)))}
+                        >
+                          {getDefaultAction("input", false)}
                         </Badge>
-                      </div>
-                    </button>
+                      )}
+                      <Badge variant="secondary">
+                        {getChainByName("input")?.rule_count || 0}
+                      </Badge>
+                    </div>
+                  </button>
+                )}
 
-                    <button
-                      onClick={() => handleChainSelect("output", false)}
-                      className={cn(
-                        "w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all",
-                        selectedChain === "output" && !isCustomChain
-                          ? "bg-accent text-accent-foreground shadow-sm"
-                          : "hover:bg-accent/50 text-foreground"
-                      )}
-                    >
-                      <span className="font-medium">Output</span>
-                      <div className="flex items-center gap-1.5">
-                        {getDefaultAction("output", false) && (
-                          <Badge
-                            variant="outline"
-                            className={cn("uppercase text-xs", getDefaultActionBadgeClass(getDefaultAction("output", false)))}
-                          >
-                            {getDefaultAction("output", false)}
-                          </Badge>
-                        )}
-                        <Badge variant="secondary">
-                          {getChainByName("output")?.rule_count || 0}
+                {capabilities?.features.output_chain.supported && (
+                  <button
+                    onClick={() => handleChainSelect("output", false)}
+                    className={cn(
+                      "w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all",
+                      selectedChain === "output" && !isCustomChain
+                        ? "bg-accent text-accent-foreground shadow-sm"
+                        : "hover:bg-accent/50 text-foreground"
+                    )}
+                  >
+                    <span className="font-medium">Output</span>
+                    <div className="flex items-center gap-1.5">
+                      {getDefaultAction("output", false) && (
+                        <Badge
+                          variant="outline"
+                          className={cn("uppercase text-xs", getDefaultActionBadgeClass(getDefaultAction("output", false)))}
+                        >
+                          {getDefaultAction("output", false)}
                         </Badge>
-                      </div>
-                    </button>
+                      )}
+                      <Badge variant="secondary">
+                        {getChainByName("output")?.rule_count || 0}
+                      </Badge>
+                    </div>
+                  </button>
+                )}
 
-                    <button
-                      onClick={() => handleChainSelect("prerouting", false)}
-                      className={cn(
-                        "w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all",
-                        selectedChain === "prerouting" && !isCustomChain
-                          ? "bg-accent text-accent-foreground shadow-sm"
-                          : "hover:bg-accent/50 text-foreground"
-                      )}
-                    >
-                      <span className="font-medium">Prerouting</span>
-                      <div className="flex items-center gap-1.5">
-                        {getDefaultAction("prerouting", false) && (
-                          <Badge
-                            variant="outline"
-                            className={cn("uppercase text-xs", getDefaultActionBadgeClass(getDefaultAction("prerouting", false)))}
-                          >
-                            {getDefaultAction("prerouting", false)}
-                          </Badge>
-                        )}
-                        <Badge variant="secondary">
-                          {getChainByName("prerouting")?.rule_count || 0}
+                {capabilities?.features.prerouting_chain.supported && (
+                  <button
+                    onClick={() => handleChainSelect("prerouting", false)}
+                    className={cn(
+                      "w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all",
+                      selectedChain === "prerouting" && !isCustomChain
+                        ? "bg-accent text-accent-foreground shadow-sm"
+                        : "hover:bg-accent/50 text-foreground"
+                    )}
+                  >
+                    <span className="font-medium">Prerouting</span>
+                    <div className="flex items-center gap-1.5">
+                      {getDefaultAction("prerouting", false) && (
+                        <Badge
+                          variant="outline"
+                          className={cn("uppercase text-xs", getDefaultActionBadgeClass(getDefaultAction("prerouting", false)))}
+                        >
+                          {getDefaultAction("prerouting", false)}
                         </Badge>
-                      </div>
-                    </button>
-                  </>
+                      )}
+                      <Badge variant="secondary">
+                        {getChainByName("prerouting")?.rule_count || 0}
+                      </Badge>
+                    </div>
+                  </button>
                 )}
 
                 {/* Custom Chains */}

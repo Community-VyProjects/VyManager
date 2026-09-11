@@ -28,7 +28,6 @@ import {
   MoreHorizontal,
   Pencil,
   Trash2,
-  Network,
   Cpu,
   HardDrive,
 } from "lucide-react";
@@ -163,10 +162,6 @@ export default function FlowtablesPage() {
             </div>
             {capabilities && (
               <div className="ml-auto flex items-center gap-2">
-                <Badge variant="outline" className="gap-1">
-                  <Network className="h-3 w-3" />
-                  VyOS {capabilities.version}
-                </Badge>
                 {capabilities.features.hardware_offload.supported && (
                   <Badge variant="outline" className="gap-1 bg-purple-500/10 text-purple-500 border-purple-500/20">
                     <Cpu className="h-3 w-3" />
