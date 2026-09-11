@@ -264,7 +264,7 @@ class VrfBatchBuilder(
                     "description": "OSPF retransmit-window on interfaces/virtual-links (VyOS 1.5+ only)",
                 },
                 "ospf_redistribute_nhrp": {
-                    "supported": is_1_5,
+                    "supported": "nhrp" in self.mappers["vrf_ospf"].redistribute_protocols(),
                     "description": "OSPF redistribute NHRP (VyOS 1.5+ only)",
                 },
                 "isis_fast_reroute": {
@@ -272,7 +272,7 @@ class VrfBatchBuilder(
                     "description": "IS-IS fast-reroute (LFA, TI-LFA) (VyOS 1.5+ only)",
                 },
                 "bgp_redistribute_nhrp": {
-                    "supported": is_1_5,
+                    "supported": "nhrp" in self.mappers["vrf_bgp"].redistribute_protocols(),
                     "description": "BGP redistribute NHRP (VyOS 1.5+ only)",
                 },
             },

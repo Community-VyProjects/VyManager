@@ -1180,7 +1180,7 @@ class BgpBatchBuilder:
                     "description": "Path attribute filtering (discard/treat-as-withdraw)",
                 },
                 "redistribute_nhrp": {
-                    "supported": is_1_5,
+                    "supported": "nhrp" in self.m.redistribute_protocols(),
                     "description": "Redistribute NHRP routes (VyOS 1.5+)",
                 },
             },

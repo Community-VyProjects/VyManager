@@ -10,15 +10,35 @@ ldp-sync, mpls-te, summary-address, segment-routing, aggregation, capability.
 Version-specific logic is in version-specific files.
 """
 
-from typing import List
-from ..base import BaseFeatureMapper, reject_nhrp_redistribute_on_14
+from typing import FrozenSet, List
+from ..base import BaseFeatureMapper
 
 
 class OspfMapper(BaseFeatureMapper):
     """Base mapper with common operations shared between VyOS 1.4 and 1.5."""
 
+    _REDIST = (
+        "connected", "static", "bgp", "kernel", "rip", "isis", "babel",
+    )
+
     def __init__(self, version: str):
         super().__init__(version)
+
+    def redistribute_protocols(self) -> FrozenSet[str]:
+        if "1.4" in self.version:
+            return frozenset(self._REDIST)
+        return frozenset(self._REDIST) | {"nhrp"}
+
+    def redistribute_protocol_list(self) -> List[str]:
+        protocols: List[str] = list(self._REDIST)
+        if "1.4" not in self.version:
+            protocols.append("nhrp")
+        return protocols
+
+    def _require_redistribute(self, protocol: str) -> None:
+        if protocol not in self.redistribute_protocols():
+            raise ValueError(
+                f"redistribute {protocol} is not supported on this device")
 
     # ========================================================================
     # Helper base paths
@@ -281,19 +301,19 @@ class OspfMapper(BaseFeatureMapper):
     # ========================================================================
 
     def get_redistribute(self, protocol: str) -> List[str]:
-        reject_nhrp_redistribute_on_14(self.version, protocol)
+        self._require_redistribute(protocol)
         return self._redistribute(protocol)
 
     def get_redistribute_metric(self, protocol: str, value: str) -> List[str]:
-        reject_nhrp_redistribute_on_14(self.version, protocol)
+        self._require_redistribute(protocol)
         return self._redistribute(protocol) + ["metric", value]
 
     def get_redistribute_metric_type(self, protocol: str, value: str) -> List[str]:
-        reject_nhrp_redistribute_on_14(self.version, protocol)
+        self._require_redistribute(protocol)
         return self._redistribute(protocol) + ["metric-type", value]
 
     def get_redistribute_route_map(self, protocol: str, value: str) -> List[str]:
-        reject_nhrp_redistribute_on_14(self.version, protocol)
+        self._require_redistribute(protocol)
         return self._redistribute(protocol) + ["route-map", value]
 
     def get_redistribute_delete(self, protocol: str) -> List[str]:

@@ -621,7 +621,7 @@ class OspfBatchBuilder:
                     "description": "Route redistribution (connected, static, bgp, kernel, rip, isis, babel)",
                 },
                 "redistribute_nhrp": {
-                    "supported": is_1_5,
+                    "supported": "nhrp" in self.m.redistribute_protocols(),
                     "description": "Redistribute NHRP routes (VyOS 1.5+)",
                 },
                 "retransmit_window": {
@@ -649,9 +649,7 @@ class OspfBatchBuilder:
                     "description": "Max-metric router-LSA settings",
                 },
             },
-            "redistribute_protocols": [
-                "connected", "static", "bgp", "kernel", "rip", "isis", "babel",
-            ] + (["nhrp"] if is_1_5 else []),
+            "redistribute_protocols": self.m.redistribute_protocol_list(),
             "network_types": [
                 "broadcast", "non-broadcast", "point-to-multipoint", "point-to-point",
             ],

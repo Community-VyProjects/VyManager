@@ -414,7 +414,7 @@ class BabelBatchBuilder:
                     "description": "Distribute lists for route filtering",
                 },
                 "redistribute_nhrp": {
-                    "supported": is_1_5,
+                    "supported": "nhrp" in self.mappers[self.mapper_key].redistribute_ipv4_protocols(),
                     "description": "Redistribute NHRP routes (VyOS 1.5+)",
                 },
             },
@@ -423,19 +423,7 @@ class BabelBatchBuilder:
                 "is_1_5": is_1_5,
             },
             "redistribute_protocols": {
-                "ipv4": self._get_ipv4_redistribute_protocols(is_1_5),
-                "ipv6": self._get_ipv6_redistribute_protocols(is_1_5),
+                "ipv4": sorted(self.mappers[self.mapper_key].redistribute_ipv4_protocols()),
+                "ipv6": sorted(self.mappers[self.mapper_key].redistribute_ipv6_protocols()),
             },
         }
-
-    def _get_ipv4_redistribute_protocols(self, is_1_5: bool) -> List[str]:
-        protocols = ["bgp", "connected", "isis", "kernel", "openfabric", "ospf", "rip", "static"]
-        if is_1_5:
-            protocols.append("nhrp")
-        return sorted(protocols)
-
-    def _get_ipv6_redistribute_protocols(self, is_1_5: bool) -> List[str]:
-        protocols = ["bgp", "connected", "isis", "kernel", "openfabric", "ospfv3", "ripng", "static"]
-        if is_1_5:
-            protocols.append("nhrp")
-        return sorted(protocols)

@@ -26,15 +26,28 @@ Config tree: vrf name <NAME> protocols ospf
   timers (throttle/spf: delay, initial-holdtime, max-holdtime)
 """
 
-from typing import List
-from ..base import reject_nhrp_redistribute_on_14
+from typing import FrozenSet, List
 
 
 class VrfOspfMapper:
     """Mapper for VRF OSPF paths. Common between VyOS 1.4 and 1.5."""
 
+    _REDIST = (
+        "connected", "static", "bgp", "kernel", "rip", "isis", "babel",
+    )
+
     def __init__(self, version: str = ""):
         self.version = version
+
+    def redistribute_protocols(self) -> FrozenSet[str]:
+        if "1.4" in self.version:
+            return frozenset(self._REDIST)
+        return frozenset(self._REDIST) | {"nhrp"}
+
+    def _require_redistribute(self, protocol: str) -> None:
+        if protocol not in self.redistribute_protocols():
+            raise ValueError(
+                f"redistribute {protocol} is not supported on this device")
 
     def _base(self, name: str) -> List[str]:
         return ["vrf", "name", name, "protocols", "ospf"]
@@ -343,22 +356,22 @@ class VrfOspfMapper:
     # ========================================================================
 
     def get_ospf_redistribute(self, name: str, protocol: str) -> List[str]:
-        reject_nhrp_redistribute_on_14(self.version, protocol)
+        self._require_redistribute(protocol)
         return self._base(name) + ["redistribute", protocol]
 
     def get_ospf_redistribute_delete(self, name: str, protocol: str) -> List[str]:
         return self._base(name) + ["redistribute", protocol]
 
     def get_ospf_redistribute_metric(self, name: str, protocol: str, value: str) -> List[str]:
-        reject_nhrp_redistribute_on_14(self.version, protocol)
+        self._require_redistribute(protocol)
         return self._base(name) + ["redistribute", protocol, "metric", value]
 
     def get_ospf_redistribute_metric_type(self, name: str, protocol: str, value: str) -> List[str]:
-        reject_nhrp_redistribute_on_14(self.version, protocol)
+        self._require_redistribute(protocol)
         return self._base(name) + ["redistribute", protocol, "metric-type", value]
 
     def get_ospf_redistribute_route_map(self, name: str, protocol: str, value: str) -> List[str]:
-        reject_nhrp_redistribute_on_14(self.version, protocol)
+        self._require_redistribute(protocol)
         return self._base(name) + ["redistribute", protocol, "route-map", value]
 
     def get_ospf_redistribute_table(self, name: str, table: str) -> List[str]:
