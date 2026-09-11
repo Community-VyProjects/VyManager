@@ -110,6 +110,12 @@ class VrfOspfv3Mapper:
     def get_ospfv3_area_type_nssa_default_information_originate(self, name: str, area: str) -> List[str]:
         return self.get_ospfv3_area_area_type_nssa_default_information_originate(name, area)
 
+    def get_ospfv3_area_type_stub_default_cost_delete(self, name: str, area: str) -> List[str]:
+        return self.get_ospfv3_area_area_type_stub(name, area) + ["default-cost"]
+
+    def get_ospfv3_area_type_nssa_default_cost_delete(self, name: str, area: str) -> List[str]:
+        return self.get_ospfv3_area_area_type_nssa(name, area) + ["default-cost"]
+
     # ========================================================================
     # Auto-Cost
     # ========================================================================

@@ -79,12 +79,27 @@ def _call_with_packed_value(method: Callable[..., Any], value: Optional[str]) ->
     method(*parts)
 
 
-def _mapper_path(mapper: Any, proto: str, suffix: str, vrf_name: str, value: Optional[str]) -> Optional[List[str]]:
-    for candidate in (
-        f"get_{proto}_{suffix}",
-        f"get_{suffix}",
-        f"get_{proto}_{suffix}_delete",
-    ):
+def _mapper_path(
+    mapper: Any,
+    proto: str,
+    suffix: str,
+    vrf_name: str,
+    value: Optional[str],
+    verb: str,
+) -> Optional[List[str]]:
+    if verb == "delete":
+        candidates = (
+            f"get_{proto}_{suffix}_delete",
+            f"get_{suffix}_delete",
+            f"get_{proto}_{suffix}",
+            f"get_{suffix}",
+        )
+    else:
+        candidates = (
+            f"get_{proto}_{suffix}",
+            f"get_{suffix}",
+        )
+    for candidate in candidates:
         getter = getattr(mapper, candidate, None)
         if getter is None:
             continue
@@ -129,7 +144,7 @@ def run_vrf_protocol_op(
 
     mapper = owner.mappers.get(f"vrf_{proto}")
     if mapper is not None:
-        path = _mapper_path(mapper, proto, suffix, vrf_name, value)
+        path = _mapper_path(mapper, proto, suffix, vrf_name, value, verb)
         if path is not None:
             return owner.add_set(path) if verb == "set" else owner.add_delete(path)
 

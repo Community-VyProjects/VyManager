@@ -76,3 +76,48 @@ def test_ui_schema_protocol_ops_resolve():
             except AttributeError:
                 missing.append(verb + op)
     assert missing == []
+
+
+def test_valued_leaf_deletes_use_parent_node():
+    """SchemaEditor number/select clear sends vrf,entity without the leaf."""
+    cases = [
+        (
+            "delete_vrf_ospfv3_area_type_stub_default_cost",
+            "0",
+            ["vrf", "name", "blue", "protocols", "ospfv3", "area", "0", "area-type", "stub", "default-cost"],
+        ),
+        (
+            "delete_vrf_ospfv3_area_type_nssa_default_cost",
+            "0",
+            ["vrf", "name", "blue", "protocols", "ospfv3", "area", "0", "area-type", "nssa", "default-cost"],
+        ),
+        (
+            "delete_vrf_ospf_area_type_stub_default_cost",
+            "0",
+            ["vrf", "name", "blue", "protocols", "ospf", "area", "0", "area-type", "stub", "default-cost"],
+        ),
+        (
+            "delete_vrf_ospf_area_type_nssa_default_cost",
+            "0",
+            ["vrf", "name", "blue", "protocols", "ospf", "area", "0", "area-type", "nssa", "default-cost"],
+        ),
+        (
+            "delete_vrf_ospf_area_type_nssa_translate",
+            "0",
+            ["vrf", "name", "blue", "protocols", "ospf", "area", "0", "area-type", "nssa", "translate"],
+        ),
+        (
+            "delete_vrf_isis_segment_routing_prefix_index_value",
+            "2001:db8::/64",
+            ["vrf", "name", "blue", "protocols", "isis", "segment-routing", "prefix", "2001:db8::/64", "index", "value"],
+        ),
+        (
+            "delete_vrf_isis_segment_routing_prefix_absolute_value",
+            "2001:db8::/64",
+            ["vrf", "name", "blue", "protocols", "isis", "segment-routing", "prefix", "2001:db8::/64", "absolute", "value"],
+        ),
+    ]
+    for method, entity, path in cases:
+        vrf = VrfBatchBuilder("1.5")
+        getattr(vrf, method)("blue", entity)
+        assert vrf.get_operations() == [{"op": "delete", "path": path}], method
