@@ -38,44 +38,12 @@ class PPPoEPpsTracker:
     recomputation in tight loops so the same parser can use the counters from
     the session table without forcing a second statistics query for every
     interface.
-
-    The tracker can also be disabled temporarily, re-enabled, and reset to
-    drop any retained per-session counter state so the service can deliberately
-    spread PPS sampling over a configurable interval instead of replaying a
-    stale sample stream across the same session keys.
     """
 
     def __init__(self, min_sample_interval: float = 0.0) -> None:
         self._previous: Dict[str, tuple[int, int, float]] = {}
         self._last_sample_at: Dict[str, float] = {}
         self._min_sample_interval = min_sample_interval
-        self._enabled = True
-
-    def is_enabled(self) -> bool:
-        """Return whether PPS calculations are currently allowed to run."""
-        return self._enabled
-
-    def enable(self) -> None:
-        """Enable PPS rate calculations again after a disable()."""
-        self._enabled = True
-
-    def disable(self) -> None:
-        """Temporarily stop rate calculations without dropping the model object."""
-        self._enabled = False
-        self.clear()
-
-    def clear(self) -> None:
-        """Drop cached packet deltas and last-sampling timestamps for every key."""
-        self._previous.clear()
-        self._last_sample_at.clear()
-
-    def get_min_sample_interval(self) -> float:
-        """Return the active throttling interval in seconds."""
-        return self._min_sample_interval
-
-    def set_min_sample_interval(self, seconds: float) -> None:
-        """Adjust the interval gate used to suppress repeated per-session PPS updates."""
-        self._min_sample_interval = max(0.0, float(seconds))
 
     def update(
         self,
@@ -84,9 +52,6 @@ class PPPoEPpsTracker:
         tx_packets: Optional[int],
         timestamp: Optional[float] = None,
     ) -> tuple[Optional[float], Optional[float]]:
-        if not self._enabled:
-            return None, None
-
         if rx_packets is None or tx_packets is None:
             self._previous.pop(key, None)
             self._last_sample_at.pop(key, None)

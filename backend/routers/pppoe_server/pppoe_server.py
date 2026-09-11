@@ -29,11 +29,6 @@ router = APIRouter(prefix="/vyos/pppoe-server", tags=["pppoe-server"])
 _pppoe_pps_tracker = PPPoEPpsTracker(min_sample_interval=1.0)
 
 
-class PPPoEPpsSettings(BaseModel):
-    enabled: bool = True
-    min_sample_interval: float = 1.0
-
-
 # ========================================================================
 # Pydantic Models
 # ========================================================================
@@ -109,17 +104,10 @@ async def get_pppoe_sessions(
     http_request: Request,
     limit: int = Query(default=500, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),
-    min_sample_interval: float = Query(default=1.0, ge=0.0),
 ):
-    """Return active PPPoE sessions and their cumulative traffic counters.
-
-    The optional query gate keeps the rate computation endpoint cheap by allowing
-    the same sessions route to relax or tighten the sample interval without
-    forcing a second per-session interface statistics command fan-out.
-    """
+    """Return active PPPoE sessions and their cumulative traffic counters."""
     await require_read_permission(http_request, FeatureGroup.PPPOE)
     try:
-        _pppoe_pps_tracker.set_min_sample_interval(min_sample_interval)
         service = get_session_vyos_service(http_request)
         response = await run_in_threadpool(service.device.show, path=["pppoe-server", "sessions"])
         if response.status != 200:
@@ -182,35 +170,6 @@ async def reset_pppoe_session(http_request: Request, username: str):
     except Exception:
         logger.exception("Unhandled error resetting PPPoE sessions for %s", username)
         raise HTTPException(status_code=500, detail="Internal server error")
-
-
-@router.get("/pps-settings", response_model=PPPoEPpsSettings)
-async def get_pppoe_pps_settings(request: Request):
-    """Return the session-level PPS tracker state used to spread PPS sampling safely."""
-    await require_read_permission(request, FeatureGroup.PPPOE)
-    return PPPoEPpsSettings(
-        enabled=_pppoe_pps_tracker.is_enabled(),
-        min_sample_interval=_pppoe_pps_tracker.get_min_sample_interval(),
-    )
-
-
-@router.post("/pps-settings", response_model=PPPoEPpsSettings)
-async def set_pppoe_pps_settings(request: Request, body: PPPoEPpsSettings):
-    """Allow an administrator to enable/disable PPS or tighten the interval gate.
-
-    When disabled, the tracker is explicitly suppressed and its cached deltas are cleared
-    to avoid stale session-key history from being reused during the next enable cycle.
-    """
-    await require_write_permission(request, FeatureGroup.PPPOE)
-    _pppoe_pps_tracker.set_min_sample_interval(body.min_sample_interval)
-    if body.enabled:
-        _pppoe_pps_tracker.enable()
-    else:
-        _pppoe_pps_tracker.disable()
-    return PPPoEPpsSettings(
-        enabled=_pppoe_pps_tracker.is_enabled(),
-        min_sample_interval=_pppoe_pps_tracker.get_min_sample_interval(),
-    )
 
 
 @router.get("/sessions/{interface}/connections", response_model=PPPoEConnectionsResponse)
