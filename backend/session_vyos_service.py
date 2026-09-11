@@ -6,7 +6,6 @@ Replaces the single-device pattern with dynamic multi-instance support.
 """
 
 from fastapi import Request, HTTPException
-from typing import Optional
 from vyos_service import VyOSService, VyOSDeviceConfig, VyOSDeviceRegistry
 import logging
 

@@ -4,8 +4,8 @@ Base classes for VyOS command mappers.
 Provides the foundation for version-specific command translation.
 """
 
-from abc import ABC, abstractmethod
-from typing import List, Dict, Type, Union, Callable
+from abc import ABC
+from typing import Dict, Type, Union, Callable
 
 
 class BaseFeatureMapper(ABC):

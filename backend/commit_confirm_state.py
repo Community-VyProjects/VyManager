@@ -8,7 +8,7 @@ until the user confirms or the timer expires (and VyOS auto-reverts).
 
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 import logging
 
 logger = logging.getLogger(__name__)

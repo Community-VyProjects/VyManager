@@ -1,6 +1,5 @@
 """WebSocket Origin allowlist must not fail open when FRONTEND_URL is unset (#595)."""
 
-import os
 
 import pytest
 

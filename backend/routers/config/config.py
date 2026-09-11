@@ -13,7 +13,6 @@ from session_vyos_service import get_session_vyos_service
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 import commit_confirm_state
-import json
 import logging
 from events.event_manager import event_manager, EVENT_CONFIG_DIFF, EVENT_COMMIT_CONFIRM
 logger = logging.getLogger(__name__)

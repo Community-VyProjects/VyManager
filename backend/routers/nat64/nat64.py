@@ -6,7 +6,6 @@ Supports source NAT64 rules with IPv6-to-IPv4 translation pools.
 """
 
 import inspect
-import json
 import logging
 
 from fastapi import APIRouter, HTTPException, Request

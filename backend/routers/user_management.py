@@ -10,15 +10,12 @@ from fastapi import Depends, APIRouter, HTTPException, Request
 from org_scope import assert_row_in_acting_org, org_conn_admin
 import revocation_bus
 from pydantic import BaseModel, Field, EmailStr
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional
 from datetime import datetime
 import asyncpg
 import httpx
 
 from rbac_permissions import (
-    FeatureGroup,
-    PermissionLevel,
-    BuiltInRole,
     get_user_permissions,
 )
 from fastapi_permissions import require_super_admin

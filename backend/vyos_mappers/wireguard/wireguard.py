@@ -5,7 +5,7 @@ Handles command path generation for WireGuard VPN configuration.
 Version-specific logic is in version-specific files.
 """
 
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 
 
 class WireGuardMapper:

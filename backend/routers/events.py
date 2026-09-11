@@ -11,11 +11,10 @@ and /vyos/power/status with a single persistent connection.
 import asyncio
 import json
 import logging
-from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 from starlette.concurrency import run_in_threadpool
 

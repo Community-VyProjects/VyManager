@@ -19,7 +19,6 @@ import shlex
 from datetime import datetime, timezone
 
 import asyncssh
-import asyncpg
 import httpx
 from packaging.version import InvalidVersion, Version
 

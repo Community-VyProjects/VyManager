@@ -6,7 +6,7 @@ The PKI command tree is nearly identical between VyOS 1.4 and 1.5.
 Only difference: VyOS 1.5 ACME listen-address supports IPv6.
 """
 
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 
 
 class PKIMapper:
