@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { VrfSelect } from "@/components/ui/vrf-select";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -1069,11 +1070,12 @@ export function EditRouteMapRuleModal({
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="matchInterface">Interface</Label>
-                      <Input
+                      <InterfaceSelect
                         id="matchInterface"
-                        placeholder="e.g., eth0"
-                        value={matchInterface}
-                        onChange={(e) => setMatchInterface(e.target.value)}
+                        value={matchInterface || "__none__"}
+                        onValueChange={(v) => setMatchInterface(v === "__none__" ? "" : v)}
+                        noneOption={{ label: "None", value: "__none__" }}
+                        placeholder="Select interface"
                       />
                     </div>
                     <div className="space-y-2">

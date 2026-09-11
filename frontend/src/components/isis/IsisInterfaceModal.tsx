@@ -47,7 +47,8 @@ export function IsisInterfaceModal({
   capabilities,
 }: IsisInterfaceModalProps) {
   const isEdit = !!existingInterface;
-  const isV15 = capabilities?.version_info.is_1_5 ?? false;
+  const tiLfaSupported = capabilities?.features.ti_lfa.supported ?? false;
+  const remoteLfaSupported = capabilities?.features.remote_lfa.supported ?? false;
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -459,8 +460,8 @@ export function IsisInterfaceModal({
               </div>
             </div>
 
-            {/* TI-LFA (v1.5 only) */}
-            {isV15 && (
+            {/* TI-LFA */}
+            {tiLfaSupported && (
               <>
                 <Separator />
                 <div>
@@ -502,7 +503,11 @@ export function IsisInterfaceModal({
                     )}
                   </div>
                 </div>
+              </>
+            )}
 
+            {remoteLfaSupported && (
+              <>
                 <Separator />
 
                 {/* Remote LFA */}
@@ -562,7 +567,7 @@ export function IsisInterfaceModal({
               </>
             )}
 
-            {!isV15 && (
+            {!tiLfaSupported && !remoteLfaSupported && (
               <p className="text-sm text-muted-foreground">
                 TI-LFA and Remote LFA are not supported on this device.
               </p>
