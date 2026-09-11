@@ -25,17 +25,7 @@ export default function LoginPage() {
       try {
         // Use the frontend proxy instead of direct backend access
         // This works around Docker networking issues where browser can't access backend directly
-        const response = await fetch(`/api/session/onboarding-status`, {
-          method: "GET",
-        });
-
-        if (!response.ok) {
-          console.error("[LoginPage] Onboarding status check failed:", response.status);
-          setCheckingOnboarding(false);
-          return;
-        }
-
-        const data = await response.json();
+        const data = await sessionService.getOnboardingStatus();
 
         if (data.needs_onboarding) {
           console.log("[LoginPage] Onboarding needed - redirecting to /onboarding");

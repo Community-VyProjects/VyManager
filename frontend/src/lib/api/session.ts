@@ -131,6 +131,10 @@ export interface InstanceUpdateRequest {
   timeout?: number;
 }
 
+export interface OnboardingStatus {
+  needs_onboarding: boolean;
+}
+
 export interface AuthSessionInfo {
   token: string;
   created_at: string;
@@ -171,6 +175,10 @@ export interface RestoreSummary {
 // ============================================================================
 
 class SessionService {
+  async getOnboardingStatus(): Promise<OnboardingStatus> {
+    return apiClient.get<OnboardingStatus>("/session/onboarding-status");
+  }
+
   /**
    * Get the user's current active session
    * Returns null if no active session
