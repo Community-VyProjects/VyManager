@@ -1,5 +1,6 @@
 """Parsing helpers for VyOS PPPoE server operational status."""
 
+import time
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel
@@ -17,8 +18,10 @@ class PPPoESession(BaseModel):
     uptime: Optional[str] = None
     rx_bytes: int = 0
     tx_bytes: int = 0
-    rx_packets: int = 0
-    tx_packets: int = 0
+    rx_packets: Optional[int] = None
+    tx_packets: Optional[int] = None
+    rx_pps: Optional[float] = None
+    tx_pps: Optional[float] = None
     vlan: Optional[str] = None
     mtu: Optional[int] = None
 
@@ -26,6 +29,36 @@ class PPPoESession(BaseModel):
 class PPPoESessionsResponse(BaseModel):
     sessions: List[PPPoESession]
     total: int
+
+
+class PPPoEPpsTracker:
+    """Calculate rates from cumulative per-interface packet counters."""
+
+    def __init__(self) -> None:
+        self._previous: Dict[str, tuple[int, int, float]] = {}
+
+    def update(
+        self,
+        key: str,
+        rx_packets: Optional[int],
+        tx_packets: Optional[int],
+        timestamp: Optional[float] = None,
+    ) -> tuple[Optional[float], Optional[float]]:
+        if rx_packets is None or tx_packets is None:
+            self._previous.pop(key, None)
+            return None, None
+
+        now = time.monotonic() if timestamp is None else timestamp
+        previous = self._previous.get(key)
+        self._previous[key] = (rx_packets, tx_packets, now)
+        if previous is None:
+            return None, None
+
+        previous_rx, previous_tx, previous_at = previous
+        elapsed = now - previous_at
+        if elapsed <= 0 or rx_packets < previous_rx or tx_packets < previous_tx:
+            return None, None
+        return (rx_packets - previous_rx) / elapsed, (tx_packets - previous_tx) / elapsed
 
 
 def _parse_bytes(value: str) -> int:
@@ -47,6 +80,31 @@ def _parse_bytes(value: str) -> int:
         "gb": 1000 ** 3,
     }.get(parts[1].lower(), 1) if len(parts) > 1 else 1
     return int(amount * multiplier)
+
+
+def _parse_counter(value: Optional[str]) -> Optional[int]:
+    if not value:
+        return None
+    try:
+        return int(value.replace(",", ""))
+    except ValueError:
+        return None
+
+
+def parse_pppoe_interface_statistics(output: str) -> tuple[Optional[int], Optional[int]]:
+    """Parse IN and OUT packet counters from PPPoE interface statistics."""
+    if not output or not isinstance(output, str):
+        return None, None
+
+    numbers = []
+    for line in output.splitlines():
+        fields = line.split()
+        if len(fields) >= 10 and fields[1].isdigit() and fields[5] == "|" and fields[7].isdigit():
+            numbers = [fields[1], fields[7]]
+            break
+    if not numbers:
+        return None, None
+    return int(numbers[0]), int(numbers[1])
 
 
 def parse_pppoe_sessions(output: str) -> List[PPPoESession]:
@@ -79,14 +137,16 @@ def parse_pppoe_sessions(output: str) -> List[PPPoESession]:
             interface=row["ifname"],
             username=row["username"],
             ip=row.get("ip") or None,
-            ipv6=row.get("ip6") or None,
-            ipv6_delegated=row.get("ip6-dp") or None,
+            ipv6=row.get("ip6") or row.get("ipv6") or None,
+            ipv6_delegated=row.get("ip6-dp") or row.get("ipv6-delegated") or None,
             calling_sid=row.get("calling-sid") or None,
             rate_limit=row.get("rate-limit") or None,
             state=row.get("state", "unknown"),
             uptime=row.get("uptime") or None,
             rx_bytes=_parse_bytes(row.get("rx-bytes", "0")),
             tx_bytes=_parse_bytes(row.get("tx-bytes", "0")),
+            rx_packets=_parse_counter(row.get("rx-packets") or row.get("rx-pkts")),
+            tx_packets=_parse_counter(row.get("tx-packets") or row.get("tx-pkts")),
             vlan=row.get("vlan") or row.get("vlan-id") or None,
             mtu=mtu,
         ))

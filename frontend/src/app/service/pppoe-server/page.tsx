@@ -91,7 +91,7 @@ function PPPoEPageInner() {
   const [sessionTotal, setSessionTotal] = useState(0);
   const [sessionLoading, setSessionLoading] = useState(false);
   const [sessionError, setSessionError] = useState<string | null>(null);
-  const previousSessionCounters = useRef<Record<string, { rx: number; tx: number; rxPackets: number; txPackets: number; at: number }>>({});
+  const previousSessionBytes = useRef<Record<string, { rx: number; tx: number; at: number }>>({});
   const [statsHistory, setStatsHistory] = useState<Record<string, PPPoEStatsPoint[]>>({});
   const [selectedStatsKey, setSelectedStatsKey] = useState<string | null>(null);
   const [sessionPaused, setSessionPaused] = useState(false);
@@ -170,22 +170,16 @@ function PPPoEPageInner() {
       const now = Date.now();
       const nextSessions = response.sessions.map((session) => {
         const key = `${session.interface}:${session.username}:${session.calling_sid ?? ""}`;
-        const previous = previousSessionCounters.current[key];
+        const previous = previousSessionBytes.current[key];
         const elapsed = previous ? (now - previous.at) / 1000 : 0;
         const result: SessionWithRates = { ...session };
         if (previous && elapsed > 0) {
           result.rxRate = Math.max(0, (session.rx_bytes - previous.rx) * 8 / elapsed);
           result.txRate = Math.max(0, (session.tx_bytes - previous.tx) * 8 / elapsed);
-          result.rxPps = Math.max(0, (session.rx_packets - previous.rxPackets) / elapsed);
-          result.txPps = Math.max(0, (session.tx_packets - previous.txPackets) / elapsed);
         }
-        previousSessionCounters.current[key] = {
-          rx: session.rx_bytes,
-          tx: session.tx_bytes,
-          rxPackets: session.rx_packets,
-          txPackets: session.tx_packets,
-          at: now,
-        };
+        result.rxPps = session.rx_pps ?? undefined;
+        result.txPps = session.tx_pps ?? undefined;
+        previousSessionBytes.current[key] = { rx: session.rx_bytes, tx: session.tx_bytes, at: now };
         return result;
       });
       setSessions(nextSessions);
@@ -357,7 +351,7 @@ function PPPoEPageInner() {
                 <Activity className="h-4 w-4 text-emerald-500" />
                 <div>
                   <p className="text-xs text-muted-foreground">Connected Clients</p>
-                  <p className="font-semibold">{sessions.length}</p>
+                  <p className="font-semibold">{sessionTotal}</p>
                 </div>
               </div>
             </Card>
@@ -562,7 +556,11 @@ function PPPoEPageInner() {
                           <TableRow key={`${session.interface}:${session.username}:${session.calling_sid ?? ""}`}>
                             <TableCell className="font-medium">{session.username}</TableCell>
                             <TableCell className="font-mono">{session.interface}</TableCell>
-                            <TableCell className="font-mono">{session.ip || "-"}</TableCell>
+                            <TableCell className="font-mono">
+                              <div>{session.ip || "-"}</div>
+                              {session.ipv6 && <div className="text-xs text-muted-foreground">{session.ipv6}</div>}
+                              {session.ipv6_delegated && <div className="text-xs text-muted-foreground">PD: {session.ipv6_delegated}</div>}
+                            </TableCell>
                             <TableCell>{session.vlan || "-"}</TableCell>
                             <TableCell>{session.mtu || "-"}</TableCell>
                             <TableCell className="font-mono text-xs">{session.calling_sid || "-"}</TableCell>

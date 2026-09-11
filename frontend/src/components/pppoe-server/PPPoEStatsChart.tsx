@@ -19,17 +19,20 @@ export interface PPPoEStatsPoint {
   txPps: number;
   rxBytes: number;
   txBytes: number;
+  activeSessions?: number;
 }
 
 interface PPPoEStatsChartProps {
   points: PPPoEStatsPoint[];
   height?: number;
   emptyLabel?: string;
+  sessionsOnly?: boolean;
 }
 
-type ChartMetric = "rate" | "pps" | "traffic";
+type ChartMetric = "rate" | "pps" | "traffic" | "sessions";
 
 function formatValue(value: number, metric: ChartMetric): string {
+  if (metric === "sessions") return `${Math.round(value)} sessions`;
   if (metric === "pps") return `${Math.round(value)} pps`;
   if (metric === "traffic") {
     if (value >= 1024 ** 3) return `${(value / 1024 ** 3).toFixed(1)} GiB`;
@@ -43,13 +46,14 @@ function formatValue(value: number, metric: ChartMetric): string {
 }
 
 function metricKeys(metric: ChartMetric): { rx: string; tx: string } {
+  if (metric === "sessions") return { rx: "activeSessions", tx: "activeSessions" };
   if (metric === "pps") return { rx: "rxPps", tx: "txPps" };
   if (metric === "traffic") return { rx: "rxBytes", tx: "txBytes" };
   return { rx: "rxRate", tx: "txRate" };
 }
 
-export function PPPoEStatsChart({ points, height = 260, emptyLabel = "Waiting for PPPoE samples..." }: PPPoEStatsChartProps) {
-  const [metric, setMetric] = useState<ChartMetric>("rate");
+export function PPPoEStatsChart({ points, height = 260, emptyLabel = "Waiting for PPPoE samples...", sessionsOnly = false }: PPPoEStatsChartProps) {
+  const [metric, setMetric] = useState<ChartMetric>(sessionsOnly ? "sessions" : "rate");
   const keys = metricKeys(metric);
   const chartData = points.map((point) => ({
     ...point,
@@ -60,19 +64,27 @@ export function PPPoEStatsChart({ points, height = 260, emptyLabel = "Waiting fo
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-3 text-xs text-muted-foreground">
-          <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-cyan-500" /> RX</span>
-          <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-orange-500" /> TX</span>
+          {sessionsOnly ? (
+            <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-cyan-500" /> Active sessions</span>
+          ) : (
+            <>
+              <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-cyan-500" /> RX</span>
+              <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-orange-500" /> TX</span>
+            </>
+          )}
         </div>
-        <select
-          value={metric}
-          onChange={(event) => setMetric(event.target.value as ChartMetric)}
-          className="h-8 rounded-md border bg-background px-2 text-xs"
-          aria-label="PPPoE chart metric"
-        >
-          <option value="rate">Current rate</option>
-          <option value="pps">Packets per second</option>
-          <option value="traffic">Total traffic</option>
-        </select>
+        {!sessionsOnly && (
+          <select
+            value={metric}
+            onChange={(event) => setMetric(event.target.value as ChartMetric)}
+            className="h-8 rounded-md border bg-background px-2 text-xs"
+            aria-label="PPPoE chart metric"
+          >
+            <option value="rate">Current rate</option>
+            <option value="pps">Packets per second</option>
+            <option value="traffic">Total traffic</option>
+          </select>
+        )}
       </div>
       {chartData.length === 0 ? (
         <div className="flex items-center justify-center text-sm text-muted-foreground" style={{ height }}>
@@ -96,8 +108,8 @@ export function PPPoEStatsChart({ points, height = 260, emptyLabel = "Waiting fo
               <XAxis dataKey="label" tick={{ fontSize: 10 }} minTickGap={24} />
               <YAxis tick={{ fontSize: 10 }} tickFormatter={(value) => formatValue(Number(value), metric)} width={64} />
               <Tooltip formatter={(value) => formatValue(Number(value), metric)} />
-              <Area type="monotone" dataKey={keys.rx} name="RX" stroke="#06b6d4" fill="url(#pppoe-rx-fill)" strokeWidth={2} isAnimationActive={false} />
-              <Area type="monotone" dataKey={keys.tx} name="TX" stroke="#f97316" fill="url(#pppoe-tx-fill)" strokeWidth={2} isAnimationActive={false} />
+              <Area type="monotone" dataKey={keys.rx} name={sessionsOnly ? "Active sessions" : "RX"} stroke="#06b6d4" fill="url(#pppoe-rx-fill)" strokeWidth={2} isAnimationActive={false} />
+              {!sessionsOnly && <Area type="monotone" dataKey={keys.tx} name="TX" stroke="#f97316" fill="url(#pppoe-tx-fill)" strokeWidth={2} isAnimationActive={false} />}
             </AreaChart>
           </ResponsiveContainer>
         </div>

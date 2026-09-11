@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Activity, Pause, Play, RefreshCw, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,20 +16,11 @@ interface PppoeStatsCardProps {
   onHeightChange?: (newHeight: number) => void;
 }
 
-interface PreviousCounters {
-  rxBytes: number;
-  txBytes: number;
-  rxPackets: number;
-  txPackets: number;
-  timestamp: number;
-}
-
 export function PppoeStatsCard({ onRemove, span = 1, onSpanChange, height, onHeightChange }: PppoeStatsCardProps) {
   const [points, setPoints] = useState<PPPoEStatsPoint[]>([]);
   const [sessionCount, setSessionCount] = useState(0);
   const [paused, setPaused] = useState(false);
   const [loading, setLoading] = useState(false);
-  const previous = useRef<PreviousCounters | null>(null);
 
   const fetchStats = async () => {
     try {
@@ -40,23 +31,21 @@ export function PppoeStatsCard({ onRemove, span = 1, onSpanChange, height, onHei
         (sum, session) => ({
           rxBytes: sum.rxBytes + session.rx_bytes,
           txBytes: sum.txBytes + session.tx_bytes,
-          rxPackets: sum.rxPackets + session.rx_packets,
-          txPackets: sum.txPackets + session.tx_packets,
+          rxPackets: sum.rxPackets + (session.rx_pps ?? 0),
+          txPackets: sum.txPackets + (session.tx_pps ?? 0),
         }),
         { rxBytes: 0, txBytes: 0, rxPackets: 0, txPackets: 0 },
       );
-      const prior = previous.current;
-      const elapsed = prior ? (now - prior.timestamp) / 1000 : 0;
       const point: PPPoEStatsPoint = {
         timestamp: now,
-        rxRate: prior && elapsed > 0 ? Math.max(0, (totals.rxBytes - prior.rxBytes) * 8 / elapsed) : 0,
-        txRate: prior && elapsed > 0 ? Math.max(0, (totals.txBytes - prior.txBytes) * 8 / elapsed) : 0,
-        rxPps: prior && elapsed > 0 ? Math.max(0, (totals.rxPackets - prior.rxPackets) / elapsed) : 0,
-        txPps: prior && elapsed > 0 ? Math.max(0, (totals.txPackets - prior.txPackets) / elapsed) : 0,
+        rxRate: 0,
+        txRate: 0,
+        rxPps: totals.rxPackets,
+        txPps: totals.txPackets,
         rxBytes: totals.rxBytes,
         txBytes: totals.txBytes,
+        activeSessions: response.total,
       };
-      previous.current = { ...totals, timestamp: now };
       setSessionCount(response.total);
       setPoints((current) => [...current, point].filter((item) => item.timestamp >= now - 120_000).slice(-120));
     } catch {
@@ -101,7 +90,7 @@ export function PppoeStatsCard({ onRemove, span = 1, onSpanChange, height, onHei
         </div>
       </CardHeader>
       <CardContent className="min-h-0 flex-1 pt-0">
-        <PPPoEStatsChart points={points} height={240} />
+        <PPPoEStatsChart points={points} height={240} sessionsOnly />
       </CardContent>
     </Card>
   );

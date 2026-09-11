@@ -170,8 +170,10 @@ export interface PPPoESession {
   uptime?: string | null;
   rx_bytes: number;
   tx_bytes: number;
-  rx_packets: number;
-  tx_packets: number;
+  rx_packets: number | null;
+  tx_packets: number | null;
+  rx_pps: number | null;
+  tx_pps: number | null;
   vlan?: string | null;
   mtu?: number | null;
 }
