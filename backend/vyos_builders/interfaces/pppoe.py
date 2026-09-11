@@ -12,9 +12,10 @@ and `ipv6 address interface-identifier`).
 
 from typing import List, Dict, Any
 from vyos_mappers import CommandMapperRegistry
+from vyos_builders.base import BatchBuilder
 
 
-class PppoeInterfaceBuilderMixin:
+class PppoeInterfaceBuilderMixin(BatchBuilder):
     """Complete batch builder for PPPoE interface operations."""
 
     _INTERNAL_BUILDER_METHODS = frozenset({
@@ -23,22 +24,13 @@ class PppoeInterfaceBuilderMixin:
     })
 
     def __init__(self, version: str):
-        self.version = version
-        self._operations: List[Dict[str, Any]] = []
+        super().__init__(version)
         self.interface_mapper_key = "interface_pppoe"
         self.mappers = {self.interface_mapper_key: CommandMapperRegistry.get_mapper(self.interface_mapper_key, version)}
 
     # ========================================================================
     # Core Batch Operations
     # ========================================================================
-
-    def add_set(self, path: List[str]) -> "PppoeInterfaceBuilderMixin":
-        self._operations.append({"op": "set", "path": path})
-        return self
-
-    def add_delete(self, path: List[str]) -> "PppoeInterfaceBuilderMixin":
-        self._operations.append({"op": "delete", "path": path})
-        return self
 
     def add_multiple_sets(self, paths: List[List[str]]) -> "PppoeInterfaceBuilderMixin":
         for path in paths:
@@ -48,14 +40,8 @@ class PppoeInterfaceBuilderMixin:
     def clear(self) -> None:
         self._operations = []
 
-    def get_operations(self) -> List[Dict[str, Any]]:
-        return self._operations.copy()
-
     def operation_count(self) -> int:
         return len(self._operations)
-
-    def is_empty(self) -> bool:
-        return len(self._operations) == 0
 
     def _mapper(self):
         return self.mappers[self.interface_mapper_key]

@@ -5,17 +5,17 @@ Provides all batch operations for policy route and route6 configuration.
 Handles version-specific differences through the mapper layer.
 """
 
-from typing import List, Dict, Any
+from typing import Dict, Any
 from vyos_mappers import CommandMapperRegistry
+from vyos_builders.base import BatchBuilder
 
 
-class RouteBatchBuilder:
+class RouteBatchBuilder(BatchBuilder):
     """Complete batch builder for route policy operations."""
 
     def __init__(self, version: str):
         """Initialize builder with VyOS version."""
-        self.version = version
-        self._operations: List[Dict[str, Any]] = []
+        super().__init__(version)
 
         self.mapper_key = "route"
         self.mappers = {self.mapper_key: CommandMapperRegistry.get_mapper(self.mapper_key, version)}
@@ -24,33 +24,13 @@ class RouteBatchBuilder:
     # Core Batch Operations
     # ========================================================================
 
-    def add_set(self, path: List[str]) -> "RouteBatchBuilder":
-        """Add a 'set' operation to the batch."""
-        if path:  # Only add if path is not empty
-            self._operations.append({"op": "set", "path": path})
-        return self
-
-    def add_delete(self, path: List[str]) -> "RouteBatchBuilder":
-        """Add a 'delete' operation to the batch."""
-        if path:
-            self._operations.append({"op": "delete", "path": path})
-        return self
-
     def clear(self) -> None:
         """Clear all operations from the batch."""
         self._operations = []
 
-    def get_operations(self) -> List[Dict[str, Any]]:
-        """Get the list of operations."""
-        return self._operations.copy()
-
     def operation_count(self) -> int:
         """Get the number of operations in the batch."""
         return len(self._operations)
-
-    def is_empty(self) -> bool:
-        """Check if the batch is empty."""
-        return len(self._operations) == 0
 
     # ========================================================================
     # Policy Management

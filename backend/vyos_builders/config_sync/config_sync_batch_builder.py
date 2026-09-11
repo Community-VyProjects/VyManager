@@ -35,35 +35,15 @@ Structure:
 The template structure is identical between VyOS 1.4 and 1.5.
 """
 
-from typing import List, Dict, Any
+from typing import Dict, Any
 from vyos_mappers import CommandMapperRegistry
+from vyos_builders.base import BatchBuilder
 
 
-class ConfigSyncBatchBuilder:
+class ConfigSyncBatchBuilder(BatchBuilder):
     def __init__(self, version: str):
-        self.version = version
-        self._operations: List[Dict[str, Any]] = []
+        super().__init__(version)
         self.m = CommandMapperRegistry.get_mapper("config_sync", version)
-
-    # -----------------------------------------------------------------------
-    # Core helpers
-    # -----------------------------------------------------------------------
-
-    def add_set(self, path: List[str]) -> "ConfigSyncBatchBuilder":
-        if path:
-            self._operations.append({"op": "set", "path": path})
-        return self
-
-    def add_delete(self, path: List[str]) -> "ConfigSyncBatchBuilder":
-        if path:
-            self._operations.append({"op": "delete", "path": path})
-        return self
-
-    def get_operations(self) -> List[Dict[str, Any]]:
-        return self._operations.copy()
-
-    def is_empty(self) -> bool:
-        return len(self._operations) == 0
 
     # -----------------------------------------------------------------------
     # Capabilities

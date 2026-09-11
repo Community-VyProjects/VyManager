@@ -21,6 +21,7 @@ Version differences (surfaced via capabilities):
 
 from typing import List, Dict, Any
 from vyos_mappers import CommandMapperRegistry
+from vyos_builders.base import BatchBuilder
 
 # ---------------------------------------------------------------------------
 # Shared option lists (sourced from the VyOS templates)
@@ -56,31 +57,10 @@ def _segs(field: str) -> List[str]:
     return [s for s in field.split("/") if s != ""]
 
 
-class QoSBatchBuilder:
+class QoSBatchBuilder(BatchBuilder):
     def __init__(self, version: str):
-        self.version = version
-        self._operations: List[Dict[str, Any]] = []
+        super().__init__(version)
         self.m = CommandMapperRegistry.get_mapper("qos", version)
-
-    # -----------------------------------------------------------------------
-    # Core helpers
-    # -----------------------------------------------------------------------
-
-    def add_set(self, path: List[str]) -> "QoSBatchBuilder":
-        if path:
-            self._operations.append({"op": "set", "path": path})
-        return self
-
-    def add_delete(self, path: List[str]) -> "QoSBatchBuilder":
-        if path:
-            self._operations.append({"op": "delete", "path": path})
-        return self
-
-    def get_operations(self) -> List[Dict[str, Any]]:
-        return self._operations.copy()
-
-    def is_empty(self) -> bool:
-        return len(self._operations) == 0
 
     # -----------------------------------------------------------------------
     # Capabilities
