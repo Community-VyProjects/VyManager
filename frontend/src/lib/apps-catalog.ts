@@ -948,4 +948,43 @@ export const APP_CATALOG: AppDef[] = [
       labels: [{ name: "com.vymanager.app", value: "tailscale-headscale" }],
     },
   },
+  {
+    id: "speedtest",
+    name: "OpenSpeedTest",
+    tagline: "Self-hosted internet speed testing",
+    description:
+      "Run a browser-based internet speed test from your own network. OpenSpeedTest measures download, upload, latency, and jitter without requiring an app or browser plugin.",
+    category: "Network Monitoring",
+    tags: ["speedtest", "bandwidth", "network", "monitoring", "diagnostics"],
+    dockerImage: "openspeedtest/latest",
+    defaultContainerName: "speedtest",
+    iconPath: "/app-icons/openspeedtest.png",
+    installConfig: {
+      fields: [
+        {
+          name: "webPort",
+          label: "Web Interface Port",
+          type: "number",
+          default: 3000,
+          placeholder: "3000",
+          description: "Port for the OpenSpeedTest web interface.",
+          required: true,
+        },
+      ],
+      network: {
+        allowHost: false,
+        allowExisting: true,
+        allowNew: true,
+        defaultMode: "existing",
+        allowStaticIp: true,
+        allowMac: true,
+      },
+      description: "OpenSpeedTest — self-hosted internet speed testing",
+      restart: "always",
+      ports: [
+        { name: "http", source: "${webPort}", destination: 3000, protocol: "tcp" },
+      ],
+      labels: [{ name: "com.vymanager.app", value: "speedtest" }],
+    },
+  },
 ];
