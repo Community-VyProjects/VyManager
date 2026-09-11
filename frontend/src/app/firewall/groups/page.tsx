@@ -14,6 +14,64 @@ import { CreateGroupModal } from "@/components/firewall/CreateGroupModal";
 import { EditGroupModal } from "@/components/firewall/EditGroupModal";
 import { DeleteGroupModal } from "@/components/firewall/DeleteGroupModal";
 
+// Full class strings so Tailwind can emit them. Dynamic `bg-${color}-500/10`
+// never matches a source token and is dropped from the CSS.
+const GROUP_TYPE_CLASSES: Record<
+  GroupType,
+  { iconWrap: string; icon: string; badge: string }
+> = {
+  "address-group": {
+    iconWrap: "bg-blue-500/10",
+    icon: "text-blue-500",
+    badge: "bg-blue-500/10 text-blue-500 border-blue-500/20",
+  },
+  "ipv6-address-group": {
+    iconWrap: "bg-cyan-500/10",
+    icon: "text-cyan-500",
+    badge: "bg-cyan-500/10 text-cyan-500 border-cyan-500/20",
+  },
+  "network-group": {
+    iconWrap: "bg-green-500/10",
+    icon: "text-green-500",
+    badge: "bg-green-500/10 text-green-500 border-green-500/20",
+  },
+  "ipv6-network-group": {
+    iconWrap: "bg-teal-500/10",
+    icon: "text-teal-500",
+    badge: "bg-teal-500/10 text-teal-500 border-teal-500/20",
+  },
+  "port-group": {
+    iconWrap: "bg-purple-500/10",
+    icon: "text-purple-500",
+    badge: "bg-purple-500/10 text-purple-500 border-purple-500/20",
+  },
+  "interface-group": {
+    iconWrap: "bg-orange-500/10",
+    icon: "text-orange-500",
+    badge: "bg-orange-500/10 text-orange-500 border-orange-500/20",
+  },
+  "mac-group": {
+    iconWrap: "bg-pink-500/10",
+    icon: "text-pink-500",
+    badge: "bg-pink-500/10 text-pink-500 border-pink-500/20",
+  },
+  "domain-group": {
+    iconWrap: "bg-indigo-500/10",
+    icon: "text-indigo-500",
+    badge: "bg-indigo-500/10 text-indigo-500 border-indigo-500/20",
+  },
+  "remote-group": {
+    iconWrap: "bg-amber-500/10",
+    icon: "text-amber-500",
+    badge: "bg-amber-500/10 text-amber-500 border-amber-500/20",
+  },
+};
+const GROUP_TYPE_CLASSES_FALLBACK = {
+  iconWrap: "bg-gray-500/10",
+  icon: "text-gray-500",
+  badge: "bg-gray-500/10 text-gray-500 border-gray-500/20",
+};
+
 export default function FirewallGroupsPage() {
   const [groups, setGroups] = useState<GroupsConfigResponse | null>(null);
   const [capabilities, setCapabilities] = useState<FirewallGroupsCapabilities | null>(null);
@@ -90,21 +148,6 @@ export default function FirewallGroupsPage() {
 
     return matchesType && matchesSearch;
   });
-
-  const getGroupTypeColor = (type: string) => {
-    const colors: Record<string, string> = {
-      "address-group": "blue",
-      "ipv6-address-group": "cyan",
-      "network-group": "green",
-      "ipv6-network-group": "teal",
-      "port-group": "purple",
-      "interface-group": "orange",
-      "mac-group": "pink",
-      "domain-group": "indigo",
-      "remote-group": "amber",
-    };
-    return colors[type] || "gray";
-  };
 
   const getGroupTypeLabel = (type: string) => {
     const labels: Record<string, string> = {
@@ -288,14 +331,16 @@ export default function FirewallGroupsPage() {
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {filteredGroups.map((group) => {
-                    const color = getGroupTypeColor(group.type);
+                    const typeClasses =
+                      GROUP_TYPE_CLASSES[group.type as GroupType] ??
+                      GROUP_TYPE_CLASSES_FALLBACK;
                     return (
                       <Card key={`${group.type}-${group.name}`} className="border-border hover:border-primary/50 transition-colors group">
                         <CardContent className="p-4">
                           <div className="flex items-start justify-between mb-3">
                             <div className="flex items-center gap-2 flex-1 min-w-0">
-                              <div className={`flex h-9 w-9 items-center justify-center rounded-lg bg-${color}-500/10 flex-shrink-0`}>
-                                <Shield className={`h-4 w-4 text-${color}-500`} />
+                              <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${typeClasses.iconWrap} flex-shrink-0`}>
+                                <Shield className={`h-4 w-4 ${typeClasses.icon}`} />
                               </div>
                               <div className="min-w-0">
                                 <code className="font-semibold font-mono text-foreground text-base block truncate">
@@ -345,7 +390,7 @@ export default function FirewallGroupsPage() {
                             <div className="pt-1">
                               <Badge
                                 variant="outline"
-                                className={`bg-${color}-500/10 text-${color}-500 border-${color}-500/20 text-xs`}
+                                className={`${typeClasses.badge} text-xs`}
                               >
                                 {getGroupTypeLabel(group.type)}
                               </Badge>
