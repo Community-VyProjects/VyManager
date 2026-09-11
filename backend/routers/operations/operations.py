@@ -44,6 +44,7 @@ from vyos_builders import (
     RipNgBatchBuilder,
     RouteMapBatchBuilder,
     RpkiBatchBuilder,
+    SegmentRoutingBatchBuilder,
     StaticRoutesBatchBuilder,
     SystemBatchBuilder,
     TrafficEngineeringBatchBuilder,
@@ -179,6 +180,7 @@ _BUILDER_REGISTRY: dict[str, type] = {
     "router-advert": RouterAdvertBatchBuilder,
     "rpki": RpkiBatchBuilder,
     "salt-minion": SaltMinionBatchBuilder,
+    "segment-routing": SegmentRoutingBatchBuilder,
     "service-monitoring": ServiceMonitoringBatchBuilder,
     "sla": SLABatchBuilder,
     "snmp": SNMPBatchBuilder,
@@ -233,6 +235,7 @@ _SUBJECT_FIELDS: dict[str, str] = {
     "vpp": "interface",
     "vti": "interface",
     "wireless": "interface",
+    "wwan": "interface",
 }
 
 
