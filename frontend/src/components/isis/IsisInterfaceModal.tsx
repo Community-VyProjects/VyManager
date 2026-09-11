@@ -29,6 +29,10 @@ import {
 } from "@/lib/api/isis";
 import { showService, InterfaceName } from "@/lib/api/show";
 import { InterfaceSelect } from "@/components/ui/interface-select";
+import {
+  isisRemoteLfaSupported,
+  isisTiLfaSupported,
+} from "@/lib/isis-feature-flags";
 
 interface IsisInterfaceModalProps {
   open: boolean;
@@ -47,7 +51,8 @@ export function IsisInterfaceModal({
   capabilities,
 }: IsisInterfaceModalProps) {
   const isEdit = !!existingInterface;
-  const isV15 = capabilities?.version_info.is_1_5 ?? false;
+  const tiLfaSupported = isisTiLfaSupported(capabilities?.features);
+  const remoteLfaSupported = isisRemoteLfaSupported(capabilities?.features);
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -459,8 +464,8 @@ export function IsisInterfaceModal({
               </div>
             </div>
 
-            {/* TI-LFA (v1.5 only) */}
-            {isV15 && (
+            {/* TI-LFA */}
+            {tiLfaSupported && (
               <>
                 <Separator />
                 <div>
@@ -502,7 +507,11 @@ export function IsisInterfaceModal({
                     )}
                   </div>
                 </div>
+              </>
+            )}
 
+            {remoteLfaSupported && (
+              <>
                 <Separator />
 
                 {/* Remote LFA */}
@@ -562,7 +571,7 @@ export function IsisInterfaceModal({
               </>
             )}
 
-            {!isV15 && (
+            {!tiLfaSupported && !remoteLfaSupported && (
               <p className="text-sm text-muted-foreground">
                 TI-LFA and Remote LFA are not supported on this device.
               </p>

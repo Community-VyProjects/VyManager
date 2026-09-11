@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
+import { bgpTabFromSearch } from "@/lib/query-tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -59,6 +61,7 @@ export function BgpContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("overview");
+  const searchParams = useSearchParams();
 
   // Neighbor modal state
   const [neighborModalOpen, setNeighborModalOpen] = useState(false);
@@ -142,6 +145,13 @@ export function BgpContent() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    const tab = bgpTabFromSearch((key) => searchParams.get(key));
+    if (tab) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
 
   // Stats
   const neighborCount = config?.neighbors.length ?? 0;

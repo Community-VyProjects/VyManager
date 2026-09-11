@@ -381,7 +381,7 @@ export function CreateLocalRouteModal({
                   extraOptions={[{ label: "Default", value: "default" }]}
                 />
                 <p className="text-xs text-muted-foreground">
-                  VRF instance to use for matched traffic (VyOS 1.5+)
+                  VRF instance to use for matched traffic
                 </p>
               </div>
             )}
@@ -397,9 +397,9 @@ export function CreateLocalRouteModal({
                   <li>• At least one matching criterion (source, destination, or interface) is required</li>
                   <li>• Choose either Routing Table OR VRF - you cannot specify both</li>
                   {capabilities?.features.vrf_support.supported ? (
-                    <li>• VRF option is available on VyOS 1.5+</li>
+                    <li>• VRF option is available on this device</li>
                   ) : (
-                    <li>• VRF requires VyOS 1.5+ (currently unavailable)</li>
+                    <li>• This device does not support VRF</li>
                   )}
                   <li>• Traffic matching all specified criteria will use the specified destination</li>
                   <li>• Rules are processed in numerical order</li>

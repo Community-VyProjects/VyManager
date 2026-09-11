@@ -52,6 +52,11 @@ import {
 } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { isisService, IsisConfig, IsisCapabilities, IsisInterface, IsisRedistributeEntry } from "@/lib/api/isis";
+import {
+  isisLspRefreshMinSeconds,
+  isisSrv6Supported,
+  isisTeExportSupported,
+} from "@/lib/isis-feature-flags";
 import { routeMapService } from "@/lib/api/route-map";
 import { IsisInterfaceModal } from "./IsisInterfaceModal";
 import { IsisRedistributeModal } from "./IsisRedistributeModal";
@@ -959,7 +964,7 @@ export function IsisContent() {
                       {[
                         { label: "LSP MTU (bytes)", key: "lsp_mtu" as const, value: lspMtu, setter: setLspMtu, placeholder: "Default (1497)", min: 128, max: 4352, cur: g?.lsp_mtu },
                         { label: "LSP Generation Interval (s)", key: "lsp_gen_interval" as const, value: lspGenInterval, setter: setLspGenInterval, placeholder: "Default", min: 1, max: 120, cur: g?.lsp_gen_interval },
-                        { label: "LSP Refresh Interval (s)", key: "lsp_refresh_interval" as const, value: lspRefreshInterval, setter: setLspRefreshInterval, placeholder: "Default (900)", min: capabilities?.version_info.is_1_5 ? 2 : 1, max: 65235, cur: g?.lsp_refresh_interval },
+                        { label: "LSP Refresh Interval (s)", key: "lsp_refresh_interval" as const, value: lspRefreshInterval, setter: setLspRefreshInterval, placeholder: "Default (900)", min: isisLspRefreshMinSeconds(capabilities?.features), max: 65235, cur: g?.lsp_refresh_interval },
                         { label: "Max LSP Lifetime (s)", key: "max_lsp_lifetime" as const, value: maxLspLifetime, setter: setMaxLspLifetime, placeholder: "Default (1200)", min: 350, max: 65535, cur: g?.max_lsp_lifetime },
                         { label: "SPF Interval (ms)", key: "spf_interval" as const, value: spfInterval, setter: setSpfInterval, placeholder: "Default", min: 1, max: 120000, cur: g?.spf_interval },
                         { label: "LDP Sync Holddown (s)", key: "ldp_sync_holddown" as const, value: ldpSyncHolddown, setter: setLdpSyncHolddown, placeholder: "Disabled", min: 1, max: 10000, cur: g?.ldp_sync_holddown },
@@ -1068,7 +1073,7 @@ export function IsisContent() {
                           <p className="text-xs text-muted-foreground mb-1">Prefix SIDs</p>
                           <p className="text-sm">{config?.segment_routing.prefixes.length ?? 0} configured</p>
                         </div>
-                        {capabilities.version_info.is_1_5 && config?.segment_routing.srv6_locator && (
+                        {isisSrv6Supported(capabilities?.features) && config?.segment_routing.srv6_locator && (
                           <div>
                             <p className="text-xs text-muted-foreground mb-1">SRv6 Locator</p>
                             <Badge variant="secondary" className="font-mono">{config.segment_routing.srv6_locator}</Badge>
@@ -1094,7 +1099,7 @@ export function IsisContent() {
                           <p className="font-mono">{config.traffic_engineering.address}</p>
                         </div>
                       )}
-                      {capabilities?.version_info.is_1_5 && (
+                      {isisTeExportSupported(capabilities?.features) && (
                         <div className="flex items-center gap-2">
                           <span className="text-muted-foreground">TED Export:</span>
                           <span>{config?.traffic_engineering.export ? "Yes" : "No"}</span>

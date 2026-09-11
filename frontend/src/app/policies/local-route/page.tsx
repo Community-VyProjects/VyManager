@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Search, RefreshCw, Route, AlertCircle } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { localRouteService, type LocalRouteRule, type LocalRouteConfigResponse, type LocalRouteCapabilitiesResponse } from "@/lib/api/local-route";
+import { localRouteService, type LocalRouteRule, type LocalRouteConfigResponse } from "@/lib/api/local-route";
 import { CreateLocalRouteModal } from "@/components/policies/CreateLocalRouteModal";
 import { EditLocalRouteModal } from "@/components/policies/EditLocalRouteModal";
 import { DeleteLocalRouteModal } from "@/components/policies/DeleteLocalRouteModal";
@@ -27,7 +27,6 @@ function LocalRoutePageInner() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [config, setConfig] = useState<LocalRouteConfigResponse | null>(null);
-  const [, setCapabilities] = useState<LocalRouteCapabilitiesResponse | null>(null);
   const [selectedTab, setSelectedTab] = useState<"ipv4" | "ipv6">("ipv4");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -51,7 +50,6 @@ function LocalRoutePageInner() {
   );
 
   useEffect(() => {
-    fetchCapabilities();
     fetchConfig();
   }, []);
 
@@ -61,15 +59,6 @@ function LocalRoutePageInner() {
       setSelectedTab(section);
     }
   }, [searchParams]);
-
-  const fetchCapabilities = async () => {
-    try {
-      const data = await localRouteService.getCapabilities();
-      setCapabilities(data);
-    } catch (err) {
-      console.error("Error fetching capabilities:", err);
-    }
-  };
 
   const fetchConfig = async (refresh: boolean = false) => {
     try {

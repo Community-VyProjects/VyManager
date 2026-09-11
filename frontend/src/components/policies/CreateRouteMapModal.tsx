@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { VrfSelect } from "@/components/ui/vrf-select";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,7 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { AlertCircle } from "lucide-react";
 import { routeMapService } from "@/lib/api/route-map";
-import type { RouteMapCapabilities, MatchConditions, SetActions } from "@/lib/api/route-map";
+import type { MatchConditions, SetActions } from "@/lib/api/route-map";
 
 interface CreateRouteMapModalProps {
     open: boolean;
@@ -24,7 +25,6 @@ interface CreateRouteMapModalProps {
 export function CreateRouteMapModal({ open, onOpenChange, onSuccess }: CreateRouteMapModalProps) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [, setCapabilities] = useState<RouteMapCapabilities | null>(null);
 
     // Basic fields
     const [name, setName] = useState("");
@@ -118,21 +118,6 @@ export function CreateRouteMapModal({ open, onOpenChange, onSuccess }: CreateRou
     const [setSrc, setSetSrc] = useState("");
     const [setTable, setSetTable] = useState("");
     const [setTag, setSetTag] = useState("");
-
-    useEffect(() => {
-        if (open) {
-            loadCapabilities();
-        }
-    }, [open]);
-
-    const loadCapabilities = async () => {
-        try {
-            const caps = await routeMapService.getCapabilities();
-            setCapabilities(caps);
-        } catch (err) {
-            console.error("Failed to load capabilities:", err);
-        }
-    };
 
     const resetForm = () => {
         setName("");
@@ -736,11 +721,12 @@ export function CreateRouteMapModal({ open, onOpenChange, onSuccess }: CreateRou
         </div>
         <div className="space-y-2">
         <Label htmlFor="matchInterface">Interface</Label>
-        <Input
+        <InterfaceSelect
         id="matchInterface"
-        placeholder="e.g., eth0"
-        value={matchInterface}
-        onChange={(e) => setMatchInterface(e.target.value)}
+        value={matchInterface || "__none__"}
+        onValueChange={(v) => setMatchInterface(v === "__none__" ? "" : v)}
+        noneOption={{ label: "None", value: "__none__" }}
+        placeholder="Select interface"
         />
         </div>
         <div className="space-y-2">

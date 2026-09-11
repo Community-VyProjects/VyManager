@@ -38,13 +38,13 @@ import {
   staticRoutesService,
   type StaticRoute,
   type StaticRoutesConfig,
-  type StaticRoutesCapabilities,
   type ArpEntry,
   type MulticastRoute,
   type NeighborProxyArp,
   type NeighborProxyNd,
 } from "@/lib/api/static-routes";
 import { cn } from "@/lib/utils";
+import { staticRouteTabFromSearch } from "@/lib/query-tabs";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { CreateStaticRouteModal } from "@/components/routing/CreateStaticRouteModal";
 import { EditStaticRouteModal } from "@/components/routing/EditStaticRouteModal";
@@ -62,7 +62,6 @@ import { RoutingTablesAccordion } from "@/components/routing/RoutingTablesAccord
 function StaticRoutesPageInner() {
   const searchParams = useSearchParams();
   const [config, setConfig] = useState<StaticRoutesConfig | null>(null);
-  const [, setCapabilities] = useState<StaticRoutesCapabilities | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -97,12 +96,8 @@ function StaticRoutesPageInner() {
     try {
       setLoading(true);
       setError(null);
-      const [configData, capsData] = await Promise.all([
-        staticRoutesService.getConfig(refresh),
-        staticRoutesService.getCapabilities(),
-      ]);
+      const configData = await staticRoutesService.getConfig(refresh);
       setConfig(configData);
-      setCapabilities(capsData);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to load static routes configuration"
@@ -118,9 +113,9 @@ function StaticRoutesPageInner() {
   }, []);
 
   useEffect(() => {
-    const tab = searchParams.get("tab");
-    if (tab === "routes" || tab === "arp" || tab === "mroute" || tab === "neighbor-proxy" || tab === "tables") {
-      setActiveTab(tab);
+    const section = staticRouteTabFromSearch((key) => searchParams.get(key));
+    if (section) {
+      setActiveTab(section);
     }
   }, [searchParams]);
 

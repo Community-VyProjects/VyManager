@@ -1532,7 +1532,7 @@ export function CreateRouteRuleModal({
                       extraOptions={[{ label: "Default", value: "default" }]}
                     />
                     <p className="text-xs text-muted-foreground">
-                      VRF routing (VyOS 1.5+ only)
+                      VRF routing
                     </p>
                   </div>
                 )}

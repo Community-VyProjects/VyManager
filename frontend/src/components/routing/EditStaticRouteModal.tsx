@@ -588,14 +588,16 @@ export function EditStaticRouteModal({ open, onOpenChange, onSuccess, route }: E
             {capabilities?.features.dhcp_interface.supported && (
               <div className="space-y-2">
                 <Label htmlFor="dhcp-interface">DHCP Interface</Label>
-                <Input
+                <InterfaceSelect
                   id="dhcp-interface"
-                  placeholder="e.g., eth0"
-                  value={dhcpInterface}
-                  onChange={(e) => setDhcpInterface(e.target.value)}
+                  value={dhcpInterface || "__none__"}
+                  onValueChange={(v) => setDhcpInterface(v === "__none__" ? "" : v)}
+                  interfaces={availableInterfaces}
+                  noneOption={{ label: "None", value: "__none__" }}
+                  placeholder="Select interface"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Use gateway from DHCP on this interface (VyOS 1.4 only)
+                  Use gateway from DHCP on this interface
                 </p>
               </div>
             )}
@@ -603,7 +605,7 @@ export function EditStaticRouteModal({ open, onOpenChange, onSuccess, route }: E
             {!capabilities?.features.dhcp_interface.supported && (
               <div className="bg-muted/50 border rounded-lg p-4">
                 <p className="text-sm text-muted-foreground">
-                  No advanced options available for this VyOS version.
+                  No advanced options available on this device.
                 </p>
               </div>
             )}
