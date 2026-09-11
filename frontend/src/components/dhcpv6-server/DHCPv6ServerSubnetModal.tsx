@@ -11,7 +11,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -99,7 +98,6 @@ export function DHCPv6ServerSubnetModal({
 
   // Basic
   const [subnetCidr, setSubnetCidr] = useState("");
-  const [disabled, setDisabled] = useState(false);
   const [leaseDefault, setLeaseDefault] = useState("");
   const [leaseMinimum, setLeaseMinimum] = useState("");
   const [leaseMaximum, setLeaseMaximum] = useState("");
@@ -133,7 +131,6 @@ export function DHCPv6ServerSubnetModal({
 
     if (subnet) {
       setSubnetCidr(subnet.subnet);
-      setDisabled(subnet.disabled);
       setLeaseDefault(subnet.lease_default != null ? String(subnet.lease_default) : "");
       setLeaseMinimum(subnet.lease_minimum != null ? String(subnet.lease_minimum) : "");
       setLeaseMaximum(subnet.lease_maximum != null ? String(subnet.lease_maximum) : "");
@@ -149,7 +146,6 @@ export function DHCPv6ServerSubnetModal({
       setCiscoTftpServers([...subnet.options.cisco_tftp_servers]);
     } else {
       setSubnetCidr("");
-      setDisabled(false);
       setLeaseDefault("");
       setLeaseMinimum("");
       setLeaseMaximum("");
@@ -206,7 +202,6 @@ export function DHCPv6ServerSubnetModal({
 
     const updated: DHCPv6Subnet = {
       subnet: subnetCidr.trim(),
-      disabled,
       subnet_id: computedSubnetId,
       lease_default: leaseDefault.trim() !== "" ? parseInt(leaseDefault.trim(), 10) : null,
       lease_minimum: leaseMinimum.trim() !== "" ? parseInt(leaseMinimum.trim(), 10) : null,
@@ -279,15 +274,6 @@ export function DHCPv6ServerSubnetModal({
                   onChange={(e) => setSubnetCidr(e.target.value)}
                   disabled={isEditing}
                 />
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="subnet-disabled"
-                  checked={disabled}
-                  onCheckedChange={(v) => setDisabled(Boolean(v))}
-                />
-                <Label htmlFor="subnet-disabled" className="cursor-pointer">Disable this subnet</Label>
               </div>
 
               <div className="grid grid-cols-3 gap-3">

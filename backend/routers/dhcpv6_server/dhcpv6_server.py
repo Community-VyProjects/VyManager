@@ -76,7 +76,6 @@ class DHCPv6SubnetOptions(BaseModel):
 
 class DHCPv6Subnet(BaseModel):
     subnet: str
-    disabled: bool = False
     subnet_id: Optional[int] = None       # 1.5 only
     lease_default: Optional[int] = None
     lease_minimum: Optional[int] = None
@@ -304,7 +303,6 @@ async def get_dhcpv6_server_config(http_request: Request, refresh: bool = False)
 
                 subnets.append(DHCPv6Subnet(
                     subnet=subnet_cidr,
-                    disabled="disable" in subnet_data,
                     subnet_id=_parse_int(subnet_data.get("subnet-id")),
                     lease_default=lease_default,
                     lease_minimum=lease_minimum,
@@ -384,6 +382,12 @@ async def dhcpv6_server_batch_configure(
         )
     except HTTPException:
         raise
+    except NotImplementedError as e:
+        logger.info("Unsupported DHCPv6 operation for this VyOS version: %s", e)
+        raise HTTPException(
+            status_code=400,
+            detail=f"Operation is not supported on this VyOS version: {e}",
+        )
     except AttributeError as e:
         raise HTTPException(status_code=400, detail=f"Unknown operation: {e}")
     except Exception:

@@ -171,13 +171,6 @@ class VrfDhcpv6Mapper:
             "shared-network-name", network, "subnet", prefix, "description", value,
         ]
 
-    def get_dhcpv6_subnet_disable(
-        self, name: str, network: str, prefix: str
-    ) -> List[str]:
-        return self._base(name) + [
-            "shared-network-name", network, "subnet", prefix, "disable",
-        ]
-
     def get_dhcpv6_subnet_domain_search(
         self, name: str, network: str, prefix: str, value: str
     ) -> List[str]:

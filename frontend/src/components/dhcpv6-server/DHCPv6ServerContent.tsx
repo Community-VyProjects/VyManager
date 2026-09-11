@@ -601,7 +601,6 @@ export function DHCPv6ServerContent() {
                             <TableRow className="hover:bg-transparent">
                               <TableHead>Subnet</TableHead>
                               {caps?.features.subnet_id.supported && <TableHead>ID</TableHead>}
-                              <TableHead>Status</TableHead>
                               <TableHead>Lease Default</TableHead>
                               <TableHead>Ranges</TableHead>
                               <TableHead>PD</TableHead>
@@ -621,18 +620,6 @@ export function DHCPv6ServerContent() {
                                       : <span className="text-muted-foreground">—</span>}
                                   </TableCell>
                                 )}
-                                <TableCell>
-                                  <Badge
-                                    variant="outline"
-                                    className={cn(
-                                      subnet.disabled
-                                        ? "bg-red-500/10 text-red-500 border-red-500/20"
-                                        : "bg-green-500/10 text-green-500 border-green-500/20"
-                                    )}
-                                  >
-                                    {subnet.disabled ? "Disabled" : "Active"}
-                                  </Badge>
-                                </TableCell>
                                 <TableCell>
                                   {subnet.lease_default != null
                                     ? `${subnet.lease_default}s`

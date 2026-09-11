@@ -384,30 +384,6 @@ class VrfDhcpv6Mixin:
             return self.add_delete(path)
         return self
 
-    def set_vrf_dhcpv6_subnet_disable(
-        self, name: str, value: str
-    ) -> "VrfDhcpv6Mixin":
-        """Value format: 'network,prefix'."""
-        parts = value.split(",", 1)
-        if len(parts) == 2:
-            path = self.mappers["vrf_dhcpv6"].get_dhcpv6_subnet_disable(
-                name, parts[0], parts[1]
-            )
-            return self.add_set(path)
-        return self
-
-    def delete_vrf_dhcpv6_subnet_disable(
-        self, name: str, value: str
-    ) -> "VrfDhcpv6Mixin":
-        """Value format: 'network,prefix'."""
-        parts = value.split(",", 1)
-        if len(parts) == 2:
-            path = self.mappers["vrf_dhcpv6"].get_dhcpv6_subnet_disable(
-                name, parts[0], parts[1]
-            )
-            return self.add_delete(path)
-        return self
-
     def set_vrf_dhcpv6_subnet_domain_search(
         self, name: str, value: str
     ) -> "VrfDhcpv6Mixin":

@@ -170,12 +170,6 @@ class DHCPv6ServerBatchBuilder(BatchBuilder):
     def delete_subnet(self, name: str, subnet: str) -> "DHCPv6ServerBatchBuilder":
         return self.add_delete(self.m.get_subnet_delete(name, subnet))
 
-    def set_subnet_disable(self, name: str, subnet: str) -> "DHCPv6ServerBatchBuilder":
-        return self.add_set(self.m.get_subnet_disable(name, subnet))
-
-    def delete_subnet_disable(self, name: str, subnet: str) -> "DHCPv6ServerBatchBuilder":
-        return self.add_delete(self.m.get_subnet_disable(name, subnet))
-
     # Lease times
     def set_subnet_lease_default(self, name: str, subnet: str, value: str) -> "DHCPv6ServerBatchBuilder":
         return self.add_set(self.m.get_subnet_lease_default(name, subnet, value))

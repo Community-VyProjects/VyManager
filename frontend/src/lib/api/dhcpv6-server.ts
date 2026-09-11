@@ -42,7 +42,6 @@ export interface DHCPv6StaticMapping {
 
 export interface DHCPv6Subnet {
   subnet: string;
-  disabled: boolean;
   subnet_id: number | null;
   lease_default: number | null;
   lease_minimum: number | null;
@@ -270,7 +269,6 @@ class DHCPv6ServerService {
 
     // Subnet
     ops.push({ op: "set_subnet", value: base });
-    if (subnet.disabled) ops.push({ op: "set_subnet_disable", value: base });
     if (subnet.subnet_id != null) ops.push({ op: "set_subnet_id", value: `${base},${subnet.subnet_id}` });
     if (subnet.lease_default != null) ops.push({ op: "set_subnet_lease_default", value: `${base},${subnet.lease_default}` });
     if (subnet.lease_minimum != null) ops.push({ op: "set_subnet_lease_minimum", value: `${base},${subnet.lease_minimum}` });
@@ -320,7 +318,6 @@ class DHCPv6ServerService {
 
     if (original === null) {
       ops.push({ op: "set_subnet", value: base });
-      if (updated.disabled) ops.push({ op: "set_subnet_disable", value: base });
       if (updated.subnet_id != null) ops.push({ op: "set_subnet_id", value: `${base},${updated.subnet_id}` });
       if (updated.lease_default != null) ops.push({ op: "set_subnet_lease_default", value: `${base},${updated.lease_default}` });
       if (updated.lease_minimum != null) ops.push({ op: "set_subnet_lease_minimum", value: `${base},${updated.lease_minimum}` });
@@ -336,9 +333,6 @@ class DHCPv6ServerService {
       for (const s of updated.options.sntp_servers) ops.push({ op: "set_subnet_sntp_server", value: `${base},${s}` });
       for (const s of updated.options.cisco_tftp_servers) ops.push({ op: "set_subnet_cisco_tftp_server", value: `${base},${s}` });
     } else {
-      if (updated.disabled !== original.disabled) {
-        ops.push({ op: updated.disabled ? "set_subnet_disable" : "delete_subnet_disable", value: base });
-      }
       if (updated.subnet_id !== original.subnet_id) {
         if (updated.subnet_id != null) ops.push({ op: "set_subnet_id", value: `${base},${updated.subnet_id}` });
         else ops.push({ op: "delete_subnet_id", value: base });
