@@ -111,9 +111,9 @@ def test_handlers_call_their_permission_check(rel_path):
 @pytest.mark.parametrize("rel_path", DYNAMIC_DISPATCH_FILES)
 def test_batch_dispatch_guards_operation_names(rel_path):
     source = (ROUTERS_DIR / rel_path).read_text()
-    assert "_INTERNAL_BUILDER_METHODS" in source, (
-        f"{rel_path}: getattr(builder, operation.op) dispatch must allowlist "
-        "operation names"
+    assert "resolve_batch_method" in source, (
+        f"{rel_path}: getattr(builder, operation.op) dispatch must use "
+        "resolve_batch_method"
     )
     assert "method = getattr(builder, operation.op)\n" not in source, (
         f"{rel_path}: unguarded getattr dispatch on a client-supplied name"

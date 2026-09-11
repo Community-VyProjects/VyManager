@@ -14,6 +14,7 @@ from session_vyos_service import get_session_vyos_service
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 import logging
+from batch_dispatch import resolve_batch_method
 
 logger = logging.getLogger(__name__)
 
@@ -404,9 +405,7 @@ async def configure_bridge_batch(http_request: Request, request: BridgeBatchRequ
             if op in _VALUE_REQUIRED_OPS:
                 if not val:
                     raise HTTPException(status_code=400, detail=f"'{op}' requires a value")
-                method = getattr(batch, _OP_TO_METHOD.get(op, op), None)
-                if method is None:
-                    raise HTTPException(status_code=400, detail=f"Unsupported operation: {op}")
+                method = resolve_batch_method(batch, _OP_TO_METHOD.get(op, op))
                 method(iface, val)
 
             # No-value operations
@@ -416,9 +415,7 @@ async def configure_bridge_batch(http_request: Request, request: BridgeBatchRequ
                 elif op == "enable":
                     batch.delete_interface_disable(iface)
                 else:
-                    method = getattr(batch, _OP_TO_METHOD.get(op, op), None)
-                    if method is None:
-                        raise HTTPException(status_code=400, detail=f"Unsupported operation: {op}")
+                    method = resolve_batch_method(batch, _OP_TO_METHOD.get(op, op))
                     method(iface)
 
             # Member operations with value
@@ -427,18 +424,14 @@ async def configure_bridge_batch(http_request: Request, request: BridgeBatchRequ
                     raise HTTPException(status_code=400, detail=f"'{op}' requires member")
                 if not val:
                     raise HTTPException(status_code=400, detail=f"'{op}' requires a value")
-                method = getattr(batch, op, None)
-                if method is None:
-                    raise HTTPException(status_code=400, detail=f"Unsupported operation: {op}")
+                method = resolve_batch_method(batch, op)
                 method(iface, member, val)
 
             # Member operations without value
             elif op in _MEMBER_NO_VALUE_OPS:
                 if not member:
                     raise HTTPException(status_code=400, detail=f"'{op}' requires member")
-                method = getattr(batch, op, None)
-                if method is None:
-                    raise HTTPException(status_code=400, detail=f"Unsupported operation: {op}")
+                method = resolve_batch_method(batch, op)
                 method(iface, member)
 
             # VIF operations requiring vlan_id + value
@@ -447,18 +440,14 @@ async def configure_bridge_batch(http_request: Request, request: BridgeBatchRequ
                     raise HTTPException(status_code=400, detail=f"'{op}' requires vlan_id")
                 if not val:
                     raise HTTPException(status_code=400, detail=f"'{op}' requires a value")
-                method = getattr(batch, op, None)
-                if method is None:
-                    raise HTTPException(status_code=400, detail=f"Unsupported operation: {op}")
+                method = resolve_batch_method(batch, op)
                 method(iface, vlan, val)
 
             # VIF operations requiring vlan_id only
             elif op in _VIF_NO_VALUE_OPS:
                 if not vlan:
                     raise HTTPException(status_code=400, detail=f"'{op}' requires vlan_id")
-                method = getattr(batch, op, None)
-                if method is None:
-                    raise HTTPException(status_code=400, detail=f"Unsupported operation: {op}")
+                method = resolve_batch_method(batch, op)
                 method(iface, vlan)
 
             else:

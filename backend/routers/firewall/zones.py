@@ -9,7 +9,7 @@ VyOS 1.4 vs 1.5 differences:
 - Default firewall: 1.5 adds `default-firewall name/ipv6-name`
 """
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, HTTPException
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
@@ -18,21 +18,11 @@ from vyos_builders import FirewallZonesBatchBuilder, FirewallIPv4BatchBuilder, F
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 import logging
+from batch_dispatch import resolve_batch_method
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/firewall/zones", tags=["firewall-zones"])
-
-# Builder infrastructure methods that must never be invokable via the batch API
-_INTERNAL_BUILDER_METHODS = frozenset({
-    "add_set",
-    "add_delete",
-    "get_operations",
-    "is_empty",
-    "clear",
-    "operation_count",
-    "get_capabilities",
-})
 
 
 # ============================================================================
@@ -259,20 +249,10 @@ async def batch_configure(http_request: Request, request: ZoneBatchRequest) -> V
     batch = FirewallZonesBatchBuilder(version=service.get_version())
 
     for op in request.operations:
-        if op.op in _INTERNAL_BUILDER_METHODS:
-            logger.warning("Blocked attempt to invoke internal builder method: %s", op.op)
-            return VyOSResponse(
-                success=False,
-                error=f"Operation '{op.op}' is not allowed",
-            )
-
-        if not hasattr(batch, op.op):
-            return VyOSResponse(
-                success=False,
-                error=f"Unknown operation: '{op.op}'",
-            )
-
-        method = getattr(batch, op.op)
+        try:
+            method = resolve_batch_method(batch, op.op)
+        except HTTPException as exc:
+            return VyOSResponse(success=False, error=str(exc.detail))
         sig = inspect.signature(method)
         # Parameters excluding 'self'
         params = [p for p in sig.parameters.keys() if p != "self"]

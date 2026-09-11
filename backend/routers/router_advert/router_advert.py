@@ -51,14 +51,11 @@ from fastapi_permissions import require_read_permission, require_write_permissio
 from rbac_permissions import FeatureGroup
 import inspect
 import logging
+from batch_dispatch import resolve_batch_method
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/router-advert", tags=["router-advert"])
-
-_INTERNAL_BUILDER_METHODS = {
-    "add_set", "add_delete", "get_operations", "is_empty", "get_capabilities",
-}
 
 
 # ============================================================================
@@ -311,10 +308,8 @@ async def router_advert_batch_configure(http_request: Request, body: RouterAdver
 
         for group in body.groups:
             for operation in group.operations:
-                if operation.op in _INTERNAL_BUILDER_METHODS or operation.op.startswith("_"):
-                    raise HTTPException(status_code=400, detail=f"Invalid operation: {operation.op}")
 
-                method = getattr(builder, operation.op)
+                method = resolve_batch_method(builder, operation.op)
                 sig = inspect.signature(method)
                 params = [p for p in sig.parameters.keys() if p != "self"]
 

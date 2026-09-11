@@ -15,15 +15,11 @@ from session_vyos_service import get_session_vyos_service
 from vyos_builders import NAT66BatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
+from batch_dispatch import resolve_batch_method
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/nat66", tags=["nat66"])
-
-# Builder infrastructure methods that must never be invokable via the batch API
-_INTERNAL_BUILDER_METHODS = frozenset({
-    "add_set", "add_delete", "get_operations", "is_empty", "clear", "operation_count",
-})
 
 
 # ==================== Request/Response Models ====================
@@ -327,8 +323,6 @@ async def batch_configure(http_request: Request, request: NAT66BatchRequest):
             op_name = op.op
             op_value = op.value
 
-            if op_name.startswith("_") or op_name in _INTERNAL_BUILDER_METHODS:
-                raise HTTPException(status_code=400, detail=f"Invalid operation: {op_name}")
 
             # Validate operation matches rule_type
             if request.rule_type == "source" and op_name.startswith("set_destination_rule"):
@@ -340,9 +334,7 @@ async def batch_configure(http_request: Request, request: NAT66BatchRequest):
             if request.rule_type == "destination" and op_name.startswith("delete_source_rule"):
                 raise HTTPException(status_code=400, detail=f"Cannot use source operation on destination rule: {op_name}")
 
-            method = getattr(batch, op_name, None)
-            if not callable(method):
-                raise HTTPException(status_code=400, detail=f"Unknown operation: {op_name}")
+            method = resolve_batch_method(batch, op_name)
 
             sig = inspect.signature(method)
             params = [p for p in sig.parameters.keys() if p != 'self']

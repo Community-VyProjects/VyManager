@@ -25,6 +25,7 @@ from fastapi_permissions import require_read_permission, require_write_permissio
 from rbac_permissions import FeatureGroup
 import inspect
 import logging
+from batch_dispatch import resolve_batch_method
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/igmp-proxy", tags=["igmp-proxy"])
@@ -188,7 +189,7 @@ async def igmp_proxy_batch_configure(http_request: Request, body: IgmpProxyBatch
 
         for group in body.groups:
             for operation in group.operations:
-                method = getattr(builder, operation.op)
+                method = resolve_batch_method(builder, operation.op)
                 sig = inspect.signature(method)
                 params = [p for p in sig.parameters.keys() if p != "self"]
 

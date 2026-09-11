@@ -10,15 +10,11 @@ from session_vyos_service import get_session_vyos_service
 from vyos_builders.openfabric import OpenfabricBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
+from batch_dispatch import resolve_batch_method
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/openfabric", tags=["openfabric"])
-
-# Builder infrastructure methods that must never be invokable via the batch API
-_INTERNAL_BUILDER_METHODS = frozenset({
-    "add_set", "add_delete", "get_operations", "is_empty", "clear", "operation_count",
-})
 
 
 # ============================================================================
@@ -235,12 +231,8 @@ async def openfabric_batch_configure(http_request: Request, body: OpenfabricBatc
             op_name = operation.op
             op_value = operation.value
 
-            if op_name.startswith("_") or op_name in _INTERNAL_BUILDER_METHODS:
-                raise HTTPException(status_code=400, detail=f"Invalid operation: {op_name}")
 
-            method = getattr(builder, op_name, None)
-            if not callable(method):
-                raise HTTPException(status_code=400, detail=f"Unknown operation: {op_name}")
+            method = resolve_batch_method(builder, op_name)
 
             sig = inspect.signature(method)
             params = [p for p in sig.parameters.keys() if p != "self"]

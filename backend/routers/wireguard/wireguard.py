@@ -20,6 +20,7 @@ import inspect
 import re
 import logging
 import requests as _requests
+from batch_dispatch import resolve_batch_method
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/vpn/wireguard", tags=["wireguard"])
@@ -181,13 +182,8 @@ async def wireguard_interface_batch(request: Request, body: WireGuardInterfaceBa
 
         for operation in body.operations:
             method_name = operation.op
-            method = getattr(builder, method_name, None)
+            method = resolve_batch_method(builder, method_name)
 
-            if method is None:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Unknown operation: {method_name}"
-                )
 
             sig = inspect.signature(method)
             params = list(sig.parameters.keys())
@@ -206,13 +202,8 @@ async def wireguard_interface_batch(request: Request, body: WireGuardInterfaceBa
             for peer_group in body.peers:
                 for operation in peer_group.operations:
                     peer_method_name = operation.op
-                    peer_method = getattr(builder, peer_method_name, None)
+                    peer_method = resolve_batch_method(builder, peer_method_name)
 
-                    if peer_method is None:
-                        raise HTTPException(
-                            status_code=400,
-                            detail=f"Unknown peer operation: {peer_method_name}"
-                        )
 
                     sig = inspect.signature(peer_method)
                     params = list(sig.parameters.keys())
@@ -265,13 +256,8 @@ async def wireguard_peer_batch(request: Request, body: WireGuardPeerBatchRequest
 
         for operation in body.operations:
             method_name = operation.op
-            method = getattr(builder, method_name, None)
+            method = resolve_batch_method(builder, method_name)
 
-            if method is None:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Unknown operation: {method_name}"
-                )
 
             sig = inspect.signature(method)
             params = list(sig.parameters.keys())

@@ -18,6 +18,7 @@ import ipaddress
 import httpx
 from datetime import datetime, timezone
 import logging
+from batch_dispatch import resolve_batch_method
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/dhcp", tags=["dhcp"])
@@ -855,12 +856,7 @@ async def dhcp_batch_configure(http_request: Request, request: DHCPBatchRequest)
             op_value = operation.value
 
             # Dynamically call the method on the builder
-            if not hasattr(builder, op_name):
-                raise HTTPException(
-                    status_code=400, detail=f"Unknown operation: {op_name}"
-                )
-
-            method = getattr(builder, op_name)
+            method = resolve_batch_method(builder, op_name)
 
             # Use inspect to determine method signature
             sig = inspect.signature(method)

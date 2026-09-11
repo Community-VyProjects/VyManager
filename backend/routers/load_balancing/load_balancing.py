@@ -7,13 +7,9 @@ from session_vyos_service import get_session_vyos_service
 from vyos_builders.load_balancing import LoadBalancingBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
+from batch_dispatch import resolve_batch_method
 
 router = APIRouter(prefix="/vyos/load-balancing", tags=["load-balancing"])
-
-# Builder infrastructure methods that must never be invokable via the batch API
-_INTERNAL_BUILDER_METHODS = frozenset({
-    "add_set", "add_delete", "get_operations", "is_empty", "clear", "operation_count",
-})
 
 
 class BatchOperation(BaseModel):
@@ -82,11 +78,7 @@ async def batch_configure(http_request: Request, request: BatchRequest):
     batch = LoadBalancingBatchBuilder(version=service.get_version())
 
     for op in request.operations:
-        if op.op.startswith("_") or op.op in _INTERNAL_BUILDER_METHODS:
-            raise HTTPException(status_code=400, detail=f"Invalid operation: {op.op}")
-        method = getattr(batch, op.op, None)
-        if not callable(method):
-            raise HTTPException(status_code=400, detail=f"Unknown operation: {op.op}")
+        method = resolve_batch_method(batch, op.op)
 
         sig = inspect.signature(method)
         params = [p for p in sig.parameters.keys() if p != "self"]
