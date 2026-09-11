@@ -121,3 +121,8 @@ docker-compose.yml
 CLAUDE.md
 .claude/
 .claude*
+
+# Local agent skills / Hermes project context (not committed)
+.agents/
+.hermes.md
+HERMES.md
