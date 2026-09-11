@@ -17,6 +17,7 @@ from middleware.auth import AuthenticationMiddleware
 from middleware.session import SessionMiddleware
 from middleware.audit import AuditMiddleware
 from fastapi_permissions import get_user_feature_permissions
+from trusted_origins import DEFAULT_FRONTEND_URL
 
 # Import routers
 from routers.session import session as session_router
@@ -308,7 +309,7 @@ app = FastAPI(
 # ============================================================================
 
 # CORS Middleware - Must be added BEFORE authentication middleware
-frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+frontend_url = os.getenv("FRONTEND_URL", DEFAULT_FRONTEND_URL)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[frontend_url],
