@@ -5,38 +5,18 @@ Provides all batch operations for failover route configuration.
 Handles version-specific differences through the mapper layer.
 """
 
-from typing import List, Dict, Any
+from typing import Dict, Any
 from vyos_mappers import CommandMapperRegistry
+from vyos_builders.base import BatchBuilder
 
 
-class FailoverBatchBuilder:
+class FailoverBatchBuilder(BatchBuilder):
     """Complete batch builder for failover routing operations."""
 
     def __init__(self, version: str):
-        self.version = version
-        self._operations: List[Dict[str, Any]] = []
+        super().__init__(version)
         self.mapper_key = "failover"
         self.mappers = {self.mapper_key: CommandMapperRegistry.get_mapper(self.mapper_key, version)}
-
-    # ========================================================================
-    # Core Batch Operations
-    # ========================================================================
-
-    def add_set(self, path: List[str]) -> "FailoverBatchBuilder":
-        if path:
-            self._operations.append({"op": "set", "path": path})
-        return self
-
-    def add_delete(self, path: List[str]) -> "FailoverBatchBuilder":
-        if path:
-            self._operations.append({"op": "delete", "path": path})
-        return self
-
-    def get_operations(self) -> List[Dict[str, Any]]:
-        return self._operations.copy()
-
-    def is_empty(self) -> bool:
-        return len(self._operations) == 0
 
     # ========================================================================
     # Route Operations

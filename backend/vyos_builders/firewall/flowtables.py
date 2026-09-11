@@ -4,17 +4,17 @@ Flowtables Batch Builder
 Provides batch operations for firewall flowtables.
 """
 
-from typing import List, Dict, Any
+from typing import Dict, Any
 from vyos_mappers import CommandMapperRegistry
+from vyos_builders.base import BatchBuilder
 
 
-class FlowtablesBatchBuilder:
+class FlowtablesBatchBuilder(BatchBuilder):
     """Batch builder for flowtable operations."""
 
     def __init__(self, version: str):
         """Initialize flowtables batch builder."""
-        self.version = version
-        self._operations: List[Dict[str, Any]] = []
+        super().__init__(version)
         self.mapper_key = "firewall_flowtables"
         self.mappers = {self.mapper_key: CommandMapperRegistry.get_mapper(self.mapper_key, version)}
 
@@ -22,31 +22,13 @@ class FlowtablesBatchBuilder:
     # Core Batch Operations
     # ========================================================================
 
-    def add_set(self, path: List[str]) -> "FlowtablesBatchBuilder":
-        """Add a 'set' operation to the batch."""
-        self._operations.append({"op": "set", "path": path})
-        return self
-
-    def add_delete(self, path: List[str]) -> "FlowtablesBatchBuilder":
-        """Add a 'delete' operation to the batch."""
-        self._operations.append({"op": "delete", "path": path})
-        return self
-
     def clear(self) -> None:
         """Clear all operations from the batch."""
         self._operations = []
 
-    def get_operations(self) -> List[Dict[str, Any]]:
-        """Get the list of operations."""
-        return self._operations.copy()
-
     def operation_count(self) -> int:
         """Get the number of operations in the batch."""
         return len(self._operations)
-
-    def is_empty(self) -> bool:
-        """Check if the batch is empty."""
-        return len(self._operations) == 0
 
     # ========================================================================
     # Flowtable Operations

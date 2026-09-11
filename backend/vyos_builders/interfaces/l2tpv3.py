@@ -6,9 +6,10 @@ Provides all L2TPv3 interface batch operations.
 
 from typing import List, Dict, Any
 from vyos_mappers import CommandMapperRegistry
+from vyos_builders.base import BatchBuilder
 
 
-class L2TPv3InterfaceBuilderMixin:
+class L2TPv3InterfaceBuilderMixin(BatchBuilder):
     """Complete batch builder for L2TPv3 interface operations."""
 
     _INTERNAL_BUILDER_METHODS = frozenset({
@@ -17,22 +18,13 @@ class L2TPv3InterfaceBuilderMixin:
     })
 
     def __init__(self, version: str):
-        self.version = version
-        self._operations: List[Dict[str, Any]] = []
+        super().__init__(version)
         self.interface_mapper_key = "interface_l2tpv3"
         self.mappers = {self.interface_mapper_key: CommandMapperRegistry.get_mapper(self.interface_mapper_key, version)}
 
     # ========================================================================
     # Core Batch Operations
     # ========================================================================
-
-    def add_set(self, path: List[str]) -> "L2TPv3InterfaceBuilderMixin":
-        self._operations.append({"op": "set", "path": path})
-        return self
-
-    def add_delete(self, path: List[str]) -> "L2TPv3InterfaceBuilderMixin":
-        self._operations.append({"op": "delete", "path": path})
-        return self
 
     def add_multiple_sets(self, paths: List[List[str]]) -> "L2TPv3InterfaceBuilderMixin":
         for path in paths:
@@ -42,14 +34,8 @@ class L2TPv3InterfaceBuilderMixin:
     def clear(self) -> None:
         self._operations = []
 
-    def get_operations(self) -> List[Dict[str, Any]]:
-        return self._operations.copy()
-
     def operation_count(self) -> int:
         return len(self._operations)
-
-    def is_empty(self) -> bool:
-        return len(self._operations) == 0
 
     # ========================================================================
     # Capabilities

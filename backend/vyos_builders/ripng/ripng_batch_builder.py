@@ -5,38 +5,18 @@ configuration. Covers: global settings, aggregate addresses, networks, static ro
 passive interfaces, distribute lists, interface split-horizon, redistribute, and timers.
 """
 
-from typing import List, Dict, Any
+from typing import Dict, Any
 from vyos_mappers import CommandMapperRegistry
+from vyos_builders.base import BatchBuilder
 
 
-class RipNgBatchBuilder:
+class RipNgBatchBuilder(BatchBuilder):
     """Complete batch builder for RIPng protocol operations."""
 
     def __init__(self, version: str):
-        self.version = version
-        self._operations: List[Dict[str, Any]] = []
+        super().__init__(version)
         self.mapper_key = "ripng"
         self.mappers = {self.mapper_key: CommandMapperRegistry.get_mapper(self.mapper_key, version)}
-
-    # ========================================================================
-    # Core Batch Operations
-    # ========================================================================
-
-    def add_set(self, path: List[str]) -> "RipNgBatchBuilder":
-        if path:
-            self._operations.append({"op": "set", "path": path})
-        return self
-
-    def add_delete(self, path: List[str]) -> "RipNgBatchBuilder":
-        if path:
-            self._operations.append({"op": "delete", "path": path})
-        return self
-
-    def get_operations(self) -> List[Dict[str, Any]]:
-        return self._operations.copy()
-
-    def is_empty(self) -> bool:
-        return len(self._operations) == 0
 
     @property
     def m(self):

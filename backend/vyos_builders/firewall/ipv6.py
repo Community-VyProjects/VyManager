@@ -5,17 +5,17 @@ Provides all batch operations for IPv6 firewall rules.
 Handles both base chains (forward, input, output) and custom named chains.
 """
 
-from typing import List, Dict, Any
+from typing import Dict, Any
 from vyos_mappers import CommandMapperRegistry
+from vyos_builders.base import BatchBuilder
 
 
-class FirewallIPv6BatchBuilder:
+class FirewallIPv6BatchBuilder(BatchBuilder):
     """Complete batch builder for IPv6 firewall operations"""
 
     def __init__(self, version: str):
         """Initialize firewall IPv6 batch builder."""
-        self.version = version
-        self._operations: List[Dict[str, Any]] = []
+        super().__init__(version)
 
         self.mapper_key = "firewall_ipv6"
         self.mappers = {self.mapper_key: CommandMapperRegistry.get_mapper(self.mapper_key, version)}
@@ -24,33 +24,13 @@ class FirewallIPv6BatchBuilder:
     # Core Batch Operations
     # ========================================================================
 
-    def add_set(self, path: List[str]) -> "FirewallIPv6BatchBuilder":
-        """Add a 'set' operation to the batch."""
-        if path:  # Only add if path is not empty
-            self._operations.append({"op": "set", "path": path})
-        return self
-
-    def add_delete(self, path: List[str]) -> "FirewallIPv6BatchBuilder":
-        """Add a 'delete' operation to the batch."""
-        if path:
-            self._operations.append({"op": "delete", "path": path})
-        return self
-
     def clear(self) -> None:
         """Clear all operations from the batch."""
         self._operations = []
 
-    def get_operations(self) -> List[Dict[str, Any]]:
-        """Get the list of operations."""
-        return self._operations.copy()
-
     def operation_count(self) -> int:
         """Get the number of operations in the batch."""
         return len(self._operations)
-
-    def is_empty(self) -> bool:
-        """Check if the batch is empty."""
-        return len(self._operations) == 0
 
     # ========================================================================
     # Base Chain Rule Operations
