@@ -1,6 +1,7 @@
 """Golden (method, args, expected_path) cases for ContainerBatchBuilder.
 
 Paths checked with validateTmplPath on 1.4 (100.64.64.50) and 1.5 (100.64.64.5).
+Every version-agnostic valueless set_* leaf has a matching delete_*.
 1.5-only nodes are covered in test_container_version_gates.py.
 """
 
@@ -9,6 +10,8 @@ import pytest
 from vyos_builders.container.container_batch_builder import ContainerBatchBuilder
 
 NODE = ["container", "name", "web"]
+NET = ["container", "network", "lan"]
+REG = ["container", "registry", "ghcr.io"]
 
 CASES = [
     ("set_name", ("web",), "set", NODE),
@@ -21,8 +24,18 @@ CASES = [
     ("delete_name_disable", ("web",), "delete", NODE + ["disable"]),
     ("set_name_allow_host_networks", ("web",), "set", NODE + ["allow-host-networks"]),
     ("delete_name_allow_host_networks", ("web",), "delete", NODE + ["allow-host-networks"]),
+    ("set_name_allow_host_pid", ("web",), "set", NODE + ["allow-host-pid"]),
+    ("delete_name_allow_host_pid", ("web",), "delete", NODE + ["allow-host-pid"]),
     ("set_name_privileged", ("web",), "set", NODE + ["privileged"]),
     ("delete_name_privileged", ("web",), "delete", NODE + ["privileged"]),
+    ("set_network", ("lan",), "set", NET),
+    ("delete_network", ("lan",), "delete", NET),
+    ("set_network_no_name_server", ("lan",), "set", NET + ["no-name-server"]),
+    ("delete_network_no_name_server", ("lan",), "delete", NET + ["no-name-server"]),
+    ("set_registry", ("ghcr.io",), "set", REG),
+    ("delete_registry", ("ghcr.io",), "delete", REG),
+    ("set_registry_disable", ("ghcr.io",), "set", REG + ["disable"]),
+    ("delete_registry_disable", ("ghcr.io",), "delete", REG + ["disable"]),
 ]
 
 
