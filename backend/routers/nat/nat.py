@@ -15,15 +15,11 @@ from session_vyos_service import get_session_vyos_service
 from vyos_builders import NATBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
+from batch_dispatch import resolve_batch_method
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/nat", tags=["nat"])
-
-# Builder infrastructure methods that must never be invokable via the batch API
-_INTERNAL_BUILDER_METHODS = frozenset({
-    "add_set", "add_delete", "get_operations", "is_empty", "clear", "operation_count",
-})
 
 
 # Request/Response Models
@@ -586,11 +582,7 @@ async def batch_configure_nat(http_request: Request, request: NATBatchRequest):
             logger.info(f"Processing operation: {op_name} with value: {op_value}")
 
             # Get the method from batch builder
-            if op_name.startswith("_") or op_name in _INTERNAL_BUILDER_METHODS:
-                raise HTTPException(status_code=400, detail=f"Invalid operation: {op_name}")
-            method = getattr(batch, op_name, None)
-            if not callable(method):
-                raise HTTPException(status_code=400, detail=f"Unknown operation: {op_name}")
+            method = resolve_batch_method(batch, op_name)
 
             # Inspect method signature to determine parameters
             sig = inspect.signature(method)

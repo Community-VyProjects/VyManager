@@ -15,6 +15,7 @@ from fastapi_permissions import require_read_permission, require_write_permissio
 from rbac_permissions import FeatureGroup
 import inspect
 import logging
+from batch_dispatch import resolve_batch_method
 
 logger = logging.getLogger(__name__)
 
@@ -387,9 +388,7 @@ async def configure_bonding_batch(http_request: Request, request: BondingBatchRe
             if op in _VALUE_REQUIRED_OPS:
                 if not val:
                     raise HTTPException(status_code=400, detail=f"'{op}' requires a value")
-                method = getattr(batch, op, None)
-                if method is None:
-                    raise HTTPException(status_code=400, detail=f"Unsupported operation: {op}")
+                method = resolve_batch_method(batch, op)
                 method(iface, val)
 
             # No-value operations
@@ -399,9 +398,7 @@ async def configure_bonding_batch(http_request: Request, request: BondingBatchRe
                 elif op == "enable":
                     batch.delete_interface_disable(iface)
                 else:
-                    method = getattr(batch, op, None)
-                    if method is None:
-                        raise HTTPException(status_code=400, detail=f"Unsupported operation: {op}")
+                    method = resolve_batch_method(batch, op)
                     method(iface)
 
             # VLAN sub-interface operations (vif / vif-s / vif-c).
@@ -413,9 +410,7 @@ async def configure_bonding_batch(http_request: Request, request: BondingBatchRe
             #   vif-c value op:      "<svlan>,<cvlan>,<value>"
             #   PD interface addr:   "<vlan>,<pd>,<ifc>,<addr>"
             elif op.startswith(("set_vif", "delete_vif")):
-                method = getattr(batch, op, None)
-                if method is None:
-                    raise HTTPException(status_code=400, detail=f"Unsupported operation: {op}")
+                method = resolve_batch_method(batch, op)
 
                 parts = val.split(",") if val else []
                 args = [iface, *parts]

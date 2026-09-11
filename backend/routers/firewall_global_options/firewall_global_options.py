@@ -15,6 +15,7 @@ from fastapi_permissions import require_read_permission, require_write_permissio
 from rbac_permissions import FeatureGroup
 import inspect
 import logging
+from batch_dispatch import resolve_batch_method
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/firewall/global-options", tags=["firewall-global-options"])
@@ -313,7 +314,7 @@ async def firewall_global_options_batch_configure(http_request: Request, body: G
 
         # Process operations using inspect for dynamic method calls
         for operation in body.operations:
-            method = getattr(builder, operation.op, None)
+            method = resolve_batch_method(builder, operation.op)
             if method is None:
                 raise HTTPException(
                     status_code=400,

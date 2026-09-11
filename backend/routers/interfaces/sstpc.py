@@ -17,6 +17,7 @@ from starlette.concurrency import run_in_threadpool
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 from session_vyos_service import get_session_vyos_service
+from batch_dispatch import resolve_batch_method
 
 logger = logging.getLogger(__name__)
 
@@ -124,18 +125,8 @@ async def batch_configure(http_request: Request, request: BatchRequest) -> VyOSR
         batch = SstpcInterfaceBuilderMixin(version=service.get_version())
 
         for op in request.operations:
-            if op.op in batch._INTERNAL_BUILDER_METHODS:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Operation '{op.op}' is not a valid interface operation",
-                )
 
-            method = getattr(batch, op.op, None)
-            if method is None:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Unsupported operation: {op.op}",
-                )
+            method = resolve_batch_method(batch, op.op)
 
             sig = inspect.signature(method)
             params = [p for p in sig.parameters.keys() if p != "self"]

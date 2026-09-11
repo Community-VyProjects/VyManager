@@ -20,15 +20,11 @@ import httpx
 import inspect
 import json
 import logging
+from batch_dispatch import resolve_batch_method
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/vpn/ipsec", tags=["ipsec"])
-
-# Builder infrastructure methods that must never be invokable via the batch API
-_INTERNAL_BUILDER_METHODS = frozenset({
-    "add_set", "add_delete", "get_operations", "is_empty", "clear", "operation_count",
-})
 
 
 # ========================================================================
@@ -229,15 +225,8 @@ async def ipsec_batch_configure(http_request: Request, request: IPSecBatchReques
         builder = IPSecBatchBuilder(version=version)
 
         for operation in request.operations:
-            if operation.op.startswith("_") or operation.op in _INTERNAL_BUILDER_METHODS:
-                raise HTTPException(status_code=400, detail=f"Invalid operation: {operation.op}")
 
-            method = getattr(builder, operation.op, None)
-            if not callable(method):
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Unknown operation: {operation.op}"
-                )
+            method = resolve_batch_method(builder, operation.op)
 
             sig = inspect.signature(method)
             params = [p for p in sig.parameters.keys() if p != "self"]

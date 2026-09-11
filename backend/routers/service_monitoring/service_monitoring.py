@@ -26,6 +26,7 @@ from fastapi_permissions import require_read_permission, require_write_permissio
 from rbac_permissions import FeatureGroup
 from session_vyos_service import get_session_vyos_service
 from vyos_builders.service_monitoring import ServiceMonitoringBatchBuilder
+from batch_dispatch import resolve_batch_method
 
 logger = logging.getLogger(__name__)
 
@@ -214,17 +215,6 @@ class VyOSResponse(BaseModel):
     data: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
 
-
-# =============================================================================
-# Internal denylist
-# =============================================================================
-
-_INTERNAL_BUILDER_METHODS = frozenset({
-    "add_set", "add_delete", "get_operations", "is_empty",
-    "get_capabilities", "mappers", "version", "_operations", "m",
-})
-
-
 # =============================================================================
 # Endpoint 1: Capabilities
 # =============================================================================
@@ -291,13 +281,7 @@ async def service_monitoring_batch_configure(
         builder = ServiceMonitoringBatchBuilder(version=service.get_version())
 
         for operation in body.operations:
-            if operation.op in _INTERNAL_BUILDER_METHODS or operation.op.startswith("_"):
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Operation not allowed: {operation.op}",
-                )
-
-            method = getattr(builder, operation.op, None)
+            method = resolve_batch_method(builder, operation.op)
             if method is None:
                 raise HTTPException(
                     status_code=400,

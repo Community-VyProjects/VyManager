@@ -14,6 +14,7 @@ from vyos_builders import FirewallIPv4BatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission, FeatureGroup
 import inspect
 import logging
+from batch_dispatch import resolve_batch_method
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/firewall/ipv4", tags=["firewall_ipv4"])
@@ -854,7 +855,7 @@ async def firewall_ipv4_batch_configure(http_request: Request, request: Firewall
                     detail=f"Unknown operation: {method_name}"
                 )
 
-            method = getattr(builder, method_name)
+            method = resolve_batch_method(builder, method_name)
             sig = inspect.signature(method)
             params = list(sig.parameters.keys())
 

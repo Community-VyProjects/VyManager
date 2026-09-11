@@ -15,16 +15,10 @@ from fastapi_permissions import require_read_permission, require_write_permissio
 from rbac_permissions import FeatureGroup
 import inspect
 import logging
+from batch_dispatch import resolve_batch_method
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/bgp", tags=["bgp"])
-
-# Builder plumbing methods that must not be reachable via a client-supplied
-# operation name in /batch (mirrors bfd.py).
-_INTERNAL_BUILDER_METHODS = frozenset({
-    "add_set", "add_delete", "get_operations", "is_empty", "clear",
-    "operation_count", "get_capabilities",
-})
 
 
 # ============================================================================
@@ -828,11 +822,7 @@ async def bgp_batch_configure(http_request: Request, body: BgpBatchRequest):
         builder = BgpBatchBuilder(version=version)
 
         for operation in body.operations:
-            if operation.op.startswith("_") or operation.op in _INTERNAL_BUILDER_METHODS:
-                raise HTTPException(status_code=400, detail=f"Invalid operation: {operation.op}")
-            method = getattr(builder, operation.op, None)
-            if not callable(method):
-                raise HTTPException(status_code=400, detail=f"Unknown operation: {operation.op}")
+            method = resolve_batch_method(builder, operation.op)
             sig = inspect.signature(method)
             params = [p for p in sig.parameters.keys() if p != "self"]
 
