@@ -4,24 +4,42 @@ validateTmplPath rejects `source network ADDR MASK` on 1.4 and 1.5.
 VyOS wants `source network ADDR` plus `source inverse-mask MASK`.
 """
 
+import pytest
+
 from vyos_builders.access_list.access_list import AccessListBatchBuilder
 
+NETWORK = "192.168.80.0"
+MASK = "0.0.0.255"
 
-def test_source_network_emits_sibling_leaves():
-    builder = AccessListBatchBuilder(version="1.4")
-    builder.set_rule_source_network("10", "1", "192.168.80.0", "0.0.0.255")
-    ops = builder.get_operations()
-    assert [op["path"] for op in ops] == [
-        ["policy", "access-list", "10", "rule", "1", "source", "network", "192.168.80.0"],
-        ["policy", "access-list", "10", "rule", "1", "source", "inverse-mask", "0.0.0.255"],
-    ]
+CASES = [
+    (
+        "set_rule_source_network",
+        ("10", "1", NETWORK, MASK),
+        [
+            ["policy", "access-list", "10", "rule", "1", "source", "network", NETWORK],
+            ["policy", "access-list", "10", "rule", "1", "source", "inverse-mask", MASK],
+        ],
+    ),
+    (
+        "set_rule_destination_network",
+        ("10", "1", NETWORK, MASK),
+        [
+            ["policy", "access-list", "10", "rule", "1", "destination", "network", NETWORK],
+            ["policy", "access-list", "10", "rule", "1", "destination", "inverse-mask", MASK],
+        ],
+    ),
+]
 
 
-def test_destination_network_emits_sibling_leaves():
-    builder = AccessListBatchBuilder(version="1.5")
-    builder.set_rule_destination_network("10", "1", "192.168.80.0", "0.0.0.255")
-    ops = builder.get_operations()
-    assert [op["path"] for op in ops] == [
-        ["policy", "access-list", "10", "rule", "1", "destination", "network", "192.168.80.0"],
-        ["policy", "access-list", "10", "rule", "1", "destination", "inverse-mask", "0.0.0.255"],
-    ]
+@pytest.mark.parametrize("method, args, expected_paths", CASES)
+@pytest.mark.parametrize("version", ["1.4", "1.5"])
+def test_network_plus_mask_emits_sibling_leaves(method, args, expected_paths, version):
+    builder = AccessListBatchBuilder(version=version)
+    getattr(builder, method)(*args)
+    paths = [op["path"] for op in builder.get_operations()]
+    assert paths == expected_paths
+    for path in paths:
+        if "network" in path:
+            idx = path.index("network")
+            assert path[idx:] == ["network", NETWORK]
+            assert MASK not in path
