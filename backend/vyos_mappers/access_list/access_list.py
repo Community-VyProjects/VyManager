@@ -60,10 +60,6 @@ class AccessListMapper(BaseFeatureMapper):
         """Get command path for rule source inverse-mask."""
         return ["policy", "access-list", number, "rule", rule, "source", "inverse-mask", mask]
 
-    def get_rule_source_network(self, number: str, rule: str, address: str, mask: str) -> List[str]:
-        """Get command path for rule source network."""
-        return ["policy", "access-list", number, "rule", rule, "source", "network", address, mask]
-
     def get_rule_destination_any(self, number: str, rule: str) -> List[str]:
         """Get command path for rule destination any."""
         return ["policy", "access-list", number, "rule", rule, "destination", "any"]
@@ -79,10 +75,6 @@ class AccessListMapper(BaseFeatureMapper):
     def get_rule_destination_inverse_mask_mask(self, number: str, rule: str, mask: str) -> List[str]:
         """Get command path for rule destination inverse-mask."""
         return ["policy", "access-list", number, "rule", rule, "destination", "inverse-mask", mask]
-
-    def get_rule_destination_network(self, number: str, rule: str, address: str, mask: str) -> List[str]:
-        """Get command path for rule destination network."""
-        return ["policy", "access-list", number, "rule", rule, "destination", "network", address, mask]
 
     # ========================================================================
     # Delete Paths (IPv4)
