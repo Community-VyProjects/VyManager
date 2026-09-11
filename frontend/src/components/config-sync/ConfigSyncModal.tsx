@@ -408,7 +408,6 @@ export function ConfigSyncModal({ open, onOpenChange, config, onSuccess, onSubmi
                     {([
                       ["system_conntrack", "Conntrack"],
                       ["system_flow_accounting", "Flow Accounting"],
-                      ["system_login", "Login"],
                       ["system_option", "Options"],
                       ["system_sflow", "sFlow"],
                       ["system_static_host_mapping", "Static Host Mapping"],

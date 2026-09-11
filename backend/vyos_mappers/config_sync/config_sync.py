@@ -4,6 +4,26 @@ from ..base import BaseFeatureMapper
 
 BASE = ["service", "config-sync"]
 
+SECTION_SUBTYPES = {
+    "interfaces": {
+        "bonding", "bridge", "dummy", "ethernet", "geneve", "input", "l2tpv3",
+        "loopback", "macsec", "openvpn", "pppoe", "pseudo-ethernet", "sstpc",
+        "tunnel", "virtual-ethernet", "vti", "vxlan", "wireguard", "wireless", "wwan",
+    },
+    "protocols": {
+        "babel", "bfd", "bgp", "failover", "igmp-proxy", "isis", "mpls", "nhrp",
+        "ospf", "ospfv3", "pim", "pim6", "rip", "ripng", "rpki", "segment-routing", "static",
+    },
+    "qos": {"interface", "policy"},
+    "service": {
+        "console-server", "dhcp-relay", "dhcp-server", "dhcpv6-relay", "dhcpv6-server",
+        "dns", "lldp", "mdns", "monitoring", "ndp-proxy", "ntp", "snmp", "tftp-server", "webproxy",
+    },
+    "system": {
+        "conntrack", "flow-accounting", "option", "sflow", "static-host-mapping", "sysctl", "time-zone",
+    },
+}
+
 
 class ConfigSyncMapper(BaseFeatureMapper):
     def __init__(self, version: str):
@@ -67,4 +87,6 @@ class ConfigSyncMapper(BaseFeatureMapper):
     # ========================================================================
 
     def get_section_sub(self, section_name: str, sub_name: str) -> List[str]:
+        if sub_name not in SECTION_SUBTYPES.get(section_name, set()):
+            raise ValueError(f"Unsupported config-sync section subtype: {section_name},{sub_name}")
         return BASE + ["section", section_name, sub_name]

@@ -80,7 +80,6 @@ export interface ConfigSyncSections {
   system: boolean;
   system_conntrack: boolean;
   system_flow_accounting: boolean;
-  system_login: boolean;
   system_option: boolean;
   system_sflow: boolean;
   system_static_host_mapping: boolean;
@@ -130,7 +129,7 @@ export function defaultSections(): ConfigSyncSections {
     service_dhcpv6_relay: false, service_dhcpv6_server: false, service_dns: false, service_lldp: false,
     service_mdns: false, service_monitoring: false, service_ndp_proxy: false, service_ntp: false,
     service_snmp: false, service_tftp_server: false, service_webproxy: false,
-    system: false, system_conntrack: false, system_flow_accounting: false, system_login: false,
+    system: false, system_conntrack: false, system_flow_accounting: false,
     system_option: false, system_sflow: false, system_static_host_mapping: false, system_sysctl: false,
     system_time_zone: false,
   };
@@ -193,7 +192,6 @@ const SUB_SECTION_MAP: Record<string, [string, string]> = {
   service_webproxy: ["service", "webproxy"],
   system_conntrack: ["system", "conntrack"],
   system_flow_accounting: ["system", "flow-accounting"],
-  system_login: ["system", "login"],
   system_option: ["system", "option"],
   system_sflow: ["system", "sflow"],
   system_static_host_mapping: ["system", "static-host-mapping"],

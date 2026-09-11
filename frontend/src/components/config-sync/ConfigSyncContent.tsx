@@ -41,7 +41,7 @@ const SUB_SECTION_LABELS: Record<string, string> = {
   service_mdns: "mDNS", service_monitoring: "Monitoring", service_ndp_proxy: "NDP Proxy",
   service_ntp: "NTP", service_snmp: "SNMP", service_tftp_server: "TFTP Server",
   service_webproxy: "Web Proxy",
-  system_conntrack: "Conntrack", system_flow_accounting: "Flow Accounting", system_login: "Login",
+  system_conntrack: "Conntrack", system_flow_accounting: "Flow Accounting",
   system_option: "Options", system_sflow: "sFlow", system_static_host_mapping: "Static Host Mapping",
   system_sysctl: "Sysctl", system_time_zone: "Time Zone",
 };
@@ -58,7 +58,7 @@ const SECTION_GROUPS: SectionGroup[] = [
   { parent: "protocols", label: "Protocols", parentKey: "protocols", subKeys: ["protocols_babel","protocols_bfd","protocols_bgp","protocols_failover","protocols_igmp_proxy","protocols_isis","protocols_mpls","protocols_nhrp","protocols_ospf","protocols_ospfv3","protocols_pim","protocols_pim6","protocols_rip","protocols_ripng","protocols_rpki","protocols_segment_routing","protocols_static"] },
   { parent: "qos", label: "QoS", parentKey: "qos", subKeys: ["qos_interface","qos_policy"] },
   { parent: "service", label: "Service", parentKey: "service", subKeys: ["service_console_server","service_dhcp_relay","service_dhcp_server","service_dhcpv6_relay","service_dhcpv6_server","service_dns","service_lldp","service_mdns","service_monitoring","service_ndp_proxy","service_ntp","service_snmp","service_tftp_server","service_webproxy"] },
-  { parent: "system", label: "System", parentKey: "system", subKeys: ["system_conntrack","system_flow_accounting","system_login","system_option","system_sflow","system_static_host_mapping","system_sysctl","system_time_zone"] },
+  { parent: "system", label: "System", parentKey: "system", subKeys: ["system_conntrack","system_flow_accounting","system_option","system_sflow","system_static_host_mapping","system_sysctl","system_time_zone"] },
 ];
 
 export function ConfigSyncContent() {

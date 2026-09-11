@@ -29,7 +29,7 @@ Structure:
         console-server | dhcp-relay | dhcp-server | dhcpv6-relay | dhcpv6-server
         dns | lldp | mdns | monitoring | ndp-proxy | ntp | snmp | tftp-server | webproxy
       system                      # Presence flag (or parent for subtypes)
-        conntrack | flow-accounting | login | option | sflow
+                conntrack | flow-accounting | option | sflow
         static-host-mapping | sysctl | time-zone
 
 The template structure is identical between VyOS 1.4 and 1.5.

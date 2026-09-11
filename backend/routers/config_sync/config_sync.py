@@ -117,7 +117,6 @@ class ConfigSyncSections(BaseModel):
     system: bool = False
     system_conntrack: bool = False
     system_flow_accounting: bool = False
-    system_login: bool = False
     system_option: bool = False
     system_sflow: bool = False
     system_static_host_mapping: bool = False
@@ -225,7 +224,6 @@ _SERVICE_SUBTYPES: Dict[str, str] = {
 _SYSTEM_SUBTYPES: Dict[str, str] = {
     "conntrack": "conntrack",
     "flow-accounting": "flow_accounting",
-    "login": "login",
     "option": "option",
     "sflow": "sflow",
     "static-host-mapping": "static_host_mapping",
@@ -396,7 +394,7 @@ async def config_sync_batch_configure(
         )
     except HTTPException:
         raise
-    except AttributeError as e:
+    except (AttributeError, ValueError) as e:
         raise HTTPException(status_code=400, detail=f"Unknown operation: {e}")
     except Exception:
         logger.exception("Unhandled error in config_sync_batch_configure")
