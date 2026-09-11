@@ -28,8 +28,7 @@ class DHCPv6RelayBatchBuilder:
     def __init__(self, version: str):
         self.version = version
         self._operations: List[Dict[str, Any]] = []
-        self.mappers = CommandMapperRegistry.get_all_mappers(version)
-        self.m = self.mappers["dhcpv6_relay"]
+        self.m = CommandMapperRegistry.get_mapper("dhcpv6_relay", version)
 
     # -----------------------------------------------------------------------
     # Core helpers

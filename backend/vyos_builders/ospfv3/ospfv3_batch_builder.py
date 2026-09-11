@@ -18,8 +18,8 @@ class Ospfv3BatchBuilder:
     def __init__(self, version: str):
         self.version = version
         self._operations: List[Dict[str, Any]] = []
-        self.mappers = CommandMapperRegistry.get_all_mappers(version)
         self.mapper_key = "ospfv3"
+        self.mappers = {self.mapper_key: CommandMapperRegistry.get_mapper(self.mapper_key, version)}
 
     # ========================================================================
     # Core Batch Operations

@@ -30,9 +30,8 @@ class FirewallGroupsBatchBuilder:
         self.version = version
         self._operations: List[Dict[str, Any]] = []
 
-        # Get firewall groups mapper for this version
-        self.mappers = CommandMapperRegistry.get_all_mappers(version)
         self.mapper_key = "firewall_groups"
+        self.mappers = {self.mapper_key: CommandMapperRegistry.get_mapper(self.mapper_key, version)}
 
     # ========================================================================
     # Core Batch Operations

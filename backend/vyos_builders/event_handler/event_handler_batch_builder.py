@@ -20,8 +20,7 @@ class EventHandlerBatchBuilder:
     def __init__(self, version: str):
         self.version = version
         self._operations: List[Dict[str, Any]] = []
-        self.mappers = CommandMapperRegistry.get_all_mappers(version)
-        self.m = self.mappers["event_handler"]
+        self.m = CommandMapperRegistry.get_mapper("event_handler", version)
 
     # -----------------------------------------------------------------------
     # Core helpers

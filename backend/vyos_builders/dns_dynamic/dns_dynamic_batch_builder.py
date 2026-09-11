@@ -38,8 +38,7 @@ class DNSDynamicBatchBuilder:
     def __init__(self, version: str):
         self.version = version
         self._operations: List[Dict[str, Any]] = []
-        self.mappers = CommandMapperRegistry.get_all_mappers(version)
-        self.m = self.mappers["dns_dynamic"]
+        self.m = CommandMapperRegistry.get_mapper("dns_dynamic", version)
 
     # -----------------------------------------------------------------------
     # Core helpers

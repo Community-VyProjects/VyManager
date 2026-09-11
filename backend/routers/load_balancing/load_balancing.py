@@ -67,8 +67,8 @@ async def get_config(request: Request, refresh: bool = False):
     service = get_session_vyos_service(request)
     full_config = service.get_full_config(refresh=refresh)
     from vyos_mappers import CommandMapperRegistry
-    mappers = CommandMapperRegistry.get_all_mappers(service.get_version())
-    return mappers["load_balancing"].parse_config(full_config)
+    mapper = CommandMapperRegistry.get_mapper("load_balancing", service.get_version())
+    return mapper.parse_config(full_config)
 
 
 @router.post("/batch", response_model=VyOSResponse)

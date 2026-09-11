@@ -26,8 +26,8 @@ class VirtualEthernetInterfaceBuilderMixin:
     def __init__(self, version: str):
         self.version = version
         self._operations: List[Dict[str, Any]] = []
-        self.mappers = CommandMapperRegistry.get_all_mappers(version)
         self.interface_mapper_key = "interface_virtual_ethernet"
+        self.mappers = {self.interface_mapper_key: CommandMapperRegistry.get_mapper(self.interface_mapper_key, version)}
 
     # ========================================================================
     # Core batch helpers
