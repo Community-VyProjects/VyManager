@@ -320,6 +320,10 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
   const addNetwork = () => {
     if (!netName) return;
     if (networks.find(n => n.name === netName)) return;
+    // Auto-disable host networks when adding network attachments
+    if (allowHostNetworks) {
+      setAllowHostNetworks(false);
+    }
     setNetworks([...networks, { name: netName, addresses: netAddr ? [netAddr] : [], mac: netMac || null }]);
     setNetName(""); setNetAddr(""); setNetMac("");
   };
@@ -374,6 +378,14 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
 
   const toggleCap = (cap: string) => {
     setSelectedCaps(prev => prev.includes(cap) ? prev.filter(c => c !== cap) : [...prev, cap]);
+  };
+
+  // Auto-clear networks when enabling host networks, and auto-disable host networks when adding networks
+  const handleAllowHostNetworksChange = (enabled: boolean) => {
+    if (enabled && networks.length > 0) {
+      setNetworks([]);
+    }
+    setAllowHostNetworks(enabled);
   };
 
   const addSysctl = () => {
@@ -598,7 +610,13 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
                 {/* Networks */}
                 <div className="space-y-3">
                   <Label className="text-sm font-semibold">Network Attachments</Label>
-                  {networks.length > 0 && (
+                  {allowHostNetworks && (
+                    <div className="flex items-start gap-2 rounded-md bg-blue-500/10 border border-blue-500/20 p-2">
+                      <AlertTriangle className="h-4 w-4 text-blue-500 shrink-0 mt-0.5" />
+                      <p className="text-xs text-blue-700 dark:text-blue-400">Host networks is enabled. Adding network attachments will disable this setting.</p>
+                    </div>
+                  )}
+                  {!allowHostNetworks && networks.length > 0 && (
                     <div className="space-y-2">
                       {networks.map(net => (
                         <div key={net.name} className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
@@ -614,22 +632,24 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
                       ))}
                     </div>
                   )}
-                  <div className="grid gap-2">
-                    <div className="flex gap-2">
-                      <Select value={netName} onValueChange={setNetName}>
-                        <SelectTrigger className="flex-1"><SelectValue placeholder="Select network" /></SelectTrigger>
-                        <SelectContent>
-                          {availableNetworks.filter(n => !networks.find(a => a.name === n.name)).map(n => (
-                            <SelectItem key={n.name} value={n.name}><span className="font-mono">{n.name}</span></SelectItem>
-                          ))}
-                          {availableNetworks.length === 0 && <SelectItem value="_none" disabled>No networks configured</SelectItem>}
-                        </SelectContent>
-                      </Select>
-                      <Input value={netAddr} onChange={e => setNetAddr(e.target.value)} placeholder="IP address (optional)" className="flex-1 font-mono" />
-                      {showMac && <Input value={netMac} onChange={e => setNetMac(e.target.value)} placeholder="MAC (optional)" className="flex-1 font-mono" />}
-                      <Button variant="outline" size="icon" onClick={addNetwork} disabled={!netName}><Plus className="h-4 w-4" /></Button>
+                  {!allowHostNetworks && (
+                    <div className="grid gap-2">
+                      <div className="flex gap-2">
+                        <Select value={netName} onValueChange={setNetName}>
+                          <SelectTrigger className="flex-1"><SelectValue placeholder="Select network" /></SelectTrigger>
+                          <SelectContent>
+                            {availableNetworks.filter(n => !networks.find(a => a.name === n.name)).map(n => (
+                              <SelectItem key={n.name} value={n.name}><span className="font-mono">{n.name}</span></SelectItem>
+                            ))}
+                            {availableNetworks.length === 0 && <SelectItem value="_none" disabled>No networks configured</SelectItem>}
+                          </SelectContent>
+                        </Select>
+                        <Input value={netAddr} onChange={e => setNetAddr(e.target.value)} placeholder="IP address (optional)" className="flex-1 font-mono" />
+                        {showMac && <Input value={netMac} onChange={e => setNetMac(e.target.value)} placeholder="MAC (optional)" className="flex-1 font-mono" />}
+                        <Button variant="outline" size="icon" onClick={addNetwork} disabled={!netName}><Plus className="h-4 w-4" /></Button>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
 
                 {/* Ports */}
@@ -862,9 +882,17 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
                 <div className="space-y-3">
                   <Label className="text-sm font-semibold">Host Access</Label>
                   {showAllowHostNetworks && (
-                    <div className="flex items-center gap-2">
-                      <Checkbox id="c-ahn" checked={allowHostNetworks} onCheckedChange={v => setAllowHostNetworks(v === true)} />
-                      <Label htmlFor="c-ahn" className="cursor-pointer">Allow host networks</Label>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Checkbox id="c-ahn" checked={allowHostNetworks} onCheckedChange={v => handleAllowHostNetworksChange(v === true)} />
+                        <Label htmlFor="c-ahn" className="cursor-pointer">Allow host networks</Label>
+                      </div>
+                      {networks.length > 0 && !allowHostNetworks && (
+                        <div className="flex items-start gap-2 rounded-md bg-blue-500/10 border border-blue-500/20 p-2">
+                          <AlertTriangle className="h-4 w-4 text-blue-500 shrink-0 mt-0.5" />
+                          <p className="text-xs text-blue-700 dark:text-blue-400">Enabling host networks will remove existing network attachments.</p>
+                        </div>
+                      )}
                     </div>
                   )}
                   {showAllowHostPid && (
