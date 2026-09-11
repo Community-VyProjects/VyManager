@@ -7,6 +7,7 @@ API endpoints for managing VyOS PPPoE server configuration.
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
+import asyncio
 import ipaddress
 from urllib.parse import unquote
 from session_vyos_service import get_session_vyos_service
@@ -15,6 +16,7 @@ from fastapi_permissions import require_read_permission, require_write_permissio
 from rbac_permissions import FeatureGroup
 from starlette.concurrency import run_in_threadpool
 from pppoe_status import (
+    PPPoEStatsStore,
     PPPoEPpsTracker,
     PPPoESessionsResponse,
     parse_pppoe_sessions,
@@ -26,7 +28,7 @@ from batch_dispatch import resolve_batch_method
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/pppoe-server", tags=["pppoe-server"])
-_pppoe_pps_tracker = PPPoEPpsTracker(min_sample_interval=1.0)
+_pppoe_stats_store = PPPoEStatsStore()
 
 
 # ========================================================================
@@ -105,7 +107,13 @@ async def get_pppoe_sessions(
     limit: int = Query(default=500, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),
 ):
-    """Return active PPPoE sessions and their cumulative traffic counters."""
+    """Return active PPPoE sessions and backend-maintained PPS snapshots.
+
+    The backend will not hammer every PPPoE interface statistics endpoint on
+    each request. Instead, it spreads one survey per session across a
+    configurable rolling window, and returns stored RX/TX PPS values from the
+    backend-owned stats store.
+    """
     await require_read_permission(http_request, FeatureGroup.PPPOE)
     try:
         service = get_session_vyos_service(http_request)
@@ -117,16 +125,13 @@ async def get_pppoe_sessions(
             )
         output = response.result.get("data", "") if isinstance(response.result, dict) else response.result
         sessions = parse_pppoe_sessions(output or "")
-        page = sessions[offset:offset + limit]
 
-        for session in page:
-            session.rx_pps, session.tx_pps = _pppoe_pps_tracker.update(
-                f"{id(service.device)}:{session.interface}",
-                session.rx_packets,
-                session.tx_packets,
-            )
+        # Spread the statistics query load over the configured window so the
+        # backend stores PPS values and only samples sessions when due.
+        await _pppoe_stats_store.sample_due_sessions(service, sessions)
 
         total = len(sessions)
+        page = sessions[offset:offset + limit]
         return PPPoESessionsResponse(
             sessions=page,
             total=total,

@@ -12,7 +12,15 @@ import {
   AlertTriangle,
   CheckCircle2,
   CircleAlert,
+  Cpu,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { CardSizeMenu } from "@/components/dashboard/CardSizeMenu";
 import { showService, type HardwareSensorsResponse } from "@/lib/api/show";
 
@@ -75,6 +83,28 @@ export function HardwareSensorsCard({
   const isLoading = loading && !data;
   const showData = autoRefresh ? data : null;
 
+  const cpuSensors = showData?.sensors.filter((sensor) => {
+    const name = sensor.name.toLowerCase();
+    return (
+      name.includes("coretemp") ||
+      name.includes("package id") ||
+      name.includes("core 0") ||
+      name.includes("core 1") ||
+      name.includes("cpu") ||
+      name.includes("k10temp")
+    );
+  }) ?? [];
+
+  const otherSensors = showData?.sensors.filter((sensor) => !cpuSensors.some((cpu) => cpu.name === sensor.name)) ?? [];
+
+  const averageCpuTemp =
+    cpuSensors.length > 0
+      ? cpuSensors.reduce((total, sensor) => {
+          const value = Number.parseFloat(sensor.value.replace(/[^\d.+-]/g, ""));
+          return total + (Number.isFinite(value) ? value : 0);
+        }, 0) / cpuSensors.length
+      : null;
+
   return (
     <Card className="flex flex-col h-full">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 shrink-0">
@@ -126,51 +156,110 @@ export function HardwareSensorsCard({
             No hardware sensors available (may be running in a virtualized environment).
           </p>
         ) : showData?.sensors.length ? (
-          <div className="grid gap-3 sm:grid-cols-2">
-            {showData.sensors.map((sensor) => (
-              <div
-                key={`${sensor.name}-${sensor.value}`}
-                className="flex items-start justify-between gap-3 p-3 rounded-lg border bg-card"
-              >
-                <div className="flex min-w-0 items-start gap-3">
-                  <Thermometer className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                  <div className="min-w-0">
-                    <p className="truncate font-medium text-sm">{sensor.name}</p>
-                    <p className="font-mono text-lg">{sensor.value}</p>
-                    {sensor.high || sensor.critical ? (
-                      <p className="text-xs text-muted-foreground">
-                        {sensor.high ? `High ${sensor.high}` : ""}
-                        {sensor.high && sensor.critical ? " | " : ""}
-                        {sensor.critical ? `Critical ${sensor.critical}` : ""}
-                      </p>
-                    ) : null}
-                  </div>
-                </div>
-                {sensor.status === "critical" ? (
-                  <Badge variant="destructive">
-                    <CircleAlert className="h-3 w-3 mr-1" />
-                    Critical
-                  </Badge>
-                ) : sensor.status === "warning" ? (
-                  <Badge className="bg-yellow-600">
-                    <AlertTriangle className="h-3 w-3 mr-1" />
-                    Warning
-                  </Badge>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/30 p-3">
+              <div className="flex items-center gap-2">
+                {showData.summary === "No issues" ? (
+                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                ) : showData.summary?.includes("critical") ? (
+                  <CircleAlert className="h-4 w-4 text-red-600" />
                 ) : (
-                  <Badge
-                    variant="outline"
-                    className="border-green-500/30 text-green-700 dark:text-green-400"
-                  >
-                    <CheckCircle2 className="h-3 w-3 mr-1" />
-                    OK
-                  </Badge>
+                  <AlertTriangle className="h-4 w-4 text-yellow-600" />
                 )}
+                <span className="text-sm font-medium">{showData.summary || "Sensors loaded"}</span>
               </div>
-            ))}
+
+              {cpuSensors.length > 1 ? (
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-8">
+                      <Cpu className="h-4 w-4 mr-1" />
+                      Per-core temps
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-[min(680px,calc(100vw-2rem))] max-h-[80vh] overflow-hidden">
+                    <DialogHeader>
+                      <DialogTitle>CPU Core Temperatures</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
+                      {cpuSensors.map((sensor) => (
+                        <div key={sensor.name} className="flex items-center justify-between rounded-md border p-2">
+                          <span className="text-sm font-medium truncate pr-3">{sensor.name}</span>
+                          <span className="font-mono text-sm">{sensor.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              ) : null}
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              {averageCpuTemp !== null ? (
+                <div className="flex items-start justify-between gap-3 p-3 rounded-lg border bg-card">
+                  <div className="flex min-w-0 items-start gap-3">
+                    <Thermometer className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-sm">AVG CPU Temp</p>
+                      <p className="font-mono text-lg">
+                        {`${averageCpuTemp >= 0 ? "+" : ""}${averageCpuTemp.toFixed(1)}°C`}
+                      </p>
+                    </div>
+                  </div>
+                  <Badge variant="outline" className="border-green-500/30 text-green-700 dark:text-green-400">
+                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                    CPU
+                  </Badge>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2 max-h-[260px] overflow-y-auto pr-1">
+              {otherSensors.map((sensor) => (
+                <div
+                  key={`${sensor.name}-${sensor.value}`}
+                  className="flex items-start justify-between gap-3 p-3 rounded-lg border bg-card"
+                >
+                  <div className="flex min-w-0 items-start gap-3">
+                    <Thermometer className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-sm">{sensor.name}</p>
+                      <p className="font-mono text-lg">{sensor.value}</p>
+                      {sensor.high || sensor.critical ? (
+                        <p className="text-xs text-muted-foreground">
+                          {sensor.high ? `High ${sensor.high}` : ""}
+                          {sensor.high && sensor.critical ? " | " : ""}
+                          {sensor.critical ? `Critical ${sensor.critical}` : ""}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                  {sensor.status === "critical" ? (
+                    <Badge variant="destructive">
+                      <CircleAlert className="h-3 w-3 mr-1" />
+                      Critical
+                    </Badge>
+                  ) : sensor.status === "warning" ? (
+                    <Badge className="bg-yellow-600">
+                      <AlertTriangle className="h-3 w-3 mr-1" />
+                      Warning
+                    </Badge>
+                  ) : (
+                    <Badge
+                      variant="outline"
+                      className="border-green-500/30 text-green-700 dark:text-green-400"
+                    >
+                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                      OK
+                    </Badge>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         ) : (
           <p className="py-8 text-sm text-muted-foreground">
-            Click "Live" to load sensor data
+            Click &quot;Live&quot; to load sensor data
           </p>
         )}
       </CardContent>
