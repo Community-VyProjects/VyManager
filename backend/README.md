@@ -404,8 +404,12 @@ class BridgeInterfaceBuilderMixin:
         """Initialize bridge interface batch builder."""
         self.version = version
         self._operations: List[Dict[str, Any]] = []
-        self.mappers = CommandMapperRegistry.get_all_mappers(version)
         self.interface_mapper_key = "interface_bridge"
+        self.mappers = {
+            self.interface_mapper_key: CommandMapperRegistry.get_mapper(
+                self.interface_mapper_key, version
+            )
+        }
 
     # ========================================================================
     # Core Batch Operations
