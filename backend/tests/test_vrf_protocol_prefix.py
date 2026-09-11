@@ -121,3 +121,48 @@ def test_valued_leaf_deletes_use_parent_node():
         vrf = VrfBatchBuilder("1.5")
         getattr(vrf, method)("blue", entity)
         assert vrf.get_operations() == [{"op": "delete", "path": path}], method
+
+
+def test_parent_node_delete_when_leaf_omitted():
+    cases = [
+        (
+            "delete_vrf_ospf_area_range_cost",
+            "0,10.0.0.0/16",
+            ["vrf", "name", "blue", "protocols", "ospf", "area", "0", "range", "10.0.0.0/16", "cost"],
+        ),
+        (
+            "delete_vrf_ospf_redistribute_metric",
+            "bgp",
+            ["vrf", "name", "blue", "protocols", "ospf", "redistribute", "bgp", "metric"],
+        ),
+        (
+            "delete_vrf_ospf_neighbor_priority",
+            "192.0.2.1",
+            ["vrf", "name", "blue", "protocols", "ospf", "neighbor", "192.0.2.1", "priority"],
+        ),
+        (
+            "delete_vrf_ospfv3_area_range_cost",
+            "0,2001:db8::/64",
+            ["vrf", "name", "blue", "protocols", "ospfv3", "area", "0", "range", "2001:db8::/64", "cost"],
+        ),
+        (
+            "delete_vrf_bgp_neighbor_timers_keepalive",
+            "192.0.2.1",
+            ["vrf", "name", "blue", "protocols", "bgp", "neighbor", "192.0.2.1", "timers", "keepalive"],
+        ),
+    ]
+    for method, entity, path in cases:
+        vrf = VrfBatchBuilder("1.5")
+        getattr(vrf, method)("blue", entity)
+        assert vrf.get_operations() == [{"op": "delete", "path": path}], method
+
+    vrf = VrfBatchBuilder("1.5")
+    vrf.delete_vrf_isis_ldp_sync_holddown("blue")
+    assert vrf.get_operations() == [
+        {"op": "delete", "path": ["vrf", "name", "blue", "protocols", "isis", "ldp-sync", "holddown"]}
+    ]
+    vrf = VrfBatchBuilder("1.5")
+    vrf.delete_vrf_isis_topology("blue")
+    assert vrf.get_operations() == [
+        {"op": "delete", "path": ["vrf", "name", "blue", "protocols", "isis", "topology"]}
+    ]

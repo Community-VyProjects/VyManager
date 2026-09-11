@@ -115,7 +115,45 @@ def _mapper_path(
         if len(parts) != extra:
             continue
         return getter(vrf_name, *parts)
+    if verb == "delete":
+        return _parent_node_delete_path(mapper, proto, suffix, vrf_name, value)
     return None
+
+
+def _parent_node_delete_path(
+    mapper: Any,
+    proto: str,
+    suffix: str,
+    vrf_name: str,
+    value: Optional[str],
+) -> Optional[List[str]]:
+    """UI number/select clear omits the leaf. Drop the last SET-path element."""
+    getter = getattr(mapper, f"get_{proto}_{suffix}", None) or getattr(
+        mapper, f"get_{suffix}", None
+    )
+    if getter is None:
+        return None
+    params = [p for p in inspect.signature(getter).parameters if p != "self"]
+    extra = max(len(params) - 1, 0)
+    if extra < 1:
+        return None
+    dummy = "_"
+    try:
+        if extra == 1:
+            path = getter(vrf_name, dummy)
+        else:
+            if value is None:
+                return None
+            need = extra - 1
+            tokens = [value] if need == 1 else value.split(",", need - 1)
+            if len(tokens) != need:
+                return None
+            path = getter(vrf_name, *tokens, dummy)
+    except TypeError:
+        return None
+    if not path:
+        return None
+    return path[:-1]
 
 
 def run_vrf_protocol_op(
@@ -136,11 +174,17 @@ def run_vrf_protocol_op(
     inner_name = f"{verb}_{suffix}"
     method = getattr(inner, inner_name, None)
     if method is not None:
-        _call_with_packed_value(method, value)
-        for op in inner.get_operations():
-            path = op.get("path") or []
-            owner._operations.append({"op": op["op"], "path": prefix + list(path)})
-        return owner
+        try:
+            _call_with_packed_value(method, value)
+        except TypeError:
+            if verb != "delete":
+                raise
+            method = None
+        else:
+            for op in inner.get_operations():
+                path = op.get("path") or []
+                owner._operations.append({"op": op["op"], "path": prefix + list(path)})
+            return owner
 
     mapper = owner.mappers.get(f"vrf_{proto}")
     if mapper is not None:
