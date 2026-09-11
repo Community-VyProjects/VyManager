@@ -40,6 +40,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from middleware.session import _SecureStr
+from fastapi_permissions import reject_read_only_token
 from .redaction import redact
 
 logger = logging.getLogger(__name__)
@@ -110,6 +111,13 @@ def _get_user_id(request: Request) -> str:
         # Should not happen behind the auth middleware, but fail closed.
         raise HTTPException(status_code=401, detail="Authentication required")
     return user["id"]
+
+
+def _require_writable_user(request: Request) -> str:
+    """Auth plus the read-only-token write gate (same class as /tokens)."""
+    user_id = _get_user_id(request)
+    reject_read_only_token(request)
+    return user_id
 
 
 def _store_token(user_id: str, token: str) -> None:
@@ -281,7 +289,7 @@ async def status(request: Request) -> StatusResponse:
 @router.post("/github/device/start", response_model=DeviceStartResponse)
 async def device_start(request: Request) -> DeviceStartResponse:
     _ensure_enabled()
-    user_id = _get_user_id(request)
+    user_id = _require_writable_user(request)
 
     async with httpx.AsyncClient(timeout=15) as client:
         resp = await client.post(
@@ -318,7 +326,7 @@ async def device_start(request: Request) -> DeviceStartResponse:
 @router.post("/github/device/poll", response_model=DevicePollResponse)
 async def device_poll(request: Request) -> DevicePollResponse:
     _ensure_enabled()
-    user_id = _get_user_id(request)
+    user_id = _require_writable_user(request)
 
     pending = _pending_device.get(user_id)
     if not pending:
@@ -361,7 +369,7 @@ async def device_poll(request: Request) -> DevicePollResponse:
 @router.post("/preview", response_model=PreviewResponse)
 async def preview(request: Request, body: ReportRequest) -> PreviewResponse:
     _ensure_enabled()
-    _get_user_id(request)  # auth check
+    _require_writable_user(request)
     title, md = _build_issue(body)
     return PreviewResponse(title=title, body=md)
 
@@ -369,7 +377,7 @@ async def preview(request: Request, body: ReportRequest) -> PreviewResponse:
 @router.post("/submit", response_model=SubmitResponse)
 async def submit(request: Request, body: ReportRequest) -> SubmitResponse:
     _ensure_enabled()
-    user_id = _get_user_id(request)
+    user_id = _require_writable_user(request)
 
     token = _get_token(user_id)
     if not token:
