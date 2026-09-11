@@ -1271,7 +1271,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/routers__interfaces__dummy__BatchRequest"
+                "$ref": "#/components/schemas/routers__interfaces__interface_batch__BatchRequest"
               }
             }
           },
@@ -1283,7 +1283,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/routers__interfaces__dummy__VyOSResponse"
+                  "$ref": "#/components/schemas/routers__interfaces__interface_batch__VyOSResponse"
                 }
               }
             }
@@ -1549,7 +1549,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/routers__interfaces__geneve__BatchRequest"
+                "$ref": "#/components/schemas/routers__interfaces__interface_batch__BatchRequest"
               }
             }
           },
@@ -1561,7 +1561,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/routers__interfaces__geneve__VyOSResponse"
+                  "$ref": "#/components/schemas/routers__interfaces__interface_batch__VyOSResponse"
                 }
               }
             }
@@ -1659,7 +1659,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/routers__interfaces__input__BatchRequest"
+                "$ref": "#/components/schemas/routers__interfaces__interface_batch__BatchRequest"
               }
             }
           },
@@ -1671,7 +1671,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/routers__interfaces__input__VyOSResponse"
+                  "$ref": "#/components/schemas/routers__interfaces__interface_batch__VyOSResponse"
                 }
               }
             }
@@ -1769,7 +1769,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/routers__interfaces__l2tpv3__BatchRequest"
+                "$ref": "#/components/schemas/routers__interfaces__interface_batch__BatchRequest"
               }
             }
           },
@@ -1781,7 +1781,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/routers__interfaces__l2tpv3__VyOSResponse"
+                  "$ref": "#/components/schemas/routers__interfaces__interface_batch__VyOSResponse"
                 }
               }
             }
@@ -1879,7 +1879,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/routers__interfaces__loopback__BatchRequest"
+                "$ref": "#/components/schemas/routers__interfaces__interface_batch__BatchRequest"
               }
             }
           },
@@ -1891,7 +1891,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/routers__interfaces__loopback__VyOSResponse"
+                  "$ref": "#/components/schemas/routers__interfaces__interface_batch__VyOSResponse"
                 }
               }
             }
@@ -1989,7 +1989,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/routers__interfaces__macsec__BatchRequest"
+                "$ref": "#/components/schemas/routers__interfaces__interface_batch__BatchRequest"
               }
             }
           },
@@ -2001,7 +2001,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/routers__interfaces__macsec__VyOSResponse"
+                  "$ref": "#/components/schemas/routers__interfaces__interface_batch__VyOSResponse"
                 }
               }
             }
@@ -2099,7 +2099,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/routers__interfaces__openvpn__BatchRequest"
+                "$ref": "#/components/schemas/routers__interfaces__interface_batch__BatchRequest"
               }
             }
           },
@@ -2111,7 +2111,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/routers__interfaces__openvpn__VyOSResponse"
+                  "$ref": "#/components/schemas/routers__interfaces__interface_batch__VyOSResponse"
                 }
               }
             }
@@ -2273,7 +2273,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/routers__interfaces__pppoe__BatchRequest"
+                "$ref": "#/components/schemas/routers__interfaces__interface_batch__BatchRequest"
               }
             }
           },
@@ -2285,7 +2285,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/routers__interfaces__pppoe__VyOSResponse"
+                  "$ref": "#/components/schemas/routers__interfaces__interface_batch__VyOSResponse"
                 }
               }
             }
@@ -2383,7 +2383,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/routers__interfaces__pseudo_ethernet__BatchRequest"
+                "$ref": "#/components/schemas/routers__interfaces__interface_batch__BatchRequest"
               }
             }
           },
@@ -2395,7 +2395,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/routers__interfaces__pseudo_ethernet__VyOSResponse"
+                  "$ref": "#/components/schemas/routers__interfaces__interface_batch__VyOSResponse"
                 }
               }
             }
@@ -2493,7 +2493,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/routers__interfaces__sstpc__BatchRequest"
+                "$ref": "#/components/schemas/routers__interfaces__interface_batch__BatchRequest"
               }
             }
           },
@@ -2505,7 +2505,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/routers__interfaces__sstpc__VyOSResponse"
+                  "$ref": "#/components/schemas/routers__interfaces__interface_batch__VyOSResponse"
                 }
               }
             }
@@ -2603,7 +2603,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/routers__interfaces__virtual_ethernet__BatchRequest"
+                "$ref": "#/components/schemas/routers__interfaces__interface_batch__BatchRequest"
               }
             }
           },
@@ -2615,7 +2615,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/routers__interfaces__virtual_ethernet__VyOSResponse"
+                  "$ref": "#/components/schemas/routers__interfaces__interface_batch__VyOSResponse"
                 }
               }
             }
@@ -2713,7 +2713,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/routers__interfaces__vpp__BatchRequest"
+                "$ref": "#/components/schemas/routers__interfaces__interface_batch__BatchRequest"
               }
             }
           },
@@ -2725,7 +2725,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/routers__interfaces__vpp__VyOSResponse"
+                  "$ref": "#/components/schemas/routers__interfaces__interface_batch__VyOSResponse"
                 }
               }
             }
@@ -2823,7 +2823,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/routers__interfaces__vti__BatchRequest"
+                "$ref": "#/components/schemas/routers__interfaces__interface_batch__BatchRequest"
               }
             }
           },
@@ -2835,7 +2835,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/routers__interfaces__vti__VyOSResponse"
+                  "$ref": "#/components/schemas/routers__interfaces__interface_batch__VyOSResponse"
                 }
               }
             }
@@ -2933,7 +2933,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/routers__interfaces__wireless__BatchRequest"
+                "$ref": "#/components/schemas/routers__interfaces__interface_batch__BatchRequest"
               }
             }
           },
@@ -2945,7 +2945,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/routers__interfaces__wireless__VyOSResponse"
+                  "$ref": "#/components/schemas/routers__interfaces__interface_batch__VyOSResponse"
                 }
               }
             }
@@ -3043,7 +3043,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/routers__interfaces__wwan__BatchRequest"
+                "$ref": "#/components/schemas/routers__interfaces__interface_batch__BatchRequest"
               }
             }
           },
@@ -3055,7 +3055,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/routers__interfaces__wwan__VyOSResponse"
+                  "$ref": "#/components/schemas/routers__interfaces__interface_batch__VyOSResponse"
                 }
               }
             }
@@ -66539,90 +66539,6 @@
         "title": "VyOSResponse",
         "description": "Standard response from VyOS operations."
       },
-      "routers__interfaces__dummy__BatchOperation": {
-        "properties": {
-          "op": {
-            "type": "string",
-            "title": "Op",
-            "description": "Operation name"
-          },
-          "value": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Value",
-            "description": "Operation value (if required)"
-          }
-        },
-        "type": "object",
-        "required": [
-          "op"
-        ],
-        "title": "BatchOperation"
-      },
-      "routers__interfaces__dummy__BatchRequest": {
-        "properties": {
-          "interface": {
-            "type": "string",
-            "title": "Interface",
-            "description": "Interface name (e.g., dum0)"
-          },
-          "operations": {
-            "items": {
-              "$ref": "#/components/schemas/routers__interfaces__dummy__BatchOperation"
-            },
-            "type": "array",
-            "title": "Operations"
-          }
-        },
-        "type": "object",
-        "required": [
-          "interface",
-          "operations"
-        ],
-        "title": "BatchRequest"
-      },
-      "routers__interfaces__dummy__VyOSResponse": {
-        "properties": {
-          "success": {
-            "type": "boolean",
-            "title": "Success"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Data"
-          },
-          "error": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Error"
-          }
-        },
-        "type": "object",
-        "required": [
-          "success"
-        ],
-        "title": "VyOSResponse"
-      },
       "routers__interfaces__ethernet__MirrorConfig": {
         "properties": {
           "ingress": {
@@ -66689,7 +66605,7 @@
         "title": "VyOSResponse",
         "description": "Standard response from VyOS operations."
       },
-      "routers__interfaces__geneve__BatchOperation": {
+      "routers__interfaces__interface_batch__BatchOperation": {
         "properties": {
           "op": {
             "type": "string",
@@ -66715,16 +66631,16 @@
         ],
         "title": "BatchOperation"
       },
-      "routers__interfaces__geneve__BatchRequest": {
+      "routers__interfaces__interface_batch__BatchRequest": {
         "properties": {
           "interface": {
             "type": "string",
             "title": "Interface",
-            "description": "Interface name (e.g., gnv0)"
+            "description": "Interface name"
           },
           "operations": {
             "items": {
-              "$ref": "#/components/schemas/routers__interfaces__geneve__BatchOperation"
+              "$ref": "#/components/schemas/routers__interfaces__interface_batch__BatchOperation"
             },
             "type": "array",
             "title": "Operations"
@@ -66737,7 +66653,7 @@
         ],
         "title": "BatchRequest"
       },
-      "routers__interfaces__geneve__VyOSResponse": {
+      "routers__interfaces__interface_batch__VyOSResponse": {
         "properties": {
           "success": {
             "type": "boolean",
@@ -66772,558 +66688,6 @@
           "success"
         ],
         "title": "VyOSResponse"
-      },
-      "routers__interfaces__input__BatchOperation": {
-        "properties": {
-          "op": {
-            "type": "string",
-            "title": "Op",
-            "description": "Operation name"
-          },
-          "value": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Value",
-            "description": "Operation value (if required)"
-          }
-        },
-        "type": "object",
-        "required": [
-          "op"
-        ],
-        "title": "BatchOperation"
-      },
-      "routers__interfaces__input__BatchRequest": {
-        "properties": {
-          "interface": {
-            "type": "string",
-            "title": "Interface",
-            "description": "Interface name (e.g., ifb0)"
-          },
-          "operations": {
-            "items": {
-              "$ref": "#/components/schemas/routers__interfaces__input__BatchOperation"
-            },
-            "type": "array",
-            "title": "Operations"
-          }
-        },
-        "type": "object",
-        "required": [
-          "interface",
-          "operations"
-        ],
-        "title": "BatchRequest"
-      },
-      "routers__interfaces__input__VyOSResponse": {
-        "properties": {
-          "success": {
-            "type": "boolean",
-            "title": "Success"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Data"
-          },
-          "error": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Error"
-          }
-        },
-        "type": "object",
-        "required": [
-          "success"
-        ],
-        "title": "VyOSResponse"
-      },
-      "routers__interfaces__l2tpv3__BatchOperation": {
-        "properties": {
-          "op": {
-            "type": "string",
-            "title": "Op",
-            "description": "Operation name"
-          },
-          "value": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Value",
-            "description": "Operation value (if required)"
-          }
-        },
-        "type": "object",
-        "required": [
-          "op"
-        ],
-        "title": "BatchOperation"
-      },
-      "routers__interfaces__l2tpv3__BatchRequest": {
-        "properties": {
-          "interface": {
-            "type": "string",
-            "title": "Interface",
-            "description": "Interface name (e.g., l2tpeth0)"
-          },
-          "operations": {
-            "items": {
-              "$ref": "#/components/schemas/routers__interfaces__l2tpv3__BatchOperation"
-            },
-            "type": "array",
-            "title": "Operations"
-          }
-        },
-        "type": "object",
-        "required": [
-          "interface",
-          "operations"
-        ],
-        "title": "BatchRequest"
-      },
-      "routers__interfaces__l2tpv3__VyOSResponse": {
-        "properties": {
-          "success": {
-            "type": "boolean",
-            "title": "Success"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Data"
-          },
-          "error": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Error"
-          }
-        },
-        "type": "object",
-        "required": [
-          "success"
-        ],
-        "title": "VyOSResponse"
-      },
-      "routers__interfaces__loopback__BatchOperation": {
-        "properties": {
-          "op": {
-            "type": "string",
-            "title": "Op",
-            "description": "Operation name"
-          },
-          "value": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Value",
-            "description": "Operation value (if required)"
-          }
-        },
-        "type": "object",
-        "required": [
-          "op"
-        ],
-        "title": "BatchOperation"
-      },
-      "routers__interfaces__loopback__BatchRequest": {
-        "properties": {
-          "interface": {
-            "type": "string",
-            "title": "Interface",
-            "description": "Interface name (e.g., lo)"
-          },
-          "operations": {
-            "items": {
-              "$ref": "#/components/schemas/routers__interfaces__loopback__BatchOperation"
-            },
-            "type": "array",
-            "title": "Operations"
-          }
-        },
-        "type": "object",
-        "required": [
-          "interface",
-          "operations"
-        ],
-        "title": "BatchRequest"
-      },
-      "routers__interfaces__loopback__VyOSResponse": {
-        "properties": {
-          "success": {
-            "type": "boolean",
-            "title": "Success"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Data"
-          },
-          "error": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Error"
-          }
-        },
-        "type": "object",
-        "required": [
-          "success"
-        ],
-        "title": "VyOSResponse"
-      },
-      "routers__interfaces__macsec__BatchOperation": {
-        "properties": {
-          "op": {
-            "type": "string",
-            "title": "Op",
-            "description": "Operation name"
-          },
-          "value": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Value",
-            "description": "Operation value (if required)"
-          }
-        },
-        "type": "object",
-        "required": [
-          "op"
-        ],
-        "title": "BatchOperation"
-      },
-      "routers__interfaces__macsec__BatchRequest": {
-        "properties": {
-          "interface": {
-            "type": "string",
-            "title": "Interface",
-            "description": "Interface name (e.g., macsec0)"
-          },
-          "operations": {
-            "items": {
-              "$ref": "#/components/schemas/routers__interfaces__macsec__BatchOperation"
-            },
-            "type": "array",
-            "title": "Operations"
-          }
-        },
-        "type": "object",
-        "required": [
-          "interface",
-          "operations"
-        ],
-        "title": "BatchRequest"
-      },
-      "routers__interfaces__macsec__VyOSResponse": {
-        "properties": {
-          "success": {
-            "type": "boolean",
-            "title": "Success"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Data"
-          },
-          "error": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Error"
-          }
-        },
-        "type": "object",
-        "required": [
-          "success"
-        ],
-        "title": "VyOSResponse"
-      },
-      "routers__interfaces__openvpn__BatchOperation": {
-        "properties": {
-          "op": {
-            "type": "string",
-            "title": "Op",
-            "description": "Operation name"
-          },
-          "value": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Value",
-            "description": "Operation value (if required)"
-          }
-        },
-        "type": "object",
-        "required": [
-          "op"
-        ],
-        "title": "BatchOperation"
-      },
-      "routers__interfaces__openvpn__BatchRequest": {
-        "properties": {
-          "interface": {
-            "type": "string",
-            "title": "Interface",
-            "description": "Interface name (e.g., vtun0)"
-          },
-          "operations": {
-            "items": {
-              "$ref": "#/components/schemas/routers__interfaces__openvpn__BatchOperation"
-            },
-            "type": "array",
-            "title": "Operations"
-          }
-        },
-        "type": "object",
-        "required": [
-          "interface",
-          "operations"
-        ],
-        "title": "BatchRequest"
-      },
-      "routers__interfaces__openvpn__VyOSResponse": {
-        "properties": {
-          "success": {
-            "type": "boolean",
-            "title": "Success"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Data"
-          },
-          "error": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Error"
-          }
-        },
-        "type": "object",
-        "required": [
-          "success"
-        ],
-        "title": "VyOSResponse"
-      },
-      "routers__interfaces__pppoe__BatchOperation": {
-        "properties": {
-          "op": {
-            "type": "string",
-            "title": "Op",
-            "description": "Operation name"
-          },
-          "value": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Value",
-            "description": "Operation value (if required)"
-          }
-        },
-        "type": "object",
-        "required": [
-          "op"
-        ],
-        "title": "BatchOperation"
-      },
-      "routers__interfaces__pppoe__BatchRequest": {
-        "properties": {
-          "interface": {
-            "type": "string",
-            "title": "Interface",
-            "description": "Interface name (e.g., pppoe0)"
-          },
-          "operations": {
-            "items": {
-              "$ref": "#/components/schemas/routers__interfaces__pppoe__BatchOperation"
-            },
-            "type": "array",
-            "title": "Operations"
-          }
-        },
-        "type": "object",
-        "required": [
-          "interface",
-          "operations"
-        ],
-        "title": "BatchRequest"
-      },
-      "routers__interfaces__pppoe__VyOSResponse": {
-        "properties": {
-          "success": {
-            "type": "boolean",
-            "title": "Success"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Data"
-          },
-          "error": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Error"
-          }
-        },
-        "type": "object",
-        "required": [
-          "success"
-        ],
-        "title": "VyOSResponse"
-      },
-      "routers__interfaces__pseudo_ethernet__BatchOperation": {
-        "properties": {
-          "op": {
-            "type": "string",
-            "title": "Op",
-            "description": "Operation name"
-          },
-          "value": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Value",
-            "description": "Operation value (if required)"
-          }
-        },
-        "type": "object",
-        "required": [
-          "op"
-        ],
-        "title": "BatchOperation"
-      },
-      "routers__interfaces__pseudo_ethernet__BatchRequest": {
-        "properties": {
-          "interface": {
-            "type": "string",
-            "title": "Interface",
-            "description": "Interface name (e.g., peth0)"
-          },
-          "operations": {
-            "items": {
-              "$ref": "#/components/schemas/routers__interfaces__pseudo_ethernet__BatchOperation"
-            },
-            "type": "array",
-            "title": "Operations"
-          }
-        },
-        "type": "object",
-        "required": [
-          "interface",
-          "operations"
-        ],
-        "title": "BatchRequest"
       },
       "routers__interfaces__pseudo_ethernet__Dhcpv6Options": {
         "properties": {
@@ -68051,174 +67415,6 @@
           "vlan_id"
         ],
         "title": "VifSConfig"
-      },
-      "routers__interfaces__pseudo_ethernet__VyOSResponse": {
-        "properties": {
-          "success": {
-            "type": "boolean",
-            "title": "Success"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Data"
-          },
-          "error": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Error"
-          }
-        },
-        "type": "object",
-        "required": [
-          "success"
-        ],
-        "title": "VyOSResponse"
-      },
-      "routers__interfaces__sstpc__BatchOperation": {
-        "properties": {
-          "op": {
-            "type": "string",
-            "title": "Op",
-            "description": "Operation name"
-          },
-          "value": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Value",
-            "description": "Operation value (if required)"
-          }
-        },
-        "type": "object",
-        "required": [
-          "op"
-        ],
-        "title": "BatchOperation"
-      },
-      "routers__interfaces__sstpc__BatchRequest": {
-        "properties": {
-          "interface": {
-            "type": "string",
-            "title": "Interface",
-            "description": "Interface name (e.g., sstpc0)"
-          },
-          "operations": {
-            "items": {
-              "$ref": "#/components/schemas/routers__interfaces__sstpc__BatchOperation"
-            },
-            "type": "array",
-            "title": "Operations"
-          }
-        },
-        "type": "object",
-        "required": [
-          "interface",
-          "operations"
-        ],
-        "title": "BatchRequest"
-      },
-      "routers__interfaces__sstpc__VyOSResponse": {
-        "properties": {
-          "success": {
-            "type": "boolean",
-            "title": "Success"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Data"
-          },
-          "error": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Error"
-          }
-        },
-        "type": "object",
-        "required": [
-          "success"
-        ],
-        "title": "VyOSResponse"
-      },
-      "routers__interfaces__virtual_ethernet__BatchOperation": {
-        "properties": {
-          "op": {
-            "type": "string",
-            "title": "Op",
-            "description": "Operation name"
-          },
-          "value": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Value",
-            "description": "Operation value (if required)"
-          }
-        },
-        "type": "object",
-        "required": [
-          "op"
-        ],
-        "title": "BatchOperation"
-      },
-      "routers__interfaces__virtual_ethernet__BatchRequest": {
-        "properties": {
-          "interface": {
-            "type": "string",
-            "title": "Interface",
-            "description": "Interface name (e.g., veth0)"
-          },
-          "operations": {
-            "items": {
-              "$ref": "#/components/schemas/routers__interfaces__virtual_ethernet__BatchOperation"
-            },
-            "type": "array",
-            "title": "Operations"
-          }
-        },
-        "type": "object",
-        "required": [
-          "interface",
-          "operations"
-        ],
-        "title": "BatchRequest"
       },
       "routers__interfaces__virtual_ethernet__Dhcpv6Options": {
         "properties": {
@@ -68968,90 +68164,6 @@
         ],
         "title": "VifSConfig"
       },
-      "routers__interfaces__virtual_ethernet__VyOSResponse": {
-        "properties": {
-          "success": {
-            "type": "boolean",
-            "title": "Success"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Data"
-          },
-          "error": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Error"
-          }
-        },
-        "type": "object",
-        "required": [
-          "success"
-        ],
-        "title": "VyOSResponse"
-      },
-      "routers__interfaces__vpp__BatchOperation": {
-        "properties": {
-          "op": {
-            "type": "string",
-            "title": "Op",
-            "description": "Builder method name"
-          },
-          "value": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Value",
-            "description": "Value (colon-separated for multi-param ops)"
-          }
-        },
-        "type": "object",
-        "required": [
-          "op"
-        ],
-        "title": "BatchOperation"
-      },
-      "routers__interfaces__vpp__BatchRequest": {
-        "properties": {
-          "interface": {
-            "type": "string",
-            "title": "Interface",
-            "description": "Interface name (e.g., vppbond0, vppgre1)"
-          },
-          "operations": {
-            "items": {
-              "$ref": "#/components/schemas/routers__interfaces__vpp__BatchOperation"
-            },
-            "type": "array",
-            "title": "Operations"
-          }
-        },
-        "type": "object",
-        "required": [
-          "interface",
-          "operations"
-        ],
-        "title": "BatchRequest"
-      },
       "routers__interfaces__vpp__VifConfig": {
         "properties": {
           "vlan_id": {
@@ -69099,258 +68211,6 @@
         ],
         "title": "VifConfig"
       },
-      "routers__interfaces__vpp__VyOSResponse": {
-        "properties": {
-          "success": {
-            "type": "boolean",
-            "title": "Success"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Data"
-          },
-          "error": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Error"
-          }
-        },
-        "type": "object",
-        "required": [
-          "success"
-        ],
-        "title": "VyOSResponse"
-      },
-      "routers__interfaces__vti__BatchOperation": {
-        "properties": {
-          "op": {
-            "type": "string",
-            "title": "Op",
-            "description": "Builder method name"
-          },
-          "value": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Value",
-            "description": "Operation value (if required)"
-          }
-        },
-        "type": "object",
-        "required": [
-          "op"
-        ],
-        "title": "BatchOperation"
-      },
-      "routers__interfaces__vti__BatchRequest": {
-        "properties": {
-          "interface": {
-            "type": "string",
-            "title": "Interface",
-            "description": "Interface name (e.g., vti0)"
-          },
-          "operations": {
-            "items": {
-              "$ref": "#/components/schemas/routers__interfaces__vti__BatchOperation"
-            },
-            "type": "array",
-            "title": "Operations"
-          }
-        },
-        "type": "object",
-        "required": [
-          "interface",
-          "operations"
-        ],
-        "title": "BatchRequest"
-      },
-      "routers__interfaces__vti__VyOSResponse": {
-        "properties": {
-          "success": {
-            "type": "boolean",
-            "title": "Success"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Data"
-          },
-          "error": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Error"
-          }
-        },
-        "type": "object",
-        "required": [
-          "success"
-        ],
-        "title": "VyOSResponse"
-      },
-      "routers__interfaces__wireless__BatchOperation": {
-        "properties": {
-          "op": {
-            "type": "string",
-            "title": "Op",
-            "description": "Operation name"
-          },
-          "value": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Value",
-            "description": "Operation value (if required)"
-          }
-        },
-        "type": "object",
-        "required": [
-          "op"
-        ],
-        "title": "BatchOperation"
-      },
-      "routers__interfaces__wireless__BatchRequest": {
-        "properties": {
-          "interface": {
-            "type": "string",
-            "title": "Interface",
-            "description": "Wireless interface name (e.g., wlan0)"
-          },
-          "operations": {
-            "items": {
-              "$ref": "#/components/schemas/routers__interfaces__wireless__BatchOperation"
-            },
-            "type": "array",
-            "title": "Operations"
-          }
-        },
-        "type": "object",
-        "required": [
-          "interface",
-          "operations"
-        ],
-        "title": "BatchRequest"
-      },
-      "routers__interfaces__wireless__VyOSResponse": {
-        "properties": {
-          "success": {
-            "type": "boolean",
-            "title": "Success"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Data"
-          },
-          "error": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Error"
-          }
-        },
-        "type": "object",
-        "required": [
-          "success"
-        ],
-        "title": "VyOSResponse"
-      },
-      "routers__interfaces__wwan__BatchOperation": {
-        "properties": {
-          "op": {
-            "type": "string",
-            "title": "Op",
-            "description": "Operation name"
-          },
-          "value": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Value",
-            "description": "Operation value (if required)"
-          }
-        },
-        "type": "object",
-        "required": [
-          "op"
-        ],
-        "title": "BatchOperation"
-      },
-      "routers__interfaces__wwan__BatchRequest": {
-        "properties": {
-          "interface": {
-            "type": "string",
-            "title": "Interface",
-            "description": "WWAN interface name (e.g., wwan0)"
-          },
-          "operations": {
-            "items": {
-              "$ref": "#/components/schemas/routers__interfaces__wwan__BatchOperation"
-            },
-            "type": "array",
-            "title": "Operations"
-          }
-        },
-        "type": "object",
-        "required": [
-          "interface",
-          "operations"
-        ],
-        "title": "BatchRequest"
-      },
       "routers__interfaces__wwan__Dhcpv6PdInterface": {
         "properties": {
           "interface": {
@@ -69381,42 +68241,6 @@
           "interface"
         ],
         "title": "Dhcpv6PdInterface"
-      },
-      "routers__interfaces__wwan__VyOSResponse": {
-        "properties": {
-          "success": {
-            "type": "boolean",
-            "title": "Success"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Data"
-          },
-          "error": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Error"
-          }
-        },
-        "type": "object",
-        "required": [
-          "success"
-        ],
-        "title": "VyOSResponse"
       },
       "routers__ipoe_server__ipoe_server__VyOSResponse": {
         "properties": {
