@@ -22,7 +22,7 @@ VyOS distinguishes the running config from the saved boot config. VyManager trac
 
 - `GET /vyos/config/snapshot` — the config as of the last save.
 - `GET /vyos/config/diff` — structured diff of running config vs. that snapshot: what is unsaved.
-- `POST /vyos/config/save` — write the running config to `/config/config.boot` (optional `file` parameter for another path) and reset the snapshot.
+- `POST /vyos/config/save` — write the running config to `/config/config.boot` and reset the snapshot.
 - `POST /vyos/config/discard` — revert all unsaved changes by computing and applying the reverse of the diff.
 - `POST /vyos/config/refresh` — drop the backend's cached config and re-read from the router.
 

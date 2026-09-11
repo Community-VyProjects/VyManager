@@ -234,16 +234,13 @@ async def get_config_diff(request: Request):
 
 
 @router.post("/save", response_model=SaveConfigResponse)
-async def save_config(request: Request, file: Optional[str] = None):
+async def save_config(request: Request):
     """
     Save the current running configuration to disk for the active instance.
 
     This calls VyOS's config-file save operation to write the running config
     to /config/config.boot. After successful save, updates the snapshot to
     match the current config.
-
-    Args:
-        file: Optional path to save config to (default is /config/config.boot)
     """
     await require_write_permission(request, FeatureGroup.CONFIGURATION)
     try:
@@ -252,8 +249,8 @@ async def save_config(request: Request, file: Optional[str] = None):
         service = get_session_vyos_service(request)
         instance_id = request.state.instance['id']
 
-        # Call config_file_save
-        response = service.config_file_save(file=file)
+        # Always the device default path. A client-supplied file is not accepted.
+        response = service.config_file_save()
 
         if response.status != 200:
             return SaveConfigResponse(

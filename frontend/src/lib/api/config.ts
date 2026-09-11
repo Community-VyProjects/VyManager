@@ -59,9 +59,8 @@ class ConfigService {
   /**
    * Save the current configuration to disk
    */
-  async saveConfig(file?: string): Promise<SaveConfigResponse> {
-    const params = file ? { file } : {};
-    return apiClient.post<SaveConfigResponse>("/vyos/config/save", params);
+  async saveConfig(): Promise<SaveConfigResponse> {
+    return apiClient.post<SaveConfigResponse>("/vyos/config/save");
   }
 
   /**
