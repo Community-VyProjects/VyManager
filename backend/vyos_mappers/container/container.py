@@ -18,6 +18,34 @@ class ContainerMapper(BaseFeatureMapper):
     def __init__(self, version: str):
         super().__init__(version)
 
+    def _is_14(self) -> bool:
+        return "1.4" in self.version
+
+    def _require_15(self, node: str) -> None:
+        if self._is_14():
+            raise ValueError(f"{node} is not supported on this device")
+
+    def supports_log_driver(self) -> bool:
+        return not self._is_14()
+
+    def supports_tmpfs(self) -> bool:
+        return not self._is_14()
+
+    def supports_registry_insecure(self) -> bool:
+        return not self._is_14()
+
+    def supports_registry_mirror(self) -> bool:
+        return not self._is_14()
+
+    def supports_network_gateway(self) -> bool:
+        return not self._is_14()
+
+    def supports_network_mtu(self) -> bool:
+        return not self._is_14()
+
+    def supports_network_type(self) -> bool:
+        return not self._is_14()
+
     # ========================================================================
     # Top-level delete
     # ========================================================================
@@ -114,6 +142,7 @@ class ContainerMapper(BaseFeatureMapper):
         return self._name(name) + ["host-name"]
 
     def get_name_log_driver(self, name: str, driver: str) -> List[str]:
+        self._require_15("log-driver")
         return self._name(name) + ["log-driver", driver]
 
     def get_name_log_driver_delete(self, name: str) -> List[str]:
@@ -174,34 +203,6 @@ class ContainerMapper(BaseFeatureMapper):
     def get_name_environments_delete(self, name: str) -> List[str]:
         return self._name(name) + ["environment"]
 
-    # Health check
-    def get_name_health_check(self, name: str) -> List[str]:
-        return self._name(name) + ["health-check"]
-
-    def get_name_health_check_command(self, name: str, command: str) -> List[str]:
-        return self._name(name) + ["health-check", "command", command]
-
-    def get_name_health_check_command_delete(self, name: str) -> List[str]:
-        return self._name(name) + ["health-check", "command"]
-
-    def get_name_health_check_interval(self, name: str, interval: str) -> List[str]:
-        return self._name(name) + ["health-check", "interval", interval]
-
-    def get_name_health_check_interval_delete(self, name: str) -> List[str]:
-        return self._name(name) + ["health-check", "interval"]
-
-    def get_name_health_check_retry(self, name: str, retry: str) -> List[str]:
-        return self._name(name) + ["health-check", "retry", retry]
-
-    def get_name_health_check_retry_delete(self, name: str) -> List[str]:
-        return self._name(name) + ["health-check", "retry"]
-
-    def get_name_health_check_timeout(self, name: str, timeout: str) -> List[str]:
-        return self._name(name) + ["health-check", "timeout", timeout]
-
-    def get_name_health_check_timeout_delete(self, name: str) -> List[str]:
-        return self._name(name) + ["health-check", "timeout"]
-
     # Label
     def get_name_label(self, name: str, label: str) -> List[str]:
         return self._name(name) + ["label", label]
@@ -227,12 +228,6 @@ class ContainerMapper(BaseFeatureMapper):
 
     def get_name_network_addresses_delete(self, name: str, network: str) -> List[str]:
         return self._name(name) + ["network", network, "address"]
-
-    def get_name_network_mac(self, name: str, network: str, mac: str) -> List[str]:
-        return self._name(name) + ["network", network, "mac", mac]
-
-    def get_name_network_mac_delete(self, name: str, network: str) -> List[str]:
-        return self._name(name) + ["network", network, "mac"]
 
     # Port
     def get_name_port(self, name: str, port_name: str) -> List[str]:
@@ -280,15 +275,21 @@ class ContainerMapper(BaseFeatureMapper):
 
     # Tmpfs
     def get_name_tmpfs(self, name: str, tmpfs_name: str) -> List[str]:
+        self._require_15("tmpfs")
+        return self._name(name) + ["tmpfs", tmpfs_name]
+
+    def get_name_tmpfs_delete(self, name: str, tmpfs_name: str) -> List[str]:
         return self._name(name) + ["tmpfs", tmpfs_name]
 
     def get_name_tmpfs_destination(self, name: str, tmpfs_name: str, destination: str) -> List[str]:
+        self._require_15("tmpfs")
         return self._name(name) + ["tmpfs", tmpfs_name, "destination", destination]
 
     def get_name_tmpfs_destination_delete(self, name: str, tmpfs_name: str) -> List[str]:
         return self._name(name) + ["tmpfs", tmpfs_name, "destination"]
 
     def get_name_tmpfs_size(self, name: str, tmpfs_name: str, size: str) -> List[str]:
+        self._require_15("tmpfs")
         return self._name(name) + ["tmpfs", tmpfs_name, "size", size]
 
     def get_name_tmpfs_size_delete(self, name: str, tmpfs_name: str) -> List[str]:
@@ -339,6 +340,7 @@ class ContainerMapper(BaseFeatureMapper):
         return self._network(network) + ["description"]
 
     def get_network_gateway(self, network: str, gateway: str) -> List[str]:
+        self._require_15("network gateway")
         return self._network(network) + ["gateway", gateway]
 
     def get_network_gateway_delete(self, network: str, gateway: str) -> List[str]:
@@ -348,6 +350,7 @@ class ContainerMapper(BaseFeatureMapper):
         return self._network(network) + ["gateway"]
 
     def get_network_mtu(self, network: str, mtu: str) -> List[str]:
+        self._require_15("network mtu")
         return self._network(network) + ["mtu", mtu]
 
     def get_network_mtu_delete(self, network: str) -> List[str]:
@@ -366,18 +369,22 @@ class ContainerMapper(BaseFeatureMapper):
         return self._network(network) + ["prefix"]
 
     def get_network_type_bridge(self, network: str) -> List[str]:
+        self._require_15("network type")
         return self._network(network) + ["type", "bridge"]
 
     def get_network_type_macvlan(self, network: str) -> List[str]:
+        self._require_15("network type")
         return self._network(network) + ["type", "macvlan"]
 
     def get_network_type_macvlan_mode(self, network: str, mode: str) -> List[str]:
+        self._require_15("network type")
         return self._network(network) + ["type", "macvlan", "mode", mode]
 
     def get_network_type_macvlan_mode_delete(self, network: str) -> List[str]:
         return self._network(network) + ["type", "macvlan", "mode"]
 
     def get_network_type_macvlan_parent(self, network: str, parent: str) -> List[str]:
+        self._require_15("network type")
         return self._network(network) + ["type", "macvlan", "parent", parent]
 
     def get_network_type_macvlan_parent_delete(self, network: str) -> List[str]:
@@ -406,6 +413,10 @@ class ContainerMapper(BaseFeatureMapper):
         return self._registry(registry) + ["disable"]
 
     def get_registry_insecure(self, registry: str) -> List[str]:
+        self._require_15("registry insecure")
+        return self._registry(registry) + ["insecure"]
+
+    def get_registry_insecure_delete(self, registry: str) -> List[str]:
         return self._registry(registry) + ["insecure"]
 
     def get_registry_auth_username(self, registry: str, username: str) -> List[str]:
@@ -424,27 +435,35 @@ class ContainerMapper(BaseFeatureMapper):
         return self._registry(registry) + ["authentication"]
 
     def get_registry_mirror(self, registry: str) -> List[str]:
+        self._require_15("registry mirror")
+        return self._registry(registry) + ["mirror"]
+
+    def get_registry_mirror_delete(self, registry: str) -> List[str]:
         return self._registry(registry) + ["mirror"]
 
     def get_registry_mirror_address(self, registry: str, address: str) -> List[str]:
+        self._require_15("registry mirror")
         return self._registry(registry) + ["mirror", "address", address]
 
     def get_registry_mirror_address_delete(self, registry: str) -> List[str]:
         return self._registry(registry) + ["mirror", "address"]
 
     def get_registry_mirror_host_name(self, registry: str, hostname: str) -> List[str]:
+        self._require_15("registry mirror")
         return self._registry(registry) + ["mirror", "host-name", hostname]
 
     def get_registry_mirror_host_name_delete(self, registry: str) -> List[str]:
         return self._registry(registry) + ["mirror", "host-name"]
 
     def get_registry_mirror_path(self, registry: str, path: str) -> List[str]:
+        self._require_15("registry mirror")
         return self._registry(registry) + ["mirror", "path", path]
 
     def get_registry_mirror_path_delete(self, registry: str) -> List[str]:
         return self._registry(registry) + ["mirror", "path"]
 
     def get_registry_mirror_port(self, registry: str, port: str) -> List[str]:
+        self._require_15("registry mirror")
         return self._registry(registry) + ["mirror", "port", port]
 
     def get_registry_mirror_port_delete(self, registry: str) -> List[str]:

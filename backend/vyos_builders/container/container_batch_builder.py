@@ -7,7 +7,8 @@ Configuration lives under: container
   container network <name> — user-defined networks
   container registry <name> — image registries
 
-The template structure is identical between VyOS 1.4 and 1.5.
+1.5 adds log-driver, tmpfs, registry insecure/mirror, and network
+gateway/mtu/type. Those paths raise on 1.4.
 Multi-argument batch operations encode compound values as "arg1,arg2"
 (comma-separated), matching the project's standard batch dispatch pattern.
 """
@@ -29,6 +30,7 @@ class ContainerBatchBuilder(BatchBuilder):
     def get_capabilities(self) -> Dict[str, Any]:
         is_1_4 = "1.4" in self.version
         is_1_5 = not is_1_4
+        m = self.m
 
         return {
             "version": self.version,
@@ -76,12 +78,8 @@ class ContainerBatchBuilder(BatchBuilder):
                         "sys-time",
                     ],
                 },
-                "health_check": {
-                    "supported": is_1_5,
-                    "description": "Container health check configuration",
-                },
                 "log_driver": {
-                    "supported": is_1_5,
+                    "supported": m.supports_log_driver(),
                     "description": "Container log driver",
                     "values": ["k8s-file", "journald", "none"],
                 },
@@ -102,33 +100,29 @@ class ContainerBatchBuilder(BatchBuilder):
                         "rprivate",
                     ],
                 },
-                "network_attachment_mac": {
-                    "supported": is_1_5,
-                    "description": "MAC address assignment on container network attachment",
-                },
                 "network_gateway": {
-                    "supported": is_1_5,
+                    "supported": m.supports_network_gateway(),
                     "description": "Gateway address on container network",
                 },
                 "network_mtu": {
-                    "supported": is_1_5,
+                    "supported": m.supports_network_mtu(),
                     "description": "MTU on container network",
                 },
                 "network_type_bridge": {
-                    "supported": is_1_5,
+                    "supported": m.supports_network_type(),
                     "description": "Bridge network type",
                 },
                 "network_type_macvlan": {
-                    "supported": is_1_5,
+                    "supported": m.supports_network_type(),
                     "description": "MACVLAN network type",
                     "macvlan_modes": ["bridge", "private", "vepa"],
                 },
                 "registry_insecure": {
-                    "supported": is_1_5,
+                    "supported": m.supports_registry_insecure(),
                     "description": "Allow insecure (HTTP) registry connections",
                 },
                 "registry_mirror": {
-                    "supported": is_1_5,
+                    "supported": m.supports_registry_mirror(),
                     "description": "Registry mirror support",
                 },
                 "sysctl": {
@@ -136,7 +130,7 @@ class ContainerBatchBuilder(BatchBuilder):
                     "description": "Namespaced kernel parameter configuration",
                 },
                 "tmpfs": {
-                    "supported": is_1_5,
+                    "supported": m.supports_tmpfs(),
                     "description": "Tmpfs filesystem mounts",
                 },
             },
@@ -332,40 +326,6 @@ class ContainerBatchBuilder(BatchBuilder):
         return self.add_delete(self.m.get_name_environments_delete(name))
 
     # -----------------------------------------------------------------------
-    # Container name: health check
-    # -----------------------------------------------------------------------
-
-    def set_name_health_check(self, name: str) -> "ContainerBatchBuilder":
-        return self.add_set(self.m.get_name_health_check(name))
-
-    def delete_name_health_check(self, name: str) -> "ContainerBatchBuilder":
-        return self.add_delete(self.m.get_name_health_check(name))
-
-    def set_name_health_check_command(self, name: str, command: str) -> "ContainerBatchBuilder":
-        return self.add_set(self.m.get_name_health_check_command(name, command))
-
-    def delete_name_health_check_command(self, name: str) -> "ContainerBatchBuilder":
-        return self.add_delete(self.m.get_name_health_check_command_delete(name))
-
-    def set_name_health_check_interval(self, name: str, interval: str) -> "ContainerBatchBuilder":
-        return self.add_set(self.m.get_name_health_check_interval(name, interval))
-
-    def delete_name_health_check_interval(self, name: str) -> "ContainerBatchBuilder":
-        return self.add_delete(self.m.get_name_health_check_interval_delete(name))
-
-    def set_name_health_check_retry(self, name: str, retry: str) -> "ContainerBatchBuilder":
-        return self.add_set(self.m.get_name_health_check_retry(name, retry))
-
-    def delete_name_health_check_retry(self, name: str) -> "ContainerBatchBuilder":
-        return self.add_delete(self.m.get_name_health_check_retry_delete(name))
-
-    def set_name_health_check_timeout(self, name: str, timeout: str) -> "ContainerBatchBuilder":
-        return self.add_set(self.m.get_name_health_check_timeout(name, timeout))
-
-    def delete_name_health_check_timeout(self, name: str) -> "ContainerBatchBuilder":
-        return self.add_delete(self.m.get_name_health_check_timeout_delete(name))
-
-    # -----------------------------------------------------------------------
     # Container name: label
     # -----------------------------------------------------------------------
 
@@ -402,12 +362,6 @@ class ContainerBatchBuilder(BatchBuilder):
 
     def delete_name_network_addresses(self, name: str, network: str) -> "ContainerBatchBuilder":
         return self.add_delete(self.m.get_name_network_addresses_delete(name, network))
-
-    def set_name_network_mac(self, name: str, network: str, mac: str) -> "ContainerBatchBuilder":
-        return self.add_set(self.m.get_name_network_mac(name, network, mac))
-
-    def delete_name_network_mac(self, name: str, network: str) -> "ContainerBatchBuilder":
-        return self.add_delete(self.m.get_name_network_mac_delete(name, network))
 
     # -----------------------------------------------------------------------
     # Container name: port
@@ -473,7 +427,7 @@ class ContainerBatchBuilder(BatchBuilder):
         return self.add_set(self.m.get_name_tmpfs(name, tmpfs_name))
 
     def delete_name_tmpfs(self, name: str, tmpfs_name: str) -> "ContainerBatchBuilder":
-        return self.add_delete(self.m.get_name_tmpfs(name, tmpfs_name))
+        return self.add_delete(self.m.get_name_tmpfs_delete(name, tmpfs_name))
 
     def set_name_tmpfs_destination(self, name: str, tmpfs_name: str, destination: str) -> "ContainerBatchBuilder":
         return self.add_set(self.m.get_name_tmpfs_destination(name, tmpfs_name, destination))
@@ -614,7 +568,7 @@ class ContainerBatchBuilder(BatchBuilder):
         return self.add_set(self.m.get_registry_insecure(registry))
 
     def delete_registry_insecure(self, registry: str) -> "ContainerBatchBuilder":
-        return self.add_delete(self.m.get_registry_insecure(registry))
+        return self.add_delete(self.m.get_registry_insecure_delete(registry))
 
     def set_registry_auth_username(self, registry: str, username: str) -> "ContainerBatchBuilder":
         return self.add_set(self.m.get_registry_auth_username(registry, username))
@@ -635,7 +589,7 @@ class ContainerBatchBuilder(BatchBuilder):
         return self.add_set(self.m.get_registry_mirror(registry))
 
     def delete_registry_mirror(self, registry: str) -> "ContainerBatchBuilder":
-        return self.add_delete(self.m.get_registry_mirror(registry))
+        return self.add_delete(self.m.get_registry_mirror_delete(registry))
 
     def set_registry_mirror_address(self, registry: str, address: str) -> "ContainerBatchBuilder":
         return self.add_set(self.m.get_registry_mirror_address(registry, address))

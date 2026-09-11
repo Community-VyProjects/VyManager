@@ -75,7 +75,6 @@ const EMPTY_CONTAINER: ContainerInstance = {
   devices: [],
   environments: [],
   labels: [],
-  health_check: null,
   networks: [],
   ports: [],
   sysctl_params: [],
@@ -110,7 +109,6 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
   const [networks, setNetworks] = useState<ContainerNetworkAttachment[]>([]);
   const [netName, setNetName] = useState("");
   const [netAddr, setNetAddr] = useState("");
-  const [netMac, setNetMac] = useState("");
   const [ports, setPorts] = useState<ContainerPort[]>([]);
   const [portName, setPortName] = useState("");
   const [portSrc, setPortSrc] = useState("");
@@ -153,12 +151,6 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
   const [sysctlKey, setSysctlKey] = useState("");
   const [sysctlVal, setSysctlVal] = useState("");
 
-  // Health check
-  const [hcCommand, setHcCommand] = useState("");
-  const [hcInterval, setHcInterval] = useState("");
-  const [hcRetry, setHcRetry] = useState("");
-  const [hcTimeout, setHcTimeout] = useState("");
-
   const [imagePopoverOpen, setImagePopoverOpen] = useState(false);
   const [imageSearch, setImageSearch] = useState("");
 
@@ -197,20 +189,12 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
     setPrivileged(c.privileged);
     setSelectedCaps([...c.capabilities]);
     setSysctlParams([...c.sysctl_params]);
-    if (c.health_check) {
-      setHcCommand(c.health_check.command ?? "");
-      setHcInterval(c.health_check.interval ?? "");
-      setHcRetry(c.health_check.retry ?? "");
-      setHcTimeout(c.health_check.timeout ?? "");
-    } else {
-      setHcCommand(""); setHcInterval(""); setHcRetry(""); setHcTimeout("");
-    }
     setError(null);
     setActiveTab("general");
     setImagePopoverOpen(false);
     setImageSearch("");
     // clear sub-form inputs
-    setNetName(""); setNetAddr(""); setNetMac("");
+    setNetName(""); setNetAddr("");
     setPortName(""); setPortSrc(""); setPortDst(""); setPortProto(""); setPortListenAddr("");
     setNsInput("");
     setVolName(""); setVolSrcSuffix(""); setVolDst(""); setVolMode(""); setVolProp("");
@@ -251,9 +235,6 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
     devices,
     environments,
     labels,
-    health_check: (hcCommand || hcInterval || hcRetry || hcTimeout)
-      ? { command: hcCommand || null, interval: hcInterval || null, retry: hcRetry || null, timeout: hcTimeout || null }
-      : null,
     networks,
     ports,
     sysctl_params: sysctlParams,
@@ -324,8 +305,8 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
     if (allowHostNetworks) {
       setAllowHostNetworks(false);
     }
-    setNetworks([...networks, { name: netName, addresses: netAddr ? [netAddr] : [], mac: netMac || null }]);
-    setNetName(""); setNetAddr(""); setNetMac("");
+    setNetworks([...networks, { name: netName, addresses: netAddr ? [netAddr] : [] }]);
+    setNetName(""); setNetAddr("");
   };
 
   const addPort = () => {
@@ -395,13 +376,11 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
     setSysctlKey(""); setSysctlVal("");
   };
 
-  const showHealthCheck = caps?.health_check?.supported ?? true;
   const restartValues = caps?.restart_policy?.values ?? ["no", "on-failure", "always"];
   const logDriverValues = caps?.log_driver?.values ?? ["k8s-file", "journald", "none"];
   const showLogDriver = caps?.log_driver?.supported ?? true;
   const propagationValues = caps?.volume_propagation?.values ?? ["shared", "slave", "private", "rshared", "rslave", "rprivate"];
   const showTmpfs = caps?.tmpfs?.supported ?? true;
-  const showMac = caps?.network_attachment_mac?.supported ?? true;
   const capValues = caps?.capabilities?.values ?? ["net-admin", "net-bind-service", "net-raw", "mknod", "setpcap", "sys-admin", "sys-module", "sys-nice", "sys-time"];
   const showSysctl = caps?.sysctl?.supported ?? true;
   const showAllowHostNetworks = caps?.allow_host_networks?.supported ?? true;
@@ -414,7 +393,6 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
 
   const tabs = [
     "general", "runtime", "networking", "storage", "environment", "security",
-    ...(showHealthCheck ? ["health-check"] : []),
   ];
 
   return (
@@ -431,7 +409,7 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
           <TabsList className="w-full justify-start overflow-x-auto flex-nowrap">
             {tabs.map(t => (
               <TabsTrigger key={t} value={t} className="text-xs shrink-0">
-                {t === "health-check" ? "Health Check" : t.charAt(0).toUpperCase() + t.slice(1)}
+                {t.charAt(0).toUpperCase() + t.slice(1)}
               </TabsTrigger>
             ))}
           </TabsList>
@@ -623,7 +601,6 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
                           <span>
                             <span className="font-mono font-medium">{net.name}</span>
                             {net.addresses.length > 0 && <span className="text-muted-foreground ml-2 font-mono">{net.addresses.join(", ")}</span>}
-                            {net.mac && <span className="text-muted-foreground ml-2 font-mono">{net.mac}</span>}
                           </span>
                           <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setNetworks(networks.filter(n => n.name !== net.name))}>
                             <X className="h-3 w-3" />
@@ -645,7 +622,6 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
                           </SelectContent>
                         </Select>
                         <Input value={netAddr} onChange={e => setNetAddr(e.target.value)} placeholder="IP address (optional)" className="flex-1 font-mono" />
-                        {showMac && <Input value={netMac} onChange={e => setNetMac(e.target.value)} placeholder="MAC (optional)" className="flex-1 font-mono" />}
                         <Button variant="outline" size="icon" onClick={addNetwork} disabled={!netName}><Plus className="h-4 w-4" /></Button>
                       </div>
                     </div>
@@ -953,33 +929,6 @@ export function ContainerModal({ open, onOpenChange, container, capabilities, av
                 )}
               </div>
             </TabsContent>
-
-            {/* ---------------------------------------------------------------- Health Check */}
-            {showHealthCheck && (
-              <TabsContent value="health-check" className="m-0 px-1">
-                <div className="space-y-4 pb-2">
-                  <p className="text-xs text-muted-foreground">Leave all fields empty to disable health check.</p>
-                  <div className="space-y-2">
-                    <Label htmlFor="hc-cmd">Command</Label>
-                    <Input id="hc-cmd" value={hcCommand} onChange={e => setHcCommand(e.target.value)} placeholder="CMD /bin/health-check.sh" className="font-mono" />
-                  </div>
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="space-y-2">
-                      <Label htmlFor="hc-interval">Interval (s)</Label>
-                      <Input id="hc-interval" type="number" value={hcInterval} onChange={e => setHcInterval(e.target.value)} placeholder="e.g. 30" className="font-mono" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="hc-retry">Retry Count</Label>
-                      <Input id="hc-retry" type="number" value={hcRetry} onChange={e => setHcRetry(e.target.value)} placeholder="e.g. 3" className="font-mono" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="hc-timeout">Timeout (s)</Label>
-                      <Input id="hc-timeout" type="number" value={hcTimeout} onChange={e => setHcTimeout(e.target.value)} placeholder="e.g. 10" className="font-mono" />
-                    </div>
-                  </div>
-                </div>
-              </TabsContent>
-            )}
           </ScrollArea>
         </Tabs>
 

@@ -48,8 +48,22 @@ class DHCPMapper(BaseFeatureMapper):
         """Get command path for hostfile-update deletion."""
         return ["service", "dhcp-server", "hostfile-update"]
 
+    def has_host_decl_name(self) -> bool:
+        return "1.4" in self.version
+
+    def has_enable_failover(self) -> bool:
+        return "1.4" in self.version
+
+    def has_subnet_disable(self) -> bool:
+        return "1.4" not in self.version
+
+    def has_time_offset(self) -> bool:
+        return True
+
     def get_host_decl_name(self) -> List[str]:
         """Get command path for host-decl-name."""
+        if not self.has_host_decl_name():
+            raise ValueError("host-decl-name is not supported on this device")
         return ["service", "dhcp-server", "host-decl-name"]
 
     def get_host_decl_name_path(self) -> List[str]:
@@ -206,6 +220,8 @@ class DHCPMapper(BaseFeatureMapper):
 
     def get_subnet_disable(self, network_name: str, subnet: str) -> List[str]:
         """Get command path for subnet disable."""
+        if not self.has_subnet_disable():
+            raise ValueError("subnet disable is not supported on this device")
         return [
             "service", "dhcp-server", "shared-network-name", network_name,
             "subnet", subnet, "disable"
@@ -676,6 +692,8 @@ class DHCPMapper(BaseFeatureMapper):
 
     def get_subnet_enable_failover(self, network_name: str, subnet: str) -> List[str]:
         """Get command path for subnet enable-failover."""
+        if not self.has_enable_failover():
+            raise ValueError("enable-failover is not supported on this device")
         return [
             "service", "dhcp-server", "shared-network-name", network_name,
             "subnet", subnet, "enable-failover"

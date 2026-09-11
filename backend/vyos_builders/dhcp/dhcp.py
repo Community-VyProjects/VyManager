@@ -833,7 +833,7 @@ class DHCPBatchBuilder(BatchBuilder):
                     "description": "Disable a shared network",
                 },
                 "subnet_disable": {
-                    "supported": True,
+                    "supported": mapper.has_subnet_disable(),
                     "description": "Disable a subnet",
                 },
                 # DNS fields
@@ -877,8 +877,8 @@ class DHCPBatchBuilder(BatchBuilder):
                     "description": "NTP server addresses",
                 },
                 "time_offset": {
-                    "supported": is_v15_or_later,
-                    "description": "Time offset in seconds (VyOS 1.5+)",
+                    "supported": mapper.has_time_offset(),
+                    "description": "Time offset in seconds",
                 },
                 # Advanced options - Windows/WINS
                 "wins_servers": {
@@ -900,8 +900,8 @@ class DHCPBatchBuilder(BatchBuilder):
                     "description": "Test IP with ping before assignment",
                 },
                 "enable_failover": {
-                    "supported": is_v14,
-                    "description": "High availability failover (VyOS 1.4 only)",
+                    "supported": mapper.has_enable_failover(),
+                    "description": "High availability failover",
                 },
                 "clear_inactive_lease": {
                     "supported": can_clear_inactive_leases,
