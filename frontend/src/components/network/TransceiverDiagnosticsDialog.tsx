@@ -109,7 +109,7 @@ export function TransceiverDiagnosticsDialog({
             </div>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {[["Type", status.transceiver], ["Vendor", status.vendor], ["Part number", status.part_number], ["Serial number", status.serial_number]].map(([label, value]) => (
-                <Card key={label}><CardContent className="p-3"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 truncate font-medium">{value || "-"}</p></CardContent></Card>
+                <Card key={label}><CardContent className="p-3"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 font-medium break-words">{value || "-"}</p></CardContent></Card>
               ))}
             </div>
             {Object.keys(status.measurements).length > 0 ? <div><h3 className="mb-2 text-sm font-semibold">Live measurements</h3><div className="grid grid-cols-2 gap-3 sm:grid-cols-3">{Object.entries(status.measurements).map(([key, measurement]) => <Card key={key}><CardContent className="p-3"><p className="text-xs text-muted-foreground">{measurementLabels[key] || key}</p><p className="mt-1 font-mono font-medium">{measurement.value || "-"}</p></CardContent></Card>)}</div></div> : null}
