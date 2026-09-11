@@ -80,4 +80,4 @@ power1:        3.28 W  (interval =   0.01 s, crit =   6.00 W)""")
     assert result.sensors[1].name == "fam15h_power-pci-00c4: power1"
     assert result.sensors[1].value == "3.28 W"
     assert result.sensors[1].status == "ok"
-    assert result.sensors[1].critical == "+6.00"
+    assert result.sensors[1].critical == "6.00"
