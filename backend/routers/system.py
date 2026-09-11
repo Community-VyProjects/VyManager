@@ -824,6 +824,8 @@ def _parse_login_radius(system_config: dict) -> Optional[RadiusConfig]:
             timeout=int(server_cfg["timeout"]) if server_cfg.get("timeout") else None,
         ))
     source_address = radius_raw.get("source-address")
+    if isinstance(source_address, list):
+        source_address = source_address[0] if source_address else None
     timeout = radius_raw.get("timeout")
     return RadiusConfig(
         servers=servers,
