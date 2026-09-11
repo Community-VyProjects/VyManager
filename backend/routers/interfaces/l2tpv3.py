@@ -4,7 +4,6 @@ L2TPv3 Interface Configuration Endpoints
 All L2TPv3 (Layer 2 Tunnel Protocol Version 3) interface endpoints for VyOS configuration.
 """
 
-import inspect
 import logging
 from typing import Dict, List, Optional, Any
 
@@ -15,7 +14,11 @@ from starlette.concurrency import run_in_threadpool
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 from session_vyos_service import get_session_vyos_service
-from batch_dispatch import resolve_batch_method
+from routers.interfaces.interface_batch import (
+    BatchRequest,
+    VyOSResponse,
+    run_interface_batch,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -25,22 +28,6 @@ router = APIRouter(prefix="/vyos/l2tpv3", tags=["l2tpv3-interface"])
 # ============================================================================
 # Request / Response Models
 # ============================================================================
-
-
-class BatchOperation(BaseModel):
-    op: str = Field(..., description="Operation name")
-    value: Optional[str] = Field(None, description="Operation value (if required)")
-
-
-class BatchRequest(BaseModel):
-    interface: str = Field(..., description="Interface name (e.g., l2tpeth0)")
-    operations: List[BatchOperation]
-
-
-class VyOSResponse(BaseModel):
-    success: bool
-    data: Optional[Dict[str, Any]] = None
-    error: Optional[str] = None
 
 
 class L2TPv3InterfaceConfig(BaseModel):
@@ -217,40 +204,6 @@ async def batch_configure(http_request: Request, request: BatchRequest) -> VyOSR
     """
     await require_write_permission(http_request, FeatureGroup.INTERFACES)
 
-    try:
-        service = get_session_vyos_service(http_request)
-        batch = service.create_l2tpv3_batch()
-
-        for op in request.operations:
-
-            method = resolve_batch_method(batch, op.op)
-
-            sig = inspect.signature(method)
-            params = [p for p in sig.parameters.keys() if p != "self"]
-
-            if len(params) == 1:
-                method(request.interface)
-            elif len(params) == 2:
-                if op.value is None:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Operation '{op.op}' requires a value",
-                    )
-                method(request.interface, op.value)
-            else:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Operation '{op.op}' has unexpected signature",
-                )
-
-        response = service.execute_batch(batch)
-        return VyOSResponse(
-            success=response.status == 200,
-            data=response.result if isinstance(response.result, dict) else None,
-            error=response.error if response.error else None,
-        )
-    except HTTPException:
-        raise
-    except Exception:
-        logger.exception("Unhandled error in batch_configure")
-        raise HTTPException(status_code=500, detail="Internal server error")
+    service = get_session_vyos_service(http_request)
+    batch = service.create_l2tpv3_batch()
+    return run_interface_batch(service, batch, request)
