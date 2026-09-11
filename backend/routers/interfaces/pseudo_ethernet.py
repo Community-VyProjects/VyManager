@@ -24,17 +24,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/vyos/pseudo-ethernet", tags=["pseudo-ethernet-interface"])
 
 
-# Stub functions for backwards compatibility with app.py
-def set_device_registry(registry):
-    """Legacy function - no longer used."""
-    pass
-
-
-def set_configured_device_name(name):
-    """Legacy function - no longer used."""
-    pass
-
-
 # ============================================================================
 # Request / Response Models
 # ============================================================================

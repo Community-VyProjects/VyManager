@@ -26,16 +26,6 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/extcommunity-list", tags=["extcommunity-list"])
 
-# Stub functions for backwards compatibility with app.py
-def set_device_registry(registry):
-    """Legacy function - no longer used."""
-    pass
-
-
-def set_configured_device_name(name):
-    """Legacy function - no longer used."""
-    pass
-
 
 # ============================================================================
 # Pydantic Models

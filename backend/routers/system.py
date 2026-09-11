@@ -39,17 +39,6 @@ _INTERNAL_BUILDER_METHODS = frozenset({
 })
 
 
-# Stub functions for backwards compatibility with app.py
-def set_device_registry(registry):
-    """Legacy function - no longer used."""
-    pass
-
-
-def set_configured_device_name(name):
-    """Legacy function - no longer used."""
-    pass
-
-
 # =============================================================================
 # Pydantic models — Response
 # =============================================================================
