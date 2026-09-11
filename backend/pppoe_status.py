@@ -32,10 +32,18 @@ class PPPoESessionsResponse(BaseModel):
 
 
 class PPPoEPpsTracker:
-    """Calculate rates from cumulative per-interface packet counters."""
+    """Calculate rates from cumulative per-interface packet counters.
 
-    def __init__(self) -> None:
+    The optional ``min_sample_interval`` suppresses repeated per-session PPS
+    recomputation in tight loops so the same parser can use the counters from
+    the session table without forcing a second statistics query for every
+    interface.
+    """
+
+    def __init__(self, min_sample_interval: float = 0.0) -> None:
         self._previous: Dict[str, tuple[int, int, float]] = {}
+        self._last_sample_at: Dict[str, float] = {}
+        self._min_sample_interval = min_sample_interval
 
     def update(
         self,
@@ -46,11 +54,18 @@ class PPPoEPpsTracker:
     ) -> tuple[Optional[float], Optional[float]]:
         if rx_packets is None or tx_packets is None:
             self._previous.pop(key, None)
+            self._last_sample_at.pop(key, None)
             return None, None
 
         now = time.monotonic() if timestamp is None else timestamp
+        if self._min_sample_interval > 0:
+            last_sample_at = self._last_sample_at.get(key)
+            if last_sample_at is not None and (now - last_sample_at) < self._min_sample_interval:
+                return None, None
+
         previous = self._previous.get(key)
         self._previous[key] = (rx_packets, tx_packets, now)
+        self._last_sample_at[key] = now
         if previous is None:
             return None, None
 

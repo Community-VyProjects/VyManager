@@ -7,7 +7,6 @@ API endpoints for managing VyOS PPPoE server configuration.
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
-import asyncio
 import ipaddress
 from urllib.parse import unquote
 from session_vyos_service import get_session_vyos_service
@@ -19,7 +18,6 @@ from pppoe_status import (
     PPPoEPpsTracker,
     PPPoESessionsResponse,
     parse_pppoe_sessions,
-    parse_pppoe_interface_statistics,
 )
 import inspect
 import logging
@@ -28,7 +26,7 @@ from batch_dispatch import resolve_batch_method
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/pppoe-server", tags=["pppoe-server"])
-_pppoe_pps_tracker = PPPoEPpsTracker()
+_pppoe_pps_tracker = PPPoEPpsTracker(min_sample_interval=1.0)
 
 
 # ========================================================================
@@ -119,32 +117,18 @@ async def get_pppoe_sessions(
             )
         output = response.result.get("data", "") if isinstance(response.result, dict) else response.result
         sessions = parse_pppoe_sessions(output or "")
-        semaphore = asyncio.Semaphore(20)
+        page = sessions[offset:offset + limit]
 
-        async def add_interface_statistics(session):
-            async with semaphore:
-                stats_response = await run_in_threadpool(
-                    service.device.show,
-                    path=["interfaces", "pppoe", session.interface, "statistics"],
-                )
-            if stats_response.status != 200:
-                return
-            stats_output = (
-                stats_response.result.get("data", "")
-                if isinstance(stats_response.result, dict)
-                else stats_response.result
-            )
-            session.rx_packets, session.tx_packets = parse_pppoe_interface_statistics(stats_output or "")
+        for session in page:
             session.rx_pps, session.tx_pps = _pppoe_pps_tracker.update(
                 f"{id(service.device)}:{session.interface}",
                 session.rx_packets,
                 session.tx_packets,
             )
 
-        await asyncio.gather(*(add_interface_statistics(session) for session in sessions[offset:offset + limit]))
         total = len(sessions)
         return PPPoESessionsResponse(
-            sessions=sessions[offset:offset + limit],
+            sessions=page,
             total=total,
         )
     except HTTPException:

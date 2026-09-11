@@ -16,6 +16,14 @@ def test_pppoe_pps_tracker_resets_after_missing_counters():
     assert tracker.update("device:ppp0", 160, 320, timestamp=13.0) == (None, None)
 
 
+def test_pppoe_pps_tracker_throttles_sampling_by_min_interval():
+    tracker = PPPoEPpsTracker(min_sample_interval=1.0)
+
+    assert tracker.update("device:ppp0", 100, 200, timestamp=10.0) == (None, None)
+    assert tracker.update("device:ppp0", 160, 320, timestamp=10.5) == (None, None)
+    assert tracker.update("device:ppp0", 220, 440, timestamp=11.0) == (120.0, 240.0)
+
+
 def test_parse_pppoe_interface_statistics():
     output = """
       IN   PACK VJCOMP  VJUNC  VJERR  |      OUT   PACK VJCOMP  VJUNC NON-VJ
