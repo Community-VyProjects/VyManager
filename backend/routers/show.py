@@ -84,11 +84,11 @@ class InterfaceCountersResponse(BaseModel):
 
 @router.get("/hardware-sensors", response_model=HardwareSensorsResponse)
 async def get_hardware_sensors(request: Request):
-    """Return CPU, NIC, and other temperatures from VyOS sensors."""
+    """Return CPU, NIC, and other temperatures from VyOS `show environment sensors`."""
     await require_read_permission(request, FeatureGroup.INTERFACES)
     try:
         service = get_session_vyos_service(request)
-        response = await run_in_threadpool(service.device.show, path=["system", "sensors"])
+        response = await run_in_threadpool(service.device.show, path=["environment", "sensors"])
         if response.status != 200 or response.error:
             raise HTTPException(status_code=502, detail=response.error or "Unable to read hardware sensors")
         output = response.result.get("data", "") if isinstance(response.result, dict) else response.result

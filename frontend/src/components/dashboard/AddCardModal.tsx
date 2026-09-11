@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Network, Plus, Server, Shield, Lock, TrendingUp, Gauge, ShieldCheck, Waypoints, Route, Activity } from "lucide-react";
+import { Network, Plus, Server, Shield, Lock, TrendingUp, Gauge, ShieldCheck, Waypoints, Route, Activity, Thermometer } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 
@@ -35,6 +35,12 @@ const AVAILABLE_CARDS: AvailableCard[] = [
     name: "System Information",
     description: "Monitor memory usage, disk partitions, and VyOS version details",
     icon: Server,
+  },
+  {
+    type: "hardware-sensors",
+    name: "Hardware Sensors",
+    description: "CPU, network card, and system temperature sensors with health status",
+    icon: Thermometer,
   },
   {
     type: "wireguard-peers",

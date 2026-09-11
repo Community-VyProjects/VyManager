@@ -18,7 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, RefreshCw, AlertCircle, Search, Cable, Pencil, Trash2, Network, ChevronRight, ChevronDown, Shield, Boxes, Waypoints, Link2, GitMerge, Box, Layers, ArrowDownToLine, Repeat, Lock, ArrowLeftRight, Wifi, Signal, Thermometer } from "lucide-react";
+import { Plus, RefreshCw, AlertCircle, Search, Cable, Pencil, Trash2, Network, ChevronRight, ChevronDown, Shield, Boxes, Waypoints, Link2, GitMerge, Box, Layers, ArrowDownToLine, Repeat, Lock, ArrowLeftRight, Wifi, Signal } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
@@ -106,7 +106,6 @@ import { ComprehensiveVLANModal } from "@/components/network/ComprehensiveVLANMo
 import { ComprehensiveVIFSModal } from "@/components/network/ComprehensiveVIFSModal";
 import { ComprehensiveVIFCModal } from "@/components/network/ComprehensiveVIFCModal";
 import { TransceiverDiagnosticsDialog } from "@/components/network/TransceiverDiagnosticsDialog";
-import { HardwareSensorsDialog } from "@/components/network/HardwareSensorsDialog";
 import { DeleteEthernetModal } from "@/components/network/DeleteEthernetModal";
 import { DeleteVLANModal } from "@/components/network/DeleteVLANModal";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
@@ -189,7 +188,6 @@ function InterfacesPageInner() {
   const [deletingInterface, setDeletingInterface] = useState<EthernetInterface | null>(null);
   const [transceiverStatuses, setTransceiverStatuses] = useState<Record<string, TransceiverStatus | null>>({});
   const [diagnosticsInterface, setDiagnosticsInterface] = useState<string | null>(null);
-  const [hardwareSensorsOpen, setHardwareSensorsOpen] = useState(false);
 
   // VIF Modal states
   const [isCreateVLANModalOpen, setIsCreateVLANModalOpen] = useState(false);
@@ -1040,17 +1038,6 @@ function InterfacesPageInner() {
               >
                 <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
               </Button>
-              {selectedType === "ethernet" && (
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setHardwareSensorsOpen(true)}
-                  disabled={!canRead(FeatureGroup.INTERFACES)}
-                  title="View hardware health"
-                >
-                  <Thermometer className="h-4 w-4" />
-                </Button>
-              )}
             </div>
           </div>
 
@@ -4033,7 +4020,6 @@ function InterfacesPageInner() {
         open={!!diagnosticsInterface}
         onOpenChange={(open) => !open && setDiagnosticsInterface(null)}
       />
-      <HardwareSensorsDialog open={hardwareSensorsOpen} onOpenChange={setHardwareSensorsOpen} />
 
       {/* VIF (802.1Q) Modals */}
       <ComprehensiveVLANModal

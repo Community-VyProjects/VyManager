@@ -1,4 +1,4 @@
-"""Parser and models for VyOS hardware temperature sensors."""
+"""Parser and models for VyOS hardware temperature sensors from `show environment sensors`."""
 
 import re
 from typing import List, Optional
@@ -29,25 +29,72 @@ def _as_numeric(value: Optional[str]) -> Optional[float]:
 
 
 def parse_hardware_sensors(text: str) -> HardwareSensorsResponse:
-    """Parse common ``sensors``/``show system sensors`` key/value formats."""
+    """Parse VyOS ``show environment sensors`` output format.
+    
+    Handles output like:
+    ```
+    k10temp-pci-00c3
+    temp1:        +54.6°C  (high = +70.0°C)
+                           (crit = +105.0°C, hyst = +104.0°C)
+    
+    fam15h_power-pci-00c4
+    power1:        3.28 W  (interval =   0.01 s, crit =   6.00 W)
+    ```
+    
+    And handles hypervisor/bare metal cases:
+    - "VyOS running under hypervisor, no sensors available"
+    - "No sensors found"
+    """
     sensors: List[HardwareSensor] = []
-    for raw_line in (text or "").splitlines():
-        line = raw_line.strip()
-        if not line or line.endswith(":") or line.startswith("Adapter"):
+    
+    # Check for no sensors available
+    lower_text = (text or "").lower().strip()
+    if "no sensors available" in lower_text or "no sensors found" in lower_text:
+        return HardwareSensorsResponse(sensors=[], raw=text or "")
+    
+    lines = (text or "").splitlines()
+    current_adapter = None
+    
+    for i, raw_line in enumerate(lines):
+        line = raw_line.rstrip()
+        stripped = line.strip()
+        
+        # Skip empty lines
+        if not stripped:
             continue
-        match = re.match(r"^([^:]+):\s*(.+)$", line)
+            
+        # Adapter/Device name lines (no colon)
+        if ":" not in stripped:
+            current_adapter = stripped
+            continue
+            
+        # Sensor data lines (contain colon)
+        match = re.match(r"^([^:]+):\s*(.+)$", stripped)
         if not match:
             continue
-        name, raw_value = match.groups()
-        lower = line.lower()
-
+            
+        sensor_name, raw_value = match.groups()
+        
+        # Build full sensor name with adapter prefix
+        full_name = f"{current_adapter}: {sensor_name}" if current_adapter else sensor_name
+        
+        # Parse sensor value (before parentheses)
         sensor_value = raw_value.split("(", 1)[0].strip()
-        high_match = re.search(r"high\s*[:=]\s*([-+]?\d+(?:\.\d+)?)\s*(?:°?[CFK])?", raw_value, re.I)
-        critical_match = re.search(r"crit(?:ical)?\s*[:=]\s*([-+]?\d+(?:\.\d+)?)\s*(?:°?[CFK])?", raw_value, re.I)
+        
+        # Combine current line with next line for threshold parsing (handles multi-line VyOS output)
+        combined_value = raw_value
+        if i + 1 < len(lines):
+            combined_value += " " + lines[i + 1].strip()
+        
+        # Extract thresholds
+        high_match = re.search(r"high\s*[:=]\s*([-+]?\d+(?:\.\d+)?)\s*(?:°?[CFK])?", combined_value, re.I)
+        critical_match = re.search(r"crit(?:ical)?\s*[:=]\s*([-+]?\d+(?:\.\d+)?)\s*(?:°?[CFK])?", combined_value, re.I)
+        
         reading = _as_numeric(sensor_value)
         high_value = _as_numeric(high_match.group(1) if high_match else None)
         critical_value = _as_numeric(critical_match.group(1) if critical_match else None)
-
+        
+        # Determine status
         if reading is not None:
             if critical_value is not None and reading >= critical_value:
                 status = "critical"
@@ -55,16 +102,19 @@ def parse_hardware_sensors(text: str) -> HardwareSensorsResponse:
                 status = "warning"
             else:
                 status = "ok"
-        elif "alarm" in lower or "crit" in lower:
+        elif "alarm" in raw_value.lower() or "crit" in raw_value.lower():
             status = "critical"
-        elif "warn" in lower:
+        elif "warn" in raw_value.lower():
             status = "warning"
         else:
             status = "ok"
-
+        
         sensors.append(HardwareSensor(
-            name=name.strip(), value=sensor_value, status=status,
+            name=full_name.strip(),
+            value=sensor_value,
+            status=status,
             high=high_match.group(1).strip() if high_match else None,
             critical=critical_match.group(1).strip() if critical_match else None,
         ))
+    
     return HardwareSensorsResponse(sensors=sensors, raw=text or "")

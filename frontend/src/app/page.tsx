@@ -28,6 +28,7 @@ import { OpenVpnCard } from "@/components/dashboard/OpenVpnCard";
 import { VrrpStatusCard } from "@/components/dashboard/VrrpStatusCard";
 import { BgpStatusCard } from "@/components/dashboard/BgpStatusCard";
 import { IpsecCard } from "@/components/dashboard/IpsecCard";
+import { HardwareSensorsCard } from "@/components/dashboard/HardwareSensorsCard";
 import { AddCardModal } from "@/components/dashboard/AddCardModal";
 import { ConnectFirstInstance } from "@/components/dashboard/ConnectFirstInstance";
 import {
@@ -461,6 +462,8 @@ export default function Home() {
         return <BgpStatusCard {...baseProps} />;
       case "ipsec-status":
         return <IpsecCard {...baseProps} />;
+      case "hardware-sensors":
+        return <HardwareSensorsCard {...baseProps} />;
       default:
         return null;
     }
