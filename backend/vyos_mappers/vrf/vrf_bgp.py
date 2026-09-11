@@ -60,6 +60,12 @@ class VrfBgpMapper:
     def _af(self, name: str, afi: str) -> List[str]:
         return self._base(name) + ["address-family", afi]
 
+    def get_bgp_af(self, name: str, afi: str) -> List[str]:
+        return self._af(name, afi)
+
+    def get_bgp_af_route_map_vpn(self, name: str, afi: str) -> List[str]:
+        return self._af(name, afi) + ["route-map", "vpn"]
+
     def _neighbor_af(self, name: str, neighbor: str, afi: str) -> List[str]:
         return self._neighbor(name, neighbor) + ["address-family", afi]
 

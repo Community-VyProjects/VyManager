@@ -57,3 +57,22 @@ def test_private_mapper_helpers_are_not_ops():
         getattr(vrf, "set_vrf_bgp_REDIST")
     with pytest.raises(AttributeError):
         getattr(vrf, "set_vrf_isis_fr_lfa")
+
+
+def test_ui_schema_protocol_ops_resolve():
+    from pathlib import Path
+    import re
+
+    root = Path(__file__).resolve().parents[2] / "frontend" / "src" / "components" / "vrf" / "schema"
+    ops = set()
+    for path in root.glob("*.ts"):
+        ops.update(re.findall(r"vrf_(?:bgp|ospf|ospfv3|isis)[a-z0-9_]*", path.read_text()))
+    builder = VrfBatchBuilder("1.5")
+    missing = []
+    for op in sorted(ops):
+        for verb in ("set_", "delete_"):
+            try:
+                getattr(builder, verb + op)
+            except AttributeError:
+                missing.append(verb + op)
+    assert missing == []

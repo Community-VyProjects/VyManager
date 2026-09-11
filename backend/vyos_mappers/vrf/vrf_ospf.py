@@ -212,6 +212,9 @@ class VrfOspfMapper:
     def get_ospf_interface(self, name: str, iface: str) -> List[str]:
         return self._base(name) + ["interface", iface]
 
+    def get_ospf_interface_authentication(self, name: str, iface: str) -> List[str]:
+        return self.get_ospf_interface(name, iface) + ["authentication"]
+
     def get_ospf_interface_area(self, name: str, iface: str, value: str) -> List[str]:
         return self._base(name) + ["interface", iface, "area", value]
 
