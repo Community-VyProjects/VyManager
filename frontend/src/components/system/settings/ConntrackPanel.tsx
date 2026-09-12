@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { conntrackSectionFromSearch } from "@/lib/query-tabs";
 import {
   Card,
   CardContent,
@@ -168,7 +170,16 @@ function ConntrackTimeoutSortableRow({
 
 export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: Props) {
   const { toast } = useToast();
+  const searchParams = useSearchParams();
   const availableModules = capabilities.conntrack.available_modules;
+
+  useEffect(() => {
+    const section = conntrackSectionFromSearch((key) => searchParams.get(key));
+    if (!section) return;
+    requestAnimationFrame(() => {
+      document.getElementById(section)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }, [searchParams]);
 
   // Module toggle
   const [togglingModule, setTogglingModule] = useState<string | null>(null);
@@ -639,7 +650,7 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
       </Card>
 
       {/* Table Sizes */}
-      <Card>
+      <Card id="table-sizes" className="scroll-mt-24">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
@@ -717,7 +728,7 @@ export function ConntrackPanel({ config, capabilities, isReadOnly, onRefresh }: 
       </Card>
 
       {/* TCP Settings */}
-      <Card>
+      <Card id="tcp-settings" className="scroll-mt-24">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
