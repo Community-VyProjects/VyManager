@@ -63,6 +63,15 @@ class DHCPMapper(BaseFeatureMapper):
     def has_subnet_disable(self) -> bool:
         return "1.4" not in self.version
 
+    def has_dynamic_dns_update_leaf(self) -> bool:
+        return "1.4" in self.version
+
+    def has_dynamic_dns_update_kea(self) -> bool:
+        return "1.4" not in self.version
+
+    def has_failover_certificate(self) -> bool:
+        return "1.4" not in self.version
+
     def has_time_offset(self) -> bool:
         return True
 
@@ -781,6 +790,141 @@ class DHCPMapper(BaseFeatureMapper):
     def get_failover_status_path(self) -> List[str]:
         """Get command path for failover status deletion."""
         return ["service", "dhcp-server", "high-availability", "status"]
+
+    def get_failover_certificate(self, name: str) -> List[str]:
+        if not self.has_failover_certificate():
+            raise ValueError("high-availability certificate is not supported on this device")
+        return ["service", "dhcp-server", "high-availability", "certificate", name]
+
+    def get_failover_certificate_path(self) -> List[str]:
+        return ["service", "dhcp-server", "high-availability", "certificate"]
+
+    def get_failover_ca_certificate(self, name: str) -> List[str]:
+        if not self.has_failover_certificate():
+            raise ValueError("high-availability ca-certificate is not supported on this device")
+        return ["service", "dhcp-server", "high-availability", "ca-certificate", name]
+
+    def get_failover_ca_certificate_path(self) -> List[str]:
+        return ["service", "dhcp-server", "high-availability", "ca-certificate"]
+
+    def get_dynamic_dns_update(self) -> List[str]:
+        if not self.has_dynamic_dns_update_leaf():
+            raise ValueError("dynamic-dns-update leaf is not supported on this device")
+        return ["service", "dhcp-server", "dynamic-dns-update"]
+
+    def get_dynamic_dns_update_path(self) -> List[str]:
+        return ["service", "dhcp-server", "dynamic-dns-update"]
+
+    def _require_ddns_kea(self) -> None:
+        if not self.has_dynamic_dns_update_kea():
+            raise ValueError("Kea dynamic-dns-update is not supported on this device")
+
+    def get_ddns_send_updates(self, value: str) -> List[str]:
+        self._require_ddns_kea()
+        return ["service", "dhcp-server", "dynamic-dns-update", "send-updates", value]
+
+    def get_ddns_send_updates_path(self) -> List[str]:
+        return ["service", "dhcp-server", "dynamic-dns-update", "send-updates"]
+
+    def get_ddns_tsig_key(self, name: str) -> List[str]:
+        self._require_ddns_kea()
+        return ["service", "dhcp-server", "dynamic-dns-update", "tsig-key", name]
+
+    def get_ddns_tsig_key_path(self, name: str) -> List[str]:
+        return ["service", "dhcp-server", "dynamic-dns-update", "tsig-key", name]
+
+    def get_ddns_tsig_key_algorithm(self, name: str, algorithm: str) -> List[str]:
+        self._require_ddns_kea()
+        return [
+            "service", "dhcp-server", "dynamic-dns-update", "tsig-key", name,
+            "algorithm", algorithm,
+        ]
+
+    def get_ddns_tsig_key_algorithm_path(self, name: str) -> List[str]:
+        return [
+            "service", "dhcp-server", "dynamic-dns-update", "tsig-key", name, "algorithm",
+        ]
+
+    def get_ddns_tsig_key_secret(self, name: str, secret: str) -> List[str]:
+        self._require_ddns_kea()
+        return [
+            "service", "dhcp-server", "dynamic-dns-update", "tsig-key", name,
+            "secret", secret,
+        ]
+
+    def get_ddns_tsig_key_secret_path(self, name: str) -> List[str]:
+        return [
+            "service", "dhcp-server", "dynamic-dns-update", "tsig-key", name, "secret",
+        ]
+
+    def get_ddns_domain(self, kind: str, domain: str) -> List[str]:
+        self._require_ddns_kea()
+        if kind not in ("forward-domain", "reverse-domain"):
+            raise ValueError("invalid DDNS domain kind")
+        return ["service", "dhcp-server", "dynamic-dns-update", kind, domain]
+
+    def get_ddns_domain_path(self, kind: str, domain: str) -> List[str]:
+        if kind not in ("forward-domain", "reverse-domain"):
+            raise ValueError("invalid DDNS domain kind")
+        return ["service", "dhcp-server", "dynamic-dns-update", kind, domain]
+
+    def get_ddns_domain_key_name(self, kind: str, domain: str, key_name: str) -> List[str]:
+        self._require_ddns_kea()
+        if kind not in ("forward-domain", "reverse-domain"):
+            raise ValueError("invalid DDNS domain kind")
+        return [
+            "service", "dhcp-server", "dynamic-dns-update", kind, domain,
+            "key-name", key_name,
+        ]
+
+    def get_ddns_domain_key_name_path(self, kind: str, domain: str) -> List[str]:
+        if kind not in ("forward-domain", "reverse-domain"):
+            raise ValueError("invalid DDNS domain kind")
+        return [
+            "service", "dhcp-server", "dynamic-dns-update", kind, domain, "key-name",
+        ]
+
+    def get_ddns_domain_dns_server_address(
+        self, kind: str, domain: str, server_id: str, address: str
+    ) -> List[str]:
+        self._require_ddns_kea()
+        if kind not in ("forward-domain", "reverse-domain"):
+            raise ValueError("invalid DDNS domain kind")
+        return [
+            "service", "dhcp-server", "dynamic-dns-update", kind, domain,
+            "dns-server", server_id, "address", address,
+        ]
+
+    def get_ddns_domain_dns_server_address_path(
+        self, kind: str, domain: str, server_id: str
+    ) -> List[str]:
+        if kind not in ("forward-domain", "reverse-domain"):
+            raise ValueError("invalid DDNS domain kind")
+        return [
+            "service", "dhcp-server", "dynamic-dns-update", kind, domain,
+            "dns-server", server_id, "address",
+        ]
+
+    def get_ddns_domain_dns_server_port(
+        self, kind: str, domain: str, server_id: str, port: str
+    ) -> List[str]:
+        self._require_ddns_kea()
+        if kind not in ("forward-domain", "reverse-domain"):
+            raise ValueError("invalid DDNS domain kind")
+        return [
+            "service", "dhcp-server", "dynamic-dns-update", kind, domain,
+            "dns-server", server_id, "port", port,
+        ]
+
+    def get_ddns_domain_dns_server_path(
+        self, kind: str, domain: str, server_id: str
+    ) -> List[str]:
+        if kind not in ("forward-domain", "reverse-domain"):
+            raise ValueError("invalid DDNS domain kind")
+        return [
+            "service", "dhcp-server", "dynamic-dns-update", kind, domain,
+            "dns-server", server_id,
+        ]
 
     # ==================== Version-Specific Delegates ====================
 

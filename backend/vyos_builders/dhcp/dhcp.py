@@ -806,6 +806,94 @@ class DHCPBatchBuilder(BatchBuilder):
         path = self.mappers[self.mapper_key].get_failover_status_path()
         return self.add_delete(path)
 
+    def set_failover_certificate(self, name: str) -> "DHCPBatchBuilder":
+        path = self.mappers[self.mapper_key].get_failover_certificate(name)
+        return self.add_set(path)
+
+    def delete_failover_certificate(self) -> "DHCPBatchBuilder":
+        path = self.mappers[self.mapper_key].get_failover_certificate_path()
+        return self.add_delete(path)
+
+    def set_failover_ca_certificate(self, name: str) -> "DHCPBatchBuilder":
+        path = self.mappers[self.mapper_key].get_failover_ca_certificate(name)
+        return self.add_set(path)
+
+    def delete_failover_ca_certificate(self) -> "DHCPBatchBuilder":
+        path = self.mappers[self.mapper_key].get_failover_ca_certificate_path()
+        return self.add_delete(path)
+
+    def set_dynamic_dns_update(self) -> "DHCPBatchBuilder":
+        path = self.mappers[self.mapper_key].get_dynamic_dns_update()
+        return self.add_set(path)
+
+    def delete_dynamic_dns_update(self) -> "DHCPBatchBuilder":
+        path = self.mappers[self.mapper_key].get_dynamic_dns_update_path()
+        return self.add_delete(path)
+
+    def set_ddns_send_updates(self, value: str) -> "DHCPBatchBuilder":
+        path = self.mappers[self.mapper_key].get_ddns_send_updates(value)
+        return self.add_set(path)
+
+    def delete_ddns_send_updates(self) -> "DHCPBatchBuilder":
+        path = self.mappers[self.mapper_key].get_ddns_send_updates_path()
+        return self.add_delete(path)
+
+    def set_ddns_tsig_key(self, name: str) -> "DHCPBatchBuilder":
+        path = self.mappers[self.mapper_key].get_ddns_tsig_key(name)
+        return self.add_set(path)
+
+    def delete_ddns_tsig_key(self, name: str) -> "DHCPBatchBuilder":
+        path = self.mappers[self.mapper_key].get_ddns_tsig_key_path(name)
+        return self.add_delete(path)
+
+    def set_ddns_tsig_key_algorithm(self, name: str, algorithm: str) -> "DHCPBatchBuilder":
+        path = self.mappers[self.mapper_key].get_ddns_tsig_key_algorithm(name, algorithm)
+        return self.add_set(path)
+
+    def set_ddns_tsig_key_secret(self, name: str, secret: str) -> "DHCPBatchBuilder":
+        path = self.mappers[self.mapper_key].get_ddns_tsig_key_secret(name, secret)
+        return self.add_set(path)
+
+    def set_ddns_domain(self, kind: str, domain: str) -> "DHCPBatchBuilder":
+        path = self.mappers[self.mapper_key].get_ddns_domain(kind, domain)
+        return self.add_set(path)
+
+    def delete_ddns_domain(self, kind: str, domain: str) -> "DHCPBatchBuilder":
+        path = self.mappers[self.mapper_key].get_ddns_domain_path(kind, domain)
+        return self.add_delete(path)
+
+    def set_ddns_domain_key_name(self, kind: str, domain: str, key_name: str) -> "DHCPBatchBuilder":
+        path = self.mappers[self.mapper_key].get_ddns_domain_key_name(kind, domain, key_name)
+        return self.add_set(path)
+
+    def delete_ddns_domain_key_name(self, kind: str, domain: str) -> "DHCPBatchBuilder":
+        path = self.mappers[self.mapper_key].get_ddns_domain_key_name_path(kind, domain)
+        return self.add_delete(path)
+
+    def set_ddns_domain_dns_server_address(
+        self, kind: str, domain: str, server_id: str, address: str
+    ) -> "DHCPBatchBuilder":
+        path = self.mappers[self.mapper_key].get_ddns_domain_dns_server_address(
+            kind, domain, server_id, address
+        )
+        return self.add_set(path)
+
+    def set_ddns_domain_dns_server_port(
+        self, kind: str, domain: str, server_id: str, port: str
+    ) -> "DHCPBatchBuilder":
+        path = self.mappers[self.mapper_key].get_ddns_domain_dns_server_port(
+            kind, domain, server_id, port
+        )
+        return self.add_set(path)
+
+    def delete_ddns_domain_dns_server(
+        self, kind: str, domain: str, server_id: str
+    ) -> "DHCPBatchBuilder":
+        path = self.mappers[self.mapper_key].get_ddns_domain_dns_server_path(
+            kind, domain, server_id
+        )
+        return self.add_delete(path)
+
     # ========================================================================
     # Capabilities
     # ========================================================================
@@ -871,6 +959,22 @@ class DHCPBatchBuilder(BatchBuilder):
                 "static_mapping_duid": {
                     "supported": mapper.has_static_mapping_duid(),
                     "description": "Identify a static mapping by DUID",
+                },
+                "failover": {
+                    "supported": True,
+                    "description": "DHCP high-availability peer",
+                },
+                "failover_certificate": {
+                    "supported": mapper.has_failover_certificate(),
+                    "description": "TLS certificate for DHCP high availability",
+                },
+                "dynamic_dns_update_leaf": {
+                    "supported": mapper.has_dynamic_dns_update_leaf(),
+                    "description": "Enable DHCP dynamic DNS updates",
+                },
+                "dynamic_dns_update_kea": {
+                    "supported": mapper.has_dynamic_dns_update_kea(),
+                    "description": "Kea dynamic DNS update settings",
                 },
                 "network_disable": {
                     "supported": True,
