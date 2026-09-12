@@ -55,7 +55,7 @@ class InputInterfacesConfigResponse(BaseModel):
 @router.get("/capabilities")
 async def get_capabilities(request: Request) -> Dict[str, Any]:
     """Return version-aware feature capabilities for input interfaces."""
-    await require_read_permission(request, FeatureGroup.INTERFACES)
+    await require_read_permission(request, FeatureGroup.INPUT_IFACE)
     service = get_session_vyos_service(request)
     from vyos_builders.interfaces.input import InputInterfaceBuilderMixin
     builder = InputInterfaceBuilderMixin(version=service.get_version())
@@ -65,7 +65,7 @@ async def get_capabilities(request: Request) -> Dict[str, Any]:
 @router.get("/config", response_model=InputInterfacesConfigResponse)
 async def get_config(http_request: Request, refresh: bool = False) -> InputInterfacesConfigResponse:
     """Get all input (IFB) interface configurations from VyOS."""
-    await require_read_permission(http_request, FeatureGroup.INTERFACES)
+    await require_read_permission(http_request, FeatureGroup.INPUT_IFACE)
     try:
         service = get_session_vyos_service(http_request)
         full_config = await run_in_threadpool(service.get_full_config, refresh)
@@ -96,7 +96,7 @@ async def batch_configure(http_request: Request, request: BatchRequest) -> VyOSR
     | `delete_redirect` | No | Remove redirect |
     | `delete_interface` | No | Delete entire interface |
     """
-    await require_write_permission(http_request, FeatureGroup.INTERFACES)
+    await require_write_permission(http_request, FeatureGroup.INPUT_IFACE)
 
     service = get_session_vyos_service(http_request)
     batch = service.create_input_batch()

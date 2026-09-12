@@ -1,7 +1,6 @@
-"""Unit tests for the interface feature-group fallback (issue #428).
+"""Unit tests for the interface feature-group fallback (issues #428, #658).
 
-The six interface routers with dedicated feature groups (PSEUDO_ETHERNET,
-VIRTUAL_ETHERNET, VPP, VTI, WIRELESS, WWAN) enforce their own group, and
+Interface routers with dedicated feature groups enforce their own group, and
 ``_apply_parent_child_permissions`` propagates an INTERFACES grant to those
 groups. Together that gives the "dedicated group first, INTERFACES as
 fallback" behavior: a dedicated grant works on its own, an INTERFACES-only
@@ -21,6 +20,14 @@ from rbac_permissions import (
 
 
 DEDICATED_INTERFACE_GROUPS = [
+    FeatureGroup.BONDING,
+    FeatureGroup.BRIDGE,
+    FeatureGroup.DUMMY,
+    FeatureGroup.ETHERNET,
+    FeatureGroup.GENEVE,
+    FeatureGroup.INPUT_IFACE,
+    FeatureGroup.LOOPBACK,
+    FeatureGroup.MACSEC,
     FeatureGroup.PSEUDO_ETHERNET,
     FeatureGroup.VIRTUAL_ETHERNET,
     FeatureGroup.VPP,
@@ -30,6 +37,14 @@ DEDICATED_INTERFACE_GROUPS = [
 ]
 
 ROUTER_FILES = {
+    FeatureGroup.BONDING: "bonding.py",
+    FeatureGroup.BRIDGE: "bridge.py",
+    FeatureGroup.DUMMY: "dummy.py",
+    FeatureGroup.ETHERNET: "ethernet.py",
+    FeatureGroup.GENEVE: "geneve.py",
+    FeatureGroup.INPUT_IFACE: "input.py",
+    FeatureGroup.LOOPBACK: "loopback.py",
+    FeatureGroup.MACSEC: "macsec.py",
     FeatureGroup.PSEUDO_ETHERNET: "pseudo_ethernet.py",
     FeatureGroup.VIRTUAL_ETHERNET: "virtual_ethernet.py",
     FeatureGroup.VPP: "vpp.py",
@@ -66,7 +81,7 @@ def test_dedicated_grant_alone_grants_access():
                 assert permissions[other] == PermissionLevel.NONE
 
 
-def test_interfaces_only_grant_still_covers_all_six():
+def test_interfaces_only_grant_still_covers_all_dedicated():
     permissions = all_none()
     permissions[FeatureGroup.INTERFACES] = PermissionLevel.WRITE
     _apply_parent_child_permissions(permissions)

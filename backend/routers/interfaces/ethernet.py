@@ -342,7 +342,7 @@ async def get_ethernet_capabilities(request: Request) -> Dict[str, Any]:
     ```
     """
     # Check RBAC permission
-    await require_read_permission(request, FeatureGroup.INTERFACES)
+    await require_read_permission(request, FeatureGroup.ETHERNET)
 
     try:
         service = get_session_vyos_service(request)
@@ -948,7 +948,7 @@ async def get_ethernet_config(http_request: Request) -> EthernetInterfacesConfig
     Returns configuration details including addresses, description, speed, duplex, hw_id, etc.
     """
     # Check RBAC permission
-    await require_read_permission(http_request, FeatureGroup.INTERFACES)
+    await require_read_permission(http_request, FeatureGroup.ETHERNET)
 
     from vyos_mappers.interfaces import EthernetInterfaceMapper
 
@@ -977,7 +977,7 @@ async def get_ethernet_transceiver(
     interface: str = Path(..., pattern=r"^eth\d+(?:\.\d+)?$"),
 ) -> TransceiverStatus:
     """Return live SFP/SFP+ DDM diagnostics for one Ethernet interface."""
-    await require_read_permission(http_request, FeatureGroup.INTERFACES)
+    await require_read_permission(http_request, FeatureGroup.ETHERNET)
     try:
         service = get_session_vyos_service(http_request)
         response = await run_in_threadpool(
@@ -1186,7 +1186,7 @@ async def configure_interface_batch(http_request: Request, request: InterfaceBat
     ```
     """
     # Check RBAC permission
-    await require_write_permission(http_request, FeatureGroup.INTERFACES)
+    await require_write_permission(http_request, FeatureGroup.ETHERNET)
 
     try:
         service = get_session_vyos_service(http_request)

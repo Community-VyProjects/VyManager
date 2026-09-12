@@ -1070,10 +1070,10 @@ def _apply_parent_child_permissions(permissions: Dict[FeatureGroup, PermissionLe
                 permissions[child] = PermissionLevel.READ
 
     # INTERFACES grants permissions to all interface sub-types.
-    # Load-bearing fallback: the interface routers with dedicated groups
-    # (PSEUDO_ETHERNET, VIRTUAL_ETHERNET, VPP, VTI, WIRELESS, WWAN) enforce
-    # their own group, and this propagation is what keeps INTERFACES-only
-    # roles working on them. Removing a child here revokes that fallback.
+    # Load-bearing fallback: interface routers with dedicated groups
+    # enforce their own group, and this propagation is what keeps
+    # INTERFACES-only roles working on them. Removing a child here
+    # revokes that fallback.
     interfaces_perm = permissions.get(FeatureGroup.INTERFACES, PermissionLevel.NONE)
     if interfaces_perm != PermissionLevel.NONE:
         interface_children = [

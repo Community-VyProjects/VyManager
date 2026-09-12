@@ -247,7 +247,7 @@ class BondingInterfacesConfigResponse(BaseModel):
 @router.get("/capabilities")
 async def get_bonding_capabilities(request: Request):
     """Get bonding feature capabilities based on device VyOS version."""
-    await require_read_permission(request, FeatureGroup.INTERFACES)
+    await require_read_permission(request, FeatureGroup.BONDING)
 
     try:
         service = get_session_vyos_service(request)
@@ -274,7 +274,7 @@ async def get_bonding_capabilities(request: Request):
 @router.get("/config", response_model=BondingInterfacesConfigResponse)
 async def get_bonding_config(http_request: Request) -> BondingInterfacesConfigResponse:
     """Get all bonding interface configurations from VyOS."""
-    await require_read_permission(http_request, FeatureGroup.INTERFACES)
+    await require_read_permission(http_request, FeatureGroup.BONDING)
 
     from vyos_mappers.interfaces.bonding_versions import get_bonding_mapper
 
@@ -372,7 +372,7 @@ async def configure_bonding_batch(http_request: Request, request: BondingBatchRe
 
     All operations are version-aware and sent to VyOS in a single batch.
     """
-    await require_write_permission(http_request, FeatureGroup.INTERFACES)
+    await require_write_permission(http_request, FeatureGroup.BONDING)
 
     try:
         service = get_session_vyos_service(http_request)

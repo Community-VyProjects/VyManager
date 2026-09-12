@@ -171,7 +171,7 @@ class MacsecInterfacesConfigResponse(BaseModel):
 @router.get("/capabilities")
 async def get_capabilities(request: Request) -> Dict[str, Any]:
     """Return version-aware feature capabilities for MACsec interfaces."""
-    await require_read_permission(request, FeatureGroup.INTERFACES)
+    await require_read_permission(request, FeatureGroup.MACSEC)
     service = get_session_vyos_service(request)
     from vyos_builders.interfaces.macsec import MacsecInterfaceBuilderMixin
     builder = MacsecInterfaceBuilderMixin(version=service.get_version())
@@ -181,7 +181,7 @@ async def get_capabilities(request: Request) -> Dict[str, Any]:
 @router.get("/config", response_model=MacsecInterfacesConfigResponse)
 async def get_config(http_request: Request, refresh: bool = False) -> MacsecInterfacesConfigResponse:
     """Get all MACsec interface configurations from VyOS."""
-    await require_read_permission(http_request, FeatureGroup.INTERFACES)
+    await require_read_permission(http_request, FeatureGroup.MACSEC)
     try:
         service = get_session_vyos_service(http_request)
         full_config = await run_in_threadpool(service.get_full_config, refresh)
@@ -240,7 +240,7 @@ async def batch_configure(http_request: Request, request: BatchRequest) -> VyOSR
     | `delete_security_static_peer_mac` | Yes | Remove peer MAC |
     | `delete_interface` | No | Delete entire interface |
     """
-    await require_write_permission(http_request, FeatureGroup.INTERFACES)
+    await require_write_permission(http_request, FeatureGroup.MACSEC)
 
     service = get_session_vyos_service(http_request)
     batch = service.create_macsec_batch()

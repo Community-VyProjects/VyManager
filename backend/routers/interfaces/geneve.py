@@ -98,7 +98,7 @@ class GeneveInterfacesConfigResponse(BaseModel):
 @router.get("/capabilities")
 async def get_capabilities(request: Request) -> Dict[str, Any]:
     """Return version-aware feature capabilities for geneve interfaces."""
-    await require_read_permission(request, FeatureGroup.INTERFACES)
+    await require_read_permission(request, FeatureGroup.GENEVE)
     service = get_session_vyos_service(request)
     from vyos_builders.interfaces.geneve import GeneveInterfaceBuilderMixin
     builder = GeneveInterfaceBuilderMixin(version=service.get_version())
@@ -108,7 +108,7 @@ async def get_capabilities(request: Request) -> Dict[str, Any]:
 @router.get("/config", response_model=GeneveInterfacesConfigResponse)
 async def get_config(http_request: Request, refresh: bool = False) -> GeneveInterfacesConfigResponse:
     """Get all geneve interface configurations from VyOS."""
-    await require_read_permission(http_request, FeatureGroup.INTERFACES)
+    await require_read_permission(http_request, FeatureGroup.GENEVE)
     try:
         service = get_session_vyos_service(http_request)
         full_config = await run_in_threadpool(service.get_full_config, refresh)
@@ -211,7 +211,7 @@ async def batch_configure(http_request: Request, request: BatchRequest) -> VyOSR
     | `set_ipv6_address_interface_identifier` | Yes | Set SLAAC interface identifier |
     | `delete_ipv6_address_interface_identifier` | No | Remove SLAAC interface identifier |
     """
-    await require_write_permission(http_request, FeatureGroup.INTERFACES)
+    await require_write_permission(http_request, FeatureGroup.GENEVE)
 
     service = get_session_vyos_service(http_request)
     batch = service.create_geneve_batch()
