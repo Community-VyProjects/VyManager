@@ -83,7 +83,8 @@ type Tab = "network" | "subnet" | "ranges" | "net-options";
 
 export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSuccess }: Props) {
   const isEditing = network !== null;
-  const is15 = caps.version_info.is_1_5;
+  const namedRanges = caps.features.address_ranges_named?.supported ?? false;
+  const classicRanges = caps.features.address_ranges_classic?.supported ?? false;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>("network");
@@ -242,8 +243,8 @@ export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSucce
       };
 
       let rangeObj: DHCPv6AddressRange | undefined;
-      const hasRange15 = is15 && (rangeStart.trim() || rangeStop.trim() || rangePrefix.trim());
-      const hasRange14 = !is15 && (
+      const hasRange15 = namedRanges && (rangeStart.trim() || rangeStop.trim() || rangePrefix.trim());
+      const hasRange14 = classicRanges && (
         (range14Mode === "start-stop" && range14Start.trim() && range14Stop.trim()) ||
         (range14Mode === "prefix" && range14Prefix.trim())
       );
@@ -257,7 +258,7 @@ export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSucce
         }
       }
 
-      const result = await dhcpv6ServerService.createSharedNetworkWithSubnet(updatedNetwork, subnet, rangeObj, is15);
+      const result = await dhcpv6ServerService.createSharedNetworkWithSubnet(updatedNetwork, subnet, rangeObj, namedRanges);
       setLoading(false);
       if (!result.success) { setError(result.error ?? "Failed to create network"); return; }
     }
@@ -584,7 +585,7 @@ export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSucce
                   Optional — you can add address ranges after creating the network.
                 </p>
 
-                {is15 ? (
+                {namedRanges ? (
                   <>
                     <div className="space-y-1.5">
                       <Label htmlFor="range-start">Start Address</Label>

@@ -157,7 +157,9 @@ export function DHCPv6ServerContent() {
   // ── Derived data ───────────────────────────────────────────────────────────
 
   const currentNetwork = config?.shared_networks.find(n => n.name === selectedNetwork) ?? null;
-  const is15 = caps?.version_info.is_1_5 ?? false;
+  const namedRanges = caps?.features.address_ranges_named?.supported ?? false;
+  const classicRanges = caps?.features.address_ranges_classic?.supported ?? false;
+  const pdV15 = caps?.features.prefix_delegation_v15?.supported ?? false;
   const allSubnetCidrs = currentNetwork?.subnets.map(s => s.subnet) ?? [];
 
   function getAllRanges(): Array<DHCPv6AddressRange & { subnetCidr: string }> {
@@ -250,9 +252,9 @@ export function DHCPv6ServerContent() {
     } else if (deleteTarget.kind === "subnet") {
       result = await dhcpv6ServerService.deleteSubnet(selectedNetwork, deleteTarget.subnetCidr);
     } else if (deleteTarget.kind === "range") {
-      result = await dhcpv6ServerService.deleteAddressRange(selectedNetwork, deleteTarget.subnetCidr, is15, deleteTarget.range);
+      result = await dhcpv6ServerService.deleteAddressRange(selectedNetwork, deleteTarget.subnetCidr, namedRanges, deleteTarget.range);
     } else if (deleteTarget.kind === "pd") {
-      result = await dhcpv6ServerService.deletePrefixDelegation(selectedNetwork, deleteTarget.subnetCidr, is15, deleteTarget.pd);
+      result = await dhcpv6ServerService.deletePrefixDelegation(selectedNetwork, deleteTarget.subnetCidr, pdV15, deleteTarget.pd);
     } else {
       result = await dhcpv6ServerService.deleteStaticMapping(selectedNetwork, deleteTarget.subnetCidr, deleteTarget.mapping.name);
     }
@@ -717,11 +719,11 @@ export function DHCPv6ServerContent() {
                           <TableHeader>
                             <TableRow className="hover:bg-transparent">
                               <TableHead>Subnet</TableHead>
-                              {is15 && <TableHead>Range ID</TableHead>}
+                              {namedRanges && <TableHead>Range ID</TableHead>}
                               <TableHead>Start</TableHead>
                               <TableHead>Stop</TableHead>
                               <TableHead>Prefix</TableHead>
-                              {!is15 && <TableHead>Temporary</TableHead>}
+                              {classicRanges && <TableHead>Temporary</TableHead>}
                               <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                           </TableHeader>
@@ -731,7 +733,7 @@ export function DHCPv6ServerContent() {
                                 <TableCell>
                                   <Badge variant="outline" className="font-mono">{r.subnetCidr}</Badge>
                                 </TableCell>
-                                {is15 && <TableCell className="font-mono">{r.range_id}</TableCell>}
+                                {namedRanges && <TableCell className="font-mono">{r.range_id}</TableCell>}
                                 <TableCell className="font-mono">
                                   {r.start ?? <span className="text-muted-foreground">—</span>}
                                 </TableCell>
@@ -741,7 +743,7 @@ export function DHCPv6ServerContent() {
                                 <TableCell className="font-mono">
                                   {r.prefix ?? <span className="text-muted-foreground">—</span>}
                                 </TableCell>
-                                {!is15 && (
+                                {classicRanges && (
                                   <TableCell>
                                     {r.temporary
                                       ? <Badge variant="secondary">Yes</Badge>
@@ -812,7 +814,7 @@ export function DHCPv6ServerContent() {
                           <h3 className="text-lg font-semibold mb-2">No Prefix Delegations</h3>
                           <p className="text-sm text-muted-foreground">No prefix delegations configured</p>
                         </div>
-                      ) : is15 ? (
+                      ) : pdV15 ? (
                         <Table>
                           <TableHeader>
                             <TableRow className="hover:bg-transparent">
