@@ -1,4 +1,9 @@
-from pppoe_status import PPPoEPpsTracker, parse_pppoe_interface_statistics, parse_pppoe_sessions
+from pppoe_status import (
+    PPPoEPpsTracker,
+    PPPoESession,
+    parse_accel_ppp_sessions,
+    parse_pppoe_sessions,
+)
 
 
 def test_pppoe_pps_tracker_uses_counter_delta_and_elapsed_time():
@@ -24,17 +29,140 @@ def test_pppoe_pps_tracker_throttles_sampling_by_min_interval():
     assert tracker.update("device:ppp0", 220, 440, timestamp=11.0) == (120.0, 240.0)
 
 
-def test_parse_pppoe_interface_statistics():
-    output = """
-      IN   PACK VJCOMP  VJUNC  VJERR  |      OUT   PACK VJCOMP  VJUNC NON-VJ
-322444349 480580      0      0      0  | 2074508103 1731184      0      0 1731184
-"""
+def test_annotate_sessions_derives_pps_from_packet_counter_deltas():
+    tracker = PPPoEPpsTracker()
+    device = "device-a"
 
-    assert parse_pppoe_interface_statistics(output) == (480580, 1731184)
+    first = [PPPoESession(interface="ppp0", username="u", state="active", rx_packets=100, tx_packets=200)]
+    tracker.annotate_sessions(device, first)
+    # No prior sample yet, so PPS is unknown on the first poll.
+    assert first[0].rx_pps is None and first[0].tx_pps is None
+
+    # Advance the tracker's stored timestamp so elapsed > 0 on the next poll.
+    import time as _time
+    key = f"{device}:ppp0"
+    rx, tx, _ = tracker._previous[key]
+    tracker._previous[key] = (rx, tx, _time.monotonic() - 4.0)
+
+    second = [PPPoESession(interface="ppp0", username="u", state="active", rx_packets=140, tx_packets=280)]
+    tracker.annotate_sessions(device, second)
+    assert second[0].rx_pps is not None and second[0].rx_pps > 0
+    assert second[0].tx_pps is not None and second[0].tx_pps > second[0].rx_pps
 
 
-def test_parse_empty_pppoe_interface_statistics():
-    assert parse_pppoe_interface_statistics("") == (None, None)
+def test_annotate_sessions_scopes_counters_per_device():
+    tracker = PPPoEPpsTracker()
+
+    a = [PPPoESession(interface="ppp0", username="u", state="active", rx_packets=100, tx_packets=100)]
+    b = [PPPoESession(interface="ppp0", username="u", state="active", rx_packets=999, tx_packets=999)]
+    tracker.annotate_sessions("device-a", a)
+    tracker.annotate_sessions("device-b", b)
+
+    # Different device keys must not share counter history for the same interface.
+    assert tracker._previous["device-a:ppp0"][0] == 100
+    assert tracker._previous["device-b:ppp0"][0] == 999
+
+
+def test_parse_accel_ppp_sessions_reads_packet_counters_and_bytes():
+    result = [
+        {
+            "ifname": "ppp0",
+            "username": "labuser",
+            "ip": "10.55.55.10",
+            "ip6": "",
+            "ip6_dp": "",
+            "type": "pppoe",
+            "rate_limit": "10000/5000",
+            "state": "active",
+            "uptime_raw": "30",
+            "calling_sid": "5a:2f:45:d9:b0:16",
+            "sid": "7da9cdc301f030c1",
+            "comp": "",
+            "rx_bytes_raw": "4186",
+            "tx_bytes_raw": "3870",
+            "rx_pkts": "29",
+            "tx_pkts": "25",
+        }
+    ]
+
+    sessions = parse_accel_ppp_sessions(result)
+
+    assert len(sessions) == 1
+    s = sessions[0]
+    assert s.interface == "ppp0"
+    assert s.username == "labuser"
+    assert s.ip == "10.55.55.10"
+    assert s.rate_limit == "10000/5000"
+    assert s.rx_bytes == 4186
+    assert s.tx_bytes == 3870
+    assert s.rx_packets == 29
+    assert s.tx_packets == 25
+    assert s.uptime == "00:00:30"
+    # Empty accel-ppp fields become None, not "".
+    assert s.ipv6 is None
+    assert s.ipv6_delegated is None
+
+
+def test_parse_accel_ppp_sessions_formats_dual_stack_and_long_uptime():
+    result = [
+        {
+            "ifname": "ppp2",
+            "username": "user-1",
+            "ip": "192.0.2.10",
+            "ip6": "2001:db8:200::/64",
+            "ip6_dp": "2001:db8:140::/56",
+            "state": "active",
+            "uptime_raw": str(2 * 86400 + 3 * 3600 + 4 * 60 + 5),
+            "rx_bytes_raw": "1000",
+            "tx_bytes_raw": "2000",
+            "rx_pkts": "10",
+            "tx_pkts": "20",
+        }
+    ]
+
+    s = parse_accel_ppp_sessions(result)[0]
+
+    assert s.ipv6 == "2001:db8:200::/64"
+    assert s.ipv6_delegated == "2001:db8:140::/56"
+    assert s.uptime == "2d 03:04:05"
+
+
+def test_parse_accel_ppp_sessions_accepts_json_encoded_string_result():
+    import json
+    result = json.dumps([
+        {"ifname": "ppp0", "username": "u", "state": "active", "rx_pkts": "5", "tx_pkts": "6"}
+    ])
+
+    sessions = parse_accel_ppp_sessions(result)
+
+    assert len(sessions) == 1
+    assert sessions[0].rx_packets == 5
+    assert sessions[0].tx_packets == 6
+
+
+def test_parse_accel_ppp_sessions_ignores_incomplete_or_invalid_rows():
+    assert parse_accel_ppp_sessions(None) == []
+    assert parse_accel_ppp_sessions("not json") == []
+    assert parse_accel_ppp_sessions([{"ifname": "ppp0"}]) == []  # missing username
+    assert parse_accel_ppp_sessions([{"username": "u"}]) == []  # missing ifname
+    assert parse_accel_ppp_sessions(["nonsense", 42]) == []
+
+
+def test_parse_accel_ppp_sessions_missing_counters_leave_pps_unknown():
+    result = [{"ifname": "ppp0", "username": "u", "state": "active"}]
+
+    s = parse_accel_ppp_sessions(result)[0]
+
+    assert s.rx_packets is None
+    assert s.tx_packets is None
+    assert s.rx_bytes == 0
+    assert s.tx_bytes == 0
+
+
+# ----------------------------------------------------------------------------
+# Text-table fallback (parse_pppoe_sessions): retained for when the structured
+# ShowSessionsAccelppp operation is unavailable.
+# ----------------------------------------------------------------------------
 
 
 def test_parse_ipv4_pppoe_session_table():

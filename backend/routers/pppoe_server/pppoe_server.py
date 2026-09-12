@@ -16,9 +16,9 @@ from fastapi_permissions import require_read_permission, require_write_permissio
 from rbac_permissions import FeatureGroup
 from starlette.concurrency import run_in_threadpool
 from pppoe_status import (
-    PPPoEStatsStore,
     PPPoEPpsTracker,
     PPPoESessionsResponse,
+    fetch_accel_ppp_sessions,
     parse_pppoe_sessions,
 )
 import inspect
@@ -28,7 +28,10 @@ from batch_dispatch import resolve_batch_method
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/pppoe-server", tags=["pppoe-server"])
-_pppoe_stats_store = PPPoEStatsStore()
+# Derives per-session PPS from packet-counter deltas across polls. Scoped per
+# router connection inside annotate_sessions. min_sample_interval guards against
+# noisy sub-second deltas when the UI polls rapidly.
+_pppoe_pps_tracker = PPPoEPpsTracker(min_sample_interval=1.0)
 
 
 # ========================================================================
@@ -107,28 +110,32 @@ async def get_pppoe_sessions(
     limit: int = Query(default=500, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),
 ):
-    """Return active PPPoE sessions and backend-maintained PPS snapshots.
+    """Return active PPPoE sessions with per-session packet counters and PPS.
 
-    The backend will not hammer every PPPoE interface statistics endpoint on
-    each request. Instead, it spreads one survey per session across a
-    configurable rolling window, and returns stored RX/TX PPS values from the
-    backend-owned stats store.
+    Sessions are read in a single ``ShowSessionsAccelppp`` GraphQL call, which
+    returns cumulative ``rx_pkts``/``tx_pkts`` for every session. PPS is derived
+    from the counter deltas between polls. If that structured operation is
+    unavailable, the endpoint falls back to parsing the ``show pppoe-server
+    sessions`` text table, which has no packet counters, so PPS is left unset.
     """
     await require_read_permission(http_request, FeatureGroup.PPPOE)
     try:
         service = get_session_vyos_service(http_request)
-        response = await run_in_threadpool(service.device.show, path=["pppoe-server", "sessions"])
-        if response.status != 200:
-            raise HTTPException(
-                status_code=502,
-                detail=response.error or "Unable to read PPPoE sessions",
-            )
-        output = response.result.get("data", "") if isinstance(response.result, dict) else response.result
-        sessions = parse_pppoe_sessions(output or "")
 
-        # Spread the statistics query load over the configured window so the
-        # backend stores PPS values and only samples sessions when due.
-        await _pppoe_stats_store.sample_due_sessions(service, sessions)
+        sessions = await fetch_accel_ppp_sessions(service)
+        if sessions is None:
+            # Structured op unavailable; fall back to the text-table path.
+            response = await run_in_threadpool(service.device.show, path=["pppoe-server", "sessions"])
+            if response.status != 200:
+                raise HTTPException(
+                    status_code=502,
+                    detail=response.error or "Unable to read PPPoE sessions",
+                )
+            output = response.result.get("data", "") if isinstance(response.result, dict) else response.result
+            sessions = parse_pppoe_sessions(output or "")
+
+        # Derive RX/TX PPS from the packet-counter deltas since the previous poll.
+        _pppoe_pps_tracker.annotate_sessions(str(id(service.device)), sessions)
 
         total = len(sessions)
         page = sessions[offset:offset + limit]

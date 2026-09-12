@@ -15465,7 +15465,7 @@
           "pppoe-server"
         ],
         "summary": "Get Pppoe Sessions",
-        "description": "Return active PPPoE sessions and their cumulative traffic counters.",
+        "description": "Return active PPPoE sessions with per-session packet counters and derived packets-per-second.",
         "operationId": "get_pppoe_sessions_vyos_pppoe_server_sessions_get",
         "parameters": [
           {
