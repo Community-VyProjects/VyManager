@@ -15,6 +15,7 @@ export interface DHCPStaticMapping {
   name: string;
   ip_address?: string;
   mac_address?: string;
+  duid?: string;
   disable: boolean;
   description?: string;
 }
@@ -68,6 +69,7 @@ export interface DHCPFailoverConfig {
 export interface DHCPGlobalConfig {
   disable?: boolean;
   listen_addresses: string[];
+  listen_interfaces: string[];
   hostfile_update: boolean;
   host_decl_name: boolean;
 }
@@ -139,6 +141,11 @@ export interface DHCPCapabilitiesResponse {
     // Disable / description
     description: DHCPFieldCapability;
     global_disable: DHCPFieldCapability;
+    listen_address: DHCPFieldCapability;
+    listen_interface: DHCPFieldCapability;
+    hostfile_update: DHCPFieldCapability;
+    host_decl_name: DHCPFieldCapability;
+    static_mapping_duid: DHCPFieldCapability;
     network_disable: DHCPFieldCapability;
     subnet_disable: DHCPFieldCapability;
   };
@@ -747,18 +754,27 @@ class DHCPService {
     mapping_name: string,
     ip_address: string,
     mac_address: string,
-    description?: string
+    description?: string,
+    duid?: string
   ): Promise<VyOSResponse> {
     const operations: DHCPBatchOperation[] = [
       {
         op: "set_static_mapping_ip_address",
         value: `${mapping_name}|${ip_address}`,
       },
-      {
+    ];
+    if (mac_address.trim()) {
+      operations.push({
         op: "set_static_mapping_mac_address",
         value: `${mapping_name}|${mac_address}`,
-      },
-    ];
+      });
+    }
+    if (duid?.trim()) {
+      operations.push({
+        op: "set_static_mapping_duid",
+        value: `${mapping_name}|${duid.trim()}`,
+      });
+    }
     if (description?.trim()) {
       operations.push({
         op: "set_static_mapping_description",
@@ -783,10 +799,12 @@ class DHCPService {
     config: {
       ip_address?: string;
       mac_address?: string;
+      duid?: string;
       disable?: boolean;
       description?: string;
       delete_ip_address?: boolean;
       delete_mac_address?: boolean;
+      delete_duid?: boolean;
       delete_description?: boolean;
     }
   ): Promise<VyOSResponse> {
@@ -815,6 +833,18 @@ class DHCPService {
       operations.push({
         op: "set_static_mapping_mac_address",
         value: `${mapping_name}|${config.mac_address}`,
+      });
+    }
+
+    if (config.delete_duid) {
+      operations.push({
+        op: "delete_static_mapping_duid",
+        value: mapping_name,
+      });
+    } else if (config.duid) {
+      operations.push({
+        op: "set_static_mapping_duid",
+        value: `${mapping_name}|${config.duid}`,
       });
     }
 
@@ -882,6 +912,42 @@ class DHCPService {
     return this.batchConfigure({
       network_name: "_global",
       operations: [{ op: "delete_global_disable" }],
+    });
+  }
+
+  async saveGlobalSettings(
+    original: DHCPGlobalConfig,
+    updated: DHCPGlobalConfig
+  ): Promise<VyOSResponse> {
+    const operations: DHCPBatchOperation[] = [];
+    const addedAddr = updated.listen_addresses.filter((a) => !original.listen_addresses.includes(a));
+    const removedAddr = original.listen_addresses.filter((a) => !updated.listen_addresses.includes(a));
+    for (const a of removedAddr) operations.push({ op: "delete_listen_address", value: a });
+    for (const a of addedAddr) operations.push({ op: "set_listen_address", value: a });
+
+    const origIfaces = original.listen_interfaces ?? [];
+    const nextIfaces = updated.listen_interfaces ?? [];
+    const addedIface = nextIfaces.filter((i) => !origIfaces.includes(i));
+    const removedIface = origIfaces.filter((i) => !nextIfaces.includes(i));
+    for (const i of removedIface) operations.push({ op: "delete_listen_interface", value: i });
+    for (const i of addedIface) operations.push({ op: "set_listen_interface", value: i });
+
+    if (updated.hostfile_update !== original.hostfile_update) {
+      operations.push({
+        op: updated.hostfile_update ? "set_hostfile_update" : "delete_hostfile_update",
+      });
+    }
+    if (updated.host_decl_name !== original.host_decl_name) {
+      operations.push({
+        op: updated.host_decl_name ? "set_host_decl_name" : "delete_host_decl_name",
+      });
+    }
+    if (operations.length === 0) {
+      return { success: true };
+    }
+    return this.batchConfigure({
+      network_name: "_global",
+      operations,
     });
   }
 
