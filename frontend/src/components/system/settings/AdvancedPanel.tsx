@@ -45,6 +45,7 @@ import {
   type FrrBmpTarget,
 } from "@/lib/api/system-settings";
 import { useToast } from "@/hooks/useToast";
+import { InterfaceSelect } from "@/components/ui/interface-select";
 import { ArchiveRestoreModal } from "./ArchiveRestoreModal";
 
 const FRR_PROFILES = ["datacenter", "traditional"];
@@ -1275,7 +1276,12 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
                 <div className="space-y-1.5">
                   <Label className="text-xs">Source interface</Label>
                   {editingOpts ? (
-                    <Input value={optHttpIface} onChange={(e) => setOptHttpIface(e.target.value)} placeholder="eth0" className="text-sm" />
+                    <InterfaceSelect
+                      value={optHttpIface || "__none__"}
+                      onValueChange={(v) => setOptHttpIface(v === "__none__" ? "" : v)}
+                      noneOption={{ label: "Not set", value: "__none__" }}
+                      className="font-mono text-sm"
+                    />
                   ) : (
                     <p className="text-sm">{opts?.http_client?.source_interface ?? <span className="text-muted-foreground">Not set</span>}</p>
                   )}
@@ -1294,7 +1300,12 @@ export function AdvancedPanel({ config, capabilities, isReadOnly, onRefresh }: P
                 <div className="space-y-1.5">
                   <Label className="text-xs">Source interface</Label>
                   {editingOpts ? (
-                    <Input value={optSshIface} onChange={(e) => setOptSshIface(e.target.value)} placeholder="eth0" className="text-sm" />
+                    <InterfaceSelect
+                      value={optSshIface || "__none__"}
+                      onValueChange={(v) => setOptSshIface(v === "__none__" ? "" : v)}
+                      noneOption={{ label: "Not set", value: "__none__" }}
+                      className="font-mono text-sm"
+                    />
                   ) : (
                     <p className="text-sm">{opts?.ssh_client?.source_interface ?? <span className="text-muted-foreground">Not set</span>}</p>
                   )}
