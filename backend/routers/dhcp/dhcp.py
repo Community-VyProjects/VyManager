@@ -72,6 +72,16 @@ def _parse_dhcp_ddns(raw: Any) -> "DHCPDdnsConfig":
     return DHCPDdnsConfig(
         present=True,
         send_updates=raw.get("send-updates"),
+        conflict_resolution=raw.get("conflict-resolution"),
+        override_client_update=raw.get("override-client-update"),
+        override_no_update=raw.get("override-no-update"),
+        update_on_renew=raw.get("update-on-renew"),
+        replace_client_name=raw.get("replace-client-name"),
+        ttl_percent=str(raw["ttl-percent"]) if "ttl-percent" in raw else None,
+        generated_prefix=raw.get("generated-prefix"),
+        qualifying_suffix=raw.get("qualifying-suffix"),
+        hostname_char_replacement=raw.get("hostname-char-replacement"),
+        hostname_char_set=raw.get("hostname-char-set"),
         tsig_keys=keys,
         forward_domains=_parse_ddns_domains(raw.get("forward-domain")),
         reverse_domains=_parse_ddns_domains(raw.get("reverse-domain")),
@@ -180,6 +190,16 @@ class DHCPDdnsTsigKey(BaseModel):
 class DHCPDdnsConfig(BaseModel):
     present: bool = False
     send_updates: Optional[str] = None
+    conflict_resolution: Optional[str] = None
+    override_client_update: Optional[str] = None
+    override_no_update: Optional[str] = None
+    update_on_renew: Optional[str] = None
+    replace_client_name: Optional[str] = None
+    ttl_percent: Optional[str] = None
+    generated_prefix: Optional[str] = None
+    qualifying_suffix: Optional[str] = None
+    hostname_char_replacement: Optional[str] = None
+    hostname_char_set: Optional[str] = None
     tsig_keys: List[DHCPDdnsTsigKey] = []
     forward_domains: List[DHCPDdnsDomain] = []
     reverse_domains: List[DHCPDdnsDomain] = []

@@ -834,6 +834,20 @@ class DHCPBatchBuilder(BatchBuilder):
         path = self.mappers[self.mapper_key].get_ddns_send_updates(value)
         return self.add_set(path)
 
+    def set_ddns_scalar(self, spec: str) -> "DHCPBatchBuilder":
+        # Wire format is "<field>|<value>". Partition on the first separator so a
+        # value that itself contains "|" (e.g. a hostname-char-set regex) is kept
+        # intact instead of being truncated by the generic pipe splitter.
+        field, sep, value = spec.partition("|")
+        if not sep:
+            raise ValueError("set_ddns_scalar requires '<field>|<value>'")
+        path = self.mappers[self.mapper_key].get_ddns_scalar(field, value)
+        return self.add_set(path)
+
+    def delete_ddns_scalar(self, field: str) -> "DHCPBatchBuilder":
+        path = self.mappers[self.mapper_key].get_ddns_scalar_path(field)
+        return self.add_delete(path)
+
     def delete_ddns_send_updates(self) -> "DHCPBatchBuilder":
         path = self.mappers[self.mapper_key].get_ddns_send_updates_path()
         return self.add_delete(path)

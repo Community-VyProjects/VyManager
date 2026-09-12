@@ -40,12 +40,24 @@ interface DHCPDdnsModalProps {
 const emptyDdns = (): DHCPDdnsConfig => ({
   present: false,
   send_updates: "",
+  conflict_resolution: "",
+  override_client_update: "",
+  override_no_update: "",
+  update_on_renew: "",
+  replace_client_name: "",
+  ttl_percent: "",
+  generated_prefix: "",
+  qualifying_suffix: "",
+  hostname_char_replacement: "",
+  hostname_char_set: "",
   tsig_keys: [],
   forward_domains: [],
   reverse_domains: [],
 });
 
 const ALGOS = ["md5", "sha1", "sha224", "sha256", "sha384", "sha512"];
+const ENABLE_DISABLE = ["enable", "disable"];
+const REPLACE_CLIENT_NAME = ["never", "always", "when-present", "when-not-present"];
 
 export function DHCPDdnsModal({
   open,
@@ -66,6 +78,16 @@ export function DHCPDdnsModal({
     setForm({
       present: ddns.present,
       send_updates: ddns.send_updates ?? "",
+      conflict_resolution: ddns.conflict_resolution ?? "",
+      override_client_update: ddns.override_client_update ?? "",
+      override_no_update: ddns.override_no_update ?? "",
+      update_on_renew: ddns.update_on_renew ?? "",
+      replace_client_name: ddns.replace_client_name ?? "",
+      ttl_percent: ddns.ttl_percent ?? "",
+      generated_prefix: ddns.generated_prefix ?? "",
+      qualifying_suffix: ddns.qualifying_suffix ?? "",
+      hostname_char_replacement: ddns.hostname_char_replacement ?? "",
+      hostname_char_set: ddns.hostname_char_set ?? "",
       tsig_keys: ddns.tsig_keys.map((k) => ({ ...k })),
       forward_domains: ddns.forward_domains.map((d) => ({
         ...d,
@@ -280,6 +302,77 @@ export function DHCPDdnsModal({
                         <SelectItem value="disable">disable</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {(
+                      [
+                        ["conflict_resolution", "Conflict resolution", ENABLE_DISABLE],
+                        ["override_client_update", "Override client update", ENABLE_DISABLE],
+                        ["override_no_update", "Override no-update", ENABLE_DISABLE],
+                        ["update_on_renew", "Update on renew", ENABLE_DISABLE],
+                        ["replace_client_name", "Replace client name", REPLACE_CLIENT_NAME],
+                      ] as Array<["conflict_resolution" | "override_client_update" | "override_no_update" | "update_on_renew" | "replace_client_name", string, string[]]>
+                    ).map(([field, label, options]) => (
+                      <div className="space-y-1" key={field}>
+                        <Label>{label}</Label>
+                        <Select
+                          value={form[field] || "__none__"}
+                          onValueChange={(v) =>
+                            setForm((prev) => ({
+                              ...prev,
+                              [field]: v === "__none__" ? "" : v,
+                            }))
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Unset" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">Unset</SelectItem>
+                            {options.map((o) => (
+                              <SelectItem key={o} value={o}>
+                                {o}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    ))}
+                    <div className="space-y-1">
+                      <Label>TTL percent (1-100)</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={100}
+                        placeholder="Unset"
+                        value={form.ttl_percent ?? ""}
+                        onChange={(e) =>
+                          setForm((prev) => ({ ...prev, ttl_percent: e.target.value }))
+                        }
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {(
+                      [
+                        ["generated_prefix", "Generated prefix", "myhost"],
+                        ["qualifying_suffix", "Qualifying suffix", "example.com"],
+                        ["hostname_char_set", "Hostname char set", "[^A-Za-z0-9.-]"],
+                        ["hostname_char_replacement", "Hostname char replacement", "-"],
+                      ] as Array<["generated_prefix" | "qualifying_suffix" | "hostname_char_set" | "hostname_char_replacement", string, string]>
+                    ).map(([field, label, ph]) => (
+                      <div className="space-y-1" key={field}>
+                        <Label>{label}</Label>
+                        <Input
+                          className="font-mono"
+                          placeholder={ph}
+                          value={form[field] ?? ""}
+                          onChange={(e) =>
+                            setForm((prev) => ({ ...prev, [field]: e.target.value }))
+                          }
+                        />
+                      </div>
+                    ))}
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">

@@ -89,6 +89,16 @@ export interface DHCPDdnsTsigKey {
 export interface DHCPDdnsConfig {
   present: boolean;
   send_updates?: string;
+  conflict_resolution?: string;
+  override_client_update?: string;
+  override_no_update?: string;
+  update_on_renew?: string;
+  replace_client_name?: string;
+  ttl_percent?: string;
+  generated_prefix?: string;
+  qualifying_suffix?: string;
+  hostname_char_replacement?: string;
+  hostname_char_set?: string;
   tsig_keys: DHCPDdnsTsigKey[];
   forward_domains: DHCPDdnsDomain[];
   reverse_domains: DHCPDdnsDomain[];
@@ -1038,6 +1048,28 @@ class DHCPService {
         if (nextSend !== prevSend) {
           if (nextSend) operations.push({ op: "set_ddns_send_updates", value: nextSend });
           else operations.push({ op: "delete_ddns_send_updates" });
+        }
+        // Container-level behavior leaves. Key is the TS field, value is the
+        // VyOS leaf name; set wire format is "<leaf>|<value>", delete sends
+        // just "<leaf>".
+        const scalarFields: Array<[keyof DHCPDdnsConfig, string]> = [
+          ["conflict_resolution", "conflict-resolution"],
+          ["override_client_update", "override-client-update"],
+          ["override_no_update", "override-no-update"],
+          ["update_on_renew", "update-on-renew"],
+          ["replace_client_name", "replace-client-name"],
+          ["ttl_percent", "ttl-percent"],
+          ["generated_prefix", "generated-prefix"],
+          ["qualifying_suffix", "qualifying-suffix"],
+          ["hostname_char_replacement", "hostname-char-replacement"],
+          ["hostname_char_set", "hostname-char-set"],
+        ];
+        for (const [tsField, leaf] of scalarFields) {
+          const next = ((updated[tsField] as string | undefined) ?? "").trim();
+          const prev = ((original[tsField] as string | undefined) ?? "").trim();
+          if (next === prev) continue;
+          if (next) operations.push({ op: "set_ddns_scalar", value: `${leaf}|${next}` });
+          else operations.push({ op: "delete_ddns_scalar", value: leaf });
         }
         const origKeys = new Map(original.tsig_keys.map((k) => [k.name, k]));
         const nextKeys = new Map(updated.tsig_keys.filter((k) => k.name.trim()).map((k) => [k.name, k]));
