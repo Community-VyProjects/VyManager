@@ -5,6 +5,7 @@ from pppoe_status import (
     parse_pppoe_sessions,
     pppoe_configured,
 )
+import pytest
 
 
 def test_pppoe_pps_tracker_uses_counter_delta_and_elapsed_time():
@@ -255,3 +256,34 @@ def test_pppoe_configured_gates_on_service_tree():
     assert pppoe_configured({"service": {}}) is False
     assert pppoe_configured({"service": {"pppoe-server": {}}}) is True
     assert pppoe_configured({"service": {"pppoe-server": {"interface": {"eth0": {}}}}}) is True
+
+
+def test_load_pppoe_sessions_raises_when_fallback_fails():
+    import asyncio
+    from types import SimpleNamespace
+    from pppoe_status import PPPoESessionsUnavailable, load_pppoe_sessions
+
+    class Boom:
+        status = 502
+        error = "Unable to read PPPoE sessions"
+        result = {}
+
+    service = SimpleNamespace(
+        config=SimpleNamespace(
+            apikey="k", protocol="https", hostname="127.0.0.1", port=1, verify=False
+        ),
+        device=SimpleNamespace(show=lambda path: Boom()),
+    )
+
+    async def fake_fetch(_service, protocol="pppoe"):
+        return None
+
+    import pppoe_status as mod
+    original = mod.fetch_accel_ppp_sessions
+    mod.fetch_accel_ppp_sessions = fake_fetch
+    try:
+        with pytest.raises(PPPoESessionsUnavailable) as caught:
+            asyncio.run(load_pppoe_sessions(service))
+        assert "Unable to read PPPoE sessions" in str(caught.value.detail)
+    finally:
+        mod.fetch_accel_ppp_sessions = original

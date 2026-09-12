@@ -17,6 +17,7 @@ from rbac_permissions import FeatureGroup
 from starlette.concurrency import run_in_threadpool
 from pppoe_status import (
     PPPoESessionsResponse,
+    PPPoESessionsUnavailable,
     load_pppoe_sessions,
 )
 import inspect
@@ -118,7 +119,10 @@ async def get_pppoe_sessions(
     await require_read_permission(http_request, FeatureGroup.PPPOE)
     try:
         service = get_session_vyos_service(http_request)
-        sessions = await load_pppoe_sessions(service)
+        try:
+            sessions = await load_pppoe_sessions(service)
+        except PPPoESessionsUnavailable as exc:
+            raise HTTPException(status_code=502, detail=exc.detail) from exc
 
         total = len(sessions)
         page = sessions[offset:offset + limit]

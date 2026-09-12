@@ -24,6 +24,14 @@ from starlette.concurrency import run_in_threadpool
 logger = logging.getLogger(__name__)
 
 
+class PPPoESessionsUnavailable(Exception):
+    """Both the GraphQL op and the text-table fallback failed to read sessions."""
+
+    def __init__(self, detail: str = "Unable to read PPPoE sessions") -> None:
+        super().__init__(detail)
+        self.detail = detail
+
+
 class PPPoESession(BaseModel):
     interface: str
     username: str
@@ -267,8 +275,10 @@ async def load_pppoe_sessions(service) -> List[PPPoESession]:
     """Load sessions (GraphQL, then text-table fallback) and annotate PPS.
 
     Used by both the REST sessions endpoint and the dashboard SSE broadcaster so
-    the two paths share one tracker. Failures degrade to an empty list rather
-    than raising, so a missing pppoe-server does not 502 the stream.
+    the two paths share one tracker. Raises ``PPPoESessionsUnavailable`` when
+    both the structured op and the text-table fallback fail. The REST endpoint
+    maps that to HTTP 502; the SSE path treats it as a fetch error and does not
+    502 the stream.
     """
     sessions = await fetch_accel_ppp_sessions(service)
     if sessions is None:
@@ -276,19 +286,19 @@ async def load_pppoe_sessions(service) -> List[PPPoESession]:
             response = await run_in_threadpool(
                 service.device.show, path=["pppoe-server", "sessions"]
             )
-        except Exception:
+        except Exception as exc:
             logger.exception("PPPoE sessions text-table fallback failed")
-            sessions = []
-        else:
-            if response.status != 200:
-                sessions = []
-            else:
-                output = (
-                    response.result.get("data", "")
-                    if isinstance(response.result, dict)
-                    else response.result
-                )
-                sessions = parse_pppoe_sessions(output or "")
+            raise PPPoESessionsUnavailable("Unable to read PPPoE sessions") from exc
+        if response.status != 200:
+            raise PPPoESessionsUnavailable(
+                response.error or "Unable to read PPPoE sessions"
+            )
+        output = (
+            response.result.get("data", "")
+            if isinstance(response.result, dict)
+            else response.result
+        )
+        sessions = parse_pppoe_sessions(output or "")
     PPPOE_PPS_TRACKER.annotate_sessions(str(id(service.device)), sessions)
     return sessions
 
