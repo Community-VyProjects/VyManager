@@ -209,6 +209,14 @@ class SystemMapper(BaseFeatureMapper):
     def get_delete_syslog_remote_path(self, host: str) -> List[str]:
         return ["system", "syslog", "remote", host]
 
+    def get_syslog_remote_format_include_timezone_path(self, host: str) -> List[str]:
+        """1.5: system syslog remote <host> format include-timezone"""
+        return ["system", "syslog", "remote", host, "format", "include-timezone"]
+
+    def get_syslog_remote_format_octet_counted_path(self, host: str) -> List[str]:
+        """1.5: system syslog remote <host> format octet-counted"""
+        return ["system", "syslog", "remote", host, "format", "octet-counted"]
+
     def get_syslog_console_facility_path(self, facility: str, level: str) -> List[str]:
         return ["system", "syslog", "console", "facility", facility, "level", level]
 
@@ -264,6 +272,9 @@ class SystemMapper(BaseFeatureMapper):
         return False
 
     def supports_syslog_marker_disable(self) -> bool:
+        return True
+
+    def supports_syslog_remote_format(self) -> bool:
         return True
 
     # =========================================================================

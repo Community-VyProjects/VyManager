@@ -99,12 +99,15 @@ def parse_syslog(system_config: dict, mapper) -> Dict[str, Any]:
             if host_cfg is None:
                 host_cfg = {}
             port_val = host_cfg.get("port")
+            format_cfg = host_cfg.get("format", {}) or {}
             remote_hosts.append(
                 {
                     "host": host,
                     "facilities": parse_syslog_facilities(host_cfg),
                     "port": int(port_val) if port_val else None,
                     "protocol": host_cfg.get("protocol"),
+                    "format_include_timezone": "include-timezone" in format_cfg,
+                    "format_octet_counted": "octet-counted" in format_cfg,
                 }
             )
 

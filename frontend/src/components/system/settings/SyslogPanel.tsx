@@ -56,7 +56,7 @@ interface Props {
 
 export function SyslogPanel({ config, capabilities, isReadOnly, onRefresh }: Props) {
   const { toast } = useToast();
-  const { syslog: { facilities, levels, supports_console, supports_file, supports_user, supports_marker_disable } } =
+  const { syslog: { facilities, levels, supports_console, supports_file, supports_user, supports_marker_disable, supports_remote_format } } =
     capabilities;
 
   // Local facility add
@@ -79,6 +79,35 @@ export function SyslogPanel({ config, capabilities, isReadOnly, onRefresh }: Pro
   // Delete remote
   const [deleteRemoteTarget, setDeleteRemoteTarget] = useState<string | null>(null);
   const [deletingRemote, setDeletingRemote] = useState(false);
+
+  // Edit remote format flags (1.5 only)
+  const [formatEditHost, setFormatEditHost] = useState<string | null>(null);
+  const [formatTz, setFormatTz] = useState(false);
+  const [formatOctet, setFormatOctet] = useState(false);
+  const [formatSaving, setFormatSaving] = useState(false);
+
+  const handleSaveRemoteFormat = async () => {
+    if (!formatEditHost) return;
+    setFormatSaving(true);
+    try {
+      const result = await systemSettingsService.setSyslogRemoteFormat(
+        formatEditHost,
+        formatTz,
+        formatOctet,
+      );
+      if (!result.success) {
+        toast.error("Save failed", result.error ?? "Failed to update format");
+      } else {
+        toast.success("Remote format updated");
+        setFormatEditHost(null);
+        onRefresh();
+      }
+    } catch {
+      toast.error("Save failed", "An unexpected error occurred");
+    } finally {
+      setFormatSaving(false);
+    }
+  };
 
   // Syslog marker
   const [editingMarker, setEditingMarker] = useState(false);
@@ -265,13 +294,14 @@ export function SyslogPanel({ config, capabilities, isReadOnly, onRefresh }: Pro
                 <TableHead>Host</TableHead>
                 <TableHead>Port</TableHead>
                 <TableHead>Facilities</TableHead>
+                {supports_remote_format && <TableHead>Format</TableHead>}
                 {!isReadOnly && <TableHead className="text-right">Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {config.syslog.remote_hosts.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={isReadOnly ? 3 : 4} className="text-center text-muted-foreground py-6">
+                  <TableCell colSpan={isReadOnly ? (supports_remote_format ? 4 : 3) : (supports_remote_format ? 5 : 4)} className="text-center text-muted-foreground py-6">
                     No remote hosts configured
                   </TableCell>
                 </TableRow>
@@ -289,8 +319,36 @@ export function SyslogPanel({ config, capabilities, isReadOnly, onRefresh }: Pro
                         ))}
                       </div>
                     </TableCell>
+                    {supports_remote_format && (
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {rh.format_include_timezone && (
+                            <Badge variant="outline" className="text-xs">include-timezone</Badge>
+                          )}
+                          {rh.format_octet_counted && (
+                            <Badge variant="outline" className="text-xs">octet-counted</Badge>
+                          )}
+                          {!rh.format_include_timezone && !rh.format_octet_counted && (
+                            <span className="text-xs text-muted-foreground">Default</span>
+                          )}
+                        </div>
+                      </TableCell>
+                    )}
                     {!isReadOnly && (
                       <TableCell className="text-right">
+                        {supports_remote_format && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setFormatEditHost(rh.host);
+                              setFormatTz(rh.format_include_timezone);
+                              setFormatOctet(rh.format_octet_counted);
+                            }}
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="sm"
@@ -532,6 +590,7 @@ export function SyslogPanel({ config, capabilities, isReadOnly, onRefresh }: Pro
         onOpenChange={setRemoteModalOpen}
         facilities={facilities}
         levels={levels}
+        supportsFormat={supports_remote_format}
         onSuccess={onRefresh}
       />
 
@@ -551,6 +610,45 @@ export function SyslogPanel({ config, capabilities, isReadOnly, onRefresh }: Pro
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deletingRemote ? "Removing…" : "Remove"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!formatEditHost} onOpenChange={(o: boolean) => { if (!o) setFormatEditHost(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Edit Message Format</AlertDialogTitle>
+            <AlertDialogDescription>
+              RFC 5424 framing for syslog forwarding to <strong>{formatEditHost}</strong>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="edit-fmt-tz"
+                checked={formatTz}
+                onCheckedChange={(v) => setFormatTz(!!v)}
+              />
+              <Label htmlFor="edit-fmt-tz" className="text-sm font-normal">
+                Include timezone (RFC 5424 with RFC 3339 timestamp)
+              </Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="edit-fmt-octet"
+                checked={formatOctet}
+                onCheckedChange={(v) => setFormatOctet(!!v)}
+              />
+              <Label htmlFor="edit-fmt-octet" className="text-sm font-normal">
+                Octet-counted framing (multi-line messages, TCP only)
+              </Label>
+            </div>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={formatSaving}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSaveRemoteFormat} disabled={formatSaving}>
+              {formatSaving ? "Saving…" : "Save"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

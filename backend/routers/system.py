@@ -83,6 +83,8 @@ class SyslogRemoteHost(BaseModel):
     facilities: List[SyslogFacility] = Field(default_factory=list)
     port: Optional[int] = None
     protocol: Optional[str] = None
+    format_include_timezone: bool = False
+    format_octet_counted: bool = False
 
 
 class SyslogFileEntry(BaseModel):
@@ -1029,6 +1031,8 @@ async def system_batch_configure(
         )
     except HTTPException:
         raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception:
         logger.exception("Unhandled error in system_batch_configure")
         raise HTTPException(status_code=500, detail="Internal server error")
