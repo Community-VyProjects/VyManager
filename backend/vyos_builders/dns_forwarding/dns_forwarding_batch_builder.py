@@ -10,10 +10,10 @@ Key sections:
   - Domain forwarders: per-domain upstream resolvers
   - Authoritative domains: local DNS zones with A/AAAA/CNAME/MX/TXT/NS/PTR records
   - Zone cache (1.5 only): cached remote zones via URL or AXFR
-  - Options/ECS (1.5 only): EDNS Client Subnet settings
+  - Options/ECS: EDNS Client Subnet settings
 
 Version differences:
-  - zone-cache and options (ECS) subtrees are only available on VyOS 1.5
+  - zone-cache is 1.5-only; the 1.4 mapper raises on set
 """
 
 from typing import Dict, Any
@@ -127,12 +127,12 @@ class DNSForwardingBatchBuilder(BatchBuilder):
                     "description": "Local authoritative DNS zones with A/AAAA/CNAME/MX/TXT/NS/PTR records",
                 },
                 "zone_cache": {
-                    "supported": is_1_5,
-                    "description": "Cached remote zones loaded via URL or AXFR (VyOS 1.5 only)",
+                    "supported": bool(self.m.supports_zone_cache()),
+                    "description": "Cached remote zones loaded via URL or AXFR",
                 },
                 "options_ecs": {
-                    "supported": is_1_5,
-                    "description": "EDNS Client Subnet options (VyOS 1.5 only)",
+                    "supported": True,
+                    "description": "EDNS Client Subnet options",
                 },
             },
             "version_info": {
@@ -491,7 +491,7 @@ class DNSForwardingBatchBuilder(BatchBuilder):
         return self.add_set(self.m.get_zone_cache_refresh_on_reload(zone))
 
     def delete_zone_cache_refresh_on_reload(self, zone: str) -> "DNSForwardingBatchBuilder":
-        return self.add_delete(self.m.get_zone_cache_refresh_on_reload(zone))
+        return self.add_delete(self.m.get_zone_cache_refresh_on_reload_delete(zone))
 
     def set_zone_cache_retry_interval(self, zone: str, interval: str) -> "DNSForwardingBatchBuilder":
         return self.add_set(self.m.get_zone_cache_retry_interval(zone, interval))
@@ -509,7 +509,7 @@ class DNSForwardingBatchBuilder(BatchBuilder):
         return self.add_delete(self.m.get_zone_caches_delete())
 
     # -----------------------------------------------------------------------
-    # Options / ECS (1.5 only)
+    # Options / ECS
     # -----------------------------------------------------------------------
 
     def set_options_ecs_add_for(self, network: str) -> "DNSForwardingBatchBuilder":

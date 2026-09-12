@@ -301,7 +301,7 @@ class DNSForwardingMapper(BaseFeatureMapper):
         return BASE + ["authoritative-domain", domain, "records", "ptr", hostname]
 
     # ========================================================================
-    # Zone cache (1.5 only — base returns empty list, v1_5 overrides)
+    # Zone cache (1.5 only — 1.4 mapper overrides set methods to raise)
     # ========================================================================
 
     def get_zone_cache_url(self, zone: str, url: str) -> List[str]:
@@ -322,6 +322,9 @@ class DNSForwardingMapper(BaseFeatureMapper):
     def get_zone_cache_refresh_on_reload(self, zone: str) -> List[str]:
         return BASE + ["zone-cache", zone, "options", "refresh", "on-reload"]
 
+    def get_zone_cache_refresh_on_reload_delete(self, zone: str) -> List[str]:
+        return BASE + ["zone-cache", zone, "options", "refresh", "on-reload"]
+
     def get_zone_cache_retry_interval(self, zone: str, interval: str) -> List[str]:
         return BASE + ["zone-cache", zone, "options", "retry-interval", interval]
 
@@ -337,8 +340,11 @@ class DNSForwardingMapper(BaseFeatureMapper):
     def get_zone_caches_delete(self) -> List[str]:
         return BASE + ["zone-cache"]
 
+    def supports_zone_cache(self) -> bool:
+        return True
+
     # ========================================================================
-    # Options / ECS (1.5 only)
+    # Options / ECS
     # ========================================================================
 
     def get_options_ecs_add_for(self, network: str) -> List[str]:
