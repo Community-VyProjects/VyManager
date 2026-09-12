@@ -4,6 +4,10 @@ from ..base import BaseFeatureMapper
 
 BASE = ["service", "dns", "forwarding"]
 
+AUTH_RECORD_TYPES = frozenset({
+    "a", "aaaa", "cname", "mx", "txt", "ns", "ptr", "naptr", "spf", "srv",
+})
+
 
 class DNSForwardingMapper(BaseFeatureMapper):
     def __init__(self, version: str):
@@ -299,6 +303,93 @@ class DNSForwardingMapper(BaseFeatureMapper):
 
     def get_auth_ptr_delete(self, domain: str, hostname: str) -> List[str]:
         return BASE + ["authoritative-domain", domain, "records", "ptr", hostname]
+
+    def supports_auth_record(self, kind: str) -> bool:
+        return kind in AUTH_RECORD_TYPES
+
+    # NAPTR records
+    def get_auth_naptr_ttl(self, domain: str, hostname: str, ttl: str) -> List[str]:
+        return BASE + ["authoritative-domain", domain, "records", "naptr", hostname, "ttl", ttl]
+
+    def get_auth_naptr_disable(self, domain: str, hostname: str) -> List[str]:
+        return BASE + ["authoritative-domain", domain, "records", "naptr", hostname, "disable"]
+
+    def get_auth_naptr_delete(self, domain: str, hostname: str) -> List[str]:
+        return BASE + ["authoritative-domain", domain, "records", "naptr", hostname]
+
+    def get_auth_naptr_rule_order(self, domain: str, hostname: str, rule: str, order: str) -> List[str]:
+        return BASE + ["authoritative-domain", domain, "records", "naptr", hostname, "rule", rule, "order", order]
+
+    def get_auth_naptr_rule_preference(self, domain: str, hostname: str, rule: str, preference: str) -> List[str]:
+        return BASE + ["authoritative-domain", domain, "records", "naptr", hostname, "rule", rule, "preference", preference]
+
+    def get_auth_naptr_rule_lookup_a(self, domain: str, hostname: str, rule: str) -> List[str]:
+        return BASE + ["authoritative-domain", domain, "records", "naptr", hostname, "rule", rule, "lookup-a"]
+
+    def get_auth_naptr_rule_lookup_srv(self, domain: str, hostname: str, rule: str) -> List[str]:
+        return BASE + ["authoritative-domain", domain, "records", "naptr", hostname, "rule", rule, "lookup-srv"]
+
+    def get_auth_naptr_rule_protocol_specific(self, domain: str, hostname: str, rule: str) -> List[str]:
+        return BASE + ["authoritative-domain", domain, "records", "naptr", hostname, "rule", rule, "protocol-specific"]
+
+    def get_auth_naptr_rule_resolve_uri(self, domain: str, hostname: str, rule: str) -> List[str]:
+        return BASE + ["authoritative-domain", domain, "records", "naptr", hostname, "rule", rule, "resolve-uri"]
+
+    def get_auth_naptr_rule_regexp(self, domain: str, hostname: str, rule: str, regexp: str) -> List[str]:
+        return BASE + ["authoritative-domain", domain, "records", "naptr", hostname, "rule", rule, "regexp", regexp]
+
+    def get_auth_naptr_rule_replacement(self, domain: str, hostname: str, rule: str, replacement: str) -> List[str]:
+        return BASE + ["authoritative-domain", domain, "records", "naptr", hostname, "rule", rule, "replacement", replacement]
+
+    def get_auth_naptr_rule_service(self, domain: str, hostname: str, rule: str, service: str) -> List[str]:
+        return BASE + ["authoritative-domain", domain, "records", "naptr", hostname, "rule", rule, "service", service]
+
+    def get_auth_naptr_rule_delete(self, domain: str, hostname: str, rule: str) -> List[str]:
+        return BASE + ["authoritative-domain", domain, "records", "naptr", hostname, "rule", rule]
+
+    def get_auth_naptr_rule(self, domain: str, hostname: str, rule: str) -> List[str]:
+        return BASE + ["authoritative-domain", domain, "records", "naptr", hostname, "rule", rule]
+
+    # SPF records
+    def get_auth_spf_value(self, domain: str, hostname: str, value: str) -> List[str]:
+        return BASE + ["authoritative-domain", domain, "records", "spf", hostname, "value", value]
+
+    def get_auth_spf_ttl(self, domain: str, hostname: str, ttl: str) -> List[str]:
+        return BASE + ["authoritative-domain", domain, "records", "spf", hostname, "ttl", ttl]
+
+    def get_auth_spf_disable(self, domain: str, hostname: str) -> List[str]:
+        return BASE + ["authoritative-domain", domain, "records", "spf", hostname, "disable"]
+
+    def get_auth_spf_delete(self, domain: str, hostname: str) -> List[str]:
+        return BASE + ["authoritative-domain", domain, "records", "spf", hostname]
+
+    # SRV records
+    def get_auth_srv_ttl(self, domain: str, hostname: str, ttl: str) -> List[str]:
+        return BASE + ["authoritative-domain", domain, "records", "srv", hostname, "ttl", ttl]
+
+    def get_auth_srv_disable(self, domain: str, hostname: str) -> List[str]:
+        return BASE + ["authoritative-domain", domain, "records", "srv", hostname, "disable"]
+
+    def get_auth_srv_delete(self, domain: str, hostname: str) -> List[str]:
+        return BASE + ["authoritative-domain", domain, "records", "srv", hostname]
+
+    def get_auth_srv_entry_hostname(self, domain: str, hostname: str, entry: str, target: str) -> List[str]:
+        return BASE + ["authoritative-domain", domain, "records", "srv", hostname, "entry", entry, "hostname", target]
+
+    def get_auth_srv_entry_port(self, domain: str, hostname: str, entry: str, port: str) -> List[str]:
+        return BASE + ["authoritative-domain", domain, "records", "srv", hostname, "entry", entry, "port", port]
+
+    def get_auth_srv_entry_priority(self, domain: str, hostname: str, entry: str, priority: str) -> List[str]:
+        return BASE + ["authoritative-domain", domain, "records", "srv", hostname, "entry", entry, "priority", priority]
+
+    def get_auth_srv_entry_weight(self, domain: str, hostname: str, entry: str, weight: str) -> List[str]:
+        return BASE + ["authoritative-domain", domain, "records", "srv", hostname, "entry", entry, "weight", weight]
+
+    def get_auth_srv_entry_delete(self, domain: str, hostname: str, entry: str) -> List[str]:
+        return BASE + ["authoritative-domain", domain, "records", "srv", hostname, "entry", entry]
+
+    def get_auth_srv_entry(self, domain: str, hostname: str, entry: str) -> List[str]:
+        return BASE + ["authoritative-domain", domain, "records", "srv", hostname, "entry", entry]
 
     # ========================================================================
     # Zone cache (1.5 only — 1.4 mapper overrides set methods to raise)

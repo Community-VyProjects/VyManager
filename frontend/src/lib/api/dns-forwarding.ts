@@ -1,4 +1,5 @@
 import { apiClient } from "./client";
+import { buildAuthDomainOps } from "./dns-forwarding-auth-ops";
 
 export interface NameServerEntry {
   ip: string;
@@ -66,6 +67,48 @@ export interface PTRRecord {
   disabled: boolean;
 }
 
+export interface NAPTRRule {
+  rule: string;
+  order?: number | null;
+  preference?: number | null;
+  lookup_a: boolean;
+  lookup_srv: boolean;
+  protocol_specific: boolean;
+  resolve_uri: boolean;
+  regexp?: string | null;
+  replacement?: string | null;
+  service?: string | null;
+}
+
+export interface NAPTRRecord {
+  hostname: string;
+  rules: NAPTRRule[];
+  ttl?: number | null;
+  disabled: boolean;
+}
+
+export interface SPFRecord {
+  hostname: string;
+  value?: string | null;
+  ttl?: number | null;
+  disabled: boolean;
+}
+
+export interface SRVEntry {
+  entry: string;
+  hostname?: string | null;
+  port?: number | null;
+  priority?: number | null;
+  weight?: number | null;
+}
+
+export interface SRVRecord {
+  hostname: string;
+  entries: SRVEntry[];
+  ttl?: number | null;
+  disabled: boolean;
+}
+
 export interface AuthDomainRecords {
   a: ARecord[];
   aaaa: AAAARecord[];
@@ -74,6 +117,9 @@ export interface AuthDomainRecords {
   txt: TXTRecord[];
   ns: NSRecord[];
   ptr: PTRRecord[];
+  naptr: NAPTRRecord[];
+  spf: SPFRecord[];
+  srv: SRVRecord[];
 }
 
 export interface AuthoritativeDomain {
@@ -149,6 +195,9 @@ export interface DNSForwardingCapabilities {
     exclude_throttle_address: { supported: boolean; description: string };
     domain: { supported: boolean; description: string };
     authoritative_domain: { supported: boolean; description: string };
+    auth_naptr: { supported: boolean; description: string };
+    auth_spf: { supported: boolean; description: string };
+    auth_srv: { supported: boolean; description: string };
     zone_cache: { supported: boolean; description: string };
     options_ecs: { supported: boolean; description: string };
   };
@@ -353,50 +402,7 @@ class DNSForwardingService {
     disabled: boolean,
     records: AuthDomainRecords
   ): Promise<VyOSResponse> {
-    const ops: BatchOperation[] = [{ op: "delete_authoritative_domain", value: domain }];
-    ops.push({ op: "set_authoritative_domain", value: domain });
-    if (disabled) ops.push({ op: "set_authoritative_domain_disable", value: domain });
-
-    for (const r of records.a) {
-      if (r.address) ops.push({ op: "set_auth_a_address", value: `${domain},${r.hostname},${r.address}` });
-      if (r.ttl != null) ops.push({ op: "set_auth_a_ttl", value: `${domain},${r.hostname},${r.ttl}` });
-      if (r.disabled) ops.push({ op: "set_auth_a_disable", value: `${domain},${r.hostname}` });
-    }
-    for (const r of records.aaaa) {
-      if (r.address) ops.push({ op: "set_auth_aaaa_address", value: `${domain},${r.hostname},${r.address}` });
-      if (r.ttl != null) ops.push({ op: "set_auth_aaaa_ttl", value: `${domain},${r.hostname},${r.ttl}` });
-      if (r.disabled) ops.push({ op: "set_auth_aaaa_disable", value: `${domain},${r.hostname}` });
-    }
-    for (const r of records.cname) {
-      if (r.target) ops.push({ op: "set_auth_cname_target", value: `${domain},${r.hostname},${r.target}` });
-      if (r.ttl != null) ops.push({ op: "set_auth_cname_ttl", value: `${domain},${r.hostname},${r.ttl}` });
-      if (r.disabled) ops.push({ op: "set_auth_cname_disable", value: `${domain},${r.hostname}` });
-    }
-    for (const r of records.mx) {
-      for (const srv of r.servers) {
-        const priority = srv.priority ?? 10;
-        ops.push({ op: "set_auth_mx_server_priority", value: `${domain},${r.hostname},${srv.server},${priority}` });
-      }
-      if (r.ttl != null) ops.push({ op: "set_auth_mx_ttl", value: `${domain},${r.hostname},${r.ttl}` });
-      if (r.disabled) ops.push({ op: "set_auth_mx_disable", value: `${domain},${r.hostname}` });
-    }
-    for (const r of records.txt) {
-      if (r.value) ops.push({ op: "set_auth_txt_value", value: `${domain},${r.hostname},${r.value}` });
-      if (r.ttl != null) ops.push({ op: "set_auth_txt_ttl", value: `${domain},${r.hostname},${r.ttl}` });
-      if (r.disabled) ops.push({ op: "set_auth_txt_disable", value: `${domain},${r.hostname}` });
-    }
-    for (const r of records.ns) {
-      if (r.target) ops.push({ op: "set_auth_ns_target", value: `${domain},${r.hostname},${r.target}` });
-      if (r.ttl != null) ops.push({ op: "set_auth_ns_ttl", value: `${domain},${r.hostname},${r.ttl}` });
-      if (r.disabled) ops.push({ op: "set_auth_ns_disable", value: `${domain},${r.hostname}` });
-    }
-    for (const r of records.ptr) {
-      if (r.target) ops.push({ op: "set_auth_ptr_target", value: `${domain},${r.hostname},${r.target}` });
-      if (r.ttl != null) ops.push({ op: "set_auth_ptr_ttl", value: `${domain},${r.hostname},${r.ttl}` });
-      if (r.disabled) ops.push({ op: "set_auth_ptr_disable", value: `${domain},${r.hostname}` });
-    }
-
-    return this.batch(ops);
+    return this.batch(buildAuthDomainOps(domain, disabled, records));
   }
 
   async deleteAuthDomain(domain: string): Promise<VyOSResponse> {

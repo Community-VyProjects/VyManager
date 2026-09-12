@@ -25,20 +25,21 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle, Loader2, Plus, Trash2 } from "lucide-react";
-import type { AuthoritativeDomain, AuthDomainRecords, MXServer } from "@/lib/api/dns-forwarding";
+import type { AuthoritativeDomain, AuthDomainRecords, MXServer, NAPTRRule, SRVEntry, DNSForwardingCapabilities } from "@/lib/api/dns-forwarding";
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   authDomain: AuthoritativeDomain | null;
+  capabilities?: DNSForwardingCapabilities | null;
   onSubmit: (domain: string, disabled: boolean, records: AuthDomainRecords) => Promise<void>;
 }
 
 function emptyRecords(): AuthDomainRecords {
-  return { a: [], aaaa: [], cname: [], mx: [], txt: [], ns: [], ptr: [] };
+  return { a: [], aaaa: [], cname: [], mx: [], txt: [], ns: [], ptr: [], naptr: [], spf: [], srv: [] };
 }
 
-export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, onSubmit }: Props) {
+export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, capabilities, onSubmit }: Props) {
   const isEdit = !!authDomain;
 
   const [domain, setDomain] = useState("");
@@ -53,6 +54,9 @@ export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, o
   const [newTXT, setNewTXT] = useState({ hostname: "", value: "", ttl: "", disabled: false });
   const [newNS, setNewNS] = useState({ hostname: "", target: "", ttl: "", disabled: false });
   const [newPTR, setNewPTR] = useState({ hostname: "", target: "", ttl: "", disabled: false });
+  const [newNAPTR, setNewNAPTR] = useState({ hostname: "", rule: "", order: "", preference: "", service: "", replacement: "", regexp: "", lookup_a: false, lookup_srv: false, protocol_specific: false, resolve_uri: false, ttl: "", disabled: false });
+  const [newSPF, setNewSPF] = useState({ hostname: "", value: "", ttl: "", disabled: false });
+  const [newSRV, setNewSRV] = useState({ hostname: "", entry: "", target: "", port: "", priority: "", weight: "", ttl: "", disabled: false });
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -70,6 +74,9 @@ export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, o
           txt: authDomain.records.txt.map((r) => ({ ...r })),
           ns: authDomain.records.ns.map((r) => ({ ...r })),
           ptr: authDomain.records.ptr.map((r) => ({ ...r })),
+          naptr: (authDomain.records.naptr ?? []).map((r) => ({ ...r, rules: r.rules.map((rule) => ({ ...rule })) })),
+          spf: (authDomain.records.spf ?? []).map((r) => ({ ...r })),
+          srv: (authDomain.records.srv ?? []).map((r) => ({ ...r, entries: r.entries.map((e) => ({ ...e })) })),
         });
       } else {
         setDomain("");
@@ -133,6 +140,40 @@ export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, o
     setRecords((r) => ({ ...r, ptr: [...r.ptr, { hostname: newPTR.hostname, target: newPTR.target || null, ttl: newPTR.ttl ? parseInt(newPTR.ttl) : null, disabled: newPTR.disabled }] }));
     setNewPTR({ hostname: "", target: "", ttl: "", disabled: false });
   };
+  const addNAPTR = () => {
+    if (!newNAPTR.hostname || !newNAPTR.rule) return;
+    const rule: NAPTRRule = {
+      rule: newNAPTR.rule,
+      order: newNAPTR.order ? parseInt(newNAPTR.order) : null,
+      preference: newNAPTR.preference ? parseInt(newNAPTR.preference) : null,
+      lookup_a: newNAPTR.lookup_a,
+      lookup_srv: newNAPTR.lookup_srv,
+      protocol_specific: newNAPTR.protocol_specific,
+      resolve_uri: newNAPTR.resolve_uri,
+      regexp: newNAPTR.regexp || null,
+      replacement: newNAPTR.replacement || null,
+      service: newNAPTR.service || null,
+    };
+    setRecords((r) => ({ ...r, naptr: [...r.naptr, { hostname: newNAPTR.hostname, rules: [rule], ttl: newNAPTR.ttl ? parseInt(newNAPTR.ttl) : null, disabled: newNAPTR.disabled }] }));
+    setNewNAPTR({ hostname: "", rule: "", order: "", preference: "", service: "", replacement: "", regexp: "", lookup_a: false, lookup_srv: false, protocol_specific: false, resolve_uri: false, ttl: "", disabled: false });
+  };
+  const addSPF = () => {
+    if (!newSPF.hostname) return;
+    setRecords((r) => ({ ...r, spf: [...r.spf, { hostname: newSPF.hostname, value: newSPF.value || null, ttl: newSPF.ttl ? parseInt(newSPF.ttl) : null, disabled: newSPF.disabled }] }));
+    setNewSPF({ hostname: "", value: "", ttl: "", disabled: false });
+  };
+  const addSRV = () => {
+    if (!newSRV.hostname || !newSRV.entry) return;
+    const entry: SRVEntry = {
+      entry: newSRV.entry,
+      hostname: newSRV.target || null,
+      port: newSRV.port ? parseInt(newSRV.port) : null,
+      priority: newSRV.priority ? parseInt(newSRV.priority) : null,
+      weight: newSRV.weight ? parseInt(newSRV.weight) : null,
+    };
+    setRecords((r) => ({ ...r, srv: [...r.srv, { hostname: newSRV.hostname, entries: [entry], ttl: newSRV.ttl ? parseInt(newSRV.ttl) : null, disabled: newSRV.disabled }] }));
+    setNewSRV({ hostname: "", entry: "", target: "", port: "", priority: "", weight: "", ttl: "", disabled: false });
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -166,7 +207,7 @@ export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, o
           </div>
 
           <Tabs defaultValue="a">
-            <TabsList className="w-full">
+            <TabsList className="w-full flex-wrap h-auto">
               <TabsTrigger value="a" className="flex-1">A</TabsTrigger>
               <TabsTrigger value="aaaa" className="flex-1">AAAA</TabsTrigger>
               <TabsTrigger value="cname" className="flex-1">CNAME</TabsTrigger>
@@ -174,6 +215,15 @@ export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, o
               <TabsTrigger value="txt" className="flex-1">TXT</TabsTrigger>
               <TabsTrigger value="ns" className="flex-1">NS</TabsTrigger>
               <TabsTrigger value="ptr" className="flex-1">PTR</TabsTrigger>
+              {capabilities?.features.auth_naptr?.supported && (
+                <TabsTrigger value="naptr" className="flex-1">NAPTR</TabsTrigger>
+              )}
+              {capabilities?.features.auth_spf?.supported && (
+                <TabsTrigger value="spf" className="flex-1">SPF</TabsTrigger>
+              )}
+              {capabilities?.features.auth_srv?.supported && (
+                <TabsTrigger value="srv" className="flex-1">SRV</TabsTrigger>
+              )}
             </TabsList>
 
             {/* A Records */}
@@ -453,6 +503,185 @@ export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, o
                 </Table>
               </ScrollArea>
             </TabsContent>
+
+            {capabilities?.features.auth_naptr?.supported && (
+            <TabsContent value="naptr">
+              <ScrollArea className="h-52">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Hostname</TableHead>
+                      <TableHead>Rule</TableHead>
+                      <TableHead>Order</TableHead>
+                      <TableHead>Pref</TableHead>
+                      <TableHead>Service</TableHead>
+                      <TableHead>Replacement</TableHead>
+                      <TableHead>Regexp</TableHead>
+                      <TableHead>Flags</TableHead>
+                      <TableHead>TTL</TableHead>
+                      <TableHead>Disabled</TableHead>
+                      <TableHead></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {records.naptr.map((r, i) =>
+                      r.rules.map((rule, j) => (
+                        <TableRow key={`${i}-${j}`}>
+                          <TableCell className="font-mono">{r.hostname}</TableCell>
+                          <TableCell className="font-mono">{rule.rule}</TableCell>
+                          <TableCell>{rule.order ?? "—"}</TableCell>
+                          <TableCell>{rule.preference ?? "—"}</TableCell>
+                          <TableCell className="font-mono">{rule.service ?? "—"}</TableCell>
+                          <TableCell className="font-mono">{rule.replacement ?? "—"}</TableCell>
+                          <TableCell className="font-mono text-xs max-w-xs truncate">{rule.regexp ?? "—"}</TableCell>
+                          <TableCell className="text-xs">{[rule.lookup_a && "A", rule.lookup_srv && "S", rule.protocol_specific && "P", rule.resolve_uri && "U"].filter(Boolean).join(" ") || "—"}</TableCell>
+                          <TableCell>{r.ttl ?? "—"}</TableCell>
+                          <TableCell>{r.disabled ? <Badge variant="secondary">Yes</Badge> : "—"}</TableCell>
+                          <TableCell>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setRecords((rec) => ({
+                              ...rec,
+                              naptr: rec.naptr.flatMap((item, k) => {
+                                if (k !== i) return [item];
+                                const rules = item.rules.filter((_, n) => n !== j);
+                                return rules.length ? [{ ...item, rules }] : [];
+                              }),
+                            }))}>
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                    <TableRow>
+                      <TableCell><Input value={newNAPTR.hostname} onChange={(e) => setNewNAPTR({ ...newNAPTR, hostname: e.target.value })} placeholder="hostname" className="h-7 font-mono" /></TableCell>
+                      <TableCell><Input value={newNAPTR.rule} onChange={(e) => setNewNAPTR({ ...newNAPTR, rule: e.target.value })} placeholder="10" className="h-7 w-16 font-mono" /></TableCell>
+                      <TableCell><Input value={newNAPTR.order} onChange={(e) => setNewNAPTR({ ...newNAPTR, order: e.target.value })} placeholder="10" type="number" className="h-7 w-16" /></TableCell>
+                      <TableCell><Input value={newNAPTR.preference} onChange={(e) => setNewNAPTR({ ...newNAPTR, preference: e.target.value })} placeholder="0" type="number" className="h-7 w-16" /></TableCell>
+                      <TableCell><Input value={newNAPTR.service} onChange={(e) => setNewNAPTR({ ...newNAPTR, service: e.target.value })} placeholder="SIP+D2U" className="h-7 font-mono" /></TableCell>
+                      <TableCell><Input value={newNAPTR.replacement} onChange={(e) => setNewNAPTR({ ...newNAPTR, replacement: e.target.value })} placeholder="sip.example.com" className="h-7 font-mono" /></TableCell>
+                      <TableCell><Input value={newNAPTR.regexp} onChange={(e) => setNewNAPTR({ ...newNAPTR, regexp: e.target.value })} placeholder="!foo!bar!" className="h-7 font-mono" /></TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Checkbox checked={newNAPTR.lookup_a} onCheckedChange={(c) => setNewNAPTR({ ...newNAPTR, lookup_a: c === true })} />
+                          <span className="text-xs">A</span>
+                          <Checkbox checked={newNAPTR.lookup_srv} onCheckedChange={(c) => setNewNAPTR({ ...newNAPTR, lookup_srv: c === true })} />
+                          <span className="text-xs">S</span>
+                          <Checkbox checked={newNAPTR.protocol_specific} onCheckedChange={(c) => setNewNAPTR({ ...newNAPTR, protocol_specific: c === true })} />
+                          <span className="text-xs">P</span>
+                          <Checkbox checked={newNAPTR.resolve_uri} onCheckedChange={(c) => setNewNAPTR({ ...newNAPTR, resolve_uri: c === true })} />
+                          <span className="text-xs">U</span>
+                        </div>
+                      </TableCell>
+                      <TableCell><Input value={newNAPTR.ttl} onChange={(e) => setNewNAPTR({ ...newNAPTR, ttl: e.target.value })} placeholder="TTL" type="number" className="h-7 w-16" /></TableCell>
+                      <TableCell><Checkbox checked={newNAPTR.disabled} onCheckedChange={(c) => setNewNAPTR({ ...newNAPTR, disabled: c === true })} /></TableCell>
+                      <TableCell><Button variant="outline" size="icon" className="h-7 w-7" onClick={addNAPTR} disabled={!newNAPTR.hostname || !newNAPTR.rule}><Plus className="h-3 w-3" /></Button></TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </ScrollArea>
+            </TabsContent>
+            )}
+
+            {capabilities?.features.auth_spf?.supported && (
+            <TabsContent value="spf">
+              <ScrollArea className="h-52">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Hostname</TableHead>
+                      <TableHead>Value</TableHead>
+                      <TableHead>TTL</TableHead>
+                      <TableHead>Disabled</TableHead>
+                      <TableHead></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {records.spf.map((r, i) => (
+                      <TableRow key={i}>
+                        <TableCell className="font-mono">{r.hostname}</TableCell>
+                        <TableCell className="font-mono text-xs max-w-xs truncate">{r.value ?? "—"}</TableCell>
+                        <TableCell>{r.ttl ?? "—"}</TableCell>
+                        <TableCell>{r.disabled ? <Badge variant="secondary">Yes</Badge> : "—"}</TableCell>
+                        <TableCell>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setRecords((rec) => ({ ...rec, spf: rec.spf.filter((_, j) => j !== i) }))}>
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow>
+                      <TableCell><Input value={newSPF.hostname} onChange={(e) => setNewSPF({ ...newSPF, hostname: e.target.value })} placeholder="hostname" className="h-7 font-mono" /></TableCell>
+                      <TableCell><Input value={newSPF.value} onChange={(e) => setNewSPF({ ...newSPF, value: e.target.value })} placeholder="v=spf1" className="h-7 font-mono" /></TableCell>
+                      <TableCell><Input value={newSPF.ttl} onChange={(e) => setNewSPF({ ...newSPF, ttl: e.target.value })} placeholder="TTL" type="number" className="h-7 w-20" /></TableCell>
+                      <TableCell><Checkbox checked={newSPF.disabled} onCheckedChange={(c) => setNewSPF({ ...newSPF, disabled: c === true })} /></TableCell>
+                      <TableCell><Button variant="outline" size="icon" className="h-7 w-7" onClick={addSPF} disabled={!newSPF.hostname}><Plus className="h-3 w-3" /></Button></TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </ScrollArea>
+            </TabsContent>
+            )}
+
+            {capabilities?.features.auth_srv?.supported && (
+            <TabsContent value="srv">
+              <ScrollArea className="h-52">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Hostname</TableHead>
+                      <TableHead>Entry</TableHead>
+                      <TableHead>Target</TableHead>
+                      <TableHead>Port</TableHead>
+                      <TableHead>Priority</TableHead>
+                      <TableHead>Weight</TableHead>
+                      <TableHead>TTL</TableHead>
+                      <TableHead>Disabled</TableHead>
+                      <TableHead></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {records.srv.map((r, i) =>
+                      r.entries.map((e, j) => (
+                        <TableRow key={`${i}-${j}`}>
+                          <TableCell className="font-mono">{r.hostname}</TableCell>
+                          <TableCell className="font-mono">{e.entry}</TableCell>
+                          <TableCell className="font-mono">{e.hostname ?? "—"}</TableCell>
+                          <TableCell>{e.port ?? "—"}</TableCell>
+                          <TableCell>{e.priority ?? "—"}</TableCell>
+                          <TableCell>{e.weight ?? "—"}</TableCell>
+                          <TableCell>{r.ttl ?? "—"}</TableCell>
+                          <TableCell>{r.disabled ? <Badge variant="secondary">Yes</Badge> : "—"}</TableCell>
+                          <TableCell>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setRecords((rec) => ({
+                              ...rec,
+                              srv: rec.srv.flatMap((item, k) => {
+                                if (k !== i) return [item];
+                                const entries = item.entries.filter((_, n) => n !== j);
+                                return entries.length ? [{ ...item, entries }] : [];
+                              }),
+                            }))}>
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                    <TableRow>
+                      <TableCell><Input value={newSRV.hostname} onChange={(e) => setNewSRV({ ...newSRV, hostname: e.target.value })} placeholder="_sip._tcp" className="h-7 font-mono" /></TableCell>
+                      <TableCell><Input value={newSRV.entry} onChange={(e) => setNewSRV({ ...newSRV, entry: e.target.value })} placeholder="10" className="h-7 w-16 font-mono" /></TableCell>
+                      <TableCell><Input value={newSRV.target} onChange={(e) => setNewSRV({ ...newSRV, target: e.target.value })} placeholder="sip.example.com" className="h-7 font-mono" /></TableCell>
+                      <TableCell><Input value={newSRV.port} onChange={(e) => setNewSRV({ ...newSRV, port: e.target.value })} placeholder="5060" type="number" className="h-7 w-16" /></TableCell>
+                      <TableCell><Input value={newSRV.priority} onChange={(e) => setNewSRV({ ...newSRV, priority: e.target.value })} placeholder="10" type="number" className="h-7 w-16" /></TableCell>
+                      <TableCell><Input value={newSRV.weight} onChange={(e) => setNewSRV({ ...newSRV, weight: e.target.value })} placeholder="0" type="number" className="h-7 w-16" /></TableCell>
+                      <TableCell><Input value={newSRV.ttl} onChange={(e) => setNewSRV({ ...newSRV, ttl: e.target.value })} placeholder="TTL" type="number" className="h-7 w-16" /></TableCell>
+                      <TableCell><Checkbox checked={newSRV.disabled} onCheckedChange={(c) => setNewSRV({ ...newSRV, disabled: c === true })} /></TableCell>
+                      <TableCell><Button variant="outline" size="icon" className="h-7 w-7" onClick={addSRV} disabled={!newSRV.hostname || !newSRV.entry}><Plus className="h-3 w-3" /></Button></TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </ScrollArea>
+            </TabsContent>
+            )}
           </Tabs>
         </div>
 

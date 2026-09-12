@@ -96,6 +96,48 @@ class PTRRecord(BaseModel):
     disabled: bool = False
 
 
+class NAPTRRule(BaseModel):
+    rule: str
+    order: Optional[int] = None
+    preference: Optional[int] = None
+    lookup_a: bool = False
+    lookup_srv: bool = False
+    protocol_specific: bool = False
+    resolve_uri: bool = False
+    regexp: Optional[str] = None
+    replacement: Optional[str] = None
+    service: Optional[str] = None
+
+
+class NAPTRRecord(BaseModel):
+    hostname: str
+    rules: List[NAPTRRule] = []
+    ttl: Optional[int] = None
+    disabled: bool = False
+
+
+class SPFRecord(BaseModel):
+    hostname: str
+    value: Optional[str] = None
+    ttl: Optional[int] = None
+    disabled: bool = False
+
+
+class SRVEntry(BaseModel):
+    entry: str
+    hostname: Optional[str] = None
+    port: Optional[int] = None
+    priority: Optional[int] = None
+    weight: Optional[int] = None
+
+
+class SRVRecord(BaseModel):
+    hostname: str
+    entries: List[SRVEntry] = []
+    ttl: Optional[int] = None
+    disabled: bool = False
+
+
 class AuthDomainRecords(BaseModel):
     a: List[ARecord] = []
     aaaa: List[AAAARecord] = []
@@ -104,6 +146,9 @@ class AuthDomainRecords(BaseModel):
     txt: List[TXTRecord] = []
     ns: List[NSRecord] = []
     ptr: List[PTRRecord] = []
+    naptr: List[NAPTRRecord] = []
+    spf: List[SPFRecord] = []
+    srv: List[SRVRecord] = []
 
 
 class AuthoritativeDomain(BaseModel):
@@ -482,6 +527,85 @@ def _parse_ptr_records(raw: dict) -> List[PTRRecord]:
     return result
 
 
+def _parse_naptr_records(raw: dict) -> List[NAPTRRecord]:
+    if not raw or not isinstance(raw, dict):
+        return []
+    result = []
+    for hostname, attrs in sorted(raw.items()):
+        if not isinstance(attrs, dict):
+            attrs = {}
+        rules = []
+        rule_raw = attrs.get("rule", {})
+        if isinstance(rule_raw, dict):
+            for rule, rule_attrs in sorted(rule_raw.items()):
+                if not isinstance(rule_attrs, dict):
+                    rule_attrs = {}
+                rules.append(NAPTRRule(
+                    rule=str(rule),
+                    order=_parse_int(rule_attrs.get("order")),
+                    preference=_parse_int(rule_attrs.get("preference")),
+                    lookup_a="lookup-a" in rule_attrs,
+                    lookup_srv="lookup-srv" in rule_attrs,
+                    protocol_specific="protocol-specific" in rule_attrs,
+                    resolve_uri="resolve-uri" in rule_attrs,
+                    regexp=_parse_scalar(rule_attrs.get("regexp")),
+                    replacement=_parse_scalar(rule_attrs.get("replacement")),
+                    service=_parse_scalar(rule_attrs.get("service")),
+                ))
+        result.append(NAPTRRecord(
+            hostname=hostname,
+            rules=rules,
+            ttl=_parse_int(attrs.get("ttl")),
+            disabled="disable" in attrs,
+        ))
+    return result
+
+
+def _parse_spf_records(raw: dict) -> List[SPFRecord]:
+    if not raw or not isinstance(raw, dict):
+        return []
+    result = []
+    for hostname, attrs in sorted(raw.items()):
+        if not isinstance(attrs, dict):
+            attrs = {}
+        result.append(SPFRecord(
+            hostname=hostname,
+            value=_parse_scalar(attrs.get("value")),
+            ttl=_parse_int(attrs.get("ttl")),
+            disabled="disable" in attrs,
+        ))
+    return result
+
+
+def _parse_srv_records(raw: dict) -> List[SRVRecord]:
+    if not raw or not isinstance(raw, dict):
+        return []
+    result = []
+    for hostname, attrs in sorted(raw.items()):
+        if not isinstance(attrs, dict):
+            attrs = {}
+        entries = []
+        entry_raw = attrs.get("entry", {})
+        if isinstance(entry_raw, dict):
+            for entry, entry_attrs in sorted(entry_raw.items()):
+                if not isinstance(entry_attrs, dict):
+                    entry_attrs = {}
+                entries.append(SRVEntry(
+                    entry=str(entry),
+                    hostname=_parse_scalar(entry_attrs.get("hostname")),
+                    port=_parse_int(entry_attrs.get("port")),
+                    priority=_parse_int(entry_attrs.get("priority")),
+                    weight=_parse_int(entry_attrs.get("weight")),
+                ))
+        result.append(SRVRecord(
+            hostname=hostname,
+            entries=entries,
+            ttl=_parse_int(attrs.get("ttl")),
+            disabled="disable" in attrs,
+        ))
+    return result
+
+
 def _parse_authoritative_domains(raw: dict) -> List[AuthoritativeDomain]:
     if not raw or not isinstance(raw, dict):
         return []
@@ -500,6 +624,9 @@ def _parse_authoritative_domains(raw: dict) -> List[AuthoritativeDomain]:
             txt=_parse_txt_records(records_raw.get("txt", {})),
             ns=_parse_ns_records(records_raw.get("ns", {})),
             ptr=_parse_ptr_records(records_raw.get("ptr", {})),
+            naptr=_parse_naptr_records(records_raw.get("naptr", {})),
+            spf=_parse_spf_records(records_raw.get("spf", {})),
+            srv=_parse_srv_records(records_raw.get("srv", {})),
         )
         result.append(AuthoritativeDomain(
             domain=domain,
