@@ -40,6 +40,18 @@ class DHCPv6ServerBatchBuilder(BatchBuilder):
                     "supported": is_1_5,
                     "description": "Interface(s) to listen on (1.5+)",
                 },
+                "shared_network_interface": {
+                    "supported": is_1_5,
+                    "description": "Interface(s) bound to a shared network",
+                },
+                "subnet_interface": {
+                    "supported": is_1_5,
+                    "description": "Interface(s) bound to a subnet",
+                },
+                "capwap_controller": {
+                    "supported": is_1_5,
+                    "description": "CAPWAP controller option",
+                },
                 "shared_networks": {"supported": True, "description": "Shared network configurations"},
                 "network_common_options": {
                     "supported": True,
@@ -160,6 +172,18 @@ class DHCPv6ServerBatchBuilder(BatchBuilder):
     def delete_network_info_refresh_time(self, name: str) -> "DHCPv6ServerBatchBuilder":
         return self.add_delete(self.m.get_network_option_info_refresh_time_delete(name))
 
+    def set_network_interface(self, name: str, iface: str) -> "DHCPv6ServerBatchBuilder":
+        return self.add_set(self.m.get_shared_network_interface(name, iface))
+
+    def delete_network_interface(self, name: str, iface: str) -> "DHCPv6ServerBatchBuilder":
+        return self.add_delete(self.m.get_shared_network_interface_delete(name, iface))
+
+    def set_network_capwap_controller(self, name: str, value: str) -> "DHCPv6ServerBatchBuilder":
+        return self.add_set(self.m.get_network_option_capwap_controller(name, value))
+
+    def delete_network_capwap_controller(self, name: str) -> "DHCPv6ServerBatchBuilder":
+        return self.add_delete(self.m.get_network_option_capwap_controller_delete(name))
+
     # -------------------------------------------------------------------------
     # Subnet operations
     # -------------------------------------------------------------------------
@@ -169,6 +193,12 @@ class DHCPv6ServerBatchBuilder(BatchBuilder):
 
     def delete_subnet(self, name: str, subnet: str) -> "DHCPv6ServerBatchBuilder":
         return self.add_delete(self.m.get_subnet_delete(name, subnet))
+
+    def set_subnet_interface(self, name: str, subnet: str, iface: str) -> "DHCPv6ServerBatchBuilder":
+        return self.add_set(self.m.get_subnet_interface(name, subnet, iface))
+
+    def delete_subnet_interface(self, name: str, subnet: str, iface: str) -> "DHCPv6ServerBatchBuilder":
+        return self.add_delete(self.m.get_subnet_interface_delete(name, subnet, iface))
 
     # Lease times
     def set_subnet_lease_default(self, name: str, subnet: str, value: str) -> "DHCPv6ServerBatchBuilder":
@@ -207,6 +237,12 @@ class DHCPv6ServerBatchBuilder(BatchBuilder):
 
     def delete_subnet_info_refresh_time(self, name: str, subnet: str) -> "DHCPv6ServerBatchBuilder":
         return self.add_delete(self.m.get_subnet_option_info_refresh_time_delete(name, subnet))
+
+    def set_subnet_capwap_controller(self, name: str, subnet: str, value: str) -> "DHCPv6ServerBatchBuilder":
+        return self.add_set(self.m.get_subnet_option_capwap_controller(name, subnet, value))
+
+    def delete_subnet_capwap_controller(self, name: str, subnet: str) -> "DHCPv6ServerBatchBuilder":
+        return self.add_delete(self.m.get_subnet_option_capwap_controller_delete(name, subnet))
 
     def set_subnet_nis_domain(self, name: str, subnet: str, domain: str) -> "DHCPv6ServerBatchBuilder":
         return self.add_set(self.m.get_subnet_option_nis_domain(name, subnet, domain))

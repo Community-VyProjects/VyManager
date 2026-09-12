@@ -4,6 +4,7 @@ export interface DHCPv6SubnetOptions {
   name_servers: string[];
   domain_search: string[];
   info_refresh_time: number | null;
+  capwap_controller: string | null;
   nis_domain: string | null;
   nisplus_domain: string | null;
   nis_servers: string[];
@@ -43,6 +44,7 @@ export interface DHCPv6StaticMapping {
 export interface DHCPv6Subnet {
   subnet: string;
   subnet_id: number | null;
+  interfaces: string[];
   lease_default: number | null;
   lease_minimum: number | null;
   lease_maximum: number | null;
@@ -56,9 +58,11 @@ export interface DHCPv6SharedNetwork {
   name: string;
   description: string | null;
   disabled: boolean;
+  interfaces: string[];
   name_servers: string[];
   domain_search: string[];
   info_refresh_time: number | null;
+  capwap_controller: string | null;
   subnets: DHCPv6Subnet[];
 }
 
@@ -81,6 +85,9 @@ export interface DHCPv6ServerCapabilities {
     global_name_servers: { supported: boolean; description: string };
     disable_route_autoinstall: { supported: boolean; description: string };
     listen_interface: { supported: boolean; description: string };
+    shared_network_interface: { supported: boolean; description: string };
+    subnet_interface: { supported: boolean; description: string };
+    capwap_controller: { supported: boolean; description: string };
     shared_networks: { supported: boolean; description: string };
     network_common_options: { supported: boolean; description: string };
     subnet_lease_times: { supported: boolean; description: string };
@@ -201,6 +208,9 @@ class DHCPv6ServerService {
       if (updated.disabled) {
         ops.push({ op: "set_network_disable", value: name });
       }
+      for (const iface of updated.interfaces) {
+        ops.push({ op: "set_network_interface", value: `${name},${iface}` });
+      }
       for (const ns of updated.name_servers) {
         ops.push({ op: "set_network_name_server", value: `${name},${ns}` });
       }
@@ -209,6 +219,9 @@ class DHCPv6ServerService {
       }
       if (updated.info_refresh_time != null) {
         ops.push({ op: "set_network_info_refresh_time", value: `${name},${updated.info_refresh_time}` });
+      }
+      if (updated.capwap_controller?.trim()) {
+        ops.push({ op: "set_network_capwap_controller", value: `${name},${updated.capwap_controller.trim()}` });
       }
     } else {
       if (updated.description !== original.description) {
@@ -221,6 +234,13 @@ class DHCPv6ServerService {
       if (updated.disabled !== original.disabled) {
         ops.push({ op: updated.disabled ? "set_network_disable" : "delete_network_disable", value: name });
       }
+      this._diffList(
+        ops,
+        original.interfaces,
+        updated.interfaces,
+        (iface) => ({ op: "delete_network_interface", value: `${name},${iface}` }),
+        (iface) => ({ op: "set_network_interface", value: `${name},${iface}` })
+      );
       this._diffList(
         ops,
         original.name_servers,
@@ -240,6 +260,13 @@ class DHCPv6ServerService {
           ops.push({ op: "set_network_info_refresh_time", value: `${name},${updated.info_refresh_time}` });
         } else {
           ops.push({ op: "delete_network_info_refresh_time", value: name });
+        }
+      }
+      if (updated.capwap_controller !== original.capwap_controller) {
+        if (updated.capwap_controller?.trim()) {
+          ops.push({ op: "set_network_capwap_controller", value: `${name},${updated.capwap_controller.trim()}` });
+        } else {
+          ops.push({ op: "delete_network_capwap_controller", value: name });
         }
       }
     }
@@ -263,19 +290,23 @@ class DHCPv6ServerService {
     ops.push({ op: "set_shared_network", value: name });
     if (network.description?.trim()) ops.push({ op: "set_network_description", value: `${name},${network.description.trim()}` });
     if (network.disabled) ops.push({ op: "set_network_disable", value: name });
+    for (const iface of network.interfaces) ops.push({ op: "set_network_interface", value: `${name},${iface}` });
     for (const ns of network.name_servers) ops.push({ op: "set_network_name_server", value: `${name},${ns}` });
     for (const ds of network.domain_search) ops.push({ op: "set_network_domain_search", value: `${name},${ds}` });
     if (network.info_refresh_time != null) ops.push({ op: "set_network_info_refresh_time", value: `${name},${network.info_refresh_time}` });
+    if (network.capwap_controller?.trim()) ops.push({ op: "set_network_capwap_controller", value: `${name},${network.capwap_controller.trim()}` });
 
     // Subnet
     ops.push({ op: "set_subnet", value: base });
     if (subnet.subnet_id != null) ops.push({ op: "set_subnet_id", value: `${base},${subnet.subnet_id}` });
+    for (const iface of subnet.interfaces) ops.push({ op: "set_subnet_interface", value: `${base},${iface}` });
     if (subnet.lease_default != null) ops.push({ op: "set_subnet_lease_default", value: `${base},${subnet.lease_default}` });
     if (subnet.lease_minimum != null) ops.push({ op: "set_subnet_lease_minimum", value: `${base},${subnet.lease_minimum}` });
     if (subnet.lease_maximum != null) ops.push({ op: "set_subnet_lease_maximum", value: `${base},${subnet.lease_maximum}` });
     for (const ns of subnet.options.name_servers) ops.push({ op: "set_subnet_name_server", value: `${base},${ns}` });
     for (const ds of subnet.options.domain_search) ops.push({ op: "set_subnet_domain_search", value: `${base},${ds}` });
     if (subnet.options.info_refresh_time != null) ops.push({ op: "set_subnet_info_refresh_time", value: `${base},${subnet.options.info_refresh_time}` });
+    if (subnet.options.capwap_controller?.trim()) ops.push({ op: "set_subnet_capwap_controller", value: `${base},${subnet.options.capwap_controller.trim()}` });
     if (subnet.options.nis_domain) ops.push({ op: "set_subnet_nis_domain", value: `${base},${subnet.options.nis_domain}` });
     if (subnet.options.nisplus_domain) ops.push({ op: "set_subnet_nisplus_domain", value: `${base},${subnet.options.nisplus_domain}` });
     for (const s of subnet.options.nis_servers) ops.push({ op: "set_subnet_nis_server", value: `${base},${s}` });
@@ -319,12 +350,14 @@ class DHCPv6ServerService {
     if (original === null) {
       ops.push({ op: "set_subnet", value: base });
       if (updated.subnet_id != null) ops.push({ op: "set_subnet_id", value: `${base},${updated.subnet_id}` });
+      for (const iface of updated.interfaces) ops.push({ op: "set_subnet_interface", value: `${base},${iface}` });
       if (updated.lease_default != null) ops.push({ op: "set_subnet_lease_default", value: `${base},${updated.lease_default}` });
       if (updated.lease_minimum != null) ops.push({ op: "set_subnet_lease_minimum", value: `${base},${updated.lease_minimum}` });
       if (updated.lease_maximum != null) ops.push({ op: "set_subnet_lease_maximum", value: `${base},${updated.lease_maximum}` });
       for (const ns of updated.options.name_servers) ops.push({ op: "set_subnet_name_server", value: `${base},${ns}` });
       for (const ds of updated.options.domain_search) ops.push({ op: "set_subnet_domain_search", value: `${base},${ds}` });
       if (updated.options.info_refresh_time != null) ops.push({ op: "set_subnet_info_refresh_time", value: `${base},${updated.options.info_refresh_time}` });
+      if (updated.options.capwap_controller?.trim()) ops.push({ op: "set_subnet_capwap_controller", value: `${base},${updated.options.capwap_controller.trim()}` });
       if (updated.options.nis_domain) ops.push({ op: "set_subnet_nis_domain", value: `${base},${updated.options.nis_domain}` });
       if (updated.options.nisplus_domain) ops.push({ op: "set_subnet_nisplus_domain", value: `${base},${updated.options.nisplus_domain}` });
       for (const s of updated.options.nis_servers) ops.push({ op: "set_subnet_nis_server", value: `${base},${s}` });
@@ -337,6 +370,9 @@ class DHCPv6ServerService {
         if (updated.subnet_id != null) ops.push({ op: "set_subnet_id", value: `${base},${updated.subnet_id}` });
         else ops.push({ op: "delete_subnet_id", value: base });
       }
+      this._diffList(ops, original.interfaces, updated.interfaces,
+        (iface) => ({ op: "delete_subnet_interface", value: `${base},${iface}` }),
+        (iface) => ({ op: "set_subnet_interface", value: `${base},${iface}` }));
       if (updated.lease_default !== original.lease_default) {
         if (updated.lease_default != null) ops.push({ op: "set_subnet_lease_default", value: `${base},${updated.lease_default}` });
         else ops.push({ op: "delete_subnet_lease_default", value: base });
@@ -358,6 +394,10 @@ class DHCPv6ServerService {
       if (updated.options.info_refresh_time !== original.options.info_refresh_time) {
         if (updated.options.info_refresh_time != null) ops.push({ op: "set_subnet_info_refresh_time", value: `${base},${updated.options.info_refresh_time}` });
         else ops.push({ op: "delete_subnet_info_refresh_time", value: base });
+      }
+      if (updated.options.capwap_controller !== original.options.capwap_controller) {
+        if (updated.options.capwap_controller?.trim()) ops.push({ op: "set_subnet_capwap_controller", value: `${base},${updated.options.capwap_controller.trim()}` });
+        else ops.push({ op: "delete_subnet_capwap_controller", value: base });
       }
       if (updated.options.nis_domain !== original.options.nis_domain) {
         if (updated.options.nis_domain) ops.push({ op: "set_subnet_nis_domain", value: `${base},${updated.options.nis_domain}` });

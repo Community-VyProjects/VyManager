@@ -97,6 +97,12 @@ export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSucce
   const [netDomainSearch, setNetDomainSearch] = useState<string[]>([]);
   const [netDsInput, setNetDsInput] = useState("");
   const [netInfoRefreshTime, setNetInfoRefreshTime] = useState("");
+  const [netInterfaces, setNetInterfaces] = useState<string[]>([]);
+  const [netIfaceInput, setNetIfaceInput] = useState("");
+  const [netCapwap, setNetCapwap] = useState("");
+  const [subInterfaces, setSubInterfaces] = useState<string[]>([]);
+  const [subIfaceInput, setSubIfaceInput] = useState("");
+  const [subCapwap, setSubCapwap] = useState("");
 
   // ── Subnet fields (create only) ──
   const [subnetCidr, setSubnetCidr] = useState("");
@@ -155,6 +161,7 @@ export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSucce
     setRange14Start(""); setRange14Stop(""); setRange14Prefix("");
     setRange14Temporary(false);
     setNetNsInput(""); setNetDsInput("");
+    setNetIfaceInput(""); setSubIfaceInput("");
 
     if (network) {
       setName(network.name);
@@ -163,10 +170,14 @@ export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSucce
       setNetNameServers([...network.name_servers]);
       setNetDomainSearch([...network.domain_search]);
       setNetInfoRefreshTime(network.info_refresh_time != null ? String(network.info_refresh_time) : "");
+      setNetInterfaces([...network.interfaces]);
+      setNetCapwap(network.capwap_controller ?? "");
     } else {
       setName(""); setDescription(""); setNetDisabled(false);
       setNetNameServers([]); setNetDomainSearch([]); setNetInfoRefreshTime("");
+      setNetInterfaces([]); setNetCapwap("");
     }
+    setSubInterfaces([]); setSubCapwap("");
   }, [open, network]);
 
   function addToList(list: string[], setList: (v: string[]) => void, value: string, setInput: (v: string) => void) {
@@ -194,6 +205,8 @@ export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSucce
       name_servers: netNameServers,
       domain_search: netDomainSearch,
       info_refresh_time: netIrt,
+      capwap_controller: netCapwap.trim() || null,
+      interfaces: netInterfaces,
       subnets: network?.subnets ?? [],
     };
 
@@ -206,6 +219,7 @@ export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSucce
       const subnet = {
         subnet: subnetCidr.trim(),
         subnet_id: caps.features.subnet_id.supported ? 1 : null,
+        interfaces: subInterfaces,
         lease_default: leaseDefault.trim() !== "" ? parseInt(leaseDefault.trim(), 10) : null,
         lease_minimum: leaseMinimum.trim() !== "" ? parseInt(leaseMinimum.trim(), 10) : null,
         lease_maximum: leaseMaximum.trim() !== "" ? parseInt(leaseMaximum.trim(), 10) : null,
@@ -213,6 +227,7 @@ export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSucce
           name_servers: subNsServers,
           domain_search: subDomainSearch,
           info_refresh_time: subIrt,
+          capwap_controller: subCapwap.trim() || null,
           nis_domain: nisDomain.trim() || null,
           nisplus_domain: nisplusDomain.trim() || null,
           nis_servers: nisServers,
@@ -315,6 +330,30 @@ export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSucce
                   <Label htmlFor="net-disabled" className="cursor-pointer">Disable this network</Label>
                 </div>
 
+                {caps.features.shared_network_interface.supported && (
+                  <ListField
+                    label="Interfaces"
+                    placeholder="eth0"
+                    list={netInterfaces}
+                    input={netIfaceInput}
+                    setInput={setNetIfaceInput}
+                    onAdd={() => addToList(netInterfaces, setNetInterfaces, netIfaceInput, setNetIfaceInput)}
+                    onRemove={(item) => removeFromList(netInterfaces, setNetInterfaces, item)}
+                  />
+                )}
+
+                {!isEditing && caps.features.capwap_controller.supported && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="net-capwap-create">CAPWAP Controller</Label>
+                    <Input
+                      id="net-capwap-create"
+                      placeholder="Optional"
+                      value={netCapwap}
+                      onChange={(e) => setNetCapwap(e.target.value)}
+                    />
+                  </div>
+                )}
+
                 {!isEditing && (
                   <>
                     <div className="border-t border-border pt-3">
@@ -330,6 +369,18 @@ export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSucce
                         onChange={(e) => setSubnetCidr(e.target.value)}
                       />
                     </div>
+
+                    {caps.features.subnet_interface.supported && (
+                      <ListField
+                        label="Subnet Interfaces"
+                        placeholder="eth0"
+                        list={subInterfaces}
+                        input={subIfaceInput}
+                        setInput={setSubIfaceInput}
+                        onAdd={() => addToList(subInterfaces, setSubInterfaces, subIfaceInput, setSubIfaceInput)}
+                        onRemove={(item) => removeFromList(subInterfaces, setSubInterfaces, item)}
+                      />
+                    )}
 
                     <div className="grid grid-cols-3 gap-2">
                       <div className="space-y-1.5">
@@ -403,6 +454,17 @@ export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSucce
                     onChange={(e) => setNetInfoRefreshTime(e.target.value)}
                   />
                 </div>
+                {caps.features.capwap_controller.supported && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="net-capwap">CAPWAP Controller</Label>
+                    <Input
+                      id="net-capwap"
+                      placeholder="Optional"
+                      value={netCapwap}
+                      onChange={(e) => setNetCapwap(e.target.value)}
+                    />
+                  </div>
+                )}
               </>
             )}
 
@@ -438,6 +500,17 @@ export function DHCPv6ServerNetworkModal({ open, network, caps, onClose, onSucce
                     onChange={(e) => setSubInfoRefreshTime(e.target.value)}
                   />
                 </div>
+                {caps.features.capwap_controller.supported && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="sub-capwap">CAPWAP Controller</Label>
+                    <Input
+                      id="sub-capwap"
+                      placeholder="Optional"
+                      value={subCapwap}
+                      onChange={(e) => setSubCapwap(e.target.value)}
+                    />
+                  </div>
+                )}
                 <div className="space-y-1.5">
                   <Label htmlFor="nis-domain">NIS Domain</Label>
                   <Input

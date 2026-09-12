@@ -120,6 +120,9 @@ export function DHCPv6ServerSubnetModal({
   const [sntpInput, setSntpInput] = useState("");
   const [ciscoTftpServers, setCiscoTftpServers] = useState<string[]>([]);
   const [ciscoInput, setCiscoInput] = useState("");
+  const [interfaces, setInterfaces] = useState<string[]>([]);
+  const [ifaceInput, setIfaceInput] = useState("");
+  const [capwap, setCapwap] = useState("");
 
   useEffect(() => {
     if (!open) return;
@@ -144,6 +147,8 @@ export function DHCPv6ServerSubnetModal({
       setSipServers([...subnet.options.sip_servers]);
       setSntpServers([...subnet.options.sntp_servers]);
       setCiscoTftpServers([...subnet.options.cisco_tftp_servers]);
+      setInterfaces([...subnet.interfaces]);
+      setCapwap(subnet.options.capwap_controller ?? "");
     } else {
       setSubnetCidr("");
       setLeaseDefault("");
@@ -159,9 +164,12 @@ export function DHCPv6ServerSubnetModal({
       setSipServers([]);
       setSntpServers([]);
       setCiscoTftpServers([]);
+      setInterfaces([]);
+      setCapwap("");
     }
     setNsInput(""); setDsInput(""); setNisInput(""); setNisplusInput("");
     setSipInput(""); setSntpInput(""); setCiscoInput("");
+    setIfaceInput("");
   }, [open, subnet, preselectedNetName, networks]);
 
   function addToList(
@@ -203,6 +211,7 @@ export function DHCPv6ServerSubnetModal({
     const updated: DHCPv6Subnet = {
       subnet: subnetCidr.trim(),
       subnet_id: computedSubnetId,
+      interfaces,
       lease_default: leaseDefault.trim() !== "" ? parseInt(leaseDefault.trim(), 10) : null,
       lease_minimum: leaseMinimum.trim() !== "" ? parseInt(leaseMinimum.trim(), 10) : null,
       lease_maximum: leaseMaximum.trim() !== "" ? parseInt(leaseMaximum.trim(), 10) : null,
@@ -210,6 +219,7 @@ export function DHCPv6ServerSubnetModal({
         name_servers: nameServers,
         domain_search: domainSearch,
         info_refresh_time: infoRefreshTime.trim() !== "" ? parseInt(infoRefreshTime.trim(), 10) : null,
+        capwap_controller: capwap.trim() || null,
         nis_domain: nisDomain.trim() || null,
         nisplus_domain: nisplusDomain.trim() || null,
         nis_servers: nisServers,
@@ -275,6 +285,18 @@ export function DHCPv6ServerSubnetModal({
                   disabled={isEditing}
                 />
               </div>
+
+              {caps.features.subnet_interface.supported && (
+                <ListField
+                  label="Interfaces"
+                  placeholder="eth0"
+                  list={interfaces}
+                  input={ifaceInput}
+                  setInput={setIfaceInput}
+                  onAdd={() => addToList(ifaceInput, interfaces, setInterfaces, setIfaceInput)}
+                  onRemove={(item) => removeFromList(item, interfaces, setInterfaces)}
+                />
+              )}
 
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1.5">
@@ -343,6 +365,17 @@ export function DHCPv6ServerSubnetModal({
                   onChange={(e) => setInfoRefreshTime(e.target.value)}
                 />
               </div>
+              {caps.features.capwap_controller.supported && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="opt-capwap">CAPWAP Controller</Label>
+                  <Input
+                    id="opt-capwap"
+                    placeholder="Optional"
+                    value={capwap}
+                    onChange={(e) => setCapwap(e.target.value)}
+                  />
+                </div>
+              )}
               <div className="space-y-1.5">
                 <Label htmlFor="nis-domain">NIS Domain</Label>
                 <Input
