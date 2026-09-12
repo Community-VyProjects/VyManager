@@ -304,7 +304,7 @@ def build_router(family: str) -> APIRouter:
     @router.get("/capabilities", operation_id=f"get_firewall_{family}_capabilities")
     async def get_capabilities(request: Request):
         """
-        Get firewall IPv4 capabilities based on device VyOS version.
+        Get firewall capabilities based on device VyOS version.
 
         Returns feature flags indicating which operations are supported.
         Allows frontends to conditionally enable/disable features.
@@ -340,7 +340,7 @@ def build_router(family: str) -> APIRouter:
     @router.get("/config", response_model=FirewallConfigResponse, operation_id=f"get_firewall_{family}_config")
     async def get_config(http_request: Request, refresh: bool = False):
         """
-        Get all IPv4 firewall configurations from VyOS in a generalized format.
+        Get all firewall configurations from VyOS in a generalized format.
 
         Args:
             refresh: If True, force refresh from VyOS. If False, use cache.
@@ -362,7 +362,7 @@ def build_router(family: str) -> APIRouter:
             output_rules = []
             custom_chains = []
 
-            # Parse firewall IPv4 configuration
+            # Parse firewall family configuration
             firewall_config = full_config.get("firewall", {}).get(family, {})
 
             # Helper function to parse a rule

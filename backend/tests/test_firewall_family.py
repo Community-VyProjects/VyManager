@@ -32,12 +32,53 @@ def test_icmp_leaf_follows_family():
     assert "icmpv6" in v6.get_rule_icmpv6_type_name("forward", 1, "echo-request")
 
 
-def test_ipv6_config_does_not_parse_prerouting():
-    from routers.firewall.family import prerouting_section
+def _firewall_config_with_prerouting():
+    raw = {
+        "raw": {
+            "default-action": "drop",
+            "rule": {"10": {"action": "drop"}},
+        }
+    }
+    return {
+        "firewall": {
+            "ipv4": {"prerouting": raw},
+            "ipv6": {"prerouting": raw},
+        }
+    }
 
-    present = {"prerouting": {"raw": {"rule": {"10": {"action": "drop"}}}}}
-    assert prerouting_section("ipv4", present) == present["prerouting"]
-    assert prerouting_section("ipv6", present) == {}
+
+def test_get_config_prerouting_raw_is_ipv4_only(monkeypatch):
+    """IPv6 GET /config must not fill prerouting_raw even if that node exists."""
+    async def allow(*_args, **_kwargs):
+        return None
+
+    class FakeService:
+        def get_full_config(self, refresh=False):
+            return _firewall_config_with_prerouting()
+
+    monkeypatch.setattr("routers.firewall.family.require_read_permission", allow)
+    monkeypatch.setattr(
+        "routers.firewall.family.get_session_vyos_service",
+        lambda _req: FakeService(),
+    )
+
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from routers.firewall.family import build_router
+
+    app = FastAPI()
+    app.include_router(build_router("ipv4"))
+    app.include_router(build_router("ipv6"))
+    client = TestClient(app)
+
+    ipv6 = client.get("/vyos/firewall/ipv6/config")
+    assert ipv6.status_code == 200, ipv6.text
+    assert ipv6.json()["prerouting_raw"] is None
+
+    ipv4 = client.get("/vyos/firewall/ipv4/config")
+    assert ipv4.status_code == 200, ipv4.text
+    assert ipv4.json()["prerouting_raw"] is not None
+    assert ipv4.json()["prerouting_raw"]["default_action"] == "drop"
 
 
 def test_prerouting_is_ipv4_only():
