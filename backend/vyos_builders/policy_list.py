@@ -16,11 +16,6 @@ class PolicyListBatchBuilder(BatchBuilder):
         self.kind = kind
         self.ident = KIND_SPEC[kind]["ident"]
         self.mapper = PolicyListMapper(version, kind)
-        ident = self.ident
-        setattr(self, f"set_{ident}", self.set_list)
-        setattr(self, f"delete_{ident}", self.delete_list)
-        setattr(self, f"set_{ident}_description", self.set_list_description)
-        setattr(self, f"delete_{ident}_description", self.delete_list_description)
 
     def clear(self) -> None:
         self._operations = []
@@ -28,16 +23,16 @@ class PolicyListBatchBuilder(BatchBuilder):
     def operation_count(self) -> int:
         return len(self._operations)
 
-    def set_list(self, name: str) -> "PolicyListBatchBuilder":
+    def _set_list(self, name: str) -> "PolicyListBatchBuilder":
         return self.add_set(self.mapper.get_list(name))
 
-    def delete_list(self, name: str) -> "PolicyListBatchBuilder":
+    def _delete_list(self, name: str) -> "PolicyListBatchBuilder":
         return self.add_delete(self.mapper.get_list_path(name))
 
-    def set_list_description(self, name: str, description: str) -> "PolicyListBatchBuilder":
+    def _set_list_description(self, name: str, description: str) -> "PolicyListBatchBuilder":
         return self.add_set(self.mapper.get_list_description(name, description))
 
-    def delete_list_description(self, name: str) -> "PolicyListBatchBuilder":
+    def _delete_list_description(self, name: str) -> "PolicyListBatchBuilder":
         return self.add_delete(self.mapper.get_list_description_path(name))
 
     def set_rule(self, name: str, rule: str) -> "PolicyListBatchBuilder":

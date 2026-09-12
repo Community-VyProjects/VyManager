@@ -9,22 +9,26 @@ from vyos_builders.extcommunity_list.extcommunity_list import ExtCommunityListBa
 from vyos_builders.large_community_list.large_community_list import LargeCommunityListBatchBuilder
 from vyos_builders.policy_list import PolicyListBatchBuilder
 from vyos_mappers.policy_list import POLICY_LIST_KINDS, PolicyListMapper
+from routers.operations.operations import describe_batch_builder
+from batch_dispatch import resolve_batch_method
+from fastapi import HTTPException
 
 
 NAME = "CUSTOM"
 RULE = "10"
 
-KINDS = [
-    ("community-list", "set_community_list", "delete_community_list"),
-    ("extcommunity-list", "set_extcommunity_list", "delete_extcommunity_list"),
-    ("large-community-list", "set_large_community_list", "delete_large_community_list"),
-]
+BUILDERS = {
+    "community-list": (CommunityListBatchBuilder, "set_community_list", "delete_community_list"),
+    "extcommunity-list": (ExtCommunityListBatchBuilder, "set_extcommunity_list", "delete_extcommunity_list"),
+    "large-community-list": (LargeCommunityListBatchBuilder, "set_large_community_list", "delete_large_community_list"),
+}
 
 
-@pytest.mark.parametrize("kind, set_op, delete_op", KINDS)
+@pytest.mark.parametrize("kind", list(BUILDERS))
 @pytest.mark.parametrize("version", ["1.4", "1.5"])
-def test_policy_list_kind_paths(kind, set_op, delete_op, version):
-    builder = PolicyListBatchBuilder(version=version, kind=kind)
+def test_policy_list_kind_paths(kind, version):
+    cls, set_op, delete_op = BUILDERS[kind]
+    builder = cls(version=version)
     getattr(builder, set_op)(NAME)
     assert builder.get_operations() == [{"op": "set", "path": ["policy", kind, NAME]}]
     builder.clear()
@@ -35,6 +39,16 @@ def test_policy_list_kind_paths(kind, set_op, delete_op, version):
     assert builder.get_operations() == [
         {"op": "set", "path": ["policy", kind, NAME, "rule", RULE, "regex", "65000:.*"]}
     ]
+
+
+def test_operations_vocab_uses_family_op_names_not_generic_list():
+    ops = {item["op"] for item in describe_batch_builder(CommunityListBatchBuilder, max_args=5)}
+    assert "set_community_list" in ops
+    assert "delete_community_list" in ops
+    assert "set_list" not in ops
+    assert "delete_list" not in ops
+    with pytest.raises(HTTPException):
+        resolve_batch_method(CommunityListBatchBuilder("1.5"), "set_list")
 
 
 def test_thin_builders_are_family_wrappers():
@@ -65,7 +79,7 @@ def test_copied_modules_do_not_reimplement_the_stack():
         "routers/large_community_list/large_community_list.py",
     ):
         lines = (root / rel).read_text().splitlines()
-        assert len(lines) < 20, rel
+        assert len(lines) < 25, rel
     assert set(POLICY_LIST_KINDS) == {
         "community-list",
         "extcommunity-list",

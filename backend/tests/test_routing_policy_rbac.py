@@ -29,20 +29,10 @@ GATED_HANDLERS = {
         "as_path_list_batch_configure": "require_write_permission",
         "reorder_as_path_list_rules": "require_write_permission",
     },
-    "community_list/community_list.py": {
-        "get_community_list_config": "require_read_permission",
-        "community_list_batch_configure": "require_write_permission",
-        "reorder_community_list_rules": "require_write_permission",
-    },
-    "extcommunity_list/extcommunity_list.py": {
-        "get_extcommunity_list_config": "require_read_permission",
-        "extcommunity_list_batch_configure": "require_write_permission",
-        "reorder_extcommunity_list_rules": "require_write_permission",
-    },
-    "large_community_list/large_community_list.py": {
-        "get_large_community_list_config": "require_read_permission",
-        "large_community_list_batch_configure": "require_write_permission",
-        "reorder_large_community_list_rules": "require_write_permission",
+    "policy_list.py": {
+        "get_config": "require_read_permission",
+        "batch_configure": "require_write_permission",
+        "reorder_rules": "require_write_permission",
     },
     "route/route.py": {
         "get_route_config": "require_read_permission",
@@ -66,9 +56,7 @@ GATED_HANDLERS = {
 DYNAMIC_DISPATCH_FILES = [
     "local_route/local_route.py",
     "as_path_list/as_path_list.py",
-    "community_list/community_list.py",
-    "extcommunity_list/extcommunity_list.py",
-    "large_community_list/large_community_list.py",
+    "policy_list.py",
     "route/route.py",
     "route_map/route_map.py",
     "access_list/access_list.py",
