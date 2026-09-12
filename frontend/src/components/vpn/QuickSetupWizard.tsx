@@ -228,7 +228,7 @@ PersistentKeepalive = 25`;
       }
 
       // Step 2: Generate client keypair upfront if creating a client
-      // (needed before interface creation on VyOS 1.4 for atomic commit)
+      // (needed before interface creation when a peer is required for atomic commit)
       let clientKeypair: { private_key?: string | null; public_key?: string | null } | null = null;
       if (createClient) {
         clientKeypair = await wireguardService.generateKeypair();
@@ -237,7 +237,7 @@ PersistentKeepalive = 25`;
         }
       }
 
-      // Step 3: Create interface (with peer included for atomic commit on 1.4)
+      // Step 3: Create interface (with peer included for atomic commit when required)
       const interfaceConfig: Parameters<typeof wireguardService.createInterface>[0] = {
         name: interfaceName.trim(),
         private_key: serverKeypair.private_key,
@@ -481,7 +481,7 @@ PersistentKeepalive = 25`;
                 </Label>
                 <p className="text-xs text-muted-foreground">
                   {peerRequiredOnCreate
-                    ? "VyOS 1.4 requires at least one peer when creating an interface."
+                    ? "This device requires at least one peer when creating an interface."
                     : "Generate a config file and QR code for your first device."}
                 </p>
               </div>

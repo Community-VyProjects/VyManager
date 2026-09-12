@@ -467,7 +467,7 @@ export function FlowAccountingPanel({ config, capabilities, isReadOnly, onRefres
         </CardContent>
       </Card>
 
-      {/* sFlow — shown only when standalone sFlow is supported (1.5+) */}
+      {/* sFlow — shown only when standalone sFlow is supported */}
       {supportsStandaloneSflow && (
         <>
           <Card>
@@ -475,7 +475,7 @@ export function FlowAccountingPanel({ config, capabilities, isReadOnly, onRefres
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle>sFlow Configuration</CardTitle>
-                  <CardDescription>Standalone sFlow agent settings (VyOS 1.5+).</CardDescription>
+                  <CardDescription>Standalone sFlow agent settings.</CardDescription>
                 </div>
                 {!isReadOnly && (
                   editingSf ? (
