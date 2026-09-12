@@ -42,6 +42,12 @@ class NTPServer(BaseModel):
     prefer: bool = False
 
 
+class NTPTimestampInterface(BaseModel):
+    """Per-interface NIC receive timestamp filter (VyOS 1.5+)."""
+    interface: str
+    receive_filter: str
+
+
 class NTPConfig(BaseModel):
     """Full NTP service configuration."""
     allow_clients: List[str] = []
@@ -49,6 +55,7 @@ class NTPConfig(BaseModel):
     leap_second: Optional[str] = None
     listen_addresses: List[str] = []
     servers: List[NTPServer] = []
+    timestamp_interfaces: List[NTPTimestampInterface] = []
     vrf: Optional[str] = None
 
 
@@ -118,6 +125,7 @@ async def get_ntp_config(http_request: Request, refresh: bool = False):
             leap_second=ntp_raw.get("leap-second"),
             listen_addresses=_parse_listen_addresses(ntp_raw),
             servers=_parse_servers(ntp_raw),
+            timestamp_interfaces=_parse_timestamp_interfaces(ntp_raw),
             vrf=ntp_raw.get("vrf"),
         )
     except Exception:
@@ -167,6 +175,8 @@ async def ntp_batch_configure(http_request: Request, body: NTPBatchRequest):
         raise
     except AttributeError as e:
         raise HTTPException(status_code=400, detail=f"Unknown operation: {e}")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception:
         logger.exception("Unhandled error in ntp_batch_configure")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -222,3 +232,28 @@ def _parse_servers(ntp_raw: dict) -> List[NTPServer]:
 
     servers.sort(key=lambda s: s.name)
     return servers
+
+
+def _parse_timestamp_interfaces(ntp_raw: dict) -> List[NTPTimestampInterface]:
+    """Parse service ntp timestamp interface <iface> receive-filter <value> (1.5+)."""
+    timestamp_raw = ntp_raw.get("timestamp", {})
+    if not isinstance(timestamp_raw, dict):
+        return []
+    iface_raw = timestamp_raw.get("interface", {})
+    if not isinstance(iface_raw, dict):
+        return []
+
+    result = []
+    for iface_name, iface_cfg in iface_raw.items():
+        if not isinstance(iface_cfg, dict):
+            continue
+        receive_filter = iface_cfg.get("receive-filter")
+        if receive_filter is None:
+            continue
+        result.append(NTPTimestampInterface(
+            interface=iface_name,
+            receive_filter=receive_filter,
+        ))
+
+    result.sort(key=lambda t: t.interface)
+    return result

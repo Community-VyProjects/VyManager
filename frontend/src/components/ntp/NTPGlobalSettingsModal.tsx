@@ -25,11 +25,13 @@ import {
 } from "@/components/ui/select";
 import { AlertCircle, Loader2, Plus, X } from "lucide-react";
 import { ntpService, NTPConfig, NTPGlobalSettingsUpdate } from "@/lib/api/ntp";
+import type { NTPCapabilities, NTPTimestampInterface } from "@/lib/api/ntp";
 
 interface NTPGlobalSettingsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   config: NTPConfig;
+  capabilities: NTPCapabilities | null;
   onSuccess: () => void;
 }
 
@@ -158,10 +160,99 @@ function MultiValueField({
   );
 }
 
+interface TimestampFilterFieldProps {
+  values: NTPTimestampInterface[];
+  filterOptions: string[];
+  onAdd: (iface: string, filter: string) => void;
+  onRemove: (iface: string) => void;
+}
+
+function TimestampFilterField({
+  values,
+  filterOptions,
+  onAdd,
+  onRemove,
+}: TimestampFilterFieldProps) {
+  const [iface, setIface] = useState("");
+  const [filter, setFilter] = useState(filterOptions[0] ?? "all");
+  const [fieldError, setFieldError] = useState<string | null>(null);
+
+  const handleAdd = () => {
+    const name = iface.trim();
+    if (!name) {
+      setFieldError("Enter an interface name");
+      return;
+    }
+    onAdd(name, filter);
+    setIface("");
+    setFilter(filterOptions[0] ?? "all");
+    setFieldError(null);
+  };
+
+  return (
+    <div className="space-y-2">
+      <div>
+        <Label className="text-sm font-medium">Interface Receive Filters</Label>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          Select which inbound packets each NIC hardware-timestamps. This device supports it.
+        </p>
+      </div>
+      <div className="flex gap-2">
+        <Input
+          placeholder="e.g. eth0"
+          value={iface}
+          onChange={(e) => {
+            setIface(e.target.value);
+            setFieldError(null);
+          }}
+          className="flex-1"
+        />
+        <Select value={filter} onValueChange={setFilter}>
+          <SelectTrigger className="w-[130px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {filterOptions.map((opt) => (
+              <SelectItem key={opt} value={opt}>
+                {opt}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button type="button" size="sm" variant="outline" onClick={handleAdd}>
+          <Plus className="h-4 w-4" />
+        </Button>
+      </div>
+      {fieldError && <p className="text-xs text-destructive">{fieldError}</p>}
+      {values.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {values.map((t) => (
+            <Badge
+              key={t.interface}
+              variant="secondary"
+              className="font-mono gap-1 pr-1"
+            >
+              {t.interface}: {t.receive_filter}
+              <button
+                type="button"
+                onClick={() => onRemove(t.interface)}
+                className="ml-1 rounded-sm hover:bg-muted-foreground/20 p-0.5"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function NTPGlobalSettingsModal({
   open,
   onOpenChange,
   config,
+  capabilities,
   onSuccess,
 }: NTPGlobalSettingsModalProps) {
   const [listenAddresses, setListenAddresses] = useState<string[]>(
@@ -171,9 +262,17 @@ export function NTPGlobalSettingsModal({
   const [interfaces, setInterfaces] = useState<string[]>(config.interfaces);
   const [leapSecond, setLeapSecond] = useState<string>(config.leap_second ?? "default");
   const [vrf, setVrf] = useState(config.vrf ?? "");
+  const [timestampInterfaces, setTimestampInterfaces] = useState<NTPTimestampInterface[]>(
+    config.timestamp_interfaces
+  );
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const showTimestampFilters =
+    capabilities?.features.timestamp_receive_filter.supported ?? false;
+  const receiveFilterValues =
+    capabilities?.features.timestamp_receive_filter.values ?? ["all", "ntp", "ptp", "none"];
 
   const handleSubmit = async () => {
     setSubmitting(true);
@@ -185,6 +284,9 @@ export function NTPGlobalSettingsModal({
       interfaces,
       leapSecond: leapSecond === "default" ? "" : leapSecond,
       vrf,
+      timestampInterfaces: showTimestampFilters
+        ? timestampInterfaces
+        : config.timestamp_interfaces,
     };
     try {
       await ntpService.updateGlobalSettings(update);
@@ -293,6 +395,27 @@ export function NTPGlobalSettingsModal({
                 extraOptions={[{ label: "Default", value: "default" }]}
               />
             </div>
+
+            {showTimestampFilters && (
+              <>
+                <Separator />
+                <TimestampFilterField
+                  values={timestampInterfaces}
+                  filterOptions={receiveFilterValues}
+                  onAdd={(iface, filter) =>
+                    setTimestampInterfaces((prev) => [
+                      ...prev.filter((t) => t.interface !== iface),
+                      { interface: iface, receive_filter: filter },
+                    ])
+                  }
+                  onRemove={(iface) =>
+                    setTimestampInterfaces((prev) =>
+                      prev.filter((t) => t.interface !== iface)
+                    )
+                  }
+                />
+              </>
+            )}
           </div>
         </ScrollArea>
 

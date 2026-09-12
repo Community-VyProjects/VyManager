@@ -82,6 +82,11 @@ class NTPBatchBuilder(BatchBuilder):
                     "supported": True,
                     "description": "Bind NTP service to a VRF instance",
                 },
+                "timestamp_receive_filter": {
+                    "supported": is_1_5,
+                    "description": "Per-interface NIC receive timestamp filter",
+                    "values": ["all", "ntp", "ptp", "none"],
+                },
             },
             "version_info": {
                 "is_1_4": is_1_4,
@@ -212,3 +217,15 @@ class NTPBatchBuilder(BatchBuilder):
     def delete_vrf(self) -> "NTPBatchBuilder":
         """Remove the VRF binding from the NTP service."""
         return self.add_delete(self.m.get_vrf_delete())
+
+    # -----------------------------------------------------------------------
+    # Timestamp interface receive-filter (VyOS 1.5+)
+    # -----------------------------------------------------------------------
+
+    def set_timestamp_interface_receive_filter(self, iface: str, value: str) -> "NTPBatchBuilder":
+        """Set the NIC receive timestamp filter on an interface (all|ntp|ptp|none)."""
+        return self.add_set(self.m.get_timestamp_interface_receive_filter(iface, value))
+
+    def delete_timestamp_interface_receive_filter(self, iface: str) -> "NTPBatchBuilder":
+        """Remove the receive timestamp filter from an interface."""
+        return self.add_delete(self.m.get_timestamp_interface_receive_filter_delete(iface))

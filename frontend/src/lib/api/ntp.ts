@@ -8,12 +8,18 @@ export interface NTPServer {
   prefer: boolean;
 }
 
+export interface NTPTimestampInterface {
+  interface: string;
+  receive_filter: string;
+}
+
 export interface NTPConfig {
   allow_clients: string[];
   interfaces: string[];
   leap_second: string | null;
   listen_addresses: string[];
   servers: NTPServer[];
+  timestamp_interfaces: NTPTimestampInterface[];
   vrf: string | null;
 }
 
@@ -36,6 +42,11 @@ export interface NTPCapabilities {
       flags: Record<string, string>;
     };
     vrf: { supported: boolean; description: string };
+    timestamp_receive_filter: {
+      supported: boolean;
+      description: string;
+      values: string[];
+    };
   };
   version_info: { is_1_4: boolean; is_1_5: boolean };
 }
@@ -58,6 +69,7 @@ export interface NTPGlobalSettingsUpdate {
   interfaces: string[];
   leapSecond: string;
   vrf: string;
+  timestampInterfaces: NTPTimestampInterface[];
 }
 
 export interface NTPServerUpdate {
@@ -138,6 +150,24 @@ class NTPService {
         ops.push({ op: "delete_vrf" });
       } else {
         ops.push({ op: "set_vrf", value: update.vrf });
+      }
+    }
+
+    // Timestamp interface receive-filters (VyOS 1.5+)
+    const origTs = new Map(
+      orig.timestamp_interfaces.map((t) => [t.interface, t.receive_filter])
+    );
+    const newTs = new Map(
+      update.timestampInterfaces.map((t) => [t.interface, t.receive_filter])
+    );
+    for (const [iface, filter] of newTs) {
+      if (origTs.get(iface) !== filter) {
+        ops.push({ op: "set_timestamp_interface_receive_filter", value: `${iface},${filter}` });
+      }
+    }
+    for (const iface of origTs.keys()) {
+      if (!newTs.has(iface)) {
+        ops.push({ op: "delete_timestamp_interface_receive_filter", value: iface });
       }
     }
 

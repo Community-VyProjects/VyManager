@@ -89,6 +89,16 @@ class NTPMapper(BaseFeatureMapper):
         return BASE + ["server", name, "prefer"]
 
     # ========================================================================
+    # Timestamp interface receive-filter (single value, VyOS 1.5+)
+    # ========================================================================
+
+    def get_timestamp_interface_receive_filter(self, iface: str, value: str) -> List[str]:
+        return BASE + ["timestamp", "interface", iface, "receive-filter", value]
+
+    def get_timestamp_interface_receive_filter_delete(self, iface: str) -> List[str]:
+        return BASE + ["timestamp", "interface", iface, "receive-filter"]
+
+    # ========================================================================
     # VRF (single value)
     # ========================================================================
 
