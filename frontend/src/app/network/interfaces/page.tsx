@@ -381,6 +381,11 @@ function InterfacesPageInner() {
 
   const { canWrite, canRead } = usePermissions();
 
+  const canWriteVlanParentType =
+    vlanParent === "bonding"
+      ? canWrite(FeatureGroup.BONDING) || canWrite(FeatureGroup.INTERFACES)
+      : canWrite(FeatureGroup.ETHERNET) || canWrite(FeatureGroup.INTERFACES);
+
   const canWriteSelectedType = () => {
     switch (selectedType) {
       case "vxlan":
@@ -407,6 +412,8 @@ function InterfacesPageInner() {
         return canWrite(FeatureGroup.LOOPBACK) || canWrite(FeatureGroup.INTERFACES);
       case "macsec":
         return canWrite(FeatureGroup.MACSEC) || canWrite(FeatureGroup.INTERFACES);
+      case "vlan":
+        return canWriteVlanParentType;
       default:
         return canWrite(FeatureGroup.INTERFACES);
     }
@@ -789,7 +796,7 @@ function InterfacesPageInner() {
                         size="sm"
                         onClick={() => onEdit?.(item)}
                         className="h-7 w-7 p-0"
-                        disabled={!canWrite(FeatureGroup.INTERFACES)}
+                        disabled={!canWriteVlanParentType}
                       >
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
@@ -810,7 +817,7 @@ function InterfacesPageInner() {
                           setDeletingVLAN(base);
                         }}
                         className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                        disabled={!canWrite(FeatureGroup.INTERFACES)}
+                        disabled={!canWriteVlanParentType}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
