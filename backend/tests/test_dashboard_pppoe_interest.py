@@ -47,6 +47,18 @@ def test_pppoe_cycle_does_not_start_fetch_without_config_and_interest():
     assert broadcaster._pppoe_task is None
 
 
+def test_pppoe_cycle_emits_empty_snapshot_when_not_configured():
+    broadcaster = DeviceDataBroadcaster("instance", service=object())
+    pushed = []
+    broadcaster._push_to_all = lambda event: pushed.append(event)
+    queue = asyncio.Queue()
+    broadcaster._subscribers.append((queue, frozenset({"pppoe-sessions"})))
+    broadcaster._pppoe_configured = False
+    broadcaster._handle_pppoe_cycle(start=True)
+    assert broadcaster._pppoe_task is None
+    assert pushed == [{"type": "pppoe-sessions", "data": {"sessions": [], "total": 0}}]
+
+
 def test_unsubscribe_clears_in_flight_pppoe_task():
     async def scenario():
         broadcaster = DeviceDataBroadcaster("instance", service=object())

@@ -1358,7 +1358,13 @@ class DeviceDataBroadcaster:
 
             if not start:
                 return
-            if not self._pppoe_configured or not self._has_interest("pppoe-sessions"):
+            if not self._has_interest("pppoe-sessions"):
+                return
+            if not self._pppoe_configured:
+                self._push_to_all({
+                    "type": "pppoe-sessions",
+                    "data": {"sessions": [], "total": 0},
+                })
                 return
             if self._pppoe_task is None:
                 self._pppoe_task = asyncio.create_task(load_pppoe_sessions(self._service))

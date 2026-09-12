@@ -91,6 +91,7 @@ function PPPoEPageInner() {
   const [sessions, setSessions] = useState<SessionWithRates[]>([]);
   const [sessionTotal, setSessionTotal] = useState(0);
   const [sessionLoading, setSessionLoading] = useState(false);
+  const [sessionRefreshing, setSessionRefreshing] = useState(false);
   const [sessionError, setSessionError] = useState<string | null>(null);
   const previousSessionBytes = useRef<Record<string, { rx: number; tx: number; at: number }>>({});
   const [statsHistory, setStatsHistory] = useState<Record<string, PPPoEStatsPoint[]>>({});
@@ -204,19 +205,21 @@ function PPPoEPageInner() {
 
   const fetchSessions = async () => {
     try {
-      setSessionLoading(true);
+      setSessionRefreshing(true);
       setSessionError(null);
       const response = await pppoeServerService.getSessions(500);
       applySessions(response);
+      setSessionLoading(false);
     } catch (err) {
       setSessionError(err instanceof Error ? err.message : "Failed to load active sessions");
-    } finally {
       setSessionLoading(false);
+    } finally {
+      setSessionRefreshing(false);
     }
   };
 
   const liveSessions = hasRead && !sessionPaused;
-  const { data: sessionStream, error: sessionStreamError } = useDashboardSSE({
+  const { data: sessionStream, error: sessionStreamError, status: sessionStreamStatus } = useDashboardSSE({
     interests: ["pppoe-sessions"],
     enabled: liveSessions,
   });
@@ -232,8 +235,16 @@ function PPPoEPageInner() {
   useEffect(() => {
     if (liveSessions) {
       setSessionLoading(true);
+    } else {
+      setSessionLoading(false);
     }
   }, [liveSessions]);
+
+  useEffect(() => {
+    if (sessionStreamStatus === "error") {
+      setSessionLoading(false);
+    }
+  }, [sessionStreamStatus]);
 
   useEffect(() => {
     if (!sessionStream.pppoeSessions) return;
@@ -508,8 +519,8 @@ function PPPoEPageInner() {
                         {sessionPaused ? <Play className="h-4 w-4 mr-2" /> : <Pause className="h-4 w-4 mr-2" />}
                         {sessionPaused ? "Resume" : "Pause"}
                       </Button>
-                      <Button variant="outline" size="sm" onClick={() => void fetchSessions()} disabled={sessionLoading}>
-                        <RefreshCw className={cn("h-4 w-4 mr-2", sessionLoading && "animate-spin")} />
+                      <Button variant="outline" size="sm" onClick={() => void fetchSessions()} disabled={sessionRefreshing}>
+                        <RefreshCw className={cn("h-4 w-4 mr-2", sessionRefreshing && "animate-spin")} />
                         Refresh
                       </Button>
                     </div>
