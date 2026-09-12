@@ -13,8 +13,14 @@ const DashboardDataContext = createContext<DashboardSSEState | null>(null);
 // Provider
 // ============================================================================
 
-export function DashboardDataProvider({ children }: { children: React.ReactNode }) {
-  const sseState = useDashboardSSE();
+export function DashboardDataProvider({
+  children,
+  interests,
+}: {
+  children: React.ReactNode;
+  interests?: string[];
+}) {
+  const sseState = useDashboardSSE({ interests });
 
   return (
     <DashboardDataContext.Provider value={sseState}>

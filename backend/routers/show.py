@@ -8,7 +8,7 @@ The SSE dashboard stream uses the VyOS GraphQL API to fetch all data in a single
 HTTP request, replacing multiple individual SSH show commands.
 """
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
@@ -35,6 +35,7 @@ from vrrp_status import vrrp_configured, vrrp_gql_fields, build_vrrp_status
 from bgp_status import bgp_configured, bgp_gql_fields, build_bgp_status
 from ipsec_status import ipsec_configured, ipsec_gql_fields, build_ipsec_status
 from hardware_status import HardwareSensorsResponse, parse_hardware_sensors
+from pppoe_status import load_pppoe_sessions, pppoe_configured
 import logging
 logger = logging.getLogger(__name__)
 
@@ -1065,6 +1066,7 @@ _FAST_INTERVAL = 3.0     # seconds between fast cycles (interface counters)
 _SLOW_EVERY = 5          # emit system-info / WG every N fast cycles (= every 15 s)
 _WG_MIN_INTERVAL = 15.0  # minimum seconds between WireGuard status queries
 _OPENVPN_MIN_INTERVAL = 6.0  # minimum seconds between (slow, erratic) OpenVPN status queries
+_STREAM_INTERESTS = frozenset({"pppoe-sessions"})
 
 
 class DeviceDataBroadcaster:
@@ -1081,7 +1083,7 @@ class DeviceDataBroadcaster:
     def __init__(self, key: str, service) -> None:
         self._key = key
         self._service = service
-        self._subscribers: list[asyncio.Queue] = []
+        self._subscribers: list[tuple[asyncio.Queue, frozenset[str]]] = []
         self._task: Optional[asyncio.Task] = None
         self._wg_task: Optional[asyncio.Task] = None
         self._last_wg_status: dict = {}
@@ -1104,15 +1106,25 @@ class DeviceDataBroadcaster:
         self._bgp_configured: bool = False
         # Whether IPSec is configured (gates the show ipsec connections fetch).
         self._ipsec_configured: bool = False
+        # Whether service pppoe-server is configured (gates the sessions fetch).
+        self._pppoe_configured: bool = False
+        self._pppoe_task: Optional[asyncio.Task] = None
 
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
 
-    def subscribe(self) -> asyncio.Queue:
-        """Add a subscriber queue and ensure the background task is running."""
+    def subscribe(self, interests: Optional[set[str]] = None) -> asyncio.Queue:
+        """Add a subscriber queue and ensure the background task is running.
+
+        ``interests`` is an optional set of extra event types this subscriber
+        wants fetched. Only names in ``_STREAM_INTERESTS`` are honoured. The
+        PPPoE sessions GraphQL call runs only when at least one current
+        subscriber asked for ``pppoe-sessions``.
+        """
         q: asyncio.Queue = asyncio.Queue(maxsize=32)
-        self._subscribers.append(q)
+        wanted = frozenset(i for i in (interests or set()) if i in _STREAM_INTERESTS)
+        self._subscribers.append((q, wanted))
         if self._task is None or self._task.done():
             self._task = asyncio.create_task(self._run())
             self._task.add_done_callback(self._on_task_done)
@@ -1120,10 +1132,10 @@ class DeviceDataBroadcaster:
 
     def unsubscribe(self, q: asyncio.Queue) -> None:
         """Remove a subscriber queue; stop background tasks when the last one leaves."""
-        try:
-            self._subscribers.remove(q)
-        except ValueError:
-            pass
+        self._subscribers = [item for item in self._subscribers if item[0] is not q]
+        if not self._has_interest("pppoe-sessions") and self._pppoe_task and not self._pppoe_task.done():
+            self._pppoe_task.cancel()
+            self._pppoe_task = None
         if not self._subscribers:
             if self._task and not self._task.done():
                 self._task.cancel()
@@ -1131,7 +1143,12 @@ class DeviceDataBroadcaster:
                 self._wg_task.cancel()
             if self._openvpn_task and not self._openvpn_task.done():
                 self._openvpn_task.cancel()
+            if self._pppoe_task and not self._pppoe_task.done():
+                self._pppoe_task.cancel()
             _broadcasters.pop(self._key, None)
+
+    def _has_interest(self, name: str) -> bool:
+        return any(name in interests for _, interests in self._subscribers)
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -1139,7 +1156,7 @@ class DeviceDataBroadcaster:
 
     def _push_to_all(self, event: dict) -> None:
         """Put an event into every subscriber queue. Drop oldest if full."""
-        for q in list(self._subscribers):
+        for q, _interests in list(self._subscribers):
             if q.full():
                 try:
                     q.get_nowait()
@@ -1248,6 +1265,7 @@ class DeviceDataBroadcaster:
             self._vrrp_configured = vrrp_configured(cfg)
             self._bgp_configured = bgp_configured(cfg)
             self._ipsec_configured = ipsec_configured(cfg)
+            self._pppoe_configured = pppoe_configured(cfg)
         except Exception:
             logger.exception("Broadcaster: config-state refresh error")
 
@@ -1309,6 +1327,51 @@ class DeviceDataBroadcaster:
             logger.exception("Broadcaster: ipsec-status parse error")
             self._push_to_all({"type": "error", "data": {"channel": "ipsec-status", "message": "Parse failed"}})
 
+    def _handle_pppoe_cycle(self, *, start: bool) -> None:
+        """Collect a completed PPPoE sessions fetch; start a new one on the slow cycle.
+
+        ``ShowSessionsAccelppp`` is a ~2s GraphQL call, so it runs off the shared
+        query path (same pattern as OpenVPN) and is only started when pppoe-server
+        is configured and a subscriber asked for ``pppoe-sessions``.
+        """
+        try:
+            if self._pppoe_task is not None and self._pppoe_task.done():
+                try:
+                    sessions = self._pppoe_task.result() or []
+                except asyncio.CancelledError:
+                    self._pppoe_task = None
+                    return
+                except Exception:
+                    logger.exception("Broadcaster: pppoe-sessions fetch error")
+                    self._pppoe_task = None
+                    self._push_to_all({
+                        "type": "error",
+                        "data": {"channel": "pppoe-sessions", "message": "Failed to fetch"},
+                    })
+                    return
+                self._pppoe_task = None
+                payload = {
+                    "sessions": [s.model_dump() for s in sessions],
+                    "total": len(sessions),
+                }
+                self._push_to_all({"type": "pppoe-sessions", "data": payload})
+
+            if not start:
+                return
+            if not self._has_interest("pppoe-sessions"):
+                return
+            if not self._pppoe_configured:
+                self._push_to_all({
+                    "type": "pppoe-sessions",
+                    "data": {"sessions": [], "total": 0},
+                })
+                return
+            if self._pppoe_task is None:
+                self._pppoe_task = asyncio.create_task(load_pppoe_sessions(self._service))
+        except Exception:
+            logger.exception("Broadcaster: pppoe-sessions error")
+            self._push_to_all({"type": "error", "data": {"channel": "pppoe-sessions", "message": "Failed to fetch"}})
+
     def _on_task_done(self, fut: asyncio.Future) -> None:
         """Clean up if _run() exits unexpectedly."""
         if fut.cancelled():
@@ -1321,6 +1384,8 @@ class DeviceDataBroadcaster:
                 self._wg_task.cancel()
             if self._openvpn_task and not self._openvpn_task.done():
                 self._openvpn_task.cancel()
+            if self._pppoe_task and not self._pppoe_task.done():
+                self._pppoe_task.cancel()
 
     # ------------------------------------------------------------------
     # Main loop
@@ -1367,6 +1432,10 @@ class DeviceDataBroadcaster:
                 if self._openvpn_configured:
                     self._handle_openvpn_cycle()
 
+                # Collect a completed PPPoE fetch every cycle so the first result
+                # is not delayed until the next slow tick; only start on slow.
+                self._handle_pppoe_cycle(start=(cycle % _SLOW_EVERY == 0))
+
                 cycle += 1
                 await asyncio.sleep(_FAST_INTERVAL)
         except asyncio.CancelledError:
@@ -1376,6 +1445,8 @@ class DeviceDataBroadcaster:
                 self._wg_task.cancel()
             if self._openvpn_task and not self._openvpn_task.done():
                 self._openvpn_task.cancel()
+            if self._pppoe_task and not self._pppoe_task.done():
+                self._pppoe_task.cancel()
 
 
 # Global broadcaster registry: instance_id -> DeviceDataBroadcaster
@@ -1397,29 +1468,40 @@ def _get_broadcaster(service) -> DeviceDataBroadcaster:
 
 
 @router.get("/stream")
-async def dashboard_stream(request: Request):
+async def dashboard_stream(
+    request: Request,
+    interest: Optional[List[str]] = Query(default=None),
+):
     """
     Server-Sent Events stream for dashboard data.
 
     All clients connected to the same VyOS instance share one DeviceDataBroadcaster
     that runs a single set of VyOS GraphQL queries.
 
-    Fast data  (interface counters): every 1 s.
-    Slow data  (system info, WG config): every 5 s.
+    Fast data  (interface counters): every 3 s.
+    Slow data  (system info, WG config, PPPoE sessions when requested): every 15 s.
     WG live peers: background task, 15 s minimum between queries.
+
+    Pass ``interest=pppoe-sessions`` to have the broadcaster fetch PPPoE session
+    counters. The fetch is skipped unless pppoe-server is configured and at least
+    one current subscriber requested that interest.
     """
     service = get_session_vyos_service(request)
     include_wireguard = await has_permission(request, FeatureGroup.WIREGUARD, PermissionLevel.READ)
     include_vrrp = await has_permission(request, FeatureGroup.HIGH_AVAILABILITY, PermissionLevel.READ)
     include_bgp = await has_permission(request, FeatureGroup.BGP, PermissionLevel.READ)
+    include_pppoe = await has_permission(request, FeatureGroup.PPPOE, PermissionLevel.READ)
     broadcaster = _get_broadcaster(service)
 
     instance_id: str = service.config.instance_id
     user_id: str = request.state.user["id"]
+    requested = {name for name in (interest or []) if name in _STREAM_INTERESTS}
+    if not include_pppoe:
+        requested.discard("pppoe-sessions")
 
     async def event_generator():
         from routers.events import _has_active_session
-        queue = broadcaster.subscribe()
+        queue = broadcaster.subscribe(requested)
         try:
             yield 'event: connected\ndata: {"message":"Dashboard stream connected"}\n\n'
             while True:
@@ -1446,6 +1528,8 @@ async def dashboard_stream(request: Request):
                 if event["type"] == "vrrp-status" and not include_vrrp:
                     continue
                 if event["type"] == "bgp-status" and not include_bgp:
+                    continue
+                if event["type"] == "pppoe-sessions" and not include_pppoe:
                     continue
                 yield f'event: {event["type"]}\ndata: {json.dumps(event["data"])}\n\n'
         finally:

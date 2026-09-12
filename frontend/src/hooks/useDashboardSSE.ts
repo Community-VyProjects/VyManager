@@ -5,6 +5,7 @@ import { InterfaceCounter } from "@/lib/api/show";
 import { QoSStatsResponse } from "@/lib/api/qos";
 import { OpenVpnStatus } from "@/lib/api/openvpn";
 import { IPSecStatus } from "@/lib/api/ipsec";
+import { PPPoESessionsResponse } from "@/lib/api/pppoe-server";
 
 // ============================================================================
 // Types
@@ -141,6 +142,7 @@ export interface DashboardSSEData {
   vrrpStatus: VrrpStatusData | null;
   bgpStatus: BgpStatusData | null;
   ipsecStatus: IPSecStatus | null;
+  pppoeSessions: PPPoESessionsResponse | null;
 }
 
 export interface DashboardSSEState {
@@ -153,17 +155,40 @@ export interface DashboardSSEState {
 // Hook
 // ============================================================================
 
-export function useDashboardSSE(): DashboardSSEState {
+export function useDashboardSSE(options?: {
+  interests?: string[];
+  enabled?: boolean;
+}): DashboardSSEState {
+  const interests = options?.interests ?? [];
+  const enabled = options?.enabled ?? true;
+  const interestsKey = interests.join(",");
   const [status, setStatus] = useState<SSEStatus>("disconnected");
-  const [data, setData] = useState<DashboardSSEData>({ interfaceCounters: null, systemInfo: null, wireguardPeers: null, qosStats: null, openvpnStatus: null, vrrpStatus: null, bgpStatus: null, ipsecStatus: null });
+  const [data, setData] = useState<DashboardSSEData>({
+    interfaceCounters: null,
+    systemInfo: null,
+    wireguardPeers: null,
+    qosStats: null,
+    openvpnStatus: null,
+    vrrpStatus: null,
+    bgpStatus: null,
+    ipsecStatus: null,
+    pppoeSessions: null,
+  });
   const [error, setError] = useState<string | null>(null);
   const esRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset status while (re)subscribing to the stream
+    if (!enabled) {
+      return;
+    }
     setStatus("connecting");
 
-    const es = new EventSource("/api/vyos/show/stream");
+    const params = new URLSearchParams();
+    for (const name of interests) {
+      params.append("interest", name);
+    }
+    const qs = params.toString();
+    const es = new EventSource(qs ? `/api/vyos/show/stream?${qs}` : "/api/vyos/show/stream");
     esRef.current = es;
 
     es.addEventListener("connected", () => {
@@ -243,6 +268,15 @@ export function useDashboardSSE(): DashboardSSEState {
       }
     });
 
+    es.addEventListener("pppoe-sessions", (event: MessageEvent) => {
+      try {
+        const payload = JSON.parse(event.data) as PPPoESessionsResponse;
+        setData((prev) => ({ ...prev, pppoeSessions: payload }));
+      } catch {
+        // Ignore malformed payloads
+      }
+    });
+
     es.addEventListener("error", (event: MessageEvent) => {
       try {
         const payload = JSON.parse(event.data) as { channel: string; message: string };
@@ -262,7 +296,9 @@ export function useDashboardSSE(): DashboardSSEState {
       esRef.current = null;
       setStatus("disconnected");
     };
-  }, []);
+    // interests is represented by interestsKey so a new array identity does not reconnect.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- interestsKey is the stable serialization of interests
+  }, [enabled, interestsKey]);
 
   return { status, data, error };
 }

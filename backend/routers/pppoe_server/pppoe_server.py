@@ -16,10 +16,9 @@ from fastapi_permissions import require_read_permission, require_write_permissio
 from rbac_permissions import FeatureGroup
 from starlette.concurrency import run_in_threadpool
 from pppoe_status import (
-    PPPoEPpsTracker,
     PPPoESessionsResponse,
-    fetch_accel_ppp_sessions,
-    parse_pppoe_sessions,
+    PPPoESessionsUnavailable,
+    load_pppoe_sessions,
 )
 import inspect
 import logging
@@ -28,10 +27,6 @@ from batch_dispatch import resolve_batch_method
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/pppoe-server", tags=["pppoe-server"])
-# Derives per-session PPS from packet-counter deltas across polls. Scoped per
-# router connection inside annotate_sessions. min_sample_interval guards against
-# noisy sub-second deltas when the UI polls rapidly.
-_pppoe_pps_tracker = PPPoEPpsTracker(min_sample_interval=1.0)
 
 
 # ========================================================================
@@ -117,25 +112,17 @@ async def get_pppoe_sessions(
     from the counter deltas between polls. If that structured operation is
     unavailable, the endpoint falls back to parsing the ``show pppoe-server
     sessions`` text table, which has no packet counters, so PPS is left unset.
+
+    Live consumers should prefer the dashboard SSE ``pppoe-sessions`` event;
+    this REST path remains for a one-shot refresh.
     """
     await require_read_permission(http_request, FeatureGroup.PPPOE)
     try:
         service = get_session_vyos_service(http_request)
-
-        sessions = await fetch_accel_ppp_sessions(service)
-        if sessions is None:
-            # Structured op unavailable; fall back to the text-table path.
-            response = await run_in_threadpool(service.device.show, path=["pppoe-server", "sessions"])
-            if response.status != 200:
-                raise HTTPException(
-                    status_code=502,
-                    detail=response.error or "Unable to read PPPoE sessions",
-                )
-            output = response.result.get("data", "") if isinstance(response.result, dict) else response.result
-            sessions = parse_pppoe_sessions(output or "")
-
-        # Derive RX/TX PPS from the packet-counter deltas since the previous poll.
-        _pppoe_pps_tracker.annotate_sessions(str(id(service.device)), sessions)
+        try:
+            sessions = await load_pppoe_sessions(service)
+        except PPPoESessionsUnavailable as exc:
+            raise HTTPException(status_code=502, detail=exc.detail) from exc
 
         total = len(sessions)
         page = sessions[offset:offset + limit]
