@@ -15,6 +15,12 @@ Key differences from 1.5:
 from typing import List
 
 
+_SYSLOG_REMOTE_FORMAT_UNSUPPORTED = (
+    "Syslog remote format (include-timezone, octet-counted) requires VyOS 1.5+. "
+    "Current device is running v1.4"
+)
+
+
 class SystemMapperV1_4:
     """VyOS 1.4 specific system path overrides."""
 
@@ -41,6 +47,12 @@ class SystemMapperV1_4:
 
     def get_delete_syslog_remote_path(self, host: str) -> List[str]:
         return ["system", "syslog", "host", host]
+
+    def get_syslog_remote_format_include_timezone_path(self, host: str) -> List[str]:
+        raise ValueError(_SYSLOG_REMOTE_FORMAT_UNSUPPORTED)
+
+    def get_syslog_remote_format_octet_counted_path(self, host: str) -> List[str]:
+        raise ValueError(_SYSLOG_REMOTE_FORMAT_UNSUPPORTED)
 
     def get_syslog_console_facility_path(self, facility: str, level: str) -> List[str]:
         """1.4 has no syslog console target — returns empty so batch is no-op."""
@@ -98,6 +110,9 @@ class SystemMapperV1_4:
         return True
 
     def supports_syslog_marker_disable(self) -> bool:
+        return False
+
+    def supports_syslog_remote_format(self) -> bool:
         return False
 
     # =========================================================================

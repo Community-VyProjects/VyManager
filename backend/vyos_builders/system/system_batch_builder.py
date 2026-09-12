@@ -248,6 +248,18 @@ class SystemBatchBuilder(BatchBuilder):
     def delete_syslog_remote(self, host: str) -> "SystemBatchBuilder":
         return self.add_delete(self.mapper.get_delete_syslog_remote_path(host))
 
+    def set_syslog_remote_format_include_timezone(self, host: str) -> "SystemBatchBuilder":
+        return self.add_set(self.mapper.get_syslog_remote_format_include_timezone_path(host))
+
+    def delete_syslog_remote_format_include_timezone(self, host: str) -> "SystemBatchBuilder":
+        return self.add_delete(self.mapper.get_syslog_remote_format_include_timezone_path(host))
+
+    def set_syslog_remote_format_octet_counted(self, host: str) -> "SystemBatchBuilder":
+        return self.add_set(self.mapper.get_syslog_remote_format_octet_counted_path(host))
+
+    def delete_syslog_remote_format_octet_counted(self, host: str) -> "SystemBatchBuilder":
+        return self.add_delete(self.mapper.get_syslog_remote_format_octet_counted_path(host))
+
     def set_syslog_console_facility(self, facility: str, level: str) -> "SystemBatchBuilder":
         return self.add_set(self.mapper.get_syslog_console_facility_path(facility, level))
 
@@ -1109,6 +1121,7 @@ class SystemBatchBuilder(BatchBuilder):
                 "supports_file": self.mapper.supports_syslog_file(),
                 "supports_user": self.mapper.supports_syslog_user(),
                 "supports_marker_disable": self.mapper.supports_syslog_marker_disable(),
+                "supports_remote_format": self.mapper.supports_syslog_remote_format(),
                 "facilities": [
                     "all", "auth", "authpriv", "cron", "daemon", "kern", "lpr",
                     "mail", "mark", "news", "protocols", "security", "syslog",

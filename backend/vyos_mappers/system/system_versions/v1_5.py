@@ -38,6 +38,9 @@ class SystemMapperV1_5:
     def supports_syslog_marker_disable(self) -> bool:
         return True
 
+    def supports_syslog_remote_format(self) -> bool:
+        return True
+
     def supports_watchdog(self) -> bool:
         return True
 

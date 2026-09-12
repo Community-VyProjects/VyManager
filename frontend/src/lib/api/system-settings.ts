@@ -30,6 +30,7 @@ export interface SystemCapabilities {
     supports_file: boolean;
     supports_user: boolean;
     supports_marker_disable: boolean;
+    supports_remote_format: boolean;
     facilities: string[];
     levels: string[];
   };
@@ -93,6 +94,8 @@ export interface SyslogRemoteHost {
   facilities: SyslogFacility[];
   port: number | null;
   protocol: string | null;
+  format_include_timezone: boolean;
+  format_octet_counted: boolean;
 }
 
 export interface SyslogFileEntry {
@@ -594,12 +597,36 @@ class SystemSettingsService {
     host: string,
     facilities: { facility: string; level: string }[],
     port?: number | null,
+    formatIncludeTimezone?: boolean,
+    formatOctetCounted?: boolean,
   ): Promise<VyOSResponse> {
     const ops: BatchOp[] = facilities.map((f) => ({
       op: "set_syslog_remote_facility",
       value: `${f.facility},${f.level}`,
     }));
     if (port) ops.push({ op: "set_syslog_remote_port", value: String(port) });
+    if (formatIncludeTimezone) ops.push({ op: "set_syslog_remote_format_include_timezone" });
+    if (formatOctetCounted) ops.push({ op: "set_syslog_remote_format_octet_counted" });
+    return this.batch(host, ops);
+  }
+
+  async setSyslogRemoteFormat(
+    host: string,
+    includeTimezone: boolean,
+    octetCounted: boolean,
+  ): Promise<VyOSResponse> {
+    const ops: BatchOp[] = [
+      {
+        op: includeTimezone
+          ? "set_syslog_remote_format_include_timezone"
+          : "delete_syslog_remote_format_include_timezone",
+      },
+      {
+        op: octetCounted
+          ? "set_syslog_remote_format_octet_counted"
+          : "delete_syslog_remote_format_octet_counted",
+      },
+    ];
     return this.batch(host, ops);
   }
 

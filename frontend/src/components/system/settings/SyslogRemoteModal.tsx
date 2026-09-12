@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { AlertCircle, Plus, X, Server } from "lucide-react";
 import {
   systemSettingsService,
@@ -30,15 +31,18 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   facilities: string[];
   levels: string[];
+  supportsFormat: boolean;
   onSuccess: () => void;
 }
 
-export function SyslogRemoteModal({ open, onOpenChange, facilities, levels, onSuccess }: Props) {
+export function SyslogRemoteModal({ open, onOpenChange, facilities, levels, supportsFormat, onSuccess }: Props) {
   const [host, setHost] = useState("");
   const [port, setPort] = useState("");
   const [facList, setFacList] = useState<SyslogFacility[]>([]);
   const [facInput, setFacInput] = useState("all");
   const [levelInput, setLevelInput] = useState("info");
+  const [includeTimezone, setIncludeTimezone] = useState(false);
+  const [octetCounted, setOctetCounted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -49,6 +53,8 @@ export function SyslogRemoteModal({ open, onOpenChange, facilities, levels, onSu
       setFacList([]);
       setFacInput("all");
       setLevelInput("info");
+      setIncludeTimezone(false);
+      setOctetCounted(false);
       setError(null);
     }
   }, [open]);
@@ -88,6 +94,8 @@ export function SyslogRemoteModal({ open, onOpenChange, facilities, levels, onSu
         host.trim(),
         facList,
         port ? parseInt(port, 10) : null,
+        supportsFormat ? includeTimezone : undefined,
+        supportsFormat ? octetCounted : undefined,
       );
 
       if (!result.success) {
@@ -202,6 +210,32 @@ export function SyslogRemoteModal({ open, onOpenChange, facilities, levels, onSu
               </Button>
             </div>
           </div>
+
+          {supportsFormat && (
+            <div className="space-y-2">
+              <Label>Message Format (RFC 5424)</Label>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="fmt-tz"
+                  checked={includeTimezone}
+                  onCheckedChange={(v) => setIncludeTimezone(!!v)}
+                />
+                <Label htmlFor="fmt-tz" className="text-sm font-normal">
+                  Include timezone (RFC 5424 with RFC 3339 timestamp)
+                </Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="fmt-octet"
+                  checked={octetCounted}
+                  onCheckedChange={(v) => setOctetCounted(!!v)}
+                />
+                <Label htmlFor="fmt-octet" className="text-sm font-normal">
+                  Octet-counted framing (multi-line messages, TCP only)
+                </Label>
+              </div>
+            </div>
+          )}
 
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={handleClose} disabled={loading}>
