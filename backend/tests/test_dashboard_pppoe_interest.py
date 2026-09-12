@@ -45,3 +45,34 @@ def test_pppoe_cycle_does_not_start_fetch_without_config_and_interest():
     broadcaster._subscribers = []
     broadcaster._handle_pppoe_cycle(start=True)
     assert broadcaster._pppoe_task is None
+
+
+def test_unsubscribe_clears_in_flight_pppoe_task():
+    async def scenario():
+        broadcaster = DeviceDataBroadcaster("instance", service=object())
+        queue = asyncio.Queue()
+        other = asyncio.Queue()
+        broadcaster._subscribers.append((queue, frozenset({"pppoe-sessions"})))
+        broadcaster._subscribers.append((other, frozenset()))
+        broadcaster._pppoe_task = asyncio.create_task(asyncio.sleep(60))
+        broadcaster.unsubscribe(queue)
+        assert broadcaster._pppoe_task is None
+        assert broadcaster._subscribers == [(other, frozenset())]
+
+    asyncio.run(scenario())
+
+
+def test_pppoe_cycle_swallows_cancelled_task_without_killing_the_loop():
+    async def scenario():
+        broadcaster = DeviceDataBroadcaster("instance", service=object())
+        task = asyncio.create_task(asyncio.sleep(60))
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+        broadcaster._pppoe_task = task
+        broadcaster._handle_pppoe_cycle(start=False)
+        assert broadcaster._pppoe_task is None
+
+    asyncio.run(scenario())

@@ -1135,6 +1135,7 @@ class DeviceDataBroadcaster:
         self._subscribers = [item for item in self._subscribers if item[0] is not q]
         if not self._has_interest("pppoe-sessions") and self._pppoe_task and not self._pppoe_task.done():
             self._pppoe_task.cancel()
+            self._pppoe_task = None
         if not self._subscribers:
             if self._task and not self._task.done():
                 self._task.cancel()
@@ -1337,6 +1338,9 @@ class DeviceDataBroadcaster:
             if self._pppoe_task is not None and self._pppoe_task.done():
                 try:
                     sessions = self._pppoe_task.result() or []
+                except asyncio.CancelledError:
+                    self._pppoe_task = None
+                    return
                 except Exception:
                     logger.exception("Broadcaster: pppoe-sessions fetch error")
                     sessions = []
