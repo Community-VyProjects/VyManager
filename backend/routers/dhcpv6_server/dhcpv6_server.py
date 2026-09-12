@@ -65,6 +65,7 @@ class DHCPv6SubnetOptions(BaseModel):
     name_servers: List[str] = []
     domain_search: List[str] = []
     info_refresh_time: Optional[int] = None
+    capwap_controller: Optional[str] = None
     nis_domain: Optional[str] = None
     nisplus_domain: Optional[str] = None
     nis_servers: List[str] = []
@@ -77,6 +78,7 @@ class DHCPv6SubnetOptions(BaseModel):
 class DHCPv6Subnet(BaseModel):
     subnet: str
     subnet_id: Optional[int] = None       # 1.5 only
+    interfaces: List[str] = []            # 1.5 only
     lease_default: Optional[int] = None
     lease_minimum: Optional[int] = None
     lease_maximum: Optional[int] = None
@@ -90,10 +92,12 @@ class DHCPv6SharedNetwork(BaseModel):
     name: str
     description: Optional[str] = None
     disabled: bool = False
+    interfaces: List[str] = []            # 1.5 only
     # Network-level options (1.4: common-options, 1.5: option)
     name_servers: List[str] = []
     domain_search: List[str] = []
     info_refresh_time: Optional[int] = None
+    capwap_controller: Optional[str] = None
     subnets: List[DHCPv6Subnet] = []
 
 
@@ -201,6 +205,8 @@ async def get_dhcpv6_server_config(http_request: Request, refresh: bool = False)
             net_name_servers = _parse_multi_value(net_opts.get("name-server"))
             net_domain_search = _parse_multi_value(net_opts.get("domain-search"))
             net_info_refresh = _parse_int(net_opts.get("info-refresh-time"))
+            net_capwap = net_opts.get("capwap-controller")
+            net_interfaces = _parse_multi_value(net_data.get("interface"))
 
             subnets = []
             for subnet_cidr, subnet_data in (net_data.get("subnet") or {}).items():
@@ -215,6 +221,7 @@ async def get_dhcpv6_server_config(http_request: Request, refresh: bool = False)
                     name_servers=_parse_multi_value(sub_opts.get("name-server")),
                     domain_search=_parse_multi_value(sub_opts.get("domain-search")),
                     info_refresh_time=_parse_int(sub_opts.get("info-refresh-time")),
+                    capwap_controller=sub_opts.get("capwap-controller") if isinstance(sub_opts.get("capwap-controller"), str) else None,
                     nis_domain=sub_opts.get("nis-domain"),
                     nisplus_domain=sub_opts.get("nisplus-domain"),
                     nis_servers=_parse_multi_value(sub_opts.get("nis-server")),
@@ -304,6 +311,7 @@ async def get_dhcpv6_server_config(http_request: Request, refresh: bool = False)
                 subnets.append(DHCPv6Subnet(
                     subnet=subnet_cidr,
                     subnet_id=_parse_int(subnet_data.get("subnet-id")),
+                    interfaces=_parse_multi_value(subnet_data.get("interface")),
                     lease_default=lease_default,
                     lease_minimum=lease_minimum,
                     lease_maximum=lease_maximum,
@@ -317,9 +325,11 @@ async def get_dhcpv6_server_config(http_request: Request, refresh: bool = False)
                 name=net_name,
                 description=net_data.get("description"),
                 disabled="disable" in net_data,
+                interfaces=net_interfaces,
                 name_servers=net_name_servers,
                 domain_search=net_domain_search,
                 info_refresh_time=net_info_refresh,
+                capwap_controller=net_capwap if isinstance(net_capwap, str) else None,
                 subnets=subnets,
             ))
 

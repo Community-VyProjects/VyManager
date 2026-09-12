@@ -26502,6 +26502,14 @@
             "title": "Disabled",
             "default": false
           },
+          "interfaces": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Interfaces",
+            "default": []
+          },
           "name_servers": {
             "items": {
               "type": "string"
@@ -26528,6 +26536,17 @@
               }
             ],
             "title": "Info Refresh Time"
+          },
+          "capwap_controller": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capwap Controller"
           },
           "subnets": {
             "items": {
@@ -26612,11 +26631,6 @@
             "type": "string",
             "title": "Subnet"
           },
-          "disabled": {
-            "type": "boolean",
-            "title": "Disabled",
-            "default": false
-          },
           "subnet_id": {
             "anyOf": [
               {
@@ -26627,6 +26641,14 @@
               }
             ],
             "title": "Subnet Id"
+          },
+          "interfaces": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Interfaces",
+            "default": []
           },
           "lease_default": {
             "anyOf": [
@@ -26723,6 +26745,17 @@
               }
             ],
             "title": "Info Refresh Time"
+          },
+          "capwap_controller": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capwap Controller"
           },
           "nis_domain": {
             "anyOf": [

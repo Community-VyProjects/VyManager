@@ -53,6 +53,18 @@ class DHCPv6ServerMapperV1_5:
     def get_network_option_info_refresh_time_delete(self, name: str) -> List[str]:
         return SNN + [name, "option", "info-refresh-time"]
 
+    def get_shared_network_interface(self, name: str, iface: str) -> List[str]:
+        return SNN + [name, "interface", iface]
+
+    def get_shared_network_interface_delete(self, name: str, iface: str) -> List[str]:
+        return SNN + [name, "interface", iface]
+
+    def get_network_option_capwap_controller(self, name: str, value: str) -> List[str]:
+        return SNN + [name, "option", "capwap-controller", value]
+
+    def get_network_option_capwap_controller_delete(self, name: str) -> List[str]:
+        return SNN + [name, "option", "capwap-controller"]
+
     # =========================================================================
     # Subnet-level options (1.5 uses option/ container)
     # =========================================================================
@@ -74,6 +86,18 @@ class DHCPv6ServerMapperV1_5:
 
     def get_subnet_option_info_refresh_time_delete(self, name: str, subnet: str) -> List[str]:
         return SNN + [name, "subnet", subnet, "option", "info-refresh-time"]
+
+    def get_subnet_interface(self, name: str, subnet: str, iface: str) -> List[str]:
+        return SNN + [name, "subnet", subnet, "interface", iface]
+
+    def get_subnet_interface_delete(self, name: str, subnet: str, iface: str) -> List[str]:
+        return SNN + [name, "subnet", subnet, "interface", iface]
+
+    def get_subnet_option_capwap_controller(self, name: str, subnet: str, value: str) -> List[str]:
+        return SNN + [name, "subnet", subnet, "option", "capwap-controller", value]
+
+    def get_subnet_option_capwap_controller_delete(self, name: str, subnet: str) -> List[str]:
+        return SNN + [name, "subnet", subnet, "option", "capwap-controller"]
 
     def get_subnet_option_nis_domain(self, name: str, subnet: str, domain: str) -> List[str]:
         return SNN + [name, "subnet", subnet, "option", "nis-domain", domain]

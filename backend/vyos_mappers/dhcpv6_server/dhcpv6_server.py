@@ -61,6 +61,13 @@ class DHCPv6ServerMapper(BaseFeatureMapper):
     def get_shared_network_disable(self, name: str) -> List[str]:
         return SNN + [name, "disable"]
 
+    # 1.5-only — version mapper overrides; base raises on 1.4
+    def get_shared_network_interface(self, name: str, iface: str) -> List[str]:
+        raise NotImplementedError("not supported on this VyOS version")
+
+    def get_shared_network_interface_delete(self, name: str, iface: str) -> List[str]:
+        raise NotImplementedError("not supported on this VyOS version")
+
     # Network-level options — version-specific (overridden in v1_4/v1_5)
     def get_network_option_name_server(self, name: str, ns: str) -> List[str]:
         raise NotImplementedError("not supported on this VyOS version")
@@ -80,6 +87,12 @@ class DHCPv6ServerMapper(BaseFeatureMapper):
     def get_network_option_info_refresh_time_delete(self, name: str) -> List[str]:
         raise NotImplementedError("not supported on this VyOS version")
 
+    def get_network_option_capwap_controller(self, name: str, value: str) -> List[str]:
+        raise NotImplementedError("not supported on this VyOS version")
+
+    def get_network_option_capwap_controller_delete(self, name: str) -> List[str]:
+        raise NotImplementedError("not supported on this VyOS version")
+
     # =========================================================================
     # Subnet
     # =========================================================================
@@ -89,6 +102,12 @@ class DHCPv6ServerMapper(BaseFeatureMapper):
 
     def get_subnet_delete(self, name: str, subnet: str) -> List[str]:
         return SNN + [name, "subnet", subnet]
+
+    def get_subnet_interface(self, name: str, subnet: str, iface: str) -> List[str]:
+        raise NotImplementedError("not supported on this VyOS version")
+
+    def get_subnet_interface_delete(self, name: str, subnet: str, iface: str) -> List[str]:
+        raise NotImplementedError("not supported on this VyOS version")
 
     # Subnet lease times
     def get_subnet_lease_default(self, name: str, subnet: str, value: str) -> List[str]:
@@ -126,6 +145,12 @@ class DHCPv6ServerMapper(BaseFeatureMapper):
         raise NotImplementedError("not supported on this VyOS version")
 
     def get_subnet_option_info_refresh_time_delete(self, name: str, subnet: str) -> List[str]:
+        raise NotImplementedError("not supported on this VyOS version")
+
+    def get_subnet_option_capwap_controller(self, name: str, subnet: str, value: str) -> List[str]:
+        raise NotImplementedError("not supported on this VyOS version")
+
+    def get_subnet_option_capwap_controller_delete(self, name: str, subnet: str) -> List[str]:
         raise NotImplementedError("not supported on this VyOS version")
 
     def get_subnet_option_nis_domain(self, name: str, subnet: str, domain: str) -> List[str]:
