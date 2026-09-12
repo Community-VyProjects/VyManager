@@ -136,3 +136,21 @@ def parse_hardware_sensors(text: str) -> HardwareSensorsResponse:
         ))
     
     return HardwareSensorsResponse(sensors=sensors, raw=text or "", summary=_build_hardware_summary(sensors))
+
+
+def hardware_gql_fields(key_literal: str) -> List[str]:
+    """GraphQL alias field fetching ``show environment sensors`` via ``Show``.
+
+    ``key_literal`` must be a JSON-encoded API key (``json.dumps(key)``), matching
+    the other ``*_gql_fields`` helpers folded into the dashboard broadcaster query.
+    """
+    return [
+        f'HardwareSensors: Show(data: {{key: {key_literal}, path: ["environment", "sensors"]}}) {{ data {{ result }} }}'
+    ]
+
+
+def build_hardware_status(gql: dict) -> dict:
+    """Build the ``hardware-sensors`` SSE payload from the shared GraphQL result."""
+    node = (gql or {}).get("HardwareSensors") or {}
+    result = (node.get("data") or {}).get("result")
+    return parse_hardware_sensors(result if isinstance(result, str) else "").dict()

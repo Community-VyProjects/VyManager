@@ -6,6 +6,7 @@ import { QoSStatsResponse } from "@/lib/api/qos";
 import { OpenVpnStatus } from "@/lib/api/openvpn";
 import { IPSecStatus } from "@/lib/api/ipsec";
 import { PPPoESessionsResponse } from "@/lib/api/pppoe-server";
+import { HardwareSensorsResponse } from "@/lib/api/show";
 
 // ============================================================================
 // Types
@@ -143,6 +144,7 @@ export interface DashboardSSEData {
   bgpStatus: BgpStatusData | null;
   ipsecStatus: IPSecStatus | null;
   pppoeSessions: PPPoESessionsResponse | null;
+  hardwareSensors: HardwareSensorsResponse | null;
 }
 
 export interface DashboardSSEState {
@@ -173,6 +175,7 @@ export function useDashboardSSE(options?: {
     bgpStatus: null,
     ipsecStatus: null,
     pppoeSessions: null,
+    hardwareSensors: null,
   });
   const [error, setError] = useState<string | null>(null);
   const esRef = useRef<EventSource | null>(null);
@@ -272,6 +275,15 @@ export function useDashboardSSE(options?: {
       try {
         const payload = JSON.parse(event.data) as PPPoESessionsResponse;
         setData((prev) => ({ ...prev, pppoeSessions: payload }));
+      } catch {
+        // Ignore malformed payloads
+      }
+    });
+
+    es.addEventListener("hardware-sensors", (event: MessageEvent) => {
+      try {
+        const payload = JSON.parse(event.data) as HardwareSensorsResponse;
+        setData((prev) => ({ ...prev, hardwareSensors: payload }));
       } catch {
         // Ignore malformed payloads
       }

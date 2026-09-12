@@ -34,7 +34,7 @@ from openvpn_status import openvpn_configured, openvpn_gql_fields, build_openvpn
 from vrrp_status import vrrp_configured, vrrp_gql_fields, build_vrrp_status
 from bgp_status import bgp_configured, bgp_gql_fields, build_bgp_status
 from ipsec_status import ipsec_configured, ipsec_gql_fields, build_ipsec_status
-from hardware_status import HardwareSensorsResponse, parse_hardware_sensors
+from hardware_status import HardwareSensorsResponse, parse_hardware_sensors, hardware_gql_fields, build_hardware_status
 from pppoe_status import load_pppoe_sessions, pppoe_configured
 import logging
 logger = logging.getLogger(__name__)
@@ -157,6 +157,7 @@ def _build_gql_payload(api_key: str, include_wireguard: bool, cake_targets: Opti
         f"InterfaceCounters: ShowCountersInterfaces(data: {{key: {k}}}) {{ data {{ result }} }}",
     ]
     fields += qos_gql_fields(k, cake_targets or [])
+    fields += hardware_gql_fields(k)
     if include_vrrp:
         fields += vrrp_gql_fields(k)
     if include_bgp:
@@ -1327,6 +1328,14 @@ class DeviceDataBroadcaster:
             logger.exception("Broadcaster: ipsec-status parse error")
             self._push_to_all({"type": "error", "data": {"channel": "ipsec-status", "message": "Parse failed"}})
 
+    def _broadcast_hardware(self, gql: dict) -> None:
+        """Parse hardware sensor readings from the shared GraphQL result and push an event."""
+        try:
+            self._push_to_all({"type": "hardware-sensors", "data": build_hardware_status(gql)})
+        except Exception:
+            logger.exception("Broadcaster: hardware-sensors parse error")
+            self._push_to_all({"type": "error", "data": {"channel": "hardware-sensors", "message": "Parse failed"}})
+
     def _handle_pppoe_cycle(self, *, start: bool) -> None:
         """Collect a completed PPPoE sessions fetch; start a new one on the slow cycle.
 
@@ -1409,6 +1418,7 @@ class DeviceDataBroadcaster:
                         self._broadcast_system_info(gql)
                         self._handle_wg_cycle(gql)
                         self._broadcast_qos(gql, targets)
+                        self._broadcast_hardware(gql)
                         if vrrp:
                             self._broadcast_vrrp(gql)
                         if bgp:
@@ -1491,6 +1501,7 @@ async def dashboard_stream(
     include_vrrp = await has_permission(request, FeatureGroup.HIGH_AVAILABILITY, PermissionLevel.READ)
     include_bgp = await has_permission(request, FeatureGroup.BGP, PermissionLevel.READ)
     include_pppoe = await has_permission(request, FeatureGroup.PPPOE, PermissionLevel.READ)
+    include_hardware = await has_permission(request, FeatureGroup.INTERFACES, PermissionLevel.READ)
     broadcaster = _get_broadcaster(service)
 
     instance_id: str = service.config.instance_id
@@ -1530,6 +1541,8 @@ async def dashboard_stream(
                 if event["type"] == "bgp-status" and not include_bgp:
                     continue
                 if event["type"] == "pppoe-sessions" and not include_pppoe:
+                    continue
+                if event["type"] == "hardware-sensors" and not include_hardware:
                     continue
                 yield f'event: {event["type"]}\ndata: {json.dumps(event["data"])}\n\n'
         finally:

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,7 +22,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { CardSizeMenu } from "@/components/dashboard/CardSizeMenu";
-import { showService, type HardwareSensorsResponse } from "@/lib/api/show";
+import { type HardwareSensorsResponse } from "@/lib/api/show";
+import { useDashboardData } from "@/contexts/DashboardDataContext";
 
 // ============================================================================
 // Props
@@ -49,39 +50,16 @@ export function HardwareSensorsCard({
   onHeightChange,
 }: HardwareSensorsCardProps) {
   const [autoRefresh, setAutoRefresh] = useState(true);
-  const [data, setData] = useState<HardwareSensorsResponse | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      setData(await showService.getHardwareSensors());
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to load hardware sensors");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Auto-refresh on mount and when autoRefresh is enabled
+  const { status: sseStatus, data: sseData } = useDashboardData();
+  // Snapshot the stream so "Paused" freezes the displayed readings.
+  const [snapshot, setSnapshot] = useState<HardwareSensorsResponse | null>(null);
   useEffect(() => {
-    if (!autoRefresh) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- freeze the last SSE snapshot for the paused view
+    if (autoRefresh && sseData.hardwareSensors) setSnapshot(sseData.hardwareSensors);
+  }, [autoRefresh, sseData.hardwareSensors]);
 
-    // Initial load
-    refresh();
-
-    // Set up interval for periodic refresh (every 30 seconds)
-    const interval = setInterval(() => {
-      refresh();
-    }, 30000);
-
-    return () => clearInterval(interval);
-  }, [autoRefresh]);
-
-  const isLoading = loading && !data;
-  const showData = autoRefresh ? data : null;
+  const showData = snapshot;
+  const isLoading = showData === null && autoRefresh;
 
   const cpuSensors = showData?.sensors.filter((sensor) => {
     const name = sensor.name.toLowerCase();
@@ -116,13 +94,10 @@ export function HardwareSensorsCard({
           <Button
             variant={autoRefresh ? "default" : "outline"}
             size="sm"
-            onClick={() => {
-              setAutoRefresh((v) => !v);
-              if (!autoRefresh) refresh();
-            }}
-            title={autoRefresh ? "Auto-refresh enabled" : "Auto-refresh paused"}
+            onClick={() => setAutoRefresh((v) => !v)}
+            title={autoRefresh ? `Live via dashboard stream (${sseStatus})` : "Paused"}
           >
-            <RefreshCw className={`h-4 w-4 mr-1 ${loading ? "animate-spin" : ""}`} />
+            <RefreshCw className={`h-4 w-4 mr-1 ${autoRefresh && sseStatus === "connected" ? "animate-spin" : ""}`} />
             {autoRefresh ? "Live" : "Paused"}
           </Button>
           {onSpanChange && (
@@ -147,10 +122,6 @@ export function HardwareSensorsCard({
             <Loader2 className="animate-spin" />
             Reading sensors...
           </div>
-        ) : error ? (
-          <p className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-            {error}
-          </p>
         ) : showData && !showData.sensors.length ? (
           <p className="py-8 text-sm text-muted-foreground">
             No hardware sensors available (may be running in a virtualized environment).
