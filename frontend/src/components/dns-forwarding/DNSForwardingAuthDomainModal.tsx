@@ -538,7 +538,14 @@ export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, c
                           <TableCell>{r.ttl ?? "—"}</TableCell>
                           <TableCell>{r.disabled ? <Badge variant="secondary">Yes</Badge> : "—"}</TableCell>
                           <TableCell>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setRecords((rec) => ({ ...rec, naptr: rec.naptr.filter((_, k) => k !== i) }))}>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setRecords((rec) => ({
+                              ...rec,
+                              naptr: rec.naptr.flatMap((item, k) => {
+                                if (k !== i) return [item];
+                                const rules = item.rules.filter((_, n) => n !== j);
+                                return rules.length ? [{ ...item, rules }] : [];
+                              }),
+                            }))}>
                               <Trash2 className="h-3 w-3" />
                             </Button>
                           </TableCell>
@@ -645,7 +652,14 @@ export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, c
                           <TableCell>{r.ttl ?? "—"}</TableCell>
                           <TableCell>{r.disabled ? <Badge variant="secondary">Yes</Badge> : "—"}</TableCell>
                           <TableCell>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setRecords((rec) => ({ ...rec, srv: rec.srv.filter((_, k) => k !== i) }))}>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setRecords((rec) => ({
+                              ...rec,
+                              srv: rec.srv.flatMap((item, k) => {
+                                if (k !== i) return [item];
+                                const entries = item.entries.filter((_, n) => n !== j);
+                                return entries.length ? [{ ...item, entries }] : [];
+                              }),
+                            }))}>
                               <Trash2 className="h-3 w-3" />
                             </Button>
                           </TableCell>
