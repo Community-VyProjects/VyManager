@@ -275,7 +275,7 @@ class DNSForwardingService {
       ops.push({ op: "set_exclude_throttle_address", value: addr });
     }
 
-    // ECS options (1.5 only)
+    // ECS options
     if (caps.features.options_ecs.supported) {
       ops.push({ op: "delete_options_ecs_add_for_all" });
       for (const net of config.ecs_options.ecs_add_for) {

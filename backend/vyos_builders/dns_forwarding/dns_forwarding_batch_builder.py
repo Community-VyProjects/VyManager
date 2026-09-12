@@ -509,7 +509,7 @@ class DNSForwardingBatchBuilder(BatchBuilder):
         return self.add_delete(self.m.get_zone_caches_delete())
 
     # -----------------------------------------------------------------------
-    # Options / ECS (1.5 only)
+    # Options / ECS
     # -----------------------------------------------------------------------
 
     def set_options_ecs_add_for(self, network: str) -> "DNSForwardingBatchBuilder":
