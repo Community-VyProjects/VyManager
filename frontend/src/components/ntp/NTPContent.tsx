@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { ntpService, NTPConfig, NTPServer } from "@/lib/api/ntp";
+import type { NTPCapabilities } from "@/lib/api/ntp";
 import { NTPGlobalSettingsModal } from "./NTPGlobalSettingsModal";
 import { NTPServerModal } from "./NTPServerModal";
 import { DeleteNTPServerModal } from "./DeleteNTPServerModal";
@@ -88,6 +89,7 @@ export function NTPContent() {
   const hasWrite = canWrite(FeatureGroup.NTP);
 
   const [config, setConfig] = useState<NTPConfig | null>(null);
+  const [capabilities, setCapabilities] = useState<NTPCapabilities | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -100,8 +102,12 @@ export function NTPContent() {
     try {
       setLoading(true);
       setError(null);
-      const cfg = await ntpService.getConfig(refresh);
+      const [cfg, caps] = await Promise.all([
+        ntpService.getConfig(refresh),
+        ntpService.getCapabilities(),
+      ]);
       setConfig(cfg);
+      setCapabilities(caps);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to load NTP configuration"
@@ -397,6 +403,26 @@ export function NTPContent() {
                   )}
                 </div>
               </div>
+
+              {/* Timestamp receive-filters (device-dependent) */}
+              {capabilities?.features.timestamp_receive_filter.supported && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-2">
+                    Interface Receive Filters
+                  </p>
+                  {config && config.timestamp_interfaces.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {config.timestamp_interfaces.map((t) => (
+                        <Badge key={t.interface} variant="secondary" className="font-mono">
+                          {t.interface}: {t.receive_filter}
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">None</p>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -407,6 +433,7 @@ export function NTPContent() {
           open={settingsOpen}
           onOpenChange={setSettingsOpen}
           config={config}
+          capabilities={capabilities}
           onSuccess={() => loadData(true)}
         />
       )}
