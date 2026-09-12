@@ -25,6 +25,18 @@ class BgpMapper(BaseFeatureMapper):
         "pre-policy", "post-policy",
     )
 
+    # Valueless control leaves under address-family l2vpn-evpn. Present on
+    # both 1.4 and 1.5 (global and VRF).
+    _L2VPN_EVPN_CONTROL_FLAGS = (
+        "advertise-all-vni",
+        "advertise-default-gw",
+        "advertise-pip",
+        "advertise-svi-ip",
+        "rt-auto-derive",
+        "disable-ead-evi-rx",
+        "disable-ead-evi-tx",
+    )
+
     def __init__(self, version: str):
         super().__init__(version)
 
@@ -45,6 +57,14 @@ class BgpMapper(BaseFeatureMapper):
         if policy not in self.bmp_monitor_policies():
             raise ValueError(
                 f"BMP monitor policy {policy} is not supported on this device")
+
+    def l2vpn_evpn_control_flags(self) -> FrozenSet[str]:
+        return frozenset(self._L2VPN_EVPN_CONTROL_FLAGS)
+
+    def _require_l2vpn_evpn_control_flag(self, flag: str) -> None:
+        if flag not in self.l2vpn_evpn_control_flags():
+            raise ValueError(
+                f"l2vpn-evpn flag {flag} is not supported on this device")
 
     # ========================================================================
     # Helper base paths
@@ -969,6 +989,7 @@ class BgpMapper(BaseFeatureMapper):
         return self._af("l2vpn-evpn")
 
     def get_af_l2vpn_evpn_flag(self, flag: str) -> List[str]:
+        self._require_l2vpn_evpn_control_flag(flag)
         return self._af("l2vpn-evpn") + [flag]
 
     def get_af_l2vpn_evpn_advertise_ipv4_unicast(self) -> List[str]:

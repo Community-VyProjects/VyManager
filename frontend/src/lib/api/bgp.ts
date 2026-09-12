@@ -213,6 +213,7 @@ export interface BgpAddressFamily {
   redistribute: BgpRedistribute[];
   maximum_paths_ebgp: number | null;
   maximum_paths_ibgp: number | null;
+  evpn_flags: string[];
 }
 
 export interface BgpListenRange {
@@ -249,6 +250,7 @@ export interface BgpCapabilities {
     local_role: { supported: boolean; description: string };
     path_attribute: { supported: boolean; description: string };
     redistribute_nhrp: { supported: boolean; description: string };
+    l2vpn_evpn_control_flags: { supported: boolean; flags: string[]; description: string };
   };
   address_family_types: {
     neighbor: string[];
@@ -869,6 +871,12 @@ class BgpService {
 
   async deleteAggregateAddress(afi: string, prefix: string): Promise<VyOSResponse> {
     return this.batchConfigure({ operations: [{ op: "delete_af_aggregate_address", value: `${afi},${prefix}` }] });
+  }
+
+  async setL2vpnEvpnFlag(flag: string, enabled: boolean): Promise<VyOSResponse> {
+    const name = flag.replace(/-/g, "_");
+    const op = `${enabled ? "set" : "delete"}_af_l2vpn_evpn_${name}`;
+    return this.batchConfigure({ operations: [{ op }] });
   }
 }
 

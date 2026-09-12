@@ -243,6 +243,22 @@ export function BgpContent() {
   const currentAf: BgpAddressFamily | undefined = config?.address_families.find(
     (af) => af.afi === selectedAfi
   );
+  const isL2vpnEvpn = selectedAfi === "l2vpn-evpn";
+  const evpnFlags = capabilities?.features.l2vpn_evpn_control_flags?.flags ?? [];
+  const evpnFlagsSupported = Boolean(capabilities?.features.l2vpn_evpn_control_flags?.supported);
+
+  const handleToggleEvpnFlag = async (flag: string, enabled: boolean) => {
+    setAfSaving(true);
+    setAfError(null);
+    try {
+      await bgpService.setL2vpnEvpnFlag(flag, enabled);
+      await loadData(true);
+    } catch (err) {
+      setAfError(err instanceof Error ? err.message : "Failed to update EVPN flag");
+    } finally {
+      setAfSaving(false);
+    }
+  };
 
   const handleAddNetwork = async () => {
     if (!afNetworkPrefix.trim()) return;
@@ -937,7 +953,7 @@ export function BgpContent() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <p className="text-sm text-muted-foreground">
-                    Global address family settings for networks, redistribution, and aggregation
+                    Global address family settings for networks, redistribution, aggregation, and EVPN
                   </p>
                   <Select value={selectedAfi} onValueChange={setSelectedAfi}>
                     <SelectTrigger className="w-[220px]">
@@ -961,6 +977,37 @@ export function BgpContent() {
 
                 {selectedAfi && (
                   <div className="space-y-6">
+                    {isL2vpnEvpn && evpnFlagsSupported && (
+                      <Card>
+                        <CardContent className="p-6">
+                          <h3 className="text-sm font-medium mb-4">EVPN control flags</h3>
+                          <p className="text-xs text-muted-foreground mb-4">
+                            Address-family flags for L2VPN EVPN
+                          </p>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {evpnFlags.map((flag) => {
+                              const checked = currentAf?.evpn_flags?.includes(flag) ?? false;
+                              return (
+                                <div key={flag} className="flex items-center gap-2">
+                                  <Checkbox
+                                    id={`evpn-flag-${flag}`}
+                                    checked={checked}
+                                    disabled={afSaving}
+                                    onCheckedChange={(c) => handleToggleEvpnFlag(flag, c === true)}
+                                  />
+                                  <Label htmlFor={`evpn-flag-${flag}`} className="text-sm cursor-pointer">
+                                    {flag.replace(/-/g, " ")}
+                                  </Label>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {!isL2vpnEvpn && (
+                    <>
                     {/* Networks */}
                     <Card>
                       <CardContent className="p-6">
@@ -1210,6 +1257,8 @@ export function BgpContent() {
                         </div>
                       </CardContent>
                     </Card>
+                    </>
+                    )}
 
                     {/* Maximum Paths */}
                     {currentAf && (currentAf.maximum_paths_ebgp || currentAf.maximum_paths_ibgp) && (

@@ -298,6 +298,7 @@ export interface VrfCapabilities {
     ospf_redistribute_nhrp: VrfFeatureFlag;
     isis_fast_reroute: VrfFeatureFlag;
     bgp_redistribute_nhrp: VrfFeatureFlag;
+    l2vpn_evpn_control_flags: VrfFeatureFlag;
   };
   version_info: {
     is_1_4: boolean;

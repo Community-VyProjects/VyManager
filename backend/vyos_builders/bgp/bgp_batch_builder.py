@@ -918,6 +918,48 @@ class BgpBatchBuilder(BatchBuilder):
     # ========================================================================
 
     # Network
+    def set_af_l2vpn_evpn_advertise_all_vni(self) -> "BgpBatchBuilder":
+        return self.add_set(self.m.get_af_l2vpn_evpn_flag("advertise-all-vni"))
+
+    def delete_af_l2vpn_evpn_advertise_all_vni(self) -> "BgpBatchBuilder":
+        return self.add_delete(self.m.get_af_l2vpn_evpn_flag("advertise-all-vni"))
+
+    def set_af_l2vpn_evpn_advertise_default_gw(self) -> "BgpBatchBuilder":
+        return self.add_set(self.m.get_af_l2vpn_evpn_flag("advertise-default-gw"))
+
+    def delete_af_l2vpn_evpn_advertise_default_gw(self) -> "BgpBatchBuilder":
+        return self.add_delete(self.m.get_af_l2vpn_evpn_flag("advertise-default-gw"))
+
+    def set_af_l2vpn_evpn_advertise_pip(self) -> "BgpBatchBuilder":
+        return self.add_set(self.m.get_af_l2vpn_evpn_flag("advertise-pip"))
+
+    def delete_af_l2vpn_evpn_advertise_pip(self) -> "BgpBatchBuilder":
+        return self.add_delete(self.m.get_af_l2vpn_evpn_flag("advertise-pip"))
+
+    def set_af_l2vpn_evpn_advertise_svi_ip(self) -> "BgpBatchBuilder":
+        return self.add_set(self.m.get_af_l2vpn_evpn_flag("advertise-svi-ip"))
+
+    def delete_af_l2vpn_evpn_advertise_svi_ip(self) -> "BgpBatchBuilder":
+        return self.add_delete(self.m.get_af_l2vpn_evpn_flag("advertise-svi-ip"))
+
+    def set_af_l2vpn_evpn_rt_auto_derive(self) -> "BgpBatchBuilder":
+        return self.add_set(self.m.get_af_l2vpn_evpn_flag("rt-auto-derive"))
+
+    def delete_af_l2vpn_evpn_rt_auto_derive(self) -> "BgpBatchBuilder":
+        return self.add_delete(self.m.get_af_l2vpn_evpn_flag("rt-auto-derive"))
+
+    def set_af_l2vpn_evpn_disable_ead_evi_rx(self) -> "BgpBatchBuilder":
+        return self.add_set(self.m.get_af_l2vpn_evpn_flag("disable-ead-evi-rx"))
+
+    def delete_af_l2vpn_evpn_disable_ead_evi_rx(self) -> "BgpBatchBuilder":
+        return self.add_delete(self.m.get_af_l2vpn_evpn_flag("disable-ead-evi-rx"))
+
+    def set_af_l2vpn_evpn_disable_ead_evi_tx(self) -> "BgpBatchBuilder":
+        return self.add_set(self.m.get_af_l2vpn_evpn_flag("disable-ead-evi-tx"))
+
+    def delete_af_l2vpn_evpn_disable_ead_evi_tx(self) -> "BgpBatchBuilder":
+        return self.add_delete(self.m.get_af_l2vpn_evpn_flag("disable-ead-evi-tx"))
+
     def set_af_network(self, afi: str, prefix: str) -> "BgpBatchBuilder":
         return self.add_set(self.m.get_af_network(afi, prefix))
 
@@ -1164,6 +1206,11 @@ class BgpBatchBuilder(BatchBuilder):
                 "redistribute_nhrp": {
                     "supported": "nhrp" in self.m.redistribute_protocols(),
                     "description": "Redistribute NHRP routes (VyOS 1.5+)",
+                },
+                "l2vpn_evpn_control_flags": {
+                    "supported": bool(self.m.l2vpn_evpn_control_flags()),
+                    "flags": sorted(self.m.l2vpn_evpn_control_flags()),
+                    "description": "L2VPN EVPN address-family control flags",
                 },
             },
             "address_family_types": {

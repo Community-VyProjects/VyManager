@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any
 from session_vyos_service import get_session_vyos_service
 from vyos_builders import BgpBatchBuilder
+from vyos_mappers.bgp.bgp import BgpMapper
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 import inspect
@@ -253,6 +254,7 @@ class BgpAddressFamily(BaseModel):
     redistribute: List[BgpRedistribute] = []
     maximum_paths_ebgp: Optional[int] = None
     maximum_paths_ibgp: Optional[int] = None
+    evpn_flags: List[str] = []
 
 
 class BgpListenRange(BaseModel):
@@ -719,14 +721,11 @@ def parse_peer_groups(raw: dict) -> List[BgpPeerGroup]:
 def parse_address_families(raw: dict) -> List[BgpAddressFamily]:
     """Parse global address-family configurations."""
     families = []
+    evpn_flag_names = BgpMapper("1.5").l2vpn_evpn_control_flags()
 
     for afi, afi_config in raw.items():
         if afi_config is None:
             afi_config = {}
-
-        # Skip L2VPN-EVPN for now (complex, separate handling)
-        if afi == "l2vpn-evpn":
-            continue
 
         networks = []
         for prefix, net_config in (afi_config.get("network", {}) or {}).items():
@@ -775,6 +774,12 @@ def parse_address_families(raw: dict) -> List[BgpAddressFamily]:
                 ))
 
         max_paths = afi_config.get("maximum-paths", {}) or {}
+        evpn_flags = []
+        if afi == "l2vpn-evpn":
+            evpn_flags = [
+                flag for flag in evpn_flag_names
+                if flag in afi_config
+            ]
 
         families.append(BgpAddressFamily(
             afi=afi,
@@ -783,6 +788,7 @@ def parse_address_families(raw: dict) -> List[BgpAddressFamily]:
             redistribute=redistribute,
             maximum_paths_ebgp=_safe_int(max_paths.get("ebgp")),
             maximum_paths_ibgp=_safe_int(max_paths.get("ibgp")),
+            evpn_flags=evpn_flags,
         ))
 
     return families
@@ -854,6 +860,8 @@ async def bgp_batch_configure(http_request: Request, body: BgpBatchRequest):
         )
     except HTTPException:
         raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except AttributeError as e:
         raise HTTPException(status_code=400, detail=f"Unknown operation: {str(e)}")
     except Exception as e:
