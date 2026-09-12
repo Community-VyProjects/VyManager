@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +24,7 @@ import {
 import { CardSizeMenu } from "@/components/dashboard/CardSizeMenu";
 import { type HardwareSensorsResponse } from "@/lib/api/show";
 import { useDashboardData } from "@/contexts/DashboardDataContext";
+import { hardwareSensorsLayout } from "@/lib/hardware-sensors-layout";
 
 // ============================================================================
 // Props
@@ -38,6 +39,74 @@ interface HardwareSensorsCardProps {
   config?: Record<string, unknown>;
 }
 
+type SensorReading = HardwareSensorsResponse["sensors"][number];
+
+function SensorStatusBadge({ sensor }: { sensor: SensorReading }) {
+  if (sensor.status === "critical") {
+    return (
+      <Badge variant="destructive" className="shrink-0">
+        <CircleAlert className="h-3 w-3 mr-1" />
+        Critical
+      </Badge>
+    );
+  }
+  if (sensor.status === "warning") {
+    return (
+      <Badge className="bg-yellow-600 shrink-0">
+        <AlertTriangle className="h-3 w-3 mr-1" />
+        Warning
+      </Badge>
+    );
+  }
+  return (
+    <Badge
+      variant="outline"
+      className="shrink-0 border-green-500/30 text-green-700 dark:text-green-400"
+    >
+      <CheckCircle2 className="h-3 w-3 mr-1" />
+      OK
+    </Badge>
+  );
+}
+
+function SensorTile({
+  name,
+  value,
+  badge,
+  high,
+  critical,
+  tileClass,
+  nameClass,
+}: {
+  name: string;
+  value: string;
+  badge: ReactNode;
+  high?: string | null;
+  critical?: string | null;
+  tileClass: string;
+  nameClass: string;
+}) {
+  return (
+    <div className={tileClass}>
+      <div className="flex min-w-0 items-start gap-3">
+        <Thermometer className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+        <div className="min-w-0">
+          <p className={nameClass}>{name}</p>
+          <p className="font-mono text-lg">{value}</p>
+          {high || critical ? (
+            <p className="text-xs text-muted-foreground">
+              {high ? `High ${high}` : ""}
+              {high && critical ? " | " : ""}
+              {critical ? `Critical ${critical}` : ""}
+            </p>
+          ) : null}
+        </div>
+      </div>
+      {badge}
+    </div>
+  );
+}
+
 // ============================================================================
 // Component
 // ============================================================================
@@ -49,6 +118,7 @@ export function HardwareSensorsCard({
   height,
   onHeightChange,
 }: HardwareSensorsCardProps) {
+  const layout = hardwareSensorsLayout(span);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const { status: sseStatus, data: sseData } = useDashboardData();
   // Snapshot the stream so "Paused" freezes the displayed readings.
@@ -86,19 +156,19 @@ export function HardwareSensorsCard({
   return (
     <Card className="flex flex-col h-full">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 shrink-0">
-        <div className="flex items-center gap-2">
-          <Thermometer className="h-5 w-5 text-primary" />
+        <div className="flex min-w-0 items-center gap-2">
+          <Thermometer className="h-5 w-5 shrink-0 text-primary" />
           <CardTitle className="text-lg font-medium">Hardware Sensors</CardTitle>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-1">
           <Button
             variant={autoRefresh ? "default" : "outline"}
             size="sm"
             onClick={() => setAutoRefresh((v) => !v)}
             title={autoRefresh ? `Live via dashboard stream (${sseStatus})` : "Paused"}
           >
-            <RefreshCw className={`h-4 w-4 mr-1 ${autoRefresh && sseStatus === "connected" ? "animate-spin" : ""}`} />
-            {autoRefresh ? "Live" : "Paused"}
+            <RefreshCw className={`h-4 w-4 ${layout.showLiveLabel ? "mr-1" : ""} ${autoRefresh && sseStatus === "connected" ? "animate-spin" : ""}`} />
+            {layout.showLiveLabel ? (autoRefresh ? "Live" : "Paused") : null}
           </Button>
           {onSpanChange && (
             <CardSizeMenu
@@ -128,7 +198,7 @@ export function HardwareSensorsCard({
           </p>
         ) : showData?.sensors.length ? (
           <div className="space-y-3">
-            <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/30 p-3">
+            <div className={layout.statusClass}>
               <div className="flex items-center gap-2">
                 {showData.summary === "No issues" ? (
                   <CheckCircle2 className="h-4 w-4 text-green-600" />
@@ -155,8 +225,8 @@ export function HardwareSensorsCard({
                     <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
                       {cpuSensors.map((sensor) => (
                         <div key={sensor.name} className="flex items-center justify-between rounded-md border p-2">
-                          <span className="text-sm font-medium truncate pr-3">{sensor.name}</span>
-                          <span className="font-mono text-sm">{sensor.value}</span>
+                          <span className="text-sm font-medium break-words pr-3">{sensor.name}</span>
+                          <span className="font-mono text-sm shrink-0">{sensor.value}</span>
                         </div>
                       ))}
                     </div>
@@ -165,66 +235,35 @@ export function HardwareSensorsCard({
               ) : null}
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className={`${layout.tileGridClass} max-h-[260px] overflow-y-auto pr-1`}>
               {averageCpuTemp !== null ? (
-                <div className="flex items-start justify-between gap-3 p-3 rounded-lg border bg-card">
-                  <div className="flex min-w-0 items-start gap-3">
-                    <Thermometer className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                    <div className="min-w-0">
-                      <p className="truncate font-medium text-sm">AVG CPU Temp</p>
-                      <p className="font-mono text-lg">
-                        {`${averageCpuTemp >= 0 ? "+" : ""}${averageCpuTemp.toFixed(1)}°C`}
-                      </p>
-                    </div>
-                  </div>
-                  <Badge variant="outline" className="border-green-500/30 text-green-700 dark:text-green-400">
-                    <CheckCircle2 className="h-3 w-3 mr-1" />
-                    CPU
-                  </Badge>
-                </div>
-              ) : null}
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2 max-h-[260px] overflow-y-auto pr-1">
-              {otherSensors.map((sensor) => (
-                <div
-                  key={`${sensor.name}-${sensor.value}`}
-                  className="flex items-start justify-between gap-3 p-3 rounded-lg border bg-card"
-                >
-                  <div className="flex min-w-0 items-start gap-3">
-                    <Thermometer className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                    <div className="min-w-0">
-                      <p className="truncate font-medium text-sm">{sensor.name}</p>
-                      <p className="font-mono text-lg">{sensor.value}</p>
-                      {sensor.high || sensor.critical ? (
-                        <p className="text-xs text-muted-foreground">
-                          {sensor.high ? `High ${sensor.high}` : ""}
-                          {sensor.high && sensor.critical ? " | " : ""}
-                          {sensor.critical ? `Critical ${sensor.critical}` : ""}
-                        </p>
-                      ) : null}
-                    </div>
-                  </div>
-                  {sensor.status === "critical" ? (
-                    <Badge variant="destructive">
-                      <CircleAlert className="h-3 w-3 mr-1" />
-                      Critical
-                    </Badge>
-                  ) : sensor.status === "warning" ? (
-                    <Badge className="bg-yellow-600">
-                      <AlertTriangle className="h-3 w-3 mr-1" />
-                      Warning
-                    </Badge>
-                  ) : (
+                <SensorTile
+                  name="AVG CPU Temp"
+                  value={`${averageCpuTemp >= 0 ? "+" : ""}${averageCpuTemp.toFixed(1)}°C`}
+                  tileClass={layout.tileClass}
+                  nameClass={layout.nameClass}
+                  badge={
                     <Badge
                       variant="outline"
-                      className="border-green-500/30 text-green-700 dark:text-green-400"
+                      className="shrink-0 border-green-500/30 text-green-700 dark:text-green-400"
                     >
                       <CheckCircle2 className="h-3 w-3 mr-1" />
-                      OK
+                      CPU
                     </Badge>
-                  )}
-                </div>
+                  }
+                />
+              ) : null}
+              {otherSensors.map((sensor) => (
+                <SensorTile
+                  key={`${sensor.name}-${sensor.value}`}
+                  name={sensor.name}
+                  value={sensor.value}
+                  high={sensor.high}
+                  critical={sensor.critical}
+                  tileClass={layout.tileClass}
+                  nameClass={layout.nameClass}
+                  badge={<SensorStatusBadge sensor={sensor} />}
+                />
               ))}
             </div>
           </div>

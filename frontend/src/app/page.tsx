@@ -632,7 +632,7 @@ export default function Home() {
             <div className="relative">
               {/* Main grid with explicit card placement */}
               <div
-                className="grid grid-cols-3 gap-6 relative z-0"
+                className="grid grid-cols-3 gap-6 relative z-10 pointer-events-none"
                 style={{ gridAutoRows: `${ROW_UNIT}px` }}
               >
                 <SortableContext
@@ -652,6 +652,7 @@ export default function Home() {
                     return (
                       <div
                         key={card.id}
+                        className="pointer-events-auto"
                         style={getGridStyle(card)}
                       >
                         {cardElement}
@@ -663,7 +664,7 @@ export default function Home() {
 
               {/* Droppable column overlays (always visible in edit mode) */}
               {editMode && (
-                <div className={`absolute inset-0 grid grid-cols-3 gap-6 z-20 ${activeId ? 'pointer-events-auto' : 'pointer-events-none'}`}>
+                <div className={`absolute inset-0 grid grid-cols-3 gap-6 z-0 ${activeId ? 'pointer-events-auto' : 'pointer-events-none'}`}>
                   <DroppableColumnOverlay
                     columnId="column-0"
                     editMode={editMode}
