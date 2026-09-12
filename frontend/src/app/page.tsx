@@ -611,7 +611,7 @@ export default function Home() {
         </div>
 
         {/* Dashboard Grid */}
-        <DashboardDataProvider>
+        <DashboardDataProvider interests={cards.some((card) => card.type === "pppoe-statistics") ? ["pppoe-sessions"] : undefined}>
         {cards.length === 0 && !editMode ? (
           <div className="text-center py-12">
             <p className="text-muted-foreground mb-4">

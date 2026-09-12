@@ -5,8 +5,9 @@ import { Activity, Pause, Play, RefreshCw, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CardSizeMenu } from "@/components/dashboard/CardSizeMenu";
-import { pppoeServerService } from "@/lib/api/pppoe-server";
+import { pppoeServerService, type PPPoESessionsResponse } from "@/lib/api/pppoe-server";
 import { PPPoEStatsChart, type PPPoEStatsPoint } from "@/components/pppoe-server/PPPoEStatsChart";
+import { useDashboardData } from "@/contexts/DashboardDataContext";
 
 interface PppoeStatsCardProps {
   onRemove?: () => void;
@@ -16,37 +17,52 @@ interface PppoeStatsCardProps {
   onHeightChange?: (newHeight: number) => void;
 }
 
+function pointFromSessions(response: PPPoESessionsResponse, now: number): PPPoEStatsPoint {
+  const totals = response.sessions.reduce(
+    (sum, session) => ({
+      rxBytes: sum.rxBytes + session.rx_bytes,
+      txBytes: sum.txBytes + session.tx_bytes,
+      rxPackets: sum.rxPackets + (session.rx_pps ?? 0),
+      txPackets: sum.txPackets + (session.tx_pps ?? 0),
+    }),
+    { rxBytes: 0, txBytes: 0, rxPackets: 0, txPackets: 0 },
+  );
+  return {
+    timestamp: now,
+    rxRate: 0,
+    txRate: 0,
+    rxPps: totals.rxPackets,
+    txPps: totals.txPackets,
+    rxBytes: totals.rxBytes,
+    txBytes: totals.txBytes,
+    activeSessions: response.total,
+  };
+}
+
 export function PppoeStatsCard({ onRemove, span = 1, onSpanChange, height, onHeightChange }: PppoeStatsCardProps) {
+  const { data } = useDashboardData();
   const [points, setPoints] = useState<PPPoEStatsPoint[]>([]);
   const [sessionCount, setSessionCount] = useState(0);
   const [paused, setPaused] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (paused) return;
+    const response = data.pppoeSessions;
+    if (!response) return;
+    const now = Date.now();
+    setSessionCount(response.total);
+    const point = pointFromSessions(response, now);
+    setPoints((current) => [...current, point].filter((item) => item.timestamp >= now - 120_000).slice(-120));
+  }, [data.pppoeSessions, paused]);
 
   const fetchStats = async () => {
     try {
       setLoading(true);
       const response = await pppoeServerService.getSessions();
       const now = Date.now();
-      const totals = response.sessions.reduce(
-        (sum, session) => ({
-          rxBytes: sum.rxBytes + session.rx_bytes,
-          txBytes: sum.txBytes + session.tx_bytes,
-          rxPackets: sum.rxPackets + (session.rx_pps ?? 0),
-          txPackets: sum.txPackets + (session.tx_pps ?? 0),
-        }),
-        { rxBytes: 0, txBytes: 0, rxPackets: 0, txPackets: 0 },
-      );
-      const point: PPPoEStatsPoint = {
-        timestamp: now,
-        rxRate: 0,
-        txRate: 0,
-        rxPps: totals.rxPackets,
-        txPps: totals.txPackets,
-        rxBytes: totals.rxBytes,
-        txBytes: totals.txBytes,
-        activeSessions: response.total,
-      };
       setSessionCount(response.total);
+      const point = pointFromSessions(response, now);
       setPoints((current) => [...current, point].filter((item) => item.timestamp >= now - 120_000).slice(-120));
     } catch {
       // Dashboard cards remain available while a device is temporarily unreachable.
@@ -54,13 +70,6 @@ export function PppoeStatsCard({ onRemove, span = 1, onSpanChange, height, onHei
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    void fetchStats();
-    if (paused) return;
-    const timer = window.setInterval(() => void fetchStats(), 5000);
-    return () => window.clearInterval(timer);
-  }, [paused]);
 
   return (
     <Card className="flex h-full flex-col">

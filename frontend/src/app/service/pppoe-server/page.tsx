@@ -60,6 +60,7 @@ import {
   type PPPoESession,
 } from "@/lib/api/pppoe-server";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useDashboardSSE } from "@/hooks/useDashboardSSE";
 import { FeatureGroup } from "@/lib/api/user-management";
 import {
   DeleteConfirmModal,
@@ -95,7 +96,6 @@ function PPPoEPageInner() {
   const [statsHistory, setStatsHistory] = useState<Record<string, PPPoEStatsPoint[]>>({});
   const [selectedStatsKey, setSelectedStatsKey] = useState<string | null>(null);
   const [sessionPaused, setSessionPaused] = useState(false);
-  const [refreshInterval, setRefreshInterval] = useState(5);
   const [sessionSearch, setSessionSearch] = useState("");
   const [minPps, setMinPps] = useState("");
   const [maxPps, setMaxPps] = useState("");
@@ -162,54 +162,64 @@ function PPPoEPageInner() {
     }
   };
 
+  const applySessions = (response: { sessions: PPPoESession[]; total: number }) => {
+    const now = Date.now();
+    const nextSessions = response.sessions.map((session) => {
+      const key = `${session.interface}:${session.username}:${session.calling_sid ?? ""}`;
+      const previous = previousSessionBytes.current[key];
+      const elapsed = previous ? (now - previous.at) / 1000 : 0;
+      const result: SessionWithRates = { ...session };
+      if (previous && elapsed > 0) {
+        result.rxRate = Math.max(0, (session.rx_bytes - previous.rx) * 8 / elapsed);
+        result.txRate = Math.max(0, (session.tx_bytes - previous.tx) * 8 / elapsed);
+      }
+      result.rxPps = session.rx_pps ?? undefined;
+      result.txPps = session.tx_pps ?? undefined;
+      previousSessionBytes.current[key] = { rx: session.rx_bytes, tx: session.tx_bytes, at: now };
+      return result;
+    });
+    setSessions(nextSessions);
+    setSessionTotal(response.total);
+    setStatsHistory((previous) => {
+      const next = { ...previous };
+      for (const session of nextSessions) {
+        const key = `${session.interface}:${session.username}:${session.calling_sid ?? ""}`;
+        const point: PPPoEStatsPoint = {
+          timestamp: now,
+          rxRate: session.rxRate ?? 0,
+          txRate: session.txRate ?? 0,
+          rxPps: session.rxPps ?? 0,
+          txPps: session.txPps ?? 0,
+          rxBytes: session.rx_bytes,
+          txBytes: session.tx_bytes,
+        };
+        next[key] = [...(next[key] ?? []), point]
+          .filter((item) => item.timestamp >= now - 120_000)
+          .slice(-120);
+      }
+      return next;
+    });
+    setSessionPage((page) => Math.min(page, Math.max(1, Math.ceil(nextSessions.length / sessionPageSize))));
+  };
+
   const fetchSessions = async () => {
     try {
       setSessionLoading(true);
       setSessionError(null);
       const response = await pppoeServerService.getSessions(500);
-      const now = Date.now();
-      const nextSessions = response.sessions.map((session) => {
-        const key = `${session.interface}:${session.username}:${session.calling_sid ?? ""}`;
-        const previous = previousSessionBytes.current[key];
-        const elapsed = previous ? (now - previous.at) / 1000 : 0;
-        const result: SessionWithRates = { ...session };
-        if (previous && elapsed > 0) {
-          result.rxRate = Math.max(0, (session.rx_bytes - previous.rx) * 8 / elapsed);
-          result.txRate = Math.max(0, (session.tx_bytes - previous.tx) * 8 / elapsed);
-        }
-        result.rxPps = session.rx_pps ?? undefined;
-        result.txPps = session.tx_pps ?? undefined;
-        previousSessionBytes.current[key] = { rx: session.rx_bytes, tx: session.tx_bytes, at: now };
-        return result;
-      });
-      setSessions(nextSessions);
-      setSessionTotal(response.total);
-      setStatsHistory((previous) => {
-        const next = { ...previous };
-        for (const session of nextSessions) {
-          const key = `${session.interface}:${session.username}:${session.calling_sid ?? ""}`;
-          const point: PPPoEStatsPoint = {
-            timestamp: now,
-            rxRate: session.rxRate ?? 0,
-            txRate: session.txRate ?? 0,
-            rxPps: session.rxPps ?? 0,
-            txPps: session.txPps ?? 0,
-            rxBytes: session.rx_bytes,
-            txBytes: session.tx_bytes,
-          };
-          next[key] = [...(next[key] ?? []), point]
-            .filter((item) => item.timestamp >= now - 120_000)
-            .slice(-120);
-        }
-        return next;
-      });
-      setSessionPage((page) => Math.min(page, Math.max(1, Math.ceil(nextSessions.length / sessionPageSize))));
+      applySessions(response);
     } catch (err) {
       setSessionError(err instanceof Error ? err.message : "Failed to load active sessions");
     } finally {
       setSessionLoading(false);
     }
   };
+
+  const liveSessions = hasRead && !sessionPaused;
+  const { data: sessionStream, error: sessionStreamError } = useDashboardSSE({
+    interests: ["pppoe-sessions"],
+    enabled: liveSessions,
+  });
 
   useEffect(() => {
     if (hasRead) fetchConfig();
@@ -220,12 +230,17 @@ function PPPoEPageInner() {
   }, [searchParams]);
 
   useEffect(() => {
-    if (!hasRead) return;
-    void fetchSessions();
-    if (sessionPaused || refreshInterval === 0) return;
-    const timer = window.setInterval(() => void fetchSessions(), refreshInterval * 1000);
-    return () => window.clearInterval(timer);
-  }, [hasRead, sessionPaused, refreshInterval]);
+    if (!sessionStream.pppoeSessions) return;
+    setSessionError(null);
+    applySessions(sessionStream.pppoeSessions);
+    setSessionLoading(false);
+  }, [sessionStream.pppoeSessions]);
+
+  useEffect(() => {
+    if (sessionStreamError) {
+      setSessionError(sessionStreamError);
+    }
+  }, [sessionStreamError]);
 
   const onSuccess = () => fetchConfig(true);
   const onSessionReset = () => { void fetchSessions(); };
@@ -478,23 +493,11 @@ function PPPoEPageInner() {
                     <div>
                       <h3 className="font-semibold">Active PPPoE Sessions</h3>
                       <p className="text-sm text-muted-foreground">
-                        {sessionPaused ? "Updates paused." : refreshInterval === 0 ? "Manual refresh only." : `Live counters refresh every ${refreshInterval} seconds.`}
+                        {sessionPaused ? "Updates paused." : "Live counters arrive with the dashboard stream."}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-muted-foreground">{sessionTotal} sessions</span>
-                      <select
-                        value={refreshInterval}
-                        onChange={(event) => setRefreshInterval(Number(event.target.value))}
-                        className="h-9 rounded-md border bg-background px-2 text-sm"
-                        aria-label="Session refresh interval"
-                      >
-                        <option value="1">1s</option>
-                        <option value="5">5s</option>
-                        <option value="10">10s</option>
-                        <option value="30">30s</option>
-                        <option value="0">Manual</option>
-                      </select>
                       <Button variant="outline" size="sm" onClick={() => setSessionPaused((paused) => !paused)}>
                         {sessionPaused ? <Play className="h-4 w-4 mr-2" /> : <Pause className="h-4 w-4 mr-2" />}
                         {sessionPaused ? "Resume" : "Pause"}

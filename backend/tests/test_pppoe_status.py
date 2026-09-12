@@ -3,6 +3,7 @@ from pppoe_status import (
     PPPoESession,
     parse_accel_ppp_sessions,
     parse_pppoe_sessions,
+    pppoe_configured,
 )
 
 
@@ -246,3 +247,11 @@ def test_parse_vyos_session_output_with_ipv6_and_decimal_units():
     assert sessions[0].rx_bytes == int(21.8 * 1024 ** 2)
     assert sessions[0].tx_bytes == int(607.0 * 1024 ** 2)
     assert sessions[1].ipv6_delegated is None
+
+
+def test_pppoe_configured_gates_on_service_tree():
+    assert pppoe_configured(None) is False
+    assert pppoe_configured({}) is False
+    assert pppoe_configured({"service": {}}) is False
+    assert pppoe_configured({"service": {"pppoe-server": {}}}) is True
+    assert pppoe_configured({"service": {"pppoe-server": {"interface": {"eth0": {}}}}}) is True
