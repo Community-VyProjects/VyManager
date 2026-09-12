@@ -108,6 +108,24 @@ class FirewallGlobalOptionsMapper(BaseFeatureMapper):
         """Get command path for twa-hazards-protection (for deletion)."""
         return ["firewall", "global-options", "twa-hazards-protection"]
 
+    # ==================== DNS Resolver ====================
+
+    def get_resolver_cache(self) -> List[str]:
+        """Get command path for resolver-cache (valueless flag)."""
+        return ["firewall", "global-options", "resolver-cache"]
+
+    def get_resolver_cache_path(self) -> List[str]:
+        """Get command path for resolver-cache (for deletion)."""
+        return ["firewall", "global-options", "resolver-cache"]
+
+    def get_resolver_interval(self, seconds: int) -> List[str]:
+        """Get command path for resolver-interval (seconds)."""
+        return ["firewall", "global-options", "resolver-interval", str(seconds)]
+
+    def get_resolver_interval_path(self) -> List[str]:
+        """Get command path for resolver-interval (for deletion)."""
+        return ["firewall", "global-options", "resolver-interval"]
+
     # ==================== State Policy ====================
 
     def get_state_policy_established_action(self, action: str) -> List[str]:

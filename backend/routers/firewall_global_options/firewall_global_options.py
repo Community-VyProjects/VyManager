@@ -76,6 +76,10 @@ class FirewallGlobalOptionsConfig(BaseModel):
     syn_cookies: Optional[str] = None  # enable, disable
     twa_hazards_protection: Optional[str] = None  # enable, disable
 
+    # DNS resolver
+    resolver_cache: Optional[bool] = None
+    resolver_interval: Optional[int] = None
+
     # State policies
     state_policy_established: Optional[StatePolicy] = None
     state_policy_invalid: Optional[StatePolicy] = None
@@ -271,6 +275,10 @@ def parse_global_options(data: dict) -> FirewallGlobalOptionsConfig:
         syn_cookies=data.get("syn-cookies"),
         twa_hazards_protection=data.get("twa-hazards-protection"),
 
+        # DNS resolver
+        resolver_cache="resolver-cache" in data,
+        resolver_interval=_parse_int(data.get("resolver-interval")),
+
         # State policies
         state_policy_established=established,
         state_policy_invalid=invalid,
@@ -377,6 +385,7 @@ async def update_firewall_global_options(http_request: Request, config: Firewall
         _build_source_routing_options(builder, config, current)
         _build_redirect_options(builder, config, current)
         _build_security_options(builder, config, current)
+        _build_dns_resolver_options(builder, config, current)
         _build_state_policy_options(builder, config, current)
         _build_bridged_traffic_options(builder, config, current)
         _build_timeout_options(builder, config, current)
@@ -476,6 +485,20 @@ def _build_security_options(builder: FirewallGlobalOptionsBatchBuilder, config: 
             builder.set_twa_hazards_protection(config.twa_hazards_protection)
         elif "twa-hazards-protection" in current:
             builder.delete_twa_hazards_protection()
+
+
+def _build_dns_resolver_options(builder: FirewallGlobalOptionsBatchBuilder, config: FirewallGlobalOptionsConfig, current: dict):
+    """Build operations for DNS resolver options."""
+    if config.resolver_cache is not None:
+        if config.resolver_cache:
+            builder.set_resolver_cache()
+        elif "resolver-cache" in current:
+            builder.delete_resolver_cache()
+
+    if config.resolver_interval is not None:
+        builder.set_resolver_interval(config.resolver_interval)
+    elif "resolver-interval" in current:
+        builder.delete_resolver_interval()
 
 
 def _build_state_policy_options(builder: FirewallGlobalOptionsBatchBuilder, config: FirewallGlobalOptionsConfig, current: dict):

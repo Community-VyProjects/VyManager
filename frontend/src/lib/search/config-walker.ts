@@ -216,6 +216,7 @@ function findSectionLabel(path: string[], key?: string): string {
   }
   if (combined.includes("bridged")) return "Bridged Traffic";
   if (combined.includes("timeout") || combined.includes("tcp_") || combined.includes("udp_")) return "Connection Timeouts";
+  if (combined.includes("resolver")) return "DNS Resolver";
   if (combined.includes("log_martians") || combined.includes("source_validation") || combined.includes("syn_cookies") || combined.includes("twa_hazards")) {
     return "Security Options";
   }

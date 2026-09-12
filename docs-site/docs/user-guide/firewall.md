@@ -38,7 +38,7 @@ Reordering works when a single zone pair is selected and renumbers rules as 10, 
 
 ## Global options
 
-A settings form, not a rule table: ICMP behavior (all-ping, broadcast-ping), source routing, ICMP redirects, security options (log-martians, source validation, SYN cookies, TWA hazards protection) and state policies for established/invalid/related traffic. On VyOS 1.5 two more cards appear: bridged traffic handling and connection timeouts (per TCP state, UDP, ICMP). Changes are tracked and saved with an explicit Save button.
+A settings form, not a rule table: ICMP behavior (all-ping, broadcast-ping), source routing, ICMP redirects, security options (log-martians, source validation, SYN cookies, TWA hazards protection), DNS resolver (FQDN resolver cache and update interval) and state policies for established/invalid/related traffic. On VyOS 1.5 two more cards appear: bridged traffic handling and connection timeouts (per TCP state, UDP, ICMP). Changes are tracked and saved with an explicit Save button.
 
 ## Flowtables
 

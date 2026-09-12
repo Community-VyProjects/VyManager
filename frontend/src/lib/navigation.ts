@@ -56,6 +56,7 @@ export const navigation: NavItem[] = [
           { id: "source-routing", title: "Source Routing", href: "/firewall/global-options", description: "Firewall source routing", searchParams: { section: "source-routing" } },
           { id: "icmp-redirects", title: "ICMP Redirects", href: "/firewall/global-options", description: "ICMP redirect behavior", searchParams: { section: "icmp-redirects" } },
           { id: "security-options", title: "Security Options", href: "/firewall/global-options", description: "Firewall security options", searchParams: { section: "security-options" } },
+          { id: "dns-resolver", title: "DNS Resolver", href: "/firewall/global-options", description: "Firewall FQDN resolver cache and interval", searchParams: { section: "dns-resolver" } },
           { id: "state-policies", title: "State Policies", href: "/firewall/global-options", description: "Firewall state policy settings", searchParams: { section: "state-policies" } },
           { id: "bridged-traffic", title: "Bridged Traffic", href: "/firewall/global-options", description: "Firewall bridged traffic options", searchParams: { section: "bridged-traffic" } },
           { id: "connection-timeouts", title: "Connection Timeouts", href: "/firewall/global-options", description: "Firewall connection timeout settings", searchParams: { section: "connection-timeouts" } },

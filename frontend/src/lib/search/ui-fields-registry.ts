@@ -170,6 +170,25 @@ export const uiFieldDefinitions: UiFieldDefinition[] = [
     sectionTitle: "Security Options",
     aliases: ["time wait", "rfc1337"],
   }),
+  // DNS Resolver
+  fwGlobal({
+    id: "ui-fw-global-resolver-cache",
+    label: "Resolver Cache",
+    controlType: "toggle",
+    sectionId: "dns-resolver",
+    sectionTitle: "DNS Resolver",
+    aliases: ["fqdn resolver", "dns cache"],
+    hint: "Retain last resolved value if domain resolution fails",
+  }),
+  fwGlobal({
+    id: "ui-fw-global-resolver-interval",
+    label: "Resolver Interval",
+    controlType: "input",
+    sectionId: "dns-resolver",
+    sectionTitle: "DNS Resolver",
+    aliases: ["fqdn resolver", "resolver update interval"],
+    hint: "Domain resolver update interval in seconds",
+  }),
   // State Policies — Established
   fwGlobal({
     id: "ui-fw-global-established-action",
