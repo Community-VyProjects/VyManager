@@ -1,12 +1,25 @@
-"""Parsing helpers for VyOS PPPoE server operational status."""
+"""Parsing helpers for VyOS PPPoE server operational status.
 
-import asyncio
-import os
+Active PPPoE sessions are read from the router GraphQL ``ShowSessionsAccelppp``
+operation, which returns structured per-session data including cumulative
+packet counters (``rx_pkts``/``tx_pkts``) for every session in a single call.
+Packets-per-second is derived from the counter deltas between polls by
+``PPPoEPpsTracker``.
+
+If the structured operation is unavailable, the caller falls back to parsing
+the pipe-delimited ``show pppoe-server sessions`` table (``parse_pppoe_sessions``),
+which lists sessions but carries no packet counters, so PPS is left unknown.
+"""
+
+import json
+import logging
 import time
 from typing import Any, Dict, List, Optional
 
+import httpx
 from pydantic import BaseModel
-from starlette.concurrency import run_in_threadpool
+
+logger = logging.getLogger(__name__)
 
 
 class PPPoESession(BaseModel):
@@ -88,128 +101,21 @@ class PPPoEPpsTracker:
         self._previous[key] = (rx_packets, tx_packets, now)
         return rx_pps, tx_pps
 
+    def annotate_sessions(self, device_key: str, sessions: List[PPPoESession]) -> None:
+        """Derive RX/TX PPS for every session from its packet-counter delta.
 
-class PPPoEStatsStore:
-    """Backend-owned cache with a configurable sample window.
-
-    The intention is that each PPPoE interface should be sampled at most once
-    per window cycle and the load is spread dynamically across the active
-    sessions count.
-    """
-
-    def __init__(
-        self,
-        poll_window_seconds: int = 300,
-        sample_batch_size: int = 1,
-        max_concurrent_samples: int = 1,
-        min_sample_interval: float = 1.0,
-    ) -> None:
-        self.poll_window_seconds = int(
-            os.getenv("PPPOE_STATS_POLL_WINDOW_SECONDS", str(poll_window_seconds))
-        )
-        self.sample_batch_size = int(
-            os.getenv("PPPOE_STATS_SAMPLE_BATCH_SIZE", str(sample_batch_size))
-        )
-        self.max_concurrent_samples = int(
-            os.getenv("PPPOE_STATS_POLL_CONCURRENCY", str(max_concurrent_samples))
-        )
-        self.min_sample_interval = float(min_sample_interval)
-        self._last_sample_at: Dict[str, float] = {}
-        self._snapshots: Dict[str, Dict[str, Any]] = {}
-        self._tracker = PPPoEPpsTracker(min_sample_interval=self.min_sample_interval)
-        self._rotate = 0
-
-    def sample_interval_for_session_count(self, session_count: int) -> float:
-        """Return the per-session sample cadence, assuming one sample per session per window."""
-        if session_count <= 0:
-            return float(self.poll_window_seconds)
-        return max(float(self.poll_window_seconds) / float(session_count), 1.0)
-
-    def annotate_sessions_from_cache(self, sessions: List[PPPoESession]) -> None:
-        for session in sessions:
-            cache = self._snapshots.get(session.interface)
-            if not cache:
-                continue
-            session.rx_packets = cache.get("rx_packets", session.rx_packets)
-            session.tx_packets = cache.get("tx_packets", session.tx_packets)
-            session.rx_pps = cache.get("rx_pps", session.rx_pps)
-            session.tx_pps = cache.get("tx_pps", session.tx_pps)
-
-    async def sample_due_sessions(self, service, sessions: List[PPPoESession]) -> None:
-        """Sample only a tiny round-robin subset of sessions each sessions read.
-
-        This keeps PPS and packet counter updates backend-owned while making the
-        request pressure far lighter: the API only asks for one interface's
-        statistics table per response instead of issuing one per session.
+        ``device_key`` scopes the tracked counters to one router connection so
+        interfaces on different instances never collide. Sessions without packet
+        counters (e.g. the text-table fallback) leave PPS unset.
         """
-        if not sessions:
-            return
-
-        session_count = len(sessions)
-        sample_interval = self.sample_interval_for_session_count(session_count)
         now = time.monotonic()
-
-        due_sessions = []
         for session in sessions:
-            last_sample_at = self._last_sample_at.get(session.interface)
-            if last_sample_at is None or (now - last_sample_at) >= sample_interval:
-                due_sessions.append(session)
-
-        if not due_sessions:
-            self.annotate_sessions_from_cache(sessions)
-            return
-
-        # Rotate the due list so we do not hammer the same interfaces repeatedly
-        # and spread the requests evenly through the configured window.
-        batch_size = min(self.sample_batch_size, len(due_sessions))
-        start = self._rotate % len(due_sessions)
-        ordered_due = due_sessions[start:] + due_sessions[:start]
-        selected_sessions = ordered_due[:batch_size]
-        self._rotate = (self._rotate + batch_size) % len(due_sessions)
-
-        semaphore = asyncio.Semaphore(self.max_concurrent_samples)
-
-        async def fetch_one(session: PPPoESession) -> None:
-            async with semaphore:
-                stats_response = await run_in_threadpool(
-                    service.device.show,
-                    path=["interfaces", "pppoe", session.interface, "statistics"],
-                )
-            if stats_response.status != 200:
-                return
-
-            stats_output = (
-                stats_response.result.get("data", "")
-                if isinstance(stats_response.result, dict)
-                else stats_response.result
+            key = f"{device_key}:{session.interface}"
+            rx_pps, tx_pps = self.update(
+                key, session.rx_packets, session.tx_packets, timestamp=now
             )
-            rx_packets, tx_packets = parse_pppoe_interface_statistics(stats_output or "")
-            if rx_packets is None or tx_packets is None:
-                return
-
-            key = f"{id(service.device)}:{session.interface}"
-            rx_pps, tx_pps = self._tracker.update(key, rx_packets, tx_packets, timestamp=time.monotonic())
-            self._last_sample_at[session.interface] = time.monotonic()
-            self._snapshots[session.interface] = {
-                "rx_packets": rx_packets,
-                "tx_packets": tx_packets,
-                "rx_pps": rx_pps,
-                "tx_pps": tx_pps,
-                "updated_at": time.monotonic(),
-            }
-
-            session.rx_packets = rx_packets
-            session.tx_packets = tx_packets
             session.rx_pps = rx_pps
             session.tx_pps = tx_pps
-
-        for session in selected_sessions:
-            try:
-                await fetch_one(session)
-            except Exception:
-                logger.exception("Unhandled error while sampling PPPoE interface statistics for %s", session.interface)
-
-        self.annotate_sessions_from_cache(sessions)
 
 
 def _parse_bytes(value: str) -> int:
@@ -234,32 +140,123 @@ def _parse_bytes(value: str) -> int:
 
 
 def _parse_counter(value: Optional[str]) -> Optional[int]:
-    if not value:
+    if value is None:
+        return None
+    text = str(value).replace(",", "").strip()
+    if not text:
         return None
     try:
-        return int(value.replace(",", ""))
+        return int(text)
     except ValueError:
         return None
 
 
-def parse_pppoe_interface_statistics(output: str) -> tuple[Optional[int], Optional[int]]:
-    """Parse IN and OUT packet counters from PPPoE interface statistics."""
-    if not output or not isinstance(output, str):
-        return None, None
+def _format_uptime(seconds: Optional[str]) -> Optional[str]:
+    """Format accel-ppp ``uptime-raw`` seconds as ``[Nd ]HH:MM:SS``."""
+    total = _parse_counter(seconds)
+    if total is None or total < 0:
+        return None
+    days, remainder = divmod(total, 86400)
+    hours, remainder = divmod(remainder, 3600)
+    minutes, secs = divmod(remainder, 60)
+    if days:
+        return f"{days}d {hours:02d}:{minutes:02d}:{secs:02d}"
+    return f"{hours:02d}:{minutes:02d}:{secs:02d}"
 
-    numbers = []
-    for line in output.splitlines():
-        fields = line.split()
-        if len(fields) >= 10 and fields[1].isdigit() and fields[5] == "|" and fields[7].isdigit():
-            numbers = [fields[1], fields[7]]
-            break
-    if not numbers:
-        return None, None
-    return int(numbers[0]), int(numbers[1])
+
+def _accel_ppp_sessions_query(api_key: str, protocol: str = "pppoe") -> Dict[str, str]:
+    """Build the GraphQL body for ``ShowSessionsAccelppp``."""
+    key = json.dumps(api_key)
+    proto = json.dumps(protocol)
+    query = (
+        "{ ShowSessionsAccelppp(data: {key: "
+        + key
+        + ", protocol: "
+        + proto
+        + "}) { success errors data { result } } }"
+    )
+    return {"query": query}
+
+
+def parse_accel_ppp_sessions(result: Any) -> List[PPPoESession]:
+    """Parse the structured session list returned by ``ShowSessionsAccelppp``.
+
+    ``result`` is the GraphQL ``data.result`` value: a list of per-session dicts
+    (accel-ppp field names, ``-`` mangled to ``_``). Some deployments return it as
+    a JSON-encoded string, which is decoded here.
+    """
+    if isinstance(result, str):
+        try:
+            result = json.loads(result)
+        except ValueError:
+            return []
+    if not isinstance(result, list):
+        return []
+
+    sessions: List[PPPoESession] = []
+    for entry in result:
+        if not isinstance(entry, dict):
+            continue
+        ifname = entry.get("ifname")
+        username = entry.get("username")
+        if not ifname or not username:
+            continue
+        sessions.append(PPPoESession(
+            interface=str(ifname),
+            username=str(username),
+            ip=entry.get("ip") or None,
+            ipv6=entry.get("ip6") or None,
+            ipv6_delegated=entry.get("ip6_dp") or None,
+            calling_sid=entry.get("calling_sid") or None,
+            rate_limit=entry.get("rate_limit") or None,
+            state=str(entry.get("state") or "unknown"),
+            uptime=_format_uptime(entry.get("uptime_raw")),
+            rx_bytes=_parse_counter(entry.get("rx_bytes_raw")) or 0,
+            tx_bytes=_parse_counter(entry.get("tx_bytes_raw")) or 0,
+            rx_packets=_parse_counter(entry.get("rx_pkts")),
+            tx_packets=_parse_counter(entry.get("tx_pkts")),
+        ))
+    return sessions
+
+
+async def fetch_accel_ppp_sessions(service, protocol: str = "pppoe") -> Optional[List[PPPoESession]]:
+    """Fetch active sessions via the ``ShowSessionsAccelppp`` GraphQL operation.
+
+    Returns the parsed session list (possibly empty) on success, or ``None`` when
+    the structured operation is unavailable so the caller can fall back to the
+    text-table path. A ``success: false`` op-mode error (e.g. pppoe-server not
+    configured) is treated as unavailable rather than an empty session set, so the
+    fallback decides the final answer.
+    """
+    api_key = str(service.config.apikey)
+    url = f"{service.config.protocol}://{service.config.hostname}:{service.config.port}/graphql"
+    payload = _accel_ppp_sessions_query(api_key, protocol)
+    try:
+        async with httpx.AsyncClient(verify=service.config.verify, timeout=15.0) as client:
+            resp = await client.post(url, json=payload, auth=("vyos", api_key))
+        if resp.status_code != 200:
+            logger.warning("ShowSessionsAccelppp HTTP error %d", resp.status_code)
+            return None
+        body = resp.json()
+        if body.get("errors"):
+            logger.warning("ShowSessionsAccelppp field errors: %s", body["errors"])
+        node = (body.get("data") or {}).get("ShowSessionsAccelppp") or {}
+        if not node.get("success"):
+            return None
+        result = (node.get("data") or {}).get("result")
+        return parse_accel_ppp_sessions(result)
+    except Exception:
+        logger.exception("ShowSessionsAccelppp fetch failed")
+        return None
 
 
 def parse_pppoe_sessions(output: str) -> List[PPPoESession]:
-    """Parse the pipe-delimited table from ``show pppoe-server sessions``."""
+    """Parse the pipe-delimited table from ``show pppoe-server sessions``.
+
+    Fallback for when the structured ``ShowSessionsAccelppp`` operation is
+    unavailable. The table carries no packet counters in normal operation, so
+    ``rx_packets``/``tx_packets`` (and therefore PPS) are typically unknown here.
+    """
     if not output or not isinstance(output, str):
         return []
 
