@@ -42,13 +42,18 @@ def test_policy_list_kind_paths(kind, version):
 
 
 def test_operations_vocab_uses_family_op_names_not_generic_list():
-    ops = {item["op"] for item in describe_batch_builder(CommunityListBatchBuilder, max_args=5)}
-    assert "set_community_list" in ops
-    assert "delete_community_list" in ops
-    assert "set_list" not in ops
-    assert "delete_list" not in ops
-    with pytest.raises(HTTPException):
-        resolve_batch_method(CommunityListBatchBuilder("1.5"), "set_list")
+    from routers.policy_list import KIND_BUILDER
+
+    for kind, (cls, set_op, delete_op) in BUILDERS.items():
+        assert KIND_BUILDER[kind] is cls
+        ops = {item["op"] for item in describe_batch_builder(cls, max_args=5)}
+        assert set_op in ops
+        assert delete_op in ops
+        assert "set_list" not in ops
+        builder = KIND_BUILDER[kind]("1.5")
+        resolve_batch_method(builder, set_op)
+        with pytest.raises(HTTPException):
+            resolve_batch_method(builder, "set_list")
 
 
 def test_thin_builders_are_family_wrappers():

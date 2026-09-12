@@ -10,7 +10,9 @@ from batch_dispatch import resolve_batch_method
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
 from session_vyos_service import get_session_vyos_service
-from vyos_builders.policy_list import PolicyListBatchBuilder
+from vyos_builders.community_list.community_list import CommunityListBatchBuilder
+from vyos_builders.extcommunity_list.extcommunity_list import ExtCommunityListBatchBuilder
+from vyos_builders.large_community_list.large_community_list import LargeCommunityListBatchBuilder
 from vyos_mappers.policy_list import KIND_SPEC, POLICY_LIST_KINDS
 import inspect
 import logging
@@ -21,6 +23,12 @@ KIND_FEATURE = {
     "community-list": FeatureGroup.BGP_COMMUNITY,
     "extcommunity-list": FeatureGroup.BGP_EXTENDED_COMMUNITY,
     "large-community-list": FeatureGroup.BGP_LARGE_COMMUNITY,
+}
+
+KIND_BUILDER = {
+    "community-list": CommunityListBatchBuilder,
+    "extcommunity-list": ExtCommunityListBatchBuilder,
+    "large-community-list": LargeCommunityListBatchBuilder,
 }
 
 
@@ -110,7 +118,7 @@ def build_router(kind: str) -> APIRouter:
         try:
             service = get_session_vyos_service(request)
             version = service.get_version()
-            builder = PolicyListBatchBuilder(version=version, kind=kind)
+            builder = KIND_BUILDER[kind](version=version)
             capabilities = builder.get_capabilities()
             if hasattr(request.state, "instance") and request.state.instance:
                 capabilities["instance_name"] = request.state.instance.get("name")
@@ -140,7 +148,7 @@ def build_router(kind: str) -> APIRouter:
         await require_write_permission(http_request, feature)
         try:
             service = get_session_vyos_service(http_request)
-            builder = PolicyListBatchBuilder(version=service.get_version(), kind=kind)
+            builder = KIND_BUILDER[kind](version=service.get_version())
             for operation in body.operations:
                 method = resolve_batch_method(builder, operation.op)
                 sig = inspect.signature(method)
@@ -173,7 +181,7 @@ def build_router(kind: str) -> APIRouter:
         await require_write_permission(http_request, feature)
         try:
             service = get_session_vyos_service(http_request)
-            builder = PolicyListBatchBuilder(version=service.get_version(), kind=kind)
+            builder = KIND_BUILDER[kind](version=service.get_version())
             list_name = getattr(body, name_field)
             rules_to_delete = sorted([r.old_number for r in body.rules], reverse=True)
             for old_number in rules_to_delete:
