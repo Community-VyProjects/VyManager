@@ -381,6 +381,44 @@ function InterfacesPageInner() {
 
   const { canWrite, canRead } = usePermissions();
 
+  const canWriteVlanParentType =
+    vlanParent === "bonding"
+      ? canWrite(FeatureGroup.BONDING) || canWrite(FeatureGroup.INTERFACES)
+      : canWrite(FeatureGroup.ETHERNET) || canWrite(FeatureGroup.INTERFACES);
+
+  const canWriteSelectedType = () => {
+    switch (selectedType) {
+      case "vxlan":
+        return canWrite(FeatureGroup.VXLAN);
+      case "tunnel":
+        return canWrite(FeatureGroup.TUNNEL) || canWrite(FeatureGroup.INTERFACES);
+      case "pppoe":
+        return canWrite(FeatureGroup.PPPOE) || canWrite(FeatureGroup.INTERFACES);
+      case "sstpc":
+        return canWrite(FeatureGroup.SSTPC) || canWrite(FeatureGroup.INTERFACES);
+      case "bonding":
+        return canWrite(FeatureGroup.BONDING) || canWrite(FeatureGroup.INTERFACES);
+      case "bridge":
+        return canWrite(FeatureGroup.BRIDGE) || canWrite(FeatureGroup.INTERFACES);
+      case "dummy":
+        return canWrite(FeatureGroup.DUMMY) || canWrite(FeatureGroup.INTERFACES);
+      case "ethernet":
+        return canWrite(FeatureGroup.ETHERNET) || canWrite(FeatureGroup.INTERFACES);
+      case "geneve":
+        return canWrite(FeatureGroup.GENEVE) || canWrite(FeatureGroup.INTERFACES);
+      case "input":
+        return canWrite(FeatureGroup.INPUT_IFACE) || canWrite(FeatureGroup.INTERFACES);
+      case "loopback":
+        return canWrite(FeatureGroup.LOOPBACK) || canWrite(FeatureGroup.INTERFACES);
+      case "macsec":
+        return canWrite(FeatureGroup.MACSEC) || canWrite(FeatureGroup.INTERFACES);
+      case "vlan":
+        return canWriteVlanParentType;
+      default:
+        return canWrite(FeatureGroup.INTERFACES);
+    }
+  };
+
   const loadData = async () => {
     try {
       setError(null);
@@ -758,7 +796,7 @@ function InterfacesPageInner() {
                         size="sm"
                         onClick={() => onEdit?.(item)}
                         className="h-7 w-7 p-0"
-                        disabled={!canWrite(FeatureGroup.INTERFACES)}
+                        disabled={!canWriteVlanParentType}
                       >
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
@@ -779,7 +817,7 @@ function InterfacesPageInner() {
                           setDeletingVLAN(base);
                         }}
                         className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                        disabled={!canWrite(FeatureGroup.INTERFACES)}
+                        disabled={!canWriteVlanParentType}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
@@ -1059,6 +1097,7 @@ function InterfacesPageInner() {
             ) : (
               <div className="space-y-1 py-3">
                 {/* Bonding */}
+                {(canRead(FeatureGroup.BONDING) || canRead(FeatureGroup.INTERFACES)) && (
                 <button
                   onClick={() => setSelectedType("bonding")}
                   className={cn(
@@ -1091,8 +1130,10 @@ function InterfacesPageInner() {
                     </div>
                   </div>
                 </button>
+                )}
 
                 {/* Bridge */}
+                {(canRead(FeatureGroup.BRIDGE) || canRead(FeatureGroup.INTERFACES)) && (
                 <button
                   onClick={() => setSelectedType("bridge")}
                   className={cn(
@@ -1125,8 +1166,10 @@ function InterfacesPageInner() {
                     </div>
                   </div>
                 </button>
+                )}
 
                 {/* Dummy */}
+                {(canRead(FeatureGroup.DUMMY) || canRead(FeatureGroup.INTERFACES)) && (
                 <button
                   onClick={() => setSelectedType("dummy")}
                   className={cn(
@@ -1159,8 +1202,10 @@ function InterfacesPageInner() {
                     </div>
                   </div>
                 </button>
+                )}
 
                 {/* Ethernet */}
+                {(canRead(FeatureGroup.ETHERNET) || canRead(FeatureGroup.INTERFACES)) && (
                 <button
                   onClick={() => setSelectedType("ethernet")}
                   className={cn(
@@ -1193,8 +1238,10 @@ function InterfacesPageInner() {
                     </div>
                   </div>
                 </button>
+                )}
 
                 {/* GENEVE */}
+                {(canRead(FeatureGroup.GENEVE) || canRead(FeatureGroup.INTERFACES)) && (
                 <button
                   onClick={() => setSelectedType("geneve")}
                   className={cn(
@@ -1227,8 +1274,10 @@ function InterfacesPageInner() {
                     </div>
                   </div>
                 </button>
+                )}
 
                 {/* Input */}
+                {(canRead(FeatureGroup.INPUT_IFACE) || canRead(FeatureGroup.INTERFACES)) && (
                 <button
                   onClick={() => setSelectedType("input")}
                   className={cn(
@@ -1261,6 +1310,7 @@ function InterfacesPageInner() {
                     </div>
                   </div>
                 </button>
+                )}
 
                 {/* L2TPv3 */}
                 <button
@@ -1297,6 +1347,7 @@ function InterfacesPageInner() {
                 </button>
 
                 {/* Loopback */}
+                {(canRead(FeatureGroup.LOOPBACK) || canRead(FeatureGroup.INTERFACES)) && (
                 <button
                   onClick={() => setSelectedType("loopback")}
                   className={cn(
@@ -1329,8 +1380,10 @@ function InterfacesPageInner() {
                     </div>
                   </div>
                 </button>
+                )}
 
                 {/* MACsec */}
+                {(canRead(FeatureGroup.MACSEC) || canRead(FeatureGroup.INTERFACES)) && (
                 <button
                   onClick={() => setSelectedType("macsec")}
                   className={cn(
@@ -1363,6 +1416,7 @@ function InterfacesPageInner() {
                     </div>
                   </div>
                 </button>
+                )}
 
                 {/* PPPoE */}
                 {(canRead(FeatureGroup.PPPOE) || canRead(FeatureGroup.INTERFACES)) && (
@@ -1895,7 +1949,7 @@ function InterfacesPageInner() {
                     setIsCreateInterfaceModalOpen(true);
                   }
                 }}
-                disabled={selectedType === "vxlan" ? !canWrite(FeatureGroup.VXLAN) : selectedType === "tunnel" ? !canWrite(FeatureGroup.TUNNEL) && !canWrite(FeatureGroup.INTERFACES) : selectedType === "pppoe" ? !canWrite(FeatureGroup.PPPOE) && !canWrite(FeatureGroup.INTERFACES) : selectedType === "sstpc" ? !canWrite(FeatureGroup.SSTPC) && !canWrite(FeatureGroup.INTERFACES) : !canWrite(FeatureGroup.INTERFACES)}
+                disabled={!canWriteSelectedType()}
               >
                 <Plus className="h-4 w-4" />
                 {selectedType === "ethernet"
@@ -2144,7 +2198,7 @@ function InterfacesPageInner() {
                                     size="sm"
                                     onClick={() => setDiagnosticsInterface(iface.name)}
                                     className="h-7 w-7 p-0"
-                                    disabled={!canRead(FeatureGroup.INTERFACES)}
+                                    disabled={!canRead(FeatureGroup.ETHERNET) && !canRead(FeatureGroup.INTERFACES)}
                                     title="View transceiver diagnostics"
                                   >
                                     <Signal className="h-3.5 w-3.5" />
@@ -2154,7 +2208,7 @@ function InterfacesPageInner() {
                                     size="sm"
                                     onClick={() => setEditingInterface(iface)}
                                     className="h-7 w-7 p-0"
-                                    disabled={!canWrite(FeatureGroup.INTERFACES)}
+                                    disabled={!canWrite(FeatureGroup.ETHERNET) && !canWrite(FeatureGroup.INTERFACES)}
                                   >
                                     <Pencil className="h-3.5 w-3.5" />
                                   </Button>
@@ -2163,7 +2217,7 @@ function InterfacesPageInner() {
                                     size="sm"
                                     onClick={() => setDeletingInterface(iface)}
                                     className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                                    disabled={!canWrite(FeatureGroup.INTERFACES)}
+                                    disabled={!canWrite(FeatureGroup.ETHERNET) && !canWrite(FeatureGroup.INTERFACES)}
                                   >
                                     <Trash2 className="h-3.5 w-3.5" />
                                   </Button>
@@ -2424,7 +2478,7 @@ function InterfacesPageInner() {
                             </TableCell>
                             <TableCell>
                               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                {canWrite(FeatureGroup.INTERFACES) && (
+                                {(canWrite(FeatureGroup.DUMMY) || canWrite(FeatureGroup.INTERFACES)) && (
                                   <>
                                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingDummy(dum)}>
                                       <Pencil className="h-3.5 w-3.5" />
@@ -2498,7 +2552,7 @@ function InterfacesPageInner() {
                             </TableCell>
                             <TableCell>
                               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                {canWrite(FeatureGroup.INTERFACES) && (
+                                {(canWrite(FeatureGroup.GENEVE) || canWrite(FeatureGroup.INTERFACES)) && (
                                   <>
                                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingGeneve(gnv)}>
                                       <Pencil className="h-3.5 w-3.5" />
@@ -2636,7 +2690,7 @@ function InterfacesPageInner() {
                             </TableCell>
                             <TableCell>
                               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                {canWrite(FeatureGroup.INTERFACES) && (
+                                {(canWrite(FeatureGroup.INPUT_IFACE) || canWrite(FeatureGroup.INTERFACES)) && (
                                   <>
                                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingInput(ifb)}>
                                       <Pencil className="h-3.5 w-3.5" />
@@ -2704,7 +2758,7 @@ function InterfacesPageInner() {
                             </TableCell>
                             <TableCell>
                               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                {canWrite(FeatureGroup.INTERFACES) && (
+                                {(canWrite(FeatureGroup.LOOPBACK) || canWrite(FeatureGroup.INTERFACES)) && (
                                   <>
                                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingLoopback(lo)}>
                                       <Pencil className="h-3.5 w-3.5" />
@@ -2796,7 +2850,7 @@ function InterfacesPageInner() {
                               </TableCell>
                               <TableCell>
                                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                  {canWrite(FeatureGroup.INTERFACES) && (
+                                  {(canWrite(FeatureGroup.MACSEC) || canWrite(FeatureGroup.INTERFACES)) && (
                                     <>
                                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingMacsec(iface)}>
                                         <Pencil className="h-3.5 w-3.5" />
@@ -3441,7 +3495,7 @@ function InterfacesPageInner() {
                             </TableCell>
                             <TableCell>
                               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                {canWrite(FeatureGroup.INTERFACES) && (
+                                {(canWrite(FeatureGroup.BONDING) || canWrite(FeatureGroup.INTERFACES)) && (
                                   <>
                                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingBonding(bond)}>
                                       <Pencil className="h-3.5 w-3.5" />
@@ -3550,7 +3604,7 @@ function InterfacesPageInner() {
                                 </TableCell>
                                 <TableCell>
                                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    {canWrite(FeatureGroup.INTERFACES) && (
+                                    {(canWrite(FeatureGroup.BRIDGE) || canWrite(FeatureGroup.INTERFACES)) && (
                                       <>
                                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingBridge(br)}>
                                           <Pencil className="h-3.5 w-3.5" />
@@ -3569,7 +3623,7 @@ function InterfacesPageInner() {
                                     <div className="mx-4 mb-3 mt-1 rounded-lg border bg-muted/30">
                                       <div className="flex items-center justify-between px-4 py-2 border-b">
                                         <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">VIF Sub-interfaces ({vifCount})</span>
-                                        {canWrite(FeatureGroup.INTERFACES) && (
+                                        {(canWrite(FeatureGroup.BRIDGE) || canWrite(FeatureGroup.INTERFACES)) && (
                                           <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setCreateVifForBridge(br.name)}>
                                             <Plus className="h-3 w-3 mr-1" /> Add VIF
                                           </Button>
@@ -3613,7 +3667,7 @@ function InterfacesPageInner() {
                                                 </TableCell>
                                                 <TableCell className="py-2 pr-3">
                                                   <div className="flex gap-1 opacity-0 group-hover/vif:opacity-100 transition-opacity justify-end">
-                                                    {canWrite(FeatureGroup.INTERFACES) && (
+                                                    {(canWrite(FeatureGroup.BRIDGE) || canWrite(FeatureGroup.INTERFACES)) && (
                                                       <>
                                                         <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditingVif({ bridge: br.name, vif })}>
                                                           <Pencil className="h-3 w-3" />

@@ -217,7 +217,7 @@ class BridgeInterfacesConfigResponse(BaseModel):
 @router.get("/capabilities")
 async def get_bridge_capabilities(request: Request):
     """Get bridge feature capabilities based on device VyOS version."""
-    await require_read_permission(request, FeatureGroup.INTERFACES)
+    await require_read_permission(request, FeatureGroup.BRIDGE)
 
     try:
         service = get_session_vyos_service(request)
@@ -244,7 +244,7 @@ async def get_bridge_capabilities(request: Request):
 @router.get("/config", response_model=BridgeInterfacesConfigResponse)
 async def get_bridge_config(http_request: Request) -> BridgeInterfacesConfigResponse:
     """Get all bridge interface configurations from VyOS."""
-    await require_read_permission(http_request, FeatureGroup.INTERFACES)
+    await require_read_permission(http_request, FeatureGroup.BRIDGE)
 
     from vyos_mappers.interfaces.bridge_versions import get_bridge_mapper
 
@@ -387,7 +387,7 @@ async def configure_bridge_batch(http_request: Request, request: BridgeBatchRequ
 
     All operations are version-aware and sent to VyOS in a single batch.
     """
-    await require_write_permission(http_request, FeatureGroup.INTERFACES)
+    await require_write_permission(http_request, FeatureGroup.BRIDGE)
 
     try:
         service = get_session_vyos_service(http_request)

@@ -69,7 +69,7 @@ class DummyInterfacesConfigResponse(BaseModel):
 @router.get("/capabilities")
 async def get_capabilities(request: Request) -> Dict[str, Any]:
     """Return version-aware feature capabilities for dummy interfaces."""
-    await require_read_permission(request, FeatureGroup.INTERFACES)
+    await require_read_permission(request, FeatureGroup.DUMMY)
     service = get_session_vyos_service(request)
     from vyos_builders.interfaces.dummy import DummyInterfaceBuilderMixin
     builder = DummyInterfaceBuilderMixin(version=service.get_version())
@@ -79,7 +79,7 @@ async def get_capabilities(request: Request) -> Dict[str, Any]:
 @router.get("/config", response_model=DummyInterfacesConfigResponse)
 async def get_config(http_request: Request, refresh: bool = False) -> DummyInterfacesConfigResponse:
     """Get all dummy interface configurations from VyOS."""
-    await require_read_permission(http_request, FeatureGroup.INTERFACES)
+    await require_read_permission(http_request, FeatureGroup.DUMMY)
     try:
         service = get_session_vyos_service(http_request)
         full_config = await run_in_threadpool(service.get_full_config, refresh)
@@ -136,7 +136,7 @@ async def batch_configure(http_request: Request, request: BatchRequest) -> VyOSR
     | `set_netns` | Yes | Assign to network namespace |
     | `delete_netns` | No | Remove network namespace |
     """
-    await require_write_permission(http_request, FeatureGroup.INTERFACES)
+    await require_write_permission(http_request, FeatureGroup.DUMMY)
 
     service = get_session_vyos_service(http_request)
     batch = service.create_dummy_batch()
