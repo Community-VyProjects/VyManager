@@ -136,6 +136,80 @@ def test_v14_emits_ddns_leaf():
     assert mapper.get_dynamic_dns_update() == ["service", "dhcp-server", "dynamic-dns-update"]
 
 
+DDNS_SCALAR_CASES = [
+    ("conflict-resolution", "enable"),
+    ("override-client-update", "enable"),
+    ("override-no-update", "enable"),
+    ("update-on-renew", "enable"),
+    ("replace-client-name", "always"),
+    ("ttl-percent", "50"),
+    ("generated-prefix", "myhost"),
+    ("qualifying-suffix", "example.com"),
+    ("hostname-char-replacement", "-"),
+    ("hostname-char-set", "[^A-Za-z0-9.-]"),
+]
+
+
+@pytest.mark.parametrize("field, value", DDNS_SCALAR_CASES)
+def test_v15_emits_ddns_scalar(field, value):
+    mapper = DHCPMapper("1.5")
+    assert mapper.get_ddns_scalar(field, value) == [
+        "service", "dhcp-server", "dynamic-dns-update", field, value,
+    ]
+    assert mapper.get_ddns_scalar_path(field) == [
+        "service", "dhcp-server", "dynamic-dns-update", field,
+    ]
+
+
+def test_v14_rejects_ddns_scalar_set():
+    mapper = DHCPMapper("1.4")
+    with pytest.raises(ValueError, match="not supported"):
+        mapper.get_ddns_scalar("conflict-resolution", "enable")
+
+
+def test_v14_ddns_scalar_delete_unguarded():
+    # Delete must stay reachable so a stale 1.5 leaf can be removed.
+    mapper = DHCPMapper("1.4")
+    assert mapper.get_ddns_scalar_path("ttl-percent")[-1] == "ttl-percent"
+
+
+def test_ddns_scalar_rejects_unknown_field():
+    mapper = DHCPMapper("1.5")
+    with pytest.raises(ValueError, match="unsupported dynamic-dns-update field"):
+        mapper.get_ddns_scalar("bogus-leaf", "x")
+    with pytest.raises(ValueError, match="unsupported dynamic-dns-update field"):
+        mapper.get_ddns_scalar_path("bogus-leaf")
+
+
+def test_v15_builder_ddns_scalar_set_delete():
+    builder = DHCPBatchBuilder(version="1.5")
+    builder.set_ddns_scalar("hostname-char-set|[^A-Za-z0-9.-]")
+    builder.delete_ddns_scalar("hostname-char-set")
+    ops = builder.get_operations()
+    assert ops[0] == {
+        "op": "set",
+        "path": ["service", "dhcp-server", "dynamic-dns-update", "hostname-char-set", "[^A-Za-z0-9.-]"],
+    }
+    assert ops[1] == {
+        "op": "delete",
+        "path": ["service", "dhcp-server", "dynamic-dns-update", "hostname-char-set"],
+    }
+
+
+def test_ddns_scalar_value_keeps_embedded_pipe():
+    # A value containing "|" must survive; only the first separator is the
+    # field/value boundary.
+    builder = DHCPBatchBuilder(version="1.5")
+    builder.set_ddns_scalar("hostname-char-set|[a|b]")
+    assert builder.get_operations()[0]["path"][-1] == "[a|b]"
+
+
+def test_v14_builder_rejects_ddns_scalar_set():
+    builder = DHCPBatchBuilder(version="1.4")
+    with pytest.raises(ValueError, match="not supported"):
+        builder.set_ddns_scalar("conflict-resolution|enable")
+
+
 def test_v14_builder_rejects_ddns_kea_and_ha_certs():
     builder = DHCPBatchBuilder(version="1.4")
     with pytest.raises(ValueError, match="not supported"):

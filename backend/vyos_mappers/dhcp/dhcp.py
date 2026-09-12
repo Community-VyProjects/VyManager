@@ -3,7 +3,7 @@
 Handles command path generation for DHCP server configuration.
 Integrates version-specific mappers for differences between VyOS 1.4 and 1.5.
 """
-from typing import List
+from typing import FrozenSet, List
 from ..base import BaseFeatureMapper
 from .dhcp_versions import DHCPMapperV1_4, DHCPMapperV1_5
 
@@ -818,6 +818,38 @@ class DHCPMapper(BaseFeatureMapper):
     def _require_ddns_kea(self) -> None:
         if not self.has_dynamic_dns_update_kea():
             raise ValueError("Kea dynamic-dns-update is not supported on this device")
+
+    # Container-level behavior leaves of the Kea dynamic-dns-update node. Each
+    # is a single value-taking leaf under dynamic-dns-update/<field>. Kept as an
+    # allowlist rather than one method per leaf so the set/delete path stays a
+    # single validated shape.
+    DDNS_SCALAR_FIELDS: FrozenSet[str] = frozenset({
+        "conflict-resolution",
+        "override-client-update",
+        "override-no-update",
+        "update-on-renew",
+        "replace-client-name",
+        "ttl-percent",
+        "generated-prefix",
+        "qualifying-suffix",
+        "hostname-char-replacement",
+        "hostname-char-set",
+    })
+
+    def _require_ddns_scalar_field(self, field: str) -> None:
+        if field not in self.DDNS_SCALAR_FIELDS:
+            raise ValueError(f"unsupported dynamic-dns-update field: {field}")
+
+    def get_ddns_scalar(self, field: str, value: str) -> List[str]:
+        self._require_ddns_kea()
+        self._require_ddns_scalar_field(field)
+        return ["service", "dhcp-server", "dynamic-dns-update", field, value]
+
+    def get_ddns_scalar_path(self, field: str) -> List[str]:
+        # Delete must stay reachable independent of the Kea set guard so a stale
+        # leaf can be removed. Only the field name is validated here.
+        self._require_ddns_scalar_field(field)
+        return ["service", "dhcp-server", "dynamic-dns-update", field]
 
     def get_ddns_send_updates(self, value: str) -> List[str]:
         self._require_ddns_kea()
