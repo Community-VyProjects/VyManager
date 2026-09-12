@@ -103,6 +103,7 @@ export const configSources: ConfigSourceDefinition[] = [
       if (s.includes("redirect")) return { section: "icmp-redirects" };
       if (s.includes("src_route") || s.includes("source")) return { section: "source-routing" };
       if (s.includes("ping") || s.includes("icmp")) return { section: "icmp-settings" };
+      if (s.includes("resolver")) return { section: "dns-resolver" };
       return { section: "security-options" };
     },
   },

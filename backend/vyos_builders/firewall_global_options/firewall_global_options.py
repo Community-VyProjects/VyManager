@@ -159,6 +159,30 @@ class FirewallGlobalOptionsBatchBuilder(BatchBuilder):
         return self.add_delete(path)
 
     # ========================================================================
+    # DNS Resolver
+    # ========================================================================
+
+    def set_resolver_cache(self) -> "FirewallGlobalOptionsBatchBuilder":
+        """Enable resolver-cache (valueless flag)."""
+        path = self.mappers[self.mapper_key].get_resolver_cache()
+        return self.add_set(path)
+
+    def delete_resolver_cache(self) -> "FirewallGlobalOptionsBatchBuilder":
+        """Delete resolver-cache setting."""
+        path = self.mappers[self.mapper_key].get_resolver_cache_path()
+        return self.add_delete(path)
+
+    def set_resolver_interval(self, seconds: int) -> "FirewallGlobalOptionsBatchBuilder":
+        """Set resolver-interval (seconds)."""
+        path = self.mappers[self.mapper_key].get_resolver_interval(seconds)
+        return self.add_set(path)
+
+    def delete_resolver_interval(self) -> "FirewallGlobalOptionsBatchBuilder":
+        """Delete resolver-interval setting."""
+        path = self.mappers[self.mapper_key].get_resolver_interval_path()
+        return self.add_delete(path)
+
+    # ========================================================================
     # State Policy - Established
     # ========================================================================
 
@@ -494,6 +518,10 @@ class FirewallGlobalOptionsBatchBuilder(BatchBuilder):
                 "security_options": {
                     "supported": True,
                     "description": "Security options (log-martians, syn-cookies, etc.)",
+                },
+                "dns_resolver": {
+                    "supported": True,
+                    "description": "Firewall FQDN resolver cache and update interval",
                 },
                 "state_policy": {
                     "supported": True,

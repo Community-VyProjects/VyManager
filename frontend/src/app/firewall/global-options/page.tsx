@@ -63,6 +63,10 @@ function FirewallGlobalOptionsPageInner() {
   const [synCookies, setSynCookies] = useState<string>("not_set");
   const [twaHazardsProtection, setTwaHazardsProtection] = useState<string>("not_set");
 
+  // Form state - DNS Resolver
+  const [resolverCache, setResolverCache] = useState(false);
+  const [resolverInterval, setResolverInterval] = useState<string>("");
+
   // Form state - State Policies
   const [establishedAction, setEstablishedAction] = useState<string>("not_set");
   const [establishedLog, setEstablishedLog] = useState(false);
@@ -110,6 +114,9 @@ function FirewallGlobalOptionsPageInner() {
     setSourceValidation(cfg.source_validation || "not_set");
     setSynCookies(cfg.syn_cookies || "not_set");
     setTwaHazardsProtection(cfg.twa_hazards_protection || "not_set");
+
+    setResolverCache(cfg.resolver_cache || false);
+    setResolverInterval(cfg.resolver_interval?.toString() || "");
 
     if (cfg.state_policy_established) {
       setEstablishedAction(cfg.state_policy_established.action || "not_set");
@@ -189,6 +196,8 @@ function FirewallGlobalOptionsPageInner() {
       sourceValidation: cfg.source_validation || "not_set",
       synCookies: cfg.syn_cookies || "not_set",
       twaHazardsProtection: cfg.twa_hazards_protection || "not_set",
+      resolverCache: cfg.resolver_cache || false,
+      resolverInterval: cfg.resolver_interval?.toString() || "",
       establishedAction: cfg.state_policy_established?.action || "not_set",
       establishedLog: cfg.state_policy_established?.log || false,
       establishedLogLevel: cfg.state_policy_established?.log_level || "not_set",
@@ -227,6 +236,7 @@ function FirewallGlobalOptionsPageInner() {
       timeoutTcpEstablished, timeoutTcpFinWait, timeoutTcpLastAck,
       timeoutTcpSynRecv, timeoutTcpSynSent, timeoutTcpTimeWait,
       timeoutUdpOther, timeoutUdpStream,
+      resolverCache, resolverInterval,
     };
     const changed = Object.keys(currentValues).some(
       (key) => currentValues[key as keyof typeof currentValues] !== initialValues[key]
@@ -241,7 +251,8 @@ function FirewallGlobalOptionsPageInner() {
     timeoutIcmp, timeoutOther, timeoutTcpClose, timeoutTcpCloseWait,
     timeoutTcpEstablished, timeoutTcpFinWait, timeoutTcpLastAck,
     timeoutTcpSynRecv, timeoutTcpSynSent, timeoutTcpTimeWait,
-    timeoutUdpOther, timeoutUdpStream, initialValues,
+    timeoutUdpOther, timeoutUdpStream, resolverCache, resolverInterval,
+    initialValues,
   ]);
 
   const loadData = useCallback(async (forceRefresh: boolean = true) => {
@@ -297,6 +308,8 @@ function FirewallGlobalOptionsPageInner() {
         source_validation: sourceValidation !== "not_set" ? sourceValidation : "",
         syn_cookies: synCookies !== "not_set" ? synCookies : "",
         twa_hazards_protection: twaHazardsProtection !== "not_set" ? twaHazardsProtection : "",
+        resolver_cache: resolverCache,
+        resolver_interval: resolverInterval ? parseInt(resolverInterval) : null,
       };
 
       // Always send state policy config so backend can delete if needed
@@ -623,6 +636,48 @@ function FirewallGlobalOptionsPageInner() {
                   options={enableDisableOptions}
                   description="RFC1337 TIME-WAIT protection"
                 />
+              </CardContent>
+            </Card>
+
+            {/* DNS Resolver */}
+            <Card id="dns-resolver">
+              <CardHeader className="py-3 px-4">
+                <CardTitle className="text-sm font-semibold">DNS Resolver</CardTitle>
+              </CardHeader>
+              <CardContent className="px-4 pb-3 pt-0">
+                <div
+                  id="resolver-cache"
+                  className="flex items-center justify-between py-2 border-b border-border/50 scroll-mt-24"
+                >
+                  <div className="flex-1 min-w-0 pr-4">
+                    <span className="text-sm font-medium">Resolver Cache</span>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Retain last resolved value if domain resolution fails
+                    </p>
+                  </div>
+                  <Checkbox
+                    checked={resolverCache}
+                    onCheckedChange={(c) => setResolverCache(c === true)}
+                  />
+                </div>
+                <div
+                  id="resolver-interval"
+                  className="flex items-center justify-between py-2 scroll-mt-24"
+                >
+                  <div className="flex-1 min-w-0 pr-4">
+                    <span className="text-sm font-medium">Resolver Interval (sec)</span>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Domain resolver update interval (10-3600, default 300)
+                    </p>
+                  </div>
+                  <Input
+                    type="number"
+                    placeholder="300"
+                    value={resolverInterval}
+                    onChange={(e) => setResolverInterval(e.target.value)}
+                    className="w-[160px] h-8 text-xs"
+                  />
+                </div>
               </CardContent>
             </Card>
           </div>

@@ -49,6 +49,10 @@ export interface FirewallGlobalOptionsConfig {
   syn_cookies: string | null;  // enable, disable
   twa_hazards_protection: string | null;  // enable, disable
 
+  // DNS resolver
+  resolver_cache: boolean | null;
+  resolver_interval: number | null;
+
   // State policies
   state_policy_established: StatePolicy | null;
   state_policy_invalid: StatePolicy | null;
@@ -80,6 +84,10 @@ export interface FirewallGlobalOptionsCapabilities {
       description: string;
     };
     security_options: {
+      supported: boolean;
+      description: string;
+    };
+    dns_resolver: {
       supported: boolean;
       description: string;
     };
