@@ -43,6 +43,7 @@ class DHCPStaticMapping(BaseModel):
     name: str = Field(..., description="Static mapping name")
     ip_address: Optional[str] = None
     mac_address: Optional[str] = None
+    duid: Optional[str] = None
     description: Optional[str] = None
     disable: bool = False
 
@@ -106,6 +107,7 @@ class DHCPGlobalConfig(BaseModel):
     """DHCP global configuration."""
 
     listen_addresses: List[str] = []
+    listen_interfaces: List[str] = []
     hostfile_update: bool = False
     host_decl_name: bool = False
     disable: bool = False
@@ -261,6 +263,9 @@ async def get_dhcp_config(http_request: Request, refresh: bool = False):
             listen_addresses=list(dhcp_config.get("listen-address", {}).keys())
             if isinstance(dhcp_config.get("listen-address"), dict)
             else [],
+            listen_interfaces=list(dhcp_config.get("listen-interface", {}).keys())
+            if isinstance(dhcp_config.get("listen-interface"), dict)
+            else [],
             hostfile_update="hostfile-update" in dhcp_config,
             host_decl_name="host-decl-name" in dhcp_config,
             disable="disable" in dhcp_config,
@@ -411,6 +416,7 @@ async def get_dhcp_config(http_request: Request, refresh: bool = False):
                                         name=mapping_name,
                                         ip_address=mapping_data.get("ip-address"),
                                         mac_address=mac_addr,
+                                        duid=mapping_data.get("duid"),
                                         description=mapping_data.get("description"),
                                         disable="disable" in mapping_data,
                                     )
@@ -929,6 +935,8 @@ async def dhcp_batch_configure(http_request: Request, request: DHCPBatchRequest)
 
     except HTTPException:
         raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except KeyError:
         raise HTTPException(status_code=404, detail="Device not found in registry")
     except Exception as e:

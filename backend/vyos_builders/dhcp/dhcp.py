@@ -76,6 +76,14 @@ class DHCPBatchBuilder(BatchBuilder):
         path = self.mappers[self.mapper_key].get_host_decl_name_path()
         return self.add_delete(path)
 
+    def set_listen_interface(self, interface: str) -> "DHCPBatchBuilder":
+        path = self.mappers[self.mapper_key].get_listen_interface(interface)
+        return self.add_set(path)
+
+    def delete_listen_interface(self, interface: str) -> "DHCPBatchBuilder":
+        path = self.mappers[self.mapper_key].get_listen_interface_path(interface)
+        return self.add_delete(path)
+
     # ========================================================================
     # Shared Network Operations
     # ========================================================================
@@ -508,6 +516,22 @@ class DHCPBatchBuilder(BatchBuilder):
         )
         return self.add_delete(path)
 
+    def set_static_mapping_duid(
+        self, network_name: str, subnet: str, mapping_name: str, duid: str
+    ) -> "DHCPBatchBuilder":
+        path = self.mappers[self.mapper_key].get_static_mapping_duid(
+            network_name, subnet, mapping_name, duid
+        )
+        return self.add_set(path)
+
+    def delete_static_mapping_duid(
+        self, network_name: str, subnet: str, mapping_name: str
+    ) -> "DHCPBatchBuilder":
+        path = self.mappers[self.mapper_key].get_static_mapping_duid_path(
+            network_name, subnet, mapping_name
+        )
+        return self.add_delete(path)
+
     def set_static_mapping_disable(
         self, network_name: str, subnet: str, mapping_name: str
     ) -> "DHCPBatchBuilder":
@@ -827,6 +851,26 @@ class DHCPBatchBuilder(BatchBuilder):
                 "global_disable": {
                     "supported": True,
                     "description": "Disable the entire DHCP server",
+                },
+                "listen_address": {
+                    "supported": True,
+                    "description": "Addresses the DHCP server listens on",
+                },
+                "listen_interface": {
+                    "supported": mapper.has_listen_interface(),
+                    "description": "Interfaces the DHCP server listens on",
+                },
+                "hostfile_update": {
+                    "supported": True,
+                    "description": "Write DHCP hostnames into the hosts file",
+                },
+                "host_decl_name": {
+                    "supported": mapper.has_host_decl_name(),
+                    "description": "Use the host declaration name as the hostname",
+                },
+                "static_mapping_duid": {
+                    "supported": mapper.has_static_mapping_duid(),
+                    "description": "Identify a static mapping by DUID",
                 },
                 "network_disable": {
                     "supported": True,

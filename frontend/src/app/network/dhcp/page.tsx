@@ -56,6 +56,7 @@ import { DeleteStaticMappingModal } from "@/components/services/DeleteStaticMapp
 import { AddLeaseToStaticMappingModal } from "@/components/services/AddLeaseToStaticMappingModal";
 import { AddRangeModal } from "@/components/services/AddRangeModal";
 import { AddStaticMappingModal } from "@/components/services/AddStaticMappingModal";
+import { DHCPServerSettingsModal } from "@/components/services/DHCPServerSettingsModal";
 import { EditRangeModal } from "@/components/services/EditRangeModal";
 import { ChevronRight } from "lucide-react";
 
@@ -111,6 +112,7 @@ function DHCPPageInner() {
 
   // Modal states
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [addingSubnetToNetwork, setAddingSubnetToNetwork] = useState<string | null>(null);
   const [editingSubnet, setEditingSubnet] = useState<{
     network: string;
@@ -346,7 +348,8 @@ function DHCPPageInner() {
     const matchesSearch = searchQuery === "" ||
       mapping.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       mapping.ip_address?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      mapping.mac_address?.toLowerCase().includes(searchQuery.toLowerCase());
+      mapping.mac_address?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      mapping.duid?.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesSubnet && matchesSearch;
   });
 
@@ -430,6 +433,16 @@ function DHCPPageInner() {
             >
               <Plus className="h-4 w-4 mr-2" />
               New Server
+            </Button>
+            <Button
+              className="w-full mt-2"
+              size="sm"
+              variant="outline"
+              onClick={() => setSettingsModalOpen(true)}
+              disabled={!config}
+            >
+              <Settings2 className="h-4 w-4 mr-2" />
+              Server settings
             </Button>
           </div>
 
@@ -1021,7 +1034,7 @@ function DHCPPageInner() {
                                     </div>
                                   </TableCell>
                                   <TableCell className="font-mono text-sm">
-                                    {mapping.mac_address || <span className="text-muted-foreground">—</span>}
+                                    {mapping.mac_address || mapping.duid || <span className="text-muted-foreground">—</span>}
                                   </TableCell>
                                   <TableCell className="font-mono">
                                     {mapping.ip_address || <span className="text-muted-foreground">—</span>}
@@ -1276,7 +1289,6 @@ function DHCPPageInner() {
           )}
         </div>
 
-        {/* Modals */}
         <CreateDHCPServerModal
           open={createModalOpen || !!addingSubnetToNetwork}
           onOpenChange={(open) => {
@@ -1292,6 +1304,18 @@ function DHCPPageInner() {
           capabilities={capabilities}
           existingNetwork={addingSubnetToNetwork || undefined}
         />
+
+        {config && (
+          <DHCPServerSettingsModal
+            open={settingsModalOpen}
+            onOpenChange={setSettingsModalOpen}
+            onSuccess={() => {
+              fetchConfig(true);
+            }}
+            globalConfig={config.global_config}
+            capabilities={capabilities}
+          />
+        )}
 
         {editingSubnet && (
           <EditDHCPServerModal
@@ -1342,6 +1366,7 @@ function DHCPPageInner() {
             networkName={editingStaticMapping.network}
             subnet={editingStaticMapping.subnet}
             mapping={editingStaticMapping.mapping}
+            capabilities={capabilities}
             onSuccess={() => {
               fetchConfig(true);
               fetchLeases();
@@ -1416,6 +1441,7 @@ function DHCPPageInner() {
               // Switch to Static Mappings tab to show the new mapping
               setActiveTab("static");
             }}
+            capabilities={capabilities}
           />
         )}
 

@@ -51,6 +51,12 @@ class DHCPMapper(BaseFeatureMapper):
     def has_host_decl_name(self) -> bool:
         return "1.4" in self.version
 
+    def has_listen_interface(self) -> bool:
+        return "1.4" not in self.version
+
+    def has_static_mapping_duid(self) -> bool:
+        return "1.4" not in self.version
+
     def has_enable_failover(self) -> bool:
         return "1.4" in self.version
 
@@ -69,6 +75,14 @@ class DHCPMapper(BaseFeatureMapper):
     def get_host_decl_name_path(self) -> List[str]:
         """Get command path for host-decl-name deletion."""
         return ["service", "dhcp-server", "host-decl-name"]
+
+    def get_listen_interface(self, interface: str) -> List[str]:
+        if not self.has_listen_interface():
+            raise ValueError("listen-interface is not supported on this device")
+        return ["service", "dhcp-server", "listen-interface", interface]
+
+    def get_listen_interface_path(self, interface: str) -> List[str]:
+        return ["service", "dhcp-server", "listen-interface", interface]
 
     # ==================== Shared Network Commands ====================
 
@@ -446,6 +460,24 @@ class DHCPMapper(BaseFeatureMapper):
         return [
             "service", "dhcp-server", "shared-network-name", network_name,
             "subnet", subnet, "static-mapping", mapping_name, "disable"
+        ]
+
+    def get_static_mapping_duid(
+        self, network_name: str, subnet: str, mapping_name: str, duid: str
+    ) -> List[str]:
+        if not self.has_static_mapping_duid():
+            raise ValueError("static-mapping duid is not supported on this device")
+        return [
+            "service", "dhcp-server", "shared-network-name", network_name,
+            "subnet", subnet, "static-mapping", mapping_name, "duid", duid
+        ]
+
+    def get_static_mapping_duid_path(
+        self, network_name: str, subnet: str, mapping_name: str
+    ) -> List[str]:
+        return [
+            "service", "dhcp-server", "shared-network-name", network_name,
+            "subnet", subnet, "static-mapping", mapping_name, "duid"
         ]
 
     # ==================== Subnet Options (Common) ====================

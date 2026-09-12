@@ -20,13 +20,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { AlertCircle, Network, Plus } from "lucide-react";
-import { dhcpService, type DHCPSharedNetwork } from "@/lib/api/dhcp";
+import { dhcpService, type DHCPSharedNetwork, type DHCPCapabilitiesResponse } from "@/lib/api/dhcp";
 
 interface AddStaticMappingModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   network: DHCPSharedNetwork;
+  capabilities?: DHCPCapabilitiesResponse | null;
 }
 
 export function AddStaticMappingModal({
@@ -34,6 +35,7 @@ export function AddStaticMappingModal({
   onOpenChange,
   onSuccess,
   network,
+  capabilities,
 }: AddStaticMappingModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,6 +45,7 @@ export function AddStaticMappingModal({
   const [mappingName, setMappingName] = useState("");
   const [ipAddress, setIpAddress] = useState("");
   const [macAddress, setMacAddress] = useState("");
+  const [duid, setDuid] = useState("");
   const [description, setDescription] = useState("");
 
   // Reset form when modal opens
@@ -52,6 +55,7 @@ export function AddStaticMappingModal({
       setMappingName("");
       setIpAddress("");
       setMacAddress("");
+      setDuid("");
       setDescription("");
       // Auto-select subnet if there's only one
       if (network.subnets.length === 1) {
@@ -102,15 +106,19 @@ export function AddStaticMappingModal({
       return false;
     }
 
-    // Validate MAC address
-    if (!macAddress.trim()) {
-      setError("MAC address is required");
+    const canDuid = capabilities?.fields.static_mapping_duid?.supported ?? false;
+
+    // Identify the host by MAC and/or DUID
+    if (!macAddress.trim() && !(canDuid && duid.trim())) {
+      setError(canDuid ? "MAC address or DUID is required" : "MAC address is required");
       return false;
     }
-    const macPattern = /^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$/;
-    if (!macPattern.test(macAddress.trim())) {
-      setError("Invalid MAC address format (expected: XX:XX:XX:XX:XX:XX)");
-      return false;
+    if (macAddress.trim()) {
+      const macPattern = /^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$/;
+      if (!macPattern.test(macAddress.trim())) {
+        setError("Invalid MAC address format (expected: XX:XX:XX:XX:XX:XX)");
+        return false;
+      }
     }
 
     return true;
@@ -129,7 +137,8 @@ export function AddStaticMappingModal({
         mappingName.trim(),
         ipAddress.trim(),
         macAddress.trim(),
-        description.trim() || undefined
+        description.trim() || undefined,
+        duid.trim() || undefined
       );
 
       handleClose();
@@ -226,6 +235,22 @@ export function AddStaticMappingModal({
               The hardware MAC address of the device
             </p>
           </div>
+
+          {capabilities?.fields.static_mapping_duid?.supported && (
+            <div className="space-y-2">
+              <Label htmlFor="duid">DUID</Label>
+              <Input
+                id="duid"
+                placeholder="e.g., 00:01:00:01:2a:3b:4c:5d:6e:7f"
+                value={duid}
+                onChange={(e) => setDuid(e.target.value)}
+                className="font-mono"
+              />
+              <p className="text-xs text-muted-foreground">
+                Client DUID. Use this instead of or with a MAC address.
+              </p>
+            </div>
+          )}
 
           {/* Description */}
           <div className="space-y-2">

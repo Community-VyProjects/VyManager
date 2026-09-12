@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle, Monitor, Network } from "lucide-react";
-import { dhcpService, type DHCPStaticMapping } from "@/lib/api/dhcp";
+import { dhcpService, type DHCPStaticMapping, type DHCPCapabilitiesResponse } from "@/lib/api/dhcp";
 
 interface EditStaticMappingModalProps {
   open: boolean;
@@ -24,6 +24,7 @@ interface EditStaticMappingModalProps {
   networkName: string;
   subnet: string;
   mapping: DHCPStaticMapping;
+  capabilities?: DHCPCapabilitiesResponse | null;
 }
 
 export function EditStaticMappingModal({
@@ -33,6 +34,7 @@ export function EditStaticMappingModal({
   networkName,
   subnet,
   mapping,
+  capabilities,
 }: EditStaticMappingModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,6 +42,7 @@ export function EditStaticMappingModal({
   // Form fields
   const [ipAddress, setIpAddress] = useState("");
   const [macAddress, setMacAddress] = useState("");
+  const [duid, setDuid] = useState("");
   const [disabled, setDisabled] = useState(false);
   const [description, setDescription] = useState("");
 
@@ -48,6 +51,7 @@ export function EditStaticMappingModal({
     if (open && mapping) {
       setIpAddress(mapping.ip_address || "");
       setMacAddress(mapping.mac_address || "");
+      setDuid(mapping.duid || "");
       setDisabled(mapping.disable);
       setDescription(mapping.description ?? "");
       setError(null);
@@ -96,10 +100,12 @@ export function EditStaticMappingModal({
       const config: {
         ip_address?: string;
         mac_address?: string;
+        duid?: string;
         disable?: boolean;
         description?: string;
         delete_ip_address?: boolean;
         delete_mac_address?: boolean;
+        delete_duid?: boolean;
         delete_description?: boolean;
       } = {};
 
@@ -122,6 +128,16 @@ export function EditStaticMappingModal({
           config.mac_address = newMac;
         } else if (oldMac) {
           config.delete_mac_address = true;
+        }
+      }
+
+      const newDuid = duid.trim();
+      const oldDuid = mapping.duid || "";
+      if (newDuid !== oldDuid) {
+        if (newDuid) {
+          config.duid = newDuid;
+        } else if (oldDuid) {
+          config.delete_duid = true;
         }
       }
 
@@ -220,6 +236,19 @@ export function EditStaticMappingModal({
               The MAC address of the device (format: XX:XX:XX:XX:XX:XX)
             </p>
           </div>
+
+          {capabilities?.fields.static_mapping_duid?.supported && (
+            <div className="space-y-2">
+              <Label htmlFor="duid">DUID</Label>
+              <Input
+                id="duid"
+                placeholder="e.g., 00:01:00:01:2a:3b:4c:5d:6e:7f"
+                value={duid}
+                onChange={(e) => setDuid(e.target.value)}
+                className="font-mono"
+              />
+            </div>
+          )}
 
           {/* Disabled Toggle */}
           <div className="flex items-center gap-3 rounded-lg border p-4">
