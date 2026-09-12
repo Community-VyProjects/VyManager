@@ -31,6 +31,8 @@ export interface FieldSpec {
   help?: string;
   /** Capability flag (capabilities.features[capability].supported) gating the field. */
   capability?: string;
+  /** Only render this field when the current entity id is one of these values. */
+  entityIds?: string[];
 }
 
 export interface SectionSpec {

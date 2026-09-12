@@ -274,6 +274,10 @@ class VrfBatchBuilder(
                     "supported": "nhrp" in self.mappers["vrf_bgp"].redistribute_protocols(),
                     "description": "BGP redistribute NHRP (VyOS 1.5+ only)",
                 },
+                "l2vpn_evpn_control_flags": {
+                    "supported": bool(self.mappers["vrf_bgp"].l2vpn_evpn_control_flags()),
+                    "description": "BGP L2VPN EVPN address-family control flags",
+                },
             },
             "version_info": {
                 "is_1_4": is_1_4,

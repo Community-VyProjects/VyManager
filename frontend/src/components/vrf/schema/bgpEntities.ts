@@ -190,6 +190,18 @@ const GLOBAL_AF_SCHEMA: SectionSpec[] = [
       { op: "vrf_bgp_af_route_map_vpn_import", delOp: "vrf_bgp_af_route_map_vpn", label: "Route-map VPN import", type: "text", path: ["route-map", "vpn", "import"] },
     ],
   },
+  {
+    title: "L2VPN EVPN",
+    fields: [
+      { op: "vrf_bgp_af_l2vpn_evpn_advertise_all_vni", label: "Advertise all VNI", type: "toggle", path: ["advertise-all-vni"], entityIds: ["l2vpn-evpn"], capability: "l2vpn_evpn_control_flags" },
+      { op: "vrf_bgp_af_l2vpn_evpn_advertise_default_gw", label: "Advertise default gateway", type: "toggle", path: ["advertise-default-gw"], entityIds: ["l2vpn-evpn"], capability: "l2vpn_evpn_control_flags" },
+      { op: "vrf_bgp_af_l2vpn_evpn_advertise_pip", label: "Advertise PIP", type: "toggle", path: ["advertise-pip"], entityIds: ["l2vpn-evpn"], capability: "l2vpn_evpn_control_flags" },
+      { op: "vrf_bgp_af_l2vpn_evpn_advertise_svi_ip", label: "Advertise SVI IP", type: "toggle", path: ["advertise-svi-ip"], entityIds: ["l2vpn-evpn"], capability: "l2vpn_evpn_control_flags" },
+      { op: "vrf_bgp_af_l2vpn_evpn_rt_auto_derive", label: "RT auto-derive", type: "toggle", path: ["rt-auto-derive"], entityIds: ["l2vpn-evpn"], capability: "l2vpn_evpn_control_flags" },
+      { op: "vrf_bgp_af_l2vpn_evpn_disable_ead_evi_rx", label: "Disable EAD EVI RX", type: "toggle", path: ["disable-ead-evi-rx"], entityIds: ["l2vpn-evpn"], capability: "l2vpn_evpn_control_flags" },
+      { op: "vrf_bgp_af_l2vpn_evpn_disable_ead_evi_tx", label: "Disable EAD EVI TX", type: "toggle", path: ["disable-ead-evi-tx"], entityIds: ["l2vpn-evpn"], capability: "l2vpn_evpn_control_flags" },
+    ],
+  },
 ];
 
 const BGP_AF_REDISTRIBUTE_GROUP: EntityGroupSpec = {

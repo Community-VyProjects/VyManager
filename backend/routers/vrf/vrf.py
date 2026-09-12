@@ -1006,6 +1006,10 @@ async def vrf_batch_configure(http_request: Request, body: VrfBatchRequest):
             data={"message": "VRF configuration updated"},
             error=response.error if response.error else None
         )
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except AttributeError as e:
         raise HTTPException(status_code=400, detail=f"Unknown operation: {str(e)}")
     except Exception as e:

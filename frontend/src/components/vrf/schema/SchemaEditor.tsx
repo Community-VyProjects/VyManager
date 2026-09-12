@@ -98,15 +98,21 @@ export function SchemaEditor({
         .map((s) => ({
           ...s,
           fields: s.fields.filter((f) => {
-            if (!f.capability) return true;
-            const feats = capabilities.features as
-              | Record<string, { supported?: boolean } | undefined>
-              | undefined;
-            return Boolean(feats?.[f.capability]?.supported);
+            if (f.capability) {
+              const feats = capabilities.features as
+                | Record<string, { supported?: boolean } | undefined>
+                | undefined;
+              if (!Boolean(feats?.[f.capability]?.supported)) return false;
+            }
+            if (f.entityIds?.length) {
+              const entityId = contextArgs[contextArgs.length - 1];
+              if (!entityId || !f.entityIds.includes(entityId)) return false;
+            }
+            return true;
           }),
         }))
         .filter((s) => s.fields.length > 0),
-    [sections, capabilities]
+    [sections, capabilities, contextArgs]
   );
 
   const initial = useMemo(() => {
