@@ -786,9 +786,7 @@ def build_router(family: str) -> APIRouter:
 
             # Parse prerouting raw chain (ipv4 / VyOS 1.5)
             prerouting_raw = None
-            if family != "ipv4":
-                prerouting_data = {}
-            prerouting_data = firewall_config.get("prerouting", {})
+            prerouting_data = firewall_config.get("prerouting", {}) if family == "ipv4" else {}
             if prerouting_data:
                 raw_data = prerouting_data.get("raw", {})
                 if raw_data:
