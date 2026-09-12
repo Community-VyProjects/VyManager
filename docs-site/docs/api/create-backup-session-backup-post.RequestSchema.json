@@ -1,1 +1,0 @@
-{"title":"Body","body":{"required":true,"content":{"application/json":{"schema":{"properties":{"passphrase":{"type":"string","minLength":1,"title":"Passphrase","description":"Encrypts the backup file"}},"type":"object","required":["passphrase"],"title":"BackupRequest","description":"Request body for creating a backup."}}}}}

@@ -1,7 +1,6 @@
 import {themes as prismThemes} from 'prism-react-renderer';
 import type {Config} from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
-import type * as OpenApiPlugin from 'docusaurus-plugin-openapi-docs';
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
@@ -32,7 +31,6 @@ const config: Config = {
           sidebarPath: './sidebars.ts',
           editUrl:
             'https://github.com/Community-VyProjects/VyManager/tree/beta/docs-site/',
-          docItemComponent: '@theme/ApiItem',
         },
         blog: false,
         theme: {
@@ -44,25 +42,17 @@ const config: Config = {
 
   plugins: [
     [
-      'docusaurus-plugin-openapi-docs',
+      '@scalar/docusaurus',
       {
-        id: 'api',
-        docsPluginId: 'classic',
-        config: {
-          vymanager: {
-            specPath: 'openapi/vymanager.json',
-            outputDir: 'docs/api',
-            sidebarOptions: {
-              groupPathsBy: 'tag',
-              categoryLinkSource: 'tag',
-            },
-          } satisfies OpenApiPlugin.Options,
+        label: 'API',
+        route: '/api',
+        showNavLink: true,
+        configuration: {
+          url: '/openapi/vymanager.json',
         },
       },
     ],
   ],
-
-  themes: ['docusaurus-theme-openapi-docs'],
 
   themeConfig: {
     colorMode: {
@@ -80,12 +70,6 @@ const config: Config = {
           sidebarId: 'docsSidebar',
           position: 'left',
           label: 'Docs',
-        },
-        {
-          type: 'docSidebar',
-          sidebarId: 'apiSidebar',
-          position: 'left',
-          label: 'API',
         },
         {
           href: 'https://github.com/Community-VyProjects/VyManager',

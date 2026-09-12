@@ -1,0 +1,54 @@
+name: Docs build
+
+# Builds the docs site from FastAPI's live OpenAPI export. Authors do not
+# commit generated spec files. A route change that breaks app.openapi() or
+# the docs build fails here instead of a snapshot diff.
+
+on:
+  pull_request:
+    paths:
+      - 'backend/**'
+      - 'docs-site/**'
+      - '.github/workflows/docs-build.yml'
+
+jobs:
+  docs:
+
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install backend dependencies
+        run: pip install -r backend/requirements.txt
+
+      - name: Export OpenAPI spec from the app
+        working-directory: backend
+        run: python export_openapi.py
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: docs-site/package-lock.json
+
+      - name: Install docs-site dependencies
+        working-directory: docs-site
+        run: npm ci
+
+      - name: Build docs
+        working-directory: docs-site
+        env:
+          SKIP_OPENAPI_EXPORT: '1'
+        run: npm run build

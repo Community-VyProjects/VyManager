@@ -1,1 +1,0 @@
-{"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{"properties":{"exists":{"type":"boolean","title":"Exists"}},"type":"object","required":["exists"],"title":"ContainerBaseDirResponse"}}}}}}
