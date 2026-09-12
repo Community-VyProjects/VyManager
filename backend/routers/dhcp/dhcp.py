@@ -24,6 +24,60 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/vyos/dhcp", tags=["dhcp"])
 
 
+def _parse_ddns_domains(raw: Any) -> List["DHCPDdnsDomain"]:
+    if not isinstance(raw, dict):
+        return []
+    domains: List[DHCPDdnsDomain] = []
+    for name, data in raw.items():
+        node = data if isinstance(data, dict) else {}
+        servers: List[DHCPDdnsDnsServer] = []
+        dns_raw = node.get("dns-server", {})
+        if isinstance(dns_raw, dict):
+            for sid, sdata in dns_raw.items():
+                snode = sdata if isinstance(sdata, dict) else {}
+                servers.append(
+                    DHCPDdnsDnsServer(
+                        id=str(sid),
+                        address=snode.get("address"),
+                        port=str(snode["port"]) if "port" in snode else None,
+                    )
+                )
+        domains.append(
+            DHCPDdnsDomain(
+                name=name,
+                key_name=node.get("key-name"),
+                dns_servers=servers,
+            )
+        )
+    return domains
+
+
+def _parse_dhcp_ddns(raw: Any) -> "DHCPDdnsConfig":
+    if raw is None:
+        return DHCPDdnsConfig(present=False)
+    if not isinstance(raw, dict):
+        return DHCPDdnsConfig(present=True)
+    keys: List[DHCPDdnsTsigKey] = []
+    tsig_raw = raw.get("tsig-key", {})
+    if isinstance(tsig_raw, dict):
+        for name, data in tsig_raw.items():
+            node = data if isinstance(data, dict) else {}
+            keys.append(
+                DHCPDdnsTsigKey(
+                    name=name,
+                    algorithm=node.get("algorithm"),
+                    secret=node.get("secret"),
+                )
+            )
+    return DHCPDdnsConfig(
+        present=True,
+        send_updates=raw.get("send-updates"),
+        tsig_keys=keys,
+        forward_domains=_parse_ddns_domains(raw.get("forward-domain")),
+        reverse_domains=_parse_ddns_domains(raw.get("reverse-domain")),
+    )
+
+
 # ============================================================================
 # Request/Response Models
 # ============================================================================
@@ -101,6 +155,34 @@ class DHCPFailoverConfig(BaseModel):
     source_address: Optional[str] = None
     remote: Optional[str] = None
     status: Optional[str] = None  # primary or secondary
+    certificate: Optional[str] = None
+    ca_certificate: Optional[str] = None
+
+
+class DHCPDdnsDnsServer(BaseModel):
+    id: str
+    address: Optional[str] = None
+    port: Optional[str] = None
+
+
+class DHCPDdnsDomain(BaseModel):
+    name: str
+    key_name: Optional[str] = None
+    dns_servers: List[DHCPDdnsDnsServer] = []
+
+
+class DHCPDdnsTsigKey(BaseModel):
+    name: str
+    algorithm: Optional[str] = None
+    secret: Optional[str] = None
+
+
+class DHCPDdnsConfig(BaseModel):
+    present: bool = False
+    send_updates: Optional[str] = None
+    tsig_keys: List[DHCPDdnsTsigKey] = []
+    forward_domains: List[DHCPDdnsDomain] = []
+    reverse_domains: List[DHCPDdnsDomain] = []
 
 
 class DHCPGlobalConfig(BaseModel):
@@ -118,6 +200,7 @@ class DHCPConfigResponse(BaseModel):
 
     shared_networks: List[DHCPSharedNetwork] = []
     failover: Optional[DHCPFailoverConfig] = None
+    ddns: DHCPDdnsConfig = DHCPDdnsConfig()
     global_config: DHCPGlobalConfig = DHCPGlobalConfig()
     total_subnets: int = 0
     total_static_mappings: int = 0
@@ -281,7 +364,11 @@ async def get_dhcp_config(http_request: Request, refresh: bool = False):
                 source_address=ha_config.get("source-address"),
                 remote=ha_config.get("remote"),
                 status=ha_config.get("status"),
+                certificate=ha_config.get("certificate"),
+                ca_certificate=ha_config.get("ca-certificate"),
             )
+
+        ddns = _parse_dhcp_ddns(dhcp_config.get("dynamic-dns-update"))
 
         # Parse shared networks
         if "shared-network-name" in dhcp_config:
@@ -565,6 +652,7 @@ async def get_dhcp_config(http_request: Request, refresh: bool = False):
         return DHCPConfigResponse(
             shared_networks=shared_networks,
             failover=failover,
+            ddns=ddns,
             global_config=global_config,
             total_subnets=total_subnets,
             total_static_mappings=total_static_mappings,

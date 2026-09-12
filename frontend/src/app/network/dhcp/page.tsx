@@ -57,6 +57,8 @@ import { AddLeaseToStaticMappingModal } from "@/components/services/AddLeaseToSt
 import { AddRangeModal } from "@/components/services/AddRangeModal";
 import { AddStaticMappingModal } from "@/components/services/AddStaticMappingModal";
 import { DHCPServerSettingsModal } from "@/components/services/DHCPServerSettingsModal";
+import { DHCPFailoverModal } from "@/components/services/DHCPFailoverModal";
+import { DHCPDdnsModal } from "@/components/services/DHCPDdnsModal";
 import { EditRangeModal } from "@/components/services/EditRangeModal";
 import { ChevronRight } from "lucide-react";
 
@@ -113,6 +115,8 @@ function DHCPPageInner() {
   // Modal states
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
+  const [failoverModalOpen, setFailoverModalOpen] = useState(false);
+  const [ddnsModalOpen, setDdnsModalOpen] = useState(false);
   const [addingSubnetToNetwork, setAddingSubnetToNetwork] = useState<string | null>(null);
   const [editingSubnet, setEditingSubnet] = useState<{
     network: string;
@@ -444,6 +448,27 @@ function DHCPPageInner() {
               <Settings2 className="h-4 w-4 mr-2" />
               Server settings
             </Button>
+            <Button
+              className="w-full mt-2"
+              size="sm"
+              variant="outline"
+              onClick={() => setFailoverModalOpen(true)}
+              disabled={!config}
+            >
+              High availability
+            </Button>
+            {(capabilities?.fields.dynamic_dns_update_leaf?.supported ||
+              capabilities?.fields.dynamic_dns_update_kea?.supported) && (
+              <Button
+                className="w-full mt-2"
+                size="sm"
+                variant="outline"
+                onClick={() => setDdnsModalOpen(true)}
+                disabled={!config}
+              >
+                Dynamic DNS
+              </Button>
+            )}
           </div>
 
           {/* Network List */}
@@ -1313,6 +1338,30 @@ function DHCPPageInner() {
               fetchConfig(true);
             }}
             globalConfig={config.global_config}
+            capabilities={capabilities}
+          />
+        )}
+
+        {config && (
+          <DHCPFailoverModal
+            open={failoverModalOpen}
+            onOpenChange={setFailoverModalOpen}
+            onSuccess={() => {
+              fetchConfig(true);
+            }}
+            failover={config.failover}
+            capabilities={capabilities}
+          />
+        )}
+
+        {config && (
+          <DHCPDdnsModal
+            open={ddnsModalOpen}
+            onOpenChange={setDdnsModalOpen}
+            onSuccess={() => {
+              fetchConfig(true);
+            }}
+            ddns={config.ddns ?? { present: false, tsig_keys: [], forward_domains: [], reverse_domains: [] }}
             capabilities={capabilities}
           />
         )}

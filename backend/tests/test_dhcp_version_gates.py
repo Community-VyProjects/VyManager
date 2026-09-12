@@ -12,6 +12,8 @@ def test_v15_rejects_14_only_sets():
         mapper.get_host_decl_name()
     with pytest.raises(ValueError, match="not supported"):
         mapper.get_subnet_enable_failover("LAN", "192.168.1.0/24")
+    with pytest.raises(ValueError, match="not supported"):
+        mapper.get_dynamic_dns_update()
 
 
 def test_v15_delete_helpers_stay_unguarded():
@@ -26,6 +28,12 @@ def test_v14_rejects_15_only_sets():
         mapper.get_listen_interface("eth0")
     with pytest.raises(ValueError, match="not supported"):
         mapper.get_static_mapping_duid("LAN", "192.168.1.0/24", "host1", "00:01:02")
+    with pytest.raises(ValueError, match="not supported"):
+        mapper.get_failover_certificate("FOO")
+    with pytest.raises(ValueError, match="not supported"):
+        mapper.get_ddns_send_updates("enable")
+    with pytest.raises(ValueError, match="not supported"):
+        mapper.get_ddns_domain("forward-domain", "example.com")
 
 
 def test_v15_emits_listen_interface_and_duid():
@@ -85,6 +93,14 @@ def test_capabilities_read_mapper_flags():
     assert f15["hostfile_update"]["supported"] is True
     assert f14["time_offset"]["supported"] is True
     assert f15["time_offset"]["supported"] is True
+    assert f14["dynamic_dns_update_leaf"]["supported"] is True
+    assert f15["dynamic_dns_update_leaf"]["supported"] is False
+    assert f14["dynamic_dns_update_kea"]["supported"] is False
+    assert f15["dynamic_dns_update_kea"]["supported"] is True
+    assert f14["failover"]["supported"] is True
+    assert f15["failover"]["supported"] is True
+    assert f14["failover_certificate"]["supported"] is False
+    assert f15["failover_certificate"]["supported"] is True
 
 
 def test_v15_builder_emits_listen_interface_and_duid():
@@ -102,3 +118,33 @@ def test_v14_builder_rejects_listen_interface_and_duid():
         builder.set_listen_interface("eth0")
     with pytest.raises(ValueError, match="not supported"):
         builder.set_static_mapping_duid("LAN", "192.168.1.0/24", "host1", "00:01:02")
+
+
+def test_v15_emits_ddns_kea_and_ha_certs():
+    mapper = DHCPMapper("1.5")
+    assert mapper.get_ddns_send_updates("enable")[-2:] == ["send-updates", "enable"]
+    assert mapper.get_ddns_tsig_key_algorithm("k1", "sha256")[-2:] == ["algorithm", "sha256"]
+    assert mapper.get_ddns_domain_dns_server_address(
+        "forward-domain", "example.com", "1", "192.0.2.53"
+    )[-2:] == ["address", "192.0.2.53"]
+    assert mapper.get_failover_certificate("FOO")[-1] == "FOO"
+    assert mapper.get_failover_ca_certificate("CA1")[-1] == "CA1"
+
+
+def test_v14_emits_ddns_leaf():
+    mapper = DHCPMapper("1.4")
+    assert mapper.get_dynamic_dns_update() == ["service", "dhcp-server", "dynamic-dns-update"]
+
+
+def test_v14_builder_rejects_ddns_kea_and_ha_certs():
+    builder = DHCPBatchBuilder(version="1.4")
+    with pytest.raises(ValueError, match="not supported"):
+        builder.set_ddns_send_updates("enable")
+    with pytest.raises(ValueError, match="not supported"):
+        builder.set_failover_certificate("FOO")
+
+
+def test_v15_builder_rejects_ddns_leaf():
+    builder = DHCPBatchBuilder(version="1.5")
+    with pytest.raises(ValueError, match="not supported"):
+        builder.set_dynamic_dns_update()

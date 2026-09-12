@@ -36,6 +36,16 @@ CASES = [
     ("delete_subnet_ping_check", ("LAN", "192.168.1.0/24"), "delete", SUB + ["ping-check"]),
     ("set_static_mapping_disable", ("LAN", "192.168.1.0/24", "host1"), "set", MAP + ["disable"]),
     ("delete_static_mapping_disable", ("LAN", "192.168.1.0/24", "host1"), "delete", MAP + ["disable"]),
+    ("set_failover_mode", ("active-active",), "set", BASE + ["high-availability", "mode", "active-active"]),
+    ("delete_failover_mode", (), "delete", BASE + ["high-availability", "mode"]),
+    ("set_failover_name", ("peer1",), "set", BASE + ["high-availability", "name", "peer1"]),
+    ("delete_failover_name", (), "delete", BASE + ["high-availability", "name"]),
+    ("set_failover_remote", ("192.0.2.1",), "set", BASE + ["high-availability", "remote", "192.0.2.1"]),
+    ("delete_failover_remote", (), "delete", BASE + ["high-availability", "remote"]),
+    ("set_failover_source_address", ("192.0.2.2",), "set", BASE + ["high-availability", "source-address", "192.0.2.2"]),
+    ("delete_failover_source_address", (), "delete", BASE + ["high-availability", "source-address"]),
+    ("set_failover_status", ("primary",), "set", BASE + ["high-availability", "status", "primary"]),
+    ("delete_failover_status", (), "delete", BASE + ["high-availability", "status"]),
 ]
 
 

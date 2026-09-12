@@ -64,6 +64,34 @@ export interface DHCPFailoverConfig {
   source_address?: string;
   remote?: string;
   status?: string;
+  certificate?: string;
+  ca_certificate?: string;
+}
+
+export interface DHCPDdnsDnsServer {
+  id: string;
+  address?: string;
+  port?: string;
+}
+
+export interface DHCPDdnsDomain {
+  name: string;
+  key_name?: string;
+  dns_servers: DHCPDdnsDnsServer[];
+}
+
+export interface DHCPDdnsTsigKey {
+  name: string;
+  algorithm?: string;
+  secret?: string;
+}
+
+export interface DHCPDdnsConfig {
+  present: boolean;
+  send_updates?: string;
+  tsig_keys: DHCPDdnsTsigKey[];
+  forward_domains: DHCPDdnsDomain[];
+  reverse_domains: DHCPDdnsDomain[];
 }
 
 export interface DHCPGlobalConfig {
@@ -77,6 +105,7 @@ export interface DHCPGlobalConfig {
 export interface DHCPConfigResponse {
   shared_networks: DHCPSharedNetwork[];
   failover?: DHCPFailoverConfig;
+  ddns: DHCPDdnsConfig;
   global_config: DHCPGlobalConfig;
   total_subnets: number;
   total_static_mappings: number;
@@ -146,6 +175,10 @@ export interface DHCPCapabilitiesResponse {
     hostfile_update: DHCPFieldCapability;
     host_decl_name: DHCPFieldCapability;
     static_mapping_duid: DHCPFieldCapability;
+    failover: DHCPFieldCapability;
+    failover_certificate: DHCPFieldCapability;
+    dynamic_dns_update_leaf: DHCPFieldCapability;
+    dynamic_dns_update_kea: DHCPFieldCapability;
     network_disable: DHCPFieldCapability;
     subnet_disable: DHCPFieldCapability;
   };
@@ -949,6 +982,124 @@ class DHCPService {
       network_name: "_global",
       operations,
     });
+  }
+
+  async saveFailover(
+    original: DHCPFailoverConfig | undefined,
+    updated: DHCPFailoverConfig,
+    canCert: boolean
+  ): Promise<VyOSResponse> {
+    const operations: DHCPBatchOperation[] = [];
+    const orig = original ?? {};
+    const scalar = (
+      field: keyof DHCPFailoverConfig,
+      setOp: string,
+      deleteOp: string
+    ) => {
+      const next = (updated[field] ?? "").trim();
+      const prev = (orig[field] ?? "").trim();
+      if (next === prev) return;
+      if (next) operations.push({ op: setOp, value: next });
+      else operations.push({ op: deleteOp });
+    };
+    scalar("mode", "set_failover_mode", "delete_failover_mode");
+    scalar("name", "set_failover_name", "delete_failover_name");
+    scalar("remote", "set_failover_remote", "delete_failover_remote");
+    scalar("source_address", "set_failover_source_address", "delete_failover_source_address");
+    scalar("status", "set_failover_status", "delete_failover_status");
+    if (canCert) {
+      scalar("certificate", "set_failover_certificate", "delete_failover_certificate");
+      scalar("ca_certificate", "set_failover_ca_certificate", "delete_failover_ca_certificate");
+    }
+    if (operations.length === 0) return { success: true };
+    return this.batchConfigure({ network_name: "_global", operations });
+  }
+
+  async saveDdns(
+    original: DHCPDdnsConfig,
+    updated: DHCPDdnsConfig,
+    leaf: boolean,
+    kea: boolean
+  ): Promise<VyOSResponse> {
+    const operations: DHCPBatchOperation[] = [];
+    if (leaf) {
+      if (updated.present !== original.present) {
+        operations.push({
+          op: updated.present ? "set_dynamic_dns_update" : "delete_dynamic_dns_update",
+        });
+      }
+    }
+    if (kea) {
+      if (!updated.present && original.present) {
+        operations.push({ op: "delete_dynamic_dns_update" });
+      } else if (updated.present) {
+        const nextSend = updated.send_updates ?? "";
+        const prevSend = original.send_updates ?? "";
+        if (nextSend !== prevSend) {
+          if (nextSend) operations.push({ op: "set_ddns_send_updates", value: nextSend });
+          else operations.push({ op: "delete_ddns_send_updates" });
+        }
+        const origKeys = new Map(original.tsig_keys.map((k) => [k.name, k]));
+        const nextKeys = new Map(updated.tsig_keys.filter((k) => k.name.trim()).map((k) => [k.name, k]));
+        for (const name of origKeys.keys()) {
+          if (!nextKeys.has(name)) operations.push({ op: "delete_ddns_tsig_key", value: name });
+        }
+        for (const [name, key] of nextKeys) {
+          const prev = origKeys.get(name);
+          if (!prev) operations.push({ op: "set_ddns_tsig_key", value: name });
+          if ((key.algorithm ?? "") !== (prev?.algorithm ?? "") && key.algorithm) {
+            operations.push({ op: "set_ddns_tsig_key_algorithm", value: `${name}|${key.algorithm}` });
+          }
+          if ((key.secret ?? "") !== (prev?.secret ?? "") && key.secret) {
+            operations.push({ op: "set_ddns_tsig_key_secret", value: `${name}|${key.secret}` });
+          }
+        }
+        const diffDomains = (kind: "forward-domain" | "reverse-domain", origList: DHCPDdnsDomain[], nextList: DHCPDdnsDomain[]) => {
+          const origMap = new Map(origList.map((d) => [d.name, d]));
+          const nextMap = new Map(nextList.filter((d) => d.name.trim()).map((d) => [d.name, d]));
+          for (const name of origMap.keys()) {
+            if (!nextMap.has(name)) operations.push({ op: "delete_ddns_domain", value: `${kind}|${name}` });
+          }
+          for (const [name, domain] of nextMap) {
+            const prev = origMap.get(name);
+            if (!prev) operations.push({ op: "set_ddns_domain", value: `${kind}|${name}` });
+            if ((domain.key_name ?? "") !== (prev?.key_name ?? "")) {
+              if (domain.key_name) {
+                operations.push({ op: "set_ddns_domain_key_name", value: `${kind}|${name}|${domain.key_name}` });
+              } else if (prev?.key_name) {
+                operations.push({ op: "delete_ddns_domain_key_name", value: `${kind}|${name}` });
+              }
+            }
+            const origServers = new Map((prev?.dns_servers ?? []).map((s) => [s.id, s]));
+            const nextServers = new Map(domain.dns_servers.filter((s) => s.id.trim()).map((s) => [s.id, s]));
+            for (const id of origServers.keys()) {
+              if (!nextServers.has(id)) {
+                operations.push({ op: "delete_ddns_domain_dns_server", value: `${kind}|${name}|${id}` });
+              }
+            }
+            for (const [id, server] of nextServers) {
+              const prevS = origServers.get(id);
+              if ((server.address ?? "") !== (prevS?.address ?? "") && server.address) {
+                operations.push({
+                  op: "set_ddns_domain_dns_server_address",
+                  value: `${kind}|${name}|${id}|${server.address}`,
+                });
+              }
+              if ((server.port ?? "") !== (prevS?.port ?? "") && server.port) {
+                operations.push({
+                  op: "set_ddns_domain_dns_server_port",
+                  value: `${kind}|${name}|${id}|${server.port}`,
+                });
+              }
+            }
+          }
+        };
+        diffDomains("forward-domain", original.forward_domains, updated.forward_domains);
+        diffDomains("reverse-domain", original.reverse_domains, updated.reverse_domains);
+      }
+    }
+    if (operations.length === 0) return { success: true };
+    return this.batchConfigure({ network_name: "_global", operations });
   }
 
   // Shared network disable
