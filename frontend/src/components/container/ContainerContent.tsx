@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
+import { containerTabFromSearch, type ContainerTab } from "@/lib/query-tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,12 +22,14 @@ import { FeatureGroup } from "@/lib/api/user-management";
 export function ContainerContent() {
   const { canWrite } = usePermissions();
   const hasWritePermission = canWrite(FeatureGroup.CONTAINER);
+  const searchParams = useSearchParams();
 
   const [config, setConfig] = useState<ContainerConfig | null>(null);
   const [capabilities, setCapabilities] = useState<ContainerCapabilities | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [baseDirExists, setBaseDirExists] = useState<boolean | null>(null);
+  const [selectedTab, setSelectedTab] = useState<ContainerTab>("containers");
 
   const loadData = useCallback(async (refresh = false) => {
     try {
@@ -52,6 +56,14 @@ export function ContainerContent() {
 
   const showNetworks = capabilities?.features.container_networks?.supported !== false;
   const showRegistries = capabilities?.features.container_registries?.supported !== false;
+
+  useEffect(() => {
+    const tab = containerTabFromSearch((key) => searchParams.get(key));
+    if (!tab) return;
+    if (tab === "networks" && !showNetworks) return;
+    if (tab === "registries" && !showRegistries) return;
+    setSelectedTab(tab);
+  }, [searchParams, showNetworks, showRegistries]);
 
   const totalContainers = config?.containers.length ?? 0;
   const totalNetworks = config?.networks.length ?? 0;
@@ -150,7 +162,7 @@ export function ContainerContent() {
 
       {/* Tabs */}
       <div className="flex-1 p-6 pt-4 overflow-auto">
-        <Tabs defaultValue="containers">
+        <Tabs value={selectedTab} onValueChange={(value) => setSelectedTab(value as ContainerTab)}>
           <TabsList>
             <TabsTrigger value="containers">Containers</TabsTrigger>
             {showNetworks && <TabsTrigger value="networks">Networks</TabsTrigger>}

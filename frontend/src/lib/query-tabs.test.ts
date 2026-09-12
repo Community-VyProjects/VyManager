@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   bgpTabFromSearch,
+  conntrackSectionFromSearch,
+  containerTabFromSearch,
   staticRouteTabFromSearch,
 } from "./query-tabs";
 
@@ -45,5 +47,33 @@ describe("bgpTabFromSearch", () => {
 
   it("ignores unknown tabs", () => {
     assert.equal(bgpTabFromSearch(params({ tab: "arp" })), null);
+  });
+});
+
+describe("containerTabFromSearch", () => {
+  it("maps nav running to the containers tab", () => {
+    assert.equal(containerTabFromSearch(params({ tab: "running" })), "containers");
+  });
+
+  it("reads images and networks as nav emits them", () => {
+    assert.equal(containerTabFromSearch(params({ tab: "images" })), "images");
+    assert.equal(containerTabFromSearch(params({ tab: "networks" })), "networks");
+  });
+
+  it("ignores unknown tabs", () => {
+    assert.equal(containerTabFromSearch(params({ tab: "overview" })), null);
+    assert.equal(containerTabFromSearch(params({})), null);
+  });
+});
+
+describe("conntrackSectionFromSearch", () => {
+  it("reads section as search emits it", () => {
+    assert.equal(conntrackSectionFromSearch(params({ section: "table-sizes" })), "table-sizes");
+    assert.equal(conntrackSectionFromSearch(params({ section: "tcp-settings" })), "tcp-settings");
+  });
+
+  it("ignores unknown sections", () => {
+    assert.equal(conntrackSectionFromSearch(params({ section: "ignore" })), null);
+    assert.equal(conntrackSectionFromSearch(params({ tab: "conntrack" })), null);
   });
 });

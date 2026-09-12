@@ -38,3 +38,43 @@ export function bgpTabFromSearch(
     ? (value as BgpTab)
     : null;
 }
+
+export const CONTAINER_TABS = [
+  "containers",
+  "networks",
+  "registries",
+  "images",
+  "apps",
+] as const;
+
+export type ContainerTab = (typeof CONTAINER_TABS)[number];
+
+/** Nav emits `running` for the containers list tab. */
+const CONTAINER_TAB_FROM_NAV: Record<string, ContainerTab> = {
+  running: "containers",
+  containers: "containers",
+  networks: "networks",
+  registries: "registries",
+  images: "images",
+  apps: "apps",
+};
+
+export function containerTabFromSearch(
+  get: (key: string) => string | null,
+): ContainerTab | null {
+  const value = get("tab");
+  return value ? CONTAINER_TAB_FROM_NAV[value] ?? null : null;
+}
+
+export const CONNTRACK_SECTIONS = ["table-sizes", "tcp-settings"] as const;
+
+export type ConntrackSection = (typeof CONNTRACK_SECTIONS)[number];
+
+export function conntrackSectionFromSearch(
+  get: (key: string) => string | null,
+): ConntrackSection | null {
+  const value = get("section");
+  return (CONNTRACK_SECTIONS as readonly string[]).includes(value ?? "")
+    ? (value as ConntrackSection)
+    : null;
+}
