@@ -66,6 +66,48 @@ export interface PTRRecord {
   disabled: boolean;
 }
 
+export interface NAPTRRule {
+  rule: string;
+  order?: number | null;
+  preference?: number | null;
+  lookup_a: boolean;
+  lookup_srv: boolean;
+  protocol_specific: boolean;
+  resolve_uri: boolean;
+  regexp?: string | null;
+  replacement?: string | null;
+  service?: string | null;
+}
+
+export interface NAPTRRecord {
+  hostname: string;
+  rules: NAPTRRule[];
+  ttl?: number | null;
+  disabled: boolean;
+}
+
+export interface SPFRecord {
+  hostname: string;
+  value?: string | null;
+  ttl?: number | null;
+  disabled: boolean;
+}
+
+export interface SRVEntry {
+  entry: string;
+  hostname?: string | null;
+  port?: number | null;
+  priority?: number | null;
+  weight?: number | null;
+}
+
+export interface SRVRecord {
+  hostname: string;
+  entries: SRVEntry[];
+  ttl?: number | null;
+  disabled: boolean;
+}
+
 export interface AuthDomainRecords {
   a: ARecord[];
   aaaa: AAAARecord[];
@@ -74,6 +116,9 @@ export interface AuthDomainRecords {
   txt: TXTRecord[];
   ns: NSRecord[];
   ptr: PTRRecord[];
+  naptr: NAPTRRecord[];
+  spf: SPFRecord[];
+  srv: SRVRecord[];
 }
 
 export interface AuthoritativeDomain {
@@ -149,6 +194,9 @@ export interface DNSForwardingCapabilities {
     exclude_throttle_address: { supported: boolean; description: string };
     domain: { supported: boolean; description: string };
     authoritative_domain: { supported: boolean; description: string };
+    auth_naptr: { supported: boolean; description: string };
+    auth_spf: { supported: boolean; description: string };
+    auth_srv: { supported: boolean; description: string };
     zone_cache: { supported: boolean; description: string };
     options_ecs: { supported: boolean; description: string };
   };
@@ -394,6 +442,36 @@ class DNSForwardingService {
       if (r.target) ops.push({ op: "set_auth_ptr_target", value: `${domain},${r.hostname},${r.target}` });
       if (r.ttl != null) ops.push({ op: "set_auth_ptr_ttl", value: `${domain},${r.hostname},${r.ttl}` });
       if (r.disabled) ops.push({ op: "set_auth_ptr_disable", value: `${domain},${r.hostname}` });
+    }
+    for (const r of records.naptr) {
+      if (r.ttl != null) ops.push({ op: "set_auth_naptr_ttl", value: `${domain},${r.hostname},${r.ttl}` });
+      if (r.disabled) ops.push({ op: "set_auth_naptr_disable", value: `${domain},${r.hostname}` });
+      for (const rule of r.rules) {
+        if (rule.order != null) ops.push({ op: "set_auth_naptr_rule_order", value: `${domain},${r.hostname},${rule.rule},${rule.order}` });
+        if (rule.preference != null) ops.push({ op: "set_auth_naptr_rule_preference", value: `${domain},${r.hostname},${rule.rule},${rule.preference}` });
+        if (rule.lookup_a) ops.push({ op: "set_auth_naptr_rule_lookup_a", value: `${domain},${r.hostname},${rule.rule}` });
+        if (rule.lookup_srv) ops.push({ op: "set_auth_naptr_rule_lookup_srv", value: `${domain},${r.hostname},${rule.rule}` });
+        if (rule.protocol_specific) ops.push({ op: "set_auth_naptr_rule_protocol_specific", value: `${domain},${r.hostname},${rule.rule}` });
+        if (rule.resolve_uri) ops.push({ op: "set_auth_naptr_rule_resolve_uri", value: `${domain},${r.hostname},${rule.rule}` });
+        if (rule.regexp) ops.push({ op: "set_auth_naptr_rule_regexp", value: `${domain},${r.hostname},${rule.rule},${rule.regexp}` });
+        if (rule.replacement) ops.push({ op: "set_auth_naptr_rule_replacement", value: `${domain},${r.hostname},${rule.rule},${rule.replacement}` });
+        if (rule.service) ops.push({ op: "set_auth_naptr_rule_service", value: `${domain},${r.hostname},${rule.rule},${rule.service}` });
+      }
+    }
+    for (const r of records.spf) {
+      if (r.value) ops.push({ op: "set_auth_spf_value", value: `${domain},${r.hostname},${r.value}` });
+      if (r.ttl != null) ops.push({ op: "set_auth_spf_ttl", value: `${domain},${r.hostname},${r.ttl}` });
+      if (r.disabled) ops.push({ op: "set_auth_spf_disable", value: `${domain},${r.hostname}` });
+    }
+    for (const r of records.srv) {
+      if (r.ttl != null) ops.push({ op: "set_auth_srv_ttl", value: `${domain},${r.hostname},${r.ttl}` });
+      if (r.disabled) ops.push({ op: "set_auth_srv_disable", value: `${domain},${r.hostname}` });
+      for (const e of r.entries) {
+        if (e.hostname) ops.push({ op: "set_auth_srv_entry_hostname", value: `${domain},${r.hostname},${e.entry},${e.hostname}` });
+        if (e.port != null) ops.push({ op: "set_auth_srv_entry_port", value: `${domain},${r.hostname},${e.entry},${e.port}` });
+        if (e.priority != null) ops.push({ op: "set_auth_srv_entry_priority", value: `${domain},${r.hostname},${e.entry},${e.priority}` });
+        if (e.weight != null) ops.push({ op: "set_auth_srv_entry_weight", value: `${domain},${r.hostname},${e.entry},${e.weight}` });
+      }
     }
 
     return this.batch(ops);

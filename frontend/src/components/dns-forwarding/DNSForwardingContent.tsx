@@ -430,7 +430,7 @@ export function DNSForwardingContent() {
                       </TableHeader>
                       <TableBody>
                         {config?.authoritative_domains.map((ad) => {
-                          const total = ad.records.a.length + ad.records.aaaa.length + ad.records.cname.length + ad.records.mx.length + ad.records.txt.length + ad.records.ns.length + ad.records.ptr.length;
+                          const total = ad.records.a.length + ad.records.aaaa.length + ad.records.cname.length + ad.records.mx.length + ad.records.txt.length + ad.records.ns.length + ad.records.ptr.length + (ad.records.naptr?.length ?? 0) + (ad.records.spf?.length ?? 0) + (ad.records.srv?.length ?? 0);
                           return (
                             <TableRow key={ad.domain}>
                               <TableCell className="font-mono">{ad.domain}</TableCell>
@@ -661,6 +661,7 @@ export function DNSForwardingContent() {
         open={authDomainModalOpen}
         onOpenChange={(open) => { setAuthDomainModalOpen(open); if (!open) setEditingAuthDomain(null); }}
         authDomain={editingAuthDomain}
+        capabilities={caps}
         onSubmit={async (domain, disabled, records) => {
           await dnsForwardingService.saveAuthDomain(domain, disabled, records);
           await loadData(true);

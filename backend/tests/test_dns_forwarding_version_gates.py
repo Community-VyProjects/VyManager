@@ -51,3 +51,9 @@ def test_capabilities_read_mapper_zone_cache():
     assert v15["features"]["zone_cache"]["supported"] is True
     assert v14["features"]["options_ecs"]["supported"] is True
     assert v15["features"]["options_ecs"]["supported"] is True
+    assert v14["features"]["auth_naptr"]["supported"] is True
+    assert v15["features"]["auth_naptr"]["supported"] is True
+    assert v14["features"]["auth_spf"]["supported"] is True
+    assert v15["features"]["auth_spf"]["supported"] is True
+    assert v14["features"]["auth_srv"]["supported"] is True
+    assert v15["features"]["auth_srv"]["supported"] is True

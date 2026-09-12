@@ -126,6 +126,18 @@ class DNSForwardingBatchBuilder(BatchBuilder):
                     "supported": True,
                     "description": "Local authoritative DNS zones with A/AAAA/CNAME/MX/TXT/NS/PTR records",
                 },
+                "auth_naptr": {
+                    "supported": bool(self.m.supports_auth_record("naptr")),
+                    "description": "NAPTR records on authoritative domains",
+                },
+                "auth_spf": {
+                    "supported": bool(self.m.supports_auth_record("spf")),
+                    "description": "SPF records on authoritative domains",
+                },
+                "auth_srv": {
+                    "supported": bool(self.m.supports_auth_record("srv")),
+                    "description": "SRV records on authoritative domains",
+                },
                 "zone_cache": {
                     "supported": bool(self.m.supports_zone_cache()),
                     "description": "Cached remote zones loaded via URL or AXFR",
@@ -467,6 +479,105 @@ class DNSForwardingBatchBuilder(BatchBuilder):
 
     def delete_auth_ptr(self, domain: str, hostname: str) -> "DNSForwardingBatchBuilder":
         return self.add_delete(self.m.get_auth_ptr_delete(domain, hostname))
+
+    # NAPTR records
+    def set_auth_naptr_ttl(self, domain: str, hostname: str, ttl: str) -> "DNSForwardingBatchBuilder":
+        return self.add_set(self.m.get_auth_naptr_ttl(domain, hostname, ttl))
+
+    def set_auth_naptr_disable(self, domain: str, hostname: str) -> "DNSForwardingBatchBuilder":
+        return self.add_set(self.m.get_auth_naptr_disable(domain, hostname))
+
+    def delete_auth_naptr_disable(self, domain: str, hostname: str) -> "DNSForwardingBatchBuilder":
+        return self.add_delete(self.m.get_auth_naptr_disable(domain, hostname))
+
+    def delete_auth_naptr(self, domain: str, hostname: str) -> "DNSForwardingBatchBuilder":
+        return self.add_delete(self.m.get_auth_naptr_delete(domain, hostname))
+
+    def set_auth_naptr_rule_order(self, domain: str, hostname: str, rule: str, order: str) -> "DNSForwardingBatchBuilder":
+        return self.add_set(self.m.get_auth_naptr_rule_order(domain, hostname, rule, order))
+
+    def set_auth_naptr_rule_preference(self, domain: str, hostname: str, rule: str, preference: str) -> "DNSForwardingBatchBuilder":
+        return self.add_set(self.m.get_auth_naptr_rule_preference(domain, hostname, rule, preference))
+
+    def set_auth_naptr_rule_lookup_a(self, domain: str, hostname: str, rule: str) -> "DNSForwardingBatchBuilder":
+        return self.add_set(self.m.get_auth_naptr_rule_lookup_a(domain, hostname, rule))
+
+    def delete_auth_naptr_rule_lookup_a(self, domain: str, hostname: str, rule: str) -> "DNSForwardingBatchBuilder":
+        return self.add_delete(self.m.get_auth_naptr_rule_lookup_a(domain, hostname, rule))
+
+    def set_auth_naptr_rule_lookup_srv(self, domain: str, hostname: str, rule: str) -> "DNSForwardingBatchBuilder":
+        return self.add_set(self.m.get_auth_naptr_rule_lookup_srv(domain, hostname, rule))
+
+    def delete_auth_naptr_rule_lookup_srv(self, domain: str, hostname: str, rule: str) -> "DNSForwardingBatchBuilder":
+        return self.add_delete(self.m.get_auth_naptr_rule_lookup_srv(domain, hostname, rule))
+
+    def set_auth_naptr_rule_protocol_specific(self, domain: str, hostname: str, rule: str) -> "DNSForwardingBatchBuilder":
+        return self.add_set(self.m.get_auth_naptr_rule_protocol_specific(domain, hostname, rule))
+
+    def delete_auth_naptr_rule_protocol_specific(self, domain: str, hostname: str, rule: str) -> "DNSForwardingBatchBuilder":
+        return self.add_delete(self.m.get_auth_naptr_rule_protocol_specific(domain, hostname, rule))
+
+    def set_auth_naptr_rule_resolve_uri(self, domain: str, hostname: str, rule: str) -> "DNSForwardingBatchBuilder":
+        return self.add_set(self.m.get_auth_naptr_rule_resolve_uri(domain, hostname, rule))
+
+    def delete_auth_naptr_rule_resolve_uri(self, domain: str, hostname: str, rule: str) -> "DNSForwardingBatchBuilder":
+        return self.add_delete(self.m.get_auth_naptr_rule_resolve_uri(domain, hostname, rule))
+
+    def set_auth_naptr_rule_regexp(self, domain: str, hostname: str, rule: str, regexp: str) -> "DNSForwardingBatchBuilder":
+        return self.add_set(self.m.get_auth_naptr_rule_regexp(domain, hostname, rule, regexp))
+
+    def set_auth_naptr_rule_replacement(self, domain: str, hostname: str, rule: str, replacement: str) -> "DNSForwardingBatchBuilder":
+        return self.add_set(self.m.get_auth_naptr_rule_replacement(domain, hostname, rule, replacement))
+
+    def set_auth_naptr_rule_service(self, domain: str, hostname: str, rule: str, service: str) -> "DNSForwardingBatchBuilder":
+        return self.add_set(self.m.get_auth_naptr_rule_service(domain, hostname, rule, service))
+
+    def delete_auth_naptr_rule(self, domain: str, hostname: str, rule: str) -> "DNSForwardingBatchBuilder":
+        return self.add_delete(self.m.get_auth_naptr_rule_delete(domain, hostname, rule))
+
+    # SPF records
+    def set_auth_spf_value(self, domain: str, hostname: str, value: str) -> "DNSForwardingBatchBuilder":
+        return self.add_set(self.m.get_auth_spf_value(domain, hostname, value))
+
+    def set_auth_spf_ttl(self, domain: str, hostname: str, ttl: str) -> "DNSForwardingBatchBuilder":
+        return self.add_set(self.m.get_auth_spf_ttl(domain, hostname, ttl))
+
+    def set_auth_spf_disable(self, domain: str, hostname: str) -> "DNSForwardingBatchBuilder":
+        return self.add_set(self.m.get_auth_spf_disable(domain, hostname))
+
+    def delete_auth_spf_disable(self, domain: str, hostname: str) -> "DNSForwardingBatchBuilder":
+        return self.add_delete(self.m.get_auth_spf_disable(domain, hostname))
+
+    def delete_auth_spf(self, domain: str, hostname: str) -> "DNSForwardingBatchBuilder":
+        return self.add_delete(self.m.get_auth_spf_delete(domain, hostname))
+
+    # SRV records
+    def set_auth_srv_ttl(self, domain: str, hostname: str, ttl: str) -> "DNSForwardingBatchBuilder":
+        return self.add_set(self.m.get_auth_srv_ttl(domain, hostname, ttl))
+
+    def set_auth_srv_disable(self, domain: str, hostname: str) -> "DNSForwardingBatchBuilder":
+        return self.add_set(self.m.get_auth_srv_disable(domain, hostname))
+
+    def delete_auth_srv_disable(self, domain: str, hostname: str) -> "DNSForwardingBatchBuilder":
+        return self.add_delete(self.m.get_auth_srv_disable(domain, hostname))
+
+    def delete_auth_srv(self, domain: str, hostname: str) -> "DNSForwardingBatchBuilder":
+        return self.add_delete(self.m.get_auth_srv_delete(domain, hostname))
+
+    def set_auth_srv_entry_hostname(self, domain: str, hostname: str, entry: str, target: str) -> "DNSForwardingBatchBuilder":
+        return self.add_set(self.m.get_auth_srv_entry_hostname(domain, hostname, entry, target))
+
+    def set_auth_srv_entry_port(self, domain: str, hostname: str, entry: str, port: str) -> "DNSForwardingBatchBuilder":
+        return self.add_set(self.m.get_auth_srv_entry_port(domain, hostname, entry, port))
+
+    def set_auth_srv_entry_priority(self, domain: str, hostname: str, entry: str, priority: str) -> "DNSForwardingBatchBuilder":
+        return self.add_set(self.m.get_auth_srv_entry_priority(domain, hostname, entry, priority))
+
+    def set_auth_srv_entry_weight(self, domain: str, hostname: str, entry: str, weight: str) -> "DNSForwardingBatchBuilder":
+        return self.add_set(self.m.get_auth_srv_entry_weight(domain, hostname, entry, weight))
+
+    def delete_auth_srv_entry(self, domain: str, hostname: str, entry: str) -> "DNSForwardingBatchBuilder":
+        return self.add_delete(self.m.get_auth_srv_entry_delete(domain, hostname, entry))
 
     # -----------------------------------------------------------------------
     # Zone cache (1.5 only)
