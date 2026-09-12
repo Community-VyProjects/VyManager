@@ -1,1 +1,0 @@
-{"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{"properties":{"status":{"type":"string","title":"Status"}},"type":"object","required":["status"],"title":"DevicePollResponse"}}}}}}

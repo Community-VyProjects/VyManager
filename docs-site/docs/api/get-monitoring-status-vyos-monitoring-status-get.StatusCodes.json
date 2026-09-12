@@ -1,1 +1,0 @@
-{"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{"properties":{"configured":{"type":"boolean","title":"Configured"}},"type":"object","required":["configured"],"title":"MonitoringStatusResponse"}}}}}}

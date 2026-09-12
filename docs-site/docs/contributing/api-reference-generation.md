@@ -1,41 +1,32 @@
 ---
 id: api-reference-generation
-title: Regenerating the API reference
+title: API reference
 sidebar_position: 3
 ---
 
-# Regenerating the API reference
+# API reference
 
-The API reference pages under `/api` are generated from the backend's OpenAPI specification and committed to the repository, so the docs site builds without Python or a running backend. When routes, models or docstrings change, regenerate them:
+The public API reference is FastAPI's OpenAPI document, rendered by Scalar.
+`app.openapi()` is the source of truth. Do not commit the spec JSON or
+per-endpoint pages.
 
-## 1. Export the spec
+A running instance already serves interactive docs at `/docs` and the spec at
+`/openapi.json`. The docs site copies that same spec at build time.
 
-Requires the backend dependencies (use the backend venv):
+## Building the docs site
+
+From the repository root, with backend dependencies installed:
 
 ```bash
 cd backend
-source venv/bin/activate
 python export_openapi.py
-```
-
-This imports the FastAPI app and writes `docs-site/openapi/vymanager.json`. The script also escapes `<`, `{` and `}` in description strings — endpoint docstrings contain placeholders like `<interface-name>` that would otherwise be parsed as JSX and break the MDX build.
-
-## 2. Regenerate the pages
-
-```bash
-cd docs-site
-npm run clean-api-docs vymanager
-npm run gen-api-docs vymanager
-```
-
-This rewrites `docs-site/docs/api/` (one MDX page per endpoint plus `sidebar.ts`, grouped by router tag). The main `sidebars.ts` imports the generated sidebar; no manual wiring is needed after regeneration.
-
-## 3. Build and commit
-
-```bash
+cd ../docs-site
 npm run build
 ```
 
-Fix anything the build reports (a new docstring with unescaped markup shows up here), then commit the changed spec and generated pages together with the backend change that caused them.
+`npm run build` and `npm start` in `docs-site` also run `export_openapi.py`
+first when Python is available. CI exports the spec, then builds Docusaurus.
+Publish the `docs-site/build` output the same way as today.
 
-Keep routers tagged: every `APIRouter` sets `tags=[...]`, and those tags become the sidebar categories. A new router without a tag ends up in a loose group at the bottom of the API sidebar.
+Route, model, or docstring changes do not need a docs commit. The next docs
+build picks them up.

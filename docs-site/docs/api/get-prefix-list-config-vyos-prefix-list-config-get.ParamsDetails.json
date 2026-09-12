@@ -1,1 +1,0 @@
-{"parameters":[{"name":"refresh","in":"query","required":false,"schema":{"type":"boolean","default":false,"title":"Refresh"}}]}
