@@ -31,6 +31,18 @@ def get_system_mapper(version: str) -> "SystemMapper":
         version_specific = SystemMapperV1_5()
 
     class MergedMapper:
+        # parse_config must live here. A method on SystemMapper is bound to
+        # `base`, so 1.4 would still read 1.5 syslog/sflow keys.
+        def parse_config(self, full_config):
+            from ..config_parse import parse_config as parse_system_config
+
+            return parse_system_config(self, full_config)
+
+        def parse_config_management(self, system_config):
+            from ..config_parse import parse_config_management
+
+            return parse_config_management(system_config)
+
         def __getattr__(self, name: str):
             # Version-specific methods take priority over base
             if hasattr(version_specific, name):
