@@ -230,6 +230,12 @@ function PPPoEPageInner() {
   }, [searchParams]);
 
   useEffect(() => {
+    if (liveSessions) {
+      setSessionLoading(true);
+    }
+  }, [liveSessions]);
+
+  useEffect(() => {
     if (!sessionStream.pppoeSessions) return;
     setSessionError(null);
     applySessions(sessionStream.pppoeSessions);
@@ -237,9 +243,9 @@ function PPPoEPageInner() {
   }, [sessionStream.pppoeSessions]);
 
   useEffect(() => {
-    if (sessionStreamError) {
-      setSessionError(sessionStreamError);
-    }
+    if (!sessionStreamError || !sessionStreamError.startsWith("pppoe-sessions:")) return;
+    setSessionError(sessionStreamError.replace(/^pppoe-sessions:\s*/, "") || "Failed to load active sessions");
+    setSessionLoading(false);
   }, [sessionStreamError]);
 
   const onSuccess = () => fetchConfig(true);

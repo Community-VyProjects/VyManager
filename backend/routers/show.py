@@ -1343,7 +1343,12 @@ class DeviceDataBroadcaster:
                     return
                 except Exception:
                     logger.exception("Broadcaster: pppoe-sessions fetch error")
-                    sessions = []
+                    self._pppoe_task = None
+                    self._push_to_all({
+                        "type": "error",
+                        "data": {"channel": "pppoe-sessions", "message": "Failed to fetch"},
+                    })
+                    return
                 self._pppoe_task = None
                 payload = {
                     "sessions": [s.model_dump() for s in sessions],
