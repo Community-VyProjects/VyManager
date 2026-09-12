@@ -516,6 +516,10 @@ export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, c
                       <TableHead>Pref</TableHead>
                       <TableHead>Service</TableHead>
                       <TableHead>Replacement</TableHead>
+                      <TableHead>Regexp</TableHead>
+                      <TableHead>Flags</TableHead>
+                      <TableHead>TTL</TableHead>
+                      <TableHead>Disabled</TableHead>
                       <TableHead></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -529,6 +533,10 @@ export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, c
                           <TableCell>{rule.preference ?? "—"}</TableCell>
                           <TableCell className="font-mono">{rule.service ?? "—"}</TableCell>
                           <TableCell className="font-mono">{rule.replacement ?? "—"}</TableCell>
+                          <TableCell className="font-mono text-xs max-w-xs truncate">{rule.regexp ?? "—"}</TableCell>
+                          <TableCell className="text-xs">{[rule.lookup_a && "A", rule.lookup_srv && "S", rule.protocol_specific && "P", rule.resolve_uri && "U"].filter(Boolean).join(" ") || "—"}</TableCell>
+                          <TableCell>{r.ttl ?? "—"}</TableCell>
+                          <TableCell>{r.disabled ? <Badge variant="secondary">Yes</Badge> : "—"}</TableCell>
                           <TableCell>
                             <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setRecords((rec) => ({ ...rec, naptr: rec.naptr.filter((_, k) => k !== i) }))}>
                               <Trash2 className="h-3 w-3" />
@@ -544,6 +552,21 @@ export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, c
                       <TableCell><Input value={newNAPTR.preference} onChange={(e) => setNewNAPTR({ ...newNAPTR, preference: e.target.value })} placeholder="0" type="number" className="h-7 w-16" /></TableCell>
                       <TableCell><Input value={newNAPTR.service} onChange={(e) => setNewNAPTR({ ...newNAPTR, service: e.target.value })} placeholder="SIP+D2U" className="h-7 font-mono" /></TableCell>
                       <TableCell><Input value={newNAPTR.replacement} onChange={(e) => setNewNAPTR({ ...newNAPTR, replacement: e.target.value })} placeholder="sip.example.com" className="h-7 font-mono" /></TableCell>
+                      <TableCell><Input value={newNAPTR.regexp} onChange={(e) => setNewNAPTR({ ...newNAPTR, regexp: e.target.value })} placeholder="!foo!bar!" className="h-7 font-mono" /></TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Checkbox checked={newNAPTR.lookup_a} onCheckedChange={(c) => setNewNAPTR({ ...newNAPTR, lookup_a: c === true })} />
+                          <span className="text-xs">A</span>
+                          <Checkbox checked={newNAPTR.lookup_srv} onCheckedChange={(c) => setNewNAPTR({ ...newNAPTR, lookup_srv: c === true })} />
+                          <span className="text-xs">S</span>
+                          <Checkbox checked={newNAPTR.protocol_specific} onCheckedChange={(c) => setNewNAPTR({ ...newNAPTR, protocol_specific: c === true })} />
+                          <span className="text-xs">P</span>
+                          <Checkbox checked={newNAPTR.resolve_uri} onCheckedChange={(c) => setNewNAPTR({ ...newNAPTR, resolve_uri: c === true })} />
+                          <span className="text-xs">U</span>
+                        </div>
+                      </TableCell>
+                      <TableCell><Input value={newNAPTR.ttl} onChange={(e) => setNewNAPTR({ ...newNAPTR, ttl: e.target.value })} placeholder="TTL" type="number" className="h-7 w-16" /></TableCell>
+                      <TableCell><Checkbox checked={newNAPTR.disabled} onCheckedChange={(c) => setNewNAPTR({ ...newNAPTR, disabled: c === true })} /></TableCell>
                       <TableCell><Button variant="outline" size="icon" className="h-7 w-7" onClick={addNAPTR} disabled={!newNAPTR.hostname || !newNAPTR.rule}><Plus className="h-3 w-3" /></Button></TableCell>
                     </TableRow>
                   </TableBody>
@@ -604,6 +627,8 @@ export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, c
                       <TableHead>Port</TableHead>
                       <TableHead>Priority</TableHead>
                       <TableHead>Weight</TableHead>
+                      <TableHead>TTL</TableHead>
+                      <TableHead>Disabled</TableHead>
                       <TableHead></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -617,6 +642,8 @@ export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, c
                           <TableCell>{e.port ?? "—"}</TableCell>
                           <TableCell>{e.priority ?? "—"}</TableCell>
                           <TableCell>{e.weight ?? "—"}</TableCell>
+                          <TableCell>{r.ttl ?? "—"}</TableCell>
+                          <TableCell>{r.disabled ? <Badge variant="secondary">Yes</Badge> : "—"}</TableCell>
                           <TableCell>
                             <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setRecords((rec) => ({ ...rec, srv: rec.srv.filter((_, k) => k !== i) }))}>
                               <Trash2 className="h-3 w-3" />
@@ -632,6 +659,8 @@ export function DNSForwardingAuthDomainModal({ open, onOpenChange, authDomain, c
                       <TableCell><Input value={newSRV.port} onChange={(e) => setNewSRV({ ...newSRV, port: e.target.value })} placeholder="5060" type="number" className="h-7 w-16" /></TableCell>
                       <TableCell><Input value={newSRV.priority} onChange={(e) => setNewSRV({ ...newSRV, priority: e.target.value })} placeholder="10" type="number" className="h-7 w-16" /></TableCell>
                       <TableCell><Input value={newSRV.weight} onChange={(e) => setNewSRV({ ...newSRV, weight: e.target.value })} placeholder="0" type="number" className="h-7 w-16" /></TableCell>
+                      <TableCell><Input value={newSRV.ttl} onChange={(e) => setNewSRV({ ...newSRV, ttl: e.target.value })} placeholder="TTL" type="number" className="h-7 w-16" /></TableCell>
+                      <TableCell><Checkbox checked={newSRV.disabled} onCheckedChange={(c) => setNewSRV({ ...newSRV, disabled: c === true })} /></TableCell>
                       <TableCell><Button variant="outline" size="icon" className="h-7 w-7" onClick={addSRV} disabled={!newSRV.hostname || !newSRV.entry}><Plus className="h-3 w-3" /></Button></TableCell>
                     </TableRow>
                   </TableBody>

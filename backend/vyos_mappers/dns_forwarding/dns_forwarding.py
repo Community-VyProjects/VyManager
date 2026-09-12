@@ -347,6 +347,9 @@ class DNSForwardingMapper(BaseFeatureMapper):
     def get_auth_naptr_rule_delete(self, domain: str, hostname: str, rule: str) -> List[str]:
         return BASE + ["authoritative-domain", domain, "records", "naptr", hostname, "rule", rule]
 
+    def get_auth_naptr_rule(self, domain: str, hostname: str, rule: str) -> List[str]:
+        return BASE + ["authoritative-domain", domain, "records", "naptr", hostname, "rule", rule]
+
     # SPF records
     def get_auth_spf_value(self, domain: str, hostname: str, value: str) -> List[str]:
         return BASE + ["authoritative-domain", domain, "records", "spf", hostname, "value", value]
@@ -383,6 +386,9 @@ class DNSForwardingMapper(BaseFeatureMapper):
         return BASE + ["authoritative-domain", domain, "records", "srv", hostname, "entry", entry, "weight", weight]
 
     def get_auth_srv_entry_delete(self, domain: str, hostname: str, entry: str) -> List[str]:
+        return BASE + ["authoritative-domain", domain, "records", "srv", hostname, "entry", entry]
+
+    def get_auth_srv_entry(self, domain: str, hostname: str, entry: str) -> List[str]:
         return BASE + ["authoritative-domain", domain, "records", "srv", hostname, "entry", entry]
 
     # ========================================================================

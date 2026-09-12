@@ -447,6 +447,7 @@ class DNSForwardingService {
       if (r.ttl != null) ops.push({ op: "set_auth_naptr_ttl", value: `${domain},${r.hostname},${r.ttl}` });
       if (r.disabled) ops.push({ op: "set_auth_naptr_disable", value: `${domain},${r.hostname}` });
       for (const rule of r.rules) {
+        ops.push({ op: "set_auth_naptr_rule", value: `${domain},${r.hostname},${rule.rule}` });
         if (rule.order != null) ops.push({ op: "set_auth_naptr_rule_order", value: `${domain},${r.hostname},${rule.rule},${rule.order}` });
         if (rule.preference != null) ops.push({ op: "set_auth_naptr_rule_preference", value: `${domain},${r.hostname},${rule.rule},${rule.preference}` });
         if (rule.lookup_a) ops.push({ op: "set_auth_naptr_rule_lookup_a", value: `${domain},${r.hostname},${rule.rule}` });
@@ -467,6 +468,7 @@ class DNSForwardingService {
       if (r.ttl != null) ops.push({ op: "set_auth_srv_ttl", value: `${domain},${r.hostname},${r.ttl}` });
       if (r.disabled) ops.push({ op: "set_auth_srv_disable", value: `${domain},${r.hostname}` });
       for (const e of r.entries) {
+        ops.push({ op: "set_auth_srv_entry", value: `${domain},${r.hostname},${e.entry}` });
         if (e.hostname) ops.push({ op: "set_auth_srv_entry_hostname", value: `${domain},${r.hostname},${e.entry},${e.hostname}` });
         if (e.port != null) ops.push({ op: "set_auth_srv_entry_port", value: `${domain},${r.hostname},${e.entry},${e.port}` });
         if (e.priority != null) ops.push({ op: "set_auth_srv_entry_priority", value: `${domain},${r.hostname},${e.entry},${e.priority}` });

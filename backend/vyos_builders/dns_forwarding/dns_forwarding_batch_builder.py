@@ -535,6 +535,9 @@ class DNSForwardingBatchBuilder(BatchBuilder):
     def delete_auth_naptr_rule(self, domain: str, hostname: str, rule: str) -> "DNSForwardingBatchBuilder":
         return self.add_delete(self.m.get_auth_naptr_rule_delete(domain, hostname, rule))
 
+    def set_auth_naptr_rule(self, domain: str, hostname: str, rule: str) -> "DNSForwardingBatchBuilder":
+        return self.add_set(self.m.get_auth_naptr_rule(domain, hostname, rule))
+
     # SPF records
     def set_auth_spf_value(self, domain: str, hostname: str, value: str) -> "DNSForwardingBatchBuilder":
         return self.add_set(self.m.get_auth_spf_value(domain, hostname, value))
@@ -578,6 +581,9 @@ class DNSForwardingBatchBuilder(BatchBuilder):
 
     def delete_auth_srv_entry(self, domain: str, hostname: str, entry: str) -> "DNSForwardingBatchBuilder":
         return self.add_delete(self.m.get_auth_srv_entry_delete(domain, hostname, entry))
+
+    def set_auth_srv_entry(self, domain: str, hostname: str, entry: str) -> "DNSForwardingBatchBuilder":
+        return self.add_set(self.m.get_auth_srv_entry(domain, hostname, entry))
 
     # -----------------------------------------------------------------------
     # Zone cache (1.5 only)
