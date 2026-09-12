@@ -57,6 +57,19 @@ services:
       retries: 5
       start_period: 10s
 
+  migrate:
+    image: ghcr.io/community-vyprojects/vymanager-frontend:beta
+    container_name: vymanager-migrate
+    entrypoint: ["sh", "-c", "npx prisma generate && npx prisma migrate deploy"]
+    env_file:
+      - .env
+    restart: "no"
+    networks:
+      - vymanager-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   backend:
     image: ghcr.io/community-vyprojects/vymanager-backend:beta
     container_name: vymanager-backend
@@ -72,6 +85,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/docs"]
       interval: 30s
@@ -87,10 +102,10 @@ services:
     env_file:
       - .env
     depends_on:
-      backend:
-        condition: service_healthy
       postgres:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     restart: unless-stopped
     networks:
       - vymanager-network
