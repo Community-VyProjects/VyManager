@@ -32,6 +32,14 @@ def test_icmp_leaf_follows_family():
     assert "icmpv6" in v6.get_rule_icmpv6_type_name("forward", 1, "echo-request")
 
 
+def test_ipv6_config_does_not_parse_prerouting():
+    from routers.firewall.family import prerouting_section
+
+    present = {"prerouting": {"raw": {"rule": {"10": {"action": "drop"}}}}}
+    assert prerouting_section("ipv4", present) == present["prerouting"]
+    assert prerouting_section("ipv6", present) == {}
+
+
 def test_prerouting_is_ipv4_only():
     v4 = get_firewall_family_mapper("1.5", "ipv4")
     v6 = get_firewall_family_mapper("1.5", "ipv6")

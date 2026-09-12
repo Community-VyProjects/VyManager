@@ -17,6 +17,14 @@ from batch_dispatch import resolve_batch_method
 logger = logging.getLogger(__name__)
 
 
+def prerouting_section(family: str, firewall_config: dict) -> dict:
+    """IPv4-only. IPv6 config must not surface firewall.ipv6.prerouting."""
+    if family != "ipv4":
+        return {}
+    data = firewall_config.get("prerouting")
+    return data if isinstance(data, dict) else {}
+
+
 
 # ========================================================================
 # Pydantic Models
@@ -786,7 +794,7 @@ def build_router(family: str) -> APIRouter:
 
             # Parse prerouting raw chain (ipv4 / VyOS 1.5)
             prerouting_raw = None
-            prerouting_data = firewall_config.get("prerouting", {}) if family == "ipv4" else {}
+            prerouting_data = prerouting_section(family, firewall_config)
             if prerouting_data:
                 raw_data = prerouting_data.get("raw", {})
                 if raw_data:
