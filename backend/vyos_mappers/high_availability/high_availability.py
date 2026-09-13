@@ -38,6 +38,9 @@ class HighAvailabilityMapper:
     def get_vrrp_snmp_path(self) -> List[str]:
         return self._base + ["vrrp", "snmp"]
 
+    def get_vrrp_snmp_trap_path(self) -> List[str]:
+        return self._base + ["vrrp", "snmp", "trap"]
+
     # VRRP Group paths
     def get_vrrp_group_path(self, name: str) -> List[str]:
         return self._base + ["vrrp", "group", name]
@@ -128,6 +131,9 @@ class HighAvailabilityMapper:
     def get_vrrp_group_health_check_script_path(self, name: str, value: str) -> List[str]:
         return self._base + ["vrrp", "group", name, "health-check", "script", value]
 
+    def get_vrrp_group_health_check_timeout_path(self, name: str, value: str) -> List[str]:
+        return self._base + ["vrrp", "group", name, "health-check", "timeout", value]
+
     def get_vrrp_group_health_check_path(self, name: str) -> List[str]:
         return self._base + ["vrrp", "group", name, "health-check"]
 
@@ -175,6 +181,9 @@ class HighAvailabilityMapper:
 
     def get_vrrp_sync_group_health_check_script_path(self, name: str, value: str) -> List[str]:
         return self._base + ["vrrp", "sync-group", name, "health-check", "script", value]
+
+    def get_vrrp_sync_group_health_check_timeout_path(self, name: str, value: str) -> List[str]:
+        return self._base + ["vrrp", "sync-group", name, "health-check", "timeout", value]
 
     def get_vrrp_sync_group_health_check_path(self, name: str) -> List[str]:
         return self._base + ["vrrp", "sync-group", name, "health-check"]
@@ -269,6 +278,7 @@ class HighAvailabilityMapper:
                 },
             },
             "snmp": "snmp" in vrrp_config,
+            "snmp_trap": isinstance(vrrp_config.get("snmp"), dict) and "trap" in vrrp_config["snmp"],
             "groups": groups,
             "sync_groups": sync_groups,
         }
@@ -333,6 +343,7 @@ class HighAvailabilityMapper:
                 "interval": health_check.get("interval"),
                 "ping": health_check.get("ping"),
                 "script": health_check.get("script"),
+                "timeout": health_check.get("timeout"),
             },
             "track": {
                 "interfaces": track_interfaces,
@@ -362,6 +373,7 @@ class HighAvailabilityMapper:
                 "interval": health_check.get("interval"),
                 "ping": health_check.get("ping"),
                 "script": health_check.get("script"),
+                "timeout": health_check.get("timeout"),
             },
             "transition_script": {
                 "backup": transition_script.get("backup"),

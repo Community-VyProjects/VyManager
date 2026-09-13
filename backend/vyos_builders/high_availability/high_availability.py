@@ -85,6 +85,12 @@ class HighAvailabilityBatchBuilder(BatchBuilder):
     def delete_vrrp_snmp(self, _name: str) -> "HighAvailabilityBatchBuilder":
         return self.add_delete(self.mappers[self.mapper_key].get_vrrp_snmp_path())
 
+    def set_vrrp_snmp_trap(self, _name: str) -> "HighAvailabilityBatchBuilder":
+        return self.add_set(self.mappers[self.mapper_key].get_vrrp_snmp_trap_path())
+
+    def delete_vrrp_snmp_trap(self, _name: str) -> "HighAvailabilityBatchBuilder":
+        return self.add_delete(self.mappers[self.mapper_key].get_vrrp_snmp_trap_path())
+
     # =========================================================================
     # VRRP Group operations  (item_name = group name)
     # =========================================================================
@@ -225,6 +231,9 @@ class HighAvailabilityBatchBuilder(BatchBuilder):
     def set_vrrp_group_health_check_script(self, name: str, value: str) -> "HighAvailabilityBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_vrrp_group_health_check_script_path(name, value))
 
+    def set_vrrp_group_health_check_timeout(self, name: str, value: str) -> "HighAvailabilityBatchBuilder":
+        return self.add_set(self.mappers[self.mapper_key].get_vrrp_group_health_check_timeout_path(name, value))
+
     def delete_vrrp_group_health_check(self, name: str) -> "HighAvailabilityBatchBuilder":
         return self.add_delete(self.mappers[self.mapper_key].get_vrrp_group_health_check_path(name))
 
@@ -287,6 +296,9 @@ class HighAvailabilityBatchBuilder(BatchBuilder):
 
     def set_vrrp_sync_group_health_check_script(self, name: str, value: str) -> "HighAvailabilityBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_vrrp_sync_group_health_check_script_path(name, value))
+
+    def set_vrrp_sync_group_health_check_timeout(self, name: str, value: str) -> "HighAvailabilityBatchBuilder":
+        return self.add_set(self.mappers[self.mapper_key].get_vrrp_sync_group_health_check_timeout_path(name, value))
 
     def delete_vrrp_sync_group_health_check(self, name: str) -> "HighAvailabilityBatchBuilder":
         return self.add_delete(self.mappers[self.mapper_key].get_vrrp_sync_group_health_check_path(name))
@@ -404,6 +416,7 @@ class HighAvailabilityBatchBuilder(BatchBuilder):
     # =========================================================================
 
     def get_capabilities(self) -> Dict[str, Any]:
+        is_1_5 = "1.4" not in self.version
         return {
             "version": self.version,
             "features": {
@@ -418,6 +431,14 @@ class HighAvailabilityBatchBuilder(BatchBuilder):
                 "vrrp_snmp": {
                     "supported": True,
                     "description": "VRRP SNMP notifications",
+                },
+                "vrrp_snmp_trap": {
+                    "supported": is_1_5,
+                    "description": "VRRP SNMP traps (VyOS 1.5+)",
+                },
+                "health_check_timeout": {
+                    "supported": is_1_5,
+                    "description": "VRRP health-check script timeout (VyOS 1.5+)",
                 },
             },
         }
