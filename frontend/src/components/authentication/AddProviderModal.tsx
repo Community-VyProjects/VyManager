@@ -96,7 +96,7 @@ export function AddProviderModal({
   };
 
   const isCustomOrSelfHosted = selected
-    ? ["auth0", "okta", "keycloak", "authentik", "custom-oidc"].includes(selected.providerId)
+    ? ["auth0", "okta", "keycloak", "authentik", "authelia", "custom-oidc"].includes(selected.providerId)
     : false;
 
   const requiresManualEndpoints = selected?.requiresManualEndpoints ?? false;
@@ -237,6 +237,7 @@ export function AddProviderModal({
                     {selected.providerId === "okta" && "Example: https://YOUR_DOMAIN.okta.com/.well-known/openid-configuration"}
                     {selected.providerId === "keycloak" && "Example: https://keycloak.example.com/realms/REALM/.well-known/openid-configuration"}
                     {selected.providerId === "authentik" && "Example: https://authentik.example.com/application/o/APP_SLUG/.well-known/openid-configuration"}
+                    {selected.providerId === "authelia" && "Example: https://auth.example.com/.well-known/openid-configuration"}
                     {selected.providerId === "custom-oidc" && "The full URL to your provider's OpenID Connect discovery document"}
                   </p>
                 </div>

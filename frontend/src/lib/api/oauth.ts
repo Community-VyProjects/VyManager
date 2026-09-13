@@ -308,6 +308,14 @@ export const WELL_KNOWN_PROVIDERS: WellKnownProvider[] = [
     iconKey: "authentik",
   },
   {
+    providerId: "authelia",
+    displayName: "Authelia",
+    description: "Sign in via self-hosted Authelia",
+    discoveryUrl: "",
+    defaultScopes: "openid email profile groups",
+    iconKey: "authelia",
+  },
+  {
     providerId: "custom-oidc",
     displayName: "Custom OIDC",
     description: "Any OpenID Connect compatible provider",
