@@ -606,7 +606,7 @@ class ContainerService {
   }
 
   // --------------------------------------------------------------------------
-  // SSH operations
+  // Image / restart operations (GraphQL on the router)
   // --------------------------------------------------------------------------
 
   async pullImage(imageRef: string): Promise<ContainerSSHResponse> {
