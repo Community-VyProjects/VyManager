@@ -7,13 +7,14 @@ Endpoints:
   GET  /vyos/container/capabilities     — version-aware feature flags
   GET  /vyos/container/config           — normalized container configuration
   POST /vyos/container/batch            — atomic set/delete operations
-  POST /vyos/container/image/add        — pull container image via SSH
-  POST /vyos/container/image/delete     — remove container image via SSH
-  POST /vyos/container/image/update     — update container image via SSH
-  POST /vyos/container/restart          — restart container via SSH
+  POST /vyos/container/image/add        — pull container image via GraphQL
+  POST /vyos/container/image/delete     — remove container image via GraphQL
+  POST /vyos/container/image/update     — update container image via GraphQL
+  POST /vyos/container/restart          — restart container via GraphQL
 """
 
 import asyncio
+import json
 import re
 import shlex
 from datetime import datetime, timezone
@@ -210,22 +211,28 @@ _SAFE_CONTAINER_SUBPATH_RE = re.compile(
     r'^/config/containers/[a-zA-Z0-9][a-zA-Z0-9\-]*((/[a-zA-Z0-9][a-zA-Z0-9\-._]*)*)$'
 )
 
-# SSH timeouts (seconds)
+# GraphQL timeouts (seconds)
+_GQL_IMAGE_TIMEOUT = 300   # image pulls can take several minutes
+_GQL_QUICK_TIMEOUT = 60    # delete / restart are fast
+
+# SSH timeouts (seconds) — used only by the filesystem endpoints below, which
+# have no GraphQL/HTTP-API equivalent (read/write/remove host paths).
 _SSH_CONNECT_TIMEOUT = 15
-_SSH_IMAGE_TIMEOUT = 300   # image pulls can take several minutes
-_SSH_QUICK_TIMEOUT = 60    # delete / restart are fast
+_SSH_QUICK_TIMEOUT = 60
 
 # ---------------------------------------------------------------------------
-# Strict operation allowlist — the ONLY commands this code will ever execute.
-# Each entry maps an internal key to (command_template, timeout).
-# The template contains exactly one placeholder: {name}.
-# No other substitution, no shell metacharacters, nothing else.
+# Strict operation allowlist — the ONLY GraphQL mutations this code will run.
+# Each entry maps an internal key to (mutation_name, timeout).
+# The router's op-mode `add container image` and `update container image` both
+# run `podman image pull`, so a re-pull ("update") uses AddImageContainer too.
+# The image reference / container name is passed as the mutation's `name`
+# argument (JSON-encoded, never interpolated into a command string).
 # ---------------------------------------------------------------------------
-_CONTAINER_SSH_ALLOWLIST: Dict[str, tuple] = {
-    "add_image":    ("add container image {name}",    _SSH_IMAGE_TIMEOUT),
-    "delete_image": ("delete container image {name}", _SSH_QUICK_TIMEOUT),
-    "update_image": ("update container image {name}", _SSH_IMAGE_TIMEOUT),
-    "restart":      ("restart container {name}",      _SSH_QUICK_TIMEOUT),
+_CONTAINER_GQL_ALLOWLIST: Dict[str, tuple] = {
+    "add_image":    ("AddImageContainer",    _GQL_IMAGE_TIMEOUT),
+    "delete_image": ("DeleteImageContainer", _GQL_QUICK_TIMEOUT),
+    "update_image": ("AddImageContainer",    _GQL_IMAGE_TIMEOUT),
+    "restart":      ("RestartContainer",     _GQL_QUICK_TIMEOUT),
 }
 
 # Validates registry names: hostname-style identifiers like "docker.io",
@@ -273,27 +280,66 @@ class ContainerMkdirRequest(BaseModel):
 
 
 # ============================================================================
-# SSH helper — operation key + validated name only, never a raw command string
+# GraphQL helper — operation key + validated name only, never a raw command
 # ============================================================================
 
-async def _run_container_ssh_command(
+async def _require_ssh_key_configured(request: Request) -> None:
+    """Enforce that the active instance still has an SSH key configured.
+
+    The image/restart operations run over GraphQL, but the credential
+    requirement is unchanged: an instance must have its SSH key set up before
+    these operations are allowed. This keeps the gate identical to the old SSH
+    path (both the API key and the SSH key must be present).
+    """
+    instance = getattr(request.state, "instance", None)
+    if not instance:
+        raise HTTPException(
+            status_code=400,
+            detail="No active instance. Connect to a VyOS instance first.",
+        )
+
+    async with request_scoped_conn(request) as conn:
+        row = await conn.fetchrow(
+            """
+            SELECT "sshEncryptedPrivKey", "sshKeyNonce", "sshKeyConfigured"
+            FROM instances WHERE id = $1
+            """,
+            instance["id"],
+        )
+
+    if not row:
+        raise HTTPException(status_code=404, detail="Instance not found")
+    if not row["sshKeyConfigured"]:
+        raise HTTPException(
+            status_code=409,
+            detail="SSH key not configured. Set it up via Sites > Edit Instance > SSH / Monitoring.",
+        )
+    if not row["sshEncryptedPrivKey"] or not row["sshKeyNonce"]:
+        raise HTTPException(
+            status_code=409,
+            detail="SSH private key missing. Regenerate the SSH key in instance settings.",
+        )
+
+
+async def _run_container_gql_command(
     request: Request,
     operation: str,
     container_name: str,
     name_re: re.Pattern = _CONTAINER_NAME_RE,
 ) -> ContainerSSHResponse:
     """
-    Execute one of the allowlisted container SSH operations.
+    Execute one of the allowlisted container operations over the VyOS GraphQL API.
 
-    The operation key is resolved against _CONTAINER_SSH_ALLOWLIST before
-    anything is sent over SSH.  The container_name is validated against
-    name_re (defaults to _CONTAINER_NAME_RE).
+    The operation key is resolved against _CONTAINER_GQL_ALLOWLIST before
+    anything is sent. The container_name / image reference is validated against
+    name_re (defaults to _CONTAINER_NAME_RE) and passed to the mutation as a
+    JSON-encoded argument — it never enters a shell command.
     """
     # --- Allowlist check (must come before any other work) ---
-    if operation not in _CONTAINER_SSH_ALLOWLIST:
+    if operation not in _CONTAINER_GQL_ALLOWLIST:
         raise HTTPException(status_code=400, detail=f"Operation not permitted: {operation}")
 
-    template, timeout = _CONTAINER_SSH_ALLOWLIST[operation]
+    mutation, timeout = _CONTAINER_GQL_ALLOWLIST[operation]
 
     # --- Name validation ---
     if not container_name or not name_re.match(container_name):
@@ -302,103 +348,70 @@ async def _run_container_ssh_command(
             detail="Invalid container name. Must be alphanumeric and may contain hyphens.",
         )
 
-    # Build the exact command from the hardcoded template — no user input in the template itself
-    vyos_command = template.format(name=container_name)
-
-    # --- Session / instance checks ---
+    # --- Session / credential checks (SSH key still required) ---
     user = getattr(request.state, "user", None)
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
-    instance = getattr(request.state, "instance", None)
-    if not instance:
-        raise HTTPException(
-            status_code=400,
-            detail="No active instance. Connect to a VyOS instance first.",
-        )
+    await _require_ssh_key_configured(request)
 
-    instance_id = instance["id"]
-    async with request_scoped_conn(request) as conn:
-        row = await conn.fetchrow(
-            """
-            SELECT host, "sshPort", "sshUsername",
-                   "sshEncryptedPrivKey", "sshKeyNonce", "sshKeyConfigured"
-            FROM instances WHERE id = $1
-            """,
-            instance_id,
-        )
+    service = get_session_vyos_service(request)
+    api_key = str(service.config.apikey)
+    url = (
+        f"{service.config.protocol}://{service.config.hostname}"
+        f":{service.config.port}/graphql"
+    )
 
-    if not row:
-        raise HTTPException(status_code=404, detail="Instance not found")
+    # Build the mutation from the hardcoded name plus JSON-encoded arguments.
+    # json.dumps guarantees the key/name are valid GraphQL string literals and
+    # cannot break out of the argument (no interpolation into a command).
+    query = (
+        "mutation { %s(data: {key: %s, name: %s}) "
+        "{ success errors data { result } } }"
+        % (mutation, json.dumps(api_key), json.dumps(container_name))
+    )
 
-    if not row["sshKeyConfigured"]:
-        raise HTTPException(
-            status_code=409,
-            detail="SSH key not configured. Set it up via Sites > Edit Instance > SSH / Monitoring.",
-        )
-
-    if not row["sshEncryptedPrivKey"] or not row["sshKeyNonce"]:
-        raise HTTPException(
-            status_code=409,
-            detail="SSH private key missing. Regenerate the SSH key in instance settings.",
-        )
-
-    # --- Key decryption ---
     try:
-        private_key_pem = decrypt_private_key(row["sshEncryptedPrivKey"], row["sshKeyNonce"], instance_id)
-        private_key = asyncssh.import_private_key(private_key_pem.decode("utf-8"))
-    except Exception as exc:
-        logger.exception("Failed to decrypt SSH key for instance %s", instance_id)
-        raise HTTPException(status_code=500, detail=f"Failed to decrypt SSH key: {exc}")
-
-    ssh_username = row["sshUsername"] or "vyos"
-
-    # --- SSH connection ---
-    try:
-        ssh_conn = await asyncio.wait_for(
-            asyncssh.connect(
-                row["host"],
-                port=row["sshPort"] or 22,
-                username=ssh_username,
-                client_keys=[private_key],
-                known_hosts=None,
-            ),
-            timeout=_SSH_CONNECT_TIMEOUT,
-        )
-    except asyncio.TimeoutError:
-        raise HTTPException(status_code=504, detail="SSH connection timed out")
-    except (OSError, asyncssh.Error) as exc:
-        raise HTTPException(status_code=502, detail=f"SSH connection failed: {exc}")
-
-    # --- Command execution ---
-    try:
-        result = await asyncio.wait_for(
-            ssh_conn.run(
-                f"vbash -ic '{vyos_command}'",
-                check=False,
-                stderr=asyncssh.STDOUT,
-            ),
-            timeout=timeout,
-        )
-        raw = result.stdout or ""
-        # Strip vbash non-interactive warnings that always appear without a TTY
-        lines = [
-            ln for ln in raw.splitlines()
-            if not ln.startswith("vbash:")
-        ]
-        output = "\n".join(lines).strip()
-        success = result.exit_status == 0
-        return ContainerSSHResponse(
-            success=success,
-            output=output or None,
-            error=None if success else output or "Command failed",
-        )
-    except asyncio.TimeoutError:
+        async with httpx.AsyncClient(verify=service.config.verify, timeout=float(timeout)) as client:
+            resp = await client.post(url, json={"query": query}, auth=("vyos", api_key))
+    except httpx.TimeoutException:
         return ContainerSSHResponse(success=False, error="Command timed out")
-    except asyncssh.Error as exc:
-        return ContainerSSHResponse(success=False, error=f"SSH error: {exc}")
-    finally:
-        ssh_conn.close()
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail=f"GraphQL request failed: {exc}")
+
+    if resp.status_code != 200:
+        raise HTTPException(status_code=502, detail=f"GraphQL HTTP error {resp.status_code}")
+
+    body = resp.json()
+    if body.get("errors"):
+        # Transport-level GraphQL errors (bad query, schema mismatch).
+        message = "; ".join(str(e.get("message", e)) for e in body["errors"])
+        return ContainerSSHResponse(success=False, error=message or "GraphQL error")
+
+    payload = (body.get("data") or {}).get(mutation) or {}
+    success = bool(payload.get("success"))
+    errors = payload.get("errors")
+    result = (payload.get("data") or {}).get("result")
+
+    if isinstance(result, (dict, list)):
+        output = json.dumps(result)
+    elif result is not None:
+        output = str(result).strip()
+    else:
+        output = ""
+
+    if success:
+        return ContainerSSHResponse(success=True, output=output or None, error=None)
+
+    if isinstance(errors, list):
+        error_text = "; ".join(str(e) for e in errors if e)
+    else:
+        error_text = str(errors) if errors else ""
+    return ContainerSSHResponse(
+        success=False,
+        output=output or None,
+        error=error_text or output or "Command failed",
+    )
 
 
 async def _get_ssh_connection(request: Request) -> tuple:
@@ -601,9 +614,11 @@ async def container_batch_configure(
 
 
 # ============================================================================
-# SSH Endpoints — container image / instance operations
-# These use SSH because the VyOS HTTP API has no equivalent commands.
-# All four require CONTAINER WRITE permission.
+# GraphQL Endpoints — container image / instance operations
+# These use the VyOS GraphQL API (AddImageContainer / DeleteImageContainer /
+# RestartContainer). All require CONTAINER WRITE permission and a configured
+# SSH key on the instance (the credential gate is unchanged from the old SSH
+# implementation).
 # ============================================================================
 
 
@@ -744,7 +759,7 @@ async def container_image_pull(request: Request, body: ContainerImageRefRequest)
     """Pull an image by reference directly (add container image <image-ref>)."""
     await require_write_permission(request, FeatureGroup.CONTAINER)
     _validate_image_ref(body.image)
-    return await _run_container_ssh_command(request, "add_image", body.image, name_re=_IMAGE_REF_RE)
+    return await _run_container_gql_command(request, "add_image", body.image, name_re=_IMAGE_REF_RE)
 
 
 @router.post("/image/update-ref", response_model=ContainerSSHResponse)
@@ -752,7 +767,7 @@ async def container_image_update_ref(request: Request, body: ContainerImageRefRe
     """Update (re-pull) an image by reference (update container image <image-ref>)."""
     await require_write_permission(request, FeatureGroup.CONTAINER)
     _validate_image_ref(body.image)
-    return await _run_container_ssh_command(request, "update_image", body.image, name_re=_IMAGE_REF_RE)
+    return await _run_container_gql_command(request, "update_image", body.image, name_re=_IMAGE_REF_RE)
 
 
 @router.post("/image/delete-ref", response_model=ContainerSSHResponse)
@@ -760,35 +775,35 @@ async def container_image_delete_ref(request: Request, body: ContainerImageRefRe
     """Delete an image by reference (delete container image <image-ref>)."""
     await require_write_permission(request, FeatureGroup.CONTAINER)
     _validate_image_ref(body.image)
-    return await _run_container_ssh_command(request, "delete_image", body.image, name_re=_IMAGE_REF_RE)
+    return await _run_container_gql_command(request, "delete_image", body.image, name_re=_IMAGE_REF_RE)
 
 
 @router.post("/image/add", response_model=ContainerSSHResponse)
 async def container_image_add(request: Request, body: ContainerImageRequest):
     """Pull the image for a configured container (add container image <name>)."""
     await require_write_permission(request, FeatureGroup.CONTAINER)
-    return await _run_container_ssh_command(request, "add_image", body.container_name)
+    return await _run_container_gql_command(request, "add_image", body.container_name)
 
 
 @router.post("/image/delete", response_model=ContainerSSHResponse)
 async def container_image_delete(request: Request, body: ContainerImageRequest):
     """Remove the image for a configured container (delete container image <name>)."""
     await require_write_permission(request, FeatureGroup.CONTAINER)
-    return await _run_container_ssh_command(request, "delete_image", body.container_name)
+    return await _run_container_gql_command(request, "delete_image", body.container_name)
 
 
 @router.post("/image/update", response_model=ContainerSSHResponse)
 async def container_image_update(request: Request, body: ContainerImageRequest):
     """Re-pull the latest image for a configured container (update container image <name>)."""
     await require_write_permission(request, FeatureGroup.CONTAINER)
-    return await _run_container_ssh_command(request, "update_image", body.container_name)
+    return await _run_container_gql_command(request, "update_image", body.container_name)
 
 
 @router.post("/restart", response_model=ContainerSSHResponse)
 async def container_restart(request: Request, body: ContainerImageRequest):
     """Restart a running container (restart container name <name>)."""
     await require_write_permission(request, FeatureGroup.CONTAINER)
-    return await _run_container_ssh_command(request, "restart", body.container_name)
+    return await _run_container_gql_command(request, "restart", body.container_name)
 
 
 # ============================================================================
