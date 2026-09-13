@@ -19,6 +19,7 @@ export interface VrrpGroupHealthCheck {
   interval?: string | null;
   ping?: string | null;
   script?: string | null;
+  timeout?: string | null;
 }
 
 export interface VrrpGroupTrack {
@@ -70,6 +71,7 @@ export interface VrrpGlobalParameters {
 export interface VrrpConfig {
   global_parameters: VrrpGlobalParameters;
   snmp: boolean;
+  snmp_trap: boolean;
   groups: VrrpGroup[];
   sync_groups: VrrpSyncGroup[];
 }
@@ -106,6 +108,8 @@ export interface HACapabilities {
     vrrp: { supported: boolean; description: string };
     virtual_server: { supported: boolean; description: string };
     vrrp_snmp: { supported: boolean; description: string };
+    vrrp_snmp_trap: { supported: boolean; description: string };
+    health_check_timeout: { supported: boolean; description: string };
   };
 }
 
@@ -175,6 +179,7 @@ function buildVrrpGroupOps(group: VrrpGroup): BatchOperation[] {
   if (group.health_check.interval) ops.push({ op: "set_vrrp_group_health_check_interval", value: group.health_check.interval });
   if (group.health_check.ping) ops.push({ op: "set_vrrp_group_health_check_ping", value: group.health_check.ping });
   if (group.health_check.script) ops.push({ op: "set_vrrp_group_health_check_script", value: group.health_check.script });
+  if (group.health_check.timeout) ops.push({ op: "set_vrrp_group_health_check_timeout", value: group.health_check.timeout });
 
   return ops;
 }
@@ -190,6 +195,7 @@ function buildSyncGroupOps(group: VrrpSyncGroup): BatchOperation[] {
   if (group.health_check.interval) ops.push({ op: "set_vrrp_sync_group_health_check_interval", value: group.health_check.interval });
   if (group.health_check.ping) ops.push({ op: "set_vrrp_sync_group_health_check_ping", value: group.health_check.ping });
   if (group.health_check.script) ops.push({ op: "set_vrrp_sync_group_health_check_script", value: group.health_check.script });
+  if (group.health_check.timeout) ops.push({ op: "set_vrrp_sync_group_health_check_timeout", value: group.health_check.timeout });
 
   return ops;
 }
@@ -311,6 +317,7 @@ class HighAvailabilityService {
     startup_delay?: string | null;
     version?: string | null;
     snmp?: boolean;
+    snmp_trap?: boolean;
     disabled?: boolean;
   }): Promise<VyOSResponse> {
     const ops: BatchOperation[] = [];
@@ -329,6 +336,10 @@ class HighAvailabilityService {
 
     if (settings.snmp !== undefined) {
       ops.push({ op: settings.snmp ? "set_vrrp_snmp" : "delete_vrrp_snmp" });
+    }
+
+    if (settings.snmp_trap !== undefined) {
+      ops.push({ op: settings.snmp_trap ? "set_vrrp_snmp_trap" : "delete_vrrp_snmp_trap" });
     }
 
     if (settings.disabled !== undefined) {

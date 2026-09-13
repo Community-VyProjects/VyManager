@@ -16,13 +16,14 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { AlertCircle, Loader2 } from "lucide-react";
-import type { VrrpSyncGroup, VrrpGroup } from "@/lib/api/high-availability";
+import type { VrrpSyncGroup, VrrpGroup, HACapabilities } from "@/lib/api/high-availability";
 
 interface SyncGroupModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   existingGroup?: VrrpSyncGroup | null;
   vrrpGroups: VrrpGroup[];
+  capabilities?: HACapabilities | null;
   onSubmit: (group: VrrpSyncGroup) => Promise<void>;
 }
 
@@ -33,6 +34,7 @@ interface FormState {
   hc_interval: string;
   hc_ping: string;
   hc_script: string;
+  hc_timeout: string;
 }
 
 const emptyForm = (): FormState => ({
@@ -42,6 +44,7 @@ const emptyForm = (): FormState => ({
   hc_interval: "",
   hc_ping: "",
   hc_script: "",
+  hc_timeout: "",
 });
 
 function groupToForm(g: VrrpSyncGroup): FormState {
@@ -52,6 +55,7 @@ function groupToForm(g: VrrpSyncGroup): FormState {
     hc_interval: g.health_check.interval ?? "",
     hc_ping: g.health_check.ping ?? "",
     hc_script: g.health_check.script ?? "",
+    hc_timeout: g.health_check.timeout ?? "",
   };
 }
 
@@ -60,9 +64,11 @@ export function SyncGroupModal({
   onOpenChange,
   existingGroup,
   vrrpGroups,
+  capabilities,
   onSubmit,
 }: SyncGroupModalProps) {
   const isEdit = !!existingGroup;
+  const timeoutSupported = capabilities?.features.health_check_timeout?.supported ?? false;
   const [form, setForm] = useState<FormState>(emptyForm());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -99,6 +105,7 @@ export function SyncGroupModal({
           interval: form.hc_interval.trim() || null,
           ping: form.hc_ping.trim() || null,
           script: form.hc_script.trim() || null,
+          timeout: timeoutSupported ? (form.hc_timeout.trim() || null) : null,
         },
         transition_script: existingGroup?.transition_script ?? {
           backup: null, fault: null, master: null, stop: null,
@@ -236,6 +243,18 @@ export function SyncGroupModal({
                     className="font-mono"
                   />
                 </div>
+                {timeoutSupported && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Script Timeout (s)</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      value={form.hc_timeout}
+                      onChange={(e) => setForm((p) => ({ ...p, hc_timeout: e.target.value }))}
+                      placeholder="5"
+                    />
+                  </div>
+                )}
               </div>
             </div>
           </div>

@@ -1,5 +1,5 @@
 import inspect
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 from typing import List, Optional, Any, Dict
 
@@ -52,20 +52,23 @@ async def batch_configure(http_request: Request, request: BatchRequest):
     service = get_session_vyos_service(http_request)
     batch = HighAvailabilityBatchBuilder(version=service.get_version())
 
-    for op in request.operations:
-        method = resolve_batch_method(batch, op.op)
+    try:
+        for op in request.operations:
+            method = resolve_batch_method(batch, op.op)
 
-        sig = inspect.signature(method)
-        params = [p for p in sig.parameters.keys() if p != "self"]
+            sig = inspect.signature(method)
+            params = [p for p in sig.parameters.keys() if p != "self"]
 
-        if len(params) == 0:
-            method()
-        elif len(params) == 1:
-            method(request.item_name)
-        elif len(params) == 2 and op.value is not None:
-            method(request.item_name, op.value)
-        elif len(params) == 2:
-            method(request.item_name)
+            if len(params) == 0:
+                method()
+            elif len(params) == 1:
+                method(request.item_name)
+            elif len(params) == 2 and op.value is not None:
+                method(request.item_name, op.value)
+            elif len(params) == 2:
+                method(request.item_name)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
     if batch.is_empty():
         return VyOSResponse(success=True)

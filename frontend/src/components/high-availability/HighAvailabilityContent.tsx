@@ -140,21 +140,24 @@ function DeleteDialog({
 // Global Settings Panel
 // ============================================================================
 
-function GlobalSettingsPanel({ config, onSaved }: { config: HAConfig; onSaved: () => void }) {
+function GlobalSettingsPanel({ config, capabilities, onSaved }: { config: HAConfig; capabilities: HACapabilities | null; onSaved: () => void }) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [startupDelay, setStartupDelay] = useState("");
   const [version, setVersion] = useState("");
   const [snmp, setSnmp] = useState(false);
+  const [snmpTrap, setSnmpTrap] = useState(false);
 
   const { canWrite } = usePermissions();
   const canEdit = canWrite(FeatureGroup.HIGH_AVAILABILITY);
+  const snmpTrapSupported = capabilities?.features.vrrp_snmp_trap?.supported ?? false;
 
   const openDialog = () => {
     setStartupDelay(config.vrrp.global_parameters.startup_delay ?? "");
     setVersion(config.vrrp.global_parameters.version ?? "");
     setSnmp(config.vrrp.snmp);
+    setSnmpTrap(config.vrrp.snmp_trap);
     setError(null);
     setDialogOpen(true);
   };
@@ -167,6 +170,9 @@ function GlobalSettingsPanel({ config, onSaved }: { config: HAConfig; onSaved: (
         startup_delay: startupDelay.trim() || null,
         version: version || null,
         snmp,
+        // Trap is a child of snmp; only send it when supported and snmp is on,
+        // otherwise clear it so it never lingers under a disabled parent.
+        ...(snmpTrapSupported ? { snmp_trap: snmp && snmpTrap } : {}),
       });
       onSaved();
       setDialogOpen(false);
@@ -213,6 +219,17 @@ function GlobalSettingsPanel({ config, onSaved }: { config: HAConfig; onSaved: (
                     }
                   </span>
                 </div>
+                {snmpTrapSupported && config.vrrp.snmp && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-muted-foreground">Traps</span>
+                    <span className="font-medium">
+                      {config.vrrp.snmp_trap
+                        ? <Badge variant="secondary" className="text-xs py-0">Enabled</Badge>
+                        : <span className="text-muted-foreground">Disabled</span>
+                      }
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -286,6 +303,25 @@ function GlobalSettingsPanel({ config, onSaved }: { config: HAConfig; onSaved: (
                 <p className="text-xs text-muted-foreground">Send VRRP state change traps via SNMP</p>
               </div>
             </div>
+
+            {snmpTrapSupported && (
+              <div className={cn("flex items-center gap-3 rounded-lg border p-3", !snmp && "opacity-50")}>
+                <Checkbox
+                  id="snmp-trap-dialog"
+                  checked={snmpTrap}
+                  disabled={!snmp}
+                  onCheckedChange={(v) => setSnmpTrap(v === true)}
+                />
+                <div>
+                  <label htmlFor="snmp-trap-dialog" className="text-sm font-medium cursor-pointer">
+                    SNMP Traps
+                  </label>
+                  <p className="text-xs text-muted-foreground">
+                    {snmp ? "Emit keepalived SNMP traps" : "Enable SNMP Notifications first"}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           <DialogFooter>
@@ -310,7 +346,7 @@ function GlobalSettingsPanel({ config, onSaved }: { config: HAConfig; onSaved: (
 export function HighAvailabilityContent() {
   const searchParams = useSearchParams();
   const [config, setConfig] = useState<HAConfig | null>(null);
-  const [, setCapabilities] = useState<HACapabilities | null>(null);
+  const [capabilities, setCapabilities] = useState<HACapabilities | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -572,7 +608,7 @@ export function HighAvailabilityContent() {
           {/* Global Settings */}
           {config && (
             <div className="mb-4">
-              <GlobalSettingsPanel config={config} onSaved={() => loadData(true)} />
+              <GlobalSettingsPanel config={config} capabilities={capabilities} onSaved={() => loadData(true)} />
             </div>
           )}
 
@@ -995,6 +1031,7 @@ export function HighAvailabilityContent() {
         open={vrrpGroupModal}
         onOpenChange={(o) => { setVrrpGroupModal(o); if (!o) setEditingVrrpGroup(null); }}
         existingGroup={editingVrrpGroup}
+        capabilities={capabilities}
         onSubmit={editingVrrpGroup ? handleUpdateVrrpGroup : handleCreateVrrpGroup}
       />
 
@@ -1003,6 +1040,7 @@ export function HighAvailabilityContent() {
         onOpenChange={(o) => { setSyncGroupModal(o); if (!o) setEditingSyncGroup(null); }}
         existingGroup={editingSyncGroup}
         vrrpGroups={config?.vrrp.groups ?? []}
+        capabilities={capabilities}
         onSubmit={editingSyncGroup ? handleUpdateSyncGroup : handleCreateSyncGroup}
       />
 

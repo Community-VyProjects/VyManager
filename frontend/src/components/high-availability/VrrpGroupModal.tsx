@@ -31,7 +31,7 @@ import { AlertCircle, ChevronDown, Loader2, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiClient } from "@/lib/api/client";
 import type { InterfaceName } from "@/lib/api/show";
-import type { VrrpGroup, VrrpGroupAddress } from "@/lib/api/high-availability";
+import type { VrrpGroup, VrrpGroupAddress, HACapabilities } from "@/lib/api/high-availability";
 
 // ============================================================================
 // Form State
@@ -66,6 +66,7 @@ interface FormState {
   hc_interval: string;
   hc_ping: string;
   hc_script: string;
+  hc_timeout: string;
 }
 
 const emptyForm = (): FormState => ({
@@ -88,6 +89,7 @@ const emptyForm = (): FormState => ({
   hc_interval: "",
   hc_ping: "",
   hc_script: "",
+  hc_timeout: "",
 });
 
 function groupToForm(g: VrrpGroup): FormState {
@@ -113,10 +115,11 @@ function groupToForm(g: VrrpGroup): FormState {
     hc_interval: g.health_check.interval ?? "",
     hc_ping: g.health_check.ping ?? "",
     hc_script: g.health_check.script ?? "",
+    hc_timeout: g.health_check.timeout ?? "",
   };
 }
 
-function formToGroup(f: FormState, originalGroup?: VrrpGroup): VrrpGroup {
+function formToGroup(f: FormState, timeoutSupported: boolean, originalGroup?: VrrpGroup): VrrpGroup {
   const validAddresses: VrrpGroupAddress[] = f.addresses
     .filter((a) => a.address.trim())
     .map((a) => ({ address: a.address.trim(), interface: a.interface.trim() || null }));
@@ -148,6 +151,7 @@ function formToGroup(f: FormState, originalGroup?: VrrpGroup): VrrpGroup {
       interval: f.hc_interval.trim() || null,
       ping: f.hc_ping.trim() || null,
       script: f.hc_script.trim() || null,
+      timeout: timeoutSupported ? (f.hc_timeout.trim() || null) : null,
     },
     transition_script: originalGroup?.transition_script ?? {
       backup: null, fault: null, master: null, stop: null,
@@ -217,6 +221,7 @@ interface VrrpGroupModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   existingGroup?: VrrpGroup | null;
+  capabilities?: HACapabilities | null;
   onSubmit: (group: VrrpGroup) => Promise<void>;
 }
 
@@ -224,9 +229,11 @@ export function VrrpGroupModal({
   open,
   onOpenChange,
   existingGroup,
+  capabilities,
   onSubmit,
 }: VrrpGroupModalProps) {
   const isEdit = !!existingGroup;
+  const timeoutSupported = capabilities?.features.health_check_timeout?.supported ?? false;
   const [form, setForm] = useState<FormState>(emptyForm());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -307,7 +314,7 @@ export function VrrpGroupModal({
 
     setLoading(true);
     try {
-      await onSubmit(formToGroup(form, existingGroup ?? undefined));
+      await onSubmit(formToGroup(form, timeoutSupported, existingGroup ?? undefined));
       onOpenChange(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Operation failed");
@@ -624,6 +631,18 @@ export function VrrpGroupModal({
                         className="font-mono"
                       />
                     </div>
+                    {timeoutSupported && (
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Script Timeout (s)</Label>
+                        <Input
+                          type="number"
+                          min={1}
+                          value={form.hc_timeout}
+                          onChange={(e) => set("hc_timeout")(e.target.value)}
+                          placeholder="5"
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
 
