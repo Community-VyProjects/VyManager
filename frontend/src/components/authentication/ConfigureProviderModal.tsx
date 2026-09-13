@@ -58,7 +58,7 @@ export function ConfigureProviderModal({
   const [success, setSuccess] = useState(false);
 
   const isEditing = !!existingConfig;
-  const isCustomOrSelfHosted = ["auth0", "okta", "keycloak", "authentik", "custom-oidc"].includes(
+  const isCustomOrSelfHosted = ["auth0", "okta", "keycloak", "authentik", "authelia", "custom-oidc"].includes(
     provider.providerId
   );
 
@@ -229,6 +229,8 @@ export function ConfigureProviderModal({
                     "Example: https://keycloak.example.com/realms/REALM/.well-known/openid-configuration"}
                   {provider.providerId === "authentik" &&
                     "Example: https://authentik.example.com/application/o/APP_SLUG/.well-known/openid-configuration"}
+                  {provider.providerId === "authelia" &&
+                    "Example: https://auth.example.com/.well-known/openid-configuration"}
                   {provider.providerId === "custom-oidc" &&
                     "The full URL to your provider's OpenID Connect discovery document"}
                 </p>
