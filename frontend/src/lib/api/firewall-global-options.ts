@@ -58,6 +58,7 @@ export interface FirewallGlobalOptionsConfig {
   state_policy_invalid: StatePolicy | null;
   state_policy_related: StatePolicy | null;
 
+  // VyOS 1.5+ features
   bridged_traffic: BridgedTraffic | null;
   timeouts: TimeoutSettings | null;
 }
@@ -359,7 +360,7 @@ class FirewallGlobalOptionsService {
   }
 
   /**
-   * Enable bridged traffic for IPv4
+   * Enable bridged traffic for IPv4 (VyOS 1.5+)
    */
   async setBridgedTrafficIPv4(enable: boolean): Promise<VyOSResponse> {
     return this.batchConfigure({
@@ -370,7 +371,7 @@ class FirewallGlobalOptionsService {
   }
 
   /**
-   * Enable bridged traffic for IPv6
+   * Enable bridged traffic for IPv6 (VyOS 1.5+)
    */
   async setBridgedTrafficIPv6(enable: boolean): Promise<VyOSResponse> {
     return this.batchConfigure({
@@ -381,7 +382,7 @@ class FirewallGlobalOptionsService {
   }
 
   /**
-   * Set TCP timeout for established connections
+   * Set TCP timeout for established connections (VyOS 1.5+)
    */
   async setTimeoutTcpEstablished(seconds: number): Promise<VyOSResponse> {
     return this.batchConfigure({

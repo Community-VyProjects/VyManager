@@ -112,7 +112,7 @@ export function CreateBridgeRuleModal({
   const [sourceMac, setSourceMac] = useState("");
   const [destinationMac, setDestinationMac] = useState("");
 
-  // Source/Destination IP - with negation
+  // Source/Destination IP (1.5+) - with negation
   const [sourceAddress, setSourceAddress] = useState("");
   const [sourceAddressNegate, setSourceAddressNegate] = useState(false);
   const [destinationAddress, setDestinationAddress] = useState("");
@@ -128,46 +128,46 @@ export function CreateBridgeRuleModal({
   const [inboundInterface, setInboundInterface] = useState("");
   const [outboundInterface, setOutboundInterface] = useState("");
 
-  // Protocol
+  // Protocol (1.5+)
   const [protocol, setProtocol] = useState("");
 
-  // Ethernet Type
+  // Ethernet Type (1.5+)
   const [ethernetType, setEthernetType] = useState("");
 
   // Jump target
   const [jumpTarget, setJumpTarget] = useState("");
 
-  // Queue
+  // Queue (1.5+)
   const [queue, setQueue] = useState("");
 
-  // ICMP
+  // ICMP (1.5+)
   const [icmpType, setIcmpType] = useState("");
   const [icmpCode, setIcmpCode] = useState("");
   const [icmpTypeName, setIcmpTypeName] = useState("");
 
-  // TCP
+  // TCP (1.5+)
   const [tcpFlagsSyn, setTcpFlagsSyn] = useState(false);
   const [tcpFlagsAck, setTcpFlagsAck] = useState(false);
   const [tcpFlagsFin, setTcpFlagsFin] = useState(false);
   const [tcpFlagsRst, setTcpFlagsRst] = useState(false);
 
-  // Rate limiting - split into number and unit
+  // Rate limiting (1.5+) - split into number and unit
   const [limitRateValue, setLimitRateValue] = useState("");
   const [limitRateUnit, setLimitRateUnit] = useState("minute");
   const [limitBurst, setLimitBurst] = useState("");
 
-  // Time-based - using proper time format
+  // Time-based (1.5+) - using proper time format
   const [timeStarttime, setTimeStarttime] = useState("");
   const [timeStoptime, setTimeStoptime] = useState("");
   const [selectedWeekdays, setSelectedWeekdays] = useState<string[]>([]);
 
-  // Connection status
+  // Connection status (1.5+)
   const [connStatusNew, setConnStatusNew] = useState(false);
   const [connStatusEstablished, setConnStatusEstablished] = useState(false);
   const [connStatusRelated, setConnStatusRelated] = useState(false);
   const [connStatusInvalid, setConnStatusInvalid] = useState(false);
 
-  // Packet modifications
+  // Packet modifications (1.5+)
   const [modifyDscp, setModifyDscp] = useState("");
   const [modifyMark, setModifyMark] = useState("");
   const [modifyVlanPriority, setModifyVlanPriority] = useState("");

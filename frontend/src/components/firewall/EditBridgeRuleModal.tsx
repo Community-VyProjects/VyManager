@@ -143,7 +143,7 @@ export function EditBridgeRuleModal({
   const [sourceMac, setSourceMac] = useState(rule.source_mac || "");
   const [destinationMac, setDestinationMac] = useState(rule.destination_mac || "");
 
-  // Source/Destination IP - with negation
+  // Source/Destination IP (1.5+) - with negation
   const [sourceAddress, setSourceAddress] = useState(parsedSourceAddr.address);
   const [sourceAddressNegate, setSourceAddressNegate] = useState(parsedSourceAddr.negate);
   const [destinationAddress, setDestinationAddress] = useState(parsedDestAddr.address);
@@ -159,46 +159,46 @@ export function EditBridgeRuleModal({
   const [inboundInterface, setInboundInterface] = useState(rule.inbound_interface || "");
   const [outboundInterface, setOutboundInterface] = useState(rule.outbound_interface || "");
 
-  // Protocol
+  // Protocol (1.5+)
   const [protocol, setProtocol] = useState(rule.protocol || "");
 
-  // Ethernet Type
+  // Ethernet Type (1.5+)
   const [ethernetType, setEthernetType] = useState(rule.ethernet_type || "");
 
   // Jump target
   const [jumpTarget, setJumpTarget] = useState(rule.jump_target || "");
 
-  // Queue
+  // Queue (1.5+)
   const [queue, setQueue] = useState(rule.queue || "");
 
-  // ICMP
+  // ICMP (1.5+)
   const [icmpType, setIcmpType] = useState(rule.icmp_type || "");
   const [icmpCode, setIcmpCode] = useState(rule.icmp_code || "");
   const [icmpTypeName, setIcmpTypeName] = useState(rule.icmp_type_name || "");
 
-  // TCP
+  // TCP (1.5+)
   const [tcpFlagsSyn, setTcpFlagsSyn] = useState(rule.tcp_flags?.includes("syn") || false);
   const [tcpFlagsAck, setTcpFlagsAck] = useState(rule.tcp_flags?.includes("ack") || false);
   const [tcpFlagsFin, setTcpFlagsFin] = useState(rule.tcp_flags?.includes("fin") || false);
   const [tcpFlagsRst, setTcpFlagsRst] = useState(rule.tcp_flags?.includes("rst") || false);
 
-  // Rate limiting - split into number and unit
+  // Rate limiting (1.5+) - split into number and unit
   const [limitRateValue, setLimitRateValue] = useState(parsedRate.value);
   const [limitRateUnit, setLimitRateUnit] = useState(parsedRate.unit);
   const [limitBurst, setLimitBurst] = useState(rule.limit_burst || "");
 
-  // Time-based - using proper time format
+  // Time-based (1.5+) - using proper time format
   const [timeStarttime, setTimeStarttime] = useState(parseTimeForInput(rule.time_starttime));
   const [timeStoptime, setTimeStoptime] = useState(parseTimeForInput(rule.time_stoptime));
   const [selectedWeekdays, setSelectedWeekdays] = useState<string[]>(parsedWeekdays);
 
-  // Connection status
+  // Connection status (1.5+)
   const [connStatusNew, setConnStatusNew] = useState(rule.connection_status_new || false);
   const [connStatusEstablished, setConnStatusEstablished] = useState(rule.connection_status_established || false);
   const [connStatusRelated, setConnStatusRelated] = useState(rule.connection_status_related || false);
   const [connStatusInvalid, setConnStatusInvalid] = useState(rule.connection_status_invalid || false);
 
-  // Packet modifications
+  // Packet modifications (1.5+)
   const [modifyDscp, setModifyDscp] = useState(rule.set_dscp || "");
   const [modifyMark, setModifyMark] = useState(rule.set_mark || "");
   const [modifyVlanPriority, setModifyVlanPriority] = useState(rule.set_vlan_priority || "");
