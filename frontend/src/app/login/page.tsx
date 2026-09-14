@@ -32,6 +32,10 @@ export default function LoginPage() {
           router.push("/onboarding");
           return;
         }
+        const applianceMode = data.appliance === true;
+        if (applianceMode) {
+          setFrom((prev) => (prev === "/sites" ? "/" : prev));
+        }
         console.log("[LoginPage] Onboarding complete - showing login");
       } catch (err) {
         console.error("[LoginPage] Failed to check onboarding status:", err);
@@ -49,7 +53,6 @@ export default function LoginPage() {
     try {
       const params = new URLSearchParams(window.location.search);
       const f = params.get("from");
-      // Default to /sites if no "from" parameter or if it's the login page
       if (f && f !== "/login" && f !== "/onboarding") {
         setFrom(f);
       }

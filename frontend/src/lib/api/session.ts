@@ -133,6 +133,7 @@ export interface InstanceUpdateRequest {
 
 export interface OnboardingStatus {
   needs_onboarding: boolean;
+  appliance?: boolean;
 }
 
 export interface AuthSessionInfo {
@@ -202,6 +203,10 @@ class SessionService {
     return apiClient.post<ApiResponse>("/session/connect", {
       instance_id: instanceId,
     });
+  }
+
+  async connectLocal(): Promise<ApiResponse> {
+    return apiClient.post<ApiResponse>("/session/connect-local");
   }
 
   /**

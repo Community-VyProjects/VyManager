@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, Power } from "lucide-react";
+import { useSessionStore } from "@/store/session-store";
 
 interface NoInstanceAlertProps {
   title?: string;
@@ -20,6 +21,7 @@ export function NoInstanceAlert({
   message = "You need to connect to a VyOS instance before accessing this page. Please select an instance from the Site Manager.",
 }: NoInstanceAlertProps) {
   const router = useRouter();
+  const appliance = useSessionStore((s) => s.appliance);
 
   return (
     <div className="flex items-center justify-center min-h-[400px] p-8">
@@ -39,10 +41,12 @@ export function NoInstanceAlert({
 
           {/* Message */}
           <p className="text-sm text-muted-foreground text-center mb-6">
-            {message}
+            {appliance
+              ? "This router is unreachable. Check the API and try again."
+              : message}
           </p>
 
-          {/* Action Button */}
+          {!appliance && (
           <Button
             onClick={() => router.push("/sites")}
             className="w-full"
@@ -51,6 +55,7 @@ export function NoInstanceAlert({
             <Power className="h-4 w-4 mr-2" />
             Connect to Instance
           </Button>
+          )}
         </div>
       </div>
     </div>

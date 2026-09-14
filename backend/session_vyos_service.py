@@ -7,6 +7,7 @@ Replaces the single-device pattern with dynamic multi-instance support.
 
 from fastapi import Request, HTTPException
 from vyos_service import VyOSService, VyOSDeviceConfig, VyOSDeviceRegistry
+import appliance_mode
 import logging
 
 logger = logging.getLogger(__name__)
@@ -44,8 +45,8 @@ def get_session_vyos_service(request: Request) -> VyOSService:
             status_code=400,
             detail={
                 "error": "No active instance",
-                "message": "You must connect to a VyOS instance first. Go to /sites and select an instance.",
-                "redirect": "/sites",
+                "message": "You must connect to a VyOS instance first.",
+                "redirect": appliance_mode.no_instance_redirect(),
             },
         )
 

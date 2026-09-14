@@ -8,20 +8,16 @@
 import { create } from "zustand";
 import { ActiveSession, sessionService } from "@/lib/api/session";
 import { ApiError } from "@/lib/types/api";
+import { isApplianceMode } from "@/lib/appliance";
 
 interface SessionState {
-  // Current active session (null if not connected)
   activeSession: ActiveSession | null;
-
-  // Loading state
   isLoading: boolean;
-
-  // Error state
   error: string | null;
-
-  // Actions
+  appliance: boolean;
   loadSession: () => Promise<void>;
   connectToInstance: (instanceId: string) => Promise<void>;
+  connectLocal: () => Promise<void>;
   disconnectFromInstance: () => Promise<void>;
   clearError: () => void;
 }
@@ -30,15 +26,29 @@ export const useSessionStore = create<SessionState>((set) => ({
   activeSession: null,
   isLoading: false,
   error: null,
+  appliance: false,
 
-  /**
-   * Load the current active session from the backend
-   */
   loadSession: async () => {
     set({ isLoading: true, error: null });
     try {
-      const session = await sessionService.getCurrentSession();
-      set({ activeSession: session, isLoading: false });
+      const status = await sessionService.getOnboardingStatus();
+      const appliance = isApplianceMode(status);
+      let session = await sessionService.getCurrentSession();
+      if (!session && appliance) {
+        try {
+          await sessionService.connectLocal();
+          session = await sessionService.getCurrentSession();
+        } catch (error) {
+          set({
+            activeSession: null,
+            isLoading: false,
+            error: (error as ApiError).message || "Failed to connect to this router",
+            appliance,
+          });
+          return;
+        }
+      }
+      set({ activeSession: session, isLoading: false, appliance, error: null });
     } catch (error) {
       set({
         error: (error as ApiError).message || "Failed to load session",
@@ -47,14 +57,10 @@ export const useSessionStore = create<SessionState>((set) => ({
     }
   },
 
-  /**
-   * Connect to a VyOS instance
-   */
   connectToInstance: async (instanceId: string) => {
     set({ isLoading: true, error: null });
     try {
       await sessionService.connect(instanceId);
-      // Reload session to get updated data
       const session = await sessionService.getCurrentSession();
       set({ activeSession: session, isLoading: false });
     } catch (error) {
@@ -62,13 +68,25 @@ export const useSessionStore = create<SessionState>((set) => ({
         error: (error as ApiError).message || "Failed to connect to instance",
         isLoading: false,
       });
-      throw error; // Re-throw so UI can handle it
+      throw error;
     }
   },
 
-  /**
-   * Disconnect from the current instance
-   */
+  connectLocal: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      await sessionService.connectLocal();
+      const session = await sessionService.getCurrentSession();
+      set({ activeSession: session, isLoading: false });
+    } catch (error) {
+      set({
+        error: (error as ApiError).message || "Failed to connect to this router",
+        isLoading: false,
+      });
+      throw error;
+    }
+  },
+
   disconnectFromInstance: async () => {
     set({ isLoading: true, error: null });
     try {
@@ -83,9 +101,6 @@ export const useSessionStore = create<SessionState>((set) => ({
     }
   },
 
-  /**
-   * Clear error state
-   */
   clearError: () => {
     set({ error: null });
   },

@@ -30,7 +30,7 @@ interface UseRequireInstanceOptions {
 export function useRequireInstance(options: UseRequireInstanceOptions = {}) {
   const { redirect = false } = options;
   const router = useRouter();
-  const { activeSession, loadSession, isLoading } = useSessionStore();
+  const { activeSession, loadSession, isLoading, appliance } = useSessionStore();
   const [hasChecked, setHasChecked] = useState(false);
 
   useEffect(() => {
@@ -39,7 +39,7 @@ export function useRequireInstance(options: UseRequireInstanceOptions = {}) {
       setHasChecked(true);
 
       // Redirect if no instance and redirect is enabled
-      if (redirect && !activeSession && !isLoading) {
+      if (redirect && !activeSession && !isLoading && !appliance) {
         router.push("/sites");
       }
     };
@@ -47,7 +47,7 @@ export function useRequireInstance(options: UseRequireInstanceOptions = {}) {
     if (!hasChecked) {
       checkSession();
     }
-  }, [activeSession, isLoading, loadSession, redirect, router, hasChecked]);
+  }, [activeSession, isLoading, loadSession, redirect, router, hasChecked, appliance]);
 
   return {
     hasInstance: !!activeSession,

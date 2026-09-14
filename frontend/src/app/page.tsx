@@ -126,7 +126,7 @@ export default function Home() {
   const router = useRouter();
   const [isChecking, setIsChecking] = useState(true);
   const { data: session, isPending } = useSession();
-  const { activeSession, loadSession } = useSessionStore();
+  const { activeSession, loadSession, appliance, error: sessionError } = useSessionStore();
   // null = not determined yet; true = no instance exists anywhere the user can see
   const [noInstances, setNoInstances] = useState<boolean | null>(null);
 
@@ -200,7 +200,13 @@ export default function Home() {
       await loadSession();
 
       const currentSession = useSessionStore.getState().activeSession;
+      const appliance = useSessionStore.getState().appliance;
       if (!currentSession) {
+        if (appliance) {
+          setNoInstances(false);
+          setIsChecking(false);
+          return;
+        }
         // Disconnected. Distinguish "no instance exists anywhere" (render the
         // zero-instance panel) from "instances exist but none is connected"
         // (send the user to the site manager to pick one).
@@ -264,6 +270,17 @@ export default function Home() {
       return (
         <AppLayout allowWithoutInstance>
           <ConnectFirstInstance />
+        </AppLayout>
+      );
+    }
+    if (appliance) {
+      return (
+        <AppLayout allowWithoutInstance>
+          <div className="flex min-h-[60vh] items-center justify-center p-8">
+            <p className="text-sm text-muted-foreground text-center max-w-md">
+              {sessionError || "This router is unreachable. Check the API and try again."}
+            </p>
+          </div>
         </AppLayout>
       );
     }

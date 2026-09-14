@@ -33,7 +33,7 @@ function isPublicRoute(pathname: string) {
 
 function AppLayoutInner({ children, allowWithoutInstance = false }: AppLayoutProps) {
   const router = useRouter();
-  const { activeSession, loadSession } = useSessionStore();
+  const { activeSession, loadSession, appliance } = useSessionStore();
   const [isChecking, setIsChecking] = useState(true);
   const { unifiedViewData, closeUnifiedView } = useUnifiedView();
   const bannerEvents = useBannerEvents();
@@ -53,12 +53,12 @@ function AppLayoutInner({ children, allowWithoutInstance = false }: AppLayoutPro
     checkSession();
   }, [loadSession]);
 
-  // Redirect to sites page if no active instance
+  // Redirect to sites if no active instance (VPS). Appliance stays put.
   useEffect(() => {
-    if (!isChecking && !activeSession && !allowWithoutInstance) {
+    if (!isChecking && !activeSession && !allowWithoutInstance && !appliance) {
       router.push("/sites");
     }
-  }, [isChecking, activeSession, allowWithoutInstance, router]);
+  }, [isChecking, activeSession, allowWithoutInstance, appliance, router]);
 
   // Show loading while checking session
   if (isChecking) {
@@ -72,8 +72,8 @@ function AppLayoutInner({ children, allowWithoutInstance = false }: AppLayoutPro
     );
   }
 
-  // Show nothing while redirecting (when no active session)
-  if (!activeSession && !allowWithoutInstance) {
+  // Show nothing while redirecting (when no active session on VPS)
+  if (!activeSession && !allowWithoutInstance && !appliance) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
