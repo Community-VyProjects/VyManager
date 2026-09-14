@@ -93,8 +93,124 @@ build_database_url() {
   printf "@%s:5432/vymanager" "$2"
 }
 
+iputil() {
+  python3 - "$@" <<'PY'
+import ipaddress
+import sys
+
+def parse(s):
+    return ipaddress.ip_address(s.split("%", 1)[0])
+
+def usable(s):
+    try:
+        a = parse(s)
+    except ValueError:
+        return False
+    return not (a.is_loopback or a.is_link_local or a.is_multicast or a.is_unspecified)
+
+def rank(s):
+    a = parse(s)
+    if a.version == 4:
+        if (
+            a in ipaddress.ip_network("10.0.0.0/8")
+            or a in ipaddress.ip_network("192.168.0.0/16")
+            or a in ipaddress.ip_network("172.16.0.0/12")
+        ):
+            return 0
+        if a in ipaddress.ip_network("100.64.0.0/10"):
+            return 2
+        return 3
+    if a.is_private:
+        return 1
+    return 3
+
+cmd = sys.argv[1]
+args = sys.argv[2:]
+if cmd == "usable":
+    sys.exit(0 if usable(args[0]) else 1)
+if cmd == "is-v6":
+    try:
+        sys.exit(0 if parse(args[0]).version == 6 else 1)
+    except ValueError:
+        sys.exit(1)
+if cmd == "url":
+    ip, port = args[0], args[1]
+    if parse(ip).version == 6:
+        print("http://[%s]:%s" % (ip, port))
+    else:
+        print("http://%s:%s" % (ip, port))
+    sys.exit(0)
+if cmd == "listen-fmt":
+    ip, port = args[0], args[1]
+    if parse(ip).version == 6:
+        print("[%s]:%s" % (ip, port))
+    else:
+        print("%s:%s" % (ip, port))
+    sys.exit(0)
+if cmd == "pick-default":
+    ssh = args[0] if args else ""
+    addrs = [a for a in args[1:] if usable(a)]
+    addrs = sorted(set(addrs), key=rank)
+    if addrs and rank(addrs[0]) <= 2:
+        print(addrs[0])
+        sys.exit(0)
+    if ssh and usable(ssh) and rank(ssh) <= 2:
+        print(ssh)
+        sys.exit(0)
+    if addrs:
+        print(addrs[0])
+        sys.exit(0)
+    if ssh and usable(ssh):
+        print(ssh)
+        sys.exit(0)
+    sys.exit(1)
+if cmd == "filter-prefix":
+    prefix = ipaddress.ip_network(args[0], strict=False)
+    for a in args[1:]:
+        if not a or not usable(a):
+            continue
+        if parse(a) in prefix:
+            continue
+        print(a)
+    sys.exit(0)
+if cmd == "prefix-free":
+    host = []
+    for s in args:
+        if not s:
+            continue
+        try:
+            host.append(parse(s))
+        except ValueError:
+            try:
+                host.append(ipaddress.ip_network(s, strict=False))
+            except ValueError:
+                continue
+    for n in range(255, 239, -1):
+        net = ipaddress.ip_network("172.31.%d.0/24" % n)
+        clash = False
+        for item in host:
+            if isinstance(item, ipaddress.IPv4Network) or isinstance(item, ipaddress.IPv6Network):
+                if item.overlaps(net):
+                    clash = True
+                    break
+            elif item in net:
+                clash = True
+                break
+        if not clash:
+            print(
+                "172.31.%d.0/24 172.31.%d.1 172.31.%d.2 172.31.%d.3 172.31.%d.4 "
+                "fd00:7e:31:%d::/64 fd00:7e:31:%d::1 fd00:7e:31:%d::3"
+                % (n, n, n, n, n, n, n, n)
+            )
+            sys.exit(0)
+    sys.exit(1)
+sys.stderr.write("unknown iputil command\n")
+sys.exit(2)
+PY
+}
+
 build_app_url() {
-  printf "http://%s:%s" "$1" "$2"
+  iputil url "$1" "$2"
 }
 
 quote_val() {
@@ -173,18 +289,15 @@ ssh_server_ip() {
   echo ""
 }
 
-list_host_ipv4() {
-  ip -4 -o addr show scope global 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | grep -v '^172\.31\.255\.' || true
+list_host_ips() {
+  {
+    ip -4 -o addr show scope global 2>/dev/null || true
+    ip -6 -o addr show scope global 2>/dev/null || true
+  } | awk '{print $4}' | cut -d/ -f1
 }
 
-default_ui_ip() {
-  local ssh_ip
-  ssh_ip="$(ssh_server_ip)"
-  if [ -n "$ssh_ip" ]; then
-    echo "$ssh_ip"
-    return
-  fi
-  list_host_ipv4 | head -n 1
+host_routes() {
+  ip -4 route show 2>/dev/null | awk '{print $1}' | grep '/' || true
 }
 
 https_port_now() {
@@ -270,6 +383,20 @@ if [ "${1:-}" = "--self-test" ]; then
   [ "$u" = "$want" ] || fail "database url mismatch"
   app="$(build_app_url 192.0.2.10 3000)"
   [ "$app" = "http://192.0.2.10:3000" ] || fail "app url mismatch"
+  app6="$(build_app_url 2001:db8::1 3000)"
+  [ "$app6" = "http://[2001:db8::1]:3000" ] || fail "ipv6 app url mismatch"
+  picked="$(iputil pick-default 203.0.113.9 203.0.113.1 192.168.1.10)"
+  [ "$picked" = "192.168.1.10" ] || fail "pick-default should prefer RFC1918 over public SSH"
+  picked="$(iputil pick-default 192.168.7.1 203.0.113.1)"
+  [ "$picked" = "192.168.7.1" ] || fail "pick-default should prefer private SSH over public list"
+  pref="$(iputil prefix-free 172.31.255.8)"
+  case "$pref" in
+    "172.31.255.0/24"*) fail "prefix-free should skip in-use 172.31.255.0/24" ;;
+  esac
+  case "$pref" in
+    172.31.*) ;;
+    *) fail "prefix-free output" ;;
+  esac
   case "$u" in
     *SecretPass1*) ;;
     *) fail "password missing from database url" ;;
@@ -318,18 +445,42 @@ case "$FAMILY" in
 esac
 
 HTTPS_PORT="$(https_port_now)"
-HOST_IPS="$(list_host_ipv4)"
+RAW_IPS="$(list_host_ips)"
+ROUTES="$(host_routes)"
+# shellcheck disable=SC2086
+PREFIX_LINE="$(iputil prefix-free $RAW_IPS $ROUTES)" || fail "No free 172.31.x.0/24 for the container network"
+set -f
+set -- $PREFIX_LINE
+set +f
+NET_PREFIX="$1"
+GW_ADDR="$2"
+PG_ADDR="$3"
+BE_ADDR="$4"
+FE_ADDR="$5"
+V6_PREFIX="$6"
+V6_GW="$7"
+V6_BE="$8"
+
+# shellcheck disable=SC2086
+HOST_IPS="$(iputil filter-prefix "$NET_PREFIX" $RAW_IPS)"
+SSH_IP="$(ssh_server_ip)"
+# shellcheck disable=SC2086
+UI_IP="$(iputil pick-default "${SSH_IP:-}" $HOST_IPS)" || UI_IP=""
 if [ -n "$HOST_IPS" ]; then
   info "IPs on this router:"
   echo "$HOST_IPS" | sed "s/^/    /"
 fi
-UI_IP="$(default_ui_ip)"
 if [ -n "$UI_IP" ]; then
   prompt UI_IP "IP for the web UI (bound on this address only)" "$UI_IP"
 else
   prompt UI_IP "IP for the web UI (bound on this address only)"
 fi
 [ -n "$UI_IP" ] || fail "UI IP is required"
+iputil usable "$UI_IP" || fail "Not a usable IP address"
+UI_IS_V6=0
+if iputil is-v6 "$UI_IP"; then
+  UI_IS_V6=1
+fi
 
 prompt UI_PORT "Web UI port" "3000"
 case "$UI_PORT" in
@@ -343,11 +494,7 @@ if [ "$UI_PORT" = "$HTTPS_PORT" ]; then
 fi
 
 APP_URL="$(build_app_url "$UI_IP" "$UI_PORT")"
-NET_PREFIX="$NET_PREFIX_DEFAULT"
-GW_ADDR="$GW_ADDR_DEFAULT"
-PG_ADDR="$PG_ADDR_DEFAULT"
-BE_ADDR="$BE_ADDR_DEFAULT"
-FE_ADDR="$FE_ADDR_DEFAULT"
+LISTEN_FMT="$(iputil listen-fmt "$UI_IP" "$UI_PORT")"
 
 PULL_VRF=""
 if check_ghcr; then
@@ -368,7 +515,7 @@ NET_VRF="${PULL_VRF:-}"
 
 echo
 info "Open ${APP_URL} after commit."
-info "The UI listens on ${UI_IP}:${UI_PORT} only."
+info "The UI listens on ${LISTEN_FMT} only."
 info "Postgres data stays on persistent disk under ${VOL_PG}."
 echo
 info "This installer does not write firewall, NAT, or zone-policy."
@@ -432,6 +579,10 @@ if [ "$STACK_EXISTS" -eq 0 ]; then
   else
     add_set "container network ${NET_NAME} prefix $(quote_val "$NET_PREFIX")"
     add_network_gateway_if_15 "$GW_ADDR"
+    if [ "$UI_IS_V6" -eq 1 ]; then
+      add_set "container network ${NET_NAME} prefix $(quote_val "$V6_PREFIX")"
+      add_network_gateway_if_15 "$V6_GW"
+    fi
     if [ -n "$NET_VRF" ]; then
       add_set "container network ${NET_NAME} vrf $(quote_val "$NET_VRF")"
     fi
@@ -449,6 +600,9 @@ if [ "$STACK_EXISTS" -eq 0 ]; then
   add_set "container name vymanager-backend image $(quote_val "$BACKEND_IMAGE")"
   add_set "container name vymanager-backend restart always"
   add_set "container name vymanager-backend network ${NET_NAME} address $(quote_val "$BE_ADDR")"
+  if [ "$UI_IS_V6" -eq 1 ]; then
+    add_set "container name vymanager-backend network ${NET_NAME} address $(quote_val "$V6_BE")"
+  fi
   add_set "container name vymanager-backend environment NODE_ENV value production"
   add_set "container name vymanager-backend environment VYMANAGER_MODE value appliance"
   add_set "container name vymanager-backend environment VYMANAGER_APPLIANCE_HOST value $(quote_val "$UI_IP")"

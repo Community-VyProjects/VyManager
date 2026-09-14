@@ -37,7 +37,7 @@ Run it as the `vyos` user (SSH or local console). It walks through SSH, the HTTP
 - Sets appliance env: `VYMANAGER_MODE=appliance`, generated database and auth secrets, `SSH_ENCRYPTION_KEY`, `TRUSTED_ORIGINS` from that URL, and `VYMANAGER_APPLIANCE_HOST` as the same IP so containers can reach the HTTPS API (not `127.0.0.1` inside a container netns).
 - Pulls `postgres:16-alpine` and the `ghcr.io/community-vyprojects/vymanager-*:beta` images. If the default routing table cannot reach ghcr.io, it asks for a VRF.
 
-It does **not** write firewall, NAT, or zone-policy. Topologies differ too much. After it prints the ports that must be reachable (SSH, HTTPS API, UI), you open those yourself.
+It does **not** write firewall, NAT, or zone-policy. Topologies differ too much. You still need the UI IP reachable from your browser.
 
 On failure it discards the configure session. Images that already pulled may stay.
 
@@ -51,6 +51,6 @@ SSH is the out-of-band path if a later firewall or `service https` edit cuts the
 
 ## After commit
 
-Open `http://<the-ip-you-picked>:3000` and create the first local admin. Registration closes after that. The backend seeds this router as the local instance and login auto-connects it.
+Open the printed URL (`http://<ip>:3000` or `http://[<ipv6>]:3000`) and create the first local admin. Registration closes after that. The backend seeds this router as the local instance and login auto-connects it.
 
 See [Environment variables](environment-variables) for the appliance keys. Multi-site Docker Compose remains the default; use [Docker Compose install](install-docker) on a Linux host.
