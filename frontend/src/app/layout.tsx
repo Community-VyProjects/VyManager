@@ -29,8 +29,12 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const publicWs = process.env.PUBLIC_WS_URL || process.env.NEXT_PUBLIC_WS_URL || "";
   return (
     <html lang="en">
+      <head>
+        {publicWs ? <meta name="vymanager-ws-base" content={publicWs} /> : null}
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >

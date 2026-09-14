@@ -636,6 +636,10 @@ if [ "$STACK_EXISTS" -eq 0 ]; then
   if [ "$NET_HAS_V6" -eq 1 ]; then
     add_set "container name vymanager-backend network ${NET_NAME} address $(quote_val "$V6_BE")"
   fi
+  add_set "container name vymanager-backend port api source 8000"
+  add_set "container name vymanager-backend port api destination 8000"
+  add_set "container name vymanager-backend port api protocol tcp"
+  add_set "container name vymanager-backend port api listen-address $(quote_val "$UI_IP")"
   add_set "container name vymanager-backend environment NODE_ENV value production"
   add_set "container name vymanager-backend environment VYMANAGER_MODE value appliance"
   add_set "container name vymanager-backend environment VYMANAGER_APPLIANCE_HOST value $(quote_val "$UI_IP")"
@@ -663,6 +667,9 @@ if [ "$STACK_EXISTS" -eq 0 ]; then
   add_set "container name vymanager-frontend environment BETTER_AUTH_URL value $(quote_val "$APP_URL")"
   add_set "container name vymanager-frontend environment NEXT_PUBLIC_APP_URL value $(quote_val "$APP_URL")"
   add_set "container name vymanager-frontend environment BACKEND_URL value $(quote_val "http://${BE_ADDR}:8000")"
+  WS_PUBLIC="$(iputil url "$UI_IP" 8000)"
+  WS_PUBLIC="ws${WS_PUBLIC#http}"
+  add_set "container name vymanager-frontend environment PUBLIC_WS_URL value $(quote_val "$WS_PUBLIC")"
   add_set "container name vymanager-frontend environment TRUSTED_ORIGINS value $(quote_val "$APP_URL")"
 fi
 

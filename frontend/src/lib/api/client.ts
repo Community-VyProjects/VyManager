@@ -19,6 +19,7 @@ function resolveBackendUrl(): string {
 
 import { ApiError } from "../types/api";
 import { recordApiError } from "../error-capture";
+import { websocketBaseUrl } from "../ws-base";
 
 export class ApiClient {
   private readonly _baseUrl?: string;
@@ -189,27 +190,20 @@ export const apiClient = new ApiClient();
  * Resolve the WebSocket base URL.
  *
  * Priority:
- *  1. NEXT_PUBLIC_WS_URL env var — explicit override, e.g. wss://api.example.com
- *  2. Dev server (port 3000) — connect directly to backend on :8000
- *  3. Anything else (production via reverse proxy) — use same origin so the
- *     request goes through the proxy on the standard port (no :8000 appended)
- *
- * For production behind a reverse proxy, configure the proxy to upgrade
- * WebSocket connections for paths /vyos/monitoring/ws/* and /vyos/console/ws/*
- * and forward them to the backend at port 8000.
+ *  1. NEXT_PUBLIC_WS_URL or runtime meta vymanager-ws-base
+ *  2. UI port 3000 (compose): backend :8000
+ *  3. Otherwise same origin (reverse proxy)
  */
 export function resolveWsBase(): string {
-  const proto = window.location.protocol === "https:" ? "wss" : "ws";
-
-  if (process.env.NEXT_PUBLIC_WS_URL) {
-    return process.env.NEXT_PUBLIC_WS_URL;
-  }
-
-  // Dev: Next.js runs on :3000, backend is on :8000
-  if (window.location.port === "3000") {
-    return `${proto}://${window.location.hostname}:8000`;
-  }
-
-  // Production / reverse proxy: same origin, proxy handles routing
-  return `${proto}://${window.location.host}`;
+  const explicit =
+    process.env.NEXT_PUBLIC_WS_URL ||
+    (typeof document !== "undefined"
+      ? document.querySelector('meta[name="vymanager-ws-base"]')?.getAttribute("content") || undefined
+      : undefined);
+  return websocketBaseUrl({
+    protocol: window.location.protocol,
+    hostname: window.location.hostname,
+    port: window.location.port,
+    explicit,
+  });
 }

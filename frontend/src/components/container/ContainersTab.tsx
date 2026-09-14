@@ -34,6 +34,7 @@ import {
 } from "@/lib/api/container";
 import { APP_CATALOG } from "@/lib/apps-catalog";
 import { isProtectedStackContainer } from "@/lib/appliance";
+import { isDisconnectError, thrownMessage } from "@/lib/api-error";
 import { useSessionStore } from "@/store/session-store";
 import { ContainerModal } from "./ContainerModal";
 import { ContainerFilesModal } from "./ContainerFilesModal";
@@ -116,7 +117,7 @@ export function ContainersTab({ config, capabilities, hasWritePermission, onRelo
       const result = await fn();
       setSsh({ open: true, title, loading: false, success: result.success, output: result.output, error: result.error });
     } catch (err: unknown) {
-      setSsh({ open: true, title, loading: false, success: false, error: err instanceof Error ? err.message : "Command failed" });
+      setSsh({ open: true, title, loading: false, success: false, error: thrownMessage(err) });
     }
   };
 
@@ -135,15 +136,23 @@ export function ContainersTab({ config, capabilities, hasWritePermission, onRelo
         if (pulled.output) outputs.push(`${c.name} pull: ${pulled.output}`);
       }
       for (const c of stackContainers) {
-        const restarted = await containerService.restartContainer(c.name);
-        if (!restarted.success) {
-          return {
-            success: false,
-            output: outputs.join("\n") || null,
-            error: restarted.error || `Restart failed for ${c.name}`,
-          };
+        try {
+          const restarted = await containerService.restartContainer(c.name);
+          if (!restarted.success) {
+            return {
+              success: false,
+              output: outputs.join("\n") || null,
+              error: restarted.error || `Restart failed for ${c.name}`,
+            };
+          }
+          if (restarted.output) outputs.push(`${c.name} restart: ${restarted.output}`);
+        } catch (err: unknown) {
+          if (isDisconnectError(err)) {
+            outputs.push(`${c.name} restart: connection dropped (expected while the UI restarts)`);
+            continue;
+          }
+          throw err;
         }
-        if (restarted.output) outputs.push(`${c.name} restart: ${restarted.output}`);
       }
       return {
         success: true,
