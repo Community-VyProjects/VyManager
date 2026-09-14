@@ -117,6 +117,7 @@ from routers import events as events_router
 from routers.events import start_poller, stop_poller
 import revocation_bus
 from schema_gate import wait_for_schema
+import appliance_mode
 
 # Global variables
 db_pool: Optional[asyncpg.Pool] = None
@@ -228,6 +229,13 @@ async def lifespan(app: FastAPI):
         print("  ✓ Database connection pool created")
         print("  ✓ Authentication middleware enabled")
         print("  ✓ Session middleware enabled")
+        if appliance_mode.is_appliance():
+            try:
+                async with db_pool.acquire() as conn:
+                    await appliance_mode.seed_appliance(conn)
+                print("  ✓ Appliance instance seeded")
+            except Exception as seed_err:
+                print(f"  ✗ Appliance seed failed: {seed_err}")
     except Exception as e:
         print(f"  ✗ Failed to create database connection pool: {e}")
         print("  ⚠ API will start but authentication will fail")
@@ -256,7 +264,10 @@ async def lifespan(app: FastAPI):
     print("✓ API Ready")
     print("=" * 60)
     print("\nVyOS instances are managed through the database.")
-    print("Users connect to instances via the web UI (/sites page).\n")
+    if appliance_mode.is_appliance():
+        print("Appliance mode: login auto-connects the seeded instance.\n")
+    else:
+        print("Users connect to instances via the web UI (/sites page).\n")
 
     # Yield control to the application
     yield

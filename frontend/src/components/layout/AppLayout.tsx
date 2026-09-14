@@ -7,6 +7,7 @@ import { UnsavedChangesBanner } from "../config/UnsavedChangesBanner";
 import { PowerActionBanner } from "../system/PowerActionBanner";
 import { Toaster } from "../ui/toaster";
 import { useSessionStore } from "@/store/session-store";
+import { shouldRedirectToSites } from "@/lib/appliance";
 import { Loader2 } from "lucide-react";
 import { UnifiedView } from "../ui/unified-view";
 import { useUnifiedView } from "@/contexts/UnifiedViewContext";
@@ -33,7 +34,7 @@ function isPublicRoute(pathname: string) {
 
 function AppLayoutInner({ children, allowWithoutInstance = false }: AppLayoutProps) {
   const router = useRouter();
-  const { activeSession, loadSession } = useSessionStore();
+  const { activeSession, loadSession, appliance } = useSessionStore();
   const [isChecking, setIsChecking] = useState(true);
   const { unifiedViewData, closeUnifiedView } = useUnifiedView();
   const bannerEvents = useBannerEvents();
@@ -53,12 +54,16 @@ function AppLayoutInner({ children, allowWithoutInstance = false }: AppLayoutPro
     checkSession();
   }, [loadSession]);
 
-  // Redirect to sites page if no active instance
+  // Redirect to sites if no active instance (VPS). Appliance stays put.
   useEffect(() => {
-    if (!isChecking && !activeSession && !allowWithoutInstance) {
+    if (
+      !isChecking &&
+      !allowWithoutInstance &&
+      shouldRedirectToSites(appliance, !!activeSession)
+    ) {
       router.push("/sites");
     }
-  }, [isChecking, activeSession, allowWithoutInstance, router]);
+  }, [isChecking, activeSession, allowWithoutInstance, appliance, router]);
 
   // Show loading while checking session
   if (isChecking) {
@@ -72,8 +77,8 @@ function AppLayoutInner({ children, allowWithoutInstance = false }: AppLayoutPro
     );
   }
 
-  // Show nothing while redirecting (when no active session)
-  if (!activeSession && !allowWithoutInstance) {
+  // Show nothing while redirecting (when no active session on VPS)
+  if (!activeSession && !allowWithoutInstance && shouldRedirectToSites(appliance, false)) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">

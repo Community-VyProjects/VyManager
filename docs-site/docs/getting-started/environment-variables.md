@@ -27,6 +27,13 @@ In the Docker Compose deployment, both the backend and frontend containers read 
 | `SESSION_CLEANUP_INTERVAL` | no | `5` | Minutes between runs of the background session cleanup task. |
 | `VYMANAGER_VERSION` | no | `dev` | Version string reported by the API and used by the update checker. Baked into the official images at build time; do not set it yourself. |
 | `VYMANAGER_ENV` | no | `dev` | Environment string reported by the version endpoint. The official images set it to `production`. |
+| `VYMANAGER_MODE` | no | unset | Set to `appliance` for on-box single-instance. Login auto-connects the seeded instance. Unset keeps multi-site. |
+| `VYMANAGER_APPLIANCE_HOST` | when appliance | none | Address the backend uses to reach the VyOS HTTPS API (not 127.0.0.1 inside a container netns). |
+| `VYMANAGER_APPLIANCE_API_KEY` | when appliance | none | VyOS API key for the seeded instance. |
+| `VYMANAGER_APPLIANCE_VERSION` | when appliance | none | `1.4` or `1.5`. |
+| `VYMANAGER_APPLIANCE_PORT` | no | `443` | VyOS API port. |
+| `VYMANAGER_APPLIANCE_PROTOCOL` | no | `https` | `http` or `https`. |
+| `VYMANAGER_APPLIANCE_VERIFY_SSL` | no | false | Verify the router TLS certificate. |
 | `GITHUB_BUG_REPORT_CLIENT_ID` | no | `Ov23lignyrCHrXxi5tg7` | GitHub OAuth app (device flow) used by the in-app bug reporter. The default is the public VyManager OAuth app; only forks need to change it. |
 | `GITHUB_BUG_REPORT_REPO` | no | `Community-VyProjects/VyManager` | Repository (`owner/repo`) that in-app bug reports are filed against. |
 | `GITHUB_BUG_REPORT_SCOPE` | no | `public_repo` | OAuth scope requested for bug reports. Use `repo` only if the target repository is private. |

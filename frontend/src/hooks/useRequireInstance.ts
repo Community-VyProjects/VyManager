@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSessionStore } from "@/store/session-store";
+import { shouldRedirectToSites } from "@/lib/appliance";
 
 interface UseRequireInstanceOptions {
   /**
@@ -37,9 +38,8 @@ export function useRequireInstance(options: UseRequireInstanceOptions = {}) {
     const checkSession = async () => {
       await loadSession();
       setHasChecked(true);
-
-      // Redirect if no instance and redirect is enabled
-      if (redirect && !activeSession && !isLoading) {
+      const { activeSession: session, appliance } = useSessionStore.getState();
+      if (redirect && shouldRedirectToSites(appliance, !!session)) {
         router.push("/sites");
       }
     };

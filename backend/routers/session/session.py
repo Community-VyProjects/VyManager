@@ -19,6 +19,7 @@ import os
 from vyos_service import VyOSService, VyOSDeviceConfig
 from session_vyos_service import clear_session_cache
 from session_cookie import get_session_cookie, verify_session_cookie
+import appliance_mode
 from backup_crypto import (
     encrypt_backup,
     decrypt_backup,
@@ -40,9 +41,11 @@ class OnboardingStatusResponse(BaseModel):
     """Response indicating if system needs onboarding.
 
     Public pre-auth endpoint: deliberately only the boolean — the exact
-    user count is unauthenticated info disclosure."""
+    user count is unauthenticated info disclosure. `appliance` is not
+    sensitive: it only tells the UI which post-login path to use."""
 
     needs_onboarding: bool
+    appliance: bool = False
 
 
 class SiteResponse(BaseModel):
@@ -197,6 +200,7 @@ async def get_onboarding_status(request: Request, conn: asyncpg.Connection = Dep
 
         return OnboardingStatusResponse(
             needs_onboarding=user_count == 0,
+            appliance=appliance_mode.is_appliance(),
         )
     except Exception as e:
         logger.exception("Unhandled error")
@@ -417,6 +421,31 @@ async def connect_to_instance(request: Request, body: ConnectRequest):
     except Exception as e:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post("/connect-local", response_model=ApiResponse)
+async def connect_local(request: Request):
+    """Connect to the seeded appliance instance. 404 when not in appliance mode."""
+    if not appliance_mode.is_appliance():
+        raise HTTPException(status_code=404, detail="Not an appliance deployment")
+    async with org_unit_of_work(request) as conn:
+        instance_id = await appliance_mode.local_instance_id(conn)
+    if not instance_id:
+        raise HTTPException(
+            status_code=503,
+            detail="Appliance instance is not seeded. Check VYMANAGER_APPLIANCE_* env.",
+        )
+    try:
+        return await connect_to_instance(
+            request, ConnectRequest(instance_id=instance_id)
+        )
+    except HTTPException as exc:
+        if exc.status_code == 404:
+            raise HTTPException(
+                status_code=503,
+                detail="Appliance instance is missing or you cannot access it.",
+            ) from exc
+        raise
 
 
 # ============================================================================

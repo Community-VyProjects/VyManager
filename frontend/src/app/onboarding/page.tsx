@@ -20,6 +20,7 @@ import { Loader2, AlertCircle, CheckCircle2, Building2, Server, User } from "luc
 import { signUp, signIn } from "@/lib/auth-client";
 import { sessionService } from "@/lib/api/session";
 import { ApiError } from "@/lib/types/api";
+import { postLoginPath } from "@/lib/appliance";
 import { BackupRestoreModal } from "@/components/session/BackupRestoreModal";
 
 export default function OnboardingPage() {
@@ -30,6 +31,7 @@ export default function OnboardingPage() {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCheckingAccess, setIsCheckingAccess] = useState(true);
+  const [appliance, setAppliance] = useState(false);
 
   // SECURITY: Check if onboarding is actually needed
   // Prevent access to onboarding page if users already exist
@@ -40,11 +42,11 @@ export default function OnboardingPage() {
         const data = await sessionService.getOnboardingStatus();
 
         if (!data.needs_onboarding) {
-          // Users already exist - onboarding is not allowed
           console.log("[OnboardingPage] Onboarding not needed - redirecting to login");
           router.push("/login");
           return;
         }
+        setAppliance(data.appliance === true);
 
         // Onboarding is allowed - show the form
         console.log("[OnboardingPage] Onboarding needed - showing form");
@@ -111,6 +113,10 @@ export default function OnboardingPage() {
     }
 
     // Just move to next step - don't create user yet
+    if (appliance) {
+      await completeOnboarding(false);
+      return;
+    }
     setStep(2);
   };
 
@@ -202,6 +208,7 @@ export default function OnboardingPage() {
       // The first user is created as ADMIN atomically (Better Auth
       // user.create.before hook), so there is no separate promotion step.
 
+      if (!appliance) {
       // Step 2: Create site
       console.log("[Onboarding] Step 2/3: Creating site...");
       const createdSite = await sessionService.createSite({
@@ -231,13 +238,17 @@ export default function OnboardingPage() {
       } else {
         console.log("[Onboarding] Instance step skipped - add a router later in Site Manager");
       }
-      console.log("[Onboarding] Setup complete! Redirecting to sites...");
+      }
 
-      // Note: Site ADMIN users (which the first user is) automatically have access
-      // to all instances without needing explicit instance-level role assignments
+      if (appliance) {
+        try {
+          await sessionService.connectLocal();
+        } catch {
+          // Connect 503 still lands on the dashboard.
+        }
+      }
 
-      // Setup complete! Redirect to sites page
-      router.push("/sites");
+      router.push(postLoginPath(appliance));
       router.refresh();
     } catch (err) {
       console.error("[Onboarding] Error:", err);
@@ -283,7 +294,7 @@ export default function OnboardingPage() {
         </CardHeader>
 
         <CardContent>
-          {/* Progress Indicator */}
+          {!appliance && (
           <div className="flex items-center justify-center mb-8">
             <div className="flex items-center gap-2">
               <div className={`flex items-center justify-center h-10 w-10 rounded-full ${step >= 1 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
@@ -299,6 +310,7 @@ export default function OnboardingPage() {
               </div>
             </div>
           </div>
+          )}
 
           {/* Error Display */}
           {error && (
@@ -376,6 +388,8 @@ export default function OnboardingPage() {
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     Creating Account...
                   </>
+                ) : appliance ? (
+                  "Finish"
                 ) : (
                   "Continue"
                 )}

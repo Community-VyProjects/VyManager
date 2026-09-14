@@ -30,7 +30,7 @@ export function Sidebar() {
   const [openItems, setOpenItems] = useState<string[]>([]);
   const [bugReportOpen, setBugReportOpen] = useState(false);
   const { data: session } = useSession();
-  const { activeSession, loadSession, disconnectFromInstance } = useSessionStore();
+  const { activeSession, loadSession, disconnectFromInstance, appliance } = useSessionStore();
   const { canRead } = usePermissions();
 
   // Load active session on mount
@@ -356,6 +356,7 @@ export function Sidebar() {
               className="h-2 w-2 rounded-full bg-primary animate-pulse glow-primary-subtle shrink-0"
               title="Connected"
             />
+            {!appliance && (
             <Button
               onClick={async () => {
                 await disconnectFromInstance();
@@ -368,8 +369,9 @@ export function Sidebar() {
             >
               <PowerOff className="h-3.5 w-3.5" />
             </Button>
+            )}
           </div>
-        ) : (
+        ) : appliance ? null : (
           <Button
             onClick={() => router.push("/sites")}
             variant="default"

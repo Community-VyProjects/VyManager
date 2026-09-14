@@ -8,6 +8,7 @@
 import { create } from "zustand";
 import { ActiveSession, sessionService } from "@/lib/api/session";
 import { ApiError } from "@/lib/types/api";
+import { isApplianceMode } from "@/lib/appliance";
 
 interface SessionState {
   // Current active session (null if not connected)
@@ -19,26 +20,67 @@ interface SessionState {
   // Error state
   error: string | null;
 
+  appliance: boolean;
+
   // Actions
   loadSession: () => Promise<void>;
   connectToInstance: (instanceId: string) => Promise<void>;
+  connectLocal: () => Promise<void>;
   disconnectFromInstance: () => Promise<void>;
   clearError: () => void;
+}
+
+function apiStatus(error: unknown): number | undefined {
+  return (error as ApiError).status;
 }
 
 export const useSessionStore = create<SessionState>((set) => ({
   activeSession: null,
   isLoading: false,
   error: null,
+  appliance: false,
 
   /**
-   * Load the current active session from the backend
+   * Load the current active session from the backend.
+   * Onboarding-status and current session are independent: a status failure
+   * must not skip VPS session load. Appliance auto-connect uses connect-local
+   * (404 means not appliance).
    */
   loadSession: async () => {
     set({ isLoading: true, error: null });
     try {
-      const session = await sessionService.getCurrentSession();
-      set({ activeSession: session, isLoading: false });
+      const [statusResult, sessionResult] = await Promise.allSettled([
+        sessionService.getOnboardingStatus(),
+        sessionService.getCurrentSession(),
+      ]);
+
+      let appliance =
+        statusResult.status === "fulfilled" && isApplianceMode(statusResult.value);
+      let session =
+        sessionResult.status === "fulfilled" ? sessionResult.value : null;
+
+      const statusFailed = statusResult.status === "rejected";
+      if (!session && (appliance || statusFailed)) {
+        try {
+          await sessionService.connectLocal();
+          session = await sessionService.getCurrentSession();
+          appliance = true;
+        } catch (error) {
+          if (apiStatus(error) === 404 && !appliance) {
+            appliance = false;
+          } else {
+            set({
+              activeSession: null,
+              isLoading: false,
+              error: (error as ApiError).message || "Failed to connect to this router",
+              appliance: true,
+            });
+            return;
+          }
+        }
+      }
+
+      set({ activeSession: session, isLoading: false, appliance, error: null });
     } catch (error) {
       set({
         error: (error as ApiError).message || "Failed to load session",
@@ -54,7 +96,6 @@ export const useSessionStore = create<SessionState>((set) => ({
     set({ isLoading: true, error: null });
     try {
       await sessionService.connect(instanceId);
-      // Reload session to get updated data
       const session = await sessionService.getCurrentSession();
       set({ activeSession: session, isLoading: false });
     } catch (error) {
@@ -62,7 +103,22 @@ export const useSessionStore = create<SessionState>((set) => ({
         error: (error as ApiError).message || "Failed to connect to instance",
         isLoading: false,
       });
-      throw error; // Re-throw so UI can handle it
+      throw error;
+    }
+  },
+
+  connectLocal: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      await sessionService.connectLocal();
+      const session = await sessionService.getCurrentSession();
+      set({ activeSession: session, isLoading: false, appliance: true });
+    } catch (error) {
+      set({
+        error: (error as ApiError).message || "Failed to connect to this router",
+        isLoading: false,
+      });
+      throw error;
     }
   },
 
