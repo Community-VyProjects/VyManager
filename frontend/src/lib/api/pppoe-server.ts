@@ -174,7 +174,6 @@ export interface PPPoESession {
   tx_packets: number | null;
   rx_pps: number | null;
   tx_pps: number | null;
-  vlan?: string | null;
   mtu?: number | null;
 }
 

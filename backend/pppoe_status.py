@@ -1,14 +1,16 @@
 """Parsing helpers for VyOS PPPoE server operational status.
 
-Active PPPoE sessions are read from the router GraphQL ``ShowSessionsAccelppp``
-operation, which returns structured per-session data including cumulative
-packet counters (``rx_pkts``/``tx_pkts``) for every session in a single call.
-Packets-per-second is derived from the counter deltas between polls by
-``PPPoEPpsTracker``.
+Active PPPoE sessions are read from one GraphQL POST that asks for
+``ShowSessionsAccelppp`` (structured per-session counters) and
+``ShowInterfaces`` (kernel MTU keyed by ``ifname``). Packets-per-second is
+derived from the counter deltas between polls by ``PPPoEPpsTracker``.
 
-If the structured operation is unavailable, the caller falls back to parsing
-the pipe-delimited ``show pppoe-server sessions`` table (``parse_pppoe_sessions``),
-which lists sessions but carries no packet counters, so PPS is left unknown.
+VyOS does not return a per-session VLAN on either operation.
+
+If the structured session operation is unavailable, the caller falls back to
+parsing the pipe-delimited ``show pppoe-server sessions`` table
+(``parse_pppoe_sessions``), which lists sessions but carries no packet
+counters, so PPS is left unknown.
 """
 
 import json
@@ -48,7 +50,6 @@ class PPPoESession(BaseModel):
     tx_packets: Optional[int] = None
     rx_pps: Optional[float] = None
     tx_pps: Optional[float] = None
-    vlan: Optional[str] = None
     mtu: Optional[int] = None
 
 
@@ -182,15 +183,6 @@ def _parse_int_like(value: Any) -> Optional[int]:
         return None
 
 
-def _first_present(entry: Dict[str, Any], *keys: str) -> Optional[Any]:
-    for key in keys:
-        value = entry.get(key)
-        if value is None or value == "":
-            continue
-        return value
-    return None
-
-
 def _format_uptime(seconds: Optional[str]) -> Optional[str]:
     """Format accel-ppp ``uptime-raw`` seconds as ``[Nd ]HH:MM:SS``."""
     total = _parse_counter(seconds)
@@ -205,7 +197,7 @@ def _format_uptime(seconds: Optional[str]) -> Optional[str]:
 
 
 def _accel_ppp_sessions_query(api_key: str, protocol: str = "pppoe") -> Dict[str, str]:
-    """Build the GraphQL body for ``ShowSessionsAccelppp``."""
+    """Build one GraphQL body: sessions plus kernel interface MTUs."""
     key = json.dumps(api_key)
     proto = json.dumps(protocol)
     query = (
@@ -213,6 +205,9 @@ def _accel_ppp_sessions_query(api_key: str, protocol: str = "pppoe") -> Dict[str
         + key
         + ", protocol: "
         + proto
+        + "}) { success errors data { result } } "
+        "ShowInterfaces(data: {key: "
+        + key
         + "}) { success errors data { result } } }"
     )
     return {"query": query}
@@ -242,12 +237,6 @@ def parse_accel_ppp_sessions(result: Any) -> List[PPPoESession]:
         if not ifname or not username:
             continue
 
-        vlan = _first_present(entry, "vlan", "vlan_id", "vlan-id", "vlanid")
-        mtu = _parse_int_like(_first_present(entry, "mtu", "mtu_value", "peer_mtu"))
-
-        if vlan is not None and isinstance(vlan, str) and vlan.strip().isdigit():
-            vlan = vlan.strip()
-
         sessions.append(PPPoESession(
             interface=str(ifname),
             username=str(username),
@@ -262,20 +251,50 @@ def parse_accel_ppp_sessions(result: Any) -> List[PPPoESession]:
             tx_bytes=_parse_counter(entry.get("tx_bytes_raw")) or 0,
             rx_packets=_parse_counter(entry.get("rx_pkts")),
             tx_packets=_parse_counter(entry.get("tx_pkts")),
-            vlan=str(vlan) if vlan is not None else None,
-            mtu=mtu,
         ))
     return sessions
 
 
+def parse_interface_mtus(result: Any) -> Dict[str, int]:
+    """Map ``ifname`` to kernel MTU from a ``ShowInterfaces`` result list."""
+    if isinstance(result, str):
+        try:
+            result = json.loads(result)
+        except ValueError:
+            return {}
+    if not isinstance(result, list):
+        return {}
+    mtus: Dict[str, int] = {}
+    for entry in result:
+        if not isinstance(entry, dict):
+            continue
+        ifname = entry.get("ifname")
+        mtu = _parse_int_like(entry.get("mtu"))
+        if not ifname or mtu is None:
+            continue
+        mtus[str(ifname)] = mtu
+    return mtus
+
+
+def apply_interface_mtus(sessions: List[PPPoESession], mtus: Dict[str, int]) -> List[PPPoESession]:
+    """Fill session MTU from kernel interfaces keyed by session ``ifname``."""
+    for session in sessions:
+        if session.mtu is not None:
+            continue
+        mtu = mtus.get(session.interface)
+        if mtu is not None:
+            session.mtu = mtu
+    return sessions
+
+
 async def fetch_accel_ppp_sessions(service, protocol: str = "pppoe") -> Optional[List[PPPoESession]]:
-    """Fetch active sessions via the ``ShowSessionsAccelppp`` GraphQL operation.
+    """Fetch sessions and kernel MTUs in one GraphQL POST.
 
     Returns the parsed session list (possibly empty) on success, or ``None`` when
-    the structured operation is unavailable so the caller can fall back to the
+    ``ShowSessionsAccelppp`` is unavailable so the caller can fall back to the
     text-table path. A ``success: false`` op-mode error (e.g. pppoe-server not
     configured) is treated as unavailable rather than an empty session set, so the
-    fallback decides the final answer.
+    fallback decides the final answer. ``ShowInterfaces`` failure leaves MTU unset.
     """
     api_key = str(service.config.apikey)
     url = f"{service.config.protocol}://{service.config.hostname}:{service.config.port}/graphql"
@@ -288,46 +307,21 @@ async def fetch_accel_ppp_sessions(service, protocol: str = "pppoe") -> Optional
             return None
         body = resp.json()
         if body.get("errors"):
-            logger.warning("ShowSessionsAccelppp field errors: %s", body["errors"])
-        node = (body.get("data") or {}).get("ShowSessionsAccelppp") or {}
+            logger.warning("PPPoE GraphQL field errors: %s", body["errors"])
+        data = body.get("data") or {}
+        node = data.get("ShowSessionsAccelppp") or {}
         if not node.get("success"):
             return None
         result = (node.get("data") or {}).get("result")
-        return parse_accel_ppp_sessions(result)
+        sessions = parse_accel_ppp_sessions(result)
+        iface_node = data.get("ShowInterfaces") or {}
+        if iface_node.get("success"):
+            mtus = parse_interface_mtus((iface_node.get("data") or {}).get("result"))
+            apply_interface_mtus(sessions, mtus)
+        return sessions
     except Exception:
         logger.exception("ShowSessionsAccelppp fetch failed")
         return None
-
-
-def _merge_text_metadata_into_sessions(
-    sessions: List[PPPoESession],
-    metadata_sessions: List[PPPoESession],
-) -> List[PPPoESession]:
-    """Overlay VLAN and MTU metadata from one text-table synopsis onto GraphQL rows.
-
-    This is deliberately O(n+m) in the number of observed sessions, but it uses
-    one router-originated snapshot instead of creating one extra session query
-    per session row. It is therefore suitable for the active session view.
-    """
-    if not sessions or not metadata_sessions:
-        return sessions
-
-    metadata_by_identity: Dict[str, PPPoESession] = {}
-    for item in metadata_sessions:
-        key = f"{item.interface}:{item.username}"
-        metadata_by_identity[key] = item
-
-    for session in sessions:
-        key = f"{session.interface}:{session.username}"
-        metadata = metadata_by_identity.get(key)
-        if not metadata:
-            continue
-        if session.vlan is None and metadata.vlan:
-            session.vlan = metadata.vlan
-        if session.mtu is None and metadata.mtu is not None:
-            session.mtu = metadata.mtu
-
-    return sessions
 
 
 def pppoe_configured(full_config) -> bool:
@@ -337,9 +331,7 @@ def pppoe_configured(full_config) -> bool:
 
 
 async def load_pppoe_sessions(service) -> List[PPPoESession]:
-    """Load sessions from the native accel-ppp GraphQL call and enrich them, if needed,
-    from the single ``show pppoe-server sessions`` text-table snapshot so VLAN and MTU
-    can be surfaced for the UI without a per-session command explosion.
+    """Load sessions from one GraphQL POST (sessions plus interface MTUs).
 
     Raises ``PPPoESessionsUnavailable`` when both the structured op and the
     text-table fallback fail. The REST endpoint maps that to HTTP 502.
@@ -363,21 +355,6 @@ async def load_pppoe_sessions(service) -> List[PPPoESession]:
             else response.result
         )
         sessions = parse_pppoe_sessions(output or "")
-    else:
-        try:
-            response = await run_in_threadpool(
-                service.device.show, path=["pppoe-server", "sessions"]
-            )
-            if response.status == 200:
-                output = (
-                    response.result.get("data", "")
-                    if isinstance(response.result, dict)
-                    else response.result
-                )
-                fallback_sessions = parse_pppoe_sessions(output or "")
-                sessions = _merge_text_metadata_into_sessions(sessions, fallback_sessions)
-        except Exception:
-            logger.warning("PPPoE sessions metadata snapshot enrich failed; continuing with GraphQL rows", exc_info=True)
 
     PPPOE_PPS_TRACKER.annotate_sessions(str(id(service.device)), sessions)
     return sessions
@@ -428,7 +405,6 @@ def parse_pppoe_sessions(output: str) -> List[PPPoESession]:
             tx_bytes=_parse_bytes(row.get("tx-bytes", "0")),
             rx_packets=_parse_counter(row.get("rx-packets") or row.get("rx-pkts")),
             tx_packets=_parse_counter(row.get("tx-packets") or row.get("tx-pkts")),
-            vlan=row.get("vlan") or row.get("vlan-id") or None,
             mtu=mtu,
         ))
     return sessions

@@ -1,8 +1,9 @@
 from pppoe_status import (
     PPPoEPpsTracker,
     PPPoESession,
-    _merge_text_metadata_into_sessions,
+    apply_interface_mtus,
     parse_accel_ppp_sessions,
+    parse_interface_mtus,
     parse_pppoe_sessions,
     pppoe_configured,
 )
@@ -130,42 +131,36 @@ def test_parse_accel_ppp_sessions_formats_dual_stack_and_long_uptime():
     assert s.uptime == "2d 03:04:05"
 
 
-def test_parse_accel_ppp_sessions_reads_optional_vlan_and_mtu_when_graphql_rows_include_them():
-    result = [
-        {
-            "ifname": "ppp0",
-            "username": "labuser",
-            "state": "active",
-            "vlan_id": "120",
-            "mtu": "1492",
-            "rx_pkts": "5",
-            "tx_pkts": "6",
-        }
-    ]
+def test_parse_interface_mtus_reads_ifname_and_mtu():
+    mtus = parse_interface_mtus(
+        [
+            {"ifname": "eth0", "mtu": 1500},
+            {"ifname": "ppp0", "mtu": "1492"},
+            {"ifname": "lo"},
+        ]
+    )
 
-    sessions = parse_accel_ppp_sessions(result)
+    assert mtus == {"eth0": 1500, "ppp0": 1492}
 
-    assert len(sessions) == 1
-    assert sessions[0].vlan == "120"
+
+def test_apply_interface_mtus_joins_on_session_ifname():
+    sessions = parse_accel_ppp_sessions(
+        [{"ifname": "ppp0", "username": "labuser", "state": "active", "rx_pkts": "5", "tx_pkts": "6"}]
+    )
+
+    apply_interface_mtus(sessions, {"eth0": 1500, "ppp0": 1492})
+
     assert sessions[0].mtu == 1492
 
 
-def test_merge_text_metadata_into_sessions_overlays_vlan_and_mtu_from_single_snapshot():
-    graphql = parse_accel_ppp_sessions([
-        {"ifname": "ppp0", "username": "labuser", "state": "active", "rx_pkts": "5", "tx_pkts": "6"}
-    ])
-    table = parse_pppoe_sessions(
-        """
-ifname | username | ip | vlan-id | mtu | state | rx-bytes | tx-bytes
-ppp0 | labuser | 192.0.2.10 | 120 | 1492 | active | 1 KiB | 2 KiB
-"""
-    )
+def test_accel_ppp_sessions_query_is_one_post_with_sessions_and_interfaces():
+    from pppoe_status import _accel_ppp_sessions_query
 
-    merged = _merge_text_metadata_into_sessions(graphql, table)
+    query = _accel_ppp_sessions_query("k")["query"]
 
-    assert len(merged) == 1
-    assert merged[0].vlan == "120"
-    assert merged[0].mtu == 1492
+    assert "ShowSessionsAccelppp" in query
+    assert "ShowInterfaces" in query
+    assert query.count("{") >= 2
 
 
 def test_parse_accel_ppp_sessions_accepts_json_encoded_string_result():
@@ -235,15 +230,14 @@ ppp0 | test-user | 192.0.2.10 | 2001:db8::10/64 | 2001:db8:1::/56 | 02:00:00:00:
     assert sessions[0].tx_bytes == 1_000_000
 
 
-def test_parse_optional_vlan_and_mtu_columns():
+def test_parse_optional_mtu_column():
     output = """
-ifname | username | ip | vlan-id | mtu | state | rx-bytes | tx-bytes
-ppp0 | test-user | 192.0.2.10 | 120 | 1492 | active | 1 KiB | 2 KiB
+ifname | username | ip | mtu | state | rx-bytes | tx-bytes
+ppp0 | test-user | 192.0.2.10 | 1492 | active | 1 KiB | 2 KiB
 """
 
     session = parse_pppoe_sessions(output)[0]
 
-    assert session.vlan == "120"
     assert session.mtu == 1492
 
 
@@ -324,5 +318,34 @@ def test_load_pppoe_sessions_raises_when_fallback_fails():
         with pytest.raises(PPPoESessionsUnavailable) as caught:
             asyncio.run(load_pppoe_sessions(service))
         assert "Unable to read PPPoE sessions" in str(caught.value.detail)
+    finally:
+        mod.fetch_accel_ppp_sessions = original
+
+
+def test_load_pppoe_sessions_skips_rest_show_when_graphql_succeeds():
+    import asyncio
+    from types import SimpleNamespace
+    from pppoe_status import load_pppoe_sessions
+
+    def boom_show(path):
+        raise AssertionError(f"REST show must not run after GraphQL: {path}")
+
+    service = SimpleNamespace(
+        config=SimpleNamespace(
+            apikey="k", protocol="https", hostname="127.0.0.1", port=1, verify=False
+        ),
+        device=SimpleNamespace(show=boom_show),
+    )
+    sessions = [PPPoESession(interface="ppp0", username="u", state="active", mtu=1492)]
+
+    async def fake_fetch(_service, protocol="pppoe"):
+        return sessions
+
+    import pppoe_status as mod
+    original = mod.fetch_accel_ppp_sessions
+    mod.fetch_accel_ppp_sessions = fake_fetch
+    try:
+        loaded = asyncio.run(load_pppoe_sessions(service))
+        assert loaded[0].mtu == 1492
     finally:
         mod.fetch_accel_ppp_sessions = original
