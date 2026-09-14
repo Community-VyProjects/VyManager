@@ -28,6 +28,7 @@ import {
   type BackupPreview,
   type RestoreSummary,
 } from "@/lib/api/session";
+import { useSessionStore } from "@/store/session-store";
 
 interface BackupRestoreModalProps {
   open: boolean;
@@ -46,6 +47,7 @@ export function BackupRestoreModal({
   onRestored,
   defaultTab = "backup",
 }: BackupRestoreModalProps) {
+  const appliance = useSessionStore((s) => s.appliance);
   const [tab, setTab] = useState<"backup" | "restore">(defaultTab);
 
   // Backup state
@@ -232,6 +234,13 @@ export function BackupRestoreModal({
               <RestoreResult summary={summary} />
             ) : (
               <>
+                {appliance && (
+                  <div className="rounded-lg bg-muted/50 border border-border p-3 text-sm text-muted-foreground">
+                    This device only restores a backup of this router. A backup
+                    with other sites or instances is refused for both merge and
+                    replace.
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label htmlFor="restore-file">Backup file</Label>
                   <Input

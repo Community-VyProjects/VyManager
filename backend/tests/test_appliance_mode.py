@@ -133,3 +133,46 @@ def test_stack_identity():
     assert am.is_stack_image_ref("ghcr.io/community-vyprojects/vymanager-backend:beta") is True
     assert am.is_stack_image_ref("vymanager-frontend:beta") is True
     assert am.is_stack_image_ref("postgres:16-alpine") is False
+
+
+def test_fleet_restore_error_vps_allows_multi_site(monkeypatch):
+    monkeypatch.delenv("VYMANAGER_MODE", raising=False)
+    tables = {
+        "sites": [{"id": "s1"}, {"id": "s2"}],
+        "instances": [{"id": "i1", "siteId": "s1"}, {"id": "i2", "siteId": "s2"}],
+    }
+    assert am.fleet_restore_error(tables) is None
+
+
+def test_fleet_restore_error_appliance_refuses_fleet(monkeypatch):
+    monkeypatch.setenv("VYMANAGER_MODE", "appliance")
+    fleet = {
+        "sites": [{"id": "s1"}, {"id": "s2"}],
+        "instances": [{"id": "i1", "siteId": "s1"}],
+    }
+    assert am.fleet_restore_error(fleet) == am.FLEET_RESTORE_DETAIL
+    wrong_ids = {
+        "sites": [{"id": "other_site"}],
+        "instances": [{"id": "other_instance", "siteId": "other_site"}],
+    }
+    assert am.fleet_restore_error(wrong_ids) == am.FLEET_RESTORE_DETAIL
+    extra_instance = {
+        "sites": [{"id": am.SITE_ID}],
+        "instances": [
+            {"id": am.INSTANCE_ID, "siteId": am.SITE_ID},
+            {"id": "extra", "siteId": am.SITE_ID},
+        ],
+    }
+    assert am.fleet_restore_error(extra_instance) == am.FLEET_RESTORE_DETAIL
+    empty = {"sites": [], "instances": []}
+    assert am.fleet_restore_error(empty) == am.FLEET_RESTORE_DETAIL
+
+
+def test_fleet_restore_error_appliance_allows_this_router(monkeypatch):
+    monkeypatch.setenv("VYMANAGER_MODE", "appliance")
+    tables = {
+        "sites": [{"id": am.SITE_ID, "name": "Local"}],
+        "instances": [{"id": am.INSTANCE_ID, "siteId": am.SITE_ID, "name": "This router"}],
+        "users": [{"id": "u1", "role": "ADMIN"}],
+    }
+    assert am.fleet_restore_error(tables) is None
