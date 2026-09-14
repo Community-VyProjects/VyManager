@@ -32,7 +32,7 @@ interface PPPoEStatsChartProps {
 type ChartMetric = "rate" | "pps" | "traffic" | "sessions";
 
 function formatValue(value: number, metric: ChartMetric): string {
-  if (metric === "sessions") return `${Math.round(value)} sessions`;
+  if (metric === "sessions") return `${Math.round(value)}`;
   if (metric === "pps") return `${Math.round(value)} pps`;
   if (metric === "traffic") {
     if (value >= 1024 ** 3) return `${(value / 1024 ** 3).toFixed(1)} GiB`;

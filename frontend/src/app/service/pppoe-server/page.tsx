@@ -645,7 +645,7 @@ function PPPoEPageInner() {
                               <TableCell>{formatRate(session.txRate)} <span className="text-xs text-muted-foreground">/ {formatPps(session.txPps)}</span></TableCell>
                               <TableCell className="text-right whitespace-nowrap">
                                 <span>{formatBytes(session.rx_bytes)} / {formatBytes(session.tx_bytes)}</span>
-                                {trafficRisk && <span className="ml-2 rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-700">Botnet risk</span>}
+                                {trafficRisk && <span className="ml-2 rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-700">Traffic skew</span>}
                               </TableCell>
                               <TableCell className="text-right whitespace-nowrap">
                                 <Button variant="ghost" size="icon" className="h-8 w-8" title={`Graph statistics for ${session.username}`} onClick={() => setSelectedStatsKey(sessionKey(session))}>
@@ -685,18 +685,6 @@ function PPPoEPageInner() {
                         })}
                       </TableBody>
                     </Table>
-                  )}
-                  {selectedStatsKey && statsHistory[selectedStatsKey] && (
-                    <Card className="mt-4 p-4">
-                      <div className="mb-3 flex items-center justify-between">
-                        <div>
-                          <h4 className="font-medium">Session traffic history</h4>
-                          <p className="text-xs text-muted-foreground">Select rate, PPS, or total traffic from the graph.</p>
-                        </div>
-                        <Button variant="ghost" size="sm" onClick={() => setSelectedStatsKey(null)}>Close</Button>
-                      </div>
-                      <PPPoEStatsChart points={statsHistory[selectedStatsKey]} />
-                    </Card>
                   )}
                   {filteredSessions.length > sessionPageSize && (
                     <div className="flex items-center justify-between border-t mt-3 pt-3">
@@ -1241,6 +1229,20 @@ function PPPoEPageInner() {
           </Tabs>
         </div>
       </div>
+
+      <Dialog open={!!selectedStatsKey && !!statsHistory[selectedStatsKey]} onOpenChange={(open) => { if (!open) setSelectedStatsKey(null); }}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Session traffic history</DialogTitle>
+            <DialogDescription>
+              Select rate, PPS, or total traffic from the graph.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedStatsKey && statsHistory[selectedStatsKey] && (
+            <PPPoEStatsChart points={statsHistory[selectedStatsKey]} />
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!connectionDialog} onOpenChange={(open) => { if (!open) setConnectionDialog(null); }}>
         <DialogContent className="max-w-4xl">
