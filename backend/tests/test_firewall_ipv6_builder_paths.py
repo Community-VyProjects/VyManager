@@ -227,6 +227,10 @@ COMMON_CASES = [
 ]
 
 V15_ONLY_CASES = [
+    ('delete_prerouting_raw_default_action', (), 'delete', ['firewall', 'ipv6', 'prerouting', 'raw', 'default-action']),
+    ('delete_prerouting_raw_default_jump_target', (), 'delete', ['firewall', 'ipv6', 'prerouting', 'raw', 'default-jump-target']),
+    ('delete_prerouting_raw_description', (), 'delete', ['firewall', 'ipv6', 'prerouting', 'raw', 'description']),
+    ('delete_prerouting_raw_rule', (10,), 'delete', ['firewall', 'ipv6', 'prerouting', 'raw', 'rule', '10']),
     ('delete_rule_destination_group_remote', ('forward', 10, False), 'delete', ['firewall', 'ipv6', 'forward', 'filter', 'rule', '10', 'destination', 'group', 'remote-group']),
     ('delete_rule_gre', ('forward', 10, False), 'delete', ['firewall', 'ipv6', 'forward', 'filter', 'rule', '10', 'gre']),
     ('delete_rule_gre_flags_checksum', ('forward', 10, False), 'delete', ['firewall', 'ipv6', 'forward', 'filter', 'rule', '10', 'gre', 'flags', 'checksum']),
@@ -250,6 +254,10 @@ V15_ONLY_CASES = [
     ('delete_rule_set_tcp_mss', ('forward', 10, False), 'delete', ['firewall', 'ipv6', 'forward', 'filter', 'rule', '10', 'set', 'tcp-mss']),
     ('delete_rule_set_ttl', ('forward', 10, False), 'delete', ['firewall', 'ipv6', 'forward', 'filter', 'rule', '10', 'set', 'hop-limit']),
     ('delete_rule_source_group_remote', ('forward', 10, False), 'delete', ['firewall', 'ipv6', 'forward', 'filter', 'rule', '10', 'source', 'group', 'remote-group']),
+    ('set_prerouting_raw_default_action', ('accept',), 'set', ['firewall', 'ipv6', 'prerouting', 'raw', 'default-action', 'accept']),
+    ('set_prerouting_raw_default_jump_target', ('2001:db8::1',), 'set', ['firewall', 'ipv6', 'prerouting', 'raw', 'default-jump-target', '2001:db8::1']),
+    ('set_prerouting_raw_description', ('d',), 'set', ['firewall', 'ipv6', 'prerouting', 'raw', 'description', 'd']),
+    ('set_prerouting_raw_rule', (10,), 'set', ['firewall', 'ipv6', 'prerouting', 'raw', 'rule', '10']),
     ('set_rule_destination_group_remote', ('forward', 10, 'G1', False), 'set', ['firewall', 'ipv6', 'forward', 'filter', 'rule', '10', 'destination', 'group', 'remote-group', 'G1']),
     ('set_rule_gre_flags_checksum', ('forward', 10, False), 'set', ['firewall', 'ipv6', 'forward', 'filter', 'rule', '10', 'gre', 'flags', 'checksum']),
     ('set_rule_gre_flags_checksum_unset', ('forward', 10, False), 'set', ['firewall', 'ipv6', 'forward', 'filter', 'rule', '10', 'gre', 'flags', 'checksum', 'unset']),

@@ -1562,7 +1562,7 @@ class FirewallFamilyBatchBuilder(BatchBuilder):
                     "description": "Jump to custom chains",
                 },
                 "prerouting_raw": {
-                    "supported": is_v15 and self.family == "ipv4",
+                    "supported": is_v15,
                     "description": "Prerouting raw chain",
                 },
                 "gre_matching": {
