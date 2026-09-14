@@ -16,6 +16,8 @@ For the standard Docker deployment you need:
 
 The interactive installer (`install.sh`) supports Ubuntu, Debian, Fedora, CentOS/RHEL/Rocky/Alma, Arch and openSUSE, and installs Docker for you if it is missing.
 
+To run the stack on the VyOS router itself, use [`install-vyos.sh`](install-vyos) on the router (download, read, `vbash`). That path does not use Docker Compose.
+
 For a manual (non-Docker) install you need:
 
 - Python 3.11 or newer (the official backend image uses `python:3.11-slim`)

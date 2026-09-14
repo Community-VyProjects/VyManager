@@ -13,6 +13,8 @@ This is the standard way to run VyManager. It uses the prebuilt images from GitH
 
 Enable the HTTP API on your VyOS routers first. See [Enabling the VyOS HTTP API](vyos-http-api).
 
+To run VyManager on the router (appliance mode), see [On-box VyOS install](install-vyos) instead of Compose.
+
 ## Option A: interactive installer
 
 The repository ships an installer script that installs Docker if needed, asks for your URL and ports, generates secrets, writes `/opt/vymanager/docker-compose.yml` and `/opt/vymanager/.env`, and starts the stack:
