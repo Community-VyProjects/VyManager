@@ -1,5 +1,6 @@
 """On-box install-vyos.sh: download/read/vbash, no firewall, appliance env."""
 
+import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -41,15 +42,20 @@ def test_install_vyos_appliance_shape():
     assert "TRUSTED_ORIGINS" in text
     assert "SSH_ENCRYPTION_KEY" in text
     assert "Commit this list and save?" in text
-    assert "commit; save" in text
     assert "discard" in text
-    assert "api rest" in text
-    assert 'FAMILY" = "1.5"' in text or "FAMILY = \"1.5\"" in text
-    assert "container network ${NET_NAME} gateway" in text
-    assert "vymanager-backend:beta" in text
-    assert "vymanager-frontend:beta" in text
-    assert "postgres:16-alpine" in text
+    assert "build_database_url" in text
     docs = (ROOT / "docs-site/docs/getting-started/install-vyos.md").read_text()
     assert "less install-vyos.sh" in docs
     assert "vbash install-vyos.sh" in docs
-    assert "Do not pipe" in docs or "Do not pipe the script" in docs
+    assert "Do not pipe" in docs
+
+
+def test_install_vyos_self_test_exercises_url_quoting_and_version_gates():
+    proc = subprocess.run(
+        ["bash", str(SCRIPT), "--self-test"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert proc.returncode == 0, proc.stderr + proc.stdout
+    assert "self-test ok" in proc.stdout

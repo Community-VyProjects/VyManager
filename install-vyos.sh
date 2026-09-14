@@ -88,12 +88,43 @@ rand_alnum() {
   python3 -c "import secrets,string; a=string.ascii_letters+string.digits; print(''.join(secrets.choice(a) for _ in range(${1:-32})))"
 }
 
+build_database_url() {
+  printf "postgresql://vymanager:%s@%s:5432/vymanager" "$1" "$2"
+}
+
 quote_val() {
+  case "$1" in
+    *"'"*|*"\`"*|*\\*|*$'\n'*|*'$'*|*';'*|*'|'*)
+      fail "Value contains a character that cannot be put in a set command"
+      ;;
+  esac
   printf "'%s'" "$1"
+}
+
+redact_set_line() {
+  printf "%s\n" "$1" | sed -E \
+    -e "s/(POSTGRES_PASSWORD value )'[^']*'/\1'<redacted>'/" \
+    -e "s/(DATABASE_URL value )'[^']*'/\1'<redacted>'/" \
+    -e "s/(BETTER_AUTH_SECRET value )'[^']*'/\1'<redacted>'/" \
+    -e "s/(SSH_ENCRYPTION_KEY value )'[^']*'/\1'<redacted>'/" \
+    -e "s/(VYMANAGER_APPLIANCE_API_KEY value )'[^']*'/\1'<redacted>'/" \
+    -e "s/( keys id ${KEY_ID} key )'[^']*'/\1'<redacted>'/"
 }
 
 add_set() {
   SET_CMDS+=("set $*")
+}
+
+add_https_rest_if_15() {
+  if [ "$FAMILY" = "1.5" ]; then
+    add_set "service https api rest"
+  fi
+}
+
+add_network_gateway_if_15() {
+  if [ "$FAMILY" = "1.5" ]; then
+    add_set "container network ${NET_NAME} gateway $(quote_val "$1")"
+  fi
 }
 
 cleanup_cmds() {
@@ -214,6 +245,38 @@ if [ "${1:-}" = "--apply" ]; then
   exit 0
 fi
 
+if [ "${1:-}" = "--self-test" ]; then
+  u="$(build_database_url SecretPass1 172.31.255.2)"
+  expected="postgresql://vymanager:SecretPass1@172.31.255.2:5432/vymanager"
+  [ "$u" = "$expected" ] || fail "database url mismatch"
+  q="$(quote_val ok-value)"
+  [ "$q" = "'ok-value'" ] || fail "quote_val wrapping"
+  if (quote_val "bad'value") >/dev/null 2>&1; then
+    fail "quote_val should reject quotes"
+  fi
+  line="set container name vymanager-backend environment DATABASE_URL value 'postgresql://vymanager:SecretPass1@172.31.255.2:5432/vymanager'"
+  red="$(redact_set_line "$line")"
+  case "$red" in
+    *SecretPass1*) fail "redact leaked password" ;;
+  esac
+  case "$red" in
+    *"<redacted>"*) ;;
+    *) fail "redact missing marker" ;;
+  esac
+  FAMILY=1.4
+  SET_CMDS=()
+  add_https_rest_if_15
+  add_network_gateway_if_15 172.31.255.1
+  [ "${#SET_CMDS[@]}" -eq 0 ] || fail "1.4 emitted a 1.5-only path"
+  FAMILY=1.5
+  SET_CMDS=()
+  add_https_rest_if_15
+  add_network_gateway_if_15 172.31.255.1
+  [ "${#SET_CMDS[@]}" -eq 2 ] || fail "1.5 missing rest or gateway"
+  echo "self-test ok"
+  exit 0
+fi
+
 require_vyos
 
 echo
@@ -308,12 +371,10 @@ else
   add_set "service https api graphql authentication type key"
 fi
 
-if [ "$FAMILY" = "1.5" ]; then
-  if exists_active service https api rest; then
-    info "HTTPS REST is already present."
-  else
-    add_set "service https api rest"
-  fi
+if [ "$FAMILY" = "1.5" ] && exists_active service https api rest; then
+  info "HTTPS REST is already present."
+else
+  add_https_rest_if_15
 fi
 
 API_KEY=""
@@ -339,16 +400,14 @@ fi
 DB_PASS="$(rand_alnum 32)"
 AUTH_SECRET="$(rand_hex 32)"
 SSH_KEY="$(rand_hex 32)"
-DB_URL="postgresql://vymanager:${DB_PASS}@${PG_ADDR}:5432/vymanager"
+DB_URL="$(build_database_url "$DB_PASS" "$PG_ADDR")"
 
 if [ "$STACK_EXISTS" -eq 0 ]; then
   if exists_active container network "$NET_NAME"; then
     info "Container network ${NET_NAME} already exists. Not changing prefix/VRF."
   else
     add_set "container network ${NET_NAME} prefix $(quote_val "$NET_PREFIX")"
-    if [ "$FAMILY" = "1.5" ]; then
-      add_set "container network ${NET_NAME} gateway $(quote_val "$GW_ADDR")"
-    fi
+    add_network_gateway_if_15 "$GW_ADDR"
     if [ -n "$NET_VRF" ]; then
       add_set "container network ${NET_NAME} vrf $(quote_val "$NET_VRF")"
     fi
@@ -404,7 +463,7 @@ if [ "${#SET_CMDS[@]}" -eq 0 ]; then
 fi
 i=0
 while [ "$i" -lt "${#SET_CMDS[@]}" ]; do
-  echo "  ${SET_CMDS[$i]}"
+  echo "  $(redact_set_line "${SET_CMDS[$i]}")"
   i=$((i + 1))
 done
 echo
