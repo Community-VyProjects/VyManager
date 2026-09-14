@@ -93,6 +93,10 @@ build_database_url() {
   printf "@%s:5432/vymanager" "$2"
 }
 
+build_app_url() {
+  printf "http://%s:%s" "$1" "$2"
+}
+
 quote_val() {
   case "$1" in
     *"'"*|*"\`"*|*\\*|*$'\n'*|*'$'*|*';'*|*'|'*)
@@ -167,6 +171,20 @@ ssh_server_ip() {
     fi
   fi
   echo ""
+}
+
+list_host_ipv4() {
+  ip -4 -o addr show scope global 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | grep -v '^172\.31\.255\.' || true
+}
+
+default_ui_ip() {
+  local ssh_ip
+  ssh_ip="$(ssh_server_ip)"
+  if [ -n "$ssh_ip" ]; then
+    echo "$ssh_ip"
+    return
+  fi
+  list_host_ipv4 | head -n 1
 }
 
 https_port_now() {
@@ -250,6 +268,8 @@ if [ "${1:-}" = "--self-test" ]; then
   u="$(build_database_url SecretPass1 172.31.255.2)"
   want="$(printf "postgresql://vymanager:%s" SecretPass1; printf "@%s:5432/vymanager" 172.31.255.2)"
   [ "$u" = "$want" ] || fail "database url mismatch"
+  app="$(build_app_url 192.0.2.10 3000)"
+  [ "$app" = "http://192.0.2.10:3000" ] || fail "app url mismatch"
   case "$u" in
     *SecretPass1*) ;;
     *) fail "password missing from database url" ;;
@@ -291,22 +311,27 @@ echo "  Firewall, NAT, and zone-policy are left untouched."
 echo
 
 FAMILY="$(detect_vyos_family)"
-prompt FAMILY "VyOS family for the seeded instance (1.4 or 1.5)" "$FAMILY"
+prompt FAMILY "VyOS family (1.4 or 1.5)" "$FAMILY"
 case "$FAMILY" in
   1.4|1.5) ;;
   *) fail "Family must be 1.4 or 1.5" ;;
 esac
 
-SSH_IP="$(ssh_server_ip)"
-if [ -z "$SSH_IP" ]; then
-  prompt SSH_IP "IPv4/IPv6 of the interface you SSH to (API listen-address if HTTPS is new)"
-else
-  prompt SSH_IP "Address containers use to reach this router's HTTPS API" "$SSH_IP"
-fi
-[ -n "$SSH_IP" ] || fail "API address is required"
-
 HTTPS_PORT="$(https_port_now)"
-prompt UI_PORT "UI port (must not be the VyOS API port ${HTTPS_PORT})" "3000"
+HOST_IPS="$(list_host_ipv4)"
+if [ -n "$HOST_IPS" ]; then
+  info "IPs on this router:"
+  echo "$HOST_IPS" | sed "s/^/    /"
+fi
+UI_IP="$(default_ui_ip)"
+if [ -n "$UI_IP" ]; then
+  prompt UI_IP "IP for the web UI (bound on this address only)" "$UI_IP"
+else
+  prompt UI_IP "IP for the web UI (bound on this address only)"
+fi
+[ -n "$UI_IP" ] || fail "UI IP is required"
+
+prompt UI_PORT "Web UI port" "3000"
 case "$UI_PORT" in
   ''|*[!0-9]*) fail "UI port must be an integer" ;;
 esac
@@ -317,15 +342,12 @@ if [ "$UI_PORT" = "$HTTPS_PORT" ]; then
   fail "UI port ${UI_PORT} is the VyOS API port. Pick another port."
 fi
 
-prompt APP_URL "URL you will type in the browser" "http://${SSH_IP}:${UI_PORT}"
-prompt NET_PREFIX "Container network prefix" "$NET_PREFIX_DEFAULT"
+APP_URL="$(build_app_url "$UI_IP" "$UI_PORT")"
+NET_PREFIX="$NET_PREFIX_DEFAULT"
 GW_ADDR="$GW_ADDR_DEFAULT"
-if [ "$FAMILY" = "1.5" ]; then
-  prompt GW_ADDR "Container network gateway" "$GW_ADDR_DEFAULT"
-fi
-prompt PG_ADDR "Postgres address on that network" "$PG_ADDR_DEFAULT"
-prompt BE_ADDR "Backend address on that network" "$BE_ADDR_DEFAULT"
-prompt FE_ADDR "Frontend address on that network" "$FE_ADDR_DEFAULT"
+PG_ADDR="$PG_ADDR_DEFAULT"
+BE_ADDR="$BE_ADDR_DEFAULT"
+FE_ADDR="$FE_ADDR_DEFAULT"
 
 PULL_VRF=""
 if check_ghcr; then
@@ -339,19 +361,16 @@ else
   else
     echo "    (none in config)"
   fi
-  prompt PULL_VRF "VRF name used to pull images and attach the container network"
+  prompt PULL_VRF "VRF to pull images (also used for the container network)"
   [ -n "$PULL_VRF" ] || fail "A VRF is required when the default table cannot reach ghcr.io"
 fi
-
-prompt NET_VRF "VRF for the container network (blank for default table)" "${PULL_VRF:-}"
+NET_VRF="${PULL_VRF:-}"
 
 echo
-info "About 1 GB RAM for postgres + backend + frontend."
+info "Open ${APP_URL} after commit."
+info "The UI listens on ${UI_IP}:${UI_PORT} only."
 info "Postgres data stays on persistent disk under ${VOL_PG}."
-info "Do not bind the UI to the VyOS API port (${HTTPS_PORT})."
 echo
-info "Ports that must be reachable from your browser/SSH client:"
-info "  SSH (existing), HTTPS API (${HTTPS_PORT}), UI (${UI_PORT})"
 info "This installer does not write firewall, NAT, or zone-policy."
 echo
 
@@ -366,7 +385,7 @@ fi
 if exists_active service https; then
   info "service https is already present. Not changing existing listen-address or port."
 else
-  add_set "service https listen-address $(quote_val "$SSH_IP")"
+  add_set "service https listen-address $(quote_val "$UI_IP")"
 fi
 
 if exists_active service https api graphql authentication type; then
@@ -432,7 +451,7 @@ if [ "$STACK_EXISTS" -eq 0 ]; then
   add_set "container name vymanager-backend network ${NET_NAME} address $(quote_val "$BE_ADDR")"
   add_set "container name vymanager-backend environment NODE_ENV value production"
   add_set "container name vymanager-backend environment VYMANAGER_MODE value appliance"
-  add_set "container name vymanager-backend environment VYMANAGER_APPLIANCE_HOST value $(quote_val "$SSH_IP")"
+  add_set "container name vymanager-backend environment VYMANAGER_APPLIANCE_HOST value $(quote_val "$UI_IP")"
   add_set "container name vymanager-backend environment VYMANAGER_APPLIANCE_API_KEY value $(quote_val "$API_KEY")"
   add_set "container name vymanager-backend environment VYMANAGER_APPLIANCE_VERSION value $(quote_val "$FAMILY")"
   add_set "container name vymanager-backend environment VYMANAGER_APPLIANCE_PORT value $(quote_val "$HTTPS_PORT")"
@@ -450,6 +469,7 @@ if [ "$STACK_EXISTS" -eq 0 ]; then
   add_set "container name vymanager-frontend port ui source $(quote_val "$UI_PORT")"
   add_set "container name vymanager-frontend port ui destination 3000"
   add_set "container name vymanager-frontend port ui protocol tcp"
+  add_set "container name vymanager-frontend port ui listen-address $(quote_val "$UI_IP")"
   add_set "container name vymanager-frontend environment NODE_ENV value production"
   add_set "container name vymanager-frontend environment DATABASE_URL value $(quote_val "$DB_URL")"
   add_set "container name vymanager-frontend environment BETTER_AUTH_SECRET value $(quote_val "$AUTH_SECRET")"

@@ -43,7 +43,9 @@ def test_install_vyos_appliance_shape():
     assert "SSH_ENCRYPTION_KEY" in text
     assert "Commit this list and save?" in text
     assert "discard" in text
-    assert "build_database_url" in text
+    assert "port ui listen-address" in text
+    assert "build_app_url" in text
+    assert "URL you will type in the browser" not in text
     docs = (ROOT / "docs-site/docs/getting-started/install-vyos.md").read_text()
     assert "less install-vyos.sh" in docs
     assert "vbash install-vyos.sh" in docs
