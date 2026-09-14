@@ -68,6 +68,55 @@ class PPPoESessionLabelDefinitionResponse(BaseModel):
     rules: Dict[str, Any] = Field(default_factory=dict)
 
 
+DEFAULT_PPPoE_SESSION_LABELS: List[Dict[str, Any]] = [
+    {
+        "code": "traffic-skew",
+        "name": "Traffic skew",
+        "description": "Flag a session when upload (RX) bytes exceed 10% of download (TX) bytes, as a generic traffic-skew indicator.",
+        "severity": "warning",
+        "priority": 10,
+        "enabled": True,
+        "rules": {
+            "type": "ratio",
+            "comparator": "rx_bytes / max(tx_bytes, 1) > 0.10",
+        },
+    },
+]
+
+
+async def _seed_default_pppoe_labels(conn) -> None:
+    """Seed the table with the shipped default registry if the DB is empty."""
+    row = await conn.fetchrow("SELECT COUNT(*) AS count FROM pppoe_session_label_definitions")
+    existing = int(row["count"] or 0) if row else 0
+    if existing > 0:
+        return
+
+    for label in DEFAULT_PPPoE_SESSION_LABELS:
+        await conn.execute(
+            """
+            INSERT INTO pppoe_session_label_definitions
+            (code, name, description, severity, priority, enabled, rules, "createdAt", "updatedAt")
+            VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, NOW(), NOW())
+            ON CONFLICT (code)
+            DO UPDATE SET
+                name = EXCLUDED.name,
+                description = EXCLUDED.description,
+                severity = EXCLUDED.severity,
+                priority = EXCLUDED.priority,
+                enabled = EXCLUDED.enabled,
+                rules = EXCLUDED.rules,
+                "updatedAt" = NOW()
+            """,
+            label["code"],
+            label["name"],
+            label.get("description"),
+            label.get("severity") or "info",
+            int(label.get("priority") or 10),
+            bool(label.get("enabled", True)),
+            json.dumps(label.get("rules") or {}),
+        )
+
+
 # ========================================================================
 # Endpoint 0: Session labels
 # ========================================================================
@@ -75,6 +124,9 @@ class PPPoESessionLabelDefinitionResponse(BaseModel):
 @router.get("/labels", response_model=List[PPPoESessionLabelDefinitionResponse])
 async def get_pppoe_session_labels(request: Request):
     """Return the Postgres-backed PPPoE session label registry.
+
+    The first read from an empty registry table seeds the shipped default
+    traffic-skew entry into database
     """
     await require_read_permission(request, FeatureGroup.PPPOE)
     try:
@@ -87,6 +139,16 @@ async def get_pppoe_session_labels(request: Request):
                 ORDER BY priority ASC, code ASC
                 """
             )
+            if not rows:
+                await _seed_default_pppoe_labels(conn)
+                rows = await conn.fetch(
+                    """
+                    SELECT code, name, description, severity, priority, enabled, rules
+                    FROM pppoe_session_label_definitions
+                    WHERE enabled = TRUE
+                    ORDER BY priority ASC, code ASC
+                    """
+                )
 
             labels = []
             for row in rows:

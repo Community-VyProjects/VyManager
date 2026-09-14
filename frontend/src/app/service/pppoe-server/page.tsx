@@ -1353,74 +1353,104 @@ function PPPoEPageInner() {
           setLabelError(null);
         }
       }}>
-        <DialogContent className="max-w-5xl">
-          <DialogHeader>
-            <DialogTitle>Session label registry</DialogTitle>
-            <DialogDescription>
-              Store the PPPoE label catalog in Postgres. Rules drive the session badge labels shown in the table.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            {labelError && <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{labelError}</div>}
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-muted-foreground">Definitions</span>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={addLabelDraft}><Plus className="h-4 w-4 mr-1" /> New</Button>
-                <Button variant="outline" size="sm" onClick={() => setShowLabelEditor(false)}>Cancel</Button>
-                <Button size="sm" onClick={() => void saveLabelEditor()} disabled={labelSaving}>
-                  {labelSaving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Save className="h-4 w-4 mr-1" />}
-                  {labelSaving ? "Saving..." : "Save registry"}
-                </Button>
+        <DialogContent className="max-w-6xl border-0 p-0">
+          <div className="rounded-xl border border-border/60 bg-background shadow-2xl">
+            <DialogHeader className="flex items-center justify-between border-b px-6 py-4">
+              <div className="space-y-1">
+                <DialogTitle className="text-2xl font-semibold tracking-tight">Session label registry</DialogTitle>
+                <DialogDescription className="text-sm text-muted-foreground">
+                  Store the PPPoE label catalog in Postgres. Rules drive the session badge labels shown in the table.
+                </DialogDescription>
               </div>
-            </div>
-            <div className="max-h-[55vh] space-y-3 overflow-auto rounded-md border bg-muted/20 p-3">
-              {labelDraft.length === 0 && (
-                <div className="text-sm text-muted-foreground">No labels defined.</div>
-              )}
-              {labelDraft.map((label, index) => (
-                <div key={`${label.code}-${index}`} className="grid grid-cols-12 gap-2 rounded-md border bg-background p-2">
-                  <div className="col-span-2">
-                    <label className="text-[11px] text-muted-foreground">Code</label>
-                    <Input value={label.code ?? ""} onChange={(event) => setLabelDraft((current) => current.map((item, i) => i === index ? { ...item, code: event.target.value } : item))} className="h-8 text-xs" />
-                  </div>
-                  <div className="col-span-2">
-                    <label className="text-[11px] text-muted-foreground">Name</label>
-                    <Input value={label.name ?? ""} onChange={(event) => setLabelDraft((current) => current.map((item, i) => i === index ? { ...item, name: event.target.value } : item))} className="h-8 text-xs" />
-                  </div>
-                  <div className="col-span-3">
-                    <label className="text-[11px] text-muted-foreground">Description</label>
-                    <Input value={label.description ?? ""} onChange={(event) => setLabelDraft((current) => current.map((item, i) => i === index ? { ...item, description: event.target.value } : item))} className="h-8 text-xs" />
-                  </div>
-                  <div className="col-span-1">
-                    <label className="text-[11px] text-muted-foreground">Priority</label>
-                    <Input value={label.priority ?? 10} type="number" onChange={(event) => setLabelDraft((current) => current.map((item, i) => i === index ? { ...item, priority: Number(event.target.value) } : item))} className="h-8 text-xs" />
-                  </div>
-                  <div className="col-span-1">
-                    <label className="text-[11px] text-muted-foreground">Severity</label>
-                    <select value={label.severity ?? "info"} onChange={(event) => setLabelDraft((current) => current.map((item, i) => i === index ? { ...item, severity: event.target.value } : item))} className="h-8 w-full rounded-md border bg-background px-2 text-xs">
-                      <option value="info">info</option>
-                      <option value="warning">warning</option>
-                      <option value="danger">danger</option>
-                    </select>
-                  </div>
-                  <div className="col-span-1">
-                    <label className="text-[11px] text-muted-foreground">Enabled</label>
-                    <select value={label.enabled === false ? "false" : "true"} onChange={(event) => setLabelDraft((current) => current.map((item, i) => i === index ? { ...item, enabled: event.target.value === "true" } : item))} className="h-8 w-full rounded-md border bg-background px-2 text-xs">
-                      <option value="true">Yes</option>
-                      <option value="false">No</option>
-                    </select>
-                  </div>
-                  <div className="col-span-1">
-                    <label className="text-[11px] text-muted-foreground">Rule</label>
-                    <select value={label.rules?.type ?? "ratio"} onChange={(event) => setLabelDraft((current) => current.map((item, i) => i === index ? { ...item, rules: { ...(item.rules ?? {}), type: event.target.value as "ratio" } } : item))} className="h-8 w-full rounded-md border bg-background px-2 text-xs">
-                      <option value="ratio">ratio</option>
-                    </select>
-                  </div>
-                  <div className="col-span-1 flex items-end">
-                    <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10" onClick={() => removeLabelDraft(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                  </div>
+              <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setShowLabelEditor(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </DialogHeader>
+
+            <div className="space-y-4 px-6 py-5">
+              {labelError && (
+                <div className="rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+                  {labelError}
                 </div>
-              ))}
+              )}
+
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                  <span>Definitions</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" className="h-9 px-4" onClick={addLabelDraft}>
+                    <Plus className="h-4 w-4 mr-2" /> New
+                  </Button>
+                  <Button variant="outline" size="sm" className="h-9 px-4" onClick={() => setShowLabelEditor(false)}>
+                    Cancel
+                  </Button>
+                  <Button size="sm" className="h-9 px-5" onClick={() => void saveLabelEditor()} disabled={labelSaving}>
+                    {labelSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+                    {labelSaving ? "Saving..." : "Save registry"}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="overflow-hidden rounded-lg border border-border/50 bg-muted/10">
+                <div className="grid grid-cols-[minmax(110px,0.9fr)_minmax(130px,1.2fr)_minmax(200px,2fr)_minmax(70px,0.7fr)_minmax(110px,1fr)_minmax(92px,0.8fr)_minmax(100px,0.8fr)_52px] gap-2 border-b bg-muted/30 px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  <span>Code</span>
+                  <span>Name</span>
+                  <span>Description</span>
+                  <span>Priority</span>
+                  <span>Severity</span>
+                  <span>Enabled</span>
+                  <span>Rule</span>
+                  <span className="text-right">Actions</span>
+                </div>
+
+                {labelDraft.length === 0 ? (
+                  <div className="px-4 py-8 text-sm text-muted-foreground">No labels defined.</div>
+                ) : (
+                  <div className="max-h-[55vh] overflow-auto">
+                    {labelDraft.map((label, index) => (
+                      <div key={`${label.code}-${index}`} className="grid grid-cols-[minmax(110px,0.9fr)_minmax(130px,1.2fr)_minmax(200px,2fr)_minmax(70px,0.7fr)_minmax(110px,1fr)_minmax(92px,0.8fr)_minmax(100px,0.8fr)_52px] gap-2 border-b border-border/30 px-4 py-3 last:border-b-0 hover:bg-muted/20">
+                        <div className="min-w-0">
+                          <Input value={label.code ?? ""} onChange={(event) => setLabelDraft((current) => current.map((item, i) => i === index ? { ...item, code: event.target.value } : item))} className="h-9 text-sm font-medium" />
+                        </div>
+                        <div className="min-w-0">
+                          <Input value={label.name ?? ""} onChange={(event) => setLabelDraft((current) => current.map((item, i) => i === index ? { ...item, name: event.target.value } : item))} className="h-9 text-sm" />
+                        </div>
+                        <div className="min-w-0">
+                          <Input value={label.description ?? ""} onChange={(event) => setLabelDraft((current) => current.map((item, i) => i === index ? { ...item, description: event.target.value } : item))} className="h-9 text-sm" />
+                        </div>
+                        <div className="min-w-0">
+                          <Input value={label.priority ?? 10} type="number" onChange={(event) => setLabelDraft((current) => current.map((item, i) => i === index ? { ...item, priority: Number(event.target.value) } : item))} className="h-9 text-sm" />
+                        </div>
+                        <div className="min-w-0">
+                          <select value={label.severity ?? "info"} onChange={(event) => setLabelDraft((current) => current.map((item, i) => i === index ? { ...item, severity: event.target.value } : item))} className="h-9 w-full rounded-md border bg-background px-2 text-sm">
+                            <option value="info">info</option>
+                            <option value="warning">warning</option>
+                            <option value="danger">danger</option>
+                          </select>
+                        </div>
+                        <div className="min-w-0">
+                          <select value={label.enabled === false ? "false" : "true"} onChange={(event) => setLabelDraft((current) => current.map((item, i) => i === index ? { ...item, enabled: event.target.value === "true" } : item))} className="h-9 w-full rounded-md border bg-background px-2 text-sm">
+                            <option value="true">Yes</option>
+                            <option value="false">No</option>
+                          </select>
+                        </div>
+                        <div className="min-w-0">
+                          <select value={label.rules?.type ?? "ratio"} onChange={(event) => setLabelDraft((current) => current.map((item, i) => i === index ? { ...item, rules: { ...(item.rules ?? {}), type: event.target.value as "ratio" } } : item))} className="h-9 w-full rounded-md border bg-background px-2 text-sm">
+                            <option value="ratio">ratio</option>
+                          </select>
+                        </div>
+                        <div className="flex items-center justify-end">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10" onClick={() => removeLabelDraft(index)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </DialogContent>

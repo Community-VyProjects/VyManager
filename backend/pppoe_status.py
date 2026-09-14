@@ -166,6 +166,31 @@ def _parse_counter(value: Optional[str]) -> Optional[int]:
         return None
 
 
+def _parse_int_like(value: Any) -> Optional[int]:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    text = str(value).strip().replace(",", "")
+    if not text:
+        return None
+    try:
+        return int(text)
+    except ValueError:
+        return None
+
+
+def _first_present(entry: Dict[str, Any], *keys: str) -> Optional[Any]:
+    for key in keys:
+        value = entry.get(key)
+        if value is None or value == "":
+            continue
+        return value
+    return None
+
+
 def _format_uptime(seconds: Optional[str]) -> Optional[str]:
     """Format accel-ppp ``uptime-raw`` seconds as ``[Nd ]HH:MM:SS``."""
     total = _parse_counter(seconds)
@@ -216,6 +241,10 @@ def parse_accel_ppp_sessions(result: Any) -> List[PPPoESession]:
         username = entry.get("username")
         if not ifname or not username:
             continue
+
+        vlan = _first_present(entry, "vlan", "vlan_id", "vlan-id", "vlanid")
+        mtu = _parse_int_like(_first_present(entry, "mtu", "mtu_value", "peer_mtu"))
+
         sessions.append(PPPoESession(
             interface=str(ifname),
             username=str(username),
@@ -230,6 +259,8 @@ def parse_accel_ppp_sessions(result: Any) -> List[PPPoESession]:
             tx_bytes=_parse_counter(entry.get("tx_bytes_raw")) or 0,
             rx_packets=_parse_counter(entry.get("rx_pkts")),
             tx_packets=_parse_counter(entry.get("tx_pkts")),
+            vlan=str(vlan) if vlan is not None else None,
+            mtu=mtu,
         ))
     return sessions
 
