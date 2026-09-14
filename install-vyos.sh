@@ -465,7 +465,7 @@ HTTPS_PORT="$(https_port_now)"
 RAW_IPS="$(list_host_ips)"
 ROUTES="$(host_routes)"
 if exists_active container network "$NET_NAME"; then
-  EXIST_P4="$(/bin/cli-shell-api returnActiveValues container network "$NET_NAME" prefix 2>/dev/null | tr -d "'" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/' | head -n 1 || true)"
+  EXIST_P4="$(/bin/cli-shell-api returnActiveValues container network "$NET_NAME" prefix 2>/dev/null | tr -d "'" | tr -s '[:space:]' '\n' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/' | head -n 1 || true)"
   [ -n "$EXIST_P4" ] || fail "container network vymanager has no IPv4 prefix"
   PREFIX_LINE="$(iputil from-v4-prefix "$EXIST_P4")" || fail "Could not reuse container network prefix ${EXIST_P4}"
 else
