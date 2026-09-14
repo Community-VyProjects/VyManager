@@ -76,6 +76,19 @@ export const ISIS_SCHEMA: SectionSpec[] = [
       { op: "vrf_isis_segment_routing_srv6_locator", label: "SRv6 locator", type: "text", path: ["segment-routing", "srv6", "locator"], capability: "isis_fast_reroute" },
     ],
   },
+  {
+    title: "Fast Reroute LFA",
+    fields: [
+      { op: "vrf_isis_fr_lfa_local_load_sharing_disable_level", args: ["level-1"], label: "Load-sharing disable L1", type: "toggle", path: ["fast-reroute", "lfa", "local", "load-sharing", "disable", "level-1"] },
+      { op: "vrf_isis_fr_lfa_local_load_sharing_disable_level", args: ["level-2"], label: "Load-sharing disable L2", type: "toggle", path: ["fast-reroute", "lfa", "local", "load-sharing", "disable", "level-2"] },
+      { op: "vrf_isis_fr_lfa_local_priority_limit_level", args: ["critical", "level-1"], label: "Priority-limit critical L1", type: "toggle", path: ["fast-reroute", "lfa", "local", "priority-limit", "critical", "level-1"] },
+      { op: "vrf_isis_fr_lfa_local_priority_limit_level", args: ["critical", "level-2"], label: "Priority-limit critical L2", type: "toggle", path: ["fast-reroute", "lfa", "local", "priority-limit", "critical", "level-2"] },
+      { op: "vrf_isis_fr_lfa_local_priority_limit_level", args: ["high", "level-1"], label: "Priority-limit high L1", type: "toggle", path: ["fast-reroute", "lfa", "local", "priority-limit", "high", "level-1"] },
+      { op: "vrf_isis_fr_lfa_local_priority_limit_level", args: ["high", "level-2"], label: "Priority-limit high L2", type: "toggle", path: ["fast-reroute", "lfa", "local", "priority-limit", "high", "level-2"] },
+      { op: "vrf_isis_fr_lfa_local_priority_limit_level", args: ["medium", "level-1"], label: "Priority-limit medium L1", type: "toggle", path: ["fast-reroute", "lfa", "local", "priority-limit", "medium", "level-1"] },
+      { op: "vrf_isis_fr_lfa_local_priority_limit_level", args: ["medium", "level-2"], label: "Priority-limit medium L2", type: "toggle", path: ["fast-reroute", "lfa", "local", "priority-limit", "medium", "level-2"] },
+    ],
+  },
 ];
 
 export const OSPF_SCHEMA: SectionSpec[] = [

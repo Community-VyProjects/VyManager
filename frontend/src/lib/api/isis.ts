@@ -102,6 +102,7 @@ export interface IsisRedistributeEntry {
   level: string;
   metric: number | null;
   route_map: string | null;
+  family?: "ipv4" | "ipv6";
 }
 
 export interface IsisDefaultInfoEntry {
@@ -109,6 +110,7 @@ export interface IsisDefaultInfoEntry {
   always: boolean;
   metric: number | null;
   route_map: string | null;
+  family?: "ipv4" | "ipv6";
 }
 
 export interface IsisSrPrefix {
@@ -137,9 +139,28 @@ export interface IsisTrafficEngineering {
   export: boolean;
 }
 
+export interface IsisFrrPriorityLimit {
+  priority: string;
+  level: string;
+}
+
+export interface IsisFrrTiebreaker {
+  tb_type: string;
+  index: string;
+  level: string;
+}
+
+export interface IsisFrrRemotePrefixList {
+  prefix_list: string;
+  level: string;
+}
+
 export interface IsisFrrGlobal {
   lfa_load_sharing_disable_level1: boolean;
   lfa_load_sharing_disable_level2: boolean;
+  lfa_priority_limit: IsisFrrPriorityLimit[];
+  lfa_tiebreaker: IsisFrrTiebreaker[];
+  lfa_remote_prefix_list: IsisFrrRemotePrefixList[];
 }
 
 export interface IsisConfig {
@@ -147,7 +168,9 @@ export interface IsisConfig {
   global_config: IsisGlobalConfig;
   interfaces: IsisInterface[];
   redistribute_ipv4: IsisRedistributeEntry[];
+  redistribute_ipv6: IsisRedistributeEntry[];
   default_info_ipv4: IsisDefaultInfoEntry[];
+  default_info_ipv6: IsisDefaultInfoEntry[];
   segment_routing: IsisSegmentRouting;
   traffic_engineering: IsisTrafficEngineering;
   fast_reroute: IsisFrrGlobal;
@@ -163,10 +186,19 @@ export interface IsisCapabilities {
     srv6: { supported: boolean; description: string };
     te_export: { supported: boolean; description: string };
     lsp_refresh_min_1: { supported: boolean; description: string };
+    redistribute_ipv6: { supported: boolean; description: string };
+    redistribute_nhrp: { supported: boolean; description: string };
+    lfa_priority_limit: { supported: boolean; description: string; values?: string[] };
+    lfa_tiebreaker: { supported: boolean; description: string; values?: string[] };
+    lfa_remote_prefix_list: { supported: boolean; description: string };
   };
   version_info: {
     is_1_4: boolean;
     is_1_5: boolean;
+  };
+  redistribute_protocols?: {
+    ipv4: string[];
+    ipv6: string[];
   };
 }
 
@@ -391,31 +423,60 @@ class IsisService {
   // -------------------------------------------------------------------------
 
   async addRedistribute(entry: IsisRedistributeEntry): Promise<VyOSResponse> {
+    const family = entry.family === "ipv6" ? "ipv6" : "ipv4";
     const key = `${entry.protocol}|${entry.level}`;
-    const ops: BatchOperation[] = [{ op: "set_redistribute_ipv4", value: key }];
-    if (entry.metric != null) ops.push({ op: "set_redistribute_ipv4_metric", value: `${key},${entry.metric}` });
-    if (entry.route_map) ops.push({ op: "set_redistribute_ipv4_route_map", value: `${key},${entry.route_map}` });
+    const ops: BatchOperation[] = [{ op: `set_redistribute_${family}`, value: `${entry.protocol},${entry.level}` }];
+    if (entry.metric != null) ops.push({ op: `set_redistribute_${family}_metric`, value: `${key},${entry.metric}` });
+    if (entry.route_map) ops.push({ op: `set_redistribute_${family}_route_map`, value: `${key},${entry.route_map}` });
     return this.batch(ops);
   }
 
   async deleteRedistribute(entry: IsisRedistributeEntry): Promise<VyOSResponse> {
-    return this.batch([{ op: "delete_redistribute_ipv4", value: `${entry.protocol}|${entry.level}` }]);
+    const family = entry.family === "ipv6" ? "ipv6" : "ipv4";
+    return this.batch([{ op: `delete_redistribute_${family}`, value: `${entry.protocol},${entry.level}` }]);
   }
 
-  // -------------------------------------------------------------------------
-  // Default Information
-  // -------------------------------------------------------------------------
-
   async addDefaultInfo(entry: IsisDefaultInfoEntry): Promise<VyOSResponse> {
-    const ops: BatchOperation[] = [{ op: "set_default_info_ipv4", value: entry.level }];
-    if (entry.always) ops.push({ op: "set_default_info_ipv4_always", value: entry.level });
-    if (entry.metric != null) ops.push({ op: "set_default_info_ipv4_metric", value: `${entry.level},${entry.metric}` });
-    if (entry.route_map) ops.push({ op: "set_default_info_ipv4_route_map", value: `${entry.level},${entry.route_map}` });
+    const family = entry.family === "ipv6" ? "ipv6" : "ipv4";
+    const ops: BatchOperation[] = [{ op: `set_default_info_${family}`, value: entry.level }];
+    if (entry.always) ops.push({ op: `set_default_info_${family}_always`, value: entry.level });
+    if (entry.metric != null) ops.push({ op: `set_default_info_${family}_metric`, value: `${entry.level},${entry.metric}` });
+    if (entry.route_map) ops.push({ op: `set_default_info_${family}_route_map`, value: `${entry.level},${entry.route_map}` });
     return this.batch(ops);
   }
 
   async deleteDefaultInfo(entry: IsisDefaultInfoEntry): Promise<VyOSResponse> {
-    return this.batch([{ op: "delete_default_info_ipv4", value: entry.level }]);
+    const family = entry.family === "ipv6" ? "ipv6" : "ipv4";
+    return this.batch([{ op: `delete_default_info_${family}`, value: entry.level }]);
+  }
+
+  async setFrrLoadSharingDisable(level: "level-1" | "level-2", enabled: boolean): Promise<VyOSResponse> {
+    const suffix = level === "level-1" ? "level1" : "level2";
+    return this.batch([{ op: `${enabled ? "set" : "delete"}_frr_lfa_load_sharing_disable_${suffix}` }]);
+  }
+
+  async addFrrPriorityLimit(priority: string, level: string): Promise<VyOSResponse> {
+    return this.batch([{ op: "set_frr_lfa_priority_limit", value: `${priority},${level}` }]);
+  }
+
+  async deleteFrrPriorityLimit(priority: string, level: string): Promise<VyOSResponse> {
+    return this.batch([{ op: "delete_frr_lfa_priority_limit", value: `${priority},${level}` }]);
+  }
+
+  async addFrrTiebreaker(tb_type: string, index: string, level: string): Promise<VyOSResponse> {
+    return this.batch([{ op: "set_frr_lfa_tiebreaker_index", value: `${tb_type},${index},${level}` }]);
+  }
+
+  async deleteFrrTiebreaker(tb_type: string, index: string, level: string): Promise<VyOSResponse> {
+    return this.batch([{ op: "delete_frr_lfa_tiebreaker_index", value: `${tb_type},${index},${level}` }]);
+  }
+
+  async addFrrRemotePrefixList(prefix_list: string, level: string): Promise<VyOSResponse> {
+    return this.batch([{ op: "set_frr_lfa_remote_prefix_list", value: `${prefix_list},${level}` }]);
+  }
+
+  async deleteFrrRemotePrefixList(prefix_list: string, level: string): Promise<VyOSResponse> {
+    return this.batch([{ op: "delete_frr_lfa_remote_prefix_list", value: `${prefix_list},${level}` }]);
   }
 
   // -------------------------------------------------------------------------

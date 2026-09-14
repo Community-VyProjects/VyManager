@@ -165,10 +165,32 @@ class IsisTrafficEngineering(BaseModel):
     export: bool = False
 
 
+class IsisFrrPriorityLimit(BaseModel):
+    """Global LFA local priority-limit entry."""
+    priority: str
+    level: str
+
+
+class IsisFrrTiebreaker(BaseModel):
+    """Global LFA local tiebreaker entry."""
+    tb_type: str
+    index: str
+    level: str
+
+
+class IsisFrrRemotePrefixList(BaseModel):
+    """Global LFA remote prefix-list entry."""
+    prefix_list: str
+    level: str
+
+
 class IsisFrrGlobal(BaseModel):
     """Global Fast Reroute LFA configuration."""
     lfa_load_sharing_disable_level1: bool = False
     lfa_load_sharing_disable_level2: bool = False
+    lfa_priority_limit: List[IsisFrrPriorityLimit] = []
+    lfa_tiebreaker: List[IsisFrrTiebreaker] = []
+    lfa_remote_prefix_list: List[IsisFrrRemotePrefixList] = []
 
 
 class IsisConfig(BaseModel):
@@ -177,7 +199,9 @@ class IsisConfig(BaseModel):
     global_config: IsisGlobalConfig = IsisGlobalConfig()
     interfaces: List[IsisInterface] = []
     redistribute_ipv4: List[IsisRedistributeEntry] = []
+    redistribute_ipv6: List[IsisRedistributeEntry] = []
     default_info_ipv4: List[IsisDefaultInfoEntry] = []
+    default_info_ipv6: List[IsisDefaultInfoEntry] = []
     segment_routing: IsisSegmentRouting = IsisSegmentRouting()
     traffic_engineering: IsisTrafficEngineering = IsisTrafficEngineering()
     fast_reroute: IsisFrrGlobal = IsisFrrGlobal()
@@ -252,8 +276,10 @@ async def get_isis_config(http_request: Request, refresh: bool = False):
             enabled=True,
             global_config=_parse_global(isis_raw),
             interfaces=_parse_interfaces(isis_raw.get("interface", {})),
-            redistribute_ipv4=_parse_redistribute_ipv4(isis_raw.get("redistribute", {}).get("ipv4", {})),
+            redistribute_ipv4=_parse_redistribute(isis_raw.get("redistribute", {}).get("ipv4", {})),
+            redistribute_ipv6=_parse_redistribute(isis_raw.get("redistribute", {}).get("ipv6", {})),
             default_info_ipv4=_parse_default_info(isis_raw.get("default-information", {}).get("originate", {}).get("ipv4", {})),
+            default_info_ipv6=_parse_default_info(isis_raw.get("default-information", {}).get("originate", {}).get("ipv6", {})),
             segment_routing=_parse_segment_routing(isis_raw.get("segment-routing", {})),
             traffic_engineering=_parse_traffic_engineering(isis_raw.get("traffic-engineering", {})),
             fast_reroute=_parse_frr_global(isis_raw.get("fast-reroute", {})),
@@ -288,10 +314,10 @@ async def isis_batch_configure(http_request: Request, body: IsisBatchRequest):
                     method(operation.value)
                 else:
                     method()
-            elif len(params) == 2:
+            elif len(params) >= 2:
                 if operation.value and "," in operation.value:
-                    parts = operation.value.split(",", 1)
-                    method(parts[0], parts[1])
+                    parts = operation.value.split(",", len(params) - 1)
+                    method(*parts)
                 elif operation.value:
                     method(operation.value)
 
@@ -504,8 +530,8 @@ def _parse_one_interface(name: str, cfg: dict) -> IsisInterface:
     )
 
 
-def _parse_redistribute_ipv4(raw: dict) -> List[IsisRedistributeEntry]:
-    """Parse redistribute/ipv4/{protocol}/{level} entries."""
+def _parse_redistribute(raw: dict) -> List[IsisRedistributeEntry]:
+    """Parse redistribute/{af}/{protocol}/{level} entries."""
     if not raw:
         return []
     entries = []
@@ -604,7 +630,47 @@ def _parse_frr_global(raw: dict) -> IsisFrrGlobal:
     local_raw = (lfa_raw.get("local", {}) or {}) if isinstance(lfa_raw, dict) else {}
     ls_raw = (local_raw.get("load-sharing", {}) or {}) if isinstance(local_raw, dict) else {}
     disable_raw = (ls_raw.get("disable", {}) or {}) if isinstance(ls_raw, dict) else {}
+    pl_raw = (local_raw.get("priority-limit", {}) or {}) if isinstance(local_raw, dict) else {}
+    tb_raw = (local_raw.get("tiebreaker", {}) or {}) if isinstance(local_raw, dict) else {}
+    remote_raw = (lfa_raw.get("remote", {}) or {}) if isinstance(lfa_raw, dict) else {}
+    pl_list_raw = (remote_raw.get("prefix-list", {}) or {}) if isinstance(remote_raw, dict) else {}
+
+    priority_limit: List[IsisFrrPriorityLimit] = []
+    if isinstance(pl_raw, dict):
+        for priority, levels in pl_raw.items():
+            if not isinstance(levels, dict):
+                continue
+            for level in levels:
+                priority_limit.append(IsisFrrPriorityLimit(priority=priority, level=level))
+
+    tiebreaker: List[IsisFrrTiebreaker] = []
+    if isinstance(tb_raw, dict):
+        for tb_type, type_cfg in tb_raw.items():
+            index_map = (type_cfg or {}).get("index", {}) if isinstance(type_cfg, dict) else {}
+            if not isinstance(index_map, dict):
+                continue
+            for index, levels in index_map.items():
+                if not isinstance(levels, dict):
+                    continue
+                for level in levels:
+                    tiebreaker.append(IsisFrrTiebreaker(
+                        tb_type=tb_type, index=str(index), level=level,
+                    ))
+
+    remote_pl: List[IsisFrrRemotePrefixList] = []
+    if isinstance(pl_list_raw, dict):
+        for prefix_list, levels in pl_list_raw.items():
+            if not isinstance(levels, dict):
+                continue
+            for level in levels:
+                remote_pl.append(IsisFrrRemotePrefixList(
+                    prefix_list=prefix_list, level=level,
+                ))
+
     return IsisFrrGlobal(
         lfa_load_sharing_disable_level1="level-1" in disable_raw if isinstance(disable_raw, dict) else False,
         lfa_load_sharing_disable_level2="level-2" in disable_raw if isinstance(disable_raw, dict) else False,
+        lfa_priority_limit=sorted(priority_limit, key=lambda x: (x.priority, x.level)),
+        lfa_tiebreaker=sorted(tiebreaker, key=lambda x: (x.tb_type, x.index, x.level)),
+        lfa_remote_prefix_list=sorted(remote_pl, key=lambda x: (x.prefix_list, x.level)),
     )

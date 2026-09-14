@@ -5,7 +5,7 @@ import { EntityGroupSpec, FieldSpec, SectionSpec, SelectOption } from "./types";
 
 const LEVELS = ["level-1", "level-2"];
 const REDIST_IPV4: SelectOption[] = ["babel", "bgp", "connected", "kernel", "nhrp", "ospf", "rip", "static"].map((v) => ({ value: v, label: v }));
-const REDIST_IPV6: SelectOption[] = ["babel", "bgp", "connected", "kernel", "nhrp", "ospf6", "ripng", "static"].map((v) => ({ value: v, label: v }));
+const REDIST_IPV6: SelectOption[] = ["babel", "bgp", "connected", "kernel", "ospf6", "ripng", "static"].map((v) => ({ value: v, label: v }));
 const LEVEL_IDS: SelectOption[] = LEVELS.map((v) => ({ value: v, label: v }));
 
 // ---- Interface fast-reroute fields (one set per level) ----

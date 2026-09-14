@@ -33,11 +33,28 @@ Config tree: vrf name <NAME> protocols isis
   traffic-engineering (address-family: ipv4/ipv6, enable, inter-area)
 """
 
-from typing import List
+from typing import FrozenSet, List
+
+from vyos_mappers.isis.isis import isis_redistribute_protocols
 
 
 class VrfIsisMapper:
     """Mapper for VRF ISIS paths. Common between VyOS 1.4 and 1.5."""
+
+    def __init__(self, version: str = ""):
+        self.version = version
+
+    def redistribute_ipv4_protocols(self) -> FrozenSet[str]:
+        return isis_redistribute_protocols(self.version, "ipv4")
+
+    def redistribute_ipv6_protocols(self) -> FrozenSet[str]:
+        return isis_redistribute_protocols(self.version, "ipv6")
+
+    def _require_redistribute(self, af: str, protocol: str) -> None:
+        allowed = isis_redistribute_protocols(self.version, af)
+        if protocol not in allowed:
+            raise ValueError(
+                f"redistribute {protocol} is not supported on this device")
 
     def _base(self, name: str) -> List[str]:
         return ["vrf", "name", name, "protocols", "isis"]
@@ -232,15 +249,19 @@ class VrfIsisMapper:
     # ========================================================================
 
     def get_isis_redistribute(self, name: str, af: str, protocol: str) -> List[str]:
+        self._require_redistribute(af, protocol)
         return self._base(name) + ["redistribute", af, protocol]
 
     def get_isis_redistribute_level(self, name: str, af: str, protocol: str, level: str) -> List[str]:
+        self._require_redistribute(af, protocol)
         return self._base(name) + ["redistribute", af, protocol, level]
 
     def get_isis_redistribute_metric(self, name: str, af: str, protocol: str, level: str, value: str) -> List[str]:
+        self._require_redistribute(af, protocol)
         return self._base(name) + ["redistribute", af, protocol, level, "metric", value]
 
     def get_isis_redistribute_route_map(self, name: str, af: str, protocol: str, level: str, value: str) -> List[str]:
+        self._require_redistribute(af, protocol)
         return self._base(name) + ["redistribute", af, protocol, level, "route-map", value]
 
     # ========================================================================

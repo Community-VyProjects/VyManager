@@ -39,28 +39,54 @@ class IsisBatchBuilder(BatchBuilder):
                 },
                 "ti_lfa": {
                     "supported": is_1_5,
-                    "description": "Topology Independent LFA (VyOS 1.5+)",
+                    "description": "Topology Independent LFA",
                 },
                 "remote_lfa": {
                     "supported": is_1_5,
-                    "description": "Remote LFA with MPLS LDP tunnels (VyOS 1.5+)",
+                    "description": "Remote LFA with MPLS LDP tunnels",
                 },
                 "srv6": {
                     "supported": is_1_5,
-                    "description": "SRv6 locator (VyOS 1.5+)",
+                    "description": "SRv6 locator",
                 },
                 "te_export": {
                     "supported": is_1_5,
-                    "description": "Traffic Engineering Database export (VyOS 1.5+)",
+                    "description": "Traffic Engineering Database export",
                 },
                 "lsp_refresh_min_1": {
                     "supported": is_1_4,
-                    "description": "lsp-refresh-interval minimum of 1 second (VyOS 1.4 only; 1.5 minimum is 2)",
+                    "description": "lsp-refresh-interval minimum of 1 second",
+                },
+                "redistribute_ipv6": {
+                    "supported": True,
+                    "description": "IPv6 redistribute and default-information originate",
+                },
+                "redistribute_nhrp": {
+                    "supported": "nhrp" in self.m.redistribute_ipv4_protocols(),
+                    "description": "Redistribute NHRP into IS-IS",
+                },
+                "lfa_priority_limit": {
+                    "supported": True,
+                    "description": "Global LFA local priority-limit",
+                    "values": ["critical", "high", "medium"],
+                },
+                "lfa_tiebreaker": {
+                    "supported": True,
+                    "description": "Global LFA local tiebreaker",
+                    "values": ["downstream", "lowest-backup-metric", "node-protecting"],
+                },
+                "lfa_remote_prefix_list": {
+                    "supported": True,
+                    "description": "Global LFA remote prefix-list",
                 },
             },
             "version_info": {
                 "is_1_4": is_1_4,
                 "is_1_5": is_1_5,
+            },
+            "redistribute_protocols": {
+                "ipv4": sorted(self.m.redistribute_ipv4_protocols()),
+                "ipv6": sorted(self.m.redistribute_ipv6_protocols()),
             },
         }
 
@@ -249,6 +275,32 @@ class IsisBatchBuilder(BatchBuilder):
 
     def delete_frr_lfa_load_sharing_disable_level2(self) -> "IsisBatchBuilder":
         return self.add_delete(self.m.get_frr_lfa_load_sharing_disable_level2_path())
+
+    def set_frr_lfa_priority_limit(self, priority: str, level: str) -> "IsisBatchBuilder":
+        return self.add_set(self.m.get_frr_lfa_priority_limit_path(priority, level))
+
+    def delete_frr_lfa_priority_limit(self, priority: str, level: str) -> "IsisBatchBuilder":
+        return self.add_delete(self.m.get_frr_lfa_priority_limit_path(priority, level))
+
+    def set_frr_lfa_tiebreaker_index(
+        self, tb_type: str, index: str, level: str
+    ) -> "IsisBatchBuilder":
+        return self.add_set(self.m.get_frr_lfa_tiebreaker_index_path(tb_type, index, level))
+
+    def delete_frr_lfa_tiebreaker_index(
+        self, tb_type: str, index: str, level: str
+    ) -> "IsisBatchBuilder":
+        return self.add_delete(self.m.get_frr_lfa_tiebreaker_index_path(tb_type, index, level))
+
+    def set_frr_lfa_remote_prefix_list(
+        self, prefix_list: str, level: str
+    ) -> "IsisBatchBuilder":
+        return self.add_set(self.m.get_frr_lfa_remote_prefix_list_path(prefix_list, level))
+
+    def delete_frr_lfa_remote_prefix_list(
+        self, prefix_list: str, level: str
+    ) -> "IsisBatchBuilder":
+        return self.add_delete(self.m.get_frr_lfa_remote_prefix_list_path(prefix_list, level))
 
     # -----------------------------------------------------------------------
     # Interface — lifecycle
@@ -497,6 +549,32 @@ class IsisBatchBuilder(BatchBuilder):
             ["protocols", "isis", "redistribute", "ipv4", protocol, level, "route-map"]
         )
 
+    def set_redistribute_ipv6(self, protocol: str, level: str) -> "IsisBatchBuilder":
+        return self.add_set(self.m.get_redistribute_ipv6_path(protocol, level))
+
+    def delete_redistribute_ipv6(self, protocol: str, level: str) -> "IsisBatchBuilder":
+        return self.add_delete(self.m.get_redistribute_ipv6_path(protocol, level))
+
+    def set_redistribute_ipv6_metric(self, protocol_level: str, metric: str) -> "IsisBatchBuilder":
+        protocol, level = protocol_level.split("|", 1)
+        return self.add_set(self.m.get_redistribute_ipv6_metric_path(protocol, level, metric))
+
+    def delete_redistribute_ipv6_metric(self, protocol_level: str) -> "IsisBatchBuilder":
+        protocol, level = protocol_level.split("|", 1)
+        return self.add_delete(
+            ["protocols", "isis", "redistribute", "ipv6", protocol, level, "metric"]
+        )
+
+    def set_redistribute_ipv6_route_map(self, protocol_level: str, route_map: str) -> "IsisBatchBuilder":
+        protocol, level = protocol_level.split("|", 1)
+        return self.add_set(self.m.get_redistribute_ipv6_route_map_path(protocol, level, route_map))
+
+    def delete_redistribute_ipv6_route_map(self, protocol_level: str) -> "IsisBatchBuilder":
+        protocol, level = protocol_level.split("|", 1)
+        return self.add_delete(
+            ["protocols", "isis", "redistribute", "ipv6", protocol, level, "route-map"]
+        )
+
     # -----------------------------------------------------------------------
     # Default-information originate IPv4
     # -----------------------------------------------------------------------
@@ -527,6 +605,34 @@ class IsisBatchBuilder(BatchBuilder):
     def delete_default_info_ipv4_route_map(self, level: str) -> "IsisBatchBuilder":
         return self.add_delete(
             ["protocols", "isis", "default-information", "originate", "ipv4", level, "route-map"]
+        )
+
+    def set_default_info_ipv6(self, level: str) -> "IsisBatchBuilder":
+        return self.add_set(self.m.get_default_info_ipv6_path(level))
+
+    def delete_default_info_ipv6(self, level: str) -> "IsisBatchBuilder":
+        return self.add_delete(self.m.get_default_info_ipv6_path(level))
+
+    def set_default_info_ipv6_always(self, level: str) -> "IsisBatchBuilder":
+        return self.add_set(self.m.get_default_info_ipv6_always_path(level))
+
+    def delete_default_info_ipv6_always(self, level: str) -> "IsisBatchBuilder":
+        return self.add_delete(self.m.get_default_info_ipv6_always_path(level))
+
+    def set_default_info_ipv6_metric(self, level: str, val: str) -> "IsisBatchBuilder":
+        return self.add_set(self.m.get_default_info_ipv6_metric_path(level, val))
+
+    def delete_default_info_ipv6_metric(self, level: str) -> "IsisBatchBuilder":
+        return self.add_delete(
+            ["protocols", "isis", "default-information", "originate", "ipv6", level, "metric"]
+        )
+
+    def set_default_info_ipv6_route_map(self, level: str, route_map: str) -> "IsisBatchBuilder":
+        return self.add_set(self.m.get_default_info_ipv6_route_map_path(level, route_map))
+
+    def delete_default_info_ipv6_route_map(self, level: str) -> "IsisBatchBuilder":
+        return self.add_delete(
+            ["protocols", "isis", "default-information", "originate", "ipv6", level, "route-map"]
         )
 
     # -----------------------------------------------------------------------

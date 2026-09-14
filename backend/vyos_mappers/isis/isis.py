@@ -6,15 +6,45 @@ Version-specific additions (TI-LFA, Remote-LFA, SRv6, TE export) are in
 isis_versions/v1_4.py and isis_versions/v1_5.py.
 """
 
-from typing import List
+from typing import FrozenSet, List
 from ..base import BaseFeatureMapper
 
 BASE = ["protocols", "isis"]
+
+_REDIST_IPV4 = frozenset(
+    {"babel", "bgp", "connected", "kernel", "ospf", "rip", "static"}
+)
+_REDIST_IPV6 = frozenset(
+    {"babel", "bgp", "connected", "kernel", "ospf6", "ripng", "static"}
+)
+
+
+def isis_redistribute_protocols(version: str, af: str) -> FrozenSet[str]:
+    """Versioned allowlist for `redistribute <af> PROTOCOL`."""
+    if af == "ipv4":
+        if "1.4" in version:
+            return _REDIST_IPV4
+        return _REDIST_IPV4 | {"nhrp"}
+    if af == "ipv6":
+        return _REDIST_IPV6
+    raise ValueError(f"unknown IS-IS redistribute address family {af}")
 
 
 class IsisMapper(BaseFeatureMapper):
     def __init__(self, version: str):
         super().__init__(version)
+
+    def redistribute_ipv4_protocols(self) -> FrozenSet[str]:
+        return isis_redistribute_protocols(self.version, "ipv4")
+
+    def redistribute_ipv6_protocols(self) -> FrozenSet[str]:
+        return isis_redistribute_protocols(self.version, "ipv6")
+
+    def _require_redistribute(self, af: str, protocol: str) -> None:
+        allowed = isis_redistribute_protocols(self.version, af)
+        if protocol not in allowed:
+            raise ValueError(
+                f"redistribute {protocol} is not supported on this device")
 
     # -----------------------------------------------------------------------
     # Delete the entire IS-IS process
@@ -138,7 +168,7 @@ class IsisMapper(BaseFeatureMapper):
         return BASE + ["ldp-sync"]
 
     # -----------------------------------------------------------------------
-    # Global — Fast Reroute (LFA load-sharing)
+    # Global — Fast Reroute (LFA load-sharing, priority-limit, tiebreaker, remote)
     # -----------------------------------------------------------------------
 
     def get_frr_lfa_load_sharing_disable_level1_path(self) -> List[str]:
@@ -146,6 +176,19 @@ class IsisMapper(BaseFeatureMapper):
 
     def get_frr_lfa_load_sharing_disable_level2_path(self) -> List[str]:
         return BASE + ["fast-reroute", "lfa", "local", "load-sharing", "disable", "level-2"]
+
+    def get_frr_lfa_priority_limit_path(self, priority: str, level: str) -> List[str]:
+        return BASE + ["fast-reroute", "lfa", "local", "priority-limit", priority, level]
+
+    def get_frr_lfa_tiebreaker_index_path(
+        self, tb_type: str, index: str, level: str
+    ) -> List[str]:
+        return BASE + [
+            "fast-reroute", "lfa", "local", "tiebreaker", tb_type, "index", index, level,
+        ]
+
+    def get_frr_lfa_remote_prefix_list_path(self, prefix_list: str, level: str) -> List[str]:
+        return BASE + ["fast-reroute", "lfa", "remote", "prefix-list", prefix_list, level]
 
     # -----------------------------------------------------------------------
     # Interface
@@ -225,20 +268,35 @@ class IsisMapper(BaseFeatureMapper):
         return BASE + ["interface", iface, "fast-reroute", "lfa", "level-2", "exclude", "interface", excl_iface]
 
     # -----------------------------------------------------------------------
-    # Redistribute IPv4
+    # Redistribute IPv4 / IPv6
     # -----------------------------------------------------------------------
 
     def get_redistribute_ipv4_path(self, protocol: str, level: str) -> List[str]:
+        self._require_redistribute("ipv4", protocol)
         return BASE + ["redistribute", "ipv4", protocol, level]
 
     def get_redistribute_ipv4_metric_path(self, protocol: str, level: str, val: str) -> List[str]:
+        self._require_redistribute("ipv4", protocol)
         return BASE + ["redistribute", "ipv4", protocol, level, "metric", val]
 
     def get_redistribute_ipv4_route_map_path(self, protocol: str, level: str, route_map: str) -> List[str]:
+        self._require_redistribute("ipv4", protocol)
         return BASE + ["redistribute", "ipv4", protocol, level, "route-map", route_map]
 
+    def get_redistribute_ipv6_path(self, protocol: str, level: str) -> List[str]:
+        self._require_redistribute("ipv6", protocol)
+        return BASE + ["redistribute", "ipv6", protocol, level]
+
+    def get_redistribute_ipv6_metric_path(self, protocol: str, level: str, val: str) -> List[str]:
+        self._require_redistribute("ipv6", protocol)
+        return BASE + ["redistribute", "ipv6", protocol, level, "metric", val]
+
+    def get_redistribute_ipv6_route_map_path(self, protocol: str, level: str, route_map: str) -> List[str]:
+        self._require_redistribute("ipv6", protocol)
+        return BASE + ["redistribute", "ipv6", protocol, level, "route-map", route_map]
+
     # -----------------------------------------------------------------------
-    # Default-information originate IPv4
+    # Default-information originate IPv4 / IPv6
     # -----------------------------------------------------------------------
 
     def get_default_info_ipv4_path(self, level: str) -> List[str]:
@@ -252,6 +310,18 @@ class IsisMapper(BaseFeatureMapper):
 
     def get_default_info_ipv4_route_map_path(self, level: str, route_map: str) -> List[str]:
         return BASE + ["default-information", "originate", "ipv4", level, "route-map", route_map]
+
+    def get_default_info_ipv6_path(self, level: str) -> List[str]:
+        return BASE + ["default-information", "originate", "ipv6", level]
+
+    def get_default_info_ipv6_always_path(self, level: str) -> List[str]:
+        return BASE + ["default-information", "originate", "ipv6", level, "always"]
+
+    def get_default_info_ipv6_metric_path(self, level: str, val: str) -> List[str]:
+        return BASE + ["default-information", "originate", "ipv6", level, "metric", val]
+
+    def get_default_info_ipv6_route_map_path(self, level: str, route_map: str) -> List[str]:
+        return BASE + ["default-information", "originate", "ipv6", level, "route-map", route_map]
 
     # -----------------------------------------------------------------------
     # Segment Routing

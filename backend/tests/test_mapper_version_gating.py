@@ -19,9 +19,11 @@ from vyos_mappers.babel.babel_versions import get_babel_mapper
 from vyos_mappers.bgp.bgp_versions import get_bgp_mapper
 from vyos_mappers.firewall.zones_versions import get_firewall_zones_mapper
 from vyos_mappers.interfaces.ethernet_versions import get_ethernet_mapper
+from vyos_mappers.isis.isis_versions import get_isis_mapper
 from vyos_mappers.isis.isis_versions.v1_4 import IsisMapperV1_4
 from vyos_mappers.ospf.ospf_versions import get_ospf_mapper
 from vyos_mappers.vrf.vrf_bgp import VrfBgpMapper
+from vyos_mappers.vrf.vrf_isis import VrfIsisMapper
 from vyos_mappers.vrf.vrf_ospf import VrfOspfMapper
 
 
@@ -53,6 +55,14 @@ def test_mappers_14_reject_redistribute_nhrp():
     vrf_bgp = VrfBgpMapper("1.4")
     with pytest.raises(ValueError, match="not supported"):
         vrf_bgp.get_bgp_af_redistribute("blue", "ipv4-unicast", "nhrp")
+    isis = get_isis_mapper("1.4")
+    with pytest.raises(ValueError, match="not supported"):
+        isis.get_redistribute_ipv4_path("nhrp", "level-1")
+    with pytest.raises(ValueError, match="not supported"):
+        isis.get_redistribute_ipv6_path("nhrp", "level-1")
+    vrf_isis = VrfIsisMapper("1.4")
+    with pytest.raises(ValueError, match="not supported"):
+        vrf_isis.get_isis_redistribute_level("blue", "ipv4", "nhrp", "level-1")
 
 
 def test_mappers_14_delete_redistribute_nhrp():

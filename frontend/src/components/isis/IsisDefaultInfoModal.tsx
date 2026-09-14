@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -20,71 +21,64 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Loader2, AlertCircle } from "lucide-react";
-import { IsisRedistributeEntry, IsisCapabilities } from "@/lib/api/isis";
+import { IsisDefaultInfoEntry, IsisCapabilities } from "@/lib/api/isis";
 
-interface IsisRedistributeModalProps {
+interface IsisDefaultInfoModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (entry: IsisRedistributeEntry) => Promise<void>;
-  existingProtocols: string[]; // "family|protocol|level"
+  onSubmit: (entry: IsisDefaultInfoEntry) => Promise<void>;
+  existingKeys: string[];
   routeMapNames: string[];
   capabilities: IsisCapabilities | null;
 }
 
 const LEVELS = ["level-1", "level-2"] as const;
 
-export function IsisRedistributeModal({
+export function IsisDefaultInfoModal({
   open,
   onOpenChange,
   onSubmit,
-  existingProtocols,
+  existingKeys,
   routeMapNames,
   capabilities,
-}: IsisRedistributeModalProps) {
+}: IsisDefaultInfoModalProps) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
   const [family, setFamily] = useState<"ipv4" | "ipv6">("ipv4");
-  const [protocol, setProtocol] = useState("");
   const [level, setLevel] = useState("");
+  const [always, setAlways] = useState(false);
   const [metric, setMetric] = useState("");
   const [routeMap, setRouteMap] = useState("");
-
-  const protocols = capabilities?.redistribute_protocols?.[family] ?? [];
 
   useEffect(() => {
     if (!open) return;
     setError(null);
     setFamily("ipv4");
-    setProtocol("");
     setLevel("");
+    setAlways(false);
     setMetric("");
     setRouteMap("");
   }, [open]);
 
-  const isDuplicate =
-    protocol && level && existingProtocols.includes(`${family}|${protocol}|${level}`);
+  const isDuplicate = level && existingKeys.includes(`${family}|${level}`);
 
   const handleSubmit = async () => {
-    if (!protocol) { setError("Protocol is required"); return; }
     if (!level) { setError("Level is required"); return; }
-    if (isDuplicate) { setError(`${protocol} is already redistributed at ${level}`); return; }
-
-    const entry: IsisRedistributeEntry = {
-      family,
-      protocol,
-      level,
-      metric: metric.trim() ? parseInt(metric.trim(), 10) : null,
-      route_map: routeMap || null,
-    };
+    if (isDuplicate) { setError(`${family} default-information already exists at ${level}`); return; }
 
     try {
       setSaving(true);
       setError(null);
-      await onSubmit(entry);
+      await onSubmit({
+        family,
+        level,
+        always,
+        metric: metric.trim() ? parseInt(metric.trim(), 10) : null,
+        route_map: routeMap || null,
+      });
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to add redistribution");
+      setError(err instanceof Error ? err.message : "Failed to add default-information");
     } finally {
       setSaving(false);
     }
@@ -94,9 +88,9 @@ export function IsisRedistributeModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Add Redistribution</DialogTitle>
+          <DialogTitle>Add Default Information</DialogTitle>
           <DialogDescription>
-            Redistribute routes from another protocol into IS-IS.
+            Originate a default route into IS-IS.
           </DialogDescription>
         </DialogHeader>
 
@@ -109,8 +103,8 @@ export function IsisRedistributeModal({
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>Address family <span className="text-destructive">*</span></Label>
-            <Select value={family} onValueChange={(v) => { setFamily(v as "ipv4" | "ipv6"); setProtocol(""); }}>
+            <Label>Address family</Label>
+            <Select value={family} onValueChange={(v) => setFamily(v as "ipv4" | "ipv6")}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -122,53 +116,27 @@ export function IsisRedistributeModal({
               </SelectContent>
             </Select>
           </div>
-
           <div className="space-y-2">
-            <Label>Protocol <span className="text-destructive">*</span></Label>
-            <Select value={protocol} onValueChange={setProtocol}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select protocol" />
-              </SelectTrigger>
-              <SelectContent>
-                {protocols.map((p) => (
-                  <SelectItem key={p} value={p}>{p}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label>IS-IS Level <span className="text-destructive">*</span></Label>
+            <Label>IS-IS Level</Label>
             <Select value={level} onValueChange={setLevel}>
               <SelectTrigger>
                 <SelectValue placeholder="Select level" />
               </SelectTrigger>
               <SelectContent>
                 {LEVELS.map((l) => (
-                  <SelectItem key={l} value={l}>{l === "level-1" ? "Level 1" : "Level 2"}</SelectItem>
+                  <SelectItem key={l} value={l}>{l}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
-
-          {isDuplicate && (
-            <p className="text-sm text-destructive">
-              {protocol} is already configured at {level}.
-            </p>
-          )}
-
+          <div className="flex items-center gap-2">
+            <Checkbox id="di-always" checked={always} onCheckedChange={(v) => setAlways(!!v)} />
+            <Label htmlFor="di-always">Always</Label>
+          </div>
           <div className="space-y-2">
             <Label>Metric (optional)</Label>
-            <Input
-              type="number"
-              value={metric}
-              onChange={(e) => setMetric(e.target.value)}
-              placeholder="Default"
-              min={1}
-              max={16777214}
-            />
+            <Input type="number" value={metric} onChange={(e) => setMetric(e.target.value)} min={1} />
           </div>
-
           <div className="space-y-2">
             <Label>Route Map (optional)</Label>
             <Select value={routeMap} onValueChange={(v) => setRouteMap(v === "__none__" ? "" : v)}>
@@ -186,12 +154,10 @@ export function IsisRedistributeModal({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={handleSubmit} disabled={saving || !!isDuplicate}>
             {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Add Redistribute
+            Add
           </Button>
         </DialogFooter>
       </DialogContent>
