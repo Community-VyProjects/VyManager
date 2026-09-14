@@ -26,6 +26,10 @@ STACK_GUARD_DETAIL = (
     "Cannot delete or edit the VyManager stack from Containers. "
     "Pull and restart, or re-run the installer."
 )
+FLEET_RESTORE_DETAIL = (
+    "This backup has other sites or instances. "
+    "Appliance restore only accepts a backup of this router."
+)
 
 
 def is_appliance() -> bool:
@@ -52,6 +56,26 @@ def is_stack_image_ref(image: str) -> bool:
         if repo.startswith(STACK_CONTAINER_PREFIX):
             return True
     return False
+
+
+def fleet_restore_error(tables: dict) -> Optional[str]:
+    """If this backup must not land on an appliance, return why. Else None.
+
+    VPS is unchanged. Appliance accepts only the seeded site+instance so
+    Merge/Replace cannot import extra routers or wipe this box.
+    """
+    if not is_appliance():
+        return None
+    sites = tables.get("sites") or []
+    instances = tables.get("instances") or []
+    if len(sites) != 1 or any((s or {}).get("id") != SITE_ID for s in sites):
+        return FLEET_RESTORE_DETAIL
+    if len(instances) != 1 or any(
+        (i or {}).get("id") != INSTANCE_ID or (i or {}).get("siteId") != SITE_ID
+        for i in instances
+    ):
+        return FLEET_RESTORE_DETAIL
+    return None
 
 
 def home_path() -> str:

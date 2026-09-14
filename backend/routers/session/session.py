@@ -1593,6 +1593,9 @@ async def preview_restore(
     _decode_and_validate(payload)
 
     tables = payload.get("tables", {})
+    fleet_err = appliance_mode.fleet_restore_error(tables)
+    if fleet_err:
+        raise HTTPException(status_code=400, detail=fleet_err)
     counts = {t: len(rows) for t, rows in tables.items()}
     host_fp = ssh_key_fingerprint()
     backup_fp = payload.get("ssh_key_fingerprint")
@@ -1640,6 +1643,9 @@ async def restore_backup(
     _decode_and_validate(payload)
 
     tables = payload.get("tables", {})
+    fleet_err = appliance_mode.fleet_restore_error(tables)
+    if fleet_err:
+        raise HTTPException(status_code=400, detail=fleet_err)
 
     # Guard against a replace that would leave nobody able to log in.
     if mode == "replace":
