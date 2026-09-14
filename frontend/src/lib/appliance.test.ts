@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   afterLoginPath,
+  hideSiteInventory,
   isApplianceMode,
   postLoginPath,
   shouldRedirectToSites,
@@ -49,5 +50,12 @@ describe("shouldRedirectToSites", () => {
     assert.equal(shouldRedirectToSites(true, true), false);
     assert.equal(shouldRedirectToSites(false, false), true);
     assert.equal(shouldRedirectToSites(false, true), false);
+  });
+});
+
+describe("hideSiteInventory", () => {
+  it("hides inventory only in appliance", () => {
+    assert.equal(hideSiteInventory(true), true);
+    assert.equal(hideSiteInventory(false), false);
   });
 });

@@ -129,7 +129,9 @@ export function AppLayout({ children, allowWithoutInstance }: AppLayoutProps) {
   return (
     <AppLayoutContext.Provider value>
       <AppLayoutInner
-        allowWithoutInstance={allowWithoutInstance ?? pathname === "/"}
+        allowWithoutInstance={
+          allowWithoutInstance ?? (pathname === "/" || pathname === "/administration")
+        }
       >
         {children}
       </AppLayoutInner>

@@ -61,6 +61,7 @@ import { ApiTokensPanel } from "@/components/tokens/ApiTokensPanel";
 import { ThemeSelector } from "@/components/ui/theme-selector";
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/types/api";
+import { hideSiteInventory } from "@/lib/appliance";
 
 type NavSection = "sites" | "user-management" | "authentication" | "api-tokens" | "organizations";
 
@@ -71,8 +72,9 @@ export default function SitesPage() {
   const { data: session } = useSession();
 
   // Zustand store
-  const { activeSession, loadSession, connectToInstance, disconnectFromInstance } =
+  const { activeSession, loadSession, connectToInstance, disconnectFromInstance, appliance } =
     useSessionStore();
+  const [modeReady, setModeReady] = useState(false);
 
   // Organization context (org UI is suppressed for single-team deployments)
   const { orgUiVisible, activeOrgId, loaded: orgsLoaded, loadOrganizations } =
@@ -257,6 +259,17 @@ export default function SitesPage() {
     loadData();
   };
 
+  useEffect(() => {
+    void loadSession().finally(() => setModeReady(true));
+  }, [loadSession]);
+
+  useEffect(() => {
+    if (!modeReady) return;
+    if (hideSiteInventory(appliance)) {
+      router.replace("/administration");
+    }
+  }, [modeReady, appliance, router]);
+
   const filteredSites = sites.filter((site) => {
     const query = searchQuery.toLowerCase();
     return (
@@ -273,6 +286,10 @@ export default function SitesPage() {
       instance.description?.toLowerCase().includes(query)
     );
   });
+
+  if (!modeReady || hideSiteInventory(appliance)) {
+    return null;
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
