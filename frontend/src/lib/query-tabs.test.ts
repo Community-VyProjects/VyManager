@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  administrationTabFromSearch,
   bgpTabFromSearch,
   conntrackSectionFromSearch,
   containerTabFromSearch,
@@ -75,5 +76,27 @@ describe("conntrackSectionFromSearch", () => {
   it("ignores unknown sections", () => {
     assert.equal(conntrackSectionFromSearch(params({ section: "ignore" })), null);
     assert.equal(conntrackSectionFromSearch(params({ tab: "conntrack" })), null);
+  });
+});
+
+describe("administrationTabFromSearch", () => {
+  it("reads section as nav emits it", () => {
+    assert.equal(administrationTabFromSearch(params({ section: "users" })), "users");
+    assert.equal(administrationTabFromSearch(params({ section: "instance" })), "instance");
+    assert.equal(administrationTabFromSearch(params({ section: "backup" })), "backup");
+  });
+
+  it("maps Site Manager aliases", () => {
+    assert.equal(administrationTabFromSearch(params({ section: "user-management" })), "users");
+    assert.equal(administrationTabFromSearch(params({ section: "api-tokens" })), "tokens");
+  });
+
+  it("falls back to tab when section is absent", () => {
+    assert.equal(administrationTabFromSearch(params({ tab: "authentication" })), "authentication");
+  });
+
+  it("ignores unknown values", () => {
+    assert.equal(administrationTabFromSearch(params({ section: "sites" })), null);
+    assert.equal(administrationTabFromSearch(params({})), null);
   });
 });

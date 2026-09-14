@@ -53,6 +53,7 @@ const sectionToResult = (
 };
 
 function indexNavItem(item: NavItem, parentFeature?: string): SearchResult[] {
+  if (item.applianceOnly) return [];
   const results: SearchResult[] = [];
   const feature = parentFeature ?? item.title;
 

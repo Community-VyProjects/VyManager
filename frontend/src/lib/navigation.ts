@@ -1,4 +1,4 @@
-import { Activity, Shield, ShieldAlert, Network, Lock, LayoutDashboard, Server, Settings, HeartPulse, Route as RouteIcon, Scale, ArrowLeftRight, Box, Waypoints, KeyRound, Globe, Globe2, ListTree, Link2, Radio, Phone, Key, Terminal, Gauge } from "lucide-react";
+import { Activity, Shield, ShieldAlert, Network, Lock, LayoutDashboard, Server, Settings, HeartPulse, Route as RouteIcon, Scale, ArrowLeftRight, Box, Waypoints, KeyRound, Globe, Globe2, ListTree, Link2, Radio, Phone, Key, Terminal, Gauge, Users } from "lucide-react";
 import { FeatureGroup } from "@/lib/api/user-management";
 
 export interface NavSection {
@@ -28,6 +28,8 @@ export interface NavItem {
   children?: NavChild[];
   /** Top-level item only in search index, hidden from sidebar */
   searchOnly?: boolean;
+  /** Shown in the sidebar only when VYMANAGER_MODE=appliance */
+  applianceOnly?: boolean;
 }
 
 export const navigation: NavItem[] = [
@@ -310,12 +312,26 @@ export const navigation: NavItem[] = [
     ] },
   { title: "Console", href: "/console", icon: Terminal, requiredPermission: FeatureGroup.SSH_CONSOLE },
   { title: "Settings", href: "/settings", icon: Settings },
+  {
+    title: "Administration",
+    href: "/administration",
+    icon: Users,
+    applianceOnly: true,
+    sections: [
+      { id: "instance", title: "This router", href: "/administration", description: "Local instance settings", searchParams: { section: "instance" } },
+      { id: "users", title: "Users", href: "/administration", description: "VyManager users", searchParams: { section: "users" } },
+      { id: "authentication", title: "Authentication", href: "/administration", description: "OIDC and login", searchParams: { section: "authentication" } },
+      { id: "tokens", title: "API Tokens", href: "/administration", description: "API tokens", searchParams: { section: "tokens" } },
+      { id: "backup", title: "Backup", href: "/administration", description: "Backup and restore", searchParams: { section: "backup" } },
+    ],
+  },
 ];
 
 /** Sidebar-visible navigation (excludes search-only entries) */
-export function getSidebarNavigation(): NavItem[] {
+export function getSidebarNavigation(opts?: { appliance?: boolean }): NavItem[] {
   return navigation
     .filter((item) => !item.searchOnly)
+    .filter((item) => !item.applianceOnly || opts?.appliance)
     .map((item) => {
       if (!item.children) return item;
       const children = item.children.filter((c) => !c.searchOnly);

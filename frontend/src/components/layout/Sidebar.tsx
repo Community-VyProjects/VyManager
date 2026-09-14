@@ -55,7 +55,7 @@ export function Sidebar() {
   // Initialize and update openItems based on current pathname
   useEffect(() => {
     const activeParents: string[] = [];
-    getSidebarNavigation().forEach((item) => {
+    getSidebarNavigation({ appliance }).forEach((item) => {
       if (item.children) {
         const hasActiveChild = item.children.some((child) => pathname === child.href);
         if (hasActiveChild) {
@@ -65,7 +65,7 @@ export function Sidebar() {
     });
     // eslint-disable-next-line react-hooks/set-state-in-effect -- open the active route's parent menus on navigation
     setOpenItems(activeParents);
-  }, [pathname]);
+  }, [pathname, appliance]);
 
   const toggleItem = (title: string) => {
     setOpenItems((prev) =>
@@ -199,7 +199,7 @@ export function Sidebar() {
     }).filter((item): item is NavItem => item !== null);
   };
 
-  const visibleNavigation = filterNavigation(getSidebarNavigation());
+  const visibleNavigation = filterNavigation(getSidebarNavigation({ appliance }));
 
   return (
     <div className="flex h-screen w-64 flex-col border-r border-border/50 bg-card">

@@ -78,3 +78,31 @@ export function conntrackSectionFromSearch(
     ? (value as ConntrackSection)
     : null;
 }
+
+export const ADMINISTRATION_TABS = [
+  "instance",
+  "users",
+  "authentication",
+  "tokens",
+  "backup",
+] as const;
+
+export type AdministrationTab = (typeof ADMINISTRATION_TABS)[number];
+
+/** Nav emits `section`. Site Manager used user-management / api-tokens. */
+const ADMINISTRATION_TAB_FROM_NAV: Record<string, AdministrationTab> = {
+  instance: "instance",
+  users: "users",
+  "user-management": "users",
+  authentication: "authentication",
+  tokens: "tokens",
+  "api-tokens": "tokens",
+  backup: "backup",
+};
+
+export function administrationTabFromSearch(
+  get: (key: string) => string | null,
+): AdministrationTab | null {
+  const value = get("section") ?? get("tab");
+  return value ? ADMINISTRATION_TAB_FROM_NAV[value] ?? null : null;
+}

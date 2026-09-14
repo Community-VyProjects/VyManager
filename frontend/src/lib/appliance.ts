@@ -29,3 +29,8 @@ export function afterLoginPath(from: string, appliance: boolean | null): string 
 export function shouldRedirectToSites(appliance: boolean, hasSession: boolean): boolean {
   return !appliance && !hasSession;
 }
+
+/** Site list, create/move/delete, extra instances, org switcher, fleet rollup. */
+export function hideSiteInventory(appliance: boolean): boolean {
+  return appliance;
+}
