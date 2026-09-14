@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
-import { useState, useEffect, useRef, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -103,6 +103,12 @@ function PPPoEPageInner() {
   const [ipv6Filter, setIpv6Filter] = useState<"all" | "yes" | "no">("all");
   const [vlanFilter, setVlanFilter] = useState("");
   const [mtuFilter, setMtuFilter] = useState("");
+  const [minRxBytes, setMinRxBytes] = useState("");
+  const [maxRxBytes, setMaxRxBytes] = useState("");
+  const [minTxBytes, setMinTxBytes] = useState("");
+  const [maxTxBytes, setMaxTxBytes] = useState("");
+  const [sessionSortField, setSessionSortField] = useState<SessionSortField>("username");
+  const [sessionSortDirection, setSessionSortDirection] = useState<"asc" | "desc">("asc");
   const [sessionPage, setSessionPage] = useState(1);
   const sessionPageSize = 50;
   const [connectionDialog, setConnectionDialog] = useState<{
@@ -279,22 +285,66 @@ function PPPoEPageInner() {
     }
   };
 
+  const parseOptionalNumber = (value: string) => {
+    const parsed = Number(value);
+    return value.trim() === "" || !Number.isFinite(parsed) ? null : parsed;
+  };
+
   const filteredSessions = sessions.filter((session) => {
     const search = sessionSearch.trim().toLowerCase();
     const haystack = `${session.username} ${session.interface} ${session.ip ?? ""} ${session.ipv6 ?? ""} ${session.calling_sid ?? ""}`.toLowerCase();
     const pps = Math.max(session.rxPps ?? 0, session.txPps ?? 0);
-    const minimum = minPps === "" ? null : Number(minPps);
-    const maximum = maxPps === "" ? null : Number(maxPps);
+    const minimum = parseOptionalNumber(minPps);
+    const maximum = parseOptionalNumber(maxPps);
+    const minRx = parseOptionalNumber(minRxBytes);
+    const maxRx = parseOptionalNumber(maxRxBytes);
+    const minTx = parseOptionalNumber(minTxBytes);
+    const maxTx = parseOptionalNumber(maxTxBytes);
     if (search && !haystack.includes(search)) return false;
-    if (minimum !== null && (!Number.isFinite(minimum) || pps < minimum)) return false;
-    if (maximum !== null && (!Number.isFinite(maximum) || pps > maximum)) return false;
+    if (minimum !== null && pps < minimum) return false;
+    if (maximum !== null && pps > maximum) return false;
+    if (minRx !== null && session.rx_bytes < minRx) return false;
+    if (maxRx !== null && session.rx_bytes > maxRx) return false;
+    if (minTx !== null && session.tx_bytes < minTx) return false;
+    if (maxTx !== null && session.tx_bytes > maxTx) return false;
     if (ipv6Filter === "yes" && !session.ipv6) return false;
     if (ipv6Filter === "no" && session.ipv6) return false;
     if (vlanFilter && !(session.vlan ?? "").toLowerCase().includes(vlanFilter.toLowerCase())) return false;
     if (mtuFilter && String(session.mtu ?? "") !== mtuFilter.trim()) return false;
     return true;
   });
+
+  const sortedSessions = useMemo(() => {
+    const dir = sessionSortDirection === "asc" ? 1 : -1;
+    const rows = [...filteredSessions];
+    rows.sort((a, b) => {
+      const left = sessionValue(a, sessionSortField);
+      const right = sessionValue(b, sessionSortField);
+      if (typeof left === "number" && typeof right === "number") {
+        return (left - right) * dir;
+      }
+      const textA = String(left ?? "").toLowerCase();
+      const textB = String(right ?? "").toLowerCase();
+      return textA.localeCompare(textB) * dir;
+    });
+    return rows;
+  }, [filteredSessions, sessionSortDirection, sessionSortField]);
+
   const filteredPageCount = Math.max(1, Math.ceil(filteredSessions.length / sessionPageSize));
+
+  const handleSessionSort = (field: SessionSortField) => {
+    if (sessionSortField === field) {
+      setSessionSortDirection((direction) => direction === "asc" ? "desc" : "asc");
+    } else {
+      setSessionSortField(field);
+      setSessionSortDirection("asc");
+    }
+  };
+
+  const sessionSortLabel = (field: SessionSortField) => {
+    const active = sessionSortField === field;
+    return active ? (sessionSortDirection === "asc" ? "▲" : "▼") : "↕";
+  };
 
   const authMode = config?.authentication.mode;
   const isLocalAuth = authMode === "local";
@@ -539,8 +589,12 @@ function PPPoEPageInner() {
                     </select>
                     <Input value={vlanFilter} onChange={(event) => setVlanFilter(event.target.value)} placeholder="VLAN" className="h-8 w-20 text-xs" />
                     <Input value={mtuFilter} onChange={(event) => setMtuFilter(event.target.value)} inputMode="numeric" placeholder="MTU" className="h-8 w-20 text-xs" />
-                    {(sessionSearch || minPps || maxPps || ipv6Filter !== "all" || vlanFilter || mtuFilter) && (
-                      <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => { setSessionSearch(""); setMinPps(""); setMaxPps(""); setIpv6Filter("all"); setVlanFilter(""); setMtuFilter(""); }}>
+                    <Input value={minRxBytes} onChange={(event) => setMinRxBytes(event.target.value)} inputMode="numeric" placeholder="Min RX bytes" className="h-8 w-28 text-xs" />
+                    <Input value={maxRxBytes} onChange={(event) => setMaxRxBytes(event.target.value)} inputMode="numeric" placeholder="Max RX bytes" className="h-8 w-28 text-xs" />
+                    <Input value={minTxBytes} onChange={(event) => setMinTxBytes(event.target.value)} inputMode="numeric" placeholder="Min TX bytes" className="h-8 w-28 text-xs" />
+                    <Input value={maxTxBytes} onChange={(event) => setMaxTxBytes(event.target.value)} inputMode="numeric" placeholder="Max TX bytes" className="h-8 w-28 text-xs" />
+                    {(sessionSearch || minPps || maxPps || ipv6Filter !== "all" || vlanFilter || mtuFilter || minRxBytes || maxRxBytes || minTxBytes || maxTxBytes) && (
+                      <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => { setSessionSearch(""); setMinPps(""); setMaxPps(""); setIpv6Filter("all"); setVlanFilter(""); setMtuFilter(""); setMinRxBytes(""); setMaxRxBytes(""); setMinTxBytes(""); setMaxTxBytes(""); }}>
                         <X className="h-3.5 w-3.5 mr-1" /> Clear
                       </Button>
                     )}
@@ -558,73 +612,77 @@ function PPPoEPageInner() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>User</TableHead>
-                          <TableHead>Interface</TableHead>
-                          <TableHead>IP address</TableHead>
-                          <TableHead>VLAN</TableHead>
-                          <TableHead>MTU</TableHead>
-                          <TableHead>Calling SID</TableHead>
-                          <TableHead>Uptime</TableHead>
-                          <TableHead>RX rate</TableHead>
-                          <TableHead>TX rate</TableHead>
-                          <TableHead className="text-right">Traffic total</TableHead>
+                          <TableHead><button className="font-medium" onClick={() => handleSessionSort("username")}>User {sessionSortLabel("username")}</button></TableHead>
+                          <TableHead><button className="font-medium" onClick={() => handleSessionSort("interface")}>Interface {sessionSortLabel("interface")}</button></TableHead>
+                          <TableHead><button className="font-medium" onClick={() => handleSessionSort("ip")}>IP address {sessionSortLabel("ip")}</button></TableHead>
+                          <TableHead><button className="font-medium" onClick={() => handleSessionSort("vlan")}>VLAN {sessionSortLabel("vlan")}</button></TableHead>
+                          <TableHead><button className="font-medium" onClick={() => handleSessionSort("mtu")}>MTU {sessionSortLabel("mtu")}</button></TableHead>
+                          <TableHead><button className="font-medium" onClick={() => handleSessionSort("calling_sid")}>Calling SID {sessionSortLabel("calling_sid")}</button></TableHead>
+                          <TableHead><button className="font-medium" onClick={() => handleSessionSort("uptime")}>Uptime {sessionSortLabel("uptime")}</button></TableHead>
+                          <TableHead><button className="font-medium" onClick={() => handleSessionSort("rxRate")}>RX Rate (UPL) {sessionSortLabel("rxRate")}</button></TableHead>
+                          <TableHead><button className="font-medium" onClick={() => handleSessionSort("txRate")}>TX Rate (Dow) {sessionSortLabel("txRate")}</button></TableHead>
+                          <TableHead><button className="font-medium text-right" onClick={() => handleSessionSort("rx_bytes")}>Traffic total {sessionSortLabel("rx_bytes")}</button></TableHead>
                           <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {filteredSessions.slice((sessionPage - 1) * sessionPageSize, sessionPage * sessionPageSize).map((session) => (
-                          <TableRow key={`${session.interface}:${session.username}:${session.calling_sid ?? ""}`}>
-                            <TableCell className="font-medium">{session.username}</TableCell>
-                            <TableCell className="font-mono">{session.interface}</TableCell>
-                            <TableCell className="font-mono">
-                              <div>{session.ip || "-"}</div>
-                              {session.ipv6 && <div className="text-xs text-muted-foreground">{session.ipv6}</div>}
-                              {session.ipv6_delegated && <div className="text-xs text-muted-foreground">PD: {session.ipv6_delegated}</div>}
-                            </TableCell>
-                            <TableCell>{session.vlan || "-"}</TableCell>
-                            <TableCell>{session.mtu || "-"}</TableCell>
-                            <TableCell className="font-mono text-xs">{session.calling_sid || "-"}</TableCell>
-                            <TableCell>{session.uptime || "-"}</TableCell>
-                            <TableCell>{formatRate(session.rxRate)} <span className="text-xs text-muted-foreground">/ {formatPps(session.rxPps)}</span></TableCell>
-                            <TableCell>{formatRate(session.txRate)} <span className="text-xs text-muted-foreground">/ {formatPps(session.txPps)}</span></TableCell>
-                            <TableCell className="text-right whitespace-nowrap">
-                              {formatBytes(session.rx_bytes)} / {formatBytes(session.tx_bytes)}
-                            </TableCell>
-                            <TableCell className="text-right whitespace-nowrap">
-                              <Button variant="ghost" size="icon" className="h-8 w-8" title={`Graph statistics for ${session.username}`} onClick={() => setSelectedStatsKey(sessionKey(session))}>
-                                <Activity className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                                title={`Inspect connections for ${session.username}`}
-                                onClick={() => void inspectConnections(session)}
-                                disabled={!session.ip}
-                              >
-                                <Cable className="h-4 w-4" />
-                              </Button>
-                            {hasWrite && (
+                        {sortedSessions.slice((sessionPage - 1) * sessionPageSize, sessionPage * sessionPageSize).map((session) => {
+                          const trafficRisk = session.tx_bytes > session.rx_bytes * 2;
+                          return (
+                            <TableRow key={`${session.interface}:${session.username}:${session.calling_sid ?? ""}`}>
+                              <TableCell className="font-medium">{session.username}</TableCell>
+                              <TableCell className="font-mono">{session.interface}</TableCell>
+                              <TableCell className="font-mono">
+                                <div>{session.ip || "-"}</div>
+                                {session.ipv6 && <div className="text-xs text-muted-foreground">{session.ipv6}</div>}
+                                {session.ipv6_delegated && <div className="text-xs text-muted-foreground">PD: {session.ipv6_delegated}</div>}
+                              </TableCell>
+                              <TableCell>{session.vlan || "-"}</TableCell>
+                              <TableCell>{session.mtu || "-"}</TableCell>
+                              <TableCell className="font-mono text-xs">{session.calling_sid || "-"}</TableCell>
+                              <TableCell>{session.uptime || "-"}</TableCell>
+                              <TableCell>{formatRate(session.rxRate)} <span className="text-xs text-muted-foreground">/ {formatPps(session.rxPps)}</span></TableCell>
+                              <TableCell>{formatRate(session.txRate)} <span className="text-xs text-muted-foreground">/ {formatPps(session.txPps)}</span></TableCell>
+                              <TableCell className="text-right whitespace-nowrap">
+                                <span>{formatBytes(session.rx_bytes)} / {formatBytes(session.tx_bytes)}</span>
+                                {trafficRisk && <span className="ml-2 rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-700">Botnet risk</span>}
+                              </TableCell>
+                              <TableCell className="text-right whitespace-nowrap">
+                                <Button variant="ghost" size="icon" className="h-8 w-8" title={`Graph statistics for ${session.username}`} onClick={() => setSelectedStatsKey(sessionKey(session))}>
+                                  <Activity className="h-4 w-4" />
+                                </Button>
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8 hover:bg-destructive/10"
-                                  title={`Reset sessions for ${session.username}`}
-                                  onClick={() => setDeleteTarget({
-                                    type: "PPPoE session",
-                                    name: session.username,
-                                    onDelete: () => pppoeServerService.resetSession(session.username),
-                                    actionLabel: "Reset",
-                                    actionVerb: "reset",
-                                    warning: "This will terminate all active PPPoE sessions for this username and force the client to reconnect.",
-                                  })}
+                                  className="h-8 w-8"
+                                  title={`Inspect connections for ${session.username}`}
+                                  onClick={() => void inspectConnections(session)}
+                                  disabled={!session.ip}
                                 >
-                                  <RotateCcw className="h-4 w-4 text-destructive" />
+                                  <Cable className="h-4 w-4" />
                                 </Button>
-                            )}
-                            </TableCell>
-                          </TableRow>
-                        ))}
+                              {hasWrite && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 hover:bg-destructive/10"
+                                    title={`Reset sessions for ${session.username}`}
+                                    onClick={() => setDeleteTarget({
+                                      type: "PPPoE session",
+                                      name: session.username,
+                                      onDelete: () => pppoeServerService.resetSession(session.username),
+                                      actionLabel: "Reset",
+                                      actionVerb: "reset",
+                                      warning: "This will terminate all active PPPoE sessions for this username and force the client to reconnect.",
+                                    })}
+                                  >
+                                    <RotateCcw className="h-4 w-4 text-destructive" />
+                                  </Button>
+                              )}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
                       </TableBody>
                     </Table>
                   )}
@@ -1297,12 +1355,54 @@ function InfoRow({ label, value }: { label: string; value?: string | null }) {
   );
 }
 
+type SessionSortField =
+  | "username"
+  | "interface"
+  | "ip"
+  | "vlan"
+  | "mtu"
+  | "calling_sid"
+  | "uptime"
+  | "rxRate"
+  | "txRate"
+  | "rx_bytes"
+  | "tx_bytes";
+
 type SessionWithRates = PPPoESession & {
   rxRate?: number;
   txRate?: number;
   rxPps?: number;
   txPps?: number;
 };
+
+function sessionValue(session: SessionWithRates, field: SessionSortField): string | number {
+  switch (field) {
+    case "username":
+      return session.username;
+    case "interface":
+      return session.interface;
+    case "ip":
+      return session.ip ?? "";
+    case "vlan":
+      return session.vlan ?? "";
+    case "mtu":
+      return session.mtu ?? 0;
+    case "calling_sid":
+      return session.calling_sid ?? "";
+    case "uptime":
+      return session.uptime ?? "";
+    case "rxRate":
+      return session.rxRate ?? 0;
+    case "txRate":
+      return session.txRate ?? 0;
+    case "rx_bytes":
+      return session.rx_bytes ?? 0;
+    case "tx_bytes":
+      return session.tx_bytes ?? 0;
+    default:
+      return "";
+  }
+}
 
 function formatBytes(value: number): string {
   if (value >= 1024 ** 3) return `${(value / 1024 ** 3).toFixed(1)} GiB`;

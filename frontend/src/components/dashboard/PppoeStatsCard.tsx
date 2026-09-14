@@ -78,7 +78,7 @@ export function PppoeStatsCard({ onRemove, span = 1, onSpanChange, height, onHei
           <Activity className="h-5 w-5 text-primary" />
           <div>
             <CardTitle className="text-lg font-medium">PPPoE Statistics</CardTitle>
-            <p className="text-xs text-muted-foreground">{sessionCount} active sessions</p>
+            <p className="text-xs text-muted-foreground">{sessionCount}</p>
           </div>
         </div>
         <div className="flex items-center gap-1">

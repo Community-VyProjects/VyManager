@@ -106,7 +106,12 @@ export function PPPoEStatsChart({ points, height = 260, emptyLabel = "Waiting fo
               </defs>
               <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
               <XAxis dataKey="label" tick={{ fontSize: 10 }} minTickGap={24} />
-              <YAxis tick={{ fontSize: 10 }} tickFormatter={(value) => formatValue(Number(value), metric)} width={64} />
+              <YAxis
+                tick={{ fontSize: 10 }}
+                tickFormatter={(value) => formatValue(Number(value), metric)}
+                width={64}
+                domain={[0, 'dataMax']}
+              />
               <Tooltip formatter={(value) => formatValue(Number(value), metric)} />
               <Area type="monotone" dataKey={keys.rx} name={sessionsOnly ? "Active sessions" : "RX"} stroke="#06b6d4" fill="url(#pppoe-rx-fill)" strokeWidth={2} isAnimationActive={false} />
               {!sessionsOnly && <Area type="monotone" dataKey={keys.tx} name="TX" stroke="#f97316" fill="url(#pppoe-tx-fill)" strokeWidth={2} isAnimationActive={false} />}
