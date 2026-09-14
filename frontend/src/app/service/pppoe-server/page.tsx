@@ -60,6 +60,7 @@ import {
   type PPPoEIPv6Pool,
   type PPPoESession,
   type PPPoESessionLabelDefinition,
+  type PPPoESessionLabelRule,
 } from "@/lib/api/pppoe-server";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useDashboardSSE } from "@/hooks/useDashboardSSE";
