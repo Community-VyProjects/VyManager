@@ -78,7 +78,10 @@ DEFAULT_PPPoE_SESSION_LABELS: List[Dict[str, Any]] = [
         "enabled": True,
         "rules": {
             "type": "ratio",
-            "comparator": "rx_bytes / max(tx_bytes, 1) > 0.10",
+            "numerator": "rx_bytes",
+            "denominator": "tx_bytes",
+            "operator": ">",
+            "factor": 0.10,
         },
     },
 ]

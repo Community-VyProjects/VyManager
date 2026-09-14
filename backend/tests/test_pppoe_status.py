@@ -1,6 +1,7 @@
 from pppoe_status import (
     PPPoEPpsTracker,
     PPPoESession,
+    _merge_text_metadata_into_sessions,
     parse_accel_ppp_sessions,
     parse_pppoe_sessions,
     pppoe_configured,
@@ -135,7 +136,7 @@ def test_parse_accel_ppp_sessions_reads_optional_vlan_and_mtu_when_graphql_rows_
             "ifname": "ppp0",
             "username": "labuser",
             "state": "active",
-            "vlan": "120",
+            "vlan_id": "120",
             "mtu": "1492",
             "rx_pkts": "5",
             "tx_pkts": "6",
@@ -147,6 +148,24 @@ def test_parse_accel_ppp_sessions_reads_optional_vlan_and_mtu_when_graphql_rows_
     assert len(sessions) == 1
     assert sessions[0].vlan == "120"
     assert sessions[0].mtu == 1492
+
+
+def test_merge_text_metadata_into_sessions_overlays_vlan_and_mtu_from_single_snapshot():
+    graphql = parse_accel_ppp_sessions([
+        {"ifname": "ppp0", "username": "labuser", "state": "active", "rx_pkts": "5", "tx_pkts": "6"}
+    ])
+    table = parse_pppoe_sessions(
+        """
+ifname | username | ip | vlan-id | mtu | state | rx-bytes | tx-bytes
+ppp0 | labuser | 192.0.2.10 | 120 | 1492 | active | 1 KiB | 2 KiB
+"""
+    )
+
+    merged = _merge_text_metadata_into_sessions(graphql, table)
+
+    assert len(merged) == 1
+    assert merged[0].vlan == "120"
+    assert merged[0].mtu == 1492
 
 
 def test_parse_accel_ppp_sessions_accepts_json_encoded_string_result():

@@ -80,25 +80,29 @@ import {
 } from "@/components/pppoe-server";
 import type { PPPoEStatsPoint } from "@/components/pppoe-server/PPPoEStatsChart";
 
+function sessionMetricValue(session: SessionWithRates, field?: string): number {
+  if (field === "tx_bytes") return session.tx_bytes ?? 0;
+  if (field === "rx_bytes") return session.rx_bytes ?? 0;
+  if (field === "txRate") return session.txRate ?? 0;
+  if (field === "rxRate") return session.rxRate ?? 0;
+  return 0;
+}
+
 function sessionLabelMatches(session: SessionWithRates, label: PPPoESessionLabelDefinition): boolean {
   const rules = label.rules;
   if (!rules || rules.type !== "ratio") return false;
 
-  const lhs = rules.numerator === "tx_bytes" ? (session.tx_bytes ?? 0) :
-    rules.numerator === "rx_bytes" ? (session.rx_bytes ?? 0) :
-    rules.numerator === "txRate" ? (session.txRate ?? 0) :
-    (session.rxRate ?? 0);
+  const lhs = sessionMetricValue(session, rules.numerator);
+  const rhs = sessionMetricValue(session, rules.denominator);
+  const factor = Number(rules.factor ?? 0.10);
+  if (!Number.isFinite(factor)) return false;
+  if (rhs === 0) return false;
 
-  const rhs = rules.denominator === "tx_bytes" ? (session.tx_bytes ?? 0) :
-    rules.denominator === "rx_bytes" ? (session.rx_bytes ?? 0) :
-    rules.denominator === "txRate" ? (session.txRate ?? 0) :
-    (session.rxRate ?? 0);
-
-  const factor = Math.max(1, rules.factor ?? 2);
-  if (rules.operator === ">") return lhs > rhs * factor;
-  if (rules.operator === ">=") return lhs >= rhs * factor;
-  if (rules.operator === "<") return lhs < rhs * factor;
-  if (rules.operator === "<=") return lhs <= rhs * factor;
+  const ratio = lhs / rhs;
+  if (rules.operator === ">") return ratio > factor;
+  if (rules.operator === ">=") return ratio >= factor;
+  if (rules.operator === "<") return ratio < factor;
+  if (rules.operator === "<=") return ratio <= factor;
   return false;
 }
 
@@ -1394,14 +1398,17 @@ function PPPoEPageInner() {
               </div>
 
               <div className="overflow-hidden rounded-lg border border-border/50 bg-muted/10">
-                <div className="grid grid-cols-[minmax(110px,0.9fr)_minmax(130px,1.2fr)_minmax(200px,2fr)_minmax(70px,0.7fr)_minmax(110px,1fr)_minmax(92px,0.8fr)_minmax(100px,0.8fr)_52px] gap-2 border-b bg-muted/30 px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <div className="grid grid-cols-[minmax(110px,0.9fr)_minmax(140px,1.2fr)_minmax(180px,1.8fr)_minmax(75px,0.7fr)_minmax(110px,1fr)_minmax(80px,0.8fr)_minmax(105px,1fr)_minmax(105px,1fr)_minmax(82px,1fr)_minmax(62px,0.7fr)_52px] gap-2 border-b bg-muted/30 px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                   <span>Code</span>
                   <span>Name</span>
                   <span>Description</span>
                   <span>Priority</span>
                   <span>Severity</span>
                   <span>Enabled</span>
-                  <span>Rule</span>
+                  <span>Numerator</span>
+                  <span>Denominator</span>
+                  <span>Operator</span>
+                  <span>Factor</span>
                   <span className="text-right">Actions</span>
                 </div>
 
@@ -1410,7 +1417,7 @@ function PPPoEPageInner() {
                 ) : (
                   <div className="max-h-[55vh] overflow-auto">
                     {labelDraft.map((label, index) => (
-                      <div key={`${label.code}-${index}`} className="grid grid-cols-[minmax(110px,0.9fr)_minmax(130px,1.2fr)_minmax(200px,2fr)_minmax(70px,0.7fr)_minmax(110px,1fr)_minmax(92px,0.8fr)_minmax(100px,0.8fr)_52px] gap-2 border-b border-border/30 px-4 py-3 last:border-b-0 hover:bg-muted/20">
+                      <div key={`${label.code}-${index}`} className="grid grid-cols-[minmax(110px,0.9fr)_minmax(140px,1.2fr)_minmax(180px,1.8fr)_minmax(75px,0.7fr)_minmax(110px,1fr)_minmax(80px,0.8fr)_minmax(105px,1fr)_minmax(105px,1fr)_minmax(82px,1fr)_minmax(62px,0.7fr)_52px] gap-2 border-b border-border/30 px-4 py-3 last:border-b-0 hover:bg-muted/20">
                         <div className="min-w-0">
                           <Input value={label.code ?? ""} onChange={(event) => setLabelDraft((current) => current.map((item, i) => i === index ? { ...item, code: event.target.value } : item))} className="h-9 text-sm font-medium" />
                         </div>
@@ -1437,9 +1444,31 @@ function PPPoEPageInner() {
                           </select>
                         </div>
                         <div className="min-w-0">
-                          <select value={label.rules?.type ?? "ratio"} onChange={(event) => setLabelDraft((current) => current.map((item, i) => i === index ? { ...item, rules: { ...(item.rules ?? {}), type: event.target.value as "ratio" } } : item))} className="h-9 w-full rounded-md border bg-background px-2 text-sm">
-                            <option value="ratio">ratio</option>
+                          <select value={label.rules?.numerator ?? "rx_bytes"} onChange={(event) => setLabelDraft((current) => current.map((item, i) => i === index ? { ...item, rules: { ...(item.rules ?? {}), type: "ratio", numerator: event.target.value as PPPoESessionLabelRule["numerator"] } } : item))} className="h-9 w-full rounded-md border bg-background px-2 text-sm">
+                            <option value="rx_bytes">RX bytes</option>
+                            <option value="tx_bytes">TX bytes</option>
+                            <option value="rxRate">RX Rate</option>
+                            <option value="txRate">TX Rate</option>
                           </select>
+                        </div>
+                        <div className="min-w-0">
+                          <select value={label.rules?.denominator ?? "tx_bytes"} onChange={(event) => setLabelDraft((current) => current.map((item, i) => i === index ? { ...item, rules: { ...(item.rules ?? {}), type: "ratio", denominator: event.target.value as PPPoESessionLabelRule["denominator"] } } : item))} className="h-9 w-full rounded-md border bg-background px-2 text-sm">
+                            <option value="rx_bytes">RX bytes</option>
+                            <option value="tx_bytes">TX bytes</option>
+                            <option value="rxRate">RX Rate</option>
+                            <option value="txRate">TX Rate</option>
+                          </select>
+                        </div>
+                        <div className="min-w-0">
+                          <select value={label.rules?.operator ?? ">"} onChange={(event) => setLabelDraft((current) => current.map((item, i) => i === index ? { ...item, rules: { ...(item.rules ?? {}), type: "ratio", operator: event.target.value as PPPoESessionLabelRule["operator"] } } : item))} className="h-9 w-full rounded-md border bg-background px-2 text-sm">
+                            <option value=">">&gt;</option>
+                            <option value=">=">&ge;</option>
+                            <option value="<">&lt;</option>
+                            <option value="<=">&le;</option>
+                          </select>
+                        </div>
+                        <div className="min-w-0">
+                          <Input value={label.rules?.factor ?? 0.1} type="number" step="0.01" min="0" onChange={(event) => setLabelDraft((current) => current.map((item, i) => i === index ? { ...item, rules: { ...(item.rules ?? {}), type: "ratio", factor: Number(event.target.value) } } : item))} className="h-9 text-sm" />
                         </div>
                         <div className="flex items-center justify-end">
                           <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10" onClick={() => removeLabelDraft(index)}>
