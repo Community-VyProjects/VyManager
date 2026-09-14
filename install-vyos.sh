@@ -25,11 +25,6 @@ FRONTEND_IMAGE="${REGISTRY}/vymanager-frontend:beta"
 BACKEND_IMAGE="${REGISTRY}/vymanager-backend:beta"
 POSTGRES_IMAGE="postgres:16-alpine"
 NET_NAME="vymanager"
-NET_PREFIX_DEFAULT="172.31.255.0/24"
-PG_ADDR_DEFAULT="172.31.255.2"
-BE_ADDR_DEFAULT="172.31.255.3"
-FE_ADDR_DEFAULT="172.31.255.4"
-GW_ADDR_DEFAULT="172.31.255.1"
 VOL_PG="/config/containers/vymanager-postgres"
 KEY_ID="vymanager"
 
@@ -91,6 +86,138 @@ rand_alnum() {
 build_database_url() {
   printf "postgresql://vymanager:%s" "$1"
   printf "@%s:5432/vymanager" "$2"
+}
+
+iputil() {
+  python3 - "$@" <<'PY'
+import ipaddress
+import sys
+
+def parse(s):
+    return ipaddress.ip_address(s.split("%", 1)[0])
+
+def usable(s):
+    try:
+        a = parse(s)
+    except ValueError:
+        return False
+    return not (a.is_loopback or a.is_link_local or a.is_multicast or a.is_unspecified)
+
+def rank(s):
+    a = parse(s)
+    if a.version == 4:
+        if (
+            a in ipaddress.ip_network("10.0.0.0/8")
+            or a in ipaddress.ip_network("192.168.0.0/16")
+            or a in ipaddress.ip_network("172.16.0.0/12")
+        ):
+            return 0
+        if a in ipaddress.ip_network("100.64.0.0/10"):
+            return 2
+        return 3
+    if a.is_private:
+        return 1
+    return 3
+
+cmd = sys.argv[1]
+args = sys.argv[2:]
+if cmd == "usable":
+    sys.exit(0 if usable(args[0]) else 1)
+if cmd == "is-v6":
+    try:
+        sys.exit(0 if parse(args[0]).version == 6 else 1)
+    except ValueError:
+        sys.exit(1)
+if cmd == "url":
+    ip, port = args[0], args[1]
+    if parse(ip).version == 6:
+        print("http://[%s]:%s" % (ip, port))
+    else:
+        print("http://%s:%s" % (ip, port))
+    sys.exit(0)
+if cmd == "listen-fmt":
+    ip, port = args[0], args[1]
+    if parse(ip).version == 6:
+        print("[%s]:%s" % (ip, port))
+    else:
+        print("%s:%s" % (ip, port))
+    sys.exit(0)
+if cmd == "pick-default":
+    ssh = args[0] if args else ""
+    addrs = [a for a in args[1:] if usable(a)]
+    addrs = sorted(set(addrs), key=lambda a: (rank(a), a))
+    if addrs and rank(addrs[0]) <= 2:
+        print(addrs[0])
+        sys.exit(0)
+    if ssh and usable(ssh) and rank(ssh) <= 2:
+        print(ssh)
+        sys.exit(0)
+    if addrs:
+        print(addrs[0])
+        sys.exit(0)
+    if ssh and usable(ssh):
+        print(ssh)
+        sys.exit(0)
+    sys.exit(1)
+if cmd == "filter-prefix":
+    prefix = ipaddress.ip_network(args[0], strict=False)
+    for a in args[1:]:
+        if not a or not usable(a):
+            continue
+        if parse(a) in prefix:
+            continue
+        print(a)
+    sys.exit(0)
+if cmd == "prefix-free":
+    host = []
+    for s in args:
+        if not s:
+            continue
+        try:
+            host.append(parse(s))
+        except ValueError:
+            try:
+                host.append(ipaddress.ip_network(s, strict=False))
+            except ValueError:
+                continue
+    for n in range(255, 239, -1):
+        net = ipaddress.ip_network("172.31.%d.0/24" % n)
+        v6net = ipaddress.ip_network("fd00:7e:31:%d::/64" % n)
+        clash = False
+        for item in host:
+            if isinstance(item, (ipaddress.IPv4Network, ipaddress.IPv6Network)):
+                if item.overlaps(net) or item.overlaps(v6net):
+                    clash = True
+                    break
+            elif item in net or item in v6net:
+                clash = True
+                break
+        if not clash:
+            print(
+                "172.31.%d.0/24 172.31.%d.1 172.31.%d.2 172.31.%d.3 172.31.%d.4 "
+                "fd00:7e:31:%d::/64 fd00:7e:31:%d::1 fd00:7e:31:%d::3"
+                % (n, n, n, n, n, n, n, n)
+            )
+            sys.exit(0)
+    sys.exit(1)
+if cmd == "from-v4-prefix":
+    net = ipaddress.ip_network(args[0], strict=False)
+    if net.version != 4 or net.prefixlen != 24:
+        sys.exit(1)
+    hosts = list(net.hosts())
+    n = int(str(net.network_address).split(".")[2])
+    print(
+        "%s %s %s %s %s fd00:7e:31:%d::/64 fd00:7e:31:%d::1 fd00:7e:31:%d::3"
+        % (net, hosts[0], hosts[1], hosts[2], hosts[3], n, n, n)
+    )
+    sys.exit(0)
+sys.stderr.write("unknown iputil command\n")
+sys.exit(2)
+PY
+}
+
+build_app_url() {
+  iputil url "$1" "$2"
 }
 
 quote_val() {
@@ -167,6 +294,18 @@ ssh_server_ip() {
     fi
   fi
   echo ""
+}
+
+list_host_ips() {
+  {
+    ip -4 -o addr show scope global 2>/dev/null || true
+    ip -6 -o addr show scope global 2>/dev/null || true
+  } | awk '{print $4}' | cut -d/ -f1
+}
+
+host_routes() {
+  ip -4 route show 2>/dev/null | awk '{print $1}' | grep '/' || true
+  ip -6 route show 2>/dev/null | awk '{print $1}' | grep '/' || true
 }
 
 https_port_now() {
@@ -250,6 +389,31 @@ if [ "${1:-}" = "--self-test" ]; then
   u="$(build_database_url SecretPass1 172.31.255.2)"
   want="$(printf "postgresql://vymanager:%s" SecretPass1; printf "@%s:5432/vymanager" 172.31.255.2)"
   [ "$u" = "$want" ] || fail "database url mismatch"
+  app="$(build_app_url 192.0.2.10 3000)"
+  [ "$app" = "http://192.0.2.10:3000" ] || fail "app url mismatch"
+  app6="$(build_app_url 2001:db8::1 3000)"
+  [ "$app6" = "http://[2001:db8::1]:3000" ] || fail "ipv6 app url mismatch"
+  picked="$(iputil pick-default 203.0.113.9 203.0.113.1 192.168.1.10)"
+  [ "$picked" = "192.168.1.10" ] || fail "pick-default should prefer RFC1918 over public SSH"
+  picked="$(iputil pick-default 192.168.7.1 203.0.113.1)"
+  [ "$picked" = "192.168.7.1" ] || fail "pick-default should prefer private SSH over public list"
+  pref="$(iputil prefix-free 172.31.255.8)"
+  case "$pref" in
+    "172.31.255.0/24"*) fail "prefix-free should skip in-use 172.31.255.0/24" ;;
+  esac
+  pref6="$(iputil prefix-free fd00:7e:31:255::2)"
+  case "$pref6" in
+    *fd00:7e:31:255::/64*) fail "prefix-free should skip in-use ULA" ;;
+  esac
+  reused="$(iputil from-v4-prefix 172.31.255.0/24)"
+  case "$reused" in
+    "172.31.255.0/24 172.31.255.1 "*) ;;
+    *) fail "from-v4-prefix" ;;
+  esac
+  case "$pref" in
+    172.31.*) ;;
+    *) fail "prefix-free output" ;;
+  esac
   case "$u" in
     *SecretPass1*) ;;
     *) fail "password missing from database url" ;;
@@ -291,22 +455,57 @@ echo "  Firewall, NAT, and zone-policy are left untouched."
 echo
 
 FAMILY="$(detect_vyos_family)"
-prompt FAMILY "VyOS family for the seeded instance (1.4 or 1.5)" "$FAMILY"
+prompt FAMILY "VyOS family (1.4 or 1.5)" "$FAMILY"
 case "$FAMILY" in
   1.4|1.5) ;;
   *) fail "Family must be 1.4 or 1.5" ;;
 esac
 
-SSH_IP="$(ssh_server_ip)"
-if [ -z "$SSH_IP" ]; then
-  prompt SSH_IP "IPv4/IPv6 of the interface you SSH to (API listen-address if HTTPS is new)"
-else
-  prompt SSH_IP "Address containers use to reach this router's HTTPS API" "$SSH_IP"
-fi
-[ -n "$SSH_IP" ] || fail "API address is required"
-
 HTTPS_PORT="$(https_port_now)"
-prompt UI_PORT "UI port (must not be the VyOS API port ${HTTPS_PORT})" "3000"
+RAW_IPS="$(list_host_ips)"
+ROUTES="$(host_routes)"
+if exists_active container network "$NET_NAME"; then
+  EXIST_P4="$(/bin/cli-shell-api returnActiveValues container network "$NET_NAME" prefix 2>/dev/null | tr -d "'" | tr -s '[:space:]' '\n' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/' | head -n 1 || true)"
+  [ -n "$EXIST_P4" ] || fail "container network vymanager has no IPv4 prefix"
+  PREFIX_LINE="$(iputil from-v4-prefix "$EXIST_P4")" || fail "Could not reuse container network prefix ${EXIST_P4}"
+else
+  # shellcheck disable=SC2086
+  PREFIX_LINE="$(iputil prefix-free $RAW_IPS $ROUTES)" || fail "No free 172.31.x.0/24 for the container network"
+fi
+set -f
+set -- $PREFIX_LINE
+set +f
+NET_PREFIX="$1"
+GW_ADDR="$2"
+PG_ADDR="$3"
+BE_ADDR="$4"
+FE_ADDR="$5"
+V6_PREFIX="$6"
+V6_GW="$7"
+V6_BE="$8"
+
+# shellcheck disable=SC2086
+HOST_IPS="$(iputil filter-prefix "$NET_PREFIX" $RAW_IPS)"
+SSH_IP="$(ssh_server_ip)"
+# shellcheck disable=SC2086
+UI_IP="$(iputil pick-default "${SSH_IP:-}" $HOST_IPS)" || UI_IP=""
+if [ -n "$HOST_IPS" ]; then
+  info "IPs on this router:"
+  echo "$HOST_IPS" | sed "s/^/    /"
+fi
+if [ -n "$UI_IP" ]; then
+  prompt UI_IP "IP for the web UI (bound on this address only)" "$UI_IP"
+else
+  prompt UI_IP "IP for the web UI (bound on this address only)"
+fi
+[ -n "$UI_IP" ] || fail "UI IP is required"
+iputil usable "$UI_IP" || fail "Not a usable IP address"
+UI_IS_V6=0
+if iputil is-v6 "$UI_IP"; then
+  UI_IS_V6=1
+fi
+
+prompt UI_PORT "Web UI port" "3000"
 case "$UI_PORT" in
   ''|*[!0-9]*) fail "UI port must be an integer" ;;
 esac
@@ -317,15 +516,8 @@ if [ "$UI_PORT" = "$HTTPS_PORT" ]; then
   fail "UI port ${UI_PORT} is the VyOS API port. Pick another port."
 fi
 
-prompt APP_URL "URL you will type in the browser" "http://${SSH_IP}:${UI_PORT}"
-prompt NET_PREFIX "Container network prefix" "$NET_PREFIX_DEFAULT"
-GW_ADDR="$GW_ADDR_DEFAULT"
-if [ "$FAMILY" = "1.5" ]; then
-  prompt GW_ADDR "Container network gateway" "$GW_ADDR_DEFAULT"
-fi
-prompt PG_ADDR "Postgres address on that network" "$PG_ADDR_DEFAULT"
-prompt BE_ADDR "Backend address on that network" "$BE_ADDR_DEFAULT"
-prompt FE_ADDR "Frontend address on that network" "$FE_ADDR_DEFAULT"
+APP_URL="$(build_app_url "$UI_IP" "$UI_PORT")"
+LISTEN_FMT="$(iputil listen-fmt "$UI_IP" "$UI_PORT")"
 
 PULL_VRF=""
 if check_ghcr; then
@@ -339,19 +531,16 @@ else
   else
     echo "    (none in config)"
   fi
-  prompt PULL_VRF "VRF name used to pull images and attach the container network"
+  prompt PULL_VRF "VRF to pull images (also used for the container network)"
   [ -n "$PULL_VRF" ] || fail "A VRF is required when the default table cannot reach ghcr.io"
 fi
-
-prompt NET_VRF "VRF for the container network (blank for default table)" "${PULL_VRF:-}"
+NET_VRF="${PULL_VRF:-}"
 
 echo
-info "About 1 GB RAM for postgres + backend + frontend."
+info "Open ${APP_URL} after commit."
+info "The UI listens on ${LISTEN_FMT} only."
 info "Postgres data stays on persistent disk under ${VOL_PG}."
-info "Do not bind the UI to the VyOS API port (${HTTPS_PORT})."
 echo
-info "Ports that must be reachable from your browser/SSH client:"
-info "  SSH (existing), HTTPS API (${HTTPS_PORT}), UI (${UI_PORT})"
 info "This installer does not write firewall, NAT, or zone-policy."
 echo
 
@@ -366,7 +555,7 @@ fi
 if exists_active service https; then
   info "service https is already present. Not changing existing listen-address or port."
 else
-  add_set "service https listen-address $(quote_val "$SSH_IP")"
+  add_set "service https listen-address $(quote_val "$UI_IP")"
 fi
 
 if exists_active service https api graphql authentication type; then
@@ -407,12 +596,26 @@ AUTH_SECRET="$(rand_hex 32)"
 SSH_KEY="$(rand_hex 32)"
 DB_URL="$(build_database_url "$DB_PASS" "$PG_ADDR")"
 
+NET_HAS_V6=0
 if [ "$STACK_EXISTS" -eq 0 ]; then
   if exists_active container network "$NET_NAME"; then
-    info "Container network ${NET_NAME} already exists. Not changing prefix/VRF."
+    info "Container network ${NET_NAME} already exists. Not changing VRF or IPv4 prefix."
+    EXIST_PFX="$(/bin/cli-shell-api returnActiveValues container network "$NET_NAME" prefix 2>/dev/null | tr -d "'" || true)"
+    if echo "$EXIST_PFX" | grep -qF "$V6_PREFIX"; then
+      NET_HAS_V6=1
+    elif [ "$UI_IS_V6" -eq 1 ]; then
+      add_set "container network ${NET_NAME} prefix $(quote_val "$V6_PREFIX")"
+      add_network_gateway_if_15 "$V6_GW"
+      NET_HAS_V6=1
+    fi
   else
     add_set "container network ${NET_NAME} prefix $(quote_val "$NET_PREFIX")"
     add_network_gateway_if_15 "$GW_ADDR"
+    if [ "$UI_IS_V6" -eq 1 ]; then
+      add_set "container network ${NET_NAME} prefix $(quote_val "$V6_PREFIX")"
+      add_network_gateway_if_15 "$V6_GW"
+      NET_HAS_V6=1
+    fi
     if [ -n "$NET_VRF" ]; then
       add_set "container network ${NET_NAME} vrf $(quote_val "$NET_VRF")"
     fi
@@ -430,9 +633,12 @@ if [ "$STACK_EXISTS" -eq 0 ]; then
   add_set "container name vymanager-backend image $(quote_val "$BACKEND_IMAGE")"
   add_set "container name vymanager-backend restart always"
   add_set "container name vymanager-backend network ${NET_NAME} address $(quote_val "$BE_ADDR")"
+  if [ "$NET_HAS_V6" -eq 1 ]; then
+    add_set "container name vymanager-backend network ${NET_NAME} address $(quote_val "$V6_BE")"
+  fi
   add_set "container name vymanager-backend environment NODE_ENV value production"
   add_set "container name vymanager-backend environment VYMANAGER_MODE value appliance"
-  add_set "container name vymanager-backend environment VYMANAGER_APPLIANCE_HOST value $(quote_val "$SSH_IP")"
+  add_set "container name vymanager-backend environment VYMANAGER_APPLIANCE_HOST value $(quote_val "$UI_IP")"
   add_set "container name vymanager-backend environment VYMANAGER_APPLIANCE_API_KEY value $(quote_val "$API_KEY")"
   add_set "container name vymanager-backend environment VYMANAGER_APPLIANCE_VERSION value $(quote_val "$FAMILY")"
   add_set "container name vymanager-backend environment VYMANAGER_APPLIANCE_PORT value $(quote_val "$HTTPS_PORT")"
@@ -450,6 +656,7 @@ if [ "$STACK_EXISTS" -eq 0 ]; then
   add_set "container name vymanager-frontend port ui source $(quote_val "$UI_PORT")"
   add_set "container name vymanager-frontend port ui destination 3000"
   add_set "container name vymanager-frontend port ui protocol tcp"
+  add_set "container name vymanager-frontend port ui listen-address $(quote_val "$UI_IP")"
   add_set "container name vymanager-frontend environment NODE_ENV value production"
   add_set "container name vymanager-frontend environment DATABASE_URL value $(quote_val "$DB_URL")"
   add_set "container name vymanager-frontend environment BETTER_AUTH_SECRET value $(quote_val "$AUTH_SECRET")"
