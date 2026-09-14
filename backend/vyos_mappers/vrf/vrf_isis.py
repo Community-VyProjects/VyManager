@@ -288,6 +288,9 @@ class VrfIsisMapper:
     def get_isis_fr_lfa_local_priority_limit_level(self, name: str, priority: str, level: str) -> List[str]:
         return self._fr_lfa(name) + ["local", "priority-limit", priority, level]
 
+    def get_isis_fr_lfa_local_tiebreaker(self, name: str, tb_type: str) -> List[str]:
+        return self._fr_lfa(name) + ["local", "tiebreaker", tb_type]
+
     def get_isis_fr_lfa_local_tiebreaker_index(self, name: str, tb_type: str, index: str) -> List[str]:
         return self._fr_lfa(name) + ["local", "tiebreaker", tb_type, "index", index]
 
@@ -299,14 +302,6 @@ class VrfIsisMapper:
 
     def get_isis_fr_lfa_remote_prefix_list_level(self, name: str, prefix_list: str, level: str) -> List[str]:
         return self._fr_lfa(name) + ["remote", "prefix-list", prefix_list, level]
-
-    def get_isis_fr_lfa_level_remote_prefix_list(self, name: str, level: str, prefix_list: str) -> List[str]:
-        return self.get_isis_fr_lfa_remote_prefix_list_level(name, prefix_list, level)
-
-    def get_isis_fr_lfa_local_tiebreaker_type_level_index(
-        self, name: str, tb_type: str, level: str, index: str
-    ) -> List[str]:
-        return self.get_isis_fr_lfa_local_tiebreaker_index_level(name, tb_type, index, level)
 
     # ========================================================================
     # Interface Fast Reroute / LDP Sync Disable

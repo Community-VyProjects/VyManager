@@ -165,10 +165,12 @@ export function EntityListEditor({
               <div key={id} className="flex items-center justify-between rounded-md border px-3 py-2">
                 <span className="font-mono text-sm">{id}</span>
                 <div className="flex items-center gap-1">
+                  {group.schema.length > 0 && (
                   <Button size="sm" variant="ghost" onClick={() => setEditId(id)} disabled={busy}>
                     <Pencil className="h-3.5 w-3.5 mr-1" />
                     Edit
                   </Button>
+                  )}
                   {(group.children || []).map((cg, idx) => (
                     <Button key={cg.label + idx} size="sm" variant="ghost" onClick={() => setChildCtx({ id, index: idx })} disabled={busy}>
                       <Layers className="h-3.5 w-3.5 mr-1" />

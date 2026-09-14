@@ -24,6 +24,8 @@ import {
   ISIS_REDIST_IPV6_GROUP,
   ISIS_DEFAULT_INFO_IPV4_GROUP,
   ISIS_DEFAULT_INFO_IPV6_GROUP,
+  ISIS_LFA_TIEBREAKER_GROUP,
+  ISIS_LFA_REMOTE_PREFIX_LIST_GROUP,
   ISIS_SR_PREFIX_GROUP,
 } from "./schema/isisEntities";
 
@@ -111,6 +113,8 @@ export function VrfIsisTab({ vrf, capabilities, canWrite, onRefresh }: VrfIsisTa
         ISIS_REDIST_IPV6_GROUP,
         ISIS_DEFAULT_INFO_IPV4_GROUP,
         ISIS_DEFAULT_INFO_IPV6_GROUP,
+        ISIS_LFA_TIEBREAKER_GROUP,
+        ISIS_LFA_REMOTE_PREFIX_LIST_GROUP,
         ISIS_SR_PREFIX_GROUP,
       ].map((group) => (
         <EntityListEditor

@@ -166,3 +166,52 @@ def test_parent_node_delete_when_leaf_omitted():
     assert vrf.get_operations() == [
         {"op": "delete", "path": ["vrf", "name", "blue", "protocols", "isis", "topology"]}
     ]
+
+
+def test_vrf_isis_lfa_tagged_nodes_round_trip():
+    """Entity ids are the tagged names, not dummy _."""
+    vrf = VrfBatchBuilder("1.5")
+    vrf.set_vrf_isis_fr_lfa_local_tiebreaker("blue", "downstream")
+    assert vrf.get_operations()[-1]["path"] == [
+        "vrf", "name", "blue", "protocols", "isis",
+        "fast-reroute", "lfa", "local", "tiebreaker", "downstream",
+    ]
+    vrf = VrfBatchBuilder("1.5")
+    vrf.set_vrf_isis_fr_lfa_local_tiebreaker_index("blue", "downstream,1")
+    assert vrf.get_operations()[-1]["path"] == [
+        "vrf", "name", "blue", "protocols", "isis",
+        "fast-reroute", "lfa", "local", "tiebreaker", "downstream", "index", "1",
+    ]
+    vrf = VrfBatchBuilder("1.5")
+    vrf.set_vrf_isis_fr_lfa_local_tiebreaker_index_level("blue", "downstream,1,level-2")
+    assert vrf.get_operations()[-1]["path"] == [
+        "vrf", "name", "blue", "protocols", "isis",
+        "fast-reroute", "lfa", "local", "tiebreaker", "downstream", "index", "1", "level-2",
+    ]
+    vrf = VrfBatchBuilder("1.5")
+    vrf.delete_vrf_isis_fr_lfa_local_tiebreaker_index("blue", "downstream,1")
+    assert vrf.get_operations()[-1]["path"] == [
+        "vrf", "name", "blue", "protocols", "isis",
+        "fast-reroute", "lfa", "local", "tiebreaker", "downstream", "index", "1",
+    ]
+    vrf = VrfBatchBuilder("1.5")
+    vrf.set_vrf_isis_fr_lfa_remote_prefix_list("blue", "FOO")
+    assert vrf.get_operations()[-1]["path"] == [
+        "vrf", "name", "blue", "protocols", "isis",
+        "fast-reroute", "lfa", "remote", "prefix-list", "FOO",
+    ]
+    vrf = VrfBatchBuilder("1.5")
+    vrf.set_vrf_isis_fr_lfa_remote_prefix_list_level("blue", "FOO,level-2")
+    assert vrf.get_operations()[-1]["path"] == [
+        "vrf", "name", "blue", "protocols", "isis",
+        "fast-reroute", "lfa", "remote", "prefix-list", "FOO", "level-2",
+    ]
+    vrf = VrfBatchBuilder("1.5")
+    vrf.delete_vrf_isis_fr_lfa_remote_prefix_list("blue", "FOO")
+    assert vrf.get_operations()[-1]["path"] == [
+        "vrf", "name", "blue", "protocols", "isis",
+        "fast-reroute", "lfa", "remote", "prefix-list", "FOO",
+    ]
+    vrf = VrfBatchBuilder("1.5")
+    vrf.delete_vrf_isis_fr_lfa_local_tiebreaker_index("blue", "downstream")
+    assert "_" not in vrf.get_operations()[-1]["path"]
