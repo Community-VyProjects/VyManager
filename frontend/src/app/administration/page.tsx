@@ -66,12 +66,17 @@ function AdministrationPageInner() {
   };
 
   useEffect(() => {
+    if (!modeReady || !hideSiteInventory(appliance)) return;
     void loadInstance();
-  }, []);
+  }, [modeReady, appliance]);
 
   const setTab = (value: string) => {
     router.replace(`/administration?section=${value}`);
   };
+
+  if (!modeReady || !hideSiteInventory(appliance)) {
+    return null;
+  }
 
   return (
     <AppLayout>

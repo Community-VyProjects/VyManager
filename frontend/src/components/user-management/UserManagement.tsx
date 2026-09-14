@@ -4,10 +4,14 @@ import { useState } from "react";
 import { Users, Server } from "lucide-react";
 import { UsersTab } from "./UsersTab";
 import { InstancesTab } from "./InstancesTab";
+import { useSessionStore } from "@/store/session-store";
+import { hideSiteInventory } from "@/lib/appliance";
 
 type UserManagementTab = "users" | "instances";
 
 export function UserManagement() {
+  const { appliance } = useSessionStore();
+  const showInstances = !hideSiteInventory(appliance);
   const [selectedTab, setSelectedTab] = useState<UserManagementTab>("users");
 
   return (
@@ -38,6 +42,7 @@ export function UserManagement() {
             <span>Users</span>
           </button>
 
+          {showInstances && (
           <button
             onClick={() => setSelectedTab("instances")}
             className={`
@@ -52,6 +57,7 @@ export function UserManagement() {
             <Server className="h-4 w-4" />
             <span>Instances</span>
           </button>
+          )}
         </div>
       </div>
 
@@ -59,7 +65,7 @@ export function UserManagement() {
       <div className="py-4">
         {selectedTab === "users" && <UsersTab />}
 
-        {selectedTab === "instances" && <InstancesTab />}
+        {showInstances && selectedTab === "instances" && <InstancesTab />}
       </div>
     </div>
   );

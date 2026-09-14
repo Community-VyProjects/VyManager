@@ -170,6 +170,7 @@ export default function SitesPage() {
       setError((err as ApiError).message || "Failed to load data");
     } finally {
       setLoading(false);
+      setModeReady(true);
     }
   };
 
@@ -258,10 +259,6 @@ export default function SitesPage() {
   const handleRestored = () => {
     loadData();
   };
-
-  useEffect(() => {
-    void loadSession().finally(() => setModeReady(true));
-  }, [loadSession]);
 
   useEffect(() => {
     if (!modeReady) return;
