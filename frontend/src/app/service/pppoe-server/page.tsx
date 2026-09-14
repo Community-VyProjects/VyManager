@@ -44,6 +44,7 @@ import {
   ChevronRight,
   Pause,
   Play,
+  Save,
   Search,
   X,
 } from "lucide-react";
@@ -79,32 +80,33 @@ import {
 } from "@/components/pppoe-server";
 import type { PPPoEStatsPoint } from "@/components/pppoe-server/PPPoEStatsChart";
 
-const pppoeSessionLabelDefinitions: PPPoESessionLabelDefinition[] = [
-  {
-    code: "traffic-skew",
-    name: "Traffic skew",
-    description: "Flag a session when upload (RX) bytes exceed 10% of download (TX) bytes, as a generic traffic-skew indicator.",
-    severity: "warning",
-    priority: 10,
-    enabled: true,
-    rules: {
-      type: "ratio",
-      comparator: "rx_bytes / max(tx_bytes, 1) > 0.10",
-    },
-  },
-];
+function sessionLabelMatches(session: SessionWithRates, label: PPPoESessionLabelDefinition): boolean {
+  const rules = label.rules;
+  if (!rules || rules.type !== "ratio") return false;
+
+  const lhs = rules.numerator === "tx_bytes" ? (session.tx_bytes ?? 0) :
+    rules.numerator === "rx_bytes" ? (session.rx_bytes ?? 0) :
+    rules.numerator === "txRate" ? (session.txRate ?? 0) :
+    (session.rxRate ?? 0);
+
+  const rhs = rules.denominator === "tx_bytes" ? (session.tx_bytes ?? 0) :
+    rules.denominator === "rx_bytes" ? (session.rx_bytes ?? 0) :
+    rules.denominator === "txRate" ? (session.txRate ?? 0) :
+    (session.rxRate ?? 0);
+
+  const factor = Math.max(1, rules.factor ?? 2);
+  if (rules.operator === ">") return lhs > rhs * factor;
+  if (rules.operator === ">=") return lhs >= rhs * factor;
+  if (rules.operator === "<") return lhs < rhs * factor;
+  if (rules.operator === "<=") return lhs <= rhs * factor;
+  return false;
+}
 
 function sessionRecognizedLabels(session: SessionWithRates, labels: PPPoESessionLabelDefinition[]): string[] {
-  const results: string[] = [];
-  const tx = session.tx_bytes ?? 0;
-  const rx = session.rx_bytes ?? 0;
-
-  const skewRule = labels.find((def) => def.code === "traffic-skew" && def.enabled !== false);
-  if (skewRule && rx > tx * 0.10) {
-    results.push(skewRule.name);
-  }
-
-  return results;
+  return labels
+    .filter((label) => label.enabled !== false)
+    .filter((label) => sessionLabelMatches(session, label))
+    .map((label) => label.name);
 }
 
 function PPPoEPageInner() {
@@ -118,7 +120,11 @@ function PPPoEPageInner() {
   const [config, setConfig] = useState<PPPoEConfigResponse | null>(null);
   const [capabilities, setCapabilities] = useState<PPPoECapabilities | null>(null);
   const [sessions, setSessions] = useState<SessionWithRates[]>([]);
-  const [sessionLabels, setSessionLabels] = useState<PPPoESessionLabelDefinition[]>(pppoeSessionLabelDefinitions);
+  const [sessionLabels, setSessionLabels] = useState<PPPoESessionLabelDefinition[]>([]);
+  const [showLabelEditor, setShowLabelEditor] = useState(false);
+  const [labelDraft, setLabelDraft] = useState<PPPoESessionLabelDefinition[]>([]);
+  const [labelError, setLabelError] = useState<string | null>(null);
+  const [labelSaving, setLabelSaving] = useState(false);
   const [sessionTotal, setSessionTotal] = useState(0);
   const [sessionLoading, setSessionLoading] = useState(false);
   const [sessionRefreshing, setSessionRefreshing] = useState(false);
@@ -263,12 +269,12 @@ function PPPoEPageInner() {
   useEffect(() => {
     if (!hasRead) return;
     fetchConfig();
-    pppoeServerService.getSessionLabelDefinitions()
+    void pppoeServerService.getSessionLabelDefinitions()
       .then((labels) => {
-        if (labels?.length) setSessionLabels(labels);
+        setSessionLabels(labels ?? []);
       })
       .catch(() => {
-        setSessionLabels(pppoeSessionLabelDefinitions);
+        setSessionLabels([]);
       });
   }, [hasRead]);
 
@@ -302,6 +308,56 @@ function PPPoEPageInner() {
     setSessionError(sessionStreamError.replace(/^pppoe-sessions:\s*/, "") || "Failed to load active sessions");
     setSessionLoading(false);
   }, [sessionStreamError]);
+
+  const openLabelEditor = () => {
+    setLabelDraft(sessionLabels.map((label) => ({ ...label, rules: label.rules ? { ...label.rules } : {} })));
+    setLabelError(null);
+    setShowLabelEditor(true);
+  };
+
+  const saveLabelEditor = async () => {
+    try {
+      setLabelSaving(true);
+      setLabelError(null);
+      const sanitized = labelDraft
+        .filter((label) => label.code.trim() && label.name.trim())
+        .map((label) => ({
+          ...label,
+          code: label.code.trim(),
+          name: label.name.trim(),
+          description: label.description?.trim() ?? "",
+          severity: label.severity || "info",
+          priority: Number(label.priority ?? 10),
+          enabled: label.enabled !== false,
+          rules: label.rules ?? {},
+        }));
+      const saved = await pppoeServerService.saveSessionLabelDefinitions(sanitized);
+      setSessionLabels(saved ?? []);
+      setLabelDraft(saved.map((label) => ({ ...label, rules: label.rules ? { ...label.rules } : {} })));
+      setShowLabelEditor(false);
+    } catch (err) {
+      setLabelError(err instanceof Error ? err.message : "Failed to save label definitions");
+    } finally {
+      setLabelSaving(false);
+    }
+  };
+
+  const addLabelDraft = () => {
+    const newLabel: PPPoESessionLabelDefinition = {
+      code: `custom-label-${Date.now()}`,
+      name: "New label",
+      description: "",
+      severity: "info",
+      priority: 10,
+      enabled: true,
+      rules: { type: "ratio", numerator: "rx_bytes", denominator: "tx_bytes", operator: ">", factor: 2 },
+    };
+    setLabelDraft((current) => [...current, newLabel]);
+  };
+
+  const removeLabelDraft = (index: number) => {
+    setLabelDraft((current) => current.filter((_, i) => i !== index));
+  };
 
   const onSuccess = () => fetchConfig(true);
   const onSessionReset = () => { void fetchSessions(); };
@@ -618,6 +674,11 @@ function PPPoEPageInner() {
                       <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                       <Input value={sessionSearch} onChange={(event) => setSessionSearch(event.target.value)} placeholder="Search user, IP, interface" className="h-8 w-52 pl-8 text-xs" />
                     </div>
+                    {hasWrite && (
+                      <Button variant="outline" size="sm" className="h-8 px-3 text-xs" onClick={openLabelEditor}>
+                        <Pencil className="h-3.5 w-3.5 mr-1" /> Labels
+                      </Button>
+                    )}
                     <Input value={minPps} onChange={(event) => setMinPps(event.target.value)} inputMode="numeric" placeholder="Min PPS" className="h-8 w-24 text-xs" />
                     <Input value={maxPps} onChange={(event) => setMaxPps(event.target.value)} inputMode="numeric" placeholder="Max PPS" className="h-8 w-24 text-xs" />
                     <select value={ipv6Filter} onChange={(event) => setIpv6Filter(event.target.value as "all" | "yes" | "no")} className="h-8 rounded-md border bg-background px-2 text-xs">
@@ -658,7 +719,7 @@ function PPPoEPageInner() {
                           <TableHead><button className="font-medium" onClick={() => handleSessionSort("calling_sid")}>Calling SID {sessionSortLabel("calling_sid")}</button></TableHead>
                           <TableHead><button className="font-medium" onClick={() => handleSessionSort("uptime")}>Uptime {sessionSortLabel("uptime")}</button></TableHead>
                           <TableHead><button className="font-medium" onClick={() => handleSessionSort("rxRate")}>RX Rate (UPL) {sessionSortLabel("rxRate")}</button></TableHead>
-                          <TableHead><button className="font-medium" onClick={() => handleSessionSort("txRate")}>TX Rate (Dow) {sessionSortLabel("txRate")}</button></TableHead>
+                          <TableHead><button className="font-medium" onClick={() => handleSessionSort("txRate")}>TX Rate (DOWN) {sessionSortLabel("txRate")}</button></TableHead>
                           <TableHead><button className="font-medium text-right" onClick={() => handleSessionSort("rx_bytes")}>Traffic total {sessionSortLabel("rx_bytes")}</button></TableHead>
                           <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
@@ -1283,6 +1344,85 @@ function PPPoEPageInner() {
           {selectedStatsKey && statsHistory[selectedStatsKey] && (
             <PPPoEStatsChart points={statsHistory[selectedStatsKey]} />
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showLabelEditor} onOpenChange={(open) => {
+        if (!open) {
+          setShowLabelEditor(false);
+          setLabelError(null);
+        }
+      }}>
+        <DialogContent className="max-w-5xl">
+          <DialogHeader>
+            <DialogTitle>Session label registry</DialogTitle>
+            <DialogDescription>
+              Store the PPPoE label catalog in Postgres. Rules drive the session badge labels shown in the table.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            {labelError && <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{labelError}</div>}
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-muted-foreground">Definitions</span>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={addLabelDraft}><Plus className="h-4 w-4 mr-1" /> New</Button>
+                <Button variant="outline" size="sm" onClick={() => setShowLabelEditor(false)}>Cancel</Button>
+                <Button size="sm" onClick={() => void saveLabelEditor()} disabled={labelSaving}>
+                  {labelSaving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Save className="h-4 w-4 mr-1" />}
+                  {labelSaving ? "Saving..." : "Save registry"}
+                </Button>
+              </div>
+            </div>
+            <div className="max-h-[55vh] space-y-3 overflow-auto rounded-md border bg-muted/20 p-3">
+              {labelDraft.length === 0 && (
+                <div className="text-sm text-muted-foreground">No labels defined.</div>
+              )}
+              {labelDraft.map((label, index) => (
+                <div key={`${label.code}-${index}`} className="grid grid-cols-12 gap-2 rounded-md border bg-background p-2">
+                  <div className="col-span-2">
+                    <label className="text-[11px] text-muted-foreground">Code</label>
+                    <Input value={label.code ?? ""} onChange={(event) => setLabelDraft((current) => current.map((item, i) => i === index ? { ...item, code: event.target.value } : item))} className="h-8 text-xs" />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="text-[11px] text-muted-foreground">Name</label>
+                    <Input value={label.name ?? ""} onChange={(event) => setLabelDraft((current) => current.map((item, i) => i === index ? { ...item, name: event.target.value } : item))} className="h-8 text-xs" />
+                  </div>
+                  <div className="col-span-3">
+                    <label className="text-[11px] text-muted-foreground">Description</label>
+                    <Input value={label.description ?? ""} onChange={(event) => setLabelDraft((current) => current.map((item, i) => i === index ? { ...item, description: event.target.value } : item))} className="h-8 text-xs" />
+                  </div>
+                  <div className="col-span-1">
+                    <label className="text-[11px] text-muted-foreground">Priority</label>
+                    <Input value={label.priority ?? 10} type="number" onChange={(event) => setLabelDraft((current) => current.map((item, i) => i === index ? { ...item, priority: Number(event.target.value) } : item))} className="h-8 text-xs" />
+                  </div>
+                  <div className="col-span-1">
+                    <label className="text-[11px] text-muted-foreground">Severity</label>
+                    <select value={label.severity ?? "info"} onChange={(event) => setLabelDraft((current) => current.map((item, i) => i === index ? { ...item, severity: event.target.value } : item))} className="h-8 w-full rounded-md border bg-background px-2 text-xs">
+                      <option value="info">info</option>
+                      <option value="warning">warning</option>
+                      <option value="danger">danger</option>
+                    </select>
+                  </div>
+                  <div className="col-span-1">
+                    <label className="text-[11px] text-muted-foreground">Enabled</label>
+                    <select value={label.enabled === false ? "false" : "true"} onChange={(event) => setLabelDraft((current) => current.map((item, i) => i === index ? { ...item, enabled: event.target.value === "true" } : item))} className="h-8 w-full rounded-md border bg-background px-2 text-xs">
+                      <option value="true">Yes</option>
+                      <option value="false">No</option>
+                    </select>
+                  </div>
+                  <div className="col-span-1">
+                    <label className="text-[11px] text-muted-foreground">Rule</label>
+                    <select value={label.rules?.type ?? "ratio"} onChange={(event) => setLabelDraft((current) => current.map((item, i) => i === index ? { ...item, rules: { ...(item.rules ?? {}), type: event.target.value as "ratio" } } : item))} className="h-8 w-full rounded-md border bg-background px-2 text-xs">
+                      <option value="ratio">ratio</option>
+                    </select>
+                  </div>
+                  <div className="col-span-1 flex items-end">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10" onClick={() => removeLabelDraft(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 
