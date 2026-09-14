@@ -20,6 +20,8 @@ import {
   type ContainerConfig,
   type ContainerCapabilities,
 } from "@/lib/api/container";
+import { isProtectedStackNetwork } from "@/lib/appliance";
+import { useSessionStore } from "@/store/session-store";
 import { NetworkModal } from "./NetworkModal";
 import { DeleteNetworkModal } from "./DeleteNetworkModal";
 
@@ -31,6 +33,7 @@ interface Props {
 }
 
 export function NetworksTab({ config, capabilities, hasWritePermission, onReload }: Props) {
+  const appliance = useSessionStore((s) => s.appliance);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingNetwork, setEditingNetwork] = useState<ContainerNetworkConfig | null>(null);
   const [deletingNetwork, setDeletingNetwork] = useState<ContainerNetworkConfig | null>(null);
@@ -48,6 +51,7 @@ export function NetworksTab({ config, capabilities, hasWritePermission, onReload
 
   const handleDelete = async () => {
     if (!deletingNetwork) return;
+    if (isProtectedStackNetwork(appliance, deletingNetwork.name)) return;
     await containerService.deleteNetwork(deletingNetwork.name);
     setDeletingNetwork(null);
     await onReload();
@@ -138,12 +142,16 @@ export function NetworksTab({ config, capabilities, hasWritePermission, onReload
                     {hasWritePermission && (
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingNetwork(net); setModalOpen(true); }}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeletingNetwork(net)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {!isProtectedStackNetwork(appliance, net.name) && (
+                            <>
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingNetwork(net); setModalOpen(true); }}>
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeletingNetwork(net)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
                         </div>
                       </TableCell>
                     )}

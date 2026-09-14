@@ -18,9 +18,40 @@ INSTANCE_NAME = "This router"
 ORG_ID = "default"
 TIMEOUT_SECONDS = 300
 
+# install-vyos.sh names. Generic Containers must not delete or edit these.
+STACK_CONTAINER_PREFIX = "vymanager-"
+STACK_NETWORK_NAME = "vymanager"
+STACK_VOLUME_PREFIX = "/config/containers/vymanager-"
+STACK_GUARD_DETAIL = (
+    "Cannot delete or edit the VyManager stack from Containers. "
+    "Pull and restart, or re-run the installer."
+)
+
 
 def is_appliance() -> bool:
     return os.getenv(MODE_ENV, "").strip().lower() == "appliance"
+
+
+def is_stack_container(name: str) -> bool:
+    return bool(name) and name.startswith(STACK_CONTAINER_PREFIX)
+
+
+def is_stack_network(name: str) -> bool:
+    return name == STACK_NETWORK_NAME
+
+
+def is_stack_volume_path(path: str) -> bool:
+    return bool(path) and path.startswith(STACK_VOLUME_PREFIX)
+
+
+def is_stack_image_ref(image: str) -> bool:
+    if not image:
+        return False
+    for part in image.replace("\\", "/").split("/"):
+        repo = part.split(":", 1)[0].split("@", 1)[0]
+        if repo.startswith(STACK_CONTAINER_PREFIX):
+            return True
+    return False
 
 
 def home_path() -> str:

@@ -27,6 +27,7 @@ from fastapi import APIRouter, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
+import appliance_mode
 from session_vyos_service import get_session_vyos_service
 from vyos_builders.container import ContainerBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
@@ -257,6 +258,29 @@ _NAME_PREFIXED_BUILDER_OPS: Dict[str, "re.Pattern"] = {
 }
 
 
+def _refuse_appliance_stack_batch(op: str, value: Optional[str]) -> None:
+    """Block generic Containers edit/delete of the on-box VyManager stack."""
+    if not appliance_mode.is_appliance():
+        return
+    if op == "delete_container_root":
+        raise HTTPException(status_code=400, detail=appliance_mode.STACK_GUARD_DETAIL)
+    first = (value or "").split(",", 1)[0].strip()
+    container_op = (
+        op in ("set_name", "delete_name")
+        or op.startswith("set_name_")
+        or op.startswith("delete_name_")
+    )
+    network_op = (
+        op in ("set_network", "delete_network")
+        or op.startswith("set_network_")
+        or op.startswith("delete_network_")
+    )
+    if container_op and appliance_mode.is_stack_container(first):
+        raise HTTPException(status_code=400, detail=appliance_mode.STACK_GUARD_DETAIL)
+    if network_op and appliance_mode.is_stack_network(first):
+        raise HTTPException(status_code=400, detail=appliance_mode.STACK_GUARD_DETAIL)
+
+
 class ContainerImageRequest(BaseModel):
     container_name: str = Field(..., description="Container name as configured in VyOS")
 
@@ -347,6 +371,16 @@ async def _run_container_gql_command(
             status_code=400,
             detail="Invalid container name. Must be alphanumeric and may contain hyphens.",
         )
+
+    if (
+        operation == "delete_image"
+        and appliance_mode.is_appliance()
+        and (
+            appliance_mode.is_stack_container(container_name)
+            or appliance_mode.is_stack_image_ref(container_name)
+        )
+    ):
+        raise HTTPException(status_code=400, detail=appliance_mode.STACK_GUARD_DETAIL)
 
     # --- Session / credential checks (SSH key still required) ---
     user = getattr(request.state, "user", None)
@@ -566,6 +600,7 @@ async def container_batch_configure(
         builder = ContainerBatchBuilder(version=service.get_version())
 
         for operation in body.operations:
+            _refuse_appliance_stack_batch(operation.op, operation.value)
             # For ops whose first arg is a container/network/registry name,
             # enforce the appropriate regex. Prevents seeding the VyOS config
             # with names containing shell metacharacters or leading hyphens
@@ -992,6 +1027,8 @@ async def remove_container_dir(http_request: Request, body: ContainerRmdirReques
     await require_write_permission(http_request, FeatureGroup.CONTAINER)
     if not _SAFE_CONTAINER_SUBPATH_RE.match(body.path):
         raise HTTPException(status_code=400, detail=f"Invalid path: {body.path}")
+    if appliance_mode.is_appliance() and appliance_mode.is_stack_volume_path(body.path):
+        raise HTTPException(status_code=400, detail=appliance_mode.STACK_GUARD_DETAIL)
     return await _run_shell_command(http_request, f"sudo rm -rf {shlex.quote(body.path)}")
 
 

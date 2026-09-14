@@ -15,6 +15,8 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ImageIcon, Loader2, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { containerService, type ContainerConfig } from "@/lib/api/container";
+import { isProtectedStackImage } from "@/lib/appliance";
+import { useSessionStore } from "@/store/session-store";
 import { SshOutputModal } from "./SshOutputModal";
 import { AddImageModal } from "./AddImageModal";
 import {
@@ -58,6 +60,7 @@ function imagesMatch(pulled: string, configured: string): boolean {
 }
 
 export function ImagesTab({ config, hasWritePermission }: Props) {
+  const appliance = useSessionStore((s) => s.appliance);
   const [pulledImages, setPulledImages] = useState<string[]>([]);
   const [imagesLoading, setImagesLoading] = useState(true);
   const [addModalOpen, setAddModalOpen] = useState(false);
@@ -145,6 +148,8 @@ export function ImagesTab({ config, hasWritePermission }: Props) {
                   {pulledImages.map(img => {
                     const users = usedByContainers(img);
                     const inUse = users.length > 0;
+                    const stackImage = isProtectedStackImage(appliance, img);
+                    const deleteBlocked = inUse || stackImage;
                     return (
                       <TableRow key={img}>
                         <TableCell>
@@ -173,8 +178,14 @@ export function ImagesTab({ config, hasWritePermission }: Props) {
                               </Button>
                               <Button
                                 variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive"
-                                title={inUse ? `Cannot delete: in use by ${users.join(", ")}` : "Delete image"}
-                                disabled={inUse}
+                                title={
+                                  stackImage
+                                    ? "Cannot delete the VyManager stack image"
+                                    : inUse
+                                      ? `Cannot delete: in use by ${users.join(", ")}`
+                                      : "Delete image"
+                                }
+                                disabled={deleteBlocked}
                                 onClick={() => setDeleteConfirm(img)}
                               >
                                 <Trash2 className="h-4 w-4" />
