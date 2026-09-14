@@ -134,7 +134,7 @@ COMMON_CASES = [
     ('set_radius_server_backup', ('192.0.2.1',), 'set', ['service', 'ipoe-server', 'authentication', 'radius', 'server', '192.0.2.1', 'backup']),
     ('set_radius_server_disable', ('192.0.2.1',), 'set', ['service', 'ipoe-server', 'authentication', 'radius', 'server', '192.0.2.1', 'disable']),
     ('set_radius_server_disable_accounting', ('192.0.2.1',), 'set', ['service', 'ipoe-server', 'authentication', 'radius', 'server', '192.0.2.1', 'disable-accounting']),
-    ('set_radius_server_fail_time', ('192.0.2.1', '192.0.2.1|5'), 'set', ['service', 'ipoe-server', 'authentication', 'radius', 'server', '192.0.2.1', 'fail-time', '192.0.2.1|5']),
+    ('set_radius_server_fail_time', ('192.0.2.1', '5'), 'set', ['service', 'ipoe-server', 'authentication', 'radius', 'server', '192.0.2.1', 'fail-time', '5']),
     ('set_radius_server_key', ('192.0.2.1', 'secret'), 'set', ['service', 'ipoe-server', 'authentication', 'radius', 'server', '192.0.2.1', 'key', 'secret']),
     ('set_radius_server_port', ('192.0.2.1', '8080'), 'set', ['service', 'ipoe-server', 'authentication', 'radius', 'server', '192.0.2.1', 'port', '8080']),
     ('set_radius_server_priority', ('192.0.2.1', '5'), 'set', ['service', 'ipoe-server', 'authentication', 'radius', 'server', '192.0.2.1', 'priority', '5']),
