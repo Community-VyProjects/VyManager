@@ -69,6 +69,24 @@ def test_connect_local_404_when_mode_unset(monkeypatch):
     assert asyncio.run(run()) == 404
 
 
+def test_logout_auth_401_without_user():
+    import asyncio
+
+    from fastapi import HTTPException
+    from routers.session.session import logout_auth_session
+
+    class _Req:
+        def __init__(self):
+            self.state = type("S", (), {})()
+
+    async def run():
+        with pytest.raises(HTTPException) as exc:
+            await logout_auth_session(_Req(), conn=None)
+        return exc.value.status_code
+
+    assert asyncio.run(run()) == 401
+
+
 requires_db = pytest.mark.skipif(
     not os.environ.get("DATABASE_URL"),
     reason="appliance seed test needs DATABASE_URL",

@@ -36,7 +36,8 @@ import {
   KeyRound,
   Key,
 } from "lucide-react";
-import { signOut, useSession } from "@/lib/auth-client";
+import { useSession } from "@/lib/auth-client";
+import { signOutFully } from "@/lib/logout";
 import { Site, Instance, sessionService } from "@/lib/api/session";
 import { useSessionStore } from "@/store/session-store";
 import { useOrgStore } from "@/store/org-store";
@@ -216,16 +217,7 @@ export default function SitesPage() {
   };
 
   const handleLogout = async () => {
-    // Disconnect from instance before logging out to clean up active_sessions
-    if (activeSession) {
-      try {
-        await disconnectFromInstance();
-      } catch (err) {
-        // Continue with logout even if disconnect fails
-        console.error("Failed to disconnect from instance:", err);
-      }
-    }
-    await signOut();
+    await signOutFully(activeSession ? () => disconnectFromInstance() : undefined);
     router.push("/login");
     router.refresh();
   };

@@ -216,7 +216,7 @@ async def websocket_console(websocket: WebSocket):
                 "type": "error",
                 "message": (
                     "SSH key not configured. "
-                    "Set it up via Sites > Edit Instance > SSH / Monitoring."
+                    "Set it up in instance SSH settings."
                 ),
             })
 

@@ -385,6 +385,10 @@ class SessionService {
       session_token: sessionToken,
     });
   }
+
+  async logoutAuth(): Promise<ApiResponse> {
+    return apiClient.post<ApiResponse>("/session/logout-auth", {});
+  }
 }
 
 export const sessionService = new SessionService();
