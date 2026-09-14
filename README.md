@@ -24,6 +24,7 @@ Give us a ⭐ star to support us❤️
 - [Prerequisites](#-prerequisites)
 - [Installation](#-installation)
   - [Automated Script (Linux)](#automated-script-linux)
+  - [On-box (VyOS appliance)](#on-box-vyos-appliance)
   - [Docker Setup](#docker-setup)
 - [Configuration](#-configuration)
 - [Post‑Installation Setup Wizard](#-postinstallation-setup-wizard)
@@ -137,6 +138,10 @@ The script will:
 
 > [!NOTE]  
 > Your VyOS routers must already have the REST API and GraphQL enabled (see [Prerequisites](#-prerequisites)). The script does not configure your routers – only VyManager itself.
+
+### On-box (VyOS appliance)
+
+To run VyManager as containers on the router it manages, copy `install-vyos.sh` from the `beta` branch, read it, then run `vbash install-vyos.sh` as the `vyos` user. Do not pipe curl into vbash. Details: [On-box VyOS install](https://docs.vyprojects.org/getting-started/install-vyos).
 
 <!--
 > [!NOTE]  
