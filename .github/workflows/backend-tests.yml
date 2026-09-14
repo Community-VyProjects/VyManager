@@ -62,7 +62,7 @@ jobs:
       - name: Set up Node (Prisma CLI)
         uses: actions/setup-node@v7
         with:
-          node-version: '20'
+          node-version: '24'
 
       - name: Apply Prisma migrations
         run: npx --yes prisma@6 migrate deploy --schema frontend/prisma/schema.prisma
