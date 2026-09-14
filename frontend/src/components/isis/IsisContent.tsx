@@ -51,7 +51,7 @@ import {
   Zap,
 } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { isisService, IsisConfig, IsisCapabilities, IsisInterface, IsisRedistributeEntry } from "@/lib/api/isis";
+import { isisService, IsisConfig, IsisCapabilities, IsisInterface, IsisRedistributeEntry, IsisDefaultInfoEntry } from "@/lib/api/isis";
 import {
   isisLspRefreshMinSeconds,
   isisSrv6Supported,
@@ -60,6 +60,7 @@ import {
 import { routeMapService } from "@/lib/api/route-map";
 import { IsisInterfaceModal } from "./IsisInterfaceModal";
 import { IsisRedistributeModal } from "./IsisRedistributeModal";
+import { IsisDefaultInfoModal } from "./IsisDefaultInfoModal";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 
@@ -102,6 +103,13 @@ export function IsisContent() {
   // Redistribute modal
   const [redistModalOpen, setRedistModalOpen] = useState(false);
   const [deletingRedist, setDeletingRedist] = useState<IsisRedistributeEntry | null>(null);
+  const [defaultInfoModalOpen, setDefaultInfoModalOpen] = useState(false);
+  const [deletingDefaultInfo, setDeletingDefaultInfo] = useState<IsisDefaultInfoEntry | null>(null);
+  const [tbType, setTbType] = useState("downstream");
+  const [tbIndex, setTbIndex] = useState("1");
+  const [tbLevel, setTbLevel] = useState("level-1");
+  const [plName, setPlName] = useState("");
+  const [plLevel, setPlLevel] = useState("level-1");
 
   // Overview editing state
   const [overviewEditing, setOverviewEditing] = useState(false);
@@ -366,6 +374,18 @@ export function IsisContent() {
     await loadData(true);
   };
 
+  const handleAddDefaultInfo = async (entry: IsisDefaultInfoEntry) => {
+    await isisService.addDefaultInfo(entry);
+    await loadData(true);
+  };
+
+  const handleDeleteDefaultInfo = async () => {
+    if (!deletingDefaultInfo) return;
+    await isisService.deleteDefaultInfo(deletingDefaultInfo);
+    setDeletingDefaultInfo(null);
+    await loadData(true);
+  };
+
   // -------------------------------------------------------------------------
   // Derived data
   // -------------------------------------------------------------------------
@@ -375,9 +395,22 @@ export function IsisContent() {
       (i) => !ifaceSearch || i.name.toLowerCase().includes(ifaceSearch.toLowerCase())
     ) ?? [];
 
-  const existingRedistKeys = (config?.redistribute_ipv4 ?? []).map(
-    (r) => `${r.protocol}|${r.level}`
-  );
+  const existingRedistKeys = [
+    ...(config?.redistribute_ipv4 ?? []).map((r) => `ipv4|${r.protocol}|${r.level}`),
+    ...(config?.redistribute_ipv6 ?? []).map((r) => `ipv6|${r.protocol}|${r.level}`),
+  ];
+  const existingDefaultInfoKeys = [
+    ...(config?.default_info_ipv4 ?? []).map((e) => `ipv4|${e.level}`),
+    ...(config?.default_info_ipv6 ?? []).map((e) => `ipv6|${e.level}`),
+  ];
+  const allRedist = [
+    ...(config?.redistribute_ipv4 ?? []).map((r) => ({ ...r, family: "ipv4" as const })),
+    ...(config?.redistribute_ipv6 ?? []).map((r) => ({ ...r, family: "ipv6" as const })),
+  ];
+  const allDefaultInfo = [
+    ...(config?.default_info_ipv4 ?? []).map((e) => ({ ...e, family: "ipv4" as const })),
+    ...(config?.default_info_ipv6 ?? []).map((e) => ({ ...e, family: "ipv6" as const })),
+  ];
 
   // -------------------------------------------------------------------------
   // Render
@@ -404,7 +437,7 @@ export function IsisContent() {
 
   const g = config?.global_config;
   const ifaceCount = config?.interfaces.length ?? 0;
-  const redistCount = config?.redistribute_ipv4.length ?? 0;
+  const redistCount = allRedist.length;
   const netCount = g?.net.length ?? 0;
 
   return (
@@ -671,16 +704,27 @@ export function IsisContent() {
                 </Card>
 
                 {/* Default Information Card */}
-                {(config?.default_info_ipv4.length ?? 0) > 0 && (
-                  <Card className="col-span-2">
-                    <CardContent className="p-6">
-                      <h3 className="font-semibold mb-4">Default Information Originate</h3>
+                <Card className="col-span-2">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="font-semibold">Default Information Originate</h3>
+                      {hasWritePermission && (
+                        <Button size="sm" variant="outline" onClick={() => setDefaultInfoModalOpen(true)}>
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add
+                        </Button>
+                      )}
+                    </div>
+                    {allDefaultInfo.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">None configured</p>
+                    ) : (
                       <div className="space-y-2">
-                        {config?.default_info_ipv4.map((entry) => (
+                        {allDefaultInfo.map((entry) => (
                           <div
-                            key={entry.level}
+                            key={`${entry.family}-${entry.level}`}
                             className="flex items-center gap-3 p-2 rounded-md bg-muted/50 text-sm"
                           >
+                            <Badge variant="outline">{entry.family}</Badge>
                             <Badge variant="outline">{entry.level}</Badge>
                             {entry.always && <Badge variant="secondary">always</Badge>}
                             {entry.metric != null && (
@@ -689,12 +733,22 @@ export function IsisContent() {
                             {entry.route_map && (
                               <span className="text-muted-foreground">route-map: {entry.route_map}</span>
                             )}
+                            {hasWritePermission && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 ml-auto text-destructive hover:text-destructive"
+                                onClick={() => setDeletingDefaultInfo(entry)}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
                           </div>
                         ))}
                       </div>
-                    </CardContent>
-                  </Card>
-                )}
+                    )}
+                  </CardContent>
+                </Card>
               </div>
             </TabsContent>
 
@@ -872,6 +926,7 @@ export function IsisContent() {
                     <Table>
                       <TableHeader>
                         <TableRow>
+                          <TableHead>Family</TableHead>
                           <TableHead>Protocol</TableHead>
                           <TableHead>Level</TableHead>
                           <TableHead>Metric</TableHead>
@@ -880,9 +935,12 @@ export function IsisContent() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {config?.redistribute_ipv4.map((entry) => (
-                          <TableRow key={`${entry.protocol}-${entry.level}`}>
-                            <TableCell className="font-medium capitalize">{entry.protocol}</TableCell>
+                        {allRedist.map((entry) => (
+                          <TableRow key={`${entry.family}-${entry.protocol}-${entry.level}`}>
+                            <TableCell>
+                              <Badge variant="outline">{entry.family}</Badge>
+                            </TableCell>
+                            <TableCell className="font-medium">{entry.protocol}</TableCell>
                             <TableCell>
                               <Badge variant="outline">{entry.level}</Badge>
                             </TableCell>
@@ -1084,6 +1142,183 @@ export function IsisContent() {
                   </Card>
                 )}
 
+                {/* Fast Reroute LFA */}
+                {capabilities?.features.lfa_priority_limit?.supported && (
+                  <Card className="col-span-2">
+                    <CardContent className="p-6 space-y-4">
+                      <h3 className="font-semibold">Fast Reroute LFA</h3>
+                      <div className="flex flex-wrap gap-4">
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                            id="lfa-ls-l1"
+                            checked={!!config?.fast_reroute.lfa_load_sharing_disable_level1}
+                            disabled={!hasWritePermission}
+                            onCheckedChange={async (v) => {
+                              await isisService.setFrrLoadSharingDisable("level-1", !!v);
+                              await loadData(true);
+                            }}
+                          />
+                          <Label htmlFor="lfa-ls-l1">Disable load-sharing L1</Label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                            id="lfa-ls-l2"
+                            checked={!!config?.fast_reroute.lfa_load_sharing_disable_level2}
+                            disabled={!hasWritePermission}
+                            onCheckedChange={async (v) => {
+                              await isisService.setFrrLoadSharingDisable("level-2", !!v);
+                              await loadData(true);
+                            }}
+                          />
+                          <Label htmlFor="lfa-ls-l2">Disable load-sharing L2</Label>
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-2">Priority limit</p>
+                        <div className="flex flex-wrap gap-1 mb-2">
+                          {(config?.fast_reroute.lfa_priority_limit ?? []).map((e) => (
+                            <Badge
+                              key={`${e.priority}-${e.level}`}
+                              variant="secondary"
+                              className="cursor-pointer"
+                              onClick={() => hasWritePermission && isisService.deleteFrrPriorityLimit(e.priority, e.level).then(() => loadData(true))}
+                            >
+                              {e.priority} {e.level} ×
+                            </Badge>
+                          ))}
+                        </div>
+                        {hasWritePermission && (
+                          <div className="flex gap-2">
+                            {(capabilities.features.lfa_priority_limit.values ?? ["critical", "high", "medium"]).map((p) => (
+                              <Button
+                                key={p}
+                                size="sm"
+                                variant="outline"
+                                onClick={() => isisService.addFrrPriorityLimit(p, "level-1").then(() => loadData(true))}
+                              >
+                                {p} L1
+                              </Button>
+                            ))}
+                            {(capabilities.features.lfa_priority_limit.values ?? ["critical", "high", "medium"]).map((p) => (
+                              <Button
+                                key={`${p}-l2`}
+                                size="sm"
+                                variant="outline"
+                                onClick={() => isisService.addFrrPriorityLimit(p, "level-2").then(() => loadData(true))}
+                              >
+                                {p} L2
+                              </Button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      {capabilities.features.lfa_tiebreaker?.supported && (
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-2">Tiebreaker</p>
+                          <div className="flex flex-wrap gap-1 mb-2">
+                            {(config?.fast_reroute.lfa_tiebreaker ?? []).map((e) => (
+                              <Badge
+                                key={`${e.tb_type}-${e.index}-${e.level}`}
+                                variant="secondary"
+                                className="cursor-pointer"
+                                onClick={() => hasWritePermission && isisService.deleteFrrTiebreaker(e.tb_type, e.index, e.level).then(() => loadData(true))}
+                              >
+                                {e.tb_type} {e.index} {e.level} ×
+                              </Badge>
+                            ))}
+                          </div>
+                          {hasWritePermission && (
+                            <div className="flex flex-wrap gap-2 items-end">
+                              <div className="space-y-1">
+                                <Label className="text-xs">Type</Label>
+                                <Select value={tbType} onValueChange={setTbType}>
+                                  <SelectTrigger className="h-8 w-48">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {(capabilities.features.lfa_tiebreaker.values ?? ["downstream", "lowest-backup-metric", "node-protecting"]).map((t) => (
+                                      <SelectItem key={t} value={t}>{t}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs">Index</Label>
+                                <Input className="h-8 w-20" value={tbIndex} onChange={(e) => setTbIndex(e.target.value)} />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs">Level</Label>
+                                <Select value={tbLevel} onValueChange={setTbLevel}>
+                                  <SelectTrigger className="h-8 w-28">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="level-1">level-1</SelectItem>
+                                    <SelectItem value="level-2">level-2</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={!tbIndex.trim()}
+                                onClick={() => isisService.addFrrTiebreaker(tbType, tbIndex.trim(), tbLevel).then(() => loadData(true))}
+                              >
+                                Add
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {capabilities.features.lfa_remote_prefix_list?.supported && (
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-2">Remote prefix-list</p>
+                          <div className="flex flex-wrap gap-1 mb-2">
+                            {(config?.fast_reroute.lfa_remote_prefix_list ?? []).map((e) => (
+                              <Badge
+                                key={`${e.prefix_list}-${e.level}`}
+                                variant="secondary"
+                                className="cursor-pointer"
+                                onClick={() => hasWritePermission && isisService.deleteFrrRemotePrefixList(e.prefix_list, e.level).then(() => loadData(true))}
+                              >
+                                {e.prefix_list} {e.level} ×
+                              </Badge>
+                            ))}
+                          </div>
+                          {hasWritePermission && (
+                            <div className="flex flex-wrap gap-2 items-end">
+                              <div className="space-y-1">
+                                <Label className="text-xs">Prefix list</Label>
+                                <Input className="h-8 w-40" value={plName} onChange={(e) => setPlName(e.target.value)} />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs">Level</Label>
+                                <Select value={plLevel} onValueChange={setPlLevel}>
+                                  <SelectTrigger className="h-8 w-28">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="level-1">level-1</SelectItem>
+                                    <SelectItem value="level-2">level-2</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={!plName.trim()}
+                                onClick={() => isisService.addFrrRemotePrefixList(plName.trim(), plLevel).then(() => { setPlName(""); return loadData(true); })}
+                              >
+                                Add
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+
                 {/* Traffic Engineering */}
                 <Card>
                   <CardContent className="p-6">
@@ -1132,6 +1367,16 @@ export function IsisContent() {
         onSubmit={handleAddRedistribute}
         existingProtocols={existingRedistKeys}
         routeMapNames={routeMapNames}
+        capabilities={capabilities}
+      />
+
+      <IsisDefaultInfoModal
+        open={defaultInfoModalOpen}
+        onOpenChange={setDefaultInfoModalOpen}
+        onSubmit={handleAddDefaultInfo}
+        existingKeys={existingDefaultInfoKeys}
+        routeMapNames={routeMapNames}
+        capabilities={capabilities}
       />
 
       {/* Delete interface dialog */}
@@ -1171,6 +1416,26 @@ export function IsisContent() {
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={handleDeleteRedistribute}
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!deletingDefaultInfo} onOpenChange={(open: boolean) => !open && setDeletingDefaultInfo(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove Default Information</AlertDialogTitle>
+            <AlertDialogDescription>
+              Remove {deletingDefaultInfo?.family} default-information at {deletingDefaultInfo?.level}?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleDeleteDefaultInfo}
             >
               Remove
             </AlertDialogAction>

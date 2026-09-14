@@ -5,7 +5,7 @@ import { EntityGroupSpec, FieldSpec, SectionSpec, SelectOption } from "./types";
 
 const LEVELS = ["level-1", "level-2"];
 const REDIST_IPV4: SelectOption[] = ["babel", "bgp", "connected", "kernel", "nhrp", "ospf", "rip", "static"].map((v) => ({ value: v, label: v }));
-const REDIST_IPV6: SelectOption[] = ["babel", "bgp", "connected", "kernel", "nhrp", "ospf6", "ripng", "static"].map((v) => ({ value: v, label: v }));
+const REDIST_IPV6: SelectOption[] = ["babel", "bgp", "connected", "kernel", "ospf6", "ripng", "static"].map((v) => ({ value: v, label: v }));
 const LEVEL_IDS: SelectOption[] = LEVELS.map((v) => ({ value: v, label: v }));
 
 // ---- Interface fast-reroute fields (one set per level) ----
@@ -128,6 +128,46 @@ export const ISIS_DEFAULT_INFO_IPV6_GROUP: EntityGroupSpec = {
 };
 
 // ---- Segment-routing prefixes ----
+function lfaLevelToggles(op: string): SectionSpec[] {
+  return [{
+    title: "Levels",
+    fields: LEVELS.map((lvl) => ({
+      op,
+      args: [lvl],
+      label: `Enable ${lvl}`,
+      type: "toggle" as const,
+      path: [lvl],
+    })),
+  }];
+}
+
+export const ISIS_LFA_TIEBREAKER_GROUP: EntityGroupSpec = {
+  label: "LFA Tiebreaker",
+  rawKey: ["fast-reroute", "lfa", "local", "tiebreaker"],
+  createOp: "vrf_isis_fr_lfa_local_tiebreaker",
+  fixedIds: [
+    { value: "downstream", label: "downstream" },
+    { value: "lowest-backup-metric", label: "lowest-backup-metric" },
+    { value: "node-protecting", label: "node-protecting" },
+  ],
+  schema: [],
+  children: [{
+    label: "Index",
+    rawKey: "index",
+    createOp: "vrf_isis_fr_lfa_local_tiebreaker_index",
+    idPlaceholder: "1",
+    schema: lfaLevelToggles("vrf_isis_fr_lfa_local_tiebreaker_index_level"),
+  }],
+};
+
+export const ISIS_LFA_REMOTE_PREFIX_LIST_GROUP: EntityGroupSpec = {
+  label: "LFA Remote Prefix-List",
+  rawKey: ["fast-reroute", "lfa", "remote", "prefix-list"],
+  createOp: "vrf_isis_fr_lfa_remote_prefix_list",
+  idPlaceholder: "PLIST",
+  schema: lfaLevelToggles("vrf_isis_fr_lfa_remote_prefix_list_level"),
+};
+
 export const ISIS_SR_PREFIX_GROUP: EntityGroupSpec = {
   label: "SR Prefix",
   rawKey: ["segment-routing", "prefix"],

@@ -118,6 +118,17 @@ COMMON_CASES = [
     ('set_redistribute_ipv4', ('bgp', 'level-1'), 'set', ['protocols', 'isis', 'redistribute', 'ipv4', 'bgp', 'level-1']),
     ('set_redistribute_ipv4_metric', ('bgp|level-1', '5'), 'set', ['protocols', 'isis', 'redistribute', 'ipv4', 'bgp', 'level-1', 'metric', '5']),
     ('set_redistribute_ipv4_route_map', ('bgp|level-1', 'RMAP'), 'set', ['protocols', 'isis', 'redistribute', 'ipv4', 'bgp', 'level-1', 'route-map', 'RMAP']),
+    ('set_redistribute_ipv4', ('babel', 'level-1'), 'set', ['protocols', 'isis', 'redistribute', 'ipv4', 'babel', 'level-1']),
+    ('set_redistribute_ipv6', ('connected', 'level-1'), 'set', ['protocols', 'isis', 'redistribute', 'ipv6', 'connected', 'level-1']),
+    ('set_redistribute_ipv6_metric', ('connected|level-1', '5'), 'set', ['protocols', 'isis', 'redistribute', 'ipv6', 'connected', 'level-1', 'metric', '5']),
+    ('set_default_info_ipv6', ('level-1',), 'set', ['protocols', 'isis', 'default-information', 'originate', 'ipv6', 'level-1']),
+    ('set_default_info_ipv6_always', ('level-1',), 'set', ['protocols', 'isis', 'default-information', 'originate', 'ipv6', 'level-1', 'always']),
+    ('set_frr_lfa_priority_limit', ('critical', 'level-1'), 'set', ['protocols', 'isis', 'fast-reroute', 'lfa', 'local', 'priority-limit', 'critical', 'level-1']),
+    ('set_frr_lfa_tiebreaker_index', ('downstream', '1', 'level-1'), 'set', ['protocols', 'isis', 'fast-reroute', 'lfa', 'local', 'tiebreaker', 'downstream', 'index', '1', 'level-1']),
+    ('set_frr_lfa_remote_prefix_list', ('FOO', 'level-1'), 'set', ['protocols', 'isis', 'fast-reroute', 'lfa', 'remote', 'prefix-list', 'FOO', 'level-1']),
+    ('delete_frr_lfa_priority_limit', ('critical', 'level-1'), 'delete', ['protocols', 'isis', 'fast-reroute', 'lfa', 'local', 'priority-limit', 'critical', 'level-1']),
+    ('delete_redistribute_ipv6', ('connected', 'level-1'), 'delete', ['protocols', 'isis', 'redistribute', 'ipv6', 'connected', 'level-1']),
+    ('delete_default_info_ipv6', ('level-1',), 'delete', ['protocols', 'isis', 'default-information', 'originate', 'ipv6', 'level-1']),
     ('set_spf_delay_ietf_holddown', ('5',), 'set', ['protocols', 'isis', 'spf-delay-ietf', 'holddown', '5']),
     ('set_spf_delay_ietf_init_delay', ('5',), 'set', ['protocols', 'isis', 'spf-delay-ietf', 'init-delay', '5']),
     ('set_spf_delay_ietf_long_delay', ('5',), 'set', ['protocols', 'isis', 'spf-delay-ietf', 'long-delay', '5']),
@@ -182,9 +193,31 @@ V15_ONLY_CASES = [
     ('set_interface_ti_lfa_level2_link_fallback', ('eth0',), 'set', ['protocols', 'isis', 'interface', 'eth0', 'fast-reroute', 'ti-lfa', 'level-2', 'node-protection', 'link-fallback']),
     ('set_interface_ti_lfa_level2_node_protection', ('eth0',), 'set', ['protocols', 'isis', 'interface', 'eth0', 'fast-reroute', 'ti-lfa', 'level-2', 'node-protection']),
     ('set_sr_srv6_locator', ('G0',), 'set', ['protocols', 'isis', 'segment-routing', 'srv6', 'locator', 'G0']),
+    ('set_redistribute_ipv4', ('nhrp', 'level-1'), 'set', ['protocols', 'isis', 'redistribute', 'ipv4', 'nhrp', 'level-1']),
 ]
 
 
 @pytest.mark.parametrize("method, args, op, expected_path", V15_ONLY_CASES)
 def test_isis_v1_5_only_paths(method, args, op, expected_path):
     _run("1.5", method, args, op, expected_path)
+
+
+def test_isis_capabilities_read_mapper_allowlists():
+    v14 = IsisBatchBuilder(version="1.4").get_capabilities()
+    v15 = IsisBatchBuilder(version="1.5").get_capabilities()
+    assert v14["features"]["redistribute_nhrp"]["supported"] is False
+    assert v15["features"]["redistribute_nhrp"]["supported"] is True
+    assert "babel" in v14["redistribute_protocols"]["ipv4"]
+    assert "nhrp" not in v14["redistribute_protocols"]["ipv4"]
+    assert "nhrp" in v15["redistribute_protocols"]["ipv4"]
+    assert "connected" in v14["redistribute_protocols"]["ipv6"]
+    assert "nhrp" not in v14["redistribute_protocols"]["ipv6"]
+    assert v14["features"]["lfa_priority_limit"]["supported"] is True
+    assert v14["features"]["lfa_tiebreaker"]["supported"] is True
+    assert v14["features"]["lfa_remote_prefix_list"]["supported"] is True
+
+
+def test_isis_14_builder_rejects_nhrp():
+    builder = IsisBatchBuilder(version="1.4")
+    with pytest.raises(ValueError, match="not supported"):
+        builder.set_redistribute_ipv4("nhrp", "level-1")

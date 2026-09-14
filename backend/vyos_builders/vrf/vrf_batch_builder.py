@@ -270,6 +270,10 @@ class VrfBatchBuilder(
                     "supported": is_1_5,
                     "description": "IS-IS fast-reroute (LFA, TI-LFA) (VyOS 1.5+ only)",
                 },
+                "isis_redistribute_nhrp": {
+                    "supported": "nhrp" in self.mappers["vrf_isis"].redistribute_ipv4_protocols(),
+                    "description": "IS-IS redistribute NHRP",
+                },
                 "bgp_redistribute_nhrp": {
                     "supported": "nhrp" in self.mappers["vrf_bgp"].redistribute_protocols(),
                     "description": "BGP redistribute NHRP (VyOS 1.5+ only)",
