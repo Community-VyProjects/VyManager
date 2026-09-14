@@ -168,7 +168,7 @@ export function TransceiverHealthCard({
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 shrink-0">
         <div className="flex min-w-0 items-center gap-2">
           <Gauge className="h-5 w-5 shrink-0 text-primary" />
-          <CardTitle className="text-lg font-medium">Transceiver / DDM Health</CardTitle>
+          <CardTitle className="text-lg font-medium">Digital Diagnostic Monitoring</CardTitle>
         </div>
         <div className="flex shrink-0 items-center gap-1">
           <Button

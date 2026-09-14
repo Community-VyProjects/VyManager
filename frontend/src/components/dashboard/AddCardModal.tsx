@@ -44,8 +44,8 @@ const AVAILABLE_CARDS: AvailableCard[] = [
   },
   {
     type: "transceiver-health",
-    name: "Transceiver / DDM Health",
-    description: "SFP/SFP+ presence, DDM measurements, and alarm/warning signal health by ethernet interface",
+    name: "Digital Diagnostic Monitoring",
+    description: "SFP/SFP+ presence, DDM measurements, and alarm/warning signal health by Ethernet interface",
     icon: Gauge,
     requiredPermission: FeatureGroup.ETHERNET,
   },
