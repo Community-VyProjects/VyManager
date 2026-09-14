@@ -295,7 +295,7 @@ class EthernetInterfaceMapper(BaseFeatureMapper):
 
     def get_dhcpv6_options_pd(self, interface: str, pd_id: str, prefix: str) -> List[str]:
         """Get command path for DHCPv6 prefix delegation."""
-        return ["interfaces", self.interface_type, interface, "dhcpv6-options", "pd", pd_id, "length", prefix]
+        return ["interfaces", self.interface_type, interface, "dhcpv6-options", "pd", pd_id]
 
     def get_dhcpv6_options_no_release(self, interface: str) -> List[str]:
         """Get command path for DHCPv6 no-release."""
@@ -513,7 +513,7 @@ class EthernetInterfaceMapper(BaseFeatureMapper):
 
     def get_vif_dhcpv6_options_pd(self, interface: str, vlan_id: str, pd_id: str, prefix: str) -> List[str]:
         """Get command path for vif DHCPv6 prefix delegation."""
-        return ["interfaces", self.interface_type, interface, "vif", vlan_id, "dhcpv6-options", "pd", pd_id, "interface", prefix]
+        return ["interfaces", self.interface_type, interface, "vif", vlan_id, "dhcpv6-options", "pd", pd_id]
 
     def get_vif_dhcpv6_options_pd_length(self, interface: str, vlan_id: str, pd_id: str, length: str) -> List[str]:
         """Get command path for vif DHCPv6 PD length."""
@@ -638,7 +638,7 @@ class EthernetInterfaceMapper(BaseFeatureMapper):
 
     def get_vif_s_dhcpv6_options_pd(self, interface: str, vlan_id: str, pd_id: str, prefix: str) -> List[str]:
         """Get command path for vif-s DHCPv6 prefix delegation."""
-        return ["interfaces", self.interface_type, interface, "vif-s", vlan_id, "dhcpv6-options", "pd", pd_id, "interface", prefix]
+        return ["interfaces", self.interface_type, interface, "vif-s", vlan_id, "dhcpv6-options", "pd", pd_id]
 
     def get_vif_s_dhcpv6_options_pd_length(self, interface: str, vlan_id: str, pd_id: str, length: str) -> List[str]:
         """Get command path for vif-s DHCPv6 PD length."""
@@ -860,7 +860,7 @@ class EthernetInterfaceMapper(BaseFeatureMapper):
 
     def get_vif_c_dhcpv6_options_pd(self, interface: str, s_vlan_id: str, c_vlan_id: str, pd_id: str, prefix: str) -> List[str]:
         """Get command path for vif-c DHCPv6 prefix delegation."""
-        return ["interfaces", self.interface_type, interface, "vif-s", s_vlan_id, "vif-c", c_vlan_id, "dhcpv6-options", "pd", pd_id, "interface", prefix]
+        return ["interfaces", self.interface_type, interface, "vif-s", s_vlan_id, "vif-c", c_vlan_id, "dhcpv6-options", "pd", pd_id]
 
     def get_vif_c_dhcpv6_options_pd_length(self, interface: str, s_vlan_id: str, c_vlan_id: str, pd_id: str, length: str) -> List[str]:
         """Get command path for vif-c DHCPv6 PD length."""
