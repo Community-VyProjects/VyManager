@@ -1903,3 +1903,22 @@ async def revoke_auth_session(request: Request, body: RevokeSessionRequest, conn
     except Exception as e:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post("/logout-auth", response_model=ApiResponse)
+async def logout_auth_session(
+    request: Request, conn: asyncpg.Connection = Depends(org_conn_self)
+):
+    """Delete the current better-auth session row so login does not see a leftover."""
+    user = getattr(request.state, "user", None)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    cookie_token = get_session_cookie(request)
+    current_token = verify_session_cookie(cookie_token) if cookie_token else None
+    if current_token:
+        await conn.execute(
+            'DELETE FROM sessions WHERE token = $1 AND "userId" = $2',
+            current_token,
+            user["id"],
+        )
+    return ApiResponse(success=True, message="Signed out")

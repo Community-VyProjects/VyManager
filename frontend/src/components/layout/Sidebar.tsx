@@ -13,7 +13,8 @@ import {
 import { ChevronDown, LogOut, User, Building2, Power, PowerOff, Bug } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { useSession, signOut } from "@/lib/auth-client";
+import { useSession } from "@/lib/auth-client";
+import { signOutFully } from "@/lib/logout";
 import { useSessionStore } from "@/store/session-store";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
@@ -39,16 +40,7 @@ export function Sidebar() {
   }, [loadSession]);
 
   const handleLogout = async () => {
-    // Disconnect from instance before logging out to clean up active_sessions
-    if (activeSession) {
-      try {
-        await disconnectFromInstance();
-      } catch (err) {
-        // Continue with logout even if disconnect fails
-        console.error("Failed to disconnect from instance:", err);
-      }
-    }
-    await signOut();
+    await signOutFully(activeSession ? () => disconnectFromInstance() : undefined);
     router.push("/login");
   };
 

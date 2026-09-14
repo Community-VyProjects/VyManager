@@ -350,7 +350,7 @@ async def websocket_monitor(websocket: WebSocket):
         if not instance["sshKeyConfigured"]:
             await websocket.send_json({
                 "type": "error",
-                "data": "SSH key not configured. Set it up via Sites > Edit Instance > SSH / Monitoring.",
+                "data": "SSH key not configured. Set it up in instance SSH settings.",
             })
             await websocket.close()
             return

@@ -516,7 +516,7 @@ export function EditInstanceModal({
                   <div className="border-t pt-4">
                     <p className="text-sm font-medium mb-1">SSH Key</p>
                     <p className="text-xs text-muted-foreground mb-4">
-                      Generate an SSH keypair and install the public key on your VyOS device to enable real-time monitoring.
+                      Generate an SSH keypair. This device installs the public key over the API.
                     </p>
                     <SSHKeySetup
                       instanceId={instance.id}

@@ -6,7 +6,8 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { signIn, signOut, authClient } from "@/lib/auth-client";
+import { signIn, authClient } from "@/lib/auth-client";
+import { signOutFully } from "@/lib/logout";
 import { Shield, Loader2, AlertCircle } from "lucide-react";
 import { sessionService, AuthSessionInfo } from "@/lib/api/session";
 import { afterLoginPath } from "@/lib/appliance";
@@ -170,9 +171,8 @@ export default function LoginPage() {
   };
 
   const handleCancelLogin = async () => {
-    // User chose to cancel - log them out
     try {
-      await signOut();
+      await signOutFully();
       setShowSessionWarning(false);
       setOtherSessions([]);
       setError("Login cancelled. Please try again from your other device or choose to continue.");

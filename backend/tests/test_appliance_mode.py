@@ -69,6 +69,56 @@ def test_connect_local_404_when_mode_unset(monkeypatch):
     assert asyncio.run(run()) == 404
 
 
+def test_logout_auth_401_without_user():
+    import asyncio
+
+    from fastapi import HTTPException
+    from routers.session.session import logout_auth_session
+
+    class _Req:
+        def __init__(self):
+            self.state = type("S", (), {})()
+
+    async def run():
+        with pytest.raises(HTTPException) as exc:
+            await logout_auth_session(_Req(), conn=None)
+        return exc.value.status_code
+
+    assert asyncio.run(run()) == 401
+
+
+def test_logout_auth_deletes_current_session_row(monkeypatch):
+    import asyncio
+
+    import routers.session.session as S
+
+    class _Conn:
+        def __init__(self):
+            self.calls = []
+
+        async def execute(self, sql, *args):
+            self.calls.append((sql, args))
+
+    monkeypatch.setattr(S, "get_session_cookie", lambda _req: "signed")
+    monkeypatch.setattr(S, "verify_session_cookie", lambda _v: "tok123")
+
+    class _Req:
+        def __init__(self):
+            self.state = type("S", (), {"user": {"id": "u1"}})()
+
+    conn = _Conn()
+
+    async def run():
+        return await S.logout_auth_session(_Req(), conn)
+
+    result = asyncio.run(run())
+    assert result.success is True
+    assert len(conn.calls) == 1
+    sql, args = conn.calls[0]
+    assert "DELETE FROM sessions" in sql
+    assert args == ("tok123", "u1")
+
+
 requires_db = pytest.mark.skipif(
     not os.environ.get("DATABASE_URL"),
     reason="appliance seed test needs DATABASE_URL",

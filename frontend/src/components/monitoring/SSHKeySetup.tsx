@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, Check, Copy, Key, Loader2, RefreshCw, Trash2 } from "lucide-react";
 import { monitoringService, SSHKeyStatus } from "@/lib/api/monitoring";
+import { systemSettingsService } from "@/lib/api/system-settings";
+import { opensshPublicKeyParts } from "@/lib/ssh-public-key";
 
 interface SSHKeySetupProps {
   instanceId: string;
@@ -43,11 +45,30 @@ export function SSHKeySetup({ instanceId, sshUsername, onConfigured }: SSHKeySet
     try {
       setGenerating(true);
       setError(null);
-      await monitoringService.generateSSHKey(instanceId);
+      const generated = await monitoringService.generateSSHKey(instanceId);
+      const parsed = opensshPublicKeyParts(generated.public_key);
+      if (parsed) {
+        const result = await systemSettingsService.addSshKey(
+          effectiveUsername,
+          "vymanager",
+          parsed.type,
+          parsed.data,
+        );
+        if (!result.success) {
+          throw new Error(result.error || "Failed to install the key on this device");
+        }
+        await monitoringService.markKeyConfigured(instanceId, true);
+      }
       await loadStatus();
+      onConfigured?.();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to generate SSH key";
       setError(message);
+      try {
+        await loadStatus();
+      } catch {
+        /* keep generate error */
+      }
     } finally {
       setGenerating(false);
     }
@@ -136,9 +157,9 @@ export function SSHKeySetup({ instanceId, sshUsername, onConfigured }: SSHKeySet
              "No SSH Key"}
           </p>
           <p className="text-xs text-muted-foreground">
-            {status?.configured ? "This instance is ready for monitoring" :
-             status?.has_key ? "Install the public key on your VyOS device" :
-             "Generate an SSH keypair to enable monitoring"}
+            {status?.configured ? "This instance is ready for SSH access" :
+             status?.has_key ? "Install the public key on this device" :
+             "Generate an SSH keypair to enable console, monitoring, and containers"}
           </p>
         </div>
       </div>

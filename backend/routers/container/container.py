@@ -336,7 +336,7 @@ async def _require_ssh_key_configured(request: Request) -> None:
     if not row["sshKeyConfigured"]:
         raise HTTPException(
             status_code=409,
-            detail="SSH key not configured. Set it up via Sites > Edit Instance > SSH / Monitoring.",
+            detail="SSH key not configured. Set it up in instance SSH settings.",
         )
     if not row["sshEncryptedPrivKey"] or not row["sshKeyNonce"]:
         raise HTTPException(
