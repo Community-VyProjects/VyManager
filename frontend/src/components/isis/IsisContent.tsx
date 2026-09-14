@@ -105,6 +105,11 @@ export function IsisContent() {
   const [deletingRedist, setDeletingRedist] = useState<IsisRedistributeEntry | null>(null);
   const [defaultInfoModalOpen, setDefaultInfoModalOpen] = useState(false);
   const [deletingDefaultInfo, setDeletingDefaultInfo] = useState<IsisDefaultInfoEntry | null>(null);
+  const [tbType, setTbType] = useState("downstream");
+  const [tbIndex, setTbIndex] = useState("1");
+  const [tbLevel, setTbLevel] = useState("level-1");
+  const [plName, setPlName] = useState("");
+  const [plLevel, setPlLevel] = useState("level-1");
 
   // Overview editing state
   const [overviewEditing, setOverviewEditing] = useState(false);
@@ -1223,17 +1228,44 @@ export function IsisContent() {
                             ))}
                           </div>
                           {hasWritePermission && (
-                            <div className="flex gap-2">
-                              {(capabilities.features.lfa_tiebreaker.values ?? ["downstream", "lowest-backup-metric", "node-protecting"]).map((t) => (
-                                <Button
-                                  key={t}
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => isisService.addFrrTiebreaker(t, "1", "level-1").then(() => loadData(true))}
-                                >
-                                  {t} L1
-                                </Button>
-                              ))}
+                            <div className="flex flex-wrap gap-2 items-end">
+                              <div className="space-y-1">
+                                <Label className="text-xs">Type</Label>
+                                <Select value={tbType} onValueChange={setTbType}>
+                                  <SelectTrigger className="h-8 w-48">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {(capabilities.features.lfa_tiebreaker.values ?? ["downstream", "lowest-backup-metric", "node-protecting"]).map((t) => (
+                                      <SelectItem key={t} value={t}>{t}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs">Index</Label>
+                                <Input className="h-8 w-20" value={tbIndex} onChange={(e) => setTbIndex(e.target.value)} />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs">Level</Label>
+                                <Select value={tbLevel} onValueChange={setTbLevel}>
+                                  <SelectTrigger className="h-8 w-28">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="level-1">level-1</SelectItem>
+                                    <SelectItem value="level-2">level-2</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={!tbIndex.trim()}
+                                onClick={() => isisService.addFrrTiebreaker(tbType, tbIndex.trim(), tbLevel).then(() => loadData(true))}
+                              >
+                                Add
+                              </Button>
                             </div>
                           )}
                         </div>
@@ -1241,7 +1273,7 @@ export function IsisContent() {
                       {capabilities.features.lfa_remote_prefix_list?.supported && (
                         <div>
                           <p className="text-xs text-muted-foreground mb-2">Remote prefix-list</p>
-                          <div className="flex flex-wrap gap-1">
+                          <div className="flex flex-wrap gap-1 mb-2">
                             {(config?.fast_reroute.lfa_remote_prefix_list ?? []).map((e) => (
                               <Badge
                                 key={`${e.prefix_list}-${e.level}`}
@@ -1253,6 +1285,34 @@ export function IsisContent() {
                               </Badge>
                             ))}
                           </div>
+                          {hasWritePermission && (
+                            <div className="flex flex-wrap gap-2 items-end">
+                              <div className="space-y-1">
+                                <Label className="text-xs">Prefix list</Label>
+                                <Input className="h-8 w-40" value={plName} onChange={(e) => setPlName(e.target.value)} />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs">Level</Label>
+                                <Select value={plLevel} onValueChange={setPlLevel}>
+                                  <SelectTrigger className="h-8 w-28">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="level-1">level-1</SelectItem>
+                                    <SelectItem value="level-2">level-2</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={!plName.trim()}
+                                onClick={() => isisService.addFrrRemotePrefixList(plName.trim(), plLevel).then(() => { setPlName(""); return loadData(true); })}
+                              >
+                                Add
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       )}
                     </CardContent>
