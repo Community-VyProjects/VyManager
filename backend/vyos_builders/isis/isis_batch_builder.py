@@ -39,23 +39,23 @@ class IsisBatchBuilder(BatchBuilder):
                 },
                 "ti_lfa": {
                     "supported": is_1_5,
-                    "description": "Topology Independent LFA",
+                    "description": "Topology Independent LFA (VyOS 1.5+)",
                 },
                 "remote_lfa": {
                     "supported": is_1_5,
-                    "description": "Remote LFA with MPLS LDP tunnels",
+                    "description": "Remote LFA with MPLS LDP tunnels (VyOS 1.5+)",
                 },
                 "srv6": {
                     "supported": is_1_5,
-                    "description": "SRv6 locator",
+                    "description": "SRv6 locator (VyOS 1.5+)",
                 },
                 "te_export": {
                     "supported": is_1_5,
-                    "description": "Traffic Engineering Database export",
+                    "description": "Traffic Engineering Database export (VyOS 1.5+)",
                 },
                 "lsp_refresh_min_1": {
                     "supported": is_1_4,
-                    "description": "lsp-refresh-interval minimum of 1 second",
+                    "description": "lsp-refresh-interval minimum of 1 second (VyOS 1.4 only; 1.5 minimum is 2)",
                 },
                 "redistribute_ipv6": {
                     "supported": True,

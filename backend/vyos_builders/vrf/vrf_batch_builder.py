@@ -268,7 +268,7 @@ class VrfBatchBuilder(
                 },
                 "isis_fast_reroute": {
                     "supported": is_1_5,
-                    "description": "IS-IS interface fast-reroute (TI-LFA, remote-LFA)",
+                    "description": "IS-IS fast-reroute (LFA, TI-LFA) (VyOS 1.5+ only)",
                 },
                 "isis_redistribute_nhrp": {
                     "supported": "nhrp" in self.mappers["vrf_isis"].redistribute_ipv4_protocols(),

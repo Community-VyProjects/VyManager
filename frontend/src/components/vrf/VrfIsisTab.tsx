@@ -102,7 +102,12 @@ export function VrfIsisTab({ vrf, capabilities, canWrite, onRefresh }: VrfIsisTa
 
       {[
         ISIS_INTERFACE_GROUP,
-        ISIS_REDIST_IPV4_GROUP,
+        {
+          ...ISIS_REDIST_IPV4_GROUP,
+          fixedIds: (ISIS_REDIST_IPV4_GROUP.fixedIds ?? []).filter(
+            (o) => o.value !== "nhrp" || capabilities.features.isis_redistribute_nhrp?.supported === true,
+          ),
+        },
         ISIS_REDIST_IPV6_GROUP,
         ISIS_DEFAULT_INFO_IPV4_GROUP,
         ISIS_DEFAULT_INFO_IPV6_GROUP,
