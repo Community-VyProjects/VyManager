@@ -619,8 +619,8 @@ function PPPoEPageInner() {
                           <TableHead><button className="font-medium" onClick={() => handleSessionSort("mtu")}>MTU {sessionSortLabel("mtu")}</button></TableHead>
                           <TableHead><button className="font-medium" onClick={() => handleSessionSort("calling_sid")}>Calling SID {sessionSortLabel("calling_sid")}</button></TableHead>
                           <TableHead><button className="font-medium" onClick={() => handleSessionSort("uptime")}>Uptime {sessionSortLabel("uptime")}</button></TableHead>
-                          <TableHead><button className="font-medium" onClick={() => handleSessionSort("rxRate")}>RX Rate (UPL) {sessionSortLabel("rxRate")}</button></TableHead>
-                          <TableHead><button className="font-medium" onClick={() => handleSessionSort("txRate")}>TX Rate (Dow) {sessionSortLabel("txRate")}</button></TableHead>
+                          <TableHead><button className="font-medium" onClick={() => handleSessionSort("rxRate")}>RX Rate (UPLOAD) {sessionSortLabel("rxRate")}</button></TableHead>
+                          <TableHead><button className="font-medium" onClick={() => handleSessionSort("txRate")}>TX Rate (DOWNLOAD) {sessionSortLabel("txRate")}</button></TableHead>
                           <TableHead><button className="font-medium text-right" onClick={() => handleSessionSort("rx_bytes")}>Traffic total {sessionSortLabel("rx_bytes")}</button></TableHead>
                           <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
@@ -644,8 +644,8 @@ function PPPoEPageInner() {
                               <TableCell>{formatRate(session.rxRate)} <span className="text-xs text-muted-foreground">/ {formatPps(session.rxPps)}</span></TableCell>
                               <TableCell>{formatRate(session.txRate)} <span className="text-xs text-muted-foreground">/ {formatPps(session.txPps)}</span></TableCell>
                               <TableCell className="text-right whitespace-nowrap">
-                                <span>{formatBytes(session.rx_bytes)} / {formatBytes(session.tx_bytes)}</span>
-                                {trafficRisk && <span className="ml-2 rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-700">Traffic skew</span>}
+                                <span>{formatBytes(session.rx_bytes)} RX / {formatBytes(session.tx_bytes)} TX</span>
+                                {trafficRisk && <span className="ml-2 rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-700">Highly asymmetric</span>}
                               </TableCell>
                               <TableCell className="text-right whitespace-nowrap">
                                 <Button variant="ghost" size="icon" className="h-8 w-8" title={`Graph statistics for ${session.username}`} onClick={() => setSelectedStatsKey(sessionKey(session))}>

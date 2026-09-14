@@ -235,7 +235,7 @@ export function HardwareSensorsCard({
               ) : null}
             </div>
 
-            <div className={`${layout.tileGridClass} max-h-[260px] overflow-y-auto pr-1`}>
+            <div className={`${layout.tileGridClass} min-h-0 flex-1 overflow-y-auto pr-1`}>
               {averageCpuTemp !== null ? (
                 <SensorTile
                   name="AVG CPU Temp"
