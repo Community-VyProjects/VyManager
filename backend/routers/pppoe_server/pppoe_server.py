@@ -9,11 +9,13 @@ from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 import asyncio
 import ipaddress
+import json
 from urllib.parse import unquote
 from session_vyos_service import get_session_vyos_service
 from vyos_builders.pppoe_server import PPPoEServerBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
+from org_scope import request_scoped_conn
 from starlette.concurrency import run_in_threadpool
 from pppoe_status import (
     PPPoESessionsResponse,
@@ -54,6 +56,201 @@ class PPPoEConnectionsResponse(BaseModel):
     ip: str
     connections: List[str]
     total: int
+
+
+class PPPoESessionLabelDefinitionResponse(BaseModel):
+    code: str
+    name: str
+    description: Optional[str] = None
+    severity: str = "info"
+    priority: int = 10
+    enabled: bool = True
+    rules: Dict[str, Any] = Field(default_factory=dict)
+
+
+DEFAULT_PPPoE_SESSION_LABELS: List[Dict[str, Any]] = [
+    {
+        "code": "traffic-skew",
+        "name": "Traffic skew",
+        "description": "Flag a session when upload (RX) bytes exceed 10% of download (TX) bytes, as a generic traffic-skew indicator.",
+        "severity": "warning",
+        "priority": 10,
+        "enabled": True,
+        "rules": {
+            "type": "ratio",
+            "numerator": "rx_bytes",
+            "denominator": "tx_bytes",
+            "operator": ">",
+            "factor": 0.10,
+        },
+    },
+]
+
+
+async def _seed_default_pppoe_labels(conn) -> None:
+    """Seed the table with the shipped default registry if the DB is empty."""
+    row = await conn.fetchrow("SELECT COUNT(*) AS count FROM pppoe_session_label_definitions")
+    existing = int(row["count"] or 0) if row else 0
+    if existing > 0:
+        return
+
+    for label in DEFAULT_PPPoE_SESSION_LABELS:
+        await conn.execute(
+            """
+            INSERT INTO pppoe_session_label_definitions
+            (code, name, description, severity, priority, enabled, rules, "createdAt", "updatedAt")
+            VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, NOW(), NOW())
+            ON CONFLICT (code)
+            DO UPDATE SET
+                name = EXCLUDED.name,
+                description = EXCLUDED.description,
+                severity = EXCLUDED.severity,
+                priority = EXCLUDED.priority,
+                enabled = EXCLUDED.enabled,
+                rules = EXCLUDED.rules,
+                "updatedAt" = NOW()
+            """,
+            label["code"],
+            label["name"],
+            label.get("description"),
+            label.get("severity") or "info",
+            int(label.get("priority") or 10),
+            bool(label.get("enabled", True)),
+            json.dumps(label.get("rules") or {}),
+        )
+
+
+# ========================================================================
+# Endpoint 0: Session labels
+# ========================================================================
+
+@router.get("/labels", response_model=List[PPPoESessionLabelDefinitionResponse])
+async def get_pppoe_session_labels(request: Request):
+    """Return the Postgres-backed PPPoE session label registry.
+
+    The first read from an empty registry table seeds the shipped default
+    traffic-skew entry into database
+    """
+    await require_read_permission(request, FeatureGroup.PPPOE)
+    try:
+        async with request_scoped_conn(request) as conn:
+            rows = await conn.fetch(
+                """
+                SELECT code, name, description, severity, priority, enabled, rules
+                FROM pppoe_session_label_definitions
+                WHERE enabled = TRUE
+                ORDER BY priority ASC, code ASC
+                """
+            )
+            if not rows:
+                await _seed_default_pppoe_labels(conn)
+                rows = await conn.fetch(
+                    """
+                    SELECT code, name, description, severity, priority, enabled, rules
+                    FROM pppoe_session_label_definitions
+                    WHERE enabled = TRUE
+                    ORDER BY priority ASC, code ASC
+                    """
+                )
+
+            labels = []
+            for row in rows:
+                rules = row["rules"]
+                if isinstance(rules, str):
+                    try:
+                        rules = json.loads(rules)
+                    except Exception:
+                        rules = {}
+                labels.append(
+                    PPPoESessionLabelDefinitionResponse(
+                        code=row["code"],
+                        name=row["name"],
+                        description=row["description"],
+                        severity=row["severity"] or "info",
+                        priority=int(row["priority"] or 10),
+                        enabled=row["enabled"] if row["enabled"] is not None else True,
+                        rules=rules if isinstance(rules, dict) else {},
+                    )
+                )
+
+            return labels
+
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Unhandled error in PPPoE session label lookup")
+        return []
+
+
+@router.post("/labels", response_model=List[PPPoESessionLabelDefinitionResponse])
+async def save_pppoe_session_labels(request: Request, body: List[PPPoESessionLabelDefinitionResponse]):
+    """Persist the authoritative PPPoE session label registry in Postgres.
+
+    The request body is the full desired label catalog. The route replaces the
+    stored registry table with the new list so the frontend editor and the API
+    remain in a single canonical state.
+    """
+    await require_write_permission(request, FeatureGroup.PPPOE)
+    try:
+        labels = []
+        for item in body:
+            if not item.code or not item.name:
+                continue
+            labels.append(item)
+
+        async with request_scoped_conn(request) as conn:
+            await conn.execute("DELETE FROM pppoe_session_label_definitions")
+            for label in labels:
+                await conn.execute(
+                    """
+                    INSERT INTO pppoe_session_label_definitions
+                    (code, name, description, severity, priority, enabled, rules)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
+                    ON CONFLICT (code)
+                    DO UPDATE SET
+                        name = EXCLUDED.name,
+                        description = EXCLUDED.description,
+                        severity = EXCLUDED.severity,
+                        priority = EXCLUDED.priority,
+                        enabled = EXCLUDED.enabled,
+                        rules = EXCLUDED.rules,
+                        "updatedAt" = NOW()
+                    """,
+                    label.code,
+                    label.name,
+                    label.description,
+                    label.severity or "info",
+                    int(label.priority or 10),
+                    bool(label.enabled if label.enabled is not None else True),
+                    json.dumps(label.rules or {}),
+                )
+
+            rows = await conn.fetch(
+                """
+                SELECT code, name, description, severity, priority, enabled, rules
+                FROM pppoe_session_label_definitions
+                WHERE enabled = TRUE
+                ORDER BY priority ASC, code ASC
+                """
+            )
+            return [
+                PPPoESessionLabelDefinitionResponse(
+                    code=row["code"],
+                    name=row["name"],
+                    description=row["description"],
+                    severity=row["severity"] or "info",
+                    priority=int(row["priority"] or 10),
+                    enabled=row["enabled"] if row["enabled"] is not None else True,
+                    rules=row["rules"] if isinstance(row["rules"], dict) else {},
+                )
+                for row in rows
+            ]
+
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Unhandled error saving PPPoE session label registry")
+        raise HTTPException(status_code=500, detail="Unable to save PPPoE session label registry")
 
 
 # ========================================================================

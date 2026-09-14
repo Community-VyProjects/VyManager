@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
-import { useState, useEffect, useRef, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -44,6 +44,7 @@ import {
   ChevronRight,
   Pause,
   Play,
+  Save,
   Search,
   X,
 } from "lucide-react";
@@ -58,6 +59,8 @@ import {
   type PPPoEIPv4Pool,
   type PPPoEIPv6Pool,
   type PPPoESession,
+  type PPPoESessionLabelDefinition,
+  type PPPoESessionLabelRule,
 } from "@/lib/api/pppoe-server";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useDashboardSSE } from "@/hooks/useDashboardSSE";
@@ -78,6 +81,39 @@ import {
 } from "@/components/pppoe-server";
 import type { PPPoEStatsPoint } from "@/components/pppoe-server/PPPoEStatsChart";
 
+function sessionMetricValue(session: SessionWithRates, field?: string): number {
+  if (field === "tx_bytes") return session.tx_bytes ?? 0;
+  if (field === "rx_bytes") return session.rx_bytes ?? 0;
+  if (field === "txRate") return session.txRate ?? 0;
+  if (field === "rxRate") return session.rxRate ?? 0;
+  return 0;
+}
+
+function sessionLabelMatches(session: SessionWithRates, label: PPPoESessionLabelDefinition): boolean {
+  const rules = label.rules;
+  if (!rules || rules.type !== "ratio") return false;
+
+  const lhs = sessionMetricValue(session, rules.numerator);
+  const rhs = sessionMetricValue(session, rules.denominator);
+  const factor = Number(rules.factor ?? 0.10);
+  if (!Number.isFinite(factor)) return false;
+  if (rhs === 0) return false;
+
+  const ratio = lhs / rhs;
+  if (rules.operator === ">") return ratio > factor;
+  if (rules.operator === ">=") return ratio >= factor;
+  if (rules.operator === "<") return ratio < factor;
+  if (rules.operator === "<=") return ratio <= factor;
+  return false;
+}
+
+function sessionRecognizedLabels(session: SessionWithRates, labels: PPPoESessionLabelDefinition[]): string[] {
+  return labels
+    .filter((label) => label.enabled !== false)
+    .filter((label) => sessionLabelMatches(session, label))
+    .map((label) => label.name);
+}
+
 function PPPoEPageInner() {
   const searchParams = useSearchParams();
   const { canRead, canWrite } = usePermissions();
@@ -89,6 +125,11 @@ function PPPoEPageInner() {
   const [config, setConfig] = useState<PPPoEConfigResponse | null>(null);
   const [capabilities, setCapabilities] = useState<PPPoECapabilities | null>(null);
   const [sessions, setSessions] = useState<SessionWithRates[]>([]);
+  const [sessionLabels, setSessionLabels] = useState<PPPoESessionLabelDefinition[]>([]);
+  const [showLabelEditor, setShowLabelEditor] = useState(false);
+  const [labelDraft, setLabelDraft] = useState<PPPoESessionLabelDefinition[]>([]);
+  const [labelError, setLabelError] = useState<string | null>(null);
+  const [labelSaving, setLabelSaving] = useState(false);
   const [sessionTotal, setSessionTotal] = useState(0);
   const [sessionLoading, setSessionLoading] = useState(false);
   const [sessionRefreshing, setSessionRefreshing] = useState(false);
@@ -103,6 +144,12 @@ function PPPoEPageInner() {
   const [ipv6Filter, setIpv6Filter] = useState<"all" | "yes" | "no">("all");
   const [vlanFilter, setVlanFilter] = useState("");
   const [mtuFilter, setMtuFilter] = useState("");
+  const [minRxBytes, setMinRxBytes] = useState("");
+  const [maxRxBytes, setMaxRxBytes] = useState("");
+  const [minTxBytes, setMinTxBytes] = useState("");
+  const [maxTxBytes, setMaxTxBytes] = useState("");
+  const [sessionSortField, setSessionSortField] = useState<SessionSortField>("username");
+  const [sessionSortDirection, setSessionSortDirection] = useState<"asc" | "desc">("asc");
   const [sessionPage, setSessionPage] = useState(1);
   const sessionPageSize = 50;
   const [connectionDialog, setConnectionDialog] = useState<{
@@ -225,7 +272,15 @@ function PPPoEPageInner() {
   });
 
   useEffect(() => {
-    if (hasRead) fetchConfig();
+    if (!hasRead) return;
+    fetchConfig();
+    void pppoeServerService.getSessionLabelDefinitions()
+      .then((labels) => {
+        setSessionLabels(labels ?? []);
+      })
+      .catch(() => {
+        setSessionLabels([]);
+      });
   }, [hasRead]);
 
   useEffect(() => {
@@ -259,6 +314,56 @@ function PPPoEPageInner() {
     setSessionLoading(false);
   }, [sessionStreamError]);
 
+  const openLabelEditor = () => {
+    setLabelDraft(sessionLabels.map((label) => ({ ...label, rules: label.rules ? { ...label.rules } : {} })));
+    setLabelError(null);
+    setShowLabelEditor(true);
+  };
+
+  const saveLabelEditor = async () => {
+    try {
+      setLabelSaving(true);
+      setLabelError(null);
+      const sanitized = labelDraft
+        .filter((label) => label.code.trim() && label.name.trim())
+        .map((label) => ({
+          ...label,
+          code: label.code.trim(),
+          name: label.name.trim(),
+          description: label.description?.trim() ?? "",
+          severity: label.severity || "info",
+          priority: Number(label.priority ?? 10),
+          enabled: label.enabled !== false,
+          rules: label.rules ?? {},
+        }));
+      const saved = await pppoeServerService.saveSessionLabelDefinitions(sanitized);
+      setSessionLabels(saved ?? []);
+      setLabelDraft(saved.map((label) => ({ ...label, rules: label.rules ? { ...label.rules } : {} })));
+      setShowLabelEditor(false);
+    } catch (err) {
+      setLabelError(err instanceof Error ? err.message : "Failed to save label definitions");
+    } finally {
+      setLabelSaving(false);
+    }
+  };
+
+  const addLabelDraft = () => {
+    const newLabel: PPPoESessionLabelDefinition = {
+      code: `custom-label-${Date.now()}`,
+      name: "New label",
+      description: "",
+      severity: "info",
+      priority: 10,
+      enabled: true,
+      rules: { type: "ratio", numerator: "rx_bytes", denominator: "tx_bytes", operator: ">", factor: 2 },
+    };
+    setLabelDraft((current) => [...current, newLabel]);
+  };
+
+  const removeLabelDraft = (index: number) => {
+    setLabelDraft((current) => current.filter((_, i) => i !== index));
+  };
+
   const onSuccess = () => fetchConfig(true);
   const onSessionReset = () => { void fetchSessions(); };
   const sessionKey = (session: SessionWithRates) => `${session.interface}:${session.username}:${session.calling_sid ?? ""}`;
@@ -279,22 +384,66 @@ function PPPoEPageInner() {
     }
   };
 
+  const parseOptionalNumber = (value: string) => {
+    const parsed = Number(value);
+    return value.trim() === "" || !Number.isFinite(parsed) ? null : parsed;
+  };
+
   const filteredSessions = sessions.filter((session) => {
     const search = sessionSearch.trim().toLowerCase();
     const haystack = `${session.username} ${session.interface} ${session.ip ?? ""} ${session.ipv6 ?? ""} ${session.calling_sid ?? ""}`.toLowerCase();
     const pps = Math.max(session.rxPps ?? 0, session.txPps ?? 0);
-    const minimum = minPps === "" ? null : Number(minPps);
-    const maximum = maxPps === "" ? null : Number(maxPps);
+    const minimum = parseOptionalNumber(minPps);
+    const maximum = parseOptionalNumber(maxPps);
+    const minRx = parseOptionalNumber(minRxBytes);
+    const maxRx = parseOptionalNumber(maxRxBytes);
+    const minTx = parseOptionalNumber(minTxBytes);
+    const maxTx = parseOptionalNumber(maxTxBytes);
     if (search && !haystack.includes(search)) return false;
-    if (minimum !== null && (!Number.isFinite(minimum) || pps < minimum)) return false;
-    if (maximum !== null && (!Number.isFinite(maximum) || pps > maximum)) return false;
+    if (minimum !== null && pps < minimum) return false;
+    if (maximum !== null && pps > maximum) return false;
+    if (minRx !== null && session.rx_bytes < minRx) return false;
+    if (maxRx !== null && session.rx_bytes > maxRx) return false;
+    if (minTx !== null && session.tx_bytes < minTx) return false;
+    if (maxTx !== null && session.tx_bytes > maxTx) return false;
     if (ipv6Filter === "yes" && !session.ipv6) return false;
     if (ipv6Filter === "no" && session.ipv6) return false;
     if (vlanFilter && !(session.vlan ?? "").toLowerCase().includes(vlanFilter.toLowerCase())) return false;
     if (mtuFilter && String(session.mtu ?? "") !== mtuFilter.trim()) return false;
     return true;
   });
+
+  const sortedSessions = useMemo(() => {
+    const dir = sessionSortDirection === "asc" ? 1 : -1;
+    const rows = [...filteredSessions];
+    rows.sort((a, b) => {
+      const left = sessionValue(a, sessionSortField);
+      const right = sessionValue(b, sessionSortField);
+      if (typeof left === "number" && typeof right === "number") {
+        return (left - right) * dir;
+      }
+      const textA = String(left ?? "").toLowerCase();
+      const textB = String(right ?? "").toLowerCase();
+      return textA.localeCompare(textB) * dir;
+    });
+    return rows;
+  }, [filteredSessions, sessionSortDirection, sessionSortField]);
+
   const filteredPageCount = Math.max(1, Math.ceil(filteredSessions.length / sessionPageSize));
+
+  const handleSessionSort = (field: SessionSortField) => {
+    if (sessionSortField === field) {
+      setSessionSortDirection((direction) => direction === "asc" ? "desc" : "asc");
+    } else {
+      setSessionSortField(field);
+      setSessionSortDirection("asc");
+    }
+  };
+
+  const sessionSortLabel = (field: SessionSortField) => {
+    const active = sessionSortField === field;
+    return active ? (sessionSortDirection === "asc" ? "▲" : "▼") : "↕";
+  };
 
   const authMode = config?.authentication.mode;
   const isLocalAuth = authMode === "local";
@@ -530,6 +679,11 @@ function PPPoEPageInner() {
                       <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                       <Input value={sessionSearch} onChange={(event) => setSessionSearch(event.target.value)} placeholder="Search user, IP, interface" className="h-8 w-52 pl-8 text-xs" />
                     </div>
+                    {hasWrite && (
+                      <Button variant="outline" size="sm" className="h-8 px-3 text-xs" onClick={openLabelEditor}>
+                        <Pencil className="h-3.5 w-3.5 mr-1" /> Labels
+                      </Button>
+                    )}
                     <Input value={minPps} onChange={(event) => setMinPps(event.target.value)} inputMode="numeric" placeholder="Min PPS" className="h-8 w-24 text-xs" />
                     <Input value={maxPps} onChange={(event) => setMaxPps(event.target.value)} inputMode="numeric" placeholder="Max PPS" className="h-8 w-24 text-xs" />
                     <select value={ipv6Filter} onChange={(event) => setIpv6Filter(event.target.value as "all" | "yes" | "no")} className="h-8 rounded-md border bg-background px-2 text-xs">
@@ -539,8 +693,12 @@ function PPPoEPageInner() {
                     </select>
                     <Input value={vlanFilter} onChange={(event) => setVlanFilter(event.target.value)} placeholder="VLAN" className="h-8 w-20 text-xs" />
                     <Input value={mtuFilter} onChange={(event) => setMtuFilter(event.target.value)} inputMode="numeric" placeholder="MTU" className="h-8 w-20 text-xs" />
-                    {(sessionSearch || minPps || maxPps || ipv6Filter !== "all" || vlanFilter || mtuFilter) && (
-                      <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => { setSessionSearch(""); setMinPps(""); setMaxPps(""); setIpv6Filter("all"); setVlanFilter(""); setMtuFilter(""); }}>
+                    <Input value={minRxBytes} onChange={(event) => setMinRxBytes(event.target.value)} inputMode="numeric" placeholder="Min RX bytes" className="h-8 w-28 text-xs" />
+                    <Input value={maxRxBytes} onChange={(event) => setMaxRxBytes(event.target.value)} inputMode="numeric" placeholder="Max RX bytes" className="h-8 w-28 text-xs" />
+                    <Input value={minTxBytes} onChange={(event) => setMinTxBytes(event.target.value)} inputMode="numeric" placeholder="Min TX bytes" className="h-8 w-28 text-xs" />
+                    <Input value={maxTxBytes} onChange={(event) => setMaxTxBytes(event.target.value)} inputMode="numeric" placeholder="Max TX bytes" className="h-8 w-28 text-xs" />
+                    {(sessionSearch || minPps || maxPps || ipv6Filter !== "all" || vlanFilter || mtuFilter || minRxBytes || maxRxBytes || minTxBytes || maxTxBytes) && (
+                      <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => { setSessionSearch(""); setMinPps(""); setMaxPps(""); setIpv6Filter("all"); setVlanFilter(""); setMtuFilter(""); setMinRxBytes(""); setMaxRxBytes(""); setMinTxBytes(""); setMaxTxBytes(""); }}>
                         <X className="h-3.5 w-3.5 mr-1" /> Clear
                       </Button>
                     )}
@@ -558,87 +716,83 @@ function PPPoEPageInner() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>User</TableHead>
-                          <TableHead>Interface</TableHead>
-                          <TableHead>IP address</TableHead>
-                          <TableHead>VLAN</TableHead>
-                          <TableHead>MTU</TableHead>
-                          <TableHead>Calling SID</TableHead>
-                          <TableHead>Uptime</TableHead>
-                          <TableHead>RX rate</TableHead>
-                          <TableHead>TX rate</TableHead>
-                          <TableHead className="text-right">Traffic total</TableHead>
+                          <TableHead><button className="font-medium" onClick={() => handleSessionSort("username")}>User {sessionSortLabel("username")}</button></TableHead>
+                          <TableHead><button className="font-medium" onClick={() => handleSessionSort("interface")}>Interface {sessionSortLabel("interface")}</button></TableHead>
+                          <TableHead><button className="font-medium" onClick={() => handleSessionSort("ip")}>IP address {sessionSortLabel("ip")}</button></TableHead>
+                          <TableHead><button className="font-medium" onClick={() => handleSessionSort("vlan")}>VLAN {sessionSortLabel("vlan")}</button></TableHead>
+                          <TableHead><button className="font-medium" onClick={() => handleSessionSort("mtu")}>MTU {sessionSortLabel("mtu")}</button></TableHead>
+                          <TableHead><button className="font-medium" onClick={() => handleSessionSort("calling_sid")}>Calling SID {sessionSortLabel("calling_sid")}</button></TableHead>
+                          <TableHead><button className="font-medium" onClick={() => handleSessionSort("uptime")}>Uptime {sessionSortLabel("uptime")}</button></TableHead>
+                          <TableHead><button className="font-medium" onClick={() => handleSessionSort("rxRate")}>RX Rate (UPL) {sessionSortLabel("rxRate")}</button></TableHead>
+                          <TableHead><button className="font-medium" onClick={() => handleSessionSort("txRate")}>TX Rate (DOWN) {sessionSortLabel("txRate")}</button></TableHead>
+                          <TableHead><button className="font-medium text-right" onClick={() => handleSessionSort("rx_bytes")}>Traffic total {sessionSortLabel("rx_bytes")}</button></TableHead>
                           <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {filteredSessions.slice((sessionPage - 1) * sessionPageSize, sessionPage * sessionPageSize).map((session) => (
-                          <TableRow key={`${session.interface}:${session.username}:${session.calling_sid ?? ""}`}>
-                            <TableCell className="font-medium">{session.username}</TableCell>
-                            <TableCell className="font-mono">{session.interface}</TableCell>
-                            <TableCell className="font-mono">
-                              <div>{session.ip || "-"}</div>
-                              {session.ipv6 && <div className="text-xs text-muted-foreground">{session.ipv6}</div>}
-                              {session.ipv6_delegated && <div className="text-xs text-muted-foreground">PD: {session.ipv6_delegated}</div>}
-                            </TableCell>
-                            <TableCell>{session.vlan || "-"}</TableCell>
-                            <TableCell>{session.mtu || "-"}</TableCell>
-                            <TableCell className="font-mono text-xs">{session.calling_sid || "-"}</TableCell>
-                            <TableCell>{session.uptime || "-"}</TableCell>
-                            <TableCell>{formatRate(session.rxRate)} <span className="text-xs text-muted-foreground">/ {formatPps(session.rxPps)}</span></TableCell>
-                            <TableCell>{formatRate(session.txRate)} <span className="text-xs text-muted-foreground">/ {formatPps(session.txPps)}</span></TableCell>
-                            <TableCell className="text-right whitespace-nowrap">
-                              {formatBytes(session.rx_bytes)} / {formatBytes(session.tx_bytes)}
-                            </TableCell>
-                            <TableCell className="text-right whitespace-nowrap">
-                              <Button variant="ghost" size="icon" className="h-8 w-8" title={`Graph statistics for ${session.username}`} onClick={() => setSelectedStatsKey(sessionKey(session))}>
-                                <Activity className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                                title={`Inspect connections for ${session.username}`}
-                                onClick={() => void inspectConnections(session)}
-                                disabled={!session.ip}
-                              >
-                                <Cable className="h-4 w-4" />
-                              </Button>
-                            {hasWrite && (
+                        {sortedSessions.slice((sessionPage - 1) * sessionPageSize, sessionPage * sessionPageSize).map((session) => {
+                          const appliedLabels = sessionRecognizedLabels(session, sessionLabels);
+                          return (
+                            <TableRow key={`${session.interface}:${session.username}:${session.calling_sid ?? ""}`}>
+                              <TableCell className="font-medium">{session.username}</TableCell>
+                              <TableCell className="font-mono">{session.interface}</TableCell>
+                              <TableCell className="font-mono">
+                                <div>{session.ip || "-"}</div>
+                                {session.ipv6 && <div className="text-xs text-muted-foreground">{session.ipv6}</div>}
+                                {session.ipv6_delegated && <div className="text-xs text-muted-foreground">PD: {session.ipv6_delegated}</div>}
+                              </TableCell>
+                              <TableCell>{session.vlan || "-"}</TableCell>
+                              <TableCell>{session.mtu || "-"}</TableCell>
+                              <TableCell className="font-mono text-xs">{session.calling_sid || "-"}</TableCell>
+                              <TableCell>{session.uptime || "-"}</TableCell>
+                              <TableCell>{formatRate(session.rxRate)} <span className="text-xs text-muted-foreground">/ {formatPps(session.rxPps)}</span></TableCell>
+                              <TableCell>{formatRate(session.txRate)} <span className="text-xs text-muted-foreground">/ {formatPps(session.txPps)}</span></TableCell>
+                              <TableCell className="text-right whitespace-nowrap">
+                                <span>{formatBytes(session.rx_bytes)} RX / {formatBytes(session.tx_bytes)} TX</span>
+                                {appliedLabels.length > 0 && (
+                                  <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-700">
+                                    {appliedLabels.map((label) => label).join(" ")}
+                                  </span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right whitespace-nowrap">
+                                <Button variant="ghost" size="icon" className="h-8 w-8" title={`Graph statistics for ${session.username}`} onClick={() => setSelectedStatsKey(sessionKey(session))}>
+                                  <Activity className="h-4 w-4" />
+                                </Button>
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8 hover:bg-destructive/10"
-                                  title={`Reset sessions for ${session.username}`}
-                                  onClick={() => setDeleteTarget({
-                                    type: "PPPoE session",
-                                    name: session.username,
-                                    onDelete: () => pppoeServerService.resetSession(session.username),
-                                    actionLabel: "Reset",
-                                    actionVerb: "reset",
-                                    warning: "This will terminate all active PPPoE sessions for this username and force the client to reconnect.",
-                                  })}
+                                  className="h-8 w-8"
+                                  title={`Inspect connections for ${session.username}`}
+                                  onClick={() => void inspectConnections(session)}
+                                  disabled={!session.ip}
                                 >
-                                  <RotateCcw className="h-4 w-4 text-destructive" />
+                                  <Cable className="h-4 w-4" />
                                 </Button>
-                            )}
-                            </TableCell>
-                          </TableRow>
-                        ))}
+                              {hasWrite && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 hover:bg-destructive/10"
+                                    title={`Reset sessions for ${session.username}`}
+                                    onClick={() => setDeleteTarget({
+                                      type: "PPPoE session",
+                                      name: session.username,
+                                      onDelete: () => pppoeServerService.resetSession(session.username),
+                                      actionLabel: "Reset",
+                                      actionVerb: "reset",
+                                      warning: "This will terminate all active PPPoE sessions for this username and force the client to reconnect.",
+                                    })}
+                                  >
+                                    <RotateCcw className="h-4 w-4 text-destructive" />
+                                  </Button>
+                              )}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
                       </TableBody>
                     </Table>
-                  )}
-                  {selectedStatsKey && statsHistory[selectedStatsKey] && (
-                    <Card className="mt-4 p-4">
-                      <div className="mb-3 flex items-center justify-between">
-                        <div>
-                          <h4 className="font-medium">Session traffic history</h4>
-                          <p className="text-xs text-muted-foreground">Select rate, PPS, or total traffic from the graph.</p>
-                        </div>
-                        <Button variant="ghost" size="sm" onClick={() => setSelectedStatsKey(null)}>Close</Button>
-                      </div>
-                      <PPPoEStatsChart points={statsHistory[selectedStatsKey]} />
-                    </Card>
                   )}
                   {filteredSessions.length > sessionPageSize && (
                     <div className="flex items-center justify-between border-t mt-3 pt-3">
@@ -1184,6 +1338,154 @@ function PPPoEPageInner() {
         </div>
       </div>
 
+      <Dialog open={!!selectedStatsKey && !!statsHistory[selectedStatsKey]} onOpenChange={(open) => { if (!open) setSelectedStatsKey(null); }}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Session traffic history</DialogTitle>
+            <DialogDescription>
+              Select rate, PPS, or total traffic from the graph.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedStatsKey && statsHistory[selectedStatsKey] && (
+            <PPPoEStatsChart points={statsHistory[selectedStatsKey]} />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showLabelEditor} onOpenChange={(open) => {
+        if (!open) {
+          setShowLabelEditor(false);
+          setLabelError(null);
+        }
+      }}>
+        <DialogContent className="max-w-6xl border-0 p-0">
+          <div className="rounded-xl border border-border/60 bg-background shadow-2xl">
+            <DialogHeader className="flex items-center justify-between border-b px-6 py-4">
+              <div className="space-y-1">
+                <DialogTitle className="text-2xl font-semibold tracking-tight">Session label registry</DialogTitle>
+                <DialogDescription className="text-sm text-muted-foreground">
+                  Store the PPPoE label catalog in Postgres. Rules drive the session badge labels shown in the table.
+                </DialogDescription>
+              </div>
+              <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setShowLabelEditor(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </DialogHeader>
+
+            <div className="space-y-4 px-6 py-5">
+              {labelError && (
+                <div className="rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+                  {labelError}
+                </div>
+              )}
+
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                  <span>Definitions</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" className="h-9 px-4" onClick={addLabelDraft}>
+                    <Plus className="h-4 w-4 mr-2" /> New
+                  </Button>
+                  <Button variant="outline" size="sm" className="h-9 px-4" onClick={() => setShowLabelEditor(false)}>
+                    Cancel
+                  </Button>
+                  <Button size="sm" className="h-9 px-5" onClick={() => void saveLabelEditor()} disabled={labelSaving}>
+                    {labelSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+                    {labelSaving ? "Saving..." : "Save registry"}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="overflow-hidden rounded-lg border border-border/50 bg-muted/10">
+                <div className="grid grid-cols-[minmax(110px,0.9fr)_minmax(140px,1.2fr)_minmax(180px,1.8fr)_minmax(75px,0.7fr)_minmax(110px,1fr)_minmax(80px,0.8fr)_minmax(105px,1fr)_minmax(105px,1fr)_minmax(82px,1fr)_minmax(62px,0.7fr)_52px] gap-2 border-b bg-muted/30 px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  <span>Code</span>
+                  <span>Name</span>
+                  <span>Description</span>
+                  <span>Priority</span>
+                  <span>Severity</span>
+                  <span>Enabled</span>
+                  <span>Numerator</span>
+                  <span>Denominator</span>
+                  <span>Operator</span>
+                  <span>Factor</span>
+                  <span className="text-right">Actions</span>
+                </div>
+
+                {labelDraft.length === 0 ? (
+                  <div className="px-4 py-8 text-sm text-muted-foreground">No labels defined.</div>
+                ) : (
+                  <div className="max-h-[55vh] overflow-auto">
+                    {labelDraft.map((label, index) => (
+                      <div key={`${label.code}-${index}`} className="grid grid-cols-[minmax(110px,0.9fr)_minmax(140px,1.2fr)_minmax(180px,1.8fr)_minmax(75px,0.7fr)_minmax(110px,1fr)_minmax(80px,0.8fr)_minmax(105px,1fr)_minmax(105px,1fr)_minmax(82px,1fr)_minmax(62px,0.7fr)_52px] gap-2 border-b border-border/30 px-4 py-3 last:border-b-0 hover:bg-muted/20">
+                        <div className="min-w-0">
+                          <Input value={label.code ?? ""} onChange={(event) => setLabelDraft((current) => current.map((item, i) => i === index ? { ...item, code: event.target.value } : item))} className="h-9 text-sm font-medium" />
+                        </div>
+                        <div className="min-w-0">
+                          <Input value={label.name ?? ""} onChange={(event) => setLabelDraft((current) => current.map((item, i) => i === index ? { ...item, name: event.target.value } : item))} className="h-9 text-sm" />
+                        </div>
+                        <div className="min-w-0">
+                          <Input value={label.description ?? ""} onChange={(event) => setLabelDraft((current) => current.map((item, i) => i === index ? { ...item, description: event.target.value } : item))} className="h-9 text-sm" />
+                        </div>
+                        <div className="min-w-0">
+                          <Input value={label.priority ?? 10} type="number" onChange={(event) => setLabelDraft((current) => current.map((item, i) => i === index ? { ...item, priority: Number(event.target.value) } : item))} className="h-9 text-sm" />
+                        </div>
+                        <div className="min-w-0">
+                          <select value={label.severity ?? "info"} onChange={(event) => setLabelDraft((current) => current.map((item, i) => i === index ? { ...item, severity: event.target.value } : item))} className="h-9 w-full rounded-md border bg-background px-2 text-sm">
+                            <option value="info">info</option>
+                            <option value="warning">warning</option>
+                            <option value="danger">danger</option>
+                          </select>
+                        </div>
+                        <div className="min-w-0">
+                          <select value={label.enabled === false ? "false" : "true"} onChange={(event) => setLabelDraft((current) => current.map((item, i) => i === index ? { ...item, enabled: event.target.value === "true" } : item))} className="h-9 w-full rounded-md border bg-background px-2 text-sm">
+                            <option value="true">Yes</option>
+                            <option value="false">No</option>
+                          </select>
+                        </div>
+                        <div className="min-w-0">
+                          <select value={label.rules?.numerator ?? "rx_bytes"} onChange={(event) => setLabelDraft((current) => current.map((item, i) => i === index ? { ...item, rules: { ...(item.rules ?? {}), type: "ratio", numerator: event.target.value as PPPoESessionLabelRule["numerator"] } } : item))} className="h-9 w-full rounded-md border bg-background px-2 text-sm">
+                            <option value="rx_bytes">RX bytes</option>
+                            <option value="tx_bytes">TX bytes</option>
+                            <option value="rxRate">RX Rate</option>
+                            <option value="txRate">TX Rate</option>
+                          </select>
+                        </div>
+                        <div className="min-w-0">
+                          <select value={label.rules?.denominator ?? "tx_bytes"} onChange={(event) => setLabelDraft((current) => current.map((item, i) => i === index ? { ...item, rules: { ...(item.rules ?? {}), type: "ratio", denominator: event.target.value as PPPoESessionLabelRule["denominator"] } } : item))} className="h-9 w-full rounded-md border bg-background px-2 text-sm">
+                            <option value="rx_bytes">RX bytes</option>
+                            <option value="tx_bytes">TX bytes</option>
+                            <option value="rxRate">RX Rate</option>
+                            <option value="txRate">TX Rate</option>
+                          </select>
+                        </div>
+                        <div className="min-w-0">
+                          <select value={label.rules?.operator ?? ">"} onChange={(event) => setLabelDraft((current) => current.map((item, i) => i === index ? { ...item, rules: { ...(item.rules ?? {}), type: "ratio", operator: event.target.value as PPPoESessionLabelRule["operator"] } } : item))} className="h-9 w-full rounded-md border bg-background px-2 text-sm">
+                            <option value=">">&gt;</option>
+                            <option value=">=">&ge;</option>
+                            <option value="<">&lt;</option>
+                            <option value="<=">&le;</option>
+                          </select>
+                        </div>
+                        <div className="min-w-0">
+                          <Input value={label.rules?.factor ?? 0.1} type="number" step="0.01" min="0" onChange={(event) => setLabelDraft((current) => current.map((item, i) => i === index ? { ...item, rules: { ...(item.rules ?? {}), type: "ratio", factor: Number(event.target.value) } } : item))} className="h-9 text-sm" />
+                        </div>
+                        <div className="flex items-center justify-end">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10" onClick={() => removeLabelDraft(index)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={!!connectionDialog} onOpenChange={(open) => { if (!open) setConnectionDialog(null); }}>
         <DialogContent className="max-w-4xl">
           <DialogHeader>
@@ -1297,12 +1599,54 @@ function InfoRow({ label, value }: { label: string; value?: string | null }) {
   );
 }
 
+type SessionSortField =
+  | "username"
+  | "interface"
+  | "ip"
+  | "vlan"
+  | "mtu"
+  | "calling_sid"
+  | "uptime"
+  | "rxRate"
+  | "txRate"
+  | "rx_bytes"
+  | "tx_bytes";
+
 type SessionWithRates = PPPoESession & {
   rxRate?: number;
   txRate?: number;
   rxPps?: number;
   txPps?: number;
 };
+
+function sessionValue(session: SessionWithRates, field: SessionSortField): string | number {
+  switch (field) {
+    case "username":
+      return session.username;
+    case "interface":
+      return session.interface;
+    case "ip":
+      return session.ip ?? "";
+    case "vlan":
+      return session.vlan ?? "";
+    case "mtu":
+      return session.mtu ?? 0;
+    case "calling_sid":
+      return session.calling_sid ?? "";
+    case "uptime":
+      return session.uptime ?? "";
+    case "rxRate":
+      return session.rxRate ?? 0;
+    case "txRate":
+      return session.txRate ?? 0;
+    case "rx_bytes":
+      return session.rx_bytes ?? 0;
+    case "tx_bytes":
+      return session.tx_bytes ?? 0;
+    default:
+      return "";
+  }
+}
 
 function formatBytes(value: number): string {
   if (value >= 1024 ** 3) return `${(value / 1024 ** 3).toFixed(1)} GiB`;

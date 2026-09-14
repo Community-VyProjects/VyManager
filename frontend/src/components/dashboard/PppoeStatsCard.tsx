@@ -8,6 +8,7 @@ import { CardSizeMenu } from "@/components/dashboard/CardSizeMenu";
 import { pppoeServerService, type PPPoESessionsResponse } from "@/lib/api/pppoe-server";
 import { PPPoEStatsChart, type PPPoEStatsPoint } from "@/components/pppoe-server/PPPoEStatsChart";
 import { useDashboardData } from "@/contexts/DashboardDataContext";
+import { cardPixelHeight, DEFAULT_HEIGHT } from "@/lib/dashboard-layout";
 
 interface PppoeStatsCardProps {
   onRemove?: () => void;
@@ -45,6 +46,8 @@ export function PppoeStatsCard({ onRemove, span = 1, onSpanChange, height, onHei
   const [sessionCount, setSessionCount] = useState(0);
   const [paused, setPaused] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const chartHeight = Math.max(180, Math.min(420, cardPixelHeight(height ?? DEFAULT_HEIGHT) - 118));
 
   useEffect(() => {
     if (paused) return;
@@ -99,7 +102,7 @@ export function PppoeStatsCard({ onRemove, span = 1, onSpanChange, height, onHei
         </div>
       </CardHeader>
       <CardContent className="min-h-0 flex-1 pt-0">
-        <PPPoEStatsChart points={points} height={240} sessionsOnly />
+        <PPPoEStatsChart points={points} height={chartHeight} sessionsOnly />
       </CardContent>
     </Card>
   );

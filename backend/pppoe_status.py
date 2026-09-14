@@ -166,6 +166,31 @@ def _parse_counter(value: Optional[str]) -> Optional[int]:
         return None
 
 
+def _parse_int_like(value: Any) -> Optional[int]:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    text = str(value).strip().replace(",", "")
+    if not text:
+        return None
+    try:
+        return int(text)
+    except ValueError:
+        return None
+
+
+def _first_present(entry: Dict[str, Any], *keys: str) -> Optional[Any]:
+    for key in keys:
+        value = entry.get(key)
+        if value is None or value == "":
+            continue
+        return value
+    return None
+
+
 def _format_uptime(seconds: Optional[str]) -> Optional[str]:
     """Format accel-ppp ``uptime-raw`` seconds as ``[Nd ]HH:MM:SS``."""
     total = _parse_counter(seconds)
@@ -216,6 +241,13 @@ def parse_accel_ppp_sessions(result: Any) -> List[PPPoESession]:
         username = entry.get("username")
         if not ifname or not username:
             continue
+
+        vlan = _first_present(entry, "vlan", "vlan_id", "vlan-id", "vlanid")
+        mtu = _parse_int_like(_first_present(entry, "mtu", "mtu_value", "peer_mtu"))
+
+        if vlan is not None and isinstance(vlan, str) and vlan.strip().isdigit():
+            vlan = vlan.strip()
+
         sessions.append(PPPoESession(
             interface=str(ifname),
             username=str(username),
@@ -230,6 +262,8 @@ def parse_accel_ppp_sessions(result: Any) -> List[PPPoESession]:
             tx_bytes=_parse_counter(entry.get("tx_bytes_raw")) or 0,
             rx_packets=_parse_counter(entry.get("rx_pkts")),
             tx_packets=_parse_counter(entry.get("tx_pkts")),
+            vlan=str(vlan) if vlan is not None else None,
+            mtu=mtu,
         ))
     return sessions
 
@@ -265,6 +299,37 @@ async def fetch_accel_ppp_sessions(service, protocol: str = "pppoe") -> Optional
         return None
 
 
+def _merge_text_metadata_into_sessions(
+    sessions: List[PPPoESession],
+    metadata_sessions: List[PPPoESession],
+) -> List[PPPoESession]:
+    """Overlay VLAN and MTU metadata from one text-table synopsis onto GraphQL rows.
+
+    This is deliberately O(n+m) in the number of observed sessions, but it uses
+    one router-originated snapshot instead of creating one extra session query
+    per session row. It is therefore suitable for the active session view.
+    """
+    if not sessions or not metadata_sessions:
+        return sessions
+
+    metadata_by_identity: Dict[str, PPPoESession] = {}
+    for item in metadata_sessions:
+        key = f"{item.interface}:{item.username}"
+        metadata_by_identity[key] = item
+
+    for session in sessions:
+        key = f"{session.interface}:{session.username}"
+        metadata = metadata_by_identity.get(key)
+        if not metadata:
+            continue
+        if session.vlan is None and metadata.vlan:
+            session.vlan = metadata.vlan
+        if session.mtu is None and metadata.mtu is not None:
+            session.mtu = metadata.mtu
+
+    return sessions
+
+
 def pppoe_configured(full_config) -> bool:
     """True when ``service pppoe-server`` is configured (gates the dashboard fetch)."""
     service = (full_config or {}).get("service", {}) or {}
@@ -272,13 +337,12 @@ def pppoe_configured(full_config) -> bool:
 
 
 async def load_pppoe_sessions(service) -> List[PPPoESession]:
-    """Load sessions (GraphQL, then text-table fallback) and annotate PPS.
+    """Load sessions from the native accel-ppp GraphQL call and enrich them, if needed,
+    from the single ``show pppoe-server sessions`` text-table snapshot so VLAN and MTU
+    can be surfaced for the UI without a per-session command explosion.
 
-    Used by both the REST sessions endpoint and the dashboard SSE broadcaster so
-    the two paths share one tracker. Raises ``PPPoESessionsUnavailable`` when
-    both the structured op and the text-table fallback fail. The REST endpoint
-    maps that to HTTP 502; the SSE path treats it as a fetch error and does not
-    502 the stream.
+    Raises ``PPPoESessionsUnavailable`` when both the structured op and the
+    text-table fallback fail. The REST endpoint maps that to HTTP 502.
     """
     sessions = await fetch_accel_ppp_sessions(service)
     if sessions is None:
@@ -299,6 +363,22 @@ async def load_pppoe_sessions(service) -> List[PPPoESession]:
             else response.result
         )
         sessions = parse_pppoe_sessions(output or "")
+    else:
+        try:
+            response = await run_in_threadpool(
+                service.device.show, path=["pppoe-server", "sessions"]
+            )
+            if response.status == 200:
+                output = (
+                    response.result.get("data", "")
+                    if isinstance(response.result, dict)
+                    else response.result
+                )
+                fallback_sessions = parse_pppoe_sessions(output or "")
+                sessions = _merge_text_metadata_into_sessions(sessions, fallback_sessions)
+        except Exception:
+            logger.warning("PPPoE sessions metadata snapshot enrich failed; continuing with GraphQL rows", exc_info=True)
+
     PPPOE_PPS_TRACKER.annotate_sessions(str(id(service.device)), sessions)
     return sessions
 
