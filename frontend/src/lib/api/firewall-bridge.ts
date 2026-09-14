@@ -18,18 +18,18 @@ export interface BridgeRule {
   // MAC addresses (1.4+)
   source_mac?: string | null;
   destination_mac?: string | null;
-  // IP addresses (1.5+)
+  // IP addresses
   source_address?: string | null;
   destination_address?: string | null;
-  // Ports (1.5+)
+  // Ports
   source_port?: string | null;
   destination_port?: string | null;
-  // Source groups (1.5+)
+  // Source groups
   source_group_address?: string | null;
   source_group_network?: string | null;
   source_group_port?: string | null;
   source_group_mac?: string | null;
-  // Destination groups (1.5+)
+  // Destination groups
   destination_group_address?: string | null;
   destination_group_network?: string | null;
   destination_group_port?: string | null;
@@ -43,68 +43,68 @@ export interface BridgeRule {
   inbound_interface_group?: string | null;
   outbound_interface?: string | null;
   outbound_interface_group?: string | null;
-  // Protocol (1.5+)
+  // Protocol
   protocol?: string | null;
-  // Ethernet type (1.5+)
+  // Ethernet type
   ethernet_type?: string | null;
   // Jump/Queue targets
   jump_target?: string | null;
   queue?: string | null;
-  // ICMP (1.5+)
+  // ICMP
   icmp_type?: string | null;
   icmp_code?: string | null;
   icmp_type_name?: string | null;
-  // ICMPv6 (1.5+)
+  // ICMPv6
   icmpv6_type?: string | null;
   icmpv6_code?: string | null;
   icmpv6_type_name?: string | null;
-  // TCP (1.5+)
+  // TCP
   tcp_flags?: string | null;
   tcp_flags_not?: string | null;
   tcp_mss?: string | null;
-  // Rate limiting (1.5+)
+  // Rate limiting
   limit_rate?: string | null;
   limit_burst?: string | null;
-  // Log options (1.5+)
+  // Log options
   log_options_level?: string | null;
   log_options_group?: string | null;
-  // Mark matching (1.5+)
+  // Mark matching
   mark?: string | null;
   connection_mark?: string | null;
-  // DSCP matching (1.5+)
+  // DSCP matching
   dscp?: string | null;
   dscp_exclude?: string | null;
-  // Fragment matching (1.5+)
+  // Fragment matching
   fragment_match_frag?: boolean;
   fragment_match_non_frag?: boolean;
-  // IPsec matching (1.5+)
+  // IPsec matching
   ipsec_match_ipsec_in?: boolean;
   ipsec_match_ipsec_out?: boolean;
   ipsec_match_none_in?: boolean;
   ipsec_match_none_out?: boolean;
-  // TTL matching (1.5+)
+  // TTL matching
   ttl_eq?: string | null;
   ttl_gt?: string | null;
   ttl_lt?: string | null;
-  // Hop-limit matching (1.5+)
+  // Hop-limit matching
   hop_limit_eq?: string | null;
   hop_limit_gt?: string | null;
   hop_limit_lt?: string | null;
-  // Packet type/length (1.5+)
+  // Packet type/length
   packet_type?: string | null;
   packet_length?: string | null;
-  // Time-based rules (1.5+)
+  // Time-based rules
   time_startdate?: string | null;
   time_stopdate?: string | null;
   time_starttime?: string | null;
   time_stoptime?: string | null;
   time_weekdays?: string | null;
-  // Connection status (1.5+)
+  // Connection status
   connection_status_new?: boolean;
   connection_status_established?: boolean;
   connection_status_related?: boolean;
   connection_status_invalid?: boolean;
-  // Set options (1.5+)
+  // Set options
   set_dscp?: string | null;
   set_mark?: string | null;
   set_connection_mark?: string | null;
@@ -145,6 +145,21 @@ export interface BridgeCapabilities {
     ethernet_type_matching: { supported: boolean; description: string };
     packet_modifications: { supported: boolean; description: string };
     notrack_action: { supported: boolean; description: string };
+    protocol_matching: { supported: boolean; description: string };
+    ip_matching: { supported: boolean; description: string };
+    port_matching: { supported: boolean; description: string };
+    firewall_groups: { supported: boolean; description: string };
+    icmp_matching: { supported: boolean; description: string };
+    tcp_flags: { supported: boolean; description: string };
+    rate_limiting: { supported: boolean; description: string };
+    time_based: { supported: boolean; description: string };
+    mark_matching: { supported: boolean; description: string };
+    dscp_matching: { supported: boolean; description: string };
+    fragment_matching: { supported: boolean; description: string };
+    ipsec_matching: { supported: boolean; description: string };
+    ttl_matching: { supported: boolean; description: string };
+    packet_type: { supported: boolean; description: string };
+    log_options: { supported: boolean; description: string };
   };
   supported_chains: string[];
   supported_actions: string[];
@@ -287,18 +302,18 @@ class BridgeFirewallService {
       // MAC addresses
       source_mac?: string;
       destination_mac?: string;
-      // IP addresses (1.5+)
+      // IP addresses
       source_address?: string;
       destination_address?: string;
-      // Ports (1.5+)
+      // Ports
       source_port?: string;
       destination_port?: string;
-      // Source groups (1.5+)
+      // Source groups
       source_group_address?: string;
       source_group_network?: string;
       source_group_port?: string;
       source_group_mac?: string;
-      // Destination groups (1.5+)
+      // Destination groups
       destination_group_address?: string;
       destination_group_network?: string;
       destination_group_port?: string;
@@ -312,68 +327,68 @@ class BridgeFirewallService {
       inbound_interface_group?: string;
       outbound_interface?: string;
       outbound_interface_group?: string;
-      // Protocol (1.5+)
+      // Protocol
       protocol?: string;
-      // Ethernet type (1.5+)
+      // Ethernet type
       ethernet_type?: string;
       // Jump/Queue targets
       jump_target?: string;
       queue?: string;
-      // ICMP (1.5+)
+      // ICMP
       icmp_type?: string;
       icmp_code?: string;
       icmp_type_name?: string;
-      // ICMPv6 (1.5+)
+      // ICMPv6
       icmpv6_type?: string;
       icmpv6_code?: string;
       icmpv6_type_name?: string;
-      // TCP (1.5+)
+      // TCP
       tcp_flags?: string;
       tcp_flags_not?: string;
       tcp_mss?: string;
-      // Rate limiting (1.5+)
+      // Rate limiting
       limit_rate?: string;
       limit_burst?: string;
-      // Log options (1.5+)
+      // Log options
       log_options_level?: string;
       log_options_group?: string;
-      // Mark matching (1.5+)
+      // Mark matching
       mark?: string;
       connection_mark?: string;
-      // DSCP matching (1.5+)
+      // DSCP matching
       dscp?: string;
       dscp_exclude?: string;
-      // Fragment matching (1.5+)
+      // Fragment matching
       fragment_match_frag?: boolean;
       fragment_match_non_frag?: boolean;
-      // IPsec matching (1.5+)
+      // IPsec matching
       ipsec_match_ipsec_in?: boolean;
       ipsec_match_ipsec_out?: boolean;
       ipsec_match_none_in?: boolean;
       ipsec_match_none_out?: boolean;
-      // TTL matching (1.5+)
+      // TTL matching
       ttl_eq?: string;
       ttl_gt?: string;
       ttl_lt?: string;
-      // Hop-limit matching (1.5+)
+      // Hop-limit matching
       hop_limit_eq?: string;
       hop_limit_gt?: string;
       hop_limit_lt?: string;
-      // Packet type/length (1.5+)
+      // Packet type/length
       packet_type?: string;
       packet_length?: string;
-      // Time-based rules (1.5+)
+      // Time-based rules
       time_startdate?: string;
       time_stopdate?: string;
       time_starttime?: string;
       time_stoptime?: string;
       time_weekdays?: string;
-      // Connection status (1.5+)
+      // Connection status
       connection_status_new?: boolean;
       connection_status_established?: boolean;
       connection_status_related?: boolean;
       connection_status_invalid?: boolean;
-      // Set options (1.5+)
+      // Set options
       set_dscp?: string;
       set_mark?: string;
       set_connection_mark?: string;
@@ -407,7 +422,7 @@ class BridgeFirewallService {
       operations.push({ op: "set_rule_destination_mac", value: config.destination_mac });
     }
 
-    // IP addresses (1.5+)
+    // IP addresses
     if (config.source_address) {
       operations.push({ op: "set_rule_source_address", value: config.source_address });
     }
@@ -415,7 +430,7 @@ class BridgeFirewallService {
       operations.push({ op: "set_rule_destination_address", value: config.destination_address });
     }
 
-    // Ports (1.5+)
+    // Ports
     if (config.source_port) {
       operations.push({ op: "set_rule_source_port", value: config.source_port });
     }
@@ -423,7 +438,7 @@ class BridgeFirewallService {
       operations.push({ op: "set_rule_destination_port", value: config.destination_port });
     }
 
-    // Source groups (1.5+)
+    // Source groups
     if (config.source_group_address) {
       operations.push({ op: "set_rule_source_group_address", value: config.source_group_address });
     }
@@ -437,7 +452,7 @@ class BridgeFirewallService {
       operations.push({ op: "set_rule_source_group_mac", value: config.source_group_mac });
     }
 
-    // Destination groups (1.5+)
+    // Destination groups
     if (config.destination_group_address) {
       operations.push({ op: "set_rule_destination_group_address", value: config.destination_group_address });
     }
@@ -476,12 +491,12 @@ class BridgeFirewallService {
       operations.push({ op: "set_rule_outbound_interface_group", value: config.outbound_interface_group });
     }
 
-    // Protocol (1.5+)
+    // Protocol
     if (config.protocol) {
       operations.push({ op: "set_rule_protocol", value: config.protocol });
     }
 
-    // Ethernet type (1.5+)
+    // Ethernet type
     if (config.ethernet_type) {
       operations.push({ op: "set_rule_ethernet_type", value: config.ethernet_type });
     }
@@ -494,7 +509,7 @@ class BridgeFirewallService {
       operations.push({ op: "set_rule_queue", value: config.queue });
     }
 
-    // ICMP (1.5+)
+    // ICMP
     if (config.icmp_type) {
       operations.push({ op: "set_rule_icmp_type", value: config.icmp_type });
     }
@@ -505,7 +520,7 @@ class BridgeFirewallService {
       operations.push({ op: "set_rule_icmp_type_name", value: config.icmp_type_name });
     }
 
-    // ICMPv6 (1.5+)
+    // ICMPv6
     if (config.icmpv6_type) {
       operations.push({ op: "set_rule_icmpv6_type", value: config.icmpv6_type });
     }
@@ -516,7 +531,7 @@ class BridgeFirewallService {
       operations.push({ op: "set_rule_icmpv6_type_name", value: config.icmpv6_type_name });
     }
 
-    // TCP flags (1.5+)
+    // TCP flags
     if (config.tcp_flags) {
       operations.push({ op: "set_rule_tcp_flags", value: config.tcp_flags });
     }
@@ -527,7 +542,7 @@ class BridgeFirewallService {
       operations.push({ op: "set_rule_tcp_mss", value: config.tcp_mss });
     }
 
-    // Rate limiting (1.5+)
+    // Rate limiting
     if (config.limit_rate) {
       operations.push({ op: "set_rule_limit_rate", value: config.limit_rate });
     }
@@ -535,7 +550,7 @@ class BridgeFirewallService {
       operations.push({ op: "set_rule_limit_burst", value: config.limit_burst });
     }
 
-    // Log options (1.5+)
+    // Log options
     if (config.log_options_level) {
       operations.push({ op: "set_rule_log_options_level", value: config.log_options_level });
     }
@@ -543,7 +558,7 @@ class BridgeFirewallService {
       operations.push({ op: "set_rule_log_options_group", value: config.log_options_group });
     }
 
-    // Mark matching (1.5+)
+    // Mark matching
     if (config.mark) {
       operations.push({ op: "set_rule_mark", value: config.mark });
     }
@@ -551,7 +566,7 @@ class BridgeFirewallService {
       operations.push({ op: "set_rule_connection_mark", value: config.connection_mark });
     }
 
-    // DSCP matching (1.5+)
+    // DSCP matching
     if (config.dscp) {
       operations.push({ op: "set_rule_dscp", value: config.dscp });
     }
@@ -559,7 +574,7 @@ class BridgeFirewallService {
       operations.push({ op: "set_rule_dscp_exclude", value: config.dscp_exclude });
     }
 
-    // Fragment matching (1.5+)
+    // Fragment matching
     if (config.fragment_match_frag) {
       operations.push({ op: "set_rule_fragment_match_frag" });
     }
@@ -567,7 +582,7 @@ class BridgeFirewallService {
       operations.push({ op: "set_rule_fragment_match_non_frag" });
     }
 
-    // IPsec matching (1.5+)
+    // IPsec matching
     if (config.ipsec_match_ipsec_in) {
       operations.push({ op: "set_rule_ipsec_match_ipsec_in" });
     }
@@ -581,7 +596,7 @@ class BridgeFirewallService {
       operations.push({ op: "set_rule_ipsec_match_none_out" });
     }
 
-    // TTL matching (1.5+)
+    // TTL matching
     if (config.ttl_eq) {
       operations.push({ op: "set_rule_ttl_eq", value: config.ttl_eq });
     }
@@ -592,7 +607,7 @@ class BridgeFirewallService {
       operations.push({ op: "set_rule_ttl_lt", value: config.ttl_lt });
     }
 
-    // Hop-limit matching (1.5+)
+    // Hop-limit matching
     if (config.hop_limit_eq) {
       operations.push({ op: "set_rule_hop_limit_eq", value: config.hop_limit_eq });
     }
@@ -603,7 +618,7 @@ class BridgeFirewallService {
       operations.push({ op: "set_rule_hop_limit_lt", value: config.hop_limit_lt });
     }
 
-    // Packet type/length (1.5+)
+    // Packet type/length
     if (config.packet_type) {
       operations.push({ op: "set_rule_packet_type", value: config.packet_type });
     }
@@ -611,7 +626,7 @@ class BridgeFirewallService {
       operations.push({ op: "set_rule_packet_length", value: config.packet_length });
     }
 
-    // Time-based rules (1.5+)
+    // Time-based rules
     if (config.time_startdate) {
       operations.push({ op: "set_rule_time_startdate", value: config.time_startdate });
     }
@@ -628,10 +643,10 @@ class BridgeFirewallService {
       operations.push({ op: "set_rule_time_weekdays", value: config.time_weekdays });
     }
 
-    // Connection status (1.5+) - commented out as builder methods would need to be added
+    // Connection status - commented out as builder methods would need to be added
     // These are typically set operations, not value operations
 
-    // Set options (1.5+)
+    // Set options
     if (config.set_dscp) {
       operations.push({ op: "set_rule_set_dscp", value: config.set_dscp });
     }
@@ -720,21 +735,21 @@ class BridgeFirewallService {
     handleStringField("source_mac", "set_rule_source_mac", "delete_rule_source_mac");
     handleStringField("destination_mac", "set_rule_destination_mac", "delete_rule_destination_mac");
 
-    // IP addresses (1.5+)
+    // IP addresses
     handleStringField("source_address", "set_rule_source_address", "delete_rule_source_address");
     handleStringField("destination_address", "set_rule_destination_address", "delete_rule_destination_address");
 
-    // Ports (1.5+)
+    // Ports
     handleStringField("source_port", "set_rule_source_port", "delete_rule_source_port");
     handleStringField("destination_port", "set_rule_destination_port", "delete_rule_destination_port");
 
-    // Source groups (1.5+)
+    // Source groups
     handleStringField("source_group_address", "set_rule_source_group_address", "delete_rule_source_group_address");
     handleStringField("source_group_network", "set_rule_source_group_network", "delete_rule_source_group_network");
     handleStringField("source_group_port", "set_rule_source_group_port", "delete_rule_source_group_port");
     handleStringField("source_group_mac", "set_rule_source_group_mac", "delete_rule_source_group_mac");
 
-    // Destination groups (1.5+)
+    // Destination groups
     handleStringField("destination_group_address", "set_rule_destination_group_address", "delete_rule_destination_group_address");
     handleStringField("destination_group_network", "set_rule_destination_group_network", "delete_rule_destination_group_network");
     handleStringField("destination_group_port", "set_rule_destination_group_port", "delete_rule_destination_group_port");
@@ -751,83 +766,83 @@ class BridgeFirewallService {
     handleStringField("outbound_interface", "set_rule_outbound_interface", "delete_rule_outbound_interface");
     handleStringField("outbound_interface_group", "set_rule_outbound_interface_group", "delete_rule_outbound_interface_group");
 
-    // Protocol (1.5+)
+    // Protocol
     handleStringField("protocol", "set_rule_protocol", "delete_rule_protocol");
 
-    // Ethernet type (1.5+)
+    // Ethernet type
     handleStringField("ethernet_type", "set_rule_ethernet_type", "delete_rule_ethernet_type");
 
     // Jump/Queue targets
     handleStringField("jump_target", "set_rule_jump_target", "delete_rule_jump_target");
     handleStringField("queue", "set_rule_queue", "delete_rule_queue");
 
-    // ICMP (1.5+)
+    // ICMP
     handleStringField("icmp_type", "set_rule_icmp_type", "delete_rule_icmp_type");
     handleStringField("icmp_code", "set_rule_icmp_code", "delete_rule_icmp_code");
     handleStringField("icmp_type_name", "set_rule_icmp_type_name", "delete_rule_icmp_type_name");
 
-    // ICMPv6 (1.5+)
+    // ICMPv6
     handleStringField("icmpv6_type", "set_rule_icmpv6_type", "delete_rule_icmpv6_type");
     handleStringField("icmpv6_code", "set_rule_icmpv6_code", "delete_rule_icmpv6_code");
     handleStringField("icmpv6_type_name", "set_rule_icmpv6_type_name", "delete_rule_icmpv6_type_name");
 
-    // TCP MSS (1.5+)
+    // TCP MSS
     handleStringField("tcp_mss", "set_rule_tcp_mss", "delete_rule_tcp_mss");
 
-    // Rate limiting (1.5+)
+    // Rate limiting
     handleStringField("limit_rate", "set_rule_limit_rate", "delete_rule_limit_rate");
     handleStringField("limit_burst", "set_rule_limit_burst", "delete_rule_limit_burst");
 
-    // Log options (1.5+)
+    // Log options
     handleStringField("log_options_level", "set_rule_log_options_level", "delete_rule_log_options_level");
     handleStringField("log_options_group", "set_rule_log_options_group", "delete_rule_log_options_group");
 
-    // Mark matching (1.5+)
+    // Mark matching
     handleStringField("mark", "set_rule_mark", "delete_rule_mark");
     handleStringField("connection_mark", "set_rule_connection_mark", "delete_rule_connection_mark");
 
-    // DSCP matching (1.5+)
+    // DSCP matching
     handleStringField("dscp", "set_rule_dscp", "delete_rule_dscp");
     handleStringField("dscp_exclude", "set_rule_dscp_exclude", "delete_rule_dscp_exclude");
 
-    // Fragment matching (1.5+)
+    // Fragment matching
     handleBooleanField("fragment_match_frag", "set_rule_fragment_match_frag", "delete_rule_fragment_match_frag");
     handleBooleanField("fragment_match_non_frag", "set_rule_fragment_match_non_frag", "delete_rule_fragment_match_non_frag");
 
-    // IPsec matching (1.5+)
+    // IPsec matching
     handleBooleanField("ipsec_match_ipsec_in", "set_rule_ipsec_match_ipsec_in", "delete_rule_ipsec_match_ipsec_in");
     handleBooleanField("ipsec_match_ipsec_out", "set_rule_ipsec_match_ipsec_out", "delete_rule_ipsec_match_ipsec_out");
     handleBooleanField("ipsec_match_none_in", "set_rule_ipsec_match_none_in", "delete_rule_ipsec_match_none_in");
     handleBooleanField("ipsec_match_none_out", "set_rule_ipsec_match_none_out", "delete_rule_ipsec_match_none_out");
 
-    // TTL matching (1.5+)
+    // TTL matching
     handleStringField("ttl_eq", "set_rule_ttl_eq", "delete_rule_ttl_eq");
     handleStringField("ttl_gt", "set_rule_ttl_gt", "delete_rule_ttl_gt");
     handleStringField("ttl_lt", "set_rule_ttl_lt", "delete_rule_ttl_lt");
 
-    // Hop-limit matching (1.5+)
+    // Hop-limit matching
     handleStringField("hop_limit_eq", "set_rule_hop_limit_eq", "delete_rule_hop_limit_eq");
     handleStringField("hop_limit_gt", "set_rule_hop_limit_gt", "delete_rule_hop_limit_gt");
     handleStringField("hop_limit_lt", "set_rule_hop_limit_lt", "delete_rule_hop_limit_lt");
 
-    // Packet type/length (1.5+)
+    // Packet type/length
     handleStringField("packet_type", "set_rule_packet_type", "delete_rule_packet_type");
     handleStringField("packet_length", "set_rule_packet_length", "delete_rule_packet_length");
 
-    // Time-based rules (1.5+)
+    // Time-based rules
     handleStringField("time_startdate", "set_rule_time_startdate", "delete_rule_time_startdate");
     handleStringField("time_stopdate", "set_rule_time_stopdate", "delete_rule_time_stopdate");
     handleStringField("time_starttime", "set_rule_time_starttime", "delete_rule_time_starttime");
     handleStringField("time_stoptime", "set_rule_time_stoptime", "delete_rule_time_stoptime");
     handleStringField("time_weekdays", "set_rule_time_weekdays", "delete_rule_time_weekdays");
 
-    // Connection status (1.5+)
+    // Connection status
     handleBooleanField("connection_status_new", "set_rule_connection_status_new", "delete_rule_connection_status_new");
     handleBooleanField("connection_status_established", "set_rule_connection_status_established", "delete_rule_connection_status_established");
     handleBooleanField("connection_status_related", "set_rule_connection_status_related", "delete_rule_connection_status_related");
     handleBooleanField("connection_status_invalid", "set_rule_connection_status_invalid", "delete_rule_connection_status_invalid");
 
-    // Set options (1.5+)
+    // Set options
     handleStringField("set_dscp", "set_rule_set_dscp", "delete_rule_set_dscp");
     handleStringField("set_mark", "set_rule_set_mark", "delete_rule_set_mark");
     handleStringField("set_connection_mark", "set_rule_set_connection_mark", "delete_rule_set_connection_mark");
@@ -901,7 +916,7 @@ class BridgeFirewallService {
   }
 
   // ==========================================================================
-  // Custom Chain Operations (VyOS 1.5+ only)
+  // Custom Chain Operations
   // ==========================================================================
 
   /**

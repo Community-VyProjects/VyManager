@@ -29,6 +29,10 @@ import {
   type BridgeRule,
   type InterfaceOption,
 } from "@/lib/api/firewall-bridge";
+import {
+  firewallActionSupported,
+  firewallFeatureSupported,
+} from "@/lib/api/firewall-capability-gates";
 
 interface EditBridgeRuleModalProps {
   open: boolean;
@@ -139,7 +143,7 @@ export function EditBridgeRuleModal({
   const [sourceMac, setSourceMac] = useState(rule.source_mac || "");
   const [destinationMac, setDestinationMac] = useState(rule.destination_mac || "");
 
-  // Source/Destination IP (1.5+) - with negation
+  // Source/Destination IP - with negation
   const [sourceAddress, setSourceAddress] = useState(parsedSourceAddr.address);
   const [sourceAddressNegate, setSourceAddressNegate] = useState(parsedSourceAddr.negate);
   const [destinationAddress, setDestinationAddress] = useState(parsedDestAddr.address);
@@ -155,52 +159,60 @@ export function EditBridgeRuleModal({
   const [inboundInterface, setInboundInterface] = useState(rule.inbound_interface || "");
   const [outboundInterface, setOutboundInterface] = useState(rule.outbound_interface || "");
 
-  // Protocol (1.5+)
+  // Protocol
   const [protocol, setProtocol] = useState(rule.protocol || "");
 
-  // Ethernet Type (1.5+)
+  // Ethernet Type
   const [ethernetType, setEthernetType] = useState(rule.ethernet_type || "");
 
   // Jump target
   const [jumpTarget, setJumpTarget] = useState(rule.jump_target || "");
 
-  // Queue (1.5+)
+  // Queue
   const [queue, setQueue] = useState(rule.queue || "");
 
-  // ICMP (1.5+)
+  // ICMP
   const [icmpType, setIcmpType] = useState(rule.icmp_type || "");
   const [icmpCode, setIcmpCode] = useState(rule.icmp_code || "");
   const [icmpTypeName, setIcmpTypeName] = useState(rule.icmp_type_name || "");
 
-  // TCP (1.5+)
+  // TCP
   const [tcpFlagsSyn, setTcpFlagsSyn] = useState(rule.tcp_flags?.includes("syn") || false);
   const [tcpFlagsAck, setTcpFlagsAck] = useState(rule.tcp_flags?.includes("ack") || false);
   const [tcpFlagsFin, setTcpFlagsFin] = useState(rule.tcp_flags?.includes("fin") || false);
   const [tcpFlagsRst, setTcpFlagsRst] = useState(rule.tcp_flags?.includes("rst") || false);
 
-  // Rate limiting (1.5+) - split into number and unit
+  // Rate limiting - split into number and unit
   const [limitRateValue, setLimitRateValue] = useState(parsedRate.value);
   const [limitRateUnit, setLimitRateUnit] = useState(parsedRate.unit);
   const [limitBurst, setLimitBurst] = useState(rule.limit_burst || "");
 
-  // Time-based (1.5+) - using proper time format
+  // Time-based - using proper time format
   const [timeStarttime, setTimeStarttime] = useState(parseTimeForInput(rule.time_starttime));
   const [timeStoptime, setTimeStoptime] = useState(parseTimeForInput(rule.time_stoptime));
   const [selectedWeekdays, setSelectedWeekdays] = useState<string[]>(parsedWeekdays);
 
-  // Connection status (1.5+)
+  // Connection status
   const [connStatusNew, setConnStatusNew] = useState(rule.connection_status_new || false);
   const [connStatusEstablished, setConnStatusEstablished] = useState(rule.connection_status_established || false);
   const [connStatusRelated, setConnStatusRelated] = useState(rule.connection_status_related || false);
   const [connStatusInvalid, setConnStatusInvalid] = useState(rule.connection_status_invalid || false);
 
-  // Packet modifications (1.5+)
+  // Packet modifications
   const [modifyDscp, setModifyDscp] = useState(rule.set_dscp || "");
   const [modifyMark, setModifyMark] = useState(rule.set_mark || "");
   const [modifyVlanPriority, setModifyVlanPriority] = useState(rule.set_vlan_priority || "");
   const [modifyTcpMss, setModifyTcpMss] = useState(rule.set_tcp_mss || "");
 
-  const isV15 = capabilities?.version_notes.full_support || false;
+  const showIpPorts =
+    firewallFeatureSupported(capabilities, "ip_matching") ||
+    firewallFeatureSupported(capabilities, "port_matching");
+  const showProtocol = firewallFeatureSupported(capabilities, "protocol_matching");
+  const showAdvanced =
+    firewallFeatureSupported(capabilities, "rate_limiting") ||
+    firewallFeatureSupported(capabilities, "time_based") ||
+    firewallFeatureSupported(capabilities, "packet_modifications");
+  const showEthernetType = firewallFeatureSupported(capabilities, "ethernet_type_matching");
 
   // Reset form when modal opens or rule changes
   useEffect(() => {
@@ -366,9 +378,9 @@ export function EditBridgeRuleModal({
           <TabsList className="w-full flex-wrap h-auto">
             <TabsTrigger value="basic" className="flex-1">Basic</TabsTrigger>
             <TabsTrigger value="match" className="flex-1">Match</TabsTrigger>
-            {isV15 && <TabsTrigger value="ip" className="flex-1">IP/Ports</TabsTrigger>}
-            {isV15 && <TabsTrigger value="protocol" className="flex-1">Protocol</TabsTrigger>}
-            {isV15 && <TabsTrigger value="advanced" className="flex-1">Advanced</TabsTrigger>}
+            {showIpPorts && <TabsTrigger value="ip" className="flex-1">IP/Ports</TabsTrigger>}
+            {showProtocol && <TabsTrigger value="protocol" className="flex-1">Protocol</TabsTrigger>}
+            {showAdvanced && <TabsTrigger value="advanced" className="flex-1">Advanced</TabsTrigger>}
           </TabsList>
 
           {/* Basic Tab */}
@@ -388,14 +400,20 @@ export function EditBridgeRuleModal({
                 <SelectContent>
                   <SelectItem value="accept">Accept</SelectItem>
                   <SelectItem value="drop">Drop</SelectItem>
-                  {isV15 && (
-                    <>
-                      <SelectItem value="continue">Continue</SelectItem>
-                      <SelectItem value="jump">Jump</SelectItem>
-                      <SelectItem value="return">Return</SelectItem>
-                      <SelectItem value="queue">Queue</SelectItem>
-                      <SelectItem value="notrack">No Track</SelectItem>
-                    </>
+                  {firewallActionSupported(capabilities, "continue") && (
+                    <SelectItem value="continue">Continue</SelectItem>
+                  )}
+                  {firewallActionSupported(capabilities, "jump") && (
+                    <SelectItem value="jump">Jump</SelectItem>
+                  )}
+                  {firewallActionSupported(capabilities, "return") && (
+                    <SelectItem value="return">Return</SelectItem>
+                  )}
+                  {firewallActionSupported(capabilities, "queue") && (
+                    <SelectItem value="queue">Queue</SelectItem>
+                  )}
+                  {firewallActionSupported(capabilities, "notrack") && (
+                    <SelectItem value="notrack">No Track</SelectItem>
                   )}
                 </SelectContent>
               </Select>
@@ -413,7 +431,7 @@ export function EditBridgeRuleModal({
               </div>
             )}
 
-            {action === "queue" && isV15 && (
+            {action === "queue" && firewallActionSupported(capabilities, "queue") && (
               <div className="space-y-2">
                 <Label htmlFor="queue">Queue Number</Label>
                 <Input
@@ -540,7 +558,7 @@ export function EditBridgeRuleModal({
               )}
             </div>
 
-            {isV15 && (
+            {showEthernetType && (
               <div className="space-y-2">
                 <Label htmlFor="ethernetType">Ethernet Type</Label>
                 <Select value={ethernetType || "_any_"} onValueChange={(v) => setEthernetType(v === "_any_" ? "" : v)}>
@@ -559,8 +577,7 @@ export function EditBridgeRuleModal({
             )}
           </TabsContent>
 
-          {/* IP/Ports Tab (1.5+) */}
-          {isV15 && (
+          {showIpPorts && (
             <TabsContent value="ip" className="space-y-4 mt-4">
               <div className="space-y-4">
                 <h4 className="text-sm font-medium">Source</h4>
@@ -638,8 +655,7 @@ export function EditBridgeRuleModal({
             </TabsContent>
           )}
 
-          {/* Protocol Tab (1.5+) */}
-          {isV15 && (
+          {showProtocol && (
             <TabsContent value="protocol" className="space-y-4 mt-4">
               <div className="space-y-2">
                 <Label htmlFor="protocol">Protocol</Label>
@@ -757,8 +773,7 @@ export function EditBridgeRuleModal({
             </TabsContent>
           )}
 
-          {/* Advanced Tab (1.5+) */}
-          {isV15 && (
+          {showAdvanced && (
             <TabsContent value="advanced" className="space-y-4 mt-4">
               {/* Rate Limiting */}
               <div className="space-y-4">

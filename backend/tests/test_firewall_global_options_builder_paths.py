@@ -113,3 +113,15 @@ def test_global_options_advertises_dns_resolver(version):
     builder = FirewallGlobalOptionsBatchBuilder(version=version)
     caps = builder.get_capabilities()
     assert caps["features"]["dns_resolver"]["supported"] is True
+
+
+def test_global_options_gates_bridged_traffic_and_timeouts_on_features():
+    caps14 = FirewallGlobalOptionsBatchBuilder(version="1.4").get_capabilities()
+    caps15 = FirewallGlobalOptionsBatchBuilder(version="1.5").get_capabilities()
+    assert caps14["features"]["bridged_traffic"]["supported"] is False
+    assert caps14["features"]["timeouts"]["supported"] is False
+    assert caps15["features"]["bridged_traffic"]["supported"] is True
+    assert caps15["features"]["timeouts"]["supported"] is True
+    assert "bridged_traffic_available" not in caps15["version_notes"]
+    assert "is_v15_or_later" not in caps15["version_notes"]
+    assert "timeouts_available" not in caps15["version_notes"]
