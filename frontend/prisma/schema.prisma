@@ -202,6 +202,27 @@ model AuditLog {
 }
 
 // ============================================================================
+// PPPoE Session Label Registry
+// ============================================================================
+
+model PPPoESessionLabelDefinition {
+  id          String   @id @default(cuid())
+  code        String   @unique @db.VarChar(80)
+  name        String   @db.VarChar(120)
+  description String?  @db.Text
+  severity    String   @default("info") @db.VarChar(40)
+  priority    Int      @default(10)
+  enabled     Boolean  @default(true)
+  rules       Json     @default("{}")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([enabled])
+  @@index([priority])
+  @@map("pppoe_session_label_definitions")
+}
+
+// ============================================================================
 // Multi-Instance Management
 // ============================================================================
 

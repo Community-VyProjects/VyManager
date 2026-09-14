@@ -190,6 +190,17 @@ export interface PPPoEConnectionsResponse {
   total: number;
 }
 
+export interface PPPoESessionLabelDefinition {
+  id?: string;
+  code: string;
+  name: string;
+  description?: string | null;
+  severity?: string;
+  priority?: number;
+  enabled?: boolean;
+  rules?: Record<string, unknown> | null;
+}
+
 export interface PPPoECapabilities {
   version: string;
   features: {
@@ -234,6 +245,10 @@ export interface BatchOperation {
 // ============================================================================
 
 class PPPoEServerService {
+  async getSessionLabelDefinitions(): Promise<PPPoESessionLabelDefinition[]> {
+    return apiClient.get<PPPoESessionLabelDefinition[]>("/vyos/pppoe-server/labels");
+  }
+
   async getCapabilities(): Promise<PPPoECapabilities> {
     return apiClient.get<PPPoECapabilities>("/vyos/pppoe-server/capabilities");
   }

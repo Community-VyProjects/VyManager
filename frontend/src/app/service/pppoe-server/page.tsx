@@ -58,6 +58,7 @@ import {
   type PPPoEIPv4Pool,
   type PPPoEIPv6Pool,
   type PPPoESession,
+  type PPPoESessionLabelDefinition,
 } from "@/lib/api/pppoe-server";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useDashboardSSE } from "@/hooks/useDashboardSSE";
@@ -78,6 +79,34 @@ import {
 } from "@/components/pppoe-server";
 import type { PPPoEStatsPoint } from "@/components/pppoe-server/PPPoEStatsChart";
 
+const pppoeSessionLabelDefinitions: PPPoESessionLabelDefinition[] = [
+  {
+    code: "traffic-skew",
+    name: "Traffic skew",
+    description: "Flag a session when upload (RX) bytes exceed 10% of download (TX) bytes, as a generic traffic-skew indicator.",
+    severity: "warning",
+    priority: 10,
+    enabled: true,
+    rules: {
+      type: "ratio",
+      comparator: "rx_bytes / max(tx_bytes, 1) > 0.10",
+    },
+  },
+];
+
+function sessionRecognizedLabels(session: SessionWithRates, labels: PPPoESessionLabelDefinition[]): string[] {
+  const results: string[] = [];
+  const tx = session.tx_bytes ?? 0;
+  const rx = session.rx_bytes ?? 0;
+
+  const skewRule = labels.find((def) => def.code === "traffic-skew" && def.enabled !== false);
+  if (skewRule && rx > tx * 0.10) {
+    results.push(skewRule.name);
+  }
+
+  return results;
+}
+
 function PPPoEPageInner() {
   const searchParams = useSearchParams();
   const { canRead, canWrite } = usePermissions();
@@ -89,6 +118,7 @@ function PPPoEPageInner() {
   const [config, setConfig] = useState<PPPoEConfigResponse | null>(null);
   const [capabilities, setCapabilities] = useState<PPPoECapabilities | null>(null);
   const [sessions, setSessions] = useState<SessionWithRates[]>([]);
+  const [sessionLabels, setSessionLabels] = useState<PPPoESessionLabelDefinition[]>(pppoeSessionLabelDefinitions);
   const [sessionTotal, setSessionTotal] = useState(0);
   const [sessionLoading, setSessionLoading] = useState(false);
   const [sessionRefreshing, setSessionRefreshing] = useState(false);
@@ -231,7 +261,15 @@ function PPPoEPageInner() {
   });
 
   useEffect(() => {
-    if (hasRead) fetchConfig();
+    if (!hasRead) return;
+    fetchConfig();
+    pppoeServerService.getSessionLabelDefinitions()
+      .then((labels) => {
+        if (labels?.length) setSessionLabels(labels);
+      })
+      .catch(() => {
+        setSessionLabels(pppoeSessionLabelDefinitions);
+      });
   }, [hasRead]);
 
   useEffect(() => {
@@ -619,15 +657,15 @@ function PPPoEPageInner() {
                           <TableHead><button className="font-medium" onClick={() => handleSessionSort("mtu")}>MTU {sessionSortLabel("mtu")}</button></TableHead>
                           <TableHead><button className="font-medium" onClick={() => handleSessionSort("calling_sid")}>Calling SID {sessionSortLabel("calling_sid")}</button></TableHead>
                           <TableHead><button className="font-medium" onClick={() => handleSessionSort("uptime")}>Uptime {sessionSortLabel("uptime")}</button></TableHead>
-                          <TableHead><button className="font-medium" onClick={() => handleSessionSort("rxRate")}>RX Rate (UPLOAD) {sessionSortLabel("rxRate")}</button></TableHead>
-                          <TableHead><button className="font-medium" onClick={() => handleSessionSort("txRate")}>TX Rate (DOWNLOAD) {sessionSortLabel("txRate")}</button></TableHead>
+                          <TableHead><button className="font-medium" onClick={() => handleSessionSort("rxRate")}>RX Rate (UPL) {sessionSortLabel("rxRate")}</button></TableHead>
+                          <TableHead><button className="font-medium" onClick={() => handleSessionSort("txRate")}>TX Rate (Dow) {sessionSortLabel("txRate")}</button></TableHead>
                           <TableHead><button className="font-medium text-right" onClick={() => handleSessionSort("rx_bytes")}>Traffic total {sessionSortLabel("rx_bytes")}</button></TableHead>
                           <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {sortedSessions.slice((sessionPage - 1) * sessionPageSize, sessionPage * sessionPageSize).map((session) => {
-                          const trafficRisk = session.tx_bytes > session.rx_bytes * 2;
+                          const appliedLabels = sessionRecognizedLabels(session, sessionLabels);
                           return (
                             <TableRow key={`${session.interface}:${session.username}:${session.calling_sid ?? ""}`}>
                               <TableCell className="font-medium">{session.username}</TableCell>
@@ -645,7 +683,11 @@ function PPPoEPageInner() {
                               <TableCell>{formatRate(session.txRate)} <span className="text-xs text-muted-foreground">/ {formatPps(session.txPps)}</span></TableCell>
                               <TableCell className="text-right whitespace-nowrap">
                                 <span>{formatBytes(session.rx_bytes)} RX / {formatBytes(session.tx_bytes)} TX</span>
-                                {trafficRisk && <span className="ml-2 rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-700">Highly asymmetric</span>}
+                                {appliedLabels.length > 0 && (
+                                  <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-700">
+                                    {appliedLabels.map((label) => label).join(" ")}
+                                  </span>
+                                )}
                               </TableCell>
                               <TableCell className="text-right whitespace-nowrap">
                                 <Button variant="ghost" size="icon" className="h-8 w-8" title={`Graph statistics for ${session.username}`} onClick={() => setSelectedStatsKey(sessionKey(session))}>

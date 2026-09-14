@@ -9,11 +9,13 @@ from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 import asyncio
 import ipaddress
+import json
 from urllib.parse import unquote
 from session_vyos_service import get_session_vyos_service
 from vyos_builders.pppoe_server import PPPoEServerBatchBuilder
 from fastapi_permissions import require_read_permission, require_write_permission
 from rbac_permissions import FeatureGroup
+from org_scope import request_scoped_conn
 from starlette.concurrency import run_in_threadpool
 from pppoe_status import (
     PPPoESessionsResponse,
@@ -54,6 +56,92 @@ class PPPoEConnectionsResponse(BaseModel):
     ip: str
     connections: List[str]
     total: int
+
+
+class PPPoESessionLabelDefinitionResponse(BaseModel):
+    code: str
+    name: str
+    description: Optional[str] = None
+    severity: str = "info"
+    priority: int = 10
+    enabled: bool = True
+    rules: Dict[str, Any] = Field(default_factory=dict)
+
+
+DEFAULT_PPPoE_SESSION_LABELS: List[Dict[str, Any]] = [
+    {
+        "code": "traffic-skew",
+        "name": "Traffic skew",
+        "description": "Flag a session when upload (RX) bytes exceed 10% of download (TX) bytes, as a generic traffic-skew indicator.",
+        "severity": "warning",
+        "priority": 10,
+        "enabled": True,
+        "rules": {
+            "type": "ratio",
+            "comparator": "rx_bytes / max(tx_bytes, 1) > 0.10",
+        },
+    },
+]
+
+
+# ========================================================================
+# Endpoint 0: Session labels
+# ========================================================================
+
+@router.get("/labels", response_model=List[PPPoESessionLabelDefinitionResponse])
+async def get_pppoe_session_labels(request: Request):
+    """Return persisted PPPoE session label definitions for the current instance.
+
+    If the optional Postgres table is present, the definitions are loaded from
+    there. Otherwise the controller falls back to the bundled default label
+    definitions so the UI remains stable.
+    """
+    await require_read_permission(request, FeatureGroup.PPPOE)
+    try:
+        async with request_scoped_conn(request) as conn:
+            try:
+                rows = await conn.fetch(
+                    """
+                    SELECT code, name, description, severity, priority, enabled, rules
+                    FROM pppoe_session_label_definitions
+                    WHERE enabled = TRUE
+                    ORDER BY priority ASC, code ASC
+                    """
+                )
+            except Exception:
+                # Table missing or database migration not yet applied: fall back to
+                # the default built-in definitions instead of crashing the UI.
+                return [PPPoESessionLabelDefinitionResponse(**label) for label in DEFAULT_PPPoE_SESSION_LABELS]
+
+            labels = []
+            for row in rows:
+                rules = row["rules"]
+                if isinstance(rules, str):
+                    try:
+                        rules = json.loads(rules)
+                    except Exception:
+                        rules = {}
+                labels.append(
+                    PPPoESessionLabelDefinitionResponse(
+                        code=row["code"],
+                        name=row["name"],
+                        description=row["description"],
+                        severity=row["severity"] or "info",
+                        priority=int(row["priority"] or 10),
+                        enabled=row["enabled"] if row["enabled"] is not None else True,
+                        rules=rules if isinstance(rules, dict) else {},
+                    )
+                )
+
+            if not labels:
+                return [PPPoESessionLabelDefinitionResponse(**label) for label in DEFAULT_PPPoE_SESSION_LABELS]
+            return labels
+
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Unhandled error in PPPoE session label lookup")
+        return [PPPoESessionLabelDefinitionResponse(**label) for label in DEFAULT_PPPoE_SESSION_LABELS]
 
 
 # ========================================================================
