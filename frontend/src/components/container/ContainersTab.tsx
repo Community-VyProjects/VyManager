@@ -33,6 +33,8 @@ import {
   type ContainerCapabilities,
 } from "@/lib/api/container";
 import { APP_CATALOG } from "@/lib/apps-catalog";
+import { isProtectedStackContainer } from "@/lib/appliance";
+import { useSessionStore } from "@/store/session-store";
 import { ContainerModal } from "./ContainerModal";
 import { ContainerFilesModal } from "./ContainerFilesModal";
 import { DeleteContainerModal } from "./DeleteContainerModal";
@@ -55,6 +57,7 @@ interface SshState {
 }
 
 export function ContainersTab({ config, capabilities, hasWritePermission, onReload }: Props) {
+  const appliance = useSessionStore((s) => s.appliance);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingContainer, setEditingContainer] = useState<ContainerInstance | null>(null);
   const [deletingContainer, setDeletingContainer] = useState<ContainerInstance | null>(null);
@@ -68,6 +71,7 @@ export function ContainersTab({ config, capabilities, hasWritePermission, onRelo
   };
 
   const containers = config.containers;
+  const stackContainers = containers.filter((c) => isProtectedStackContainer(appliance, c.name));
   const [pulledImages, setPulledImages] = useState<string[]>([]);
   const [imagesLoading, setImagesLoading] = useState(false);
 
@@ -96,6 +100,7 @@ export function ContainersTab({ config, capabilities, hasWritePermission, onRelo
 
   const handleDelete = async () => {
     if (!deletingContainer) return;
+    if (isProtectedStackContainer(appliance, deletingContainer.name)) return;
     await containerService.deleteContainer(deletingContainer.name);
     // Best-effort: clean up the container directory tree after a successful commit
     try {
@@ -115,14 +120,57 @@ export function ContainersTab({ config, capabilities, hasWritePermission, onRelo
     }
   };
 
+  const handleUpdateStack = () => {
+    void runSsh("Update VyManager", async () => {
+      const outputs: string[] = [];
+      for (const c of stackContainers) {
+        const pulled = await containerService.updateImage(c.name);
+        if (!pulled.success) {
+          return {
+            success: false,
+            output: outputs.join("\n") || null,
+            error: pulled.error || `Pull failed for ${c.name}`,
+          };
+        }
+        if (pulled.output) outputs.push(`${c.name} pull: ${pulled.output}`);
+      }
+      for (const c of stackContainers) {
+        const restarted = await containerService.restartContainer(c.name);
+        if (!restarted.success) {
+          return {
+            success: false,
+            output: outputs.join("\n") || null,
+            error: restarted.error || `Restart failed for ${c.name}`,
+          };
+        }
+        if (restarted.output) outputs.push(`${c.name} restart: ${restarted.output}`);
+      }
+      return {
+        success: true,
+        output: outputs.join("\n") || "Images pulled and containers restarted.",
+        error: null,
+      };
+    });
+  };
+
   return (
     <>
       {containers.length > 0 && hasWritePermission && (
-        <div className="flex justify-end mb-4">
+        <div className="flex justify-end mb-4 gap-2">
+          {stackContainers.length > 0 && (
+            <Button size="sm" variant="outline" onClick={handleUpdateStack}>
+              <RefreshCw className="h-4 w-4 mr-2" />Update VyManager
+            </Button>
+          )}
           <Button size="sm" onClick={() => openModal(null)}>
             <Plus className="h-4 w-4 mr-2" />Add Container
           </Button>
         </div>
+      )}
+      {stackContainers.length > 0 && (
+        <p className="text-sm text-muted-foreground mb-4">
+          The VyManager stack cannot be deleted or edited here. Pull and restart, or re-run the installer. This page may disconnect during an update.
+        </p>
       )}
 
       {containers.length === 0 ? (
@@ -208,9 +256,11 @@ export function ContainersTab({ config, capabilities, hasWritePermission, onRelo
                               <FolderOpen className="h-4 w-4" />
                             </Button>
                           ) : null; })()}
-                          <Button variant="ghost" size="icon" className="h-8 w-8" title="Edit" onClick={() => openModal(c)}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
+                          {!isProtectedStackContainer(appliance, c.name) && (
+                            <Button variant="ghost" size="icon" className="h-8 w-8" title="Edit" onClick={() => openModal(c)}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          )}
                           <Button variant="ghost" size="icon" className="h-8 w-8" title="Pull image" onClick={() => runSsh(`Pull Image — ${c.name}`, () => containerService.addImage(c.name))}>
                             <Download className="h-4 w-4" />
                           </Button>
@@ -223,9 +273,11 @@ export function ContainersTab({ config, capabilities, hasWritePermission, onRelo
                           <Button variant="ghost" size="icon" className="h-8 w-8" title="View Logs" onClick={() => runSsh(`Logs — ${c.name}`, () => containerService.getContainerLog(c.name))}>
                             <ScrollText className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" title="Delete" onClick={() => setDeletingContainer(c)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {!isProtectedStackContainer(appliance, c.name) && (
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" title="Delete" onClick={() => setDeletingContainer(c)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     )}

@@ -117,3 +117,19 @@ def test_seed_appliance_is_idempotent_and_timeout_300(monkeypatch):
     assert row["timeout"] == 300
     assert row["apiKey"] == "seed-key"
     assert row["vyosVersion"] == "1.4"
+
+
+def test_stack_identity():
+    assert am.is_stack_container("vymanager-backend") is True
+    assert am.is_stack_container("vymanager-frontend") is True
+    assert am.is_stack_container("vymanager-postgres") is True
+    assert am.is_stack_container("adguard") is False
+    assert am.is_stack_container("") is False
+    assert am.is_stack_network("vymanager") is True
+    assert am.is_stack_network("lan") is False
+    assert am.is_stack_volume_path("/config/containers/vymanager-postgres") is True
+    assert am.is_stack_volume_path("/config/containers/vymanager-postgres/pgdata") is True
+    assert am.is_stack_volume_path("/config/containers/adguard") is False
+    assert am.is_stack_image_ref("ghcr.io/community-vyprojects/vymanager-backend:beta") is True
+    assert am.is_stack_image_ref("vymanager-frontend:beta") is True
+    assert am.is_stack_image_ref("postgres:16-alpine") is False
