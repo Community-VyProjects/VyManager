@@ -435,7 +435,17 @@ async def connect_local(request: Request):
             status_code=503,
             detail="Appliance instance is not seeded. Check VYMANAGER_APPLIANCE_* env.",
         )
-    return await connect_to_instance(request, ConnectRequest(instance_id=instance_id))
+    try:
+        return await connect_to_instance(
+            request, ConnectRequest(instance_id=instance_id)
+        )
+    except HTTPException as exc:
+        if exc.status_code == 404:
+            raise HTTPException(
+                status_code=503,
+                detail="Appliance instance is missing or you cannot access it.",
+            ) from exc
+        raise
 
 
 # ============================================================================

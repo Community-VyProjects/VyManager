@@ -66,9 +66,9 @@ export const useSessionStore = create<SessionState>((set) => ({
           session = await sessionService.getCurrentSession();
           appliance = true;
         } catch (error) {
-          if (apiStatus(error) === 404) {
+          if (apiStatus(error) === 404 && !appliance) {
             appliance = false;
-          } else if (appliance || apiStatus(error) === 503) {
+          } else {
             set({
               activeSession: null,
               isLoading: false,

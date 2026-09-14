@@ -18,7 +18,7 @@ import { WELL_KNOWN_PROVIDERS } from "@/lib/api/oauth";
 export default function LoginPage() {
   const router = useRouter();
   const [from, setFrom] = useState<string>("/sites");
-  const [appliance, setAppliance] = useState(false);
+  const [appliance, setAppliance] = useState<boolean | null>(null);
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
 
   // Check if onboarding is needed first

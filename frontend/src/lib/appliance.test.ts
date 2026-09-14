@@ -28,6 +28,12 @@ describe("afterLoginPath", () => {
     assert.equal(afterLoginPath("", false), "/sites");
     assert.equal(afterLoginPath("/firewall/policies", false), "/firewall/policies");
   });
+
+  it("defaults to dashboard when mode is unknown", () => {
+    assert.equal(afterLoginPath("/sites", null), "/");
+    assert.equal(afterLoginPath("", null), "/");
+    assert.equal(afterLoginPath("/firewall/policies", null), "/firewall/policies");
+  });
 });
 
 describe("postLoginPath", () => {
