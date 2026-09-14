@@ -34,7 +34,7 @@ import {
 } from "@/lib/api/container";
 import { APP_CATALOG } from "@/lib/apps-catalog";
 import { isProtectedStackContainer } from "@/lib/appliance";
-import { isDisconnectError, thrownMessage } from "@/lib/api-error";
+import { isDisconnectError, stackRestartOrder, thrownMessage } from "@/lib/api-error";
 import { useSessionStore } from "@/store/session-store";
 import { ContainerModal } from "./ContainerModal";
 import { ContainerFilesModal } from "./ContainerFilesModal";
@@ -135,7 +135,10 @@ export function ContainersTab({ config, capabilities, hasWritePermission, onRelo
         }
         if (pulled.output) outputs.push(`${c.name} pull: ${pulled.output}`);
       }
-      for (const c of stackContainers) {
+      const restartOrder = [...stackContainers].sort(
+        (a, b) => stackRestartOrder(a.name) - stackRestartOrder(b.name),
+      );
+      for (const c of restartOrder) {
         try {
           const restarted = await containerService.restartContainer(c.name);
           if (!restarted.success) {

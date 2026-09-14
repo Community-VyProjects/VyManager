@@ -18,6 +18,15 @@ export function isDisconnectError(err: unknown): boolean {
     message.includes("failed to fetch") ||
     message.includes("network error") ||
     message.includes("load failed") ||
-    message.includes("networkerror")
+    message.includes("networkerror") ||
+    message.includes("failed to proxy request to backend")
   );
+}
+
+/** Postgres first, then frontend, backend last so the API dies after the rest. */
+export function stackRestartOrder(name: string): number {
+  if (name === "vymanager-postgres") return 0;
+  if (name === "vymanager-frontend") return 1;
+  if (name === "vymanager-backend") return 2;
+  return 3;
 }
