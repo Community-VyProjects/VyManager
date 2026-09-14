@@ -252,8 +252,14 @@ class VrfIsisMapper:
         self._require_redistribute(af, protocol)
         return self._base(name) + ["redistribute", af, protocol]
 
+    def get_isis_redistribute_delete(self, name: str, af: str, protocol: str) -> List[str]:
+        return self._base(name) + ["redistribute", af, protocol]
+
     def get_isis_redistribute_level(self, name: str, af: str, protocol: str, level: str) -> List[str]:
         self._require_redistribute(af, protocol)
+        return self._base(name) + ["redistribute", af, protocol, level]
+
+    def get_isis_redistribute_level_delete(self, name: str, af: str, protocol: str, level: str) -> List[str]:
         return self._base(name) + ["redistribute", af, protocol, level]
 
     def get_isis_redistribute_metric(self, name: str, af: str, protocol: str, level: str, value: str) -> List[str]:

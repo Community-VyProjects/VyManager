@@ -526,7 +526,7 @@ class IsisBatchBuilder(BatchBuilder):
         return self.add_set(self.m.get_redistribute_ipv4_path(protocol, level))
 
     def delete_redistribute_ipv4(self, protocol: str, level: str) -> "IsisBatchBuilder":
-        return self.add_delete(self.m.get_redistribute_ipv4_path(protocol, level))
+        return self.add_delete(self.m.get_redistribute_ipv4_delete_path(protocol, level))
 
     def set_redistribute_ipv4_metric(self, protocol_level: str, metric: str) -> "IsisBatchBuilder":
         """protocol_level is 'bgp|level-1' style."""
@@ -553,7 +553,7 @@ class IsisBatchBuilder(BatchBuilder):
         return self.add_set(self.m.get_redistribute_ipv6_path(protocol, level))
 
     def delete_redistribute_ipv6(self, protocol: str, level: str) -> "IsisBatchBuilder":
-        return self.add_delete(self.m.get_redistribute_ipv6_path(protocol, level))
+        return self.add_delete(self.m.get_redistribute_ipv6_delete_path(protocol, level))
 
     def set_redistribute_ipv6_metric(self, protocol_level: str, metric: str) -> "IsisBatchBuilder":
         protocol, level = protocol_level.split("|", 1)

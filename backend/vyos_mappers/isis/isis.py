@@ -275,6 +275,9 @@ class IsisMapper(BaseFeatureMapper):
         self._require_redistribute("ipv4", protocol)
         return BASE + ["redistribute", "ipv4", protocol, level]
 
+    def get_redistribute_ipv4_delete_path(self, protocol: str, level: str) -> List[str]:
+        return BASE + ["redistribute", "ipv4", protocol, level]
+
     def get_redistribute_ipv4_metric_path(self, protocol: str, level: str, val: str) -> List[str]:
         self._require_redistribute("ipv4", protocol)
         return BASE + ["redistribute", "ipv4", protocol, level, "metric", val]
@@ -285,6 +288,9 @@ class IsisMapper(BaseFeatureMapper):
 
     def get_redistribute_ipv6_path(self, protocol: str, level: str) -> List[str]:
         self._require_redistribute("ipv6", protocol)
+        return BASE + ["redistribute", "ipv6", protocol, level]
+
+    def get_redistribute_ipv6_delete_path(self, protocol: str, level: str) -> List[str]:
         return BASE + ["redistribute", "ipv6", protocol, level]
 
     def get_redistribute_ipv6_metric_path(self, protocol: str, level: str, val: str) -> List[str]:

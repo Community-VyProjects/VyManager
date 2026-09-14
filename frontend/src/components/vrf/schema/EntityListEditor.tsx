@@ -96,7 +96,7 @@ export function EntityListEditor({
         setError(result.error || "Create failed");
       } else {
         onRefresh();
-        setEditId(id);
+        if (group.schema.length > 0) setEditId(id);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Create failed");

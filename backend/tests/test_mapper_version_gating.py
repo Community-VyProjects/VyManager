@@ -70,6 +70,10 @@ def test_mappers_14_delete_redistribute_nhrp():
     assert babel.get_redistribute_ipv4_delete("nhrp")[-1] == "nhrp"
     assert get_ospf_mapper("1.4").get_redistribute_delete("nhrp")[-1] == "nhrp"
     assert VrfOspfMapper("1.4").get_ospf_redistribute_delete("blue", "nhrp")[-1] == "nhrp"
+    isis = get_isis_mapper("1.4")
+    assert isis.get_redistribute_ipv4_delete_path("nhrp", "level-1")[-2:] == ["nhrp", "level-1"]
+    vrf_isis = VrfIsisMapper("1.4")
+    assert vrf_isis.get_isis_redistribute_delete("blue", "ipv4", "nhrp")[-1] == "nhrp"
 
 
 def test_ospf_14_rejects_redistribute_nhrp():
