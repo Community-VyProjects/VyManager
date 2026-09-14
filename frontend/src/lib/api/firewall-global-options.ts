@@ -79,7 +79,7 @@ export interface FirewallGlobalOptionsCapabilities {
       supported: boolean;
       description: string;
     };
-    redirects: {
+    icmp_redirects: {
       supported: boolean;
       description: string;
     };
@@ -91,7 +91,7 @@ export interface FirewallGlobalOptionsCapabilities {
       supported: boolean;
       description: string;
     };
-    state_policies: {
+    state_policy: {
       supported: boolean;
       description: string;
     };
@@ -105,9 +105,8 @@ export interface FirewallGlobalOptionsCapabilities {
     };
   };
   version_notes: {
-    is_v15_or_later: boolean;
-    bridged_traffic_available: boolean;
-    timeouts_available: boolean;
+    has_bridged_traffic: boolean;
+    has_timeouts: boolean;
   };
   instance_name?: string;
   instance_id?: string;

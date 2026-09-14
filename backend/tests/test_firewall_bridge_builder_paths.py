@@ -143,3 +143,14 @@ def test_bridge_common_paths(method, args, op, expected_path, version):
 def test_bridge_v1_5_only_paths(method, args, op, expected_path):
     _run("1.5", method, args, op, expected_path)
 
+
+def test_bridge_capabilities_use_feature_flags():
+    caps14 = BridgeFirewallBatchBuilder(version="1.4").get_capabilities()
+    caps15 = BridgeFirewallBatchBuilder(version="1.5").get_capabilities()
+    assert caps14["features"]["protocol_matching"]["supported"] is False
+    assert caps15["features"]["protocol_matching"]["supported"] is True
+    assert caps14["features"]["ip_matching"]["supported"] is False
+    assert caps15["features"]["ip_matching"]["supported"] is True
+    assert "continue" not in caps14["supported_actions"]
+    assert "notrack" in caps15["supported_actions"]
+

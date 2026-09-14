@@ -29,6 +29,10 @@ import {
   type BridgeRule,
   type InterfaceOption,
 } from "@/lib/api/firewall-bridge";
+import {
+  firewallActionSupported,
+  firewallFeatureSupported,
+} from "@/lib/api/firewall-capability-gates";
 
 interface EditBridgeRuleModalProps {
   open: boolean;
@@ -200,7 +204,15 @@ export function EditBridgeRuleModal({
   const [modifyVlanPriority, setModifyVlanPriority] = useState(rule.set_vlan_priority || "");
   const [modifyTcpMss, setModifyTcpMss] = useState(rule.set_tcp_mss || "");
 
-  const isV15 = capabilities?.version_notes.full_support || false;
+  const showIpPorts =
+    firewallFeatureSupported(capabilities, "ip_matching") ||
+    firewallFeatureSupported(capabilities, "port_matching");
+  const showProtocol = firewallFeatureSupported(capabilities, "protocol_matching");
+  const showAdvanced =
+    firewallFeatureSupported(capabilities, "rate_limiting") ||
+    firewallFeatureSupported(capabilities, "time_based") ||
+    firewallFeatureSupported(capabilities, "packet_modifications");
+  const showEthernetType = firewallFeatureSupported(capabilities, "ethernet_type_matching");
 
   // Reset form when modal opens or rule changes
   useEffect(() => {
@@ -366,9 +378,9 @@ export function EditBridgeRuleModal({
           <TabsList className="w-full flex-wrap h-auto">
             <TabsTrigger value="basic" className="flex-1">Basic</TabsTrigger>
             <TabsTrigger value="match" className="flex-1">Match</TabsTrigger>
-            {isV15 && <TabsTrigger value="ip" className="flex-1">IP/Ports</TabsTrigger>}
-            {isV15 && <TabsTrigger value="protocol" className="flex-1">Protocol</TabsTrigger>}
-            {isV15 && <TabsTrigger value="advanced" className="flex-1">Advanced</TabsTrigger>}
+            {showIpPorts && <TabsTrigger value="ip" className="flex-1">IP/Ports</TabsTrigger>}
+            {showProtocol && <TabsTrigger value="protocol" className="flex-1">Protocol</TabsTrigger>}
+            {showAdvanced && <TabsTrigger value="advanced" className="flex-1">Advanced</TabsTrigger>}
           </TabsList>
 
           {/* Basic Tab */}
@@ -388,14 +400,20 @@ export function EditBridgeRuleModal({
                 <SelectContent>
                   <SelectItem value="accept">Accept</SelectItem>
                   <SelectItem value="drop">Drop</SelectItem>
-                  {isV15 && (
-                    <>
-                      <SelectItem value="continue">Continue</SelectItem>
-                      <SelectItem value="jump">Jump</SelectItem>
-                      <SelectItem value="return">Return</SelectItem>
-                      <SelectItem value="queue">Queue</SelectItem>
-                      <SelectItem value="notrack">No Track</SelectItem>
-                    </>
+                  {firewallActionSupported(capabilities, "continue") && (
+                    <SelectItem value="continue">Continue</SelectItem>
+                  )}
+                  {firewallActionSupported(capabilities, "jump") && (
+                    <SelectItem value="jump">Jump</SelectItem>
+                  )}
+                  {firewallActionSupported(capabilities, "return") && (
+                    <SelectItem value="return">Return</SelectItem>
+                  )}
+                  {firewallActionSupported(capabilities, "queue") && (
+                    <SelectItem value="queue">Queue</SelectItem>
+                  )}
+                  {firewallActionSupported(capabilities, "notrack") && (
+                    <SelectItem value="notrack">No Track</SelectItem>
                   )}
                 </SelectContent>
               </Select>
@@ -413,7 +431,7 @@ export function EditBridgeRuleModal({
               </div>
             )}
 
-            {action === "queue" && isV15 && (
+            {action === "queue" && firewallActionSupported(capabilities, "queue") && (
               <div className="space-y-2">
                 <Label htmlFor="queue">Queue Number</Label>
                 <Input
@@ -540,7 +558,7 @@ export function EditBridgeRuleModal({
               )}
             </div>
 
-            {isV15 && (
+            {showEthernetType && (
               <div className="space-y-2">
                 <Label htmlFor="ethernetType">Ethernet Type</Label>
                 <Select value={ethernetType || "_any_"} onValueChange={(v) => setEthernetType(v === "_any_" ? "" : v)}>
@@ -559,8 +577,7 @@ export function EditBridgeRuleModal({
             )}
           </TabsContent>
 
-          {/* IP/Ports Tab (1.5+) */}
-          {isV15 && (
+          {showIpPorts && (
             <TabsContent value="ip" className="space-y-4 mt-4">
               <div className="space-y-4">
                 <h4 className="text-sm font-medium">Source</h4>
@@ -638,8 +655,7 @@ export function EditBridgeRuleModal({
             </TabsContent>
           )}
 
-          {/* Protocol Tab (1.5+) */}
-          {isV15 && (
+          {showProtocol && (
             <TabsContent value="protocol" className="space-y-4 mt-4">
               <div className="space-y-2">
                 <Label htmlFor="protocol">Protocol</Label>
@@ -757,8 +773,7 @@ export function EditBridgeRuleModal({
             </TabsContent>
           )}
 
-          {/* Advanced Tab (1.5+) */}
-          {isV15 && (
+          {showAdvanced && (
             <TabsContent value="advanced" className="space-y-4 mt-4">
               {/* Rate Limiting */}
               <div className="space-y-4">

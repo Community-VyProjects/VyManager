@@ -26,14 +26,14 @@ const DEFAULT_BRIDGE_COLUMNS: ColumnDef[] = [
 
 interface BridgeRuleRowProps {
   rule: BridgeRule;
-  isV15: boolean;
+  showProtocol: boolean;
   onEdit: (rule: BridgeRule) => void;
   onDelete: (rule: BridgeRule) => void;
   visibleOrderedColumns?: ColumnDef[];
   groups?: FirewallGroup[];
 }
 
-export function BridgeRuleRow({ rule, isV15, onEdit, onDelete, visibleOrderedColumns = DEFAULT_BRIDGE_COLUMNS, groups = [] }: BridgeRuleRowProps) {
+export function BridgeRuleRow({ rule, showProtocol, onEdit, onDelete, visibleOrderedColumns = DEFAULT_BRIDGE_COLUMNS, groups = [] }: BridgeRuleRowProps) {
   const getGroupMembers = (groupName: string): string[] => {
     const cleanName = groupName.startsWith("!") ? groupName.substring(1) : groupName;
     return groups.find((g) => g.name === cleanName)?.members || [];
@@ -329,7 +329,7 @@ export function BridgeRuleRow({ rule, isV15, onEdit, onDelete, visibleOrderedCol
           case "destination":
             return <TableCell key="destination">{formatDestination()}</TableCell>;
           case "protocol":
-            return isV15 ? <TableCell key="protocol">{formatProtocol()}</TableCell> : null;
+            return showProtocol ? <TableCell key="protocol">{formatProtocol()}</TableCell> : null;
           case "interface":
             return <TableCell key="interface">{formatInterfaces()}</TableCell>;
           case "description":

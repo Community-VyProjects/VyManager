@@ -55,6 +55,7 @@ import {
   type BridgeRule,
   type BridgeChain,
 } from "@/lib/api/firewall-bridge";
+import { firewallFeatureSupported } from "@/lib/api/firewall-capability-gates";
 import { cn } from "@/lib/utils";
 import { CreateBridgeRuleModal } from "@/components/firewall/CreateBridgeRuleModal";
 import { EditBridgeRuleModal } from "@/components/firewall/EditBridgeRuleModal";
@@ -163,7 +164,7 @@ export default function BridgeFirewallPage() {
     loadData();
   }, [loadData]);
 
-  const isV15 = capabilities?.version_notes.full_support || false;
+  const showProtocol = firewallFeatureSupported(capabilities, "protocol_matching");
 
   // Get chain data
   const getChainByName = (name: string): BridgeChain | undefined => {
@@ -719,7 +720,7 @@ export default function BridgeFirewallPage() {
                       <TableHead className="w-14">#</TableHead>
                       <TableHead className="w-24">Action</TableHead>
                       {visibleOrderedColumns.map((col) => {
-                        if (col.id === "protocol" && !isV15) return null;
+                        if (col.id === "protocol" && !showProtocol) return null;
                         const widths: Record<string, string> = {
                           source: "min-w-[120px]",
                           destination: "min-w-[120px]",
@@ -766,7 +767,7 @@ export default function BridgeFirewallPage() {
                           <BridgeRuleRow
                             key={rule.rule_number}
                             rule={rule}
-                            isV15={isV15}
+                            showProtocol={showProtocol}
                             onEdit={(r) => setEditingRule({ chain: selectedChain, rule: r, openedAt: Date.now() })}
                             onDelete={(r) => setDeletingRule({ chain: selectedChain, rule: r })}
                             visibleOrderedColumns={visibleOrderedColumns}

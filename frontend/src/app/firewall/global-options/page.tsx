@@ -32,6 +32,7 @@ import {
   type FirewallGlobalOptionsConfig,
   type FirewallGlobalOptionsCapabilities,
 } from "@/lib/api/firewall-global-options";
+import { firewallFeatureSupported } from "@/lib/api/firewall-capability-gates";
 import { cn } from "@/lib/utils";
 
 function FirewallGlobalOptionsPageInner() {
@@ -80,11 +81,9 @@ function FirewallGlobalOptionsPageInner() {
   const [relatedLog, setRelatedLog] = useState(false);
   const [relatedLogLevel, setRelatedLogLevel] = useState<string>("not_set");
 
-  // Form state - Bridged Traffic (VyOS 1.5+)
   const [bridgedIpv4, setBridgedIpv4] = useState(false);
   const [bridgedIpv6, setBridgedIpv6] = useState(false);
 
-  // Form state - Timeouts (VyOS 1.5+)
   const [timeoutIcmp, setTimeoutIcmp] = useState<string>("");
   const [timeoutOther, setTimeoutOther] = useState<string>("");
   const [timeoutTcpClose, setTimeoutTcpClose] = useState<string>("");
@@ -331,11 +330,11 @@ function FirewallGlobalOptionsPageInner() {
         log_level: relatedLogLevel !== "not_set" ? relatedLogLevel : "",
       };
 
-      if (capabilities?.version_notes.bridged_traffic_available) {
+      if (firewallFeatureSupported(capabilities, "bridged_traffic")) {
         updateConfig.bridged_traffic = { ipv4: bridgedIpv4, ipv6: bridgedIpv6 };
       }
 
-      if (capabilities?.version_notes.timeouts_available) {
+      if (firewallFeatureSupported(capabilities, "timeouts")) {
         updateConfig.timeouts = {
           icmp: timeoutIcmp ? parseInt(timeoutIcmp) : null,
           other: timeoutOther ? parseInt(timeoutOther) : null,
@@ -374,7 +373,8 @@ function FirewallGlobalOptionsPageInner() {
     }
   };
 
-  const isV15 = capabilities?.version_notes.is_v15_or_later || false;
+  const showBridgedTraffic = firewallFeatureSupported(capabilities, "bridged_traffic");
+  const showTimeouts = firewallFeatureSupported(capabilities, "timeouts");
 
   if (loading) {
     return (
@@ -827,8 +827,7 @@ function FirewallGlobalOptionsPageInner() {
               </CardContent>
             </Card>
 
-            {/* Bridged Traffic - Only show if VyOS 1.5+ */}
-            {isV15 && (
+            {showBridgedTraffic && (
               <Card id="bridged-traffic">
                 <CardHeader className="py-3 px-4">
                   <CardTitle className="text-sm font-semibold">Bridged Traffic</CardTitle>
@@ -852,8 +851,7 @@ function FirewallGlobalOptionsPageInner() {
               </Card>
             )}
 
-            {/* Connection Timeouts - Only show if VyOS 1.5+ */}
-            {isV15 && (
+            {showTimeouts && (
               <Card id="connection-timeouts">
                 <CardHeader className="py-3 px-4">
                   <CardTitle className="text-sm font-semibold">Connection Timeouts</CardTitle>
