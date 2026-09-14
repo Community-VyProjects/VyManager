@@ -47,8 +47,8 @@ def _firewall_config_with_prerouting():
     }
 
 
-def test_get_config_prerouting_raw_is_ipv4_only(monkeypatch):
-    """IPv6 GET /config must not fill prerouting_raw even if that node exists."""
+def test_get_config_prerouting_raw_for_both_families(monkeypatch):
+    """GET /config fills prerouting_raw for ipv4 and ipv6 when the node exists."""
     async def allow(*_args, **_kwargs):
         return None
 
@@ -73,7 +73,8 @@ def test_get_config_prerouting_raw_is_ipv4_only(monkeypatch):
 
     ipv6 = client.get("/vyos/firewall/ipv6/config")
     assert ipv6.status_code == 200, ipv6.text
-    assert ipv6.json()["prerouting_raw"] is None
+    assert ipv6.json()["prerouting_raw"] is not None
+    assert ipv6.json()["prerouting_raw"]["default_action"] == "drop"
 
     ipv4 = client.get("/vyos/firewall/ipv4/config")
     assert ipv4.status_code == 200, ipv4.text
@@ -81,16 +82,24 @@ def test_get_config_prerouting_raw_is_ipv4_only(monkeypatch):
     assert ipv4.json()["prerouting_raw"]["default_action"] == "drop"
 
 
-def test_prerouting_is_ipv4_only():
+def test_prerouting_raw_on_both_families():
     v4 = get_firewall_family_mapper("1.5", "ipv4")
     v6 = get_firewall_family_mapper("1.5", "ipv6")
-    assert v4.get_prerouting_raw_rule(1)[1] == "ipv4"
-    try:
-        v6.get_prerouting_raw_rule(1)
-        raised = False
-    except ValueError:
-        raised = True
-    assert raised
+    assert v4.get_prerouting_raw_rule(1) == ["firewall", "ipv4", "prerouting", "raw", "rule", "1"]
+    assert v6.get_prerouting_raw_rule(1) == ["firewall", "ipv6", "prerouting", "raw", "rule", "1"]
+    assert v4.get_rule_action("prerouting_raw", 10, "drop", False) == [
+        "firewall", "ipv4", "prerouting", "raw", "rule", "10", "action", "drop",
+    ]
+    assert v6.get_rule_action("prerouting_raw", 10, "drop", False) == [
+        "firewall", "ipv6", "prerouting", "raw", "rule", "10", "action", "drop",
+    ]
+
+
+def test_prerouting_raw_absent_on_1_4():
+    v4 = FirewallIPv4BatchBuilder("1.4")
+    v6 = FirewallIPv6BatchBuilder("1.4")
+    assert v4.get_capabilities()["features"]["prerouting_raw"]["supported"] is False
+    assert v6.get_capabilities()["features"]["prerouting_raw"]["supported"] is False
 
 
 def test_builders_are_thin_family_wrappers():
@@ -101,7 +110,7 @@ def test_builders_are_thin_family_wrappers():
     assert v4.family == "ipv4"
     assert v6.family == "ipv6"
     assert v4.get_capabilities()["features"]["prerouting_raw"]["supported"] is True
-    assert v6.get_capabilities()["features"]["prerouting_raw"]["supported"] is False
+    assert v6.get_capabilities()["features"]["prerouting_raw"]["supported"] is True
     assert v4.get_capabilities()["features"]["icmp_matching"]["supported"] is True
     assert v6.get_capabilities()["features"]["icmpv6_matching"]["supported"] is True
 

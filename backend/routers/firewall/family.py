@@ -17,10 +17,8 @@ from batch_dispatch import resolve_batch_method
 logger = logging.getLogger(__name__)
 
 
-def prerouting_section(family: str, firewall_config: dict) -> dict:
-    """IPv4-only. IPv6 config must not surface firewall.ipv6.prerouting."""
-    if family != "ipv4":
-        return {}
+def prerouting_section(firewall_config: dict) -> dict:
+    """Return the prerouting node from a family config dict when present."""
     data = firewall_config.get("prerouting")
     return data if isinstance(data, dict) else {}
 
@@ -792,9 +790,9 @@ def build_router(family: str) -> APIRouter:
             output_rules.sort(key=lambda r: r.rule_number)
             custom_chains.sort(key=lambda c: c.name)
 
-            # Parse prerouting raw chain (ipv4 / VyOS 1.5)
+            # Parse prerouting raw chain (VyOS 1.5 ipv4 and ipv6)
             prerouting_raw = None
-            prerouting_data = prerouting_section(family, firewall_config)
+            prerouting_data = prerouting_section(firewall_config)
             if prerouting_data:
                 raw_data = prerouting_data.get("raw", {})
                 if raw_data:
@@ -802,7 +800,7 @@ def build_router(family: str) -> APIRouter:
                     prerouting_rules_data = raw_data.get("rule", {})
                     if isinstance(prerouting_rules_data, dict):
                         for rule_num, rule_data in prerouting_rules_data.items():
-                            rule = parse_rule(rule_num, rule_data, "prerouting", is_custom=False)
+                            rule = parse_rule(rule_num, rule_data, "prerouting_raw", is_custom=False)
                             prerouting_rules.append(rule)
                     prerouting_rules.sort(key=lambda r: r.rule_number)
 

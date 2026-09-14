@@ -308,6 +308,8 @@ function FirewallPoliciesPageInner() {
       } else {
         if (isCustom) {
           await firewallIPv6Service.setCustomChainDefaultAction(chain, action);
+        } else if (chain === "prerouting_raw") {
+          await firewallIPv6Service.setPreroutingRawDefaultAction(action);
         } else {
           await firewallIPv6Service.setBaseChainDefaultAction(chain, action);
         }
@@ -341,6 +343,7 @@ function FirewallPoliciesPageInner() {
         if (chain === "forward") return configIPv6?.forward?.default_action || null;
         if (chain === "input") return configIPv6?.input?.default_action || null;
         if (chain === "output") return configIPv6?.output?.default_action || null;
+        if (chain === "prerouting_raw") return configIPv6?.prerouting_raw?.default_action || null;
       }
     }
     return null;
@@ -416,6 +419,7 @@ function FirewallPoliciesPageInner() {
 
   // Prerouting raw rules
   const preroutingRawRules = config?.prerouting_raw?.rules ?? [];
+  const preroutingRawRulesIPv6 = configIPv6?.prerouting_raw?.rules ?? [];
 
   // Get rules for the selected chain (protocol-aware)
   const getCurrentRules = (): FirewallRule[] => {
@@ -439,6 +443,7 @@ function FirewallPoliciesPageInner() {
         if (selectedChainIPv6 === "forward") return forwardRulesIPv6;
         if (selectedChainIPv6 === "input") return inputRulesIPv6;
         if (selectedChainIPv6 === "output") return outputRulesIPv6;
+        if (selectedChainIPv6 === "prerouting_raw") return preroutingRawRulesIPv6;
         return [];
       }
     }
@@ -552,31 +557,32 @@ function FirewallPoliciesPageInner() {
 
   // Load chain settings when selected chain changes
   useEffect(() => {
-    if (selectedProtocol !== "ipv4" || !config) return;
+    const activeConfig = selectedProtocol === "ipv4" ? config : configIPv6;
+    if (!activeConfig) return;
 
-    const currentChainName = selectedChain;
-    const isCustom = isCustomChain;
+    const currentChainName = selectedProtocol === "ipv4" ? selectedChain : selectedChainIPv6;
+    const isCustom = selectedProtocol === "ipv4" ? isCustomChain : isCustomChainIPv6;
+    const chains = selectedProtocol === "ipv4" ? customChains : customChainsIPv6;
 
     if (isCustom) {
-      const chain = customChains.find((c) => c.name === currentChainName);
+      const chain = chains.find((c) => c.name === currentChainName);
       setChainDescription(chain?.description || "");
       setChainDefaultLog(chain?.default_log || false);
       setChainDefaultJumpTarget(chain?.default_jump_target || "");
     } else if (currentChainName === "prerouting_raw") {
-      setChainDescription(config.prerouting_raw?.description || "");
-      setChainDefaultLog(config.prerouting_raw?.default_log || false);
-      setChainDefaultJumpTarget(config.prerouting_raw?.default_jump_target || "");
+      setChainDescription(activeConfig.prerouting_raw?.description || "");
+      setChainDefaultLog(activeConfig.prerouting_raw?.default_log || false);
+      setChainDefaultJumpTarget(activeConfig.prerouting_raw?.default_jump_target || "");
     } else {
-      // Base chain (forward/input/output)
-      const baseConfig = currentChainName === "forward" ? config.forward
-        : currentChainName === "input" ? config.input
-        : config.output;
+      const baseConfig = currentChainName === "forward" ? activeConfig.forward
+        : currentChainName === "input" ? activeConfig.input
+        : activeConfig.output;
       setChainDescription(baseConfig?.description || "");
       setChainDefaultLog(baseConfig?.default_log || false);
       setChainDefaultJumpTarget("");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedChain, isCustomChain, config, selectedProtocol]);
+  }, [selectedChain, isCustomChain, config, selectedChainIPv6, isCustomChainIPv6, configIPv6, selectedProtocol]);
 
   const currentRules = selectedProtocol === "ipv4"
     ? (hasChanges ? reorderedRules : getCurrentRules())
@@ -747,30 +753,31 @@ function FirewallPoliciesPageInner() {
 
   // Chain settings handlers
   const handleChainDescriptionBlur = async () => {
-    if (selectedProtocol !== "ipv4") return;
     setSavingChainSettings(true);
     try {
-      const chain = selectedChain;
-      if (isCustomChain) {
+      const service = selectedProtocol === "ipv4" ? firewallIPv4Service : firewallIPv6Service;
+      const chain = selectedProtocol === "ipv4" ? selectedChain : selectedChainIPv6;
+      const custom = selectedProtocol === "ipv4" ? isCustomChain : isCustomChainIPv6;
+      if (custom) {
         if (chainDescription) {
-          await firewallIPv4Service.setCustomChainDescription(chain, chainDescription);
+          await service.setCustomChainDescription(chain, chainDescription);
         } else {
-          await firewallIPv4Service.deleteCustomChainDescription(chain);
+          await service.deleteCustomChainDescription(chain);
         }
       } else if (chain === "prerouting_raw") {
         if (chainDescription) {
-          await firewallIPv4Service.setPreroutingRawDescription(chainDescription);
+          await service.setPreroutingRawDescription(chainDescription);
         } else {
-          await firewallIPv4Service.deletePreroutingRawDescription();
+          await service.deletePreroutingRawDescription();
         }
       } else {
         if (chainDescription) {
-          await firewallIPv4Service.setBaseChainDescription(chain, chainDescription);
+          await service.setBaseChainDescription(chain, chainDescription);
         } else {
-          await firewallIPv4Service.deleteBaseChainDescription(chain);
+          await service.deleteBaseChainDescription(chain);
         }
       }
-      await fetchConfig(true);
+      await (selectedProtocol === "ipv4" ? fetchConfig(true) : fetchConfigIPv6(true));
     } catch (err) {
       console.error("Error saving chain description:", err);
       setError(err instanceof Error ? err.message : "Failed to save chain description");
@@ -780,31 +787,26 @@ function FirewallPoliciesPageInner() {
   };
 
   const handleChainDefaultLogChange = async (checked: boolean) => {
-    if (selectedProtocol !== "ipv4") return;
     setChainDefaultLog(checked);
     setSavingChainSettings(true);
     try {
-      const chain = selectedChain;
-      if (isCustomChain) {
+      const service = selectedProtocol === "ipv4" ? firewallIPv4Service : firewallIPv6Service;
+      const chain = selectedProtocol === "ipv4" ? selectedChain : selectedChainIPv6;
+      const custom = selectedProtocol === "ipv4" ? isCustomChain : isCustomChainIPv6;
+      if (custom) {
         if (checked) {
-          await firewallIPv4Service.setCustomChainDefaultLog(chain);
+          await service.setCustomChainDefaultLog(chain);
         } else {
-          await firewallIPv4Service.deleteCustomChainDefaultLog(chain);
-        }
-      } else if (chain === "prerouting_raw") {
-        if (checked) {
-          await firewallIPv4Service.setPreroutingRawDefaultLog();
-        } else {
-          await firewallIPv4Service.deletePreroutingRawDefaultLog();
+          await service.deleteCustomChainDefaultLog(chain);
         }
       } else {
         if (checked) {
-          await firewallIPv4Service.setBaseChainDefaultLog(chain);
+          await service.setBaseChainDefaultLog(chain);
         } else {
-          await firewallIPv4Service.deleteBaseChainDefaultLog(chain);
+          await service.deleteBaseChainDefaultLog(chain);
         }
       }
-      await fetchConfig(true);
+      await (selectedProtocol === "ipv4" ? fetchConfig(true) : fetchConfigIPv6(true));
     } catch (err) {
       console.error("Error saving chain default log:", err);
       setError(err instanceof Error ? err.message : "Failed to save chain default log");
@@ -814,25 +816,26 @@ function FirewallPoliciesPageInner() {
   };
 
   const handleChainDefaultJumpTargetChange = async (value: string) => {
-    if (selectedProtocol !== "ipv4") return;
     setChainDefaultJumpTarget(value);
     setSavingChainSettings(true);
     try {
-      const chain = selectedChain;
-      if (isCustomChain) {
+      const service = selectedProtocol === "ipv4" ? firewallIPv4Service : firewallIPv6Service;
+      const chain = selectedProtocol === "ipv4" ? selectedChain : selectedChainIPv6;
+      const custom = selectedProtocol === "ipv4" ? isCustomChain : isCustomChainIPv6;
+      if (custom) {
         if (value && value !== "__none__") {
-          await firewallIPv4Service.setCustomChainDefaultJumpTarget(chain, value);
+          await service.setCustomChainDefaultJumpTarget(chain, value);
         } else {
-          await firewallIPv4Service.deleteCustomChainDefaultJumpTarget(chain);
+          await service.deleteCustomChainDefaultJumpTarget(chain);
         }
       } else if (chain === "prerouting_raw") {
         if (value && value !== "__none__") {
-          await firewallIPv4Service.setPreroutingRawDefaultJumpTarget(value);
+          await service.setPreroutingRawDefaultJumpTarget(value);
         } else {
-          await firewallIPv4Service.deletePreroutingRawDefaultJumpTarget();
+          await service.deletePreroutingRawDefaultJumpTarget();
         }
       }
-      await fetchConfig(true);
+      await (selectedProtocol === "ipv4" ? fetchConfig(true) : fetchConfigIPv6(true));
     } catch (err) {
       console.error("Error saving chain default jump target:", err);
       setError(err instanceof Error ? err.message : "Failed to save chain default jump target");
@@ -933,8 +936,8 @@ function FirewallPoliciesPageInner() {
   };
 
   const totalRules = selectedProtocol === "ipv4"
-    ? forwardRules.length + inputRules.length + outputRules.length
-    : forwardRulesIPv6.length + inputRulesIPv6.length + outputRulesIPv6.length;
+    ? forwardRules.length + inputRules.length + outputRules.length + preroutingRawRules.length
+    : forwardRulesIPv6.length + inputRulesIPv6.length + outputRulesIPv6.length + preroutingRawRulesIPv6.length;
 
   return (
     <AppLayout>
@@ -1158,6 +1161,20 @@ function FirewallPoliciesPageInner() {
                       <span className="font-medium">Output</span>
                     </button>
 
+                    {capabilitiesIPv6?.features.prerouting_raw?.supported && (
+                      <button
+                        onClick={() => handleChainSelect("prerouting_raw", false)}
+                        className={cn(
+                          "w-full flex items-center px-3 py-2.5 rounded-lg text-sm transition-all",
+                          selectedChainIPv6 === "prerouting_raw" && !isCustomChainIPv6
+                            ? "bg-accent text-accent-foreground shadow-sm"
+                            : "hover:bg-accent/50 text-foreground"
+                        )}
+                      >
+                        <span className="font-medium">Prerouting Raw</span>
+                      </button>
+                    )}
+
                     <Separator className="my-4" />
                     <div className="flex items-center justify-between px-2 py-1 mb-2">
                       <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
@@ -1321,9 +1338,8 @@ function FirewallPoliciesPageInner() {
               </div>
             </div>
 
-            {/* Chain Settings (IPv4 only) */}
-            {selectedProtocol === "ipv4" && (
-              <Collapsible open={chainSettingsOpen} onOpenChange={setChainSettingsOpen} className="mt-4">
+            {/* Chain Settings */}
+            <Collapsible open={chainSettingsOpen} onOpenChange={setChainSettingsOpen} className="mt-4">
                 <CollapsibleTrigger className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
                   <ChevronDown className={cn("h-4 w-4 transition-transform", chainSettingsOpen && "rotate-180")} />
                   <span className="font-medium">Chain Settings</span>
@@ -1344,7 +1360,7 @@ function FirewallPoliciesPageInner() {
                       />
                     </div>
 
-                    {/* Default Log */}
+                    {currentChain !== "prerouting_raw" && (
                     <div className="space-y-2">
                       <Label className="text-sm font-medium">Default Log</Label>
                       <div className="flex items-center gap-2 pt-1">
@@ -1359,9 +1375,10 @@ function FirewallPoliciesPageInner() {
                         </Label>
                       </div>
                     </div>
+                    )}
 
                     {/* Default Jump Target (custom chains and prerouting_raw only) */}
-                    {(isCustomChain || selectedChain === "prerouting_raw") && (
+                    {((selectedProtocol === "ipv4" ? isCustomChain : isCustomChainIPv6) || currentChain === "prerouting_raw") && (
                       <div className="space-y-2">
                         <Label className="text-sm font-medium">Default Jump Target</Label>
                         <Select
@@ -1374,8 +1391,8 @@ function FirewallPoliciesPageInner() {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="__none__">None</SelectItem>
-                            {customChains
-                              .filter((c) => c.name !== selectedChain)
+                            {(selectedProtocol === "ipv4" ? customChains : customChainsIPv6)
+                              .filter((c) => c.name !== currentChain)
                               .map((c) => (
                                 <SelectItem key={c.name} value={c.name}>
                                   {c.name}
@@ -1388,7 +1405,6 @@ function FirewallPoliciesPageInner() {
                   </div>
                 </CollapsibleContent>
               </Collapsible>
-            )}
           </div>
 
           {/* Rules Table */}
