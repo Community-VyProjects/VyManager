@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { signIn, signOut, authClient } from "@/lib/auth-client";
 import { Shield, Loader2, AlertCircle } from "lucide-react";
 import { sessionService, AuthSessionInfo } from "@/lib/api/session";
+import { afterLoginPath } from "@/lib/appliance";
 import { ActiveSessionWarningModal } from "@/components/auth/ActiveSessionWarningModal";
 import { OAuthProviderConfig } from "@/lib/api/oauth";
 import { ProviderIcon } from "@/components/authentication/ProviderIcon";
@@ -17,6 +18,7 @@ import { WELL_KNOWN_PROVIDERS } from "@/lib/api/oauth";
 export default function LoginPage() {
   const router = useRouter();
   const [from, setFrom] = useState<string>("/sites");
+  const [appliance, setAppliance] = useState(false);
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
 
   // Check if onboarding is needed first
@@ -33,9 +35,8 @@ export default function LoginPage() {
           return;
         }
         const applianceMode = data.appliance === true;
-        if (applianceMode) {
-          setFrom((prev) => (prev === "/sites" ? "/" : prev));
-        }
+        setAppliance(applianceMode);
+        setFrom((prev) => afterLoginPath(prev, applianceMode));
         console.log("[LoginPage] Onboarding complete - showing login");
       } catch (err) {
         console.error("[LoginPage] Failed to check onboarding status:", err);
@@ -126,7 +127,7 @@ export default function LoginPage() {
       }
 
       // No other sessions, proceed to redirect
-      router.push(from);
+      router.push(afterLoginPath(from, appliance));
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
@@ -142,7 +143,7 @@ export default function LoginPage() {
       }
 
       // Proceed to redirect
-      router.push(from);
+      router.push(afterLoginPath(from, appliance));
       router.refresh();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to revoke other sessions";
@@ -156,7 +157,7 @@ export default function LoginPage() {
     try {
       await authClient.signIn.oauth2({
         providerId,
-        callbackURL: from,
+        callbackURL: afterLoginPath(from, appliance),
         // On a failed callback (e.g. role mapping denies access because the
         // account is in no permitted group) return to the login page with a
         // friendly message instead of a raw 500.

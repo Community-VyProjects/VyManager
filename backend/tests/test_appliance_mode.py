@@ -51,6 +51,24 @@ def test_load_seed_config_rejects_bad_version(monkeypatch):
         am.load_seed_config()
 
 
+def test_connect_local_404_when_mode_unset(monkeypatch):
+    monkeypatch.delenv("VYMANAGER_MODE", raising=False)
+    import asyncio
+
+    from fastapi import HTTPException
+    from routers.session.session import connect_local
+
+    class _Req:
+        pass
+
+    async def run():
+        with pytest.raises(HTTPException) as exc:
+            await connect_local(_Req())
+        return exc.value.status_code
+
+    assert asyncio.run(run()) == 404
+
+
 requires_db = pytest.mark.skipif(
     not os.environ.get("DATABASE_URL"),
     reason="appliance seed test needs DATABASE_URL",

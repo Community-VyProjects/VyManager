@@ -9,6 +9,7 @@ import { Github, Globe, MessageCircle, Sparkles, ArrowUpCircle, Tag } from "luci
 import { useSession } from "@/lib/auth-client";
 import { useSessionStore } from "@/store/session-store";
 import { sessionService } from "@/lib/api/session";
+import { shouldRedirectToSites } from "@/lib/appliance";
 import { dashboardService, DashboardCard, DashboardLayout } from "@/lib/api/dashboard";
 import {
   compactLayout,
@@ -221,14 +222,16 @@ export default function Home() {
           }
           if (instanceCount === 0) {
             setNoInstances(true);
-          } else {
+          } else if (shouldRedirectToSites(appliance, false)) {
             setNoInstances(false);
             router.push("/sites");
           }
         } catch {
           // Cannot determine - fall back to the site manager as before
           setNoInstances(false);
-          router.push("/sites");
+          if (shouldRedirectToSites(appliance, false)) {
+            router.push("/sites");
+          }
         }
         setIsChecking(false);
         return;

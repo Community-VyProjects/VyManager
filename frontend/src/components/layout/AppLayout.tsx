@@ -7,6 +7,7 @@ import { UnsavedChangesBanner } from "../config/UnsavedChangesBanner";
 import { PowerActionBanner } from "../system/PowerActionBanner";
 import { Toaster } from "../ui/toaster";
 import { useSessionStore } from "@/store/session-store";
+import { shouldRedirectToSites } from "@/lib/appliance";
 import { Loader2 } from "lucide-react";
 import { UnifiedView } from "../ui/unified-view";
 import { useUnifiedView } from "@/contexts/UnifiedViewContext";
@@ -55,7 +56,11 @@ function AppLayoutInner({ children, allowWithoutInstance = false }: AppLayoutPro
 
   // Redirect to sites if no active instance (VPS). Appliance stays put.
   useEffect(() => {
-    if (!isChecking && !activeSession && !allowWithoutInstance && !appliance) {
+    if (
+      !isChecking &&
+      !allowWithoutInstance &&
+      shouldRedirectToSites(appliance, !!activeSession)
+    ) {
       router.push("/sites");
     }
   }, [isChecking, activeSession, allowWithoutInstance, appliance, router]);
@@ -73,7 +78,7 @@ function AppLayoutInner({ children, allowWithoutInstance = false }: AppLayoutPro
   }
 
   // Show nothing while redirecting (when no active session on VPS)
-  if (!activeSession && !allowWithoutInstance && !appliance) {
+  if (!activeSession && !allowWithoutInstance && shouldRedirectToSites(appliance, false)) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">

@@ -424,13 +424,12 @@ async def connect_to_instance(request: Request, body: ConnectRequest):
 
 
 @router.post("/connect-local", response_model=ApiResponse)
-async def connect_local(
-    request: Request, conn: asyncpg.Connection = Depends(org_conn_admin)
-):
+async def connect_local(request: Request):
     """Connect to the seeded appliance instance. 404 when not in appliance mode."""
     if not appliance_mode.is_appliance():
         raise HTTPException(status_code=404, detail="Not an appliance deployment")
-    instance_id = await appliance_mode.local_instance_id(conn)
+    async with org_unit_of_work(request) as conn:
+        instance_id = await appliance_mode.local_instance_id(conn)
     if not instance_id:
         raise HTTPException(
             status_code=503,

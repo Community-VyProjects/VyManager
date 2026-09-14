@@ -38,6 +38,7 @@ import { LogTable } from "@/components/monitoring/LogTable";
 import { ConntrackTable } from "@/components/monitoring/ConntrackTable";
 import { FilterBuilderModal } from "@/components/monitoring/FilterBuilderModal";
 import { cn } from "@/lib/utils";
+import { useSessionStore } from "@/store/session-store";
 
 // Commands that use the parsed table views
 const TABLE_COMMANDS = {
@@ -58,6 +59,7 @@ function getTableView(command: string): TableView | null {
 
 function MonitoringPageInner() {
   const searchParams = useSearchParams();
+  const appliance = useSessionStore((s) => s.appliance);
   const [session, setSession] = useState<ActiveSession | null>(null);
   const [sshStatus, setSSHStatus] = useState<MonitoringStatus | null>(null);
   const [commands, setCommands] = useState<MonitoringCommand[]>([]);
@@ -243,10 +245,14 @@ function MonitoringPageInner() {
                 <span className="font-medium">{session.instance_name}</span>.
               </p>
               <p className="text-sm text-muted-foreground pt-1">
-                <Link href="/sites" className="font-medium text-foreground underline underline-offset-4 hover:text-primary">
-                  Open Site Manager
-                </Link>{" "}
-                to configure SSH.
+                {!appliance && (
+                  <>
+                    <Link href="/sites" className="font-medium text-foreground underline underline-offset-4 hover:text-primary">
+                      Open Site Manager
+                    </Link>{" "}
+                    to configure SSH.
+                  </>
+                )}
               </p>
             </CardContent>
           </Card>

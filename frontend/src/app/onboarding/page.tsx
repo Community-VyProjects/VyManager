@@ -20,6 +20,7 @@ import { Loader2, AlertCircle, CheckCircle2, Building2, Server, User } from "luc
 import { signUp, signIn } from "@/lib/auth-client";
 import { sessionService } from "@/lib/api/session";
 import { ApiError } from "@/lib/types/api";
+import { postLoginPath } from "@/lib/appliance";
 import { BackupRestoreModal } from "@/components/session/BackupRestoreModal";
 
 export default function OnboardingPage() {
@@ -247,7 +248,7 @@ export default function OnboardingPage() {
         }
       }
 
-      router.push(appliance ? "/" : "/sites");
+      router.push(postLoginPath(appliance));
       router.refresh();
     } catch (err) {
       console.error("[Onboarding] Error:", err);
