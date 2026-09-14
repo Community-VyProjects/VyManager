@@ -15,6 +15,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ImageIcon, Loader2, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { containerService, type ContainerConfig } from "@/lib/api/container";
+import { thrownMessage } from "@/lib/api-error";
 import { isProtectedStackImage } from "@/lib/appliance";
 import { useSessionStore } from "@/store/session-store";
 import { SshOutputModal } from "./SshOutputModal";
@@ -91,7 +92,7 @@ export function ImagesTab({ config, hasWritePermission }: Props) {
       setSsh({ open: true, title, loading: false, success: result.success, output: result.output, error: result.error });
       if (result.success) loadImages();
     } catch (err: unknown) {
-      setSsh({ open: true, title, loading: false, success: false, error: err instanceof Error ? err.message : "Command failed" });
+      setSsh({ open: true, title, loading: false, success: false, error: thrownMessage(err) });
     }
   };
 

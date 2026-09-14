@@ -636,6 +636,10 @@ if [ "$STACK_EXISTS" -eq 0 ]; then
   if [ "$NET_HAS_V6" -eq 1 ]; then
     add_set "container name vymanager-backend network ${NET_NAME} address $(quote_val "$V6_BE")"
   fi
+  add_set "container name vymanager-backend port api source 8000"
+  add_set "container name vymanager-backend port api destination 8000"
+  add_set "container name vymanager-backend port api protocol tcp"
+  add_set "container name vymanager-backend port api listen-address $(quote_val "$UI_IP")"
   add_set "container name vymanager-backend environment NODE_ENV value production"
   add_set "container name vymanager-backend environment VYMANAGER_MODE value appliance"
   add_set "container name vymanager-backend environment VYMANAGER_APPLIANCE_HOST value $(quote_val "$UI_IP")"
