@@ -43,6 +43,13 @@ const AVAILABLE_CARDS: AvailableCard[] = [
     icon: Thermometer,
   },
   {
+    type: "transceiver-health",
+    name: "Transceiver / DDM Health",
+    description: "SFP/SFP+ presence, DDM measurements, and alarm/warning signal health by ethernet interface",
+    icon: Gauge,
+    requiredPermission: FeatureGroup.ETHERNET,
+  },
+  {
     type: "wireguard-peers",
     name: "WireGuard Peers",
     description: "Live peer status with handshake times, transfer stats, and connection health",

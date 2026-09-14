@@ -29,6 +29,7 @@ import { VrrpStatusCard } from "@/components/dashboard/VrrpStatusCard";
 import { BgpStatusCard } from "@/components/dashboard/BgpStatusCard";
 import { IpsecCard } from "@/components/dashboard/IpsecCard";
 import { HardwareSensorsCard } from "@/components/dashboard/HardwareSensorsCard";
+import { TransceiverHealthCard } from "@/components/dashboard/TransceiverHealthCard";
 import { AddCardModal } from "@/components/dashboard/AddCardModal";
 import { ConnectFirstInstance } from "@/components/dashboard/ConnectFirstInstance";
 import {
@@ -464,6 +465,8 @@ export default function Home() {
         return <IpsecCard {...baseProps} />;
       case "hardware-sensors":
         return <HardwareSensorsCard {...baseProps} />;
+      case "transceiver-health":
+        return <TransceiverHealthCard {...baseProps} />;
       default:
         return null;
     }
