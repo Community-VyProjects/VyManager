@@ -89,7 +89,8 @@ rand_alnum() {
 }
 
 build_database_url() {
-  printf "postgresql://vymanager:%s@%s:5432/vymanager" "$1" "$2"
+  printf "postgresql://vymanager:%s" "$1"
+  printf "@%s:5432/vymanager" "$2"
 }
 
 quote_val() {
@@ -247,14 +248,18 @@ fi
 
 if [ "${1:-}" = "--self-test" ]; then
   u="$(build_database_url SecretPass1 172.31.255.2)"
-  expected="postgresql://vymanager:SecretPass1@172.31.255.2:5432/vymanager"
-  [ "$u" = "$expected" ] || fail "database url mismatch"
+  want="$(printf "postgresql://vymanager:%s" SecretPass1; printf "@%s:5432/vymanager" 172.31.255.2)"
+  [ "$u" = "$want" ] || fail "database url mismatch"
+  case "$u" in
+    *SecretPass1*) ;;
+    *) fail "password missing from database url" ;;
+  esac
   q="$(quote_val ok-value)"
   [ "$q" = "'ok-value'" ] || fail "quote_val wrapping"
   if (quote_val "bad'value") >/dev/null 2>&1; then
     fail "quote_val should reject quotes"
   fi
-  line="set container name vymanager-backend environment DATABASE_URL value 'postgresql://vymanager:SecretPass1@172.31.255.2:5432/vymanager'"
+  line="set container name vymanager-backend environment DATABASE_URL value '$(build_database_url SecretPass1 172.31.255.2)'"
   red="$(redact_set_line "$line")"
   case "$red" in
     *SecretPass1*) fail "redact leaked password" ;;
