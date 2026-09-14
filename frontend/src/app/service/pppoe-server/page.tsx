@@ -142,7 +142,6 @@ function PPPoEPageInner() {
   const [minPps, setMinPps] = useState("");
   const [maxPps, setMaxPps] = useState("");
   const [ipv6Filter, setIpv6Filter] = useState<"all" | "yes" | "no">("all");
-  const [vlanFilter, setVlanFilter] = useState("");
   const [mtuFilter, setMtuFilter] = useState("");
   const [minRxBytes, setMinRxBytes] = useState("");
   const [maxRxBytes, setMaxRxBytes] = useState("");
@@ -408,7 +407,6 @@ function PPPoEPageInner() {
     if (maxTx !== null && session.tx_bytes > maxTx) return false;
     if (ipv6Filter === "yes" && !session.ipv6) return false;
     if (ipv6Filter === "no" && session.ipv6) return false;
-    if (vlanFilter && !(session.vlan ?? "").toLowerCase().includes(vlanFilter.toLowerCase())) return false;
     if (mtuFilter && String(session.mtu ?? "") !== mtuFilter.trim()) return false;
     return true;
   });
@@ -691,14 +689,13 @@ function PPPoEPageInner() {
                       <option value="yes">IPv6: Present</option>
                       <option value="no">IPv6: Absent</option>
                     </select>
-                    <Input value={vlanFilter} onChange={(event) => setVlanFilter(event.target.value)} placeholder="VLAN" className="h-8 w-20 text-xs" />
                     <Input value={mtuFilter} onChange={(event) => setMtuFilter(event.target.value)} inputMode="numeric" placeholder="MTU" className="h-8 w-20 text-xs" />
                     <Input value={minRxBytes} onChange={(event) => setMinRxBytes(event.target.value)} inputMode="numeric" placeholder="Min RX bytes" className="h-8 w-28 text-xs" />
                     <Input value={maxRxBytes} onChange={(event) => setMaxRxBytes(event.target.value)} inputMode="numeric" placeholder="Max RX bytes" className="h-8 w-28 text-xs" />
                     <Input value={minTxBytes} onChange={(event) => setMinTxBytes(event.target.value)} inputMode="numeric" placeholder="Min TX bytes" className="h-8 w-28 text-xs" />
                     <Input value={maxTxBytes} onChange={(event) => setMaxTxBytes(event.target.value)} inputMode="numeric" placeholder="Max TX bytes" className="h-8 w-28 text-xs" />
-                    {(sessionSearch || minPps || maxPps || ipv6Filter !== "all" || vlanFilter || mtuFilter || minRxBytes || maxRxBytes || minTxBytes || maxTxBytes) && (
-                      <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => { setSessionSearch(""); setMinPps(""); setMaxPps(""); setIpv6Filter("all"); setVlanFilter(""); setMtuFilter(""); setMinRxBytes(""); setMaxRxBytes(""); setMinTxBytes(""); setMaxTxBytes(""); }}>
+                    {(sessionSearch || minPps || maxPps || ipv6Filter !== "all" || mtuFilter || minRxBytes || maxRxBytes || minTxBytes || maxTxBytes) && (
+                      <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => { setSessionSearch(""); setMinPps(""); setMaxPps(""); setIpv6Filter("all"); setMtuFilter(""); setMinRxBytes(""); setMaxRxBytes(""); setMinTxBytes(""); setMaxTxBytes(""); }}>
                         <X className="h-3.5 w-3.5 mr-1" /> Clear
                       </Button>
                     )}
@@ -719,7 +716,6 @@ function PPPoEPageInner() {
                           <TableHead><button className="font-medium" onClick={() => handleSessionSort("username")}>User {sessionSortLabel("username")}</button></TableHead>
                           <TableHead><button className="font-medium" onClick={() => handleSessionSort("interface")}>Interface {sessionSortLabel("interface")}</button></TableHead>
                           <TableHead><button className="font-medium" onClick={() => handleSessionSort("ip")}>IP address {sessionSortLabel("ip")}</button></TableHead>
-                          <TableHead><button className="font-medium" onClick={() => handleSessionSort("vlan")}>VLAN {sessionSortLabel("vlan")}</button></TableHead>
                           <TableHead><button className="font-medium" onClick={() => handleSessionSort("mtu")}>MTU {sessionSortLabel("mtu")}</button></TableHead>
                           <TableHead><button className="font-medium" onClick={() => handleSessionSort("calling_sid")}>Calling SID {sessionSortLabel("calling_sid")}</button></TableHead>
                           <TableHead><button className="font-medium" onClick={() => handleSessionSort("uptime")}>Uptime {sessionSortLabel("uptime")}</button></TableHead>
@@ -741,7 +737,6 @@ function PPPoEPageInner() {
                                 {session.ipv6 && <div className="text-xs text-muted-foreground">{session.ipv6}</div>}
                                 {session.ipv6_delegated && <div className="text-xs text-muted-foreground">PD: {session.ipv6_delegated}</div>}
                               </TableCell>
-                              <TableCell>{session.vlan || "-"}</TableCell>
                               <TableCell>{session.mtu || "-"}</TableCell>
                               <TableCell className="font-mono text-xs">{session.calling_sid || "-"}</TableCell>
                               <TableCell>{session.uptime || "-"}</TableCell>
@@ -1603,7 +1598,6 @@ type SessionSortField =
   | "username"
   | "interface"
   | "ip"
-  | "vlan"
   | "mtu"
   | "calling_sid"
   | "uptime"
@@ -1627,8 +1621,6 @@ function sessionValue(session: SessionWithRates, field: SessionSortField): strin
       return session.interface;
     case "ip":
       return session.ip ?? "";
-    case "vlan":
-      return session.vlan ?? "";
     case "mtu":
       return session.mtu ?? 0;
     case "calling_sid":
