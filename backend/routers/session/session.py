@@ -1907,7 +1907,7 @@ async def revoke_auth_session(request: Request, body: RevokeSessionRequest, conn
 
 @router.post("/logout-auth", response_model=ApiResponse)
 async def logout_auth_session(
-    request: Request, conn: asyncpg.Connection = Depends(org_conn_admin)
+    request: Request, conn: asyncpg.Connection = Depends(org_conn_self)
 ):
     """Delete the current better-auth session row so login does not see a leftover."""
     user = getattr(request.state, "user", None)

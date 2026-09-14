@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { AlertCircle, Check, Copy, Key, Loader2, RefreshCw, Trash2 } from "lucide-react";
 import { monitoringService, SSHKeyStatus } from "@/lib/api/monitoring";
 import { systemSettingsService } from "@/lib/api/system-settings";
+import { opensshPublicKeyParts } from "@/lib/ssh-public-key";
 
 interface SSHKeySetupProps {
   instanceId: string;
@@ -45,13 +46,13 @@ export function SSHKeySetup({ instanceId, sshUsername, onConfigured }: SSHKeySet
       setGenerating(true);
       setError(null);
       const generated = await monitoringService.generateSSHKey(instanceId);
-      const parts = generated.public_key.trim().split(/\s+/);
-      if (parts.length >= 2) {
+      const parsed = opensshPublicKeyParts(generated.public_key);
+      if (parsed) {
         const result = await systemSettingsService.addSshKey(
           effectiveUsername,
           "vymanager",
-          parts[0],
-          parts[1],
+          parsed.type,
+          parsed.data,
         );
         if (!result.success) {
           throw new Error(result.error || "Failed to install the key on this device");
