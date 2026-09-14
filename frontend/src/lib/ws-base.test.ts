@@ -10,10 +10,10 @@ describe("websocketBaseUrl", () => {
     );
   });
 
-  it("uses :8000 for on-box UI on another port", () => {
+  it("keeps same origin on a reverse-proxy TLS port", () => {
     assert.equal(
-      websocketBaseUrl({ protocol: "http:", hostname: "100.64.64.5", port: "3010" }),
-      "ws://100.64.64.5:8000",
+      websocketBaseUrl({ protocol: "https:", hostname: "app.example", port: "8443" }),
+      "wss://app.example:8443",
     );
   });
 
@@ -24,15 +24,15 @@ describe("websocketBaseUrl", () => {
     );
   });
 
-  it("honors an explicit URL", () => {
+  it("honors an explicit URL for on-box UI on another port", () => {
     assert.equal(
       websocketBaseUrl({
         protocol: "http:",
-        hostname: "x",
+        hostname: "100.64.64.5",
         port: "3010",
-        explicit: "wss://proxy.example/ws",
+        explicit: "ws://100.64.64.5:8000",
       }),
-      "wss://proxy.example/ws",
+      "ws://100.64.64.5:8000",
     );
   });
 });

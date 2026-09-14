@@ -190,15 +190,20 @@ export const apiClient = new ApiClient();
  * Resolve the WebSocket base URL.
  *
  * Priority:
- *  1. NEXT_PUBLIC_WS_URL env var
- *  2. UI on a non-80/443 port (compose :3000, on-box :3010): backend :8000
- *  3. Production reverse proxy on 80/443: same origin
+ *  1. NEXT_PUBLIC_WS_URL or runtime meta vymanager-ws-base
+ *  2. UI port 3000 (compose): backend :8000
+ *  3. Otherwise same origin (reverse proxy)
  */
 export function resolveWsBase(): string {
+  const explicit =
+    process.env.NEXT_PUBLIC_WS_URL ||
+    (typeof document !== "undefined"
+      ? document.querySelector('meta[name="vymanager-ws-base"]')?.getAttribute("content") || undefined
+      : undefined);
   return websocketBaseUrl({
     protocol: window.location.protocol,
     hostname: window.location.hostname,
     port: window.location.port,
-    explicit: process.env.NEXT_PUBLIC_WS_URL,
+    explicit,
   });
 }

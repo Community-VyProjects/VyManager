@@ -667,6 +667,9 @@ if [ "$STACK_EXISTS" -eq 0 ]; then
   add_set "container name vymanager-frontend environment BETTER_AUTH_URL value $(quote_val "$APP_URL")"
   add_set "container name vymanager-frontend environment NEXT_PUBLIC_APP_URL value $(quote_val "$APP_URL")"
   add_set "container name vymanager-frontend environment BACKEND_URL value $(quote_val "http://${BE_ADDR}:8000")"
+  WS_PUBLIC="$(iputil url "$UI_IP" 8000)"
+  WS_PUBLIC="ws${WS_PUBLIC#http}"
+  add_set "container name vymanager-frontend environment PUBLIC_WS_URL value $(quote_val "$WS_PUBLIC")"
   add_set "container name vymanager-frontend environment TRUSTED_ORIGINS value $(quote_val "$APP_URL")"
 fi
 
