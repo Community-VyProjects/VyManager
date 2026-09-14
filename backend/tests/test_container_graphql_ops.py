@@ -39,6 +39,9 @@ class _FakeService:
     def __init__(self):
         self.config = _FakeConfig()
 
+    def get_full_config(self, refresh=False):
+        return {"container": {"name": {"web": {"image": "nginx:1.27"}}}}
+
 
 class _FakeResponse:
     def __init__(self, payload, status_code=200):
@@ -189,6 +192,48 @@ def test_invalid_name_rejected_before_any_call(monkeypatch):
     resp = client.post("/vyos/container/restart", json={"container_name": "bad name; rm -rf /"})
     assert resp.status_code == 400, resp.text
     assert _FakeAsyncClient.last_url is None
+
+
+def test_update_image_resolves_container_name_to_image_ref(monkeypatch):
+    body = {
+        "data": {
+            "AddImageContainer": {
+                "success": True,
+                "errors": None,
+                "data": {"result": "pulled"},
+            }
+        }
+    }
+    client = _build_client(monkeypatch, body)
+
+    resp = client.post("/vyos/container/image/update", json={"container_name": "web"})
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["success"] is True
+    assert _FakeAsyncClient.last_json is not None
+    query = _FakeAsyncClient.last_json["query"]
+    assert "AddImageContainer" in query
+    assert json.dumps("nginx:1.27") in query
+    assert json.dumps("web") not in query
+
+
+def test_update_image_unknown_container(monkeypatch):
+    body = {"data": {"AddImageContainer": {"success": True, "errors": None, "data": {}}}}
+    client = _build_client(monkeypatch, body)
+
+    resp = client.post("/vyos/container/image/update", json={"container_name": "missing"})
+    assert resp.status_code == 400, resp.text
+    assert "not found" in resp.text
+    assert _FakeAsyncClient.last_url is None
+
+
+def test_graphql_empty_errors_names_the_mutation(monkeypatch):
+    body = {"data": {"AddImageContainer": {"success": False, "errors": None, "data": None}}}
+    client = _build_client(monkeypatch, body)
+
+    resp = client.post("/vyos/container/image/pull", json={"image": "nginx:1.27"})
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["success"] is False
+    assert "AddImageContainer failed" in resp.json()["error"]
 
 
 def test_allowlist_maps_update_to_add_image_container():

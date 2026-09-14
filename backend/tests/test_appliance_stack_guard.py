@@ -25,6 +25,17 @@ class _FakeService:
     def get_version(self):
         return "1.5"
 
+    def get_full_config(self, refresh=False):
+        return {
+            "container": {
+                "name": {
+                    "vymanager-backend": {
+                        "image": "ghcr.io/community-vyprojects/vymanager-backend:beta",
+                    }
+                }
+            }
+        }
+
     def execute_batch(self, _builder):
         self.executed = True
         return type("R", (), {"status": 200, "error": None})()

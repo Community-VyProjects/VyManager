@@ -307,6 +307,32 @@ class ContainerMkdirRequest(BaseModel):
 # GraphQL helper — operation key + validated name only, never a raw command
 # ============================================================================
 
+async def _configured_container_image(request: Request, container_name: str) -> str:
+    """Return the image ref set on ``container name <container_name> image``."""
+    service = get_session_vyos_service(request)
+    full_config = await run_in_threadpool(service.get_full_config, refresh=False)
+    names = (full_config.get("container") or {}).get("name") or {}
+    entry = names.get(container_name)
+    if not isinstance(entry, dict):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Container {container_name} not found",
+        )
+    image = entry.get("image")
+    if not isinstance(image, str) or not image.strip():
+        raise HTTPException(
+            status_code=400,
+            detail=f"No image configured for container {container_name}",
+        )
+    image = image.strip()
+    if not _IMAGE_REF_RE.match(image):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid image reference on container {container_name}",
+        )
+    return image
+
+
 async def _require_ssh_key_configured(request: Request) -> None:
     """Enforce that the active instance still has an SSH key configured.
 
@@ -444,7 +470,7 @@ async def _run_container_gql_command(
     return ContainerSSHResponse(
         success=False,
         output=output or None,
-        error=error_text or output or "Command failed",
+        error=error_text or output or f"{mutation} failed",
     )
 
 
@@ -829,9 +855,18 @@ async def container_image_delete(request: Request, body: ContainerImageRequest):
 
 @router.post("/image/update", response_model=ContainerSSHResponse)
 async def container_image_update(request: Request, body: ContainerImageRequest):
-    """Re-pull the latest image for a configured container (update container image <name>)."""
+    """Re-pull the image configured on a container.
+
+    VyOS op-mode ``update container image <name>`` takes a *container* name and
+    pulls that container's configured image. GraphQL only exposes
+    AddImageContainer, which takes an *image reference*. Resolve the image
+    from config, then pull that ref.
+    """
     await require_write_permission(request, FeatureGroup.CONTAINER)
-    return await _run_container_gql_command(request, "update_image", body.container_name)
+    image = await _configured_container_image(request, body.container_name)
+    return await _run_container_gql_command(
+        request, "update_image", image, name_re=_IMAGE_REF_RE
+    )
 
 
 @router.post("/restart", response_model=ContainerSSHResponse)
