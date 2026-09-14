@@ -596,15 +596,25 @@ AUTH_SECRET="$(rand_hex 32)"
 SSH_KEY="$(rand_hex 32)"
 DB_URL="$(build_database_url "$DB_PASS" "$PG_ADDR")"
 
+NET_HAS_V6=0
 if [ "$STACK_EXISTS" -eq 0 ]; then
   if exists_active container network "$NET_NAME"; then
-    info "Container network ${NET_NAME} already exists. Not changing prefix/VRF."
+    info "Container network ${NET_NAME} already exists. Not changing VRF or IPv4 prefix."
+    EXIST_PFX="$(/bin/cli-shell-api returnActiveValues container network "$NET_NAME" prefix 2>/dev/null || true)"
+    if echo "$EXIST_PFX" | grep -qF "$V6_PREFIX"; then
+      NET_HAS_V6=1
+    elif [ "$UI_IS_V6" -eq 1 ]; then
+      add_set "container network ${NET_NAME} prefix $(quote_val "$V6_PREFIX")"
+      add_network_gateway_if_15 "$V6_GW"
+      NET_HAS_V6=1
+    fi
   else
     add_set "container network ${NET_NAME} prefix $(quote_val "$NET_PREFIX")"
     add_network_gateway_if_15 "$GW_ADDR"
     if [ "$UI_IS_V6" -eq 1 ]; then
       add_set "container network ${NET_NAME} prefix $(quote_val "$V6_PREFIX")"
       add_network_gateway_if_15 "$V6_GW"
+      NET_HAS_V6=1
     fi
     if [ -n "$NET_VRF" ]; then
       add_set "container network ${NET_NAME} vrf $(quote_val "$NET_VRF")"
@@ -623,7 +633,7 @@ if [ "$STACK_EXISTS" -eq 0 ]; then
   add_set "container name vymanager-backend image $(quote_val "$BACKEND_IMAGE")"
   add_set "container name vymanager-backend restart always"
   add_set "container name vymanager-backend network ${NET_NAME} address $(quote_val "$BE_ADDR")"
-  if [ "$UI_IS_V6" -eq 1 ]; then
+  if [ "$NET_HAS_V6" -eq 1 ]; then
     add_set "container name vymanager-backend network ${NET_NAME} address $(quote_val "$V6_BE")"
   fi
   add_set "container name vymanager-backend environment NODE_ENV value production"
