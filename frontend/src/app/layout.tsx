@@ -32,12 +32,10 @@ export default function RootLayout({
   const publicWs = process.env.PUBLIC_WS_URL || process.env.NEXT_PUBLIC_WS_URL || "";
   return (
     <html lang="en">
-      <head>
-        {publicWs ? <meta name="vymanager-ws-base" content={publicWs} /> : null}
-      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        {publicWs ? <meta name="vymanager-ws-base" content={publicWs} /> : null}
         <ThemeProvider>
           <SearchProvider>
             <UnifiedViewProvider>
