@@ -25,11 +25,6 @@ FRONTEND_IMAGE="${REGISTRY}/vymanager-frontend:beta"
 BACKEND_IMAGE="${REGISTRY}/vymanager-backend:beta"
 POSTGRES_IMAGE="postgres:16-alpine"
 NET_NAME="vymanager"
-NET_PREFIX_DEFAULT="172.31.255.0/24"
-PG_ADDR_DEFAULT="172.31.255.2"
-BE_ADDR_DEFAULT="172.31.255.3"
-FE_ADDR_DEFAULT="172.31.255.4"
-GW_ADDR_DEFAULT="172.31.255.1"
 VOL_PG="/config/containers/vymanager-postgres"
 KEY_ID="vymanager"
 
@@ -150,7 +145,7 @@ if cmd == "listen-fmt":
 if cmd == "pick-default":
     ssh = args[0] if args else ""
     addrs = [a for a in args[1:] if usable(a)]
-    addrs = sorted(set(addrs), key=rank)
+    addrs = sorted(set(addrs), key=lambda a: (rank(a), a))
     if addrs and rank(addrs[0]) <= 2:
         print(addrs[0])
         sys.exit(0)
@@ -187,13 +182,14 @@ if cmd == "prefix-free":
                 continue
     for n in range(255, 239, -1):
         net = ipaddress.ip_network("172.31.%d.0/24" % n)
+        v6net = ipaddress.ip_network("fd00:7e:31:%d::/64" % n)
         clash = False
         for item in host:
-            if isinstance(item, ipaddress.IPv4Network) or isinstance(item, ipaddress.IPv6Network):
-                if item.overlaps(net):
+            if isinstance(item, (ipaddress.IPv4Network, ipaddress.IPv6Network)):
+                if item.overlaps(net) or item.overlaps(v6net):
                     clash = True
                     break
-            elif item in net:
+            elif item in net or item in v6net:
                 clash = True
                 break
         if not clash:
@@ -204,6 +200,17 @@ if cmd == "prefix-free":
             )
             sys.exit(0)
     sys.exit(1)
+if cmd == "from-v4-prefix":
+    net = ipaddress.ip_network(args[0], strict=False)
+    if net.version != 4 or net.prefixlen != 24:
+        sys.exit(1)
+    hosts = list(net.hosts())
+    n = int(str(net.network_address).split(".")[2])
+    print(
+        "%s %s %s %s %s fd00:7e:31:%d::/64 fd00:7e:31:%d::1 fd00:7e:31:%d::3"
+        % (net, hosts[0], hosts[1], hosts[2], hosts[3], n, n, n)
+    )
+    sys.exit(0)
 sys.stderr.write("unknown iputil command\n")
 sys.exit(2)
 PY
@@ -298,6 +305,7 @@ list_host_ips() {
 
 host_routes() {
   ip -4 route show 2>/dev/null | awk '{print $1}' | grep '/' || true
+  ip -6 route show 2>/dev/null | awk '{print $1}' | grep '/' || true
 }
 
 https_port_now() {
@@ -393,6 +401,15 @@ if [ "${1:-}" = "--self-test" ]; then
   case "$pref" in
     "172.31.255.0/24"*) fail "prefix-free should skip in-use 172.31.255.0/24" ;;
   esac
+  pref6="$(iputil prefix-free fd00:7e:31:255::2)"
+  case "$pref6" in
+    *fd00:7e:31:255::/64*) fail "prefix-free should skip in-use ULA" ;;
+  esac
+  reused="$(iputil from-v4-prefix 172.31.255.0/24)"
+  case "$reused" in
+    "172.31.255.0/24 172.31.255.1 "*) ;;
+    *) fail "from-v4-prefix" ;;
+  esac
   case "$pref" in
     172.31.*) ;;
     *) fail "prefix-free output" ;;
@@ -447,8 +464,14 @@ esac
 HTTPS_PORT="$(https_port_now)"
 RAW_IPS="$(list_host_ips)"
 ROUTES="$(host_routes)"
-# shellcheck disable=SC2086
-PREFIX_LINE="$(iputil prefix-free $RAW_IPS $ROUTES)" || fail "No free 172.31.x.0/24 for the container network"
+if exists_active container network "$NET_NAME"; then
+  EXIST_P4="$(/bin/cli-shell-api returnActiveValues container network "$NET_NAME" prefix 2>/dev/null | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/' | head -n 1 || true)"
+  [ -n "$EXIST_P4" ] || fail "container network vymanager has no IPv4 prefix"
+  PREFIX_LINE="$(iputil from-v4-prefix "$EXIST_P4")" || fail "Could not reuse container network prefix ${EXIST_P4}"
+else
+  # shellcheck disable=SC2086
+  PREFIX_LINE="$(iputil prefix-free $RAW_IPS $ROUTES)" || fail "No free 172.31.x.0/24 for the container network"
+fi
 set -f
 set -- $PREFIX_LINE
 set +f
