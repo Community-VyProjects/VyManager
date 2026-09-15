@@ -8,4 +8,4 @@ class PPPoEServerMapperV1_4:
         raise ValueError("authentication any-login is not supported on this device")
 
     def get_auth_any_login_delete(self) -> List[str]:
-        return ["service", "pppoe-server", "authentication", "any-login"]
+        raise ValueError("authentication any-login is not supported on this device")

@@ -31,18 +31,13 @@ def test_any_login_paths_v1_5():
     ]
 
 
-def test_any_login_set_raises_on_v1_4():
+def test_any_login_rejected_on_v1_4():
     builder = PPPoEServerBatchBuilder(version="1.4")
     with pytest.raises(ValueError, match="not supported"):
         builder.set_auth_any_login("pppoe")
-
-
-def test_any_login_delete_on_v1_4():
     builder = PPPoEServerBatchBuilder(version="1.4")
-    builder.delete_auth_any_login("pppoe")
-    operations = builder.get_operations()
-    assert operations[0]["op"] == "delete"
-    assert operations[0]["path"] == PATH
+    with pytest.raises(ValueError, match="not supported"):
+        builder.delete_auth_any_login("pppoe")
 
 
 def test_capability_gated_to_v1_5():
