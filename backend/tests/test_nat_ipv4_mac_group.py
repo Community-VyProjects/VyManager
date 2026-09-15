@@ -1,4 +1,4 @@
-"""IPv4 NAT create/edit modals must offer mac-group match.
+"""IPv4 NAT modals must offer mac-group match.
 
 The mapper already takes group_type. 1.4 and 1.5 accept mac-group under
 source and destination NAT rule source/destination group. The IPv4 NAT
@@ -13,10 +13,8 @@ from vyos_builders.nat import NATBatchBuilder
 
 REPO = Path(__file__).resolve().parents[2]
 MODALS = [
-    REPO / "frontend/src/components/network/CreateSourceNATModal.tsx",
-    REPO / "frontend/src/components/network/CreateDestinationNATModal.tsx",
-    REPO / "frontend/src/components/network/EditSourceNATModal.tsx",
-    REPO / "frontend/src/components/network/EditDestinationNATModal.tsx",
+    REPO / "frontend/src/components/network/SourceNATModal.tsx",
+    REPO / "frontend/src/components/network/DestinationNATModal.tsx",
 ]
 
 CASES = [
