@@ -161,10 +161,12 @@ export interface DashboardSSEState {
 export function useDashboardSSE(options?: {
   interests?: string[];
   enabled?: boolean;
+  conntrackIp?: string | null;
 }): DashboardSSEState {
   const interests = options?.interests ?? [];
   const enabled = options?.enabled ?? true;
-  const interestsKey = interests.join(",");
+  const conntrackIp = options?.conntrackIp ?? "";
+  const interestsKey = `${interests.join(",")}|${conntrackIp}`;
   const [status, setStatus] = useState<SSEStatus>("disconnected");
   const [data, setData] = useState<DashboardSSEData>({
     interfaceCounters: null,
@@ -191,6 +193,9 @@ export function useDashboardSSE(options?: {
     const params = new URLSearchParams();
     for (const name of interests) {
       params.append("interest", name);
+    }
+    if (conntrackIp) {
+      params.set("conntrack_ip", conntrackIp);
     }
     const qs = params.toString();
     const es = new EventSource(qs ? `/api/vyos/show/stream?${qs}` : "/api/vyos/show/stream");

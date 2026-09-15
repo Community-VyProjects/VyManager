@@ -122,6 +122,14 @@ def test_conntrack_cycle_does_not_start_without_interest():
     assert broadcaster._conntrack_task is None
 
 
+def test_conntrack_cycle_does_not_start_without_session_ip():
+    broadcaster = DeviceDataBroadcaster("instance", service=object())
+    queue = asyncio.Queue()
+    broadcaster._subscribers.append((queue, frozenset({"pppoe-connections"})))
+    broadcaster._handle_conntrack_cycle(start=True)
+    assert broadcaster._conntrack_task is None
+
+
 def test_conntrack_cycle_swallows_cancelled_task_without_killing_the_loop():
     async def scenario():
         broadcaster = DeviceDataBroadcaster("instance", service=object())

@@ -305,7 +305,11 @@ function PPPoEPageInner() {
 
   const liveSessions = hasRead && !sessionPaused;
   const { data: sessionStream, error: sessionStreamError, status: sessionStreamStatus } = useDashboardSSE({
-    interests: ["pppoe-sessions", "pppoe-connections"],
+    interests: [
+      "pppoe-sessions",
+      ...(liveSessions && connectionDialog?.ip ? ["pppoe-connections"] as const : []),
+    ],
+    conntrackIp: liveSessions ? connectionDialog?.ip : undefined,
     enabled: liveSessions,
   });
 

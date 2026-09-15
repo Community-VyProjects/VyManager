@@ -101,6 +101,8 @@ def test_page_reads_api_error_message():
     assert 'err instanceof Error ? err.message : "Failed to load connections"' not in text
     assert '"pppoe-connections"' in text
     assert "connectionLineMatchesIp" in text
+    assert "conntrackIp" in text
+    assert 'interests: ["pppoe-sessions", "pppoe-connections"]' not in text
 
 
 def test_snapshot_query_asks_both_families():
@@ -110,17 +112,23 @@ def test_snapshot_query_asks_both_families():
     assert json.dumps('k"ey') in query
     assert "family: inet" in query
     assert "family: inet6" in query
+    v4_only = show_conntrack_snapshot_query("k", {"inet"})
+    assert "family: inet6" not in v4_only
 
 
-def test_snapshot_body_merges_families_and_skips_empty():
+def test_snapshot_body_filters_to_requested_ips():
     body = {
         "data": {
             "v4": {"success": True, "data": {"result": {"conntrack": {"flow": [FLOW]}}}},
             "v6": {"success": True, "data": {"result": {"conntrack": {"error": True, "reason": "entries not found"}}}},
         }
     }
-    lines = snapshot_from_graphql_body(body)
-    assert len(lines) == 1
-    assert "100.127.200.187:51234" in lines[0]
+    by_ip = snapshot_from_graphql_body(body, {"100.127.200.187"})
+    assert list(by_ip) == ["100.127.200.187"]
+    assert len(by_ip["100.127.200.187"]) == 1
+    assert "100.127.200.187:51234" in by_ip["100.127.200.187"][0]
+    other = snapshot_from_graphql_body(body, {"10.0.0.1"})
+    assert other["10.0.0.1"] == []
+    assert snapshot_from_graphql_body(body, set()) == {}
     with pytest.raises(ConntrackUnavailable):
-        snapshot_from_graphql_body({"errors": [{"message": "nope"}]})
+        snapshot_from_graphql_body({"errors": [{"message": "nope"}]}, {"10.0.0.1"})
