@@ -34,13 +34,14 @@ import {
   firewallFeatureSupported,
 } from "@/lib/api/firewall-capability-gates";
 
-interface EditBridgeRuleModalProps {
+interface BridgeRuleModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   chain: string;
-  rule: BridgeRule;
   capabilities: BridgeCapabilities | null;
+  existingRuleNumbers: number[];
   onSuccess: () => void;
+  existing?: BridgeRule | null;
 }
 
 // Rate limit units
@@ -62,7 +63,6 @@ const WEEKDAYS = [
   { value: "Sunday", label: "Sun" },
 ];
 
-// Parse rate limit string (e.g., "5/minute") into value and unit
 const parseRateLimit = (rate: string | null | undefined): { value: string; unit: string } => {
   if (!rate) return { value: "", unit: "minute" };
   const match = rate.match(/^(\d+)\/(second|minute|hour|day)$/);
@@ -72,7 +72,6 @@ const parseRateLimit = (rate: string | null | undefined): { value: string; unit:
   return { value: rate, unit: "minute" };
 };
 
-// Parse address with possible negation
 const parseAddress = (addr: string | null | undefined): { address: string; negate: boolean } => {
   if (!addr) return { address: "", negate: false };
   if (addr.startsWith("!")) {
@@ -81,39 +80,41 @@ const parseAddress = (addr: string | null | undefined): { address: string; negat
   return { address: addr, negate: false };
 };
 
-// Parse weekdays string into array
 const parseWeekdays = (days: string | null | undefined): string[] => {
   if (!days) return [];
   return days.split(",").map((d) => d.trim()).filter(Boolean);
 };
 
-// Parse time string (HH:MM:SS) to HH:MM for input
 const parseTimeForInput = (time: string | null | undefined): string => {
   if (!time) return "";
-  // If it's HH:MM:SS format, return HH:MM
   const match = time.match(/^(\d{2}:\d{2})/);
   return match ? match[1] : time;
 };
 
-export function EditBridgeRuleModal({
+export function BridgeRuleModal({
   open,
   onOpenChange,
   chain,
-  rule,
   capabilities,
+  existingRuleNumbers,
   onSuccess,
-}: EditBridgeRuleModalProps) {
+  existing,
+}: BridgeRuleModalProps) {
+  const isEdit = !!existing;
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceOption[]>([]);
   const [loadingInterfaces, setLoadingInterfaces] = useState(false);
 
-  // Load available interfaces when modal opens
   useEffect(() => {
-    if (open) {
-      loadInterfaces();
+    if (!open) return;
+    loadInterfaces();
+    if (existing) {
+      populateForm(existing);
+    } else {
+      resetForm();
     }
-  }, [open]);
+  }, [open, existing]);
 
   const loadInterfaces = async () => {
     setLoadingInterfaces(true);
@@ -127,82 +128,85 @@ export function EditBridgeRuleModal({
     }
   };
 
-  // Parse initial values
-  const parsedSourceAddr = parseAddress(rule.source_address);
-  const parsedDestAddr = parseAddress(rule.destination_address);
-  const parsedRate = parseRateLimit(rule.limit_rate);
-  const parsedWeekdays = parseWeekdays(rule.time_weekdays);
+  // Calculate next rule number (start at 100, increment by 1)
+  const getNextRuleNumber = (): number => {
+    if (existingRuleNumbers.length === 0) {
+      return 100;
+    }
+    const maxRule = Math.max(...existingRuleNumbers);
+    return maxRule + 1;
+  };
 
   // Form state - Basic
-  const [action, setAction] = useState(rule.action || "accept");
-  const [description, setDescription] = useState(rule.description || "");
-  const [log, setLog] = useState(rule.log);
-  const [disabled, setDisabled] = useState(rule.disabled);
+  const [action, setAction] = useState("accept");
+  const [description, setDescription] = useState("");
+  const [log, setLog] = useState(false);
+  const [disabled, setDisabled] = useState(false);
 
   // Source/Destination MAC
-  const [sourceMac, setSourceMac] = useState(rule.source_mac || "");
-  const [destinationMac, setDestinationMac] = useState(rule.destination_mac || "");
+  const [sourceMac, setSourceMac] = useState("");
+  const [destinationMac, setDestinationMac] = useState("");
 
   // Source/Destination IP (1.5+) - with negation
-  const [sourceAddress, setSourceAddress] = useState(parsedSourceAddr.address);
-  const [sourceAddressNegate, setSourceAddressNegate] = useState(parsedSourceAddr.negate);
-  const [destinationAddress, setDestinationAddress] = useState(parsedDestAddr.address);
-  const [destinationAddressNegate, setDestinationAddressNegate] = useState(parsedDestAddr.negate);
-  const [sourcePort, setSourcePort] = useState(rule.source_port || "");
-  const [destinationPort, setDestinationPort] = useState(rule.destination_port || "");
+  const [sourceAddress, setSourceAddress] = useState("");
+  const [sourceAddressNegate, setSourceAddressNegate] = useState(false);
+  const [destinationAddress, setDestinationAddress] = useState("");
+  const [destinationAddressNegate, setDestinationAddressNegate] = useState(false);
+  const [sourcePort, setSourcePort] = useState("");
+  const [destinationPort, setDestinationPort] = useState("");
 
   // VLAN
-  const [vlanId, setVlanId] = useState(rule.vlan_id || "");
-  const [vlanPriority, setVlanPriorityValue] = useState(rule.vlan_priority || "");
+  const [vlanId, setVlanId] = useState("");
+  const [vlanPriority, setVlanPriorityValue] = useState("");
 
   // Interface
-  const [inboundInterface, setInboundInterface] = useState(rule.inbound_interface || "");
-  const [outboundInterface, setOutboundInterface] = useState(rule.outbound_interface || "");
+  const [inboundInterface, setInboundInterface] = useState("");
+  const [outboundInterface, setOutboundInterface] = useState("");
 
   // Protocol (1.5+)
-  const [protocol, setProtocol] = useState(rule.protocol || "");
+  const [protocol, setProtocol] = useState("");
 
   // Ethernet Type (1.5+)
-  const [ethernetType, setEthernetType] = useState(rule.ethernet_type || "");
+  const [ethernetType, setEthernetType] = useState("");
 
   // Jump target
-  const [jumpTarget, setJumpTarget] = useState(rule.jump_target || "");
+  const [jumpTarget, setJumpTarget] = useState("");
 
   // Queue (1.5+)
-  const [queue, setQueue] = useState(rule.queue || "");
+  const [queue, setQueue] = useState("");
 
   // ICMP (1.5+)
-  const [icmpType, setIcmpType] = useState(rule.icmp_type || "");
-  const [icmpCode, setIcmpCode] = useState(rule.icmp_code || "");
-  const [icmpTypeName, setIcmpTypeName] = useState(rule.icmp_type_name || "");
+  const [icmpType, setIcmpType] = useState("");
+  const [icmpCode, setIcmpCode] = useState("");
+  const [icmpTypeName, setIcmpTypeName] = useState("");
 
   // TCP (1.5+)
-  const [tcpFlagsSyn, setTcpFlagsSyn] = useState(rule.tcp_flags?.includes("syn") || false);
-  const [tcpFlagsAck, setTcpFlagsAck] = useState(rule.tcp_flags?.includes("ack") || false);
-  const [tcpFlagsFin, setTcpFlagsFin] = useState(rule.tcp_flags?.includes("fin") || false);
-  const [tcpFlagsRst, setTcpFlagsRst] = useState(rule.tcp_flags?.includes("rst") || false);
+  const [tcpFlagsSyn, setTcpFlagsSyn] = useState(false);
+  const [tcpFlagsAck, setTcpFlagsAck] = useState(false);
+  const [tcpFlagsFin, setTcpFlagsFin] = useState(false);
+  const [tcpFlagsRst, setTcpFlagsRst] = useState(false);
 
   // Rate limiting (1.5+) - split into number and unit
-  const [limitRateValue, setLimitRateValue] = useState(parsedRate.value);
-  const [limitRateUnit, setLimitRateUnit] = useState(parsedRate.unit);
-  const [limitBurst, setLimitBurst] = useState(rule.limit_burst || "");
+  const [limitRateValue, setLimitRateValue] = useState("");
+  const [limitRateUnit, setLimitRateUnit] = useState("minute");
+  const [limitBurst, setLimitBurst] = useState("");
 
   // Time-based (1.5+) - using proper time format
-  const [timeStarttime, setTimeStarttime] = useState(parseTimeForInput(rule.time_starttime));
-  const [timeStoptime, setTimeStoptime] = useState(parseTimeForInput(rule.time_stoptime));
-  const [selectedWeekdays, setSelectedWeekdays] = useState<string[]>(parsedWeekdays);
+  const [timeStarttime, setTimeStarttime] = useState("");
+  const [timeStoptime, setTimeStoptime] = useState("");
+  const [selectedWeekdays, setSelectedWeekdays] = useState<string[]>([]);
 
   // Connection status (1.5+)
-  const [connStatusNew, setConnStatusNew] = useState(rule.connection_status_new || false);
-  const [connStatusEstablished, setConnStatusEstablished] = useState(rule.connection_status_established || false);
-  const [connStatusRelated, setConnStatusRelated] = useState(rule.connection_status_related || false);
-  const [connStatusInvalid, setConnStatusInvalid] = useState(rule.connection_status_invalid || false);
+  const [connStatusNew, setConnStatusNew] = useState(false);
+  const [connStatusEstablished, setConnStatusEstablished] = useState(false);
+  const [connStatusRelated, setConnStatusRelated] = useState(false);
+  const [connStatusInvalid, setConnStatusInvalid] = useState(false);
 
   // Packet modifications (1.5+)
-  const [modifyDscp, setModifyDscp] = useState(rule.set_dscp || "");
-  const [modifyMark, setModifyMark] = useState(rule.set_mark || "");
-  const [modifyVlanPriority, setModifyVlanPriority] = useState(rule.set_vlan_priority || "");
-  const [modifyTcpMss, setModifyTcpMss] = useState(rule.set_tcp_mss || "");
+  const [modifyDscp, setModifyDscp] = useState("");
+  const [modifyMark, setModifyMark] = useState("");
+  const [modifyVlanPriority, setModifyVlanPriority] = useState("");
+  const [modifyTcpMss, setModifyTcpMss] = useState("");
 
   const showIpPorts =
     firewallFeatureSupported(capabilities, "ip_matching") ||
@@ -214,11 +218,52 @@ export function EditBridgeRuleModal({
     firewallFeatureSupported(capabilities, "packet_modifications");
   const showEthernetType = firewallFeatureSupported(capabilities, "ethernet_type_matching");
 
-  // Reset form when modal opens or rule changes
-  useEffect(() => {
-    // Only run when modal is open
-    if (!open) return;
+  const resetForm = () => {
+    setAction("accept");
+    setDescription("");
+    setLog(false);
+    setDisabled(false);
+    setSourceMac("");
+    setDestinationMac("");
+    setSourceAddress("");
+    setSourceAddressNegate(false);
+    setDestinationAddress("");
+    setDestinationAddressNegate(false);
+    setSourcePort("");
+    setDestinationPort("");
+    setVlanId("");
+    setVlanPriorityValue("");
+    setInboundInterface("");
+    setOutboundInterface("");
+    setProtocol("");
+    setEthernetType("");
+    setJumpTarget("");
+    setQueue("");
+    setIcmpType("");
+    setIcmpCode("");
+    setIcmpTypeName("");
+    setTcpFlagsSyn(false);
+    setTcpFlagsAck(false);
+    setTcpFlagsFin(false);
+    setTcpFlagsRst(false);
+    setLimitRateValue("");
+    setLimitRateUnit("minute");
+    setLimitBurst("");
+    setTimeStarttime("");
+    setTimeStoptime("");
+    setSelectedWeekdays([]);
+    setConnStatusNew(false);
+    setConnStatusEstablished(false);
+    setConnStatusRelated(false);
+    setConnStatusInvalid(false);
+    setModifyDscp("");
+    setModifyMark("");
+    setModifyVlanPriority("");
+    setModifyTcpMss("");
+    setError(null);
+  };
 
+  const populateForm = (rule: BridgeRule) => {
     const newSourceAddr = parseAddress(rule.source_address);
     const newDestAddr = parseAddress(rule.destination_address);
     const newRate = parseRateLimit(rule.limit_rate);
@@ -266,7 +311,7 @@ export function EditBridgeRuleModal({
     setModifyVlanPriority(rule.set_vlan_priority || "");
     setModifyTcpMss(rule.set_tcp_mss || "");
     setError(null);
-  }, [open, rule.rule_number, rule]);
+  };
 
   // Toggle weekday selection
   const toggleWeekday = (day: string) => {
@@ -303,12 +348,13 @@ export function EditBridgeRuleModal({
     return negate ? `!${addr}` : addr;
   };
 
-  const handleSubmit = async () => {
+  const submitUpdate = async () => {
+    if (!existing) return;
     setSaving(true);
     setError(null);
 
     try {
-      const response = await bridgeFirewallService.updateRule(chain, rule.rule_number, rule, {
+      const response = await bridgeFirewallService.updateRule(chain, existing.rule_number, existing, {
         action,
         description: description || null,
         log,
@@ -357,13 +403,85 @@ export function EditBridgeRuleModal({
     }
   };
 
+  const handleSubmit = async () => {
+    if (isEdit) {
+      await submitUpdate();
+      return;
+    }
+
+    const ruleNum = getNextRuleNumber();
+
+    setSaving(true);
+    setError(null);
+
+    // Build TCP flags arrays
+    const tcpFlags: string[] = [];
+    if (tcpFlagsSyn) tcpFlags.push("syn");
+    if (tcpFlagsAck) tcpFlags.push("ack");
+    if (tcpFlagsFin) tcpFlags.push("fin");
+    if (tcpFlagsRst) tcpFlags.push("rst");
+
+    try {
+      const response = await bridgeFirewallService.createRule(chain, ruleNum, {
+        action,
+        description: description || undefined,
+        log,
+        disabled,
+        source_mac: sourceMac || undefined,
+        destination_mac: destinationMac || undefined,
+        source_address: buildAddress(sourceAddress, sourceAddressNegate) || undefined,
+        destination_address: buildAddress(destinationAddress, destinationAddressNegate) || undefined,
+        source_port: sourcePort || undefined,
+        destination_port: destinationPort || undefined,
+        vlan_id: vlanId || undefined,
+        vlan_priority: vlanPriority || undefined,
+        inbound_interface: inboundInterface || undefined,
+        outbound_interface: outboundInterface || undefined,
+        protocol: protocol || undefined,
+        ethernet_type: ethernetType || undefined,
+        jump_target: jumpTarget || undefined,
+        queue: queue || undefined,
+        icmp_type: icmpType || undefined,
+        icmp_code: icmpCode || undefined,
+        icmp_type_name: icmpTypeName || undefined,
+        tcp_flags: tcpFlags.length > 0 ? tcpFlags.join(",") : undefined,
+        limit_rate: buildLimitRate() || undefined,
+        limit_burst: limitBurst || undefined,
+        time_starttime: buildTimeString(timeStarttime) || undefined,
+        time_stoptime: buildTimeString(timeStoptime) || undefined,
+        time_weekdays: buildWeekdays() || undefined,
+        connection_status_new: connStatusNew || undefined,
+        connection_status_established: connStatusEstablished || undefined,
+        connection_status_related: connStatusRelated || undefined,
+        connection_status_invalid: connStatusInvalid || undefined,
+        set_dscp: modifyDscp || undefined,
+        set_mark: modifyMark || undefined,
+        set_vlan_priority: modifyVlanPriority || undefined,
+        set_tcp_mss: modifyTcpMss || undefined,
+      });
+
+      if (response.success) {
+        resetForm();
+        onSuccess();
+      } else {
+        setError(response.error || "Failed to create rule");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create rule");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(o) => { if (!o) resetForm(); onOpenChange(o); }}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Edit Bridge Firewall Rule</DialogTitle>
+          <DialogTitle>{isEdit ? "Edit Bridge Firewall Rule" : "Create Bridge Firewall Rule"}</DialogTitle>
           <DialogDescription>
-            Edit rule {rule.rule_number} in the {chain} chain
+            {isEdit
+              ? `Edit rule ${existing.rule_number} in the ${chain} chain`
+              : `Add a new rule to the ${chain} chain`}
           </DialogDescription>
         </DialogHeader>
 
@@ -387,7 +505,16 @@ export function EditBridgeRuleModal({
           <TabsContent value="basic" className="space-y-4 mt-4">
             <div className="bg-muted/50 rounded-md px-3 py-2 mb-2">
               <p className="text-sm text-muted-foreground">
-                Editing rule <span className="font-mono font-semibold text-foreground">#{rule.rule_number}</span>
+                {isEdit ? (
+                  <>
+                    Editing rule <span className="font-mono font-semibold text-foreground">#{existing.rule_number}</span>
+                    <span className="sr-only">Rule number cannot be changed</span>
+                  </>
+                ) : (
+                  <>
+                    Rule will be created as <span className="font-mono font-semibold text-foreground">#{getNextRuleNumber()}</span>
+                  </>
+                )}
               </p>
             </div>
 
@@ -468,7 +595,7 @@ export function EditBridgeRuleModal({
                   checked={disabled}
                   onCheckedChange={(c) => setDisabled(c === true)}
                 />
-                <Label htmlFor="disabled" className="font-normal">Disabled</Label>
+                <Label htmlFor="disabled" className="font-normal">{isEdit ? "Disabled" : "Create disabled"}</Label>
               </div>
             </div>
           </TabsContent>
@@ -948,10 +1075,12 @@ export function EditBridgeRuleModal({
             {saving ? (
               <>
                 <RefreshCw className="h-4 w-4 mr-1.5 animate-spin" />
-                Saving...
+                {isEdit ? "Saving..." : "Creating..."}
               </>
-            ) : (
+            ) : isEdit ? (
               "Save Changes"
+            ) : (
+              "Create Rule"
             )}
           </Button>
         </DialogFooter>

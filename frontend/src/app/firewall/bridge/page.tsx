@@ -57,8 +57,7 @@ import {
 } from "@/lib/api/firewall-bridge";
 import { firewallFeatureSupported } from "@/lib/api/firewall-capability-gates";
 import { cn } from "@/lib/utils";
-import { CreateBridgeRuleModal } from "@/components/firewall/CreateBridgeRuleModal";
-import { EditBridgeRuleModal } from "@/components/firewall/EditBridgeRuleModal";
+import { BridgeRuleModal } from "@/components/firewall/BridgeRuleModal";
 import { DeleteBridgeRuleModal } from "@/components/firewall/DeleteBridgeRuleModal";
 import { CreateCustomBridgeChainModal } from "@/components/firewall/CreateCustomBridgeChainModal";
 import { DeleteCustomBridgeChainModal } from "@/components/firewall/DeleteCustomBridgeChainModal";
@@ -785,26 +784,20 @@ export default function BridgeFirewallPage() {
       </div>
 
       {/* Modals */}
-      <CreateBridgeRuleModal
-        open={createModalOpen}
-        onOpenChange={setCreateModalOpen}
-        chain={selectedChain}
+      <BridgeRuleModal
+        open={createModalOpen || !!editingRule}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCreateModalOpen(false);
+            setEditingRule(null);
+          }
+        }}
+        chain={editingRule ? editingRule.chain : selectedChain}
         capabilities={capabilities}
         existingRuleNumbers={existingRuleNumbers}
-        onSuccess={handleCreateSuccess}
+        onSuccess={editingRule ? handleEditSuccess : handleCreateSuccess}
+        existing={editingRule?.rule ?? null}
       />
-
-      {editingRule && (
-        <EditBridgeRuleModal
-          key={`edit-${editingRule.openedAt}`}
-          open={!!editingRule}
-          onOpenChange={(open) => !open && setEditingRule(null)}
-          chain={editingRule.chain}
-          rule={editingRule.rule}
-          capabilities={capabilities}
-          onSuccess={handleEditSuccess}
-        />
-      )}
 
       {deletingRule && (
         <DeleteBridgeRuleModal
