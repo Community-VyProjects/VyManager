@@ -107,9 +107,7 @@ export default function LoginPage() {
         return;
       }
 
-      // Check for active sessions after successful login
-      // Wait a moment for the session cookie to be fully established
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      await authClient.getSession();
 
       try {
         const sessionsResponse = await sessionService.getActiveSessions();
@@ -129,7 +127,6 @@ export default function LoginPage() {
 
       // No other sessions, proceed to redirect
       router.push(afterLoginPath(from, appliance));
-      router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
       setIsLoading(false);
@@ -145,7 +142,6 @@ export default function LoginPage() {
 
       // Proceed to redirect
       router.push(afterLoginPath(from, appliance));
-      router.refresh();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to revoke other sessions";
       throw new Error(errorMessage);
