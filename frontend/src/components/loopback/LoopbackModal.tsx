@@ -27,20 +27,21 @@ import { showService, type InterfaceName } from "@/lib/api/show";
 import { InterfaceSelect } from "@/components/ui/interface-select";
 import { ApiError } from "@/lib/types/api";
 
-interface EditLoopbackModalProps {
+interface LoopbackModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
-  interfaceData: LoopbackInterface | null;
   capabilities: LoopbackCapabilities | null;
+  existing?: LoopbackInterface | null;
 }
 
-export function EditLoopbackModal({
+export function LoopbackModal({
   open,
   onOpenChange,
   onSuccess,
-  interfaceData,
-}: EditLoopbackModalProps) {
+  existing,
+}: LoopbackModalProps) {
+  const isEdit = !!existing;
   const [description, setDescription] = useState("");
   const [addresses, setAddresses] = useState("");
   const [ipSourceValidation, setIpSourceValidation] = useState("");
@@ -53,21 +54,38 @@ export function EditLoopbackModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (interfaceData) {
-      showService.getAllInterfaces().then((res) => setAvailableInterfaces(res.interfaces)).catch(() => {});
-      setDescription(interfaceData.description ?? "");
-      setAddresses(interfaceData.addresses.join("\n"));
-      setIpSourceValidation(interfaceData.ip_source_validation ?? "");
-      setMirrorIngress(interfaceData.mirror_ingress ?? "");
-      setMirrorEgress(interfaceData.mirror_egress ?? "");
-      setRedirect(interfaceData.redirect ?? "");
-      setError(null);
-    }
-  }, [interfaceData]);
+  const resetForm = () => {
+    setDescription("");
+    setAddresses("");
+    setIpSourceValidation("");
+    setMirrorIngress("");
+    setMirrorEgress("");
+    setRedirect("");
+    setError(null);
+  };
 
-  const handleSubmit = async () => {
-    if (!interfaceData) return;
+  const populateForm = (interfaceData: LoopbackInterface) => {
+    setDescription(interfaceData.description ?? "");
+    setAddresses(interfaceData.addresses.join("\n"));
+    setIpSourceValidation(interfaceData.ip_source_validation ?? "");
+    setMirrorIngress(interfaceData.mirror_ingress ?? "");
+    setMirrorEgress(interfaceData.mirror_egress ?? "");
+    setRedirect(interfaceData.redirect ?? "");
+    setError(null);
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    showService.getAllInterfaces().then((res) => setAvailableInterfaces(res.interfaces)).catch(() => {});
+    if (existing) {
+      populateForm(existing);
+    } else {
+      resetForm();
+    }
+  }, [open, existing]);
+
+  const submitUpdate = async () => {
+    if (!existing) return;
 
     setLoading(true);
     setError(null);
@@ -75,7 +93,7 @@ export function EditLoopbackModal({
     try {
       const addrList = addresses.split(/[\n,]/).map((a) => a.trim()).filter(Boolean);
 
-      const result = await loopbackService.updateInterface(interfaceData.name, interfaceData, {
+      const result = await loopbackService.updateInterface(existing.name, existing, {
         description: description.trim() || null,
         addresses: addrList,
         ip_source_validation: ipSourceValidation || null,
@@ -98,7 +116,44 @@ export function EditLoopbackModal({
     }
   };
 
-  if (!interfaceData) return null;
+  const handleSubmit = async () => {
+    if (isEdit) {
+      await submitUpdate();
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const addrList = addresses.split(/[\n,]/).map((a) => a.trim()).filter(Boolean);
+
+      const config: Parameters<typeof loopbackService.createInterface>[0] = {
+        name: "lo",
+      };
+
+      if (description.trim()) config.description = description.trim();
+      if (addrList.length > 0) config.addresses = addrList;
+      if (ipSourceValidation) config.ip_source_validation = ipSourceValidation;
+      if (mirrorIngress.trim()) config.mirror_ingress = mirrorIngress.trim();
+      if (mirrorEgress.trim()) config.mirror_egress = mirrorEgress.trim();
+      if (redirect.trim()) config.redirect = redirect.trim();
+
+      const result = await loopbackService.createInterface(config);
+
+      if (result.success) {
+        onOpenChange(false);
+        onSuccess();
+      } else {
+        setError(result.error || "Failed to configure loopback interface");
+      }
+    } catch (err) {
+      const msg = (err as ApiError).message;
+      setError(typeof msg === "string" ? msg : JSON.stringify(msg, null, 2));
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -106,13 +161,19 @@ export function EditLoopbackModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Repeat className="h-5 w-5" />
-            Edit Loopback Interface
+            {isEdit ? "Edit Loopback Interface" : "Configure Loopback Interface"}
           </DialogTitle>
           <DialogDescription>
-            Editing interface{" "}
-            <code className="rounded bg-muted px-1 py-0.5 font-mono text-sm">
-              {interfaceData.name}
-            </code>
+            {isEdit ? (
+              <>
+                Editing interface{" "}
+                <code className="rounded bg-muted px-1 py-0.5 font-mono text-sm">
+                  {existing.name}
+                </code>
+              </>
+            ) : (
+              "Configure the loopback interface (lo)."
+            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -127,14 +188,14 @@ export function EditLoopbackModal({
             <div className="space-y-2">
               <Label>Interface Name</Label>
               <code className="block rounded bg-muted px-3 py-2 font-mono text-sm text-foreground">
-                {interfaceData.name}
+                {isEdit ? existing.name : "lo"}
               </code>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="edit-description">Description</Label>
+              <Label htmlFor="description">Description</Label>
               <Input
-                id="edit-description"
+                id="description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Optional description"
@@ -142,9 +203,9 @@ export function EditLoopbackModal({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="edit-addresses">IP Addresses</Label>
+              <Label htmlFor="addresses">IP Addresses</Label>
               <Textarea
-                id="edit-addresses"
+                id="addresses"
                 value={addresses}
                 onChange={(e) => setAddresses(e.target.value)}
                 placeholder={"10.0.0.1/32\n192.168.1.1/24"}
@@ -159,9 +220,9 @@ export function EditLoopbackModal({
             <div className="space-y-3">
               <h4 className="text-sm font-medium text-foreground">IP Settings</h4>
               <div className="space-y-2">
-                <Label htmlFor="edit-sourceValidation">Source Validation</Label>
+                <Label htmlFor="sourceValidation">Source Validation</Label>
                 <Select value={ipSourceValidation || "none"} onValueChange={(v) => setIpSourceValidation(v === "none" ? "" : v)}>
-                  <SelectTrigger id="edit-sourceValidation">
+                  <SelectTrigger id="sourceValidation">
                     <SelectValue placeholder="None" />
                   </SelectTrigger>
                   <SelectContent>
@@ -224,10 +285,12 @@ export function EditLoopbackModal({
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
+                {isEdit ? "Saving..." : "Configuring..."}
               </>
-            ) : (
+            ) : isEdit ? (
               "Save Changes"
+            ) : (
+              "Configure Loopback"
             )}
           </Button>
         </DialogFooter>
