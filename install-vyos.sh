@@ -756,10 +756,10 @@ if [ "$STACK_EXISTS" -eq 0 ]; then
   WS_PUBLIC="ws${WS_PUBLIC#http}"
   add_set "container name vymanager-frontend environment PUBLIC_WS_URL value $(quote_val "$WS_PUBLIC")"
   add_set "container name vymanager-frontend environment TRUSTED_ORIGINS value $(quote_val "$APP_URL")"
-
-  add_dest_nat "$NAT_RULE_UI" "VyManager UI" "$UI_PORT" "$FE_ADDR" 3000
-  add_dest_nat "$NAT_RULE_API" "VyManager API" 8000 "$BE_ADDR" 8000
 fi
+
+add_dest_nat "$NAT_RULE_UI" "VyManager UI" "$UI_PORT" "$FE_ADDR" 3000
+add_dest_nat "$NAT_RULE_API" "VyManager API" 8000 "$BE_ADDR" 8000
 
 echo
 echo "  Proposed set commands"
