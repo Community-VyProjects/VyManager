@@ -50,8 +50,7 @@ import { loopbackService, type LoopbackInterface, type LoopbackCapabilities } fr
 import { LoopbackModal } from "@/components/loopback/LoopbackModal";
 import { DeleteLoopbackModal } from "@/components/loopback/DeleteLoopbackModal";
 import { macsecService, type MacsecInterface, type MacsecCapabilities } from "@/lib/api/macsec";
-import { CreateMacsecModal } from "@/components/macsec/CreateMacsecModal";
-import { EditMacsecModal } from "@/components/macsec/EditMacsecModal";
+import { MacsecModal } from "@/components/macsec/MacsecModal";
 import { DeleteMacsecModal } from "@/components/macsec/DeleteMacsecModal";
 import { bridgeService, type BridgeInterface, type BridgeCapabilities, type BridgeVifConfig } from "@/lib/api/bridge";
 import { BridgeModal } from "@/components/bridge/BridgeModal";
@@ -4351,22 +4350,21 @@ function InterfacesPageInner() {
         interfaceData={deletingLoopback}
       />
       {/* MACsec Modals */}
-      <CreateMacsecModal
-        open={isCreateMacsecModalOpen}
-        onOpenChange={setIsCreateMacsecModalOpen}
-        onSuccess={loadData}
-        capabilities={macsecCapabilities}
-        existingInterfaces={macsecInterfaces.map((i) => i.name)}
-      />
-      <EditMacsecModal
-        open={!!editingMacsec}
-        onOpenChange={(open) => !open && setEditingMacsec(null)}
+      <MacsecModal
+        open={isCreateMacsecModalOpen || !!editingMacsec}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsCreateMacsecModalOpen(false);
+            setEditingMacsec(null);
+          }
+        }}
         onSuccess={() => {
           setEditingMacsec(null);
           loadData();
         }}
         capabilities={macsecCapabilities}
-        interfaceData={editingMacsec}
+        existingInterfaces={macsecInterfaces.map((i) => i.name)}
+        existing={editingMacsec}
       />
       <DeleteMacsecModal
         open={!!deletingMacsec}

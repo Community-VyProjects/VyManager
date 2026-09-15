@@ -24,7 +24,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Lock, Loader2, AlertCircle, Plus, Trash2 } from "lucide-react";
-import { macsecService, type MacsecCapabilities } from "@/lib/api/macsec";
+import { macsecService, type MacsecInterface, type MacsecCapabilities, type MacsecMkaConfig, type MacsecStaticConfig } from "@/lib/api/macsec";
 import { showService, type InterfaceName } from "@/lib/api/show";
 import { InterfaceSelect } from "@/components/ui/interface-select";
 import { ApiError } from "@/lib/types/api";
@@ -36,27 +36,24 @@ interface StaticPeerEntry {
   disable: boolean;
 }
 
-interface CreateMacsecModalProps {
+interface MacsecModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   capabilities: MacsecCapabilities | null;
   existingInterfaces: string[];
+  existing?: MacsecInterface | null;
 }
 
-export function CreateMacsecModal({
+export function MacsecModal({
   open,
   onOpenChange,
   onSuccess,
   existingInterfaces,
-}: CreateMacsecModalProps) {
+  existing,
+}: MacsecModalProps) {
+  const isEdit = !!existing;
   const [allInterfaces, setAllInterfaces] = useState<InterfaceName[]>([]);
-
-  useEffect(() => {
-    if (open) {
-      showService.getAllInterfaces().then((res) => setAllInterfaces(res.interfaces)).catch(() => {});
-    }
-  }, [open]);
 
   // Basic
   const [name, setName] = useState("macsec0");
@@ -180,10 +177,91 @@ export function CreateMacsecModal({
     setError(null);
   };
 
-  const handleOpenChange = (newOpen: boolean) => {
-    if (newOpen) resetForm();
-    onOpenChange(newOpen);
+  const populateForm = (interfaceData: MacsecInterface) => {
+    setName(interfaceData.name);
+    setSourceInterface(interfaceData.source_interface || "");
+    setDescription(interfaceData.description || "");
+    setMtu(interfaceData.mtu || "");
+    setVrf(interfaceData.vrf || "");
+    setDisabled(interfaceData.disabled);
+
+    setCipher(interfaceData.security?.cipher || "gcm-aes-128");
+    setEncrypt(interfaceData.security?.encrypt ?? true);
+    setReplayWindow(interfaceData.security?.replay_window || "");
+
+    if (interfaceData.security?.static?.key || (interfaceData.security?.static?.peers && interfaceData.security.static.peers.length > 0)) {
+      setSecurityMode("static");
+      setStaticKey(interfaceData.security.static?.key || "");
+      setStaticPeers(
+        (interfaceData.security.static?.peers || []).map((p) => ({
+          name: p.name,
+          key: p.key || "",
+          mac: p.mac || "",
+          disable: p.disable,
+        }))
+      );
+      setMkaCak("");
+      setMkaCkn("");
+      setMkaPriority("");
+    } else {
+      setSecurityMode("mka");
+      setMkaCak(interfaceData.security?.mka?.cak || "");
+      setMkaCkn(interfaceData.security?.mka?.ckn || "");
+      setMkaPriority(interfaceData.security?.mka?.priority || "");
+      setStaticKey("");
+      setStaticPeers([]);
+    }
+
+    const staticAddrs = (interfaceData.addresses || []).filter((a) => a !== "dhcp" && a !== "dhcpv6");
+    setAddresses(staticAddrs.join(", "));
+    setUseDhcp((interfaceData.addresses || []).includes("dhcp"));
+    setUseDhcpv6((interfaceData.addresses || []).includes("dhcpv6"));
+
+    setDhcpClientId(interfaceData.dhcp_options?.client_id || "");
+    setDhcpHostName(interfaceData.dhcp_options?.host_name || "");
+    setDhcpVendorClassId(interfaceData.dhcp_options?.vendor_class_id || "");
+    setDhcpNoDefaultRoute(interfaceData.dhcp_options?.no_default_route ?? false);
+    setDhcpDefaultRouteDistance(interfaceData.dhcp_options?.default_route_distance || "");
+    setDhcpMtu(interfaceData.dhcp_options?.mtu ?? false);
+
+    setIpAdjustMss(interfaceData.ip?.adjust_mss || "");
+    setIpArpCacheTimeout(interfaceData.ip?.arp_cache_timeout || "");
+    setIpDisableArpFilter(interfaceData.ip?.disable_arp_filter ?? false);
+    setIpDisableForwarding(interfaceData.ip?.disable_forwarding ?? false);
+    setIpEnableArpAccept(interfaceData.ip?.enable_arp_accept ?? false);
+    setIpEnableArpAnnounce(interfaceData.ip?.enable_arp_announce ?? false);
+    setIpEnableArpIgnore(interfaceData.ip?.enable_arp_ignore ?? false);
+    setIpEnableDirectedBroadcast(interfaceData.ip?.enable_directed_broadcast ?? false);
+    setIpEnableProxyArp(interfaceData.ip?.enable_proxy_arp ?? false);
+    setIpProxyArpPvlan(interfaceData.ip?.proxy_arp_pvlan ?? false);
+    setIpSourceValidation(interfaceData.ip?.source_validation || "");
+
+    setIpv6AcceptDad(interfaceData.ipv6?.accept_dad || "");
+    setIpv6AddressAutoconf(interfaceData.ipv6?.address_autoconf ?? false);
+    setIpv6AddressEui64(interfaceData.ipv6?.address_eui64 || "");
+    setIpv6NoDefaultLinkLocal(interfaceData.ipv6?.address_no_default_link_local ?? false);
+    setIpv6InterfaceIdentifier(interfaceData.ipv6?.address_interface_identifier || "");
+    setIpv6AdjustMss(interfaceData.ipv6?.adjust_mss || "");
+    setIpv6BaseReachableTime(interfaceData.ipv6?.base_reachable_time || "");
+    setIpv6DisableForwarding(interfaceData.ipv6?.disable_forwarding ?? false);
+    setIpv6DupAddrDetect(interfaceData.ipv6?.dup_addr_detect_transmits || "");
+    setIpv6SourceValidation(interfaceData.ipv6?.source_validation || "");
+
+    setMirrorIngress(interfaceData.mirror_ingress || "");
+    setMirrorEgress(interfaceData.mirror_egress || "");
+    setRedirect(interfaceData.redirect || "");
+    setError(null);
   };
+
+  useEffect(() => {
+    if (!open) return;
+    showService.getAllInterfaces().then((res) => setAllInterfaces(res.interfaces)).catch(() => {});
+    if (existing) {
+      populateForm(existing);
+    } else {
+      resetForm();
+    }
+  }, [open, existing]);
 
   const addStaticPeer = () => {
     setStaticPeers([...staticPeers, { name: `peer${staticPeers.length}`, key: "", mac: "", disable: false }]);
@@ -199,16 +277,163 @@ export function CreateMacsecModal({
     setStaticPeers(updated);
   };
 
-  const validateForm = (): string | null => {
-    if (!name.trim()) return "Interface name is required";
-    if (!/^macsec\d+$/.test(name)) return "Name must be macsec0, macsec1, etc.";
-    if (existingInterfaces.includes(name)) return `Interface ${name} already exists`;
+  const validateShared = (): string | null => {
     if (!sourceInterface.trim()) return "Source interface is required";
     if (mtu && (parseInt(mtu) < 68 || parseInt(mtu) > 16000)) return "MTU must be between 68 and 16000";
     return null;
   };
 
+  const validateForm = (): string | null => {
+    if (!name.trim()) return "Interface name is required";
+    if (!/^macsec\d+$/.test(name)) return "Name must be macsec0, macsec1, etc.";
+    if (existingInterfaces.includes(name)) return `Interface ${name} already exists`;
+    return validateShared();
+  };
+
+  const submitUpdate = async () => {
+    if (!existing) return;
+
+    const validationError = validateShared();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const addrList = addresses
+        .split(/[,\n]/)
+        .map((a) => a.trim())
+        .filter(Boolean);
+      if (useDhcp) addrList.push("dhcp");
+      if (useDhcpv6) addrList.push("dhcpv6");
+
+      const updated: Parameters<typeof macsecService.updateInterface>[2] = {};
+
+      const desc = description.trim() || null;
+      if (desc !== (existing.description || null)) updated.description = desc;
+
+      const src = sourceInterface.trim() || null;
+      if (src !== (existing.source_interface || null)) updated.source_interface = src;
+
+      const mtuVal = mtu.trim() || null;
+      if (mtuVal !== (existing.mtu || null)) updated.mtu = mtuVal;
+
+      const vrfVal = vrf.trim() || null;
+      if (vrfVal !== (existing.vrf || null)) updated.vrf = vrfVal;
+
+      if (disabled !== existing.disabled) updated.disabled = disabled;
+
+      const currentAddrs = [...(existing.addresses || [])].sort();
+      const newAddrs = [...addrList].sort();
+      if (JSON.stringify(currentAddrs) !== JSON.stringify(newAddrs)) {
+        updated.addresses = addrList;
+      }
+
+      const secUpdated: {
+        cipher?: string | null;
+        encrypt?: boolean;
+        replay_window?: string | null;
+        mka?: Partial<MacsecMkaConfig> | null;
+        static?: Partial<MacsecStaticConfig> | null;
+      } = {};
+      let secChanged = false;
+
+      const cipherVal = cipher || null;
+      if (cipherVal !== (existing.security?.cipher || null)) {
+        secUpdated.cipher = cipherVal;
+        secChanged = true;
+      }
+
+      if (encrypt !== (existing.security?.encrypt ?? false)) {
+        secUpdated.encrypt = encrypt;
+        secChanged = true;
+      }
+
+      const rwVal = replayWindow.trim() || null;
+      if (rwVal !== (existing.security?.replay_window || null)) {
+        secUpdated.replay_window = rwVal;
+        secChanged = true;
+      }
+
+      const currentMode = (existing.security?.static?.key || (existing.security?.static?.peers && existing.security.static.peers.length > 0)) ? "static" : "mka";
+
+      if (securityMode === "mka") {
+        if (currentMode === "static") {
+          secUpdated.static = null;
+          secChanged = true;
+        }
+
+        const mkaUpdated: Partial<MacsecMkaConfig> = {};
+        let mkaChanged = false;
+        const cakVal = mkaCak.trim() || null;
+        if (cakVal !== (existing.security?.mka?.cak || null)) { mkaUpdated.cak = cakVal; mkaChanged = true; }
+        const cknVal = mkaCkn.trim() || null;
+        if (cknVal !== (existing.security?.mka?.ckn || null)) { mkaUpdated.ckn = cknVal; mkaChanged = true; }
+        const priVal = mkaPriority.trim() || null;
+        if (priVal !== (existing.security?.mka?.priority || null)) { mkaUpdated.priority = priVal; mkaChanged = true; }
+
+        if (mkaChanged) {
+          secUpdated.mka = mkaUpdated;
+          secChanged = true;
+        }
+      } else {
+        if (currentMode === "mka") {
+          secUpdated.mka = null;
+          secChanged = true;
+        }
+
+        const staticUpdated: Partial<MacsecStaticConfig> = {};
+        let staticChanged = false;
+
+        const keyVal = staticKey.trim() || null;
+        if (keyVal !== (existing.security?.static?.key || null)) { staticUpdated.key = keyVal; staticChanged = true; }
+
+        const currentPeers = JSON.stringify((existing.security?.static?.peers || []).map((p) => ({ name: p.name, key: p.key, mac: p.mac, disable: p.disable })));
+        const newPeersData = staticPeers.map((p) => ({ name: p.name, key: p.key || null, mac: p.mac || null, disable: p.disable }));
+        if (JSON.stringify(newPeersData) !== currentPeers) {
+          staticUpdated.peers = newPeersData;
+          staticChanged = true;
+        }
+
+        if (staticChanged) {
+          secUpdated.static = staticUpdated;
+          secChanged = true;
+        }
+      }
+
+      if (secChanged) updated.security = secUpdated as typeof updated.security;
+
+      const mi = mirrorIngress.trim() || null;
+      if (mi !== (existing.mirror_ingress || null)) updated.mirror_ingress = mi;
+      const me = mirrorEgress.trim() || null;
+      if (me !== (existing.mirror_egress || null)) updated.mirror_egress = me;
+      const rd = redirect.trim() || null;
+      if (rd !== (existing.redirect || null)) updated.redirect = rd;
+
+      const result = await macsecService.updateInterface(existing.name, existing, updated);
+
+      if (result.success) {
+        onOpenChange(false);
+        onSuccess();
+      } else {
+        setError(result.error || "Failed to update MACsec interface");
+      }
+    } catch (err) {
+      setError((err as ApiError).message || "Failed to update MACsec interface");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async () => {
+    if (isEdit) {
+      await submitUpdate();
+      return;
+    }
+
     const validationError = validateForm();
     if (validationError) {
       setError(validationError);
@@ -325,14 +550,25 @@ export function CreateMacsecModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Lock className="h-5 w-5" />
-            Create MACsec Interface
+            {isEdit ? "Edit MACsec Interface" : "Create MACsec Interface"}
           </DialogTitle>
-          <DialogDescription>Create a new IEEE 802.1AE MACsec encrypted interface</DialogDescription>
+          <DialogDescription>
+            {isEdit ? (
+              <>
+                Editing interface{" "}
+                <code className="rounded bg-muted px-1 py-0.5 font-mono text-sm">
+                  {existing.name}
+                </code>
+              </>
+            ) : (
+              "Create a new IEEE 802.1AE MACsec encrypted interface"
+            )}
+          </DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue="basic" className="w-full">
@@ -348,8 +584,18 @@ export function CreateMacsecModal({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Interface Name</Label>
-                <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="macsec0" />
-                <p className="text-xs text-muted-foreground">Format: macsec0, macsec1, etc.</p>
+                <Input
+                  id="name"
+                  value={isEdit ? existing.name : name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="macsec0"
+                  disabled={isEdit}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {isEdit
+                    ? "Interface name cannot be changed."
+                    : "Format: macsec0, macsec1, etc."}
+                </p>
               </div>
               <div className="space-y-2">
                 <Label>Source Interface <span className="text-destructive">*</span></Label>
@@ -706,8 +952,10 @@ export function CreateMacsecModal({
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Creating...
+                {isEdit ? "Saving..." : "Creating..."}
               </>
+            ) : isEdit ? (
+              "Save Changes"
             ) : (
               "Create Interface"
             )}
