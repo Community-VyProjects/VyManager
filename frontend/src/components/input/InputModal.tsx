@@ -14,25 +14,28 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowDownToLine, Loader2 } from "lucide-react";
-import { inputService, type InputCapabilities } from "@/lib/api/input";
+import { inputService, type InputInterface, type InputCapabilities } from "@/lib/api/input";
 import { showService, type InterfaceName } from "@/lib/api/show";
 import { InterfaceSelect } from "@/components/ui/interface-select";
 import { ApiError } from "@/lib/types/api";
 
-interface CreateInputModalProps {
+interface InputModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   capabilities: InputCapabilities | null;
   existingInterfaces: string[];
+  existing?: InputInterface | null;
 }
 
-export function CreateInputModal({
+export function InputModal({
   open,
   onOpenChange,
   onSuccess,
   existingInterfaces,
-}: CreateInputModalProps) {
+  existing,
+}: InputModalProps) {
+  const isEdit = !!existing;
   const [name, setName] = useState("ifb0");
   const [description, setDescription] = useState("");
   const [redirect, setRedirect] = useState("");
@@ -59,13 +62,24 @@ export function CreateInputModal({
     setError(null);
   };
 
+  const populateForm = (interfaceData: InputInterface) => {
+    setName(interfaceData.name);
+    setDescription(interfaceData.description ?? "");
+    setRedirect(interfaceData.redirect ?? "");
+    setDisabled(interfaceData.disable ?? false);
+    setError(null);
+  };
+
   useEffect(() => {
-    if (open) {
+    if (!open) return;
+    showService.getAllInterfaces().then((res) => setAvailableInterfaces(res.interfaces)).catch(() => {});
+    if (existing) {
+      populateForm(existing);
+    } else {
       resetForm();
-      showService.getAllInterfaces().then((res) => setAvailableInterfaces(res.interfaces)).catch(() => {});
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, existing]);
 
   const validateForm = (): string | null => {
     if (!name.trim()) return "Interface name is required";
@@ -74,7 +88,39 @@ export function CreateInputModal({
     return null;
   };
 
+  const submitUpdate = async () => {
+    if (!existing) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const result = await inputService.updateInterface(existing.name, existing, {
+        description: description.trim() || null,
+        redirect: redirect.trim() || null,
+        disabled,
+      });
+
+      if (result.success) {
+        onOpenChange(false);
+        onSuccess();
+      } else {
+        setError(result.error || "Failed to update input interface");
+      }
+    } catch (err) {
+      const msg = (err as ApiError).message;
+      setError(typeof msg === "string" ? msg : JSON.stringify(msg, null, 2));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async () => {
+    if (isEdit) {
+      await submitUpdate();
+      return;
+    }
+
     const validationError = validateForm();
     if (validationError) {
       setError(validationError);
@@ -115,23 +161,37 @@ export function CreateInputModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ArrowDownToLine className="h-5 w-5" />
-            Create Input Interface
+            {isEdit ? "Edit Input Interface" : "Create Input Interface"}
           </DialogTitle>
           <DialogDescription>
-            Create a new Input Functional Block (IFB) interface for traffic redirection and shaping.
+            {isEdit ? (
+              <>
+                Editing interface{" "}
+                <code className="rounded bg-muted px-1 py-0.5 font-mono text-sm">
+                  {existing.name}
+                </code>
+              </>
+            ) : (
+              "Create a new Input Functional Block (IFB) interface for traffic redirection and shaping."
+            )}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 mt-2">
           <div className="space-y-2">
-            <Label htmlFor="name">Interface Name <span className="text-destructive">*</span></Label>
+            <Label htmlFor="name">Interface Name {isEdit ? null : <span className="text-destructive">*</span>}</Label>
             <Input
               id="name"
-              value={name}
+              value={isEdit ? existing.name : name}
               onChange={(e) => setName(e.target.value)}
               placeholder="ifb0"
+              disabled={isEdit}
             />
-            <p className="text-xs text-muted-foreground">Must match pattern: ifb0, ifb1, ifb2, ...</p>
+            <p className="text-xs text-muted-foreground">
+              {isEdit
+                ? "Interface name cannot be changed."
+                : "Must match pattern: ifb0, ifb1, ifb2, ..."}
+            </p>
           </div>
 
           <div className="space-y-2">
@@ -176,8 +236,10 @@ export function CreateInputModal({
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Creating...
+                {isEdit ? "Saving..." : "Creating..."}
               </>
+            ) : isEdit ? (
+              "Save Changes"
             ) : (
               "Create Interface"
             )}

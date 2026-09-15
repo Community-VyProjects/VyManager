@@ -41,8 +41,7 @@ import { geneveService, type GeneveInterface, type GeneveCapabilities } from "@/
 import { GeneveModal } from "@/components/geneve/GeneveModal";
 import { DeleteGeneveModal } from "@/components/geneve/DeleteGeneveModal";
 import { inputService, type InputInterface, type InputCapabilities } from "@/lib/api/input";
-import { CreateInputModal } from "@/components/input/CreateInputModal";
-import { EditInputModal } from "@/components/input/EditInputModal";
+import { InputModal } from "@/components/input/InputModal";
 import { DeleteInputModal } from "@/components/input/DeleteInputModal";
 import { l2tpv3Service, type L2TPv3Interface, type L2TPv3Capabilities } from "@/lib/api/l2tpv3";
 import { CreateL2TPv3Modal } from "@/components/l2tpv3/CreateL2TPv3Modal";
@@ -4277,22 +4276,21 @@ function InterfacesPageInner() {
         interfaceData={deletingGeneve}
       />
       {/* Input Modals */}
-      <CreateInputModal
-        open={isCreateInputModalOpen}
-        onOpenChange={setIsCreateInputModalOpen}
-        onSuccess={loadData}
-        capabilities={inputCapabilities}
-        existingInterfaces={inputInterfaces.map((i) => i.name)}
-      />
-      <EditInputModal
-        open={!!editingInput}
-        onOpenChange={(open) => !open && setEditingInput(null)}
+      <InputModal
+        open={isCreateInputModalOpen || !!editingInput}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsCreateInputModalOpen(false);
+            setEditingInput(null);
+          }
+        }}
         onSuccess={() => {
           setEditingInput(null);
           loadData();
         }}
         capabilities={inputCapabilities}
-        interfaceData={editingInput}
+        existingInterfaces={inputInterfaces.map((i) => i.name)}
+        existing={editingInput}
       />
       <DeleteInputModal
         open={!!deletingInput}
