@@ -80,6 +80,7 @@ export interface PPPoERadiusSettings {
 export interface PPPoEAuthentication {
   mode?: string | null;
   protocols?: string[];
+  any_login?: boolean;
   local_users: PPPoELocalUser[];
   radius: PPPoERadiusSettings;
 }
@@ -216,6 +217,7 @@ export interface PPPoECapabilities {
     auth_radius: boolean;
     auth_noauth: boolean;
     auth_protocols: boolean;
+    auth_any_login: boolean;
     local_users: boolean;
     client_ip_pools: boolean;
     client_ipv6_pools: boolean;
@@ -411,6 +413,7 @@ class PPPoEServerService {
   async updateAuthSettings(current: PPPoEAuthentication, config: {
     mode?: string;
     protocols?: string[];
+    any_login?: boolean;
   }): Promise<VyOSResponse> {
     const ops: BatchOperation[] = [];
 
@@ -422,6 +425,9 @@ class PPPoEServerService {
       for (const p of config.protocols) {
         ops.push({ op: "set_auth_protocol", value: p });
       }
+    }
+    if (config.any_login !== undefined && config.any_login !== (current.any_login || false)) {
+      ops.push({ op: config.any_login ? "set_auth_any_login" : "delete_auth_any_login" });
     }
 
     if (ops.length === 0) return { success: true };

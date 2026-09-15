@@ -1578,6 +1578,7 @@ function PPPoEPageInner() {
             onOpenChange={setShowAuthModal}
             onSuccess={onSuccess}
             currentAuth={config.authentication}
+            capabilities={capabilities}
           />
           <PPPOptionsModal
             open={showPPPOptionsModal}

@@ -492,6 +492,8 @@ async def pppoe_batch_configure(http_request: Request, body: PPPoEBatchRequest):
         )
     except HTTPException:
         raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception:
         logger.exception("Unhandled error in pppoe batch")
         raise HTTPException(status_code=500, detail="Internal server error")
