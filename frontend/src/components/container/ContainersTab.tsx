@@ -34,7 +34,7 @@ import {
 } from "@/lib/api/container";
 import { APP_CATALOG } from "@/lib/apps-catalog";
 import { isProtectedStackContainer } from "@/lib/appliance";
-import { isDisconnectError, stackRestartOrder, thrownMessage } from "@/lib/api-error";
+import { isDisconnectError, stackRestartOrder, thrownMessage, waitForBackend } from "@/lib/api-error";
 import { useSessionStore } from "@/store/session-store";
 import { ContainerModal } from "./ContainerModal";
 import { ContainerFilesModal } from "./ContainerFilesModal";
@@ -122,47 +122,76 @@ export function ContainersTab({ config, capabilities, hasWritePermission, onRelo
   };
 
   const handleUpdateStack = () => {
-    void runSsh("Update VyManager", async () => {
-      const outputs: string[] = [];
-      for (const c of stackContainers) {
-        const pulled = await containerService.updateImage(c.name);
-        if (!pulled.success) {
-          return {
-            success: false,
-            output: outputs.join("\n") || null,
-            error: pulled.error || `Pull failed for ${c.name}`,
-          };
-        }
-        if (pulled.output) outputs.push(`${c.name} pull: ${pulled.output}`);
-      }
-      const restartOrder = [...stackContainers].sort(
-        (a, b) => stackRestartOrder(a.name) - stackRestartOrder(b.name),
-      );
-      for (const c of restartOrder) {
-        try {
-          const restarted = await containerService.restartContainer(c.name);
-          if (!restarted.success) {
-            return {
-              success: false,
-              output: outputs.join("\n") || null,
-              error: restarted.error || `Restart failed for ${c.name}`,
-            };
-          }
-          if (restarted.output) outputs.push(`${c.name} restart: ${restarted.output}`);
-        } catch (err: unknown) {
-          if (isDisconnectError(err)) {
-            outputs.push(`${c.name} restart: connection dropped (expected while the UI restarts)`);
-            continue;
-          }
-          throw err;
-        }
-      }
-      return {
-        success: true,
-        output: outputs.join("\n") || "Images pulled and containers restarted.",
-        error: null,
+    void (async () => {
+      const lines: string[] = [];
+      const show = (loading: boolean, extra?: { success?: boolean | null; error?: string | null }) => {
+        setSsh({
+          open: true,
+          title: "Update VyManager",
+          loading,
+          success: extra?.success ?? (loading ? null : true),
+          output: lines.join("\n") || null,
+          error: extra?.error ?? null,
+        });
       };
-    });
+      show(true);
+      try {
+        for (const c of stackContainers) {
+          lines.push(`Pulling ${c.name}…`);
+          show(true);
+          const pulled = await containerService.updateImage(c.name);
+          if (!pulled.success) {
+            show(false, {
+              success: false,
+              error: pulled.error || `Pull failed for ${c.name}`,
+            });
+            return;
+          }
+          lines[lines.length - 1] = `Pulled ${c.name}`;
+          show(true);
+        }
+
+        const restartOrder = [...stackContainers].sort(
+          (a, b) => stackRestartOrder(a.name) - stackRestartOrder(b.name),
+        );
+        for (const c of restartOrder) {
+          lines.push(`Restarting ${c.name}…`);
+          show(true);
+          try {
+            const restarted = await containerService.restartContainer(c.name);
+            if (!restarted.success && !isDisconnectError({ message: restarted.error || "" })) {
+              show(false, {
+                success: false,
+                error: restarted.error || `Restart failed for ${c.name}`,
+              });
+              return;
+            }
+          } catch (err: unknown) {
+            if (!isDisconnectError(err)) throw err;
+          }
+          if (c.name !== "vymanager-frontend") {
+            lines.push("Waiting for the API…");
+            show(true);
+            const up = await waitForBackend();
+            lines[lines.length - 1] = up
+              ? "API is back"
+              : "API not answering yet; continuing";
+            show(true);
+          }
+        }
+        lines.push("Reloading…");
+        show(true);
+        window.location.reload();
+      } catch (err: unknown) {
+        if (isDisconnectError(err)) {
+          lines.push("Reloading…");
+          show(true);
+          window.location.reload();
+          return;
+        }
+        show(false, { success: false, error: thrownMessage(err) });
+      }
+    })();
   };
 
   return (
@@ -336,6 +365,7 @@ export function ContainersTab({ config, capabilities, hasWritePermission, onRelo
         success={ssh.success}
         output={ssh.output}
         error={ssh.error}
+        busyLabel="Update in progress..."
       />
 
       {ssh.loading && (
