@@ -8,7 +8,9 @@ sidebar_position: 6
 
 On first visit, VyManager detects that no users exist and redirects you to the onboarding wizard at `/onboarding`. The check is the backend's `/session/onboarding-status` endpoint, which reports `needs_onboarding: true` as long as the `users` table is empty.
 
-The wizard has three steps. Nothing is written until you submit the last step, so you can go back and correct entries.
+**On-box (appliance).** If you installed with [`install-vyos.sh`](install-vyos), onboarding is only the first local admin. There is no site or instance step. After that account exists, login goes to the dashboard and connects this router. Registration closes. Users, OIDC, tokens, backup, and instance settings are under Administration, not Site Manager.
+
+The Docker Compose wizard has three steps. Nothing is written until you submit the last step, so you can go back and correct entries.
 
 ## Step 1: admin account
 

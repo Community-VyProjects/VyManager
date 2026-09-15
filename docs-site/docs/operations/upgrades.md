@@ -20,6 +20,8 @@ Database state survives in the `postgres_data` volume. Schema migrations run aut
 
 The dashboard header checks for new releases (`/vyos/version/check` compares the running `VYMANAGER_VERSION` against the latest published release) and shows a link when an update is available.
 
+On-box, use Administration, Update VyManager (pull images, then restart) or re-run [`install-vyos.sh`](../getting-started/install-vyos). Do not delete the `vymanager-*` containers or their `/config/containers/vymanager-*` volumes. Restart is how this box updates.
+
 Manual installs upgrade with `git pull`, then reinstall dependencies (`pip install -r requirements.txt`, `npm install`), run `npx prisma migrate deploy`, rebuild the frontend and restart both services.
 
 ## Failed migrations stop the container

@@ -9,6 +9,7 @@ const sidebars: SidebarsConfig = {
       items: [
         'getting-started/requirements',
         'getting-started/install-docker',
+        'getting-started/install-vyos',
         'getting-started/install-manual',
         'getting-started/environment-variables',
         'getting-started/vyos-http-api',

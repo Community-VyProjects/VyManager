@@ -16,6 +16,8 @@ One exception: SSH private keys inside the backup are stored as the database hol
 
 Restore supports **Merge** (upsert, nothing deleted) and **Replace** (wipe and restore exactly; signs everyone out). Restore is also available before onboarding, so a fresh install can be seeded from a backup.
 
+On-box appliance restore only accepts a backup of this router (the seeded site and instance). A multi-site `.vymgr` is refused so it cannot import extra routers or wipe the local instance.
+
 ### Who can back up, and organization scope
 
 Backup and restore are platform-administrator operations: only a user with the platform **ADMIN** role can create or restore a `.vymgr` file. An organization admin (the `ADMIN` role *within* an organization) cannot — the backup is a whole-system disaster-recovery tool, not a per-organization export.
