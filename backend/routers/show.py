@@ -1328,7 +1328,7 @@ class DeviceDataBroadcaster:
             self._push_to_all({"type": "error", "data": {"channel": "hardware-sensors", "message": "Parse failed"}})
 
     def _handle_pppoe_cycle(self, *, start: bool) -> None:
-        """Collect a completed PPPoE sessions fetch; start a new one on the slow cycle.
+        """Collect a completed PPPoE sessions fetch; start a new one each cycle.
 
         ``ShowSessionsAccelppp`` is a ~2s GraphQL call, so it runs off the shared
         query path (same pattern as OpenVPN) and is only started when pppoe-server
@@ -1433,9 +1433,9 @@ class DeviceDataBroadcaster:
                 if self._openvpn_configured:
                     self._handle_openvpn_cycle()
 
-                # Collect a completed PPPoE fetch every cycle so the first result
-                # is not delayed until the next slow tick; only start on slow.
-                self._handle_pppoe_cycle(start=(cycle % _SLOW_EVERY == 0))
+                # PPPoE traffic history needs a sample on every 3-second cycle.
+                # The in-flight task guard prevents overlapping session queries.
+                self._handle_pppoe_cycle(start=True)
 
                 cycle += 1
                 await asyncio.sleep(_FAST_INTERVAL)
@@ -1480,7 +1480,8 @@ async def dashboard_stream(
     that runs a single set of VyOS GraphQL queries.
 
     Fast data  (interface counters): every 3 s.
-    Slow data  (system info, WG config, PPPoE sessions when requested): every 15 s.
+    Slow data  (system info and WG config): every 15 s.
+    PPPoE sessions when requested: every 3 s.
     WG live peers: background task, 15 s minimum between queries.
 
     Pass ``interest=pppoe-sessions`` to have the broadcaster fetch PPPoE session
