@@ -37,12 +37,14 @@ export function InterfaceModal({ open, onOpenChange, onSuccess, existingInterfac
   const [vlans, setVlans] = useState<string[]>([]);
   const [vlanInput, setVlanInput] = useState("");
   const [vlanMon, setVlanMon] = useState(false);
+  const [vppCp, setVppCp] = useState(false);
   const [combined, setCombined] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const showVlanMon = capabilities?.features.vlan_mon ?? false;
+  const showVppCp = capabilities?.features.vpp_cp ?? false;
 
   useEffect(() => {
     if (open) {
@@ -50,11 +52,13 @@ export function InterfaceModal({ open, onOpenChange, onSuccess, existingInterfac
         setIfaceName(existingInterface.interface);
         setVlans(existingInterface.vlans || []);
         setVlanMon(existingInterface.vlan_mon || false);
+        setVppCp(existingInterface.vpp_cp || false);
         setCombined(existingInterface.combined || "");
       } else {
         setIfaceName("");
         setVlans([]);
         setVlanMon(false);
+        setVppCp(false);
         setCombined("");
         setIfacesLoading(true);
         showService.getAllInterfaces()
@@ -81,7 +85,7 @@ export function InterfaceModal({ open, onOpenChange, onSuccess, existingInterfac
     setLoading(true);
     setError(null);
 
-    const opts = { vlans, vlan_mon: vlanMon, combined: combined || undefined };
+    const opts = { vlans, vlan_mon: vlanMon, vpp_cp: vppCp, combined: combined || undefined };
 
     try {
       let result;
@@ -158,6 +162,13 @@ export function InterfaceModal({ open, onOpenChange, onSuccess, existingInterfac
             <div className="flex items-center gap-2">
               <Checkbox id="vlan-mon" checked={vlanMon} onCheckedChange={(v) => setVlanMon(!!v)} />
               <Label htmlFor="vlan-mon" className="cursor-pointer">VLAN Monitoring</Label>
+            </div>
+          )}
+
+          {showVppCp && (
+            <div className="flex items-center gap-2">
+              <Checkbox id="vpp-cp" checked={vppCp} onCheckedChange={(v) => setVppCp(!!v)} />
+              <Label htmlFor="vpp-cp" className="cursor-pointer">VPP-CP</Label>
             </div>
           )}
 
