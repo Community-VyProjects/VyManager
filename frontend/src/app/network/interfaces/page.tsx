@@ -38,8 +38,7 @@ import { dummyService, type DummyInterface, type DummyCapabilities } from "@/lib
 import { DummyModal } from "@/components/dummy/DummyModal";
 import { DeleteDummyModal } from "@/components/dummy/DeleteDummyModal";
 import { geneveService, type GeneveInterface, type GeneveCapabilities } from "@/lib/api/geneve";
-import { CreateGeneveModal } from "@/components/geneve/CreateGeneveModal";
-import { EditGeneveModal } from "@/components/geneve/EditGeneveModal";
+import { GeneveModal } from "@/components/geneve/GeneveModal";
 import { DeleteGeneveModal } from "@/components/geneve/DeleteGeneveModal";
 import { inputService, type InputInterface, type InputCapabilities } from "@/lib/api/input";
 import { CreateInputModal } from "@/components/input/CreateInputModal";
@@ -4252,22 +4251,21 @@ function InterfacesPageInner() {
         interfaceData={deletingDummy}
       />
       {/* GENEVE Modals */}
-      <CreateGeneveModal
-        open={isCreateGeneveModalOpen}
-        onOpenChange={setIsCreateGeneveModalOpen}
-        onSuccess={loadData}
-        capabilities={geneveCapabilities}
-        existingInterfaces={geneveInterfaces.map((i) => i.name)}
-      />
-      <EditGeneveModal
-        open={!!editingGeneve}
-        onOpenChange={(open) => !open && setEditingGeneve(null)}
+      <GeneveModal
+        open={isCreateGeneveModalOpen || !!editingGeneve}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsCreateGeneveModalOpen(false);
+            setEditingGeneve(null);
+          }
+        }}
         onSuccess={() => {
           setEditingGeneve(null);
           loadData();
         }}
         capabilities={geneveCapabilities}
-        interfaceData={editingGeneve}
+        existingInterfaces={geneveInterfaces.map((i) => i.name)}
+        existing={editingGeneve}
       />
       <DeleteGeneveModal
         open={!!deletingGeneve}

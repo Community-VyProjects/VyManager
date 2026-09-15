@@ -24,26 +24,29 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Layers, Loader2 } from "lucide-react";
-import { geneveService, type GeneveCapabilities } from "@/lib/api/geneve";
+import { geneveService, type GeneveInterface, type GeneveCapabilities } from "@/lib/api/geneve";
 import { showService, type InterfaceName } from "@/lib/api/show";
 import { InterfaceSelect } from "@/components/ui/interface-select";
 import { ApiError } from "@/lib/types/api";
 
-interface CreateGeneveModalProps {
+interface GeneveModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   capabilities: GeneveCapabilities | null;
   existingInterfaces: string[];
+  existing?: GeneveInterface | null;
 }
 
-export function CreateGeneveModal({
+export function GeneveModal({
   open,
   onOpenChange,
   onSuccess,
   capabilities,
   existingInterfaces,
-}: CreateGeneveModalProps) {
+  existing,
+}: GeneveModalProps) {
+  const isEdit = !!existing;
   // General
   const [name, setName] = useState("gnv0");
   const [description, setDescription] = useState("");
@@ -153,18 +156,61 @@ export function CreateGeneveModal({
     setError(null);
   };
 
+  const populateForm = (interfaceData: GeneveInterface) => {
+    setName(interfaceData.name);
+    setDescription(interfaceData.description ?? "");
+    setRemote(interfaceData.remote ?? "");
+    setVni(interfaceData.vni ?? "");
+    setPort(interfaceData.port ?? "");
+    setMtu(interfaceData.mtu ?? "");
+    setMac(interfaceData.mac ?? "");
+    setVrf(interfaceData.vrf ?? "");
+    setDisabled(interfaceData.disable ?? false);
+    setAddresses(interfaceData.addresses.join("\n"));
+    setIpv6AddressEui64(interfaceData.ipv6_address_eui64.join("\n"));
+    setIpv6AddressAutoconf(interfaceData.ipv6_address_autoconf ?? false);
+    setIpv6AddressNoDefaultLinkLocal(interfaceData.ipv6_address_no_default_link_local ?? false);
+    setIpv6AddressInterfaceIdentifier(interfaceData.ipv6_address_interface_identifier ?? "");
+    setIpAdjustMss(interfaceData.ip_adjust_mss ?? "");
+    setIpArpCacheTimeout(interfaceData.ip_arp_cache_timeout ?? "");
+    setIpDisableArpFilter(interfaceData.ip_disable_arp_filter ?? false);
+    setIpDisableForwarding(interfaceData.ip_disable_forwarding ?? false);
+    setIpEnableArpAccept(interfaceData.ip_enable_arp_accept ?? false);
+    setIpEnableArpAnnounce(interfaceData.ip_enable_arp_announce ?? false);
+    setIpEnableArpIgnore(interfaceData.ip_enable_arp_ignore ?? false);
+    setIpEnableDirectedBroadcast(interfaceData.ip_enable_directed_broadcast ?? false);
+    setIpEnableProxyArp(interfaceData.ip_enable_proxy_arp ?? false);
+    setIpProxyArpPvlan(interfaceData.ip_proxy_arp_pvlan ?? false);
+    setIpSourceValidation(interfaceData.ip_source_validation ?? "");
+    setIpv6AcceptDad(interfaceData.ipv6_accept_dad ?? "");
+    setIpv6AdjustMss(interfaceData.ipv6_adjust_mss ?? "");
+    setIpv6BaseReachableTime(interfaceData.ipv6_base_reachable_time ?? "");
+    setIpv6DisableForwarding(interfaceData.ipv6_disable_forwarding ?? false);
+    setIpv6DupAddrDetectTransmits(interfaceData.ipv6_dup_addr_detect_transmits ?? "");
+    setIpv6SourceValidation(interfaceData.ipv6_source_validation ?? "");
+    setParametersDf(interfaceData.parameters_ip_df ?? "");
+    setParametersTos(interfaceData.parameters_ip_tos ?? "");
+    setParametersTtl(interfaceData.parameters_ip_ttl ?? "");
+    setParametersInnerproto(interfaceData.parameters_ip_innerproto ?? false);
+    setParametersFlowlabel(interfaceData.parameters_ipv6_flowlabel ?? "");
+    setMirrorIngress(interfaceData.mirror_ingress ?? "");
+    setMirrorEgress(interfaceData.mirror_egress ?? "");
+    setRedirect(interfaceData.redirect ?? "");
+    setError(null);
+  };
+
   useEffect(() => {
-    if (open) {
+    if (!open) return;
+    showService.getAllInterfaces().then((res) => setAvailableInterfaces(res.interfaces)).catch(() => {});
+    if (existing) {
+      populateForm(existing);
+    } else {
       resetForm();
-      showService.getAllInterfaces().then((res) => setAvailableInterfaces(res.interfaces)).catch(() => {});
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, existing]);
 
-  const validateForm = (): string | null => {
-    if (!name.trim()) return "Interface name is required";
-    if (!/^gnv\d+$/.test(name)) return "Name must be gnv0, gnv1, etc.";
-    if (existingInterfaces.includes(name)) return `Interface ${name} already exists`;
+  const validateShared = (): string | null => {
     if (!remote.trim()) return "Remote address is required";
     if (mtu.trim()) {
       const mtuNum = parseInt(mtu.trim(), 10);
@@ -187,7 +233,90 @@ export function CreateGeneveModal({
     return null;
   };
 
+  const validateForm = (): string | null => {
+    if (!name.trim()) return "Interface name is required";
+    if (!/^gnv\d+$/.test(name)) return "Name must be gnv0, gnv1, etc.";
+    if (existingInterfaces.includes(name)) return `Interface ${name} already exists`;
+    return validateShared();
+  };
+
+  const submitUpdate = async () => {
+    if (!existing) return;
+
+    const validationError = validateShared();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const addrList = addresses.split(/[\n,]/).map((a) => a.trim()).filter(Boolean);
+      const eui64List = ipv6AddressEui64.split(/[\n,]/).map((a) => a.trim()).filter(Boolean);
+
+      const result = await geneveService.updateInterface(existing.name, existing, {
+        description: description.trim() || null,
+        addresses: addrList,
+        mtu: mtu.trim() || null,
+        vrf: vrf.trim() || null,
+        disabled,
+        mac: mac.trim() || null,
+        remote: remote.trim() || null,
+        vni: vni.trim() || null,
+        port: port.trim() || null,
+        parameters_ip_df: parametersDf || null,
+        parameters_ip_tos: parametersTos.trim() || null,
+        parameters_ip_ttl: parametersTtl.trim() || null,
+        parameters_ip_innerproto: parametersInnerproto,
+        parameters_ipv6_flowlabel: parametersFlowlabel.trim() || null,
+        ip_adjust_mss: ipAdjustMss.trim() || null,
+        ip_arp_cache_timeout: ipArpCacheTimeout.trim() || null,
+        ip_disable_arp_filter: ipDisableArpFilter,
+        ip_disable_forwarding: ipDisableForwarding,
+        ip_enable_arp_accept: ipEnableArpAccept,
+        ip_enable_arp_announce: ipEnableArpAnnounce,
+        ip_enable_arp_ignore: ipEnableArpIgnore,
+        ip_enable_directed_broadcast: ipEnableDirectedBroadcast,
+        ip_enable_proxy_arp: ipEnableProxyArp,
+        ip_proxy_arp_pvlan: ipProxyArpPvlan,
+        ip_source_validation: ipSourceValidation || null,
+        ipv6_accept_dad: ipv6AcceptDad || null,
+        ipv6_adjust_mss: ipv6AdjustMss.trim() || null,
+        ipv6_base_reachable_time: ipv6BaseReachableTime.trim() || null,
+        ipv6_disable_forwarding: ipv6DisableForwarding,
+        ipv6_dup_addr_detect_transmits: ipv6DupAddrDetectTransmits.trim() || null,
+        ipv6_source_validation: ipv6SourceValidation || null,
+        ipv6_address_autoconf: ipv6AddressAutoconf,
+        ipv6_address_eui64: eui64List,
+        ipv6_address_no_default_link_local: ipv6AddressNoDefaultLinkLocal,
+        ipv6_address_interface_identifier: ipv6AddressInterfaceIdentifier.trim() || null,
+        mirror_ingress: mirrorIngress.trim() || null,
+        mirror_egress: mirrorEgress.trim() || null,
+        redirect: redirect.trim() || null,
+      });
+
+      if (result.success) {
+        onOpenChange(false);
+        onSuccess();
+      } else {
+        setError(result.error || "Failed to update GENEVE interface");
+      }
+    } catch (err) {
+      const msg = (err as ApiError).message;
+      setError(typeof msg === "string" ? msg : JSON.stringify(msg, null, 2));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async () => {
+    if (isEdit) {
+      await submitUpdate();
+      return;
+    }
+
     const validationError = validateForm();
     if (validationError) {
       setError(validationError);
@@ -277,10 +406,19 @@ export function CreateGeneveModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Layers className="h-5 w-5" />
-            Create GENEVE Interface
+            {isEdit ? "Edit GENEVE Interface" : "Create GENEVE Interface"}
           </DialogTitle>
           <DialogDescription>
-            Create a new GENEVE tunnel interface for network virtualization encapsulation.
+            {isEdit ? (
+              <>
+                Editing interface{" "}
+                <code className="rounded bg-muted px-1 py-0.5 font-mono text-sm">
+                  {existing.name}
+                </code>
+              </>
+            ) : (
+              "Create a new GENEVE tunnel interface for network virtualization encapsulation."
+            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -296,14 +434,19 @@ export function CreateGeneveModal({
           {/* General Tab */}
           <TabsContent value="general" className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Interface Name <span className="text-destructive">*</span></Label>
+              <Label htmlFor="name">Interface Name {isEdit ? null : <span className="text-destructive">*</span>}</Label>
               <Input
                 id="name"
-                value={name}
+                value={isEdit ? existing.name : name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="gnv0"
+                disabled={isEdit}
               />
-              <p className="text-xs text-muted-foreground">Must match pattern: gnv0, gnv1, gnv2, ...</p>
+              <p className="text-xs text-muted-foreground">
+                {isEdit
+                  ? "Interface name cannot be changed."
+                  : "Must match pattern: gnv0, gnv1, gnv2, ..."}
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -697,8 +840,10 @@ export function CreateGeneveModal({
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Creating...
+                {isEdit ? "Saving..." : "Creating..."}
               </>
+            ) : isEdit ? (
+              "Save Changes"
             ) : (
               "Create Interface"
             )}
