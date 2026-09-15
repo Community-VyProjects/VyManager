@@ -19,9 +19,19 @@ interface Props {
   success: boolean | null;
   output?: string | null;
   error?: string | null;
+  busyLabel?: string;
 }
 
-export function SshOutputModal({ open, onOpenChange, title, loading, success, output, error }: Props) {
+export function SshOutputModal({
+  open,
+  onOpenChange,
+  title,
+  loading,
+  success,
+  output,
+  error,
+  busyLabel = "Running command, please wait…",
+}: Props) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
@@ -33,7 +43,7 @@ export function SshOutputModal({ open, onOpenChange, title, loading, success, ou
           {loading && (
             <div className="flex items-center gap-3 text-muted-foreground">
               <Loader2 className="h-5 w-5 animate-spin shrink-0" />
-              <span className="text-sm">Running command, please wait…</span>
+              <span className="text-sm">{busyLabel}</span>
             </div>
           )}
 
@@ -51,9 +61,11 @@ export function SshOutputModal({ open, onOpenChange, title, loading, success, ou
             </div>
           )}
 
-          {!loading && (output || error) && (
+          {(output || (!loading && error)) && (
             <div className="space-y-1">
-              <p className="text-xs text-muted-foreground font-medium">Output</p>
+              <p className="text-xs text-muted-foreground font-medium">
+                {loading ? "Progress" : "Output"}
+              </p>
               <ScrollArea className="h-[50vh] rounded-md border bg-muted/50">
                 <pre className="p-3 text-xs font-mono whitespace-pre-wrap break-all">
                   {output || error}
