@@ -115,6 +115,7 @@ export function EditRouteRuleModal({
   // Match Conditions - Protocol
   const [protocol, setProtocol] = useState("");
   const [tcpFlags, setTcpFlags] = useState<string[]>([]);
+  const [matchTcpMss, setMatchTcpMss] = useState("");
 
   // Match Conditions - ICMP
   const [icmpType, setIcmpType] = useState("");
@@ -314,6 +315,7 @@ export function EditRouteRuleModal({
     // Match - Protocol
     setProtocol(match.protocol || "");
     setTcpFlags(match.tcp_flags ?? []);
+    setMatchTcpMss(match.tcp_mss || "");
 
     // Match - ICMP
     setIcmpType(match.icmp_type || "");
@@ -515,6 +517,7 @@ export function EditRouteRuleModal({
       // Match - Protocol
       if (protocol && protocol !== "all") match.protocol = protocol;
       if (tcpFlags.length > 0) match.tcp_flags = tcpFlags;
+      if (matchTcpMss.trim()) match.tcp_mss = matchTcpMss.trim();
 
       // Match - ICMP
       if (policyType === "route") {
@@ -1173,6 +1176,19 @@ export function EditRouteRuleModal({
                         </div>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {capabilities?.features.tcp_mss_matching?.supported && (
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-matchTcpMss">TCP MSS Match</Label>
+                    <Input
+                      id="edit-matchTcpMss"
+                      placeholder="1400 or 500-1460"
+                      value={matchTcpMss}
+                      onChange={(e) => setMatchTcpMss(e.target.value)}
+                      disabled={loading}
+                    />
                   </div>
                 )}
               </div>

@@ -205,6 +205,20 @@ class RouteMapper(BaseFeatureMapper):
         """Delete all matched TCP flags for a rule."""
         return ["policy", policy_type, name, "rule", rule, "tcp", "flags"]
 
+    def _require_tcp_mss(self) -> None:
+        if "1.4" in self.version:
+            raise ValueError("policy route tcp mss is not supported on this device")
+
+    def get_match_tcp_mss(self, policy_type: str, name: str, rule: str, mss: str) -> List[str]:
+        """Match TCP MSS (1.5 only)."""
+        self._require_tcp_mss()
+        return ["policy", policy_type, name, "rule", rule, "tcp", "mss", mss]
+
+    def get_match_tcp_mss_delete(self, policy_type: str, name: str, rule: str) -> List[str]:
+        """Delete path for TCP MSS match."""
+        self._require_tcp_mss()
+        return ["policy", policy_type, name, "rule", rule, "tcp", "mss"]
+
     # ========================================================================
     # Match Conditions - ICMP (IPv4)
     # ========================================================================

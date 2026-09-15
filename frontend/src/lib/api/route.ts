@@ -38,6 +38,7 @@ export interface MatchConditions {
   // Protocol
   protocol?: string | null;
   tcp_flags?: string[] | null; // e.g. ["syn", "not fin"]
+  tcp_mss?: string | null;
   
   // ICMP (IPv4)
   icmp_code?: string | null;
@@ -140,6 +141,10 @@ export interface RouteCapabilitiesResponse {
       description: string;
     };
     geoip_matching: {
+      supported: boolean;
+      description: string;
+    };
+    tcp_mss_matching: {
       supported: boolean;
       description: string;
     };
@@ -384,6 +389,9 @@ class RouteService {
     if (config.originalMatch?.tcp_flags && config.originalMatch.tcp_flags.length > 0) {
       operations.push({ op: "delete_match_tcp_flags" });
     }
+    if (config.originalMatch?.tcp_mss) {
+      operations.push({ op: "delete_match_tcp_mss" });
+    }
     if (config.originalMatch?.state) {
       operations.push({ op: "delete_match_state" });
     }
@@ -503,6 +511,7 @@ class RouteService {
         if (flag) operations.push({ op: "set_match_tcp_flags", value: flag });
       }
     }
+    if (match.tcp_mss) operations.push({ op: "set_match_tcp_mss", value: match.tcp_mss });
     
     // ICMP (IPv4)
     if (match.icmp_code) operations.push({ op: "set_match_icmp_code", value: match.icmp_code });
