@@ -24,6 +24,7 @@ from pppoe_status import (
 )
 import inspect
 import logging
+import uuid
 from batch_dispatch import resolve_batch_method
 
 logger = logging.getLogger(__name__)
@@ -89,17 +90,52 @@ DEFAULT_PPPoE_SESSION_LABELS: List[Dict[str, Any]] = [
 ]
 
 
+async def _ensure_pppoe_label_table(conn) -> None:
+    """Keep older deployments usable while Prisma applies the label migration."""
+    await conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS pppoe_session_label_definitions (
+            id TEXT PRIMARY KEY,
+            "sessionLabel" TEXT NOT NULL DEFAULT '*',
+            code VARCHAR(80) NOT NULL,
+            name VARCHAR(120) NOT NULL,
+            description TEXT,
+            severity VARCHAR(40) NOT NULL DEFAULT 'info',
+            priority INTEGER NOT NULL DEFAULT 10,
+            enabled BOOLEAN NOT NULL DEFAULT TRUE,
+            rules JSONB NOT NULL DEFAULT '{}'::jsonb,
+            "createdAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(),
+            "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT NOW()
+        )
+        """
+    )
+    await conn.execute(
+        """
+        ALTER TABLE pppoe_session_label_definitions
+        ADD COLUMN IF NOT EXISTS "sessionLabel" TEXT NOT NULL DEFAULT '*'
+        """
+    )
+    await conn.execute(
+        """
+        CREATE UNIQUE INDEX IF NOT EXISTS
+        pppoe_session_label_definitions_session_label_code_key
+        ON pppoe_session_label_definitions ("sessionLabel", code)
+        """
+    )
+
+
 async def _ensure_default_pppoe_labels(conn) -> None:
     """Upsert shipped default label definitions (e.g. traffic-skew) when missing."""
+    await _ensure_pppoe_label_table(conn)
     for label in DEFAULT_PPPoE_SESSION_LABELS:
         await conn.execute(
             """
             INSERT INTO pppoe_session_label_definitions
-            ("sessionLabel", code, name, description, severity, priority, enabled, rules, "createdAt", "updatedAt")
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, NOW(), NOW())
+            (id, "sessionLabel", code, name, description, severity, priority, enabled, rules, "createdAt", "updatedAt")
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, NOW(), NOW())
             ON CONFLICT ("sessionLabel", code) DO NOTHING
             """,
-            label.get("session_label") or "*",
+            str(uuid.uuid4()), label.get("session_label") or "*",
             label["code"], label["name"], label.get("description"),
             label.get("severity") or "info", int(label.get("priority") or 10),
             bool(label.get("enabled", True)), json.dumps(label.get("rules") or {}),
@@ -173,6 +209,7 @@ async def save_pppoe_session_labels(request: Request, body: List[PPPoESessionLab
             labels.append(item)
 
         async with request_scoped_conn(request) as conn:
+            await _ensure_pppoe_label_table(conn)
             await conn.execute(
                 'DELETE FROM pppoe_session_label_definitions WHERE "sessionLabel" = $1', "*"
             )
@@ -180,8 +217,8 @@ async def save_pppoe_session_labels(request: Request, body: List[PPPoESessionLab
                 await conn.execute(
                     """
                     INSERT INTO pppoe_session_label_definitions
-                    ("sessionLabel", code, name, description, severity, priority, enabled, rules)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb)
+                    (id, "sessionLabel", code, name, description, severity, priority, enabled, rules)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb)
                     ON CONFLICT ("sessionLabel", code)
                     DO UPDATE SET
                         name = EXCLUDED.name,
@@ -192,7 +229,7 @@ async def save_pppoe_session_labels(request: Request, body: List[PPPoESessionLab
                         rules = EXCLUDED.rules,
                         "updatedAt" = NOW()
                     """,
-                    label.session_label or "*", label.code, label.name, label.description,
+                    str(uuid.uuid4()), label.session_label or "*", label.code, label.name, label.description,
                     label.severity or "info", int(label.priority or 10),
                     bool(label.enabled if label.enabled is not None else True), json.dumps(label.rules or {}),
                 )
