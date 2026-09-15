@@ -19,6 +19,13 @@ from ..base import BaseFeatureMapper
 
 BASE = ["qos"]
 
+# 1.5-only valueless cake leaves. 1.4 rejects these template paths.
+_CAKE_15_ONLY_FLAGS = {
+    ("ack-filter",),
+    ("ack-filter", "aggressive"),
+    ("no-split-gso",),
+}
+
 
 class QoSMapper(BaseFeatureMapper):
     def __init__(self, version: str):
@@ -53,10 +60,22 @@ class QoSMapper(BaseFeatureMapper):
     def get_policy(self, ptype: str, name: str) -> List[str]:
         return BASE + ["policy", ptype, name]
 
+    def _reject_15_only_cake_flag(self, ptype: str, segments: List[str]) -> None:
+        if ptype != "cake":
+            return
+        if tuple(segments) not in _CAKE_15_ONLY_FLAGS:
+            return
+        if "1.4" in self.version:
+            raise ValueError(
+                f"qos policy cake {' '.join(segments)} is not supported on this device"
+            )
+
     def get_policy_field(self, ptype: str, name: str, segments: List[str], value: str) -> List[str]:
+        self._reject_15_only_cake_flag(ptype, segments)
         return BASE + ["policy", ptype, name] + segments + [value]
 
     def get_policy_field_delete(self, ptype: str, name: str, segments: List[str]) -> List[str]:
+        self._reject_15_only_cake_flag(ptype, segments)
         return BASE + ["policy", ptype, name] + segments
 
     # ========================================================================

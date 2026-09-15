@@ -88,6 +88,14 @@ export function QoSPolicyModal({
   const currentMode = draft.flags.find((fl) => fl.startsWith("flow-isolation/"));
   const modeValue = currentMode ? currentMode.split("/")[1] : "";
   const natOn = draft.flags.includes("flow-isolation-nat");
+  const ackFilter = draft.flags.includes("ack-filter/aggressive")
+    ? "aggressive"
+    : draft.flags.includes("ack-filter")
+      ? "filter"
+      : "";
+  const noSplitGso = draft.flags.includes("no-split-gso");
+  const showAckFilter = capabilities.features.cake_ack_filter?.supported ?? false;
+  const showNoSplitGso = capabilities.features.cake_no_split_gso?.supported ?? false;
 
   const setMode = (mode: string) => {
     setDraft((d) => {
@@ -100,6 +108,21 @@ export function QoSPolicyModal({
     setDraft((d) => {
       const flags = d.flags.filter((fl) => fl !== "flow-isolation-nat");
       if (on) flags.push("flow-isolation-nat");
+      return { ...d, flags };
+    });
+  };
+  const setAckFilter = (mode: string) => {
+    setDraft((d) => {
+      const flags = d.flags.filter((fl) => fl !== "ack-filter" && fl !== "ack-filter/aggressive");
+      if (mode === "aggressive") flags.push("ack-filter/aggressive");
+      else if (mode === "filter") flags.push("ack-filter");
+      return { ...d, flags };
+    });
+  };
+  const setNoSplitGso = (on: boolean) => {
+    setDraft((d) => {
+      const flags = d.flags.filter((fl) => fl !== "no-split-gso");
+      if (on) flags.push("no-split-gso");
       return { ...d, flags };
     });
   };
@@ -209,6 +232,29 @@ export function QoSPolicyModal({
                       Perform NAT lookup before applying flow isolation
                     </Label>
                   </div>
+                  {showAckFilter && (
+                    <div className="space-y-1.5 pt-2">
+                      <Label className="text-sm font-medium">ACK filter</Label>
+                      <Select value={ackFilter === "" ? FI_NONE : ackFilter} onValueChange={(v) => setAckFilter(v === FI_NONE ? "" : v)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Off" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={FI_NONE}>Off</SelectItem>
+                          <SelectItem value="filter">Filter</SelectItem>
+                          <SelectItem value="aggressive">Aggressive</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  {showNoSplitGso && (
+                    <div className="flex items-center gap-2 pt-2">
+                      <Checkbox id="cake-no-split-gso" checked={noSplitGso} onCheckedChange={(c) => setNoSplitGso(!!c)} />
+                      <Label htmlFor="cake-no-split-gso" className="text-xs cursor-pointer">
+                        Do not split GSO
+                      </Label>
+                    </div>
+                  )}
                 </div>
               </>
             )}

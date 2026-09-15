@@ -70,6 +70,13 @@ class QoSBatchBuilder(BatchBuilder):
         is_1_4 = "1.4" in self.version
         is_1_5 = not is_1_4
 
+        def cake_flag_supported(field: str) -> bool:
+            try:
+                self.m.get_policy_field_delete("cake", "_", _segs(field))
+                return True
+            except ValueError:
+                return False
+
         return {
             "version": self.version,
             "features": {
@@ -84,6 +91,14 @@ class QoSBatchBuilder(BatchBuilder):
                     "description": "Reference a traffic-match-group from a class",
                 },
                 "shaper_hfsc": {"supported": True},
+                "cake_ack_filter": {
+                    "supported": cake_flag_supported("ack-filter"),
+                    "description": "CAKE ACK filter",
+                },
+                "cake_no_split_gso": {
+                    "supported": cake_flag_supported("no-split-gso"),
+                    "description": "CAKE no-split-gso",
+                },
                 "enums": {
                     "queue_types": QUEUE_TYPES,
                     "exceed_actions": EXCEED_ACTIONS,

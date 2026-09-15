@@ -98,6 +98,8 @@ export interface QoSPolicy {
   latency: string | null;
   flow_isolation: string | null;
   flow_isolation_nat: boolean;
+  ack_filter: string | null;
+  no_split_gso: boolean;
   classes: QoSClass[];
   default: QoSClass | null;
   precedences: QoSPrecedence[];
@@ -130,6 +132,8 @@ export interface QoSCapabilities {
     traffic_match_group: { supported: boolean; description: string };
     match_group: { supported: boolean; description: string };
     shaper_hfsc: { supported: boolean };
+    cake_ack_filter: { supported: boolean; description: string };
+    cake_no_split_gso: { supported: boolean; description: string };
     enums: {
       queue_types: string[];
       exceed_actions: string[];
@@ -355,6 +359,9 @@ export function policyToDraft(p: QoSPolicy): PolicyDraft {
   const flags: string[] = [];
   if (p.flow_isolation) flags.push(`flow-isolation/${p.flow_isolation}`);
   if (p.flow_isolation_nat) flags.push("flow-isolation-nat");
+  if (p.ack_filter === "aggressive") flags.push("ack-filter/aggressive");
+  else if (p.ack_filter) flags.push("ack-filter");
+  if (p.no_split_gso) flags.push("no-split-gso");
   return {
     type: p.type,
     name: p.name,

@@ -140,6 +140,8 @@ class QoSPolicy(BaseModel):
     # cake flow isolation
     flow_isolation: Optional[str] = None
     flow_isolation_nat: bool = False
+    ack_filter: Optional[str] = None
+    no_split_gso: bool = False
     # class-based
     classes: List[QoSClass] = []
     default: Optional[QoSClass] = None
@@ -372,6 +374,8 @@ async def qos_batch_configure(http_request: Request, body: QoSBatchRequest):
         )
     except HTTPException:
         raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except AttributeError as e:
         raise HTTPException(status_code=400, detail=f"Unknown operation: {e}")
     except Exception:
@@ -732,6 +736,14 @@ def _parse_policy(ptype: str, name: str, raw) -> QoSPolicy:
     fi = raw.get("flow-isolation")
     policy.flow_isolation = fi if isinstance(fi, str) and fi in FLOW_ISOLATION_MODES else None
     policy.flow_isolation_nat = "flow-isolation-nat" in raw
+    ack = raw.get("ack-filter")
+    if "ack-filter" not in raw:
+        policy.ack_filter = None
+    elif isinstance(ack, dict) and "aggressive" in ack:
+        policy.ack_filter = "aggressive"
+    else:
+        policy.ack_filter = "filter"
+    policy.no_split_gso = "no-split-gso" in raw
 
     classes_raw = _as_dict(raw.get("class"))
     policy.classes = sorted(
