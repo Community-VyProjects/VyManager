@@ -44,8 +44,7 @@ import { inputService, type InputInterface, type InputCapabilities } from "@/lib
 import { InputModal } from "@/components/input/InputModal";
 import { DeleteInputModal } from "@/components/input/DeleteInputModal";
 import { l2tpv3Service, type L2TPv3Interface, type L2TPv3Capabilities } from "@/lib/api/l2tpv3";
-import { CreateL2TPv3Modal } from "@/components/l2tpv3/CreateL2TPv3Modal";
-import { EditL2TPv3Modal } from "@/components/l2tpv3/EditL2TPv3Modal";
+import { L2TPv3Modal } from "@/components/l2tpv3/L2TPv3Modal";
 import { DeleteL2TPv3Modal } from "@/components/l2tpv3/DeleteL2TPv3Modal";
 import { loopbackService, type LoopbackInterface, type LoopbackCapabilities } from "@/lib/api/loopback";
 import { CreateLoopbackModal } from "@/components/loopback/CreateLoopbackModal";
@@ -4302,22 +4301,21 @@ function InterfacesPageInner() {
         interfaceData={deletingInput}
       />
       {/* L2TPv3 Modals */}
-      <CreateL2TPv3Modal
-        open={isCreateL2tpv3ModalOpen}
-        onOpenChange={setIsCreateL2tpv3ModalOpen}
-        onSuccess={loadData}
-        capabilities={l2tpv3Capabilities}
-        existingInterfaces={l2tpv3Interfaces.map((i) => i.name)}
-      />
-      <EditL2TPv3Modal
-        open={!!editingL2tpv3}
-        onOpenChange={(open) => !open && setEditingL2tpv3(null)}
+      <L2TPv3Modal
+        open={isCreateL2tpv3ModalOpen || !!editingL2tpv3}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsCreateL2tpv3ModalOpen(false);
+            setEditingL2tpv3(null);
+          }
+        }}
         onSuccess={() => {
           setEditingL2tpv3(null);
           loadData();
         }}
         capabilities={l2tpv3Capabilities}
-        interfaceData={editingL2tpv3}
+        existingInterfaces={l2tpv3Interfaces.map((i) => i.name)}
+        existing={editingL2tpv3}
       />
       <DeleteL2TPv3Modal
         open={!!deletingL2tpv3}

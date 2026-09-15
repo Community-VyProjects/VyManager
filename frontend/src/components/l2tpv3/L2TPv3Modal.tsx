@@ -29,22 +29,26 @@ import { showService, type InterfaceName } from "@/lib/api/show";
 import { InterfaceSelect } from "@/components/ui/interface-select";
 import { ApiError } from "@/lib/types/api";
 
-interface EditL2TPv3ModalProps {
+interface L2TPv3ModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
-  interfaceData: L2TPv3Interface | null;
   capabilities: L2TPv3Capabilities | null;
+  existingInterfaces: string[];
+  existing?: L2TPv3Interface | null;
 }
 
-export function EditL2TPv3Modal({
+export function L2TPv3Modal({
   open,
   onOpenChange,
   onSuccess,
-  interfaceData,
   capabilities,
-}: EditL2TPv3ModalProps) {
+  existingInterfaces,
+  existing,
+}: L2TPv3ModalProps) {
+  const isEdit = !!existing;
   // General
+  const [name, setName] = useState("l2tpeth0");
   const [description, setDescription] = useState("");
   const [remote, setRemote] = useState("");
   const [sourceAddress, setSourceAddress] = useState("");
@@ -98,60 +102,116 @@ export function EditL2TPv3Modal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (interfaceData) {
-      showService.getAllInterfaces().then((res) => setAvailableInterfaces(res.interfaces)).catch(() => {});
-      // General
-      setDescription(interfaceData.description ?? "");
-      setRemote(interfaceData.remote ?? "");
-      setSourceAddress(interfaceData.source_address ?? "");
-      setTunnelId(interfaceData.tunnel_id ?? "");
-      setPeerTunnelId(interfaceData.peer_tunnel_id ?? "");
-      setSessionId(interfaceData.session_id ?? "");
-      setPeerSessionId(interfaceData.peer_session_id ?? "");
-      setEncapsulation(interfaceData.encapsulation ?? "");
-      setDestinationPort(interfaceData.destination_port ?? "");
-      setSourcePort(interfaceData.source_port ?? "");
-      setMtu(interfaceData.mtu ?? "");
-      setVrf(interfaceData.vrf ?? "");
-      setDisabled(interfaceData.disable ?? false);
-      // Addresses
-      setAddresses(interfaceData.addresses.join("\n"));
-      setIpv6AddressEui64(interfaceData.ipv6_address_eui64.join("\n"));
-      setIpv6AddressAutoconf(interfaceData.ipv6_address_autoconf ?? false);
-      setIpv6AddressNoDefaultLinkLocal(interfaceData.ipv6_address_no_default_link_local ?? false);
-      setIpv6AddressInterfaceIdentifier(interfaceData.ipv6_address_interface_identifier ?? "");
-      // IP Settings
-      setIpAdjustMss(interfaceData.ip_adjust_mss ?? "");
-      setIpArpCacheTimeout(interfaceData.ip_arp_cache_timeout ?? "");
-      setIpDisableArpFilter(interfaceData.ip_disable_arp_filter ?? false);
-      setIpDisableForwarding(interfaceData.ip_disable_forwarding ?? false);
-      setIpEnableArpAccept(interfaceData.ip_enable_arp_accept ?? false);
-      setIpEnableArpAnnounce(interfaceData.ip_enable_arp_announce ?? false);
-      setIpEnableArpIgnore(interfaceData.ip_enable_arp_ignore ?? false);
-      setIpEnableDirectedBroadcast(interfaceData.ip_enable_directed_broadcast ?? false);
-      setIpEnableProxyArp(interfaceData.ip_enable_proxy_arp ?? false);
-      setIpProxyArpPvlan(interfaceData.ip_proxy_arp_pvlan ?? false);
-      setIpSourceValidation(interfaceData.ip_source_validation ?? "");
-      // IPv6 Settings
-      setIpv6AcceptDad(interfaceData.ipv6_accept_dad ?? "");
-      setIpv6AdjustMss(interfaceData.ipv6_adjust_mss ?? "");
-      setIpv6BaseReachableTime(interfaceData.ipv6_base_reachable_time ?? "");
-      setIpv6DisableForwarding(interfaceData.ipv6_disable_forwarding ?? false);
-      setIpv6DupAddrDetectTransmits(interfaceData.ipv6_dup_addr_detect_transmits ?? "");
-      setIpv6SourceValidation(interfaceData.ipv6_source_validation ?? "");
-      // Advanced
-      setMirrorIngress(interfaceData.mirror_ingress ?? "");
-      setMirrorEgress(interfaceData.mirror_egress ?? "");
-      setError(null);
+  const getNextInterfaceName = (): string => {
+    let i = 0;
+    while (existingInterfaces.includes(`l2tpeth${i}`)) {
+      i++;
     }
-  }, [interfaceData]);
+    return `l2tpeth${i}`;
+  };
 
-  const validateForm = (): string | null => {
+  const resetForm = () => {
+    setName(getNextInterfaceName());
+    setDescription("");
+    setRemote("");
+    setSourceAddress("");
+    setTunnelId("");
+    setPeerTunnelId("");
+    setSessionId("");
+    setPeerSessionId("");
+    setEncapsulation("");
+    setDestinationPort("");
+    setSourcePort("");
+    setMtu("");
+    setVrf("");
+    setDisabled(false);
+    setAddresses("");
+    setIpv6AddressEui64("");
+    setIpv6AddressAutoconf(false);
+    setIpv6AddressNoDefaultLinkLocal(false);
+    setIpv6AddressInterfaceIdentifier("");
+    setIpAdjustMss("");
+    setIpArpCacheTimeout("");
+    setIpDisableArpFilter(false);
+    setIpDisableForwarding(false);
+    setIpEnableArpAccept(false);
+    setIpEnableArpAnnounce(false);
+    setIpEnableArpIgnore(false);
+    setIpEnableDirectedBroadcast(false);
+    setIpEnableProxyArp(false);
+    setIpProxyArpPvlan(false);
+    setIpSourceValidation("");
+    setIpv6AcceptDad("");
+    setIpv6AdjustMss("");
+    setIpv6BaseReachableTime("");
+    setIpv6DisableForwarding(false);
+    setIpv6DupAddrDetectTransmits("");
+    setIpv6SourceValidation("");
+    setMirrorIngress("");
+    setMirrorEgress("");
+    setError(null);
+  };
+
+  const populateForm = (interfaceData: L2TPv3Interface) => {
+    setName(interfaceData.name);
+    setDescription(interfaceData.description ?? "");
+    setRemote(interfaceData.remote ?? "");
+    setSourceAddress(interfaceData.source_address ?? "");
+    setTunnelId(interfaceData.tunnel_id ?? "");
+    setPeerTunnelId(interfaceData.peer_tunnel_id ?? "");
+    setSessionId(interfaceData.session_id ?? "");
+    setPeerSessionId(interfaceData.peer_session_id ?? "");
+    setEncapsulation(interfaceData.encapsulation ?? "");
+    setDestinationPort(interfaceData.destination_port ?? "");
+    setSourcePort(interfaceData.source_port ?? "");
+    setMtu(interfaceData.mtu ?? "");
+    setVrf(interfaceData.vrf ?? "");
+    setDisabled(interfaceData.disable ?? false);
+    setAddresses(interfaceData.addresses.join("\n"));
+    setIpv6AddressEui64(interfaceData.ipv6_address_eui64.join("\n"));
+    setIpv6AddressAutoconf(interfaceData.ipv6_address_autoconf ?? false);
+    setIpv6AddressNoDefaultLinkLocal(interfaceData.ipv6_address_no_default_link_local ?? false);
+    setIpv6AddressInterfaceIdentifier(interfaceData.ipv6_address_interface_identifier ?? "");
+    setIpAdjustMss(interfaceData.ip_adjust_mss ?? "");
+    setIpArpCacheTimeout(interfaceData.ip_arp_cache_timeout ?? "");
+    setIpDisableArpFilter(interfaceData.ip_disable_arp_filter ?? false);
+    setIpDisableForwarding(interfaceData.ip_disable_forwarding ?? false);
+    setIpEnableArpAccept(interfaceData.ip_enable_arp_accept ?? false);
+    setIpEnableArpAnnounce(interfaceData.ip_enable_arp_announce ?? false);
+    setIpEnableArpIgnore(interfaceData.ip_enable_arp_ignore ?? false);
+    setIpEnableDirectedBroadcast(interfaceData.ip_enable_directed_broadcast ?? false);
+    setIpEnableProxyArp(interfaceData.ip_enable_proxy_arp ?? false);
+    setIpProxyArpPvlan(interfaceData.ip_proxy_arp_pvlan ?? false);
+    setIpSourceValidation(interfaceData.ip_source_validation ?? "");
+    setIpv6AcceptDad(interfaceData.ipv6_accept_dad ?? "");
+    setIpv6AdjustMss(interfaceData.ipv6_adjust_mss ?? "");
+    setIpv6BaseReachableTime(interfaceData.ipv6_base_reachable_time ?? "");
+    setIpv6DisableForwarding(interfaceData.ipv6_disable_forwarding ?? false);
+    setIpv6DupAddrDetectTransmits(interfaceData.ipv6_dup_addr_detect_transmits ?? "");
+    setIpv6SourceValidation(interfaceData.ipv6_source_validation ?? "");
+    setMirrorIngress(interfaceData.mirror_ingress ?? "");
+    setMirrorEgress(interfaceData.mirror_egress ?? "");
+    setError(null);
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    showService.getAllInterfaces().then((res) => setAvailableInterfaces(res.interfaces)).catch(() => {});
+    if (existing) {
+      populateForm(existing);
+    } else {
+      resetForm();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, existing]);
+
+  const validateShared = (): string | null => {
     if (!remote.trim()) return "Remote address is required";
     if (mtu.trim()) {
       const mtuNum = parseInt(mtu.trim(), 10);
-      if (isNaN(mtuNum) || mtuNum < 68 || mtuNum > 16000) return "MTU must be between 68 and 16000";
+      if (isNaN(mtuNum) || mtuNum < 68 || mtuNum > 16000) {
+        return "MTU must be between 68 and 16000";
+      }
     }
     if (tunnelId.trim()) {
       const tid = parseInt(tunnelId.trim(), 10);
@@ -180,10 +240,17 @@ export function EditL2TPv3Modal({
     return null;
   };
 
-  const handleSubmit = async () => {
-    if (!interfaceData) return;
+  const validateForm = (): string | null => {
+    if (!name.trim()) return "Interface name is required";
+    if (!/^l2tpeth\d+$/.test(name)) return "Name must be l2tpeth0, l2tpeth1, etc.";
+    if (existingInterfaces.includes(name)) return `Interface ${name} already exists`;
+    return validateShared();
+  };
 
-    const validationError = validateForm();
+  const submitUpdate = async () => {
+    if (!existing) return;
+
+    const validationError = validateShared();
     if (validationError) {
       setError(validationError);
       return;
@@ -196,7 +263,7 @@ export function EditL2TPv3Modal({
       const addrList = addresses.split(/[\n,]/).map((a) => a.trim()).filter(Boolean);
       const eui64List = ipv6AddressEui64.split(/[\n,]/).map((a) => a.trim()).filter(Boolean);
 
-      const result = await l2tpv3Service.updateInterface(interfaceData.name, interfaceData, {
+      const result = await l2tpv3Service.updateInterface(existing.name, existing, {
         description: description.trim() || null,
         addresses: addrList,
         mtu: mtu.trim() || null,
@@ -250,7 +317,93 @@ export function EditL2TPv3Modal({
     }
   };
 
-  if (!interfaceData) return null;
+  const handleSubmit = async () => {
+    if (isEdit) {
+      await submitUpdate();
+      return;
+    }
+
+    const validationError = validateForm();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const addrList = addresses.split(/[\n,]/).map((a) => a.trim()).filter(Boolean);
+      const eui64List = ipv6AddressEui64.split(/[\n,]/).map((a) => a.trim()).filter(Boolean);
+
+      const config: Parameters<typeof l2tpv3Service.createInterface>[0] = {
+        name,
+        remote: remote.trim(),
+      };
+
+      // L2TPv3-specific
+      if (sourceAddress.trim()) config.source_address = sourceAddress.trim();
+      if (tunnelId.trim()) config.tunnel_id = tunnelId.trim();
+      if (peerTunnelId.trim()) config.peer_tunnel_id = peerTunnelId.trim();
+      if (sessionId.trim()) config.session_id = sessionId.trim();
+      if (peerSessionId.trim()) config.peer_session_id = peerSessionId.trim();
+      if (encapsulation) config.encapsulation = encapsulation;
+      if (destinationPort.trim()) config.destination_port = destinationPort.trim();
+      if (sourcePort.trim()) config.source_port = sourcePort.trim();
+
+      // General
+      if (description.trim()) config.description = description.trim();
+      if (mtu.trim()) config.mtu = mtu.trim();
+      if (vrf.trim()) config.vrf = vrf.trim();
+      if (disabled) config.disabled = true;
+
+      // Addresses
+      if (addrList.length > 0) config.addresses = addrList;
+      if (eui64List.length > 0) config.ipv6_address_eui64 = eui64List;
+      if (ipv6AddressAutoconf) config.ipv6_address_autoconf = true;
+      if (ipv6AddressNoDefaultLinkLocal) config.ipv6_address_no_default_link_local = true;
+      if (ipv6AddressInterfaceIdentifier.trim()) config.ipv6_address_interface_identifier = ipv6AddressInterfaceIdentifier.trim();
+
+      // IP Settings
+      if (ipAdjustMss.trim()) config.ip_adjust_mss = ipAdjustMss.trim();
+      if (ipArpCacheTimeout.trim()) config.ip_arp_cache_timeout = ipArpCacheTimeout.trim();
+      if (ipDisableArpFilter) config.ip_disable_arp_filter = true;
+      if (ipDisableForwarding) config.ip_disable_forwarding = true;
+      if (ipEnableArpAccept) config.ip_enable_arp_accept = true;
+      if (ipEnableArpAnnounce) config.ip_enable_arp_announce = true;
+      if (ipEnableArpIgnore) config.ip_enable_arp_ignore = true;
+      if (ipEnableDirectedBroadcast) config.ip_enable_directed_broadcast = true;
+      if (ipEnableProxyArp) config.ip_enable_proxy_arp = true;
+      if (ipProxyArpPvlan) config.ip_proxy_arp_pvlan = true;
+      if (ipSourceValidation) config.ip_source_validation = ipSourceValidation;
+
+      // IPv6 Settings
+      if (ipv6AcceptDad) config.ipv6_accept_dad = ipv6AcceptDad;
+      if (ipv6AdjustMss.trim()) config.ipv6_adjust_mss = ipv6AdjustMss.trim();
+      if (ipv6BaseReachableTime.trim()) config.ipv6_base_reachable_time = ipv6BaseReachableTime.trim();
+      if (ipv6DisableForwarding) config.ipv6_disable_forwarding = true;
+      if (ipv6DupAddrDetectTransmits.trim()) config.ipv6_dup_addr_detect_transmits = ipv6DupAddrDetectTransmits.trim();
+      if (ipv6SourceValidation) config.ipv6_source_validation = ipv6SourceValidation;
+
+      // Traffic Mirroring
+      if (mirrorIngress.trim()) config.mirror_ingress = mirrorIngress.trim();
+      if (mirrorEgress.trim()) config.mirror_egress = mirrorEgress.trim();
+
+      const result = await l2tpv3Service.createInterface(config);
+
+      if (result.success) {
+        onOpenChange(false);
+        onSuccess();
+      } else {
+        setError(result.error || "Failed to create L2TPv3 interface");
+      }
+    } catch (err) {
+      const msg = (err as ApiError).message;
+      setError(typeof msg === "string" ? msg : JSON.stringify(msg, null, 2));
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -258,13 +411,19 @@ export function EditL2TPv3Modal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Cable className="h-5 w-5" />
-            Edit L2TPv3 Interface
+            {isEdit ? "Edit L2TPv3 Interface" : "Create L2TPv3 Interface"}
           </DialogTitle>
           <DialogDescription>
-            Editing interface{" "}
-            <code className="rounded bg-muted px-1 py-0.5 font-mono text-sm">
-              {interfaceData.name}
-            </code>
+            {isEdit ? (
+              <>
+                Editing interface{" "}
+                <code className="rounded bg-muted px-1 py-0.5 font-mono text-sm">
+                  {existing.name}
+                </code>
+              </>
+            ) : (
+              "Create a new L2TPv3 tunnel interface for Layer 2 tunneling."
+            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -280,8 +439,19 @@ export function EditL2TPv3Modal({
           {/* General Tab */}
           <TabsContent value="general" className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label>Interface Name</Label>
-              <Input value={interfaceData.name} disabled />
+              <Label htmlFor="name">Interface Name {isEdit ? null : <span className="text-destructive">*</span>}</Label>
+              <Input
+                id="name"
+                value={isEdit ? existing.name : name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="l2tpeth0"
+                disabled={isEdit}
+              />
+              <p className="text-xs text-muted-foreground">
+                {isEdit
+                  ? "Interface name cannot be changed."
+                  : "Must match pattern: l2tpeth0, l2tpeth1, l2tpeth2, ..."}
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -303,6 +473,7 @@ export function EditL2TPv3Modal({
                   onChange={(e) => setRemote(e.target.value)}
                   placeholder="10.0.0.1 or 2001:db8::1"
                 />
+                <p className="text-xs text-muted-foreground">Remote tunnel endpoint</p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="sourceAddress">Source Address</Label>
@@ -312,28 +483,49 @@ export function EditL2TPv3Modal({
                   onChange={(e) => setSourceAddress(e.target.value)}
                   placeholder="10.0.0.2 or 2001:db8::2"
                 />
+                <p className="text-xs text-muted-foreground">Local source IP</p>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="tunnelId">Tunnel ID</Label>
-                <Input id="tunnelId" value={tunnelId} onChange={(e) => setTunnelId(e.target.value)} placeholder="1-429496729" />
+                <Input
+                  id="tunnelId"
+                  value={tunnelId}
+                  onChange={(e) => setTunnelId(e.target.value)}
+                  placeholder="1-429496729"
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="peerTunnelId">Peer Tunnel ID</Label>
-                <Input id="peerTunnelId" value={peerTunnelId} onChange={(e) => setPeerTunnelId(e.target.value)} placeholder="1-429496729" />
+                <Input
+                  id="peerTunnelId"
+                  value={peerTunnelId}
+                  onChange={(e) => setPeerTunnelId(e.target.value)}
+                  placeholder="1-429496729"
+                />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="sessionId">Session ID</Label>
-                <Input id="sessionId" value={sessionId} onChange={(e) => setSessionId(e.target.value)} placeholder="1-429496729" />
+                <Input
+                  id="sessionId"
+                  value={sessionId}
+                  onChange={(e) => setSessionId(e.target.value)}
+                  placeholder="1-429496729"
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="peerSessionId">Peer Session ID</Label>
-                <Input id="peerSessionId" value={peerSessionId} onChange={(e) => setPeerSessionId(e.target.value)} placeholder="1-429496729" />
+                <Input
+                  id="peerSessionId"
+                  value={peerSessionId}
+                  onChange={(e) => setPeerSessionId(e.target.value)}
+                  placeholder="1-429496729"
+                />
               </div>
             </div>
 
@@ -341,7 +533,9 @@ export function EditL2TPv3Modal({
               <div className="space-y-2">
                 <Label htmlFor="encapsulation">Encapsulation</Label>
                 <Select value={encapsulation || "default"} onValueChange={(v) => setEncapsulation(v === "default" ? "" : v)}>
-                  <SelectTrigger id="encapsulation"><SelectValue placeholder="Default (UDP)" /></SelectTrigger>
+                  <SelectTrigger id="encapsulation">
+                    <SelectValue placeholder="Default (UDP)" />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="default">Default (UDP)</SelectItem>
                     <SelectItem value="udp">UDP</SelectItem>
@@ -351,23 +545,44 @@ export function EditL2TPv3Modal({
               </div>
               <div className="space-y-2">
                 <Label htmlFor="destinationPort">Destination Port</Label>
-                <Input id="destinationPort" value={destinationPort} onChange={(e) => setDestinationPort(e.target.value)} placeholder="5000" />
+                <Input
+                  id="destinationPort"
+                  value={destinationPort}
+                  onChange={(e) => setDestinationPort(e.target.value)}
+                  placeholder="5000"
+                />
+                <p className="text-xs text-muted-foreground">Default: 5000</p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="sourcePort">Source Port</Label>
-                <Input id="sourcePort" value={sourcePort} onChange={(e) => setSourcePort(e.target.value)} placeholder="5000" />
+                <Input
+                  id="sourcePort"
+                  value={sourcePort}
+                  onChange={(e) => setSourcePort(e.target.value)}
+                  placeholder="5000"
+                />
+                <p className="text-xs text-muted-foreground">Default: 5000</p>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="mtu">MTU</Label>
-                <Input id="mtu" value={mtu} onChange={(e) => setMtu(e.target.value)} placeholder="1488" />
-                <p className="text-xs text-muted-foreground">68-16000 (default: 1488)</p>
+                <Input
+                  id="mtu"
+                  value={mtu}
+                  onChange={(e) => setMtu(e.target.value)}
+                  placeholder="1488"
+                />
+                <p className="text-xs text-muted-foreground">Valid range: 68-16000 (default: 1488)</p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="vrf">VRF</Label>
-                <VrfSelect id="vrf" value={vrf} onValueChange={setVrf} />
+                <VrfSelect
+                  id="vrf"
+                  value={vrf}
+                  onValueChange={setVrf}
+                />
               </div>
             </div>
 
@@ -381,30 +596,55 @@ export function EditL2TPv3Modal({
           <TabsContent value="addresses" className="space-y-4 mt-4">
             <div className="space-y-2">
               <Label htmlFor="addresses">IP Addresses</Label>
-              <Textarea id="addresses" value={addresses} onChange={(e) => setAddresses(e.target.value)} placeholder={"10.0.0.1/32\n192.168.1.1/24"} rows={4} />
+              <Textarea
+                id="addresses"
+                value={addresses}
+                onChange={(e) => setAddresses(e.target.value)}
+                placeholder={"10.0.0.1/32\n192.168.1.1/24"}
+                rows={4}
+              />
               <p className="text-xs text-muted-foreground">One address per line, IPv4 or IPv6 CIDR notation</p>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="eui64">IPv6 EUI-64 Prefixes</Label>
-              <Textarea id="eui64" value={ipv6AddressEui64} onChange={(e) => setIpv6AddressEui64(e.target.value)} placeholder={"2001:db8::/64"} rows={3} />
+              <Textarea
+                id="eui64"
+                value={ipv6AddressEui64}
+                onChange={(e) => setIpv6AddressEui64(e.target.value)}
+                placeholder={"2001:db8::/64"}
+                rows={3}
+              />
               <p className="text-xs text-muted-foreground">One /64 prefix per line</p>
             </div>
 
             <div className="flex items-center gap-2">
-              <Checkbox id="autoconf" checked={ipv6AddressAutoconf} onCheckedChange={(c) => setIpv6AddressAutoconf(c === true)} />
+              <Checkbox
+                id="autoconf"
+                checked={ipv6AddressAutoconf}
+                onCheckedChange={(c) => setIpv6AddressAutoconf(c === true)}
+              />
               <Label htmlFor="autoconf" className="font-normal">IPv6 SLAAC Autoconf</Label>
             </div>
 
             <div className="flex items-center gap-2">
-              <Checkbox id="noDefaultLinkLocal" checked={ipv6AddressNoDefaultLinkLocal} onCheckedChange={(c) => setIpv6AddressNoDefaultLinkLocal(c === true)} />
+              <Checkbox
+                id="noDefaultLinkLocal"
+                checked={ipv6AddressNoDefaultLinkLocal}
+                onCheckedChange={(c) => setIpv6AddressNoDefaultLinkLocal(c === true)}
+              />
               <Label htmlFor="noDefaultLinkLocal" className="font-normal">No Default Link-Local</Label>
             </div>
 
             {capabilities?.features.ipv6_address_interface_identifier?.supported && (
               <div className="space-y-2">
                 <Label htmlFor="interfaceIdentifier">Interface Identifier (SLAAC)</Label>
-                <Input id="interfaceIdentifier" value={ipv6AddressInterfaceIdentifier} onChange={(e) => setIpv6AddressInterfaceIdentifier(e.target.value)} placeholder="::1" />
+                <Input
+                  id="interfaceIdentifier"
+                  value={ipv6AddressInterfaceIdentifier}
+                  onChange={(e) => setIpv6AddressInterfaceIdentifier(e.target.value)}
+                  placeholder="::1"
+                />
               </div>
             )}
           </TabsContent>
@@ -414,18 +654,30 @@ export function EditL2TPv3Modal({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="ipAdjustMss">Adjust MSS</Label>
-                <Input id="ipAdjustMss" value={ipAdjustMss} onChange={(e) => setIpAdjustMss(e.target.value)} placeholder="clamp-mss-to-pmtu or 536-65535" />
+                <Input
+                  id="ipAdjustMss"
+                  value={ipAdjustMss}
+                  onChange={(e) => setIpAdjustMss(e.target.value)}
+                  placeholder="clamp-mss-to-pmtu or 536-65535"
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="ipArpCacheTimeout">ARP Cache Timeout</Label>
-                <Input id="ipArpCacheTimeout" value={ipArpCacheTimeout} onChange={(e) => setIpArpCacheTimeout(e.target.value)} placeholder="1-86400" />
+                <Input
+                  id="ipArpCacheTimeout"
+                  value={ipArpCacheTimeout}
+                  onChange={(e) => setIpArpCacheTimeout(e.target.value)}
+                  placeholder="1-86400"
+                />
               </div>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="sourceValidation">Source Validation</Label>
               <Select value={ipSourceValidation || "none"} onValueChange={(v) => setIpSourceValidation(v === "none" ? "" : v)}>
-                <SelectTrigger id="sourceValidation"><SelectValue placeholder="None" /></SelectTrigger>
+                <SelectTrigger id="sourceValidation">
+                  <SelectValue placeholder="None" />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">None</SelectItem>
                   <SelectItem value="strict">Strict</SelectItem>
@@ -436,14 +688,38 @@ export function EditL2TPv3Modal({
             </div>
 
             <div className="space-y-3">
-              <div className="flex items-center gap-2"><Checkbox id="ipDisableArpFilter" checked={ipDisableArpFilter} onCheckedChange={(c) => setIpDisableArpFilter(c === true)} /><Label htmlFor="ipDisableArpFilter" className="font-normal">Disable ARP Filter</Label></div>
-              <div className="flex items-center gap-2"><Checkbox id="ipDisableForwarding" checked={ipDisableForwarding} onCheckedChange={(c) => setIpDisableForwarding(c === true)} /><Label htmlFor="ipDisableForwarding" className="font-normal">Disable IPv4 Forwarding</Label></div>
-              <div className="flex items-center gap-2"><Checkbox id="ipEnableArpAccept" checked={ipEnableArpAccept} onCheckedChange={(c) => setIpEnableArpAccept(c === true)} /><Label htmlFor="ipEnableArpAccept" className="font-normal">Enable ARP Accept</Label></div>
-              <div className="flex items-center gap-2"><Checkbox id="ipEnableArpAnnounce" checked={ipEnableArpAnnounce} onCheckedChange={(c) => setIpEnableArpAnnounce(c === true)} /><Label htmlFor="ipEnableArpAnnounce" className="font-normal">Enable ARP Announce</Label></div>
-              <div className="flex items-center gap-2"><Checkbox id="ipEnableArpIgnore" checked={ipEnableArpIgnore} onCheckedChange={(c) => setIpEnableArpIgnore(c === true)} /><Label htmlFor="ipEnableArpIgnore" className="font-normal">Enable ARP Ignore</Label></div>
-              <div className="flex items-center gap-2"><Checkbox id="ipEnableDirectedBroadcast" checked={ipEnableDirectedBroadcast} onCheckedChange={(c) => setIpEnableDirectedBroadcast(c === true)} /><Label htmlFor="ipEnableDirectedBroadcast" className="font-normal">Enable Directed Broadcast</Label></div>
-              <div className="flex items-center gap-2"><Checkbox id="ipEnableProxyArp" checked={ipEnableProxyArp} onCheckedChange={(c) => setIpEnableProxyArp(c === true)} /><Label htmlFor="ipEnableProxyArp" className="font-normal">Enable Proxy ARP</Label></div>
-              <div className="flex items-center gap-2"><Checkbox id="ipProxyArpPvlan" checked={ipProxyArpPvlan} onCheckedChange={(c) => setIpProxyArpPvlan(c === true)} /><Label htmlFor="ipProxyArpPvlan" className="font-normal">Private VLAN Proxy ARP</Label></div>
+              <div className="flex items-center gap-2">
+                <Checkbox id="ipDisableArpFilter" checked={ipDisableArpFilter} onCheckedChange={(c) => setIpDisableArpFilter(c === true)} />
+                <Label htmlFor="ipDisableArpFilter" className="font-normal">Disable ARP Filter</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox id="ipDisableForwarding" checked={ipDisableForwarding} onCheckedChange={(c) => setIpDisableForwarding(c === true)} />
+                <Label htmlFor="ipDisableForwarding" className="font-normal">Disable IPv4 Forwarding</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox id="ipEnableArpAccept" checked={ipEnableArpAccept} onCheckedChange={(c) => setIpEnableArpAccept(c === true)} />
+                <Label htmlFor="ipEnableArpAccept" className="font-normal">Enable ARP Accept</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox id="ipEnableArpAnnounce" checked={ipEnableArpAnnounce} onCheckedChange={(c) => setIpEnableArpAnnounce(c === true)} />
+                <Label htmlFor="ipEnableArpAnnounce" className="font-normal">Enable ARP Announce</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox id="ipEnableArpIgnore" checked={ipEnableArpIgnore} onCheckedChange={(c) => setIpEnableArpIgnore(c === true)} />
+                <Label htmlFor="ipEnableArpIgnore" className="font-normal">Enable ARP Ignore</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox id="ipEnableDirectedBroadcast" checked={ipEnableDirectedBroadcast} onCheckedChange={(c) => setIpEnableDirectedBroadcast(c === true)} />
+                <Label htmlFor="ipEnableDirectedBroadcast" className="font-normal">Enable Directed Broadcast</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox id="ipEnableProxyArp" checked={ipEnableProxyArp} onCheckedChange={(c) => setIpEnableProxyArp(c === true)} />
+                <Label htmlFor="ipEnableProxyArp" className="font-normal">Enable Proxy ARP</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox id="ipProxyArpPvlan" checked={ipProxyArpPvlan} onCheckedChange={(c) => setIpProxyArpPvlan(c === true)} />
+                <Label htmlFor="ipProxyArpPvlan" className="font-normal">Private VLAN Proxy ARP</Label>
+              </div>
             </div>
           </TabsContent>
 
@@ -452,7 +728,9 @@ export function EditL2TPv3Modal({
             <div className="space-y-2">
               <Label htmlFor="ipv6AcceptDad">Accept DAD</Label>
               <Select value={ipv6AcceptDad || "default"} onValueChange={(v) => setIpv6AcceptDad(v === "default" ? "" : v)}>
-                <SelectTrigger id="ipv6AcceptDad"><SelectValue placeholder="Default" /></SelectTrigger>
+                <SelectTrigger id="ipv6AcceptDad">
+                  <SelectValue placeholder="Default" />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="default">Default</SelectItem>
                   <SelectItem value="0">0 - Disable DAD</SelectItem>
@@ -465,23 +743,40 @@ export function EditL2TPv3Modal({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="ipv6AdjustMss">Adjust MSS</Label>
-                <Input id="ipv6AdjustMss" value={ipv6AdjustMss} onChange={(e) => setIpv6AdjustMss(e.target.value)} placeholder="clamp-mss-to-pmtu or 536-65535" />
+                <Input
+                  id="ipv6AdjustMss"
+                  value={ipv6AdjustMss}
+                  onChange={(e) => setIpv6AdjustMss(e.target.value)}
+                  placeholder="clamp-mss-to-pmtu or 536-65535"
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="ipv6BaseReachableTime">Base Reachable Time</Label>
-                <Input id="ipv6BaseReachableTime" value={ipv6BaseReachableTime} onChange={(e) => setIpv6BaseReachableTime(e.target.value)} placeholder="1-86400" />
+                <Input
+                  id="ipv6BaseReachableTime"
+                  value={ipv6BaseReachableTime}
+                  onChange={(e) => setIpv6BaseReachableTime(e.target.value)}
+                  placeholder="1-86400"
+                />
               </div>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="ipv6DupAddrDetectTransmits">DAD Transmit Count</Label>
-              <Input id="ipv6DupAddrDetectTransmits" value={ipv6DupAddrDetectTransmits} onChange={(e) => setIpv6DupAddrDetectTransmits(e.target.value)} placeholder="Number of NS messages" />
+              <Input
+                id="ipv6DupAddrDetectTransmits"
+                value={ipv6DupAddrDetectTransmits}
+                onChange={(e) => setIpv6DupAddrDetectTransmits(e.target.value)}
+                placeholder="Number of NS messages"
+              />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="ipv6SourceValidation">Source Validation</Label>
               <Select value={ipv6SourceValidation || "none"} onValueChange={(v) => setIpv6SourceValidation(v === "none" ? "" : v)}>
-                <SelectTrigger id="ipv6SourceValidation"><SelectValue placeholder="None" /></SelectTrigger>
+                <SelectTrigger id="ipv6SourceValidation">
+                  <SelectValue placeholder="None" />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">None</SelectItem>
                   <SelectItem value="strict">Strict</SelectItem>
@@ -539,10 +834,12 @@ export function EditL2TPv3Modal({
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
+                {isEdit ? "Saving..." : "Creating..."}
               </>
-            ) : (
+            ) : isEdit ? (
               "Save Changes"
+            ) : (
+              "Create Interface"
             )}
           </Button>
         </DialogFooter>
