@@ -122,6 +122,10 @@ export default function MulticastPage() {
             <PimContent />
           ) : selectedMulticast === "pim6" ? (
             <Pim6Content />
+          ) : selectedMulticast === null ? (
+            <div className="flex items-center justify-center h-full">
+              <p className="text-sm text-muted-foreground">Loading multicast protocols...</p>
+            </div>
           ) : (
             <InProgress />
           )}

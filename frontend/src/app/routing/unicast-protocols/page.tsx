@@ -158,6 +158,10 @@ function UnicastProtocolsPageInner() {
             <RipContent />
           ) : selectedProtocol === "ripng" ? (
             <RipngContent />
+          ) : selectedProtocol === null ? (
+            <div className="flex items-center justify-center h-full">
+              <p className="text-sm text-muted-foreground">Loading protocols...</p>
+            </div>
           ) : (
             <InProgress />
           )}

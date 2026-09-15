@@ -18,6 +18,7 @@ import { AppsTab } from "./AppsTab";
 import { SetupDirectoryModal } from "./SetupDirectoryModal";
 import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
+import { SSHNotConfigured } from "@/components/console/SSHNotConfigured";
 
 export function ContainerContent() {
   const { canWrite } = usePermissions();
@@ -80,8 +81,8 @@ export function ContainerContent() {
   if (error && !config) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4">
-        <p className="text-destructive">{error}</p>
-        <Button variant="outline" onClick={() => loadData()}>Retry</Button>
+        {error === "SSH key not configured." ? <SSHNotConfigured /> : <p className="text-destructive">{error}</p>}
+        {error !== "SSH key not configured." && <Button variant="outline" onClick={() => loadData()}>Retry</Button>}
       </div>
     );
   }

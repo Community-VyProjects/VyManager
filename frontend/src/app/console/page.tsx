@@ -7,10 +7,10 @@ import { Button } from "@/components/ui/button";
 import { AlertCircle, Loader2, RefreshCw, Terminal, TriangleAlert } from "lucide-react";
 import { consoleService, type ConsoleStatus } from "@/lib/api/console";
 import { ConsoleTerminal } from "@/components/console/ConsoleTerminal";
+import { SSHNotConfigured } from "@/components/console/SSHNotConfigured";
 import type { ConsoleStatus as WsStatus } from "@/hooks/useConsoleWebSocket";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
-import { useSessionStore } from "@/store/session-store";
 
 const STATUS_COLORS: Record<WsStatus, string> = {
   disconnected: "bg-gray-400",
@@ -27,7 +27,6 @@ const STATUS_LABELS: Record<WsStatus, string> = {
 };
 
 export default function ConsolePage() {
-  const appliance = useSessionStore((s) => s.appliance);
   const [sshStatus, setSshStatus] = useState<ConsoleStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -127,27 +126,7 @@ export default function ConsolePage() {
             </CardContent>
           </Card>
         ) : !sshStatus?.configured ? (
-          <Card>
-            <CardContent className="flex items-start gap-3 p-6">
-              <TriangleAlert className="h-5 w-5 text-yellow-500 flex-shrink-0 mt-0.5" />
-              <div className="space-y-1">
-                <p className="text-sm font-medium">SSH not configured</p>
-                <p className="text-sm text-muted-foreground">
-                  An SSH key must be generated and added to the VyOS device before
-                  using the console.
-                  {!appliance && (
-                    <>
-                      {" "}
-                      <Link href="/sites" className="font-medium text-foreground underline underline-offset-4 hover:text-primary">
-                        Open Site Manager
-                      </Link>{" "}
-                      to set it up.
-                    </>
-                  )}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+          <SSHNotConfigured />
         ) : (
           <>
             {/* WebSocket error banner — only when not currently connected */}

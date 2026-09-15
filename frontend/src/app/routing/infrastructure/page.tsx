@@ -170,6 +170,10 @@ function InfrastructurePageInner() {
             <RpkiContent />
           ) : selectedInfra === "traffic-engineering" ? (
             <TrafficEngineeringContent />
+          ) : selectedInfra === null ? (
+            <div className="flex items-center justify-center h-full">
+              <p className="text-sm text-muted-foreground">Loading infrastructure...</p>
+            </div>
           ) : (
             <InProgress />
           )}
