@@ -38,7 +38,7 @@ export default function LoginPage() {
         setAppliance(applianceMode);
         const existing = await authClient.getSession();
         if (existing.data?.user) {
-          router.replace(afterLoginPath("", applianceMode));
+          router.replace(afterLoginPath(applianceMode));
           return;
         }
         console.log("[LoginPage] Onboarding complete - showing login");
@@ -125,7 +125,7 @@ export default function LoginPage() {
       }
 
       // No other sessions, proceed to redirect
-      router.push(afterLoginPath("", appliance));
+      router.push(afterLoginPath(appliance));
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
       setIsLoading(false);
@@ -140,7 +140,7 @@ export default function LoginPage() {
       }
 
       // Proceed to redirect
-      router.push(afterLoginPath("", appliance));
+      router.push(afterLoginPath(appliance));
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to revoke other sessions";
       throw new Error(errorMessage);
@@ -153,7 +153,7 @@ export default function LoginPage() {
     try {
       await authClient.signIn.oauth2({
         providerId,
-        callbackURL: afterLoginPath("", appliance),
+        callbackURL: afterLoginPath(appliance),
         // On a failed callback (e.g. role mapping denies access because the
         // account is in no permitted group) return to the login page with a
         // friendly message instead of a raw 500.

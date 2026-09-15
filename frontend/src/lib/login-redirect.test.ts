@@ -16,7 +16,8 @@ describe("idle logout login redirect", () => {
 
   it("does not restore a deep link from the login URL", () => {
     assert.equal(login.includes('params.get("from")'), false);
-    assert.match(login, /afterLoginPath\("", appliance/);
+    assert.equal(login.includes('afterLoginPath("",'), false);
+    assert.match(login, /afterLoginPath\(appliance/);
   });
 
   it("continues when a session cookie is already valid", () => {
