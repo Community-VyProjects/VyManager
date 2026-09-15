@@ -24,26 +24,29 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Box, Loader2 } from "lucide-react";
-import { dummyService, type DummyCapabilities } from "@/lib/api/dummy";
+import { dummyService, type DummyInterface, type DummyCapabilities } from "@/lib/api/dummy";
 import { showService, type InterfaceName } from "@/lib/api/show";
 import { InterfaceSelect } from "@/components/ui/interface-select";
 import { ApiError } from "@/lib/types/api";
 
-interface CreateDummyModalProps {
+interface DummyModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   capabilities: DummyCapabilities | null;
   existingInterfaces: string[];
+  existing?: DummyInterface | null;
 }
 
-export function CreateDummyModal({
+export function DummyModal({
   open,
   onOpenChange,
   onSuccess,
   capabilities,
   existingInterfaces,
-}: CreateDummyModalProps) {
+  existing,
+}: DummyModalProps) {
+  const isEdit = !!existing;
   // Basic
   const [name, setName] = useState("dum0");
   const [description, setDescription] = useState("");
@@ -101,18 +104,38 @@ export function CreateDummyModal({
     setError(null);
   };
 
+  const populateForm = (interfaceData: DummyInterface) => {
+    setName(interfaceData.name);
+    setDescription(interfaceData.description ?? "");
+    setMtu(interfaceData.mtu ?? "");
+    setVrf(interfaceData.vrf ?? "");
+    setDisabled(interfaceData.disable ?? false);
+    setAddresses(interfaceData.addresses.join("\n"));
+    setIpv6AddressEui64(interfaceData.ipv6_address_eui64.join("\n"));
+    setIpv6AddressNoDefaultLinkLocal(interfaceData.ipv6_address_no_default_link_local ?? false);
+    setIpDisableForwarding(interfaceData.ip_disable_forwarding ?? false);
+    setIpSourceValidation(interfaceData.ip_source_validation ?? "");
+    setIpv6DisableForwarding(interfaceData.ipv6_disable_forwarding ?? false);
+    setMirrorIngress(interfaceData.mirror_ingress ?? "");
+    setMirrorEgress(interfaceData.mirror_egress ?? "");
+    setRedirect(interfaceData.redirect ?? "");
+    setMac(interfaceData.mac ?? "");
+    setNetns(interfaceData.netns ?? "");
+    setError(null);
+  };
+
   useEffect(() => {
-    if (open) {
+    if (!open) return;
+    showService.getAllInterfaces().then((res) => setAvailableInterfaces(res.interfaces)).catch(() => {});
+    if (existing) {
+      populateForm(existing);
+    } else {
       resetForm();
-      showService.getAllInterfaces().then((res) => setAvailableInterfaces(res.interfaces)).catch(() => {});
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, existing]);
 
-  const validateForm = (): string | null => {
-    if (!name.trim()) return "Interface name is required";
-    if (!/^dum\d+$/.test(name)) return "Name must be dum0, dum1, etc.";
-    if (existingInterfaces.includes(name)) return `Interface ${name} already exists`;
+  const validateMtu = (): string | null => {
     if (mtu.trim()) {
       const mtuNum = parseInt(mtu.trim(), 10);
       if (isNaN(mtuNum) || mtuNum < 68 || mtuNum > 16000) {
@@ -122,7 +145,67 @@ export function CreateDummyModal({
     return null;
   };
 
+  const validateForm = (): string | null => {
+    if (!name.trim()) return "Interface name is required";
+    if (!/^dum\d+$/.test(name)) return "Name must be dum0, dum1, etc.";
+    if (existingInterfaces.includes(name)) return `Interface ${name} already exists`;
+    return validateMtu();
+  };
+
+  const submitUpdate = async () => {
+    if (!existing) return;
+
+    const validationError = validateMtu();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const addrList = addresses.split(/[\n,]/).map((a) => a.trim()).filter(Boolean);
+      const eui64List = ipv6AddressEui64.split(/[\n,]/).map((a) => a.trim()).filter(Boolean);
+
+      const result = await dummyService.updateInterface(existing.name, existing, {
+        description: description.trim() || null,
+        addresses: addrList,
+        mtu: mtu.trim() || null,
+        vrf: vrf.trim() || null,
+        disabled,
+        ip_disable_forwarding: ipDisableForwarding,
+        ip_source_validation: ipSourceValidation || null,
+        ipv6_disable_forwarding: ipv6DisableForwarding,
+        ipv6_address_eui64: eui64List,
+        ipv6_address_no_default_link_local: ipv6AddressNoDefaultLinkLocal,
+        mirror_ingress: mirrorIngress.trim() || null,
+        mirror_egress: mirrorEgress.trim() || null,
+        redirect: redirect.trim() || null,
+        mac: mac.trim() || null,
+        netns: netns.trim() || null,
+      });
+
+      if (result.success) {
+        onOpenChange(false);
+        onSuccess();
+      } else {
+        setError(result.error || "Failed to update dummy interface");
+      }
+    } catch (err) {
+      const msg = (err as ApiError).message;
+      setError(typeof msg === "string" ? msg : JSON.stringify(msg, null, 2));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async () => {
+    if (isEdit) {
+      await submitUpdate();
+      return;
+    }
+
     const validationError = validateForm();
     if (validationError) {
       setError(validationError);
@@ -181,10 +264,19 @@ export function CreateDummyModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Box className="h-5 w-5" />
-            Create Dummy Interface
+            {isEdit ? "Edit Dummy Interface" : "Create Dummy Interface"}
           </DialogTitle>
           <DialogDescription>
-            Create a new software-only dummy interface.
+            {isEdit ? (
+              <>
+                Editing interface{" "}
+                <code className="rounded bg-muted px-1 py-0.5 font-mono text-sm">
+                  {existing.name}
+                </code>
+              </>
+            ) : (
+              "Create a new software-only dummy interface."
+            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -198,14 +290,19 @@ export function CreateDummyModal({
           {/* Basic Tab */}
           <TabsContent value="basic" className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Interface Name <span className="text-destructive">*</span></Label>
+              <Label htmlFor="name">Interface Name {isEdit ? null : <span className="text-destructive">*</span>}</Label>
               <Input
                 id="name"
-                value={name}
+                value={isEdit ? existing.name : name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="dum0"
+                disabled={isEdit}
               />
-              <p className="text-xs text-muted-foreground">Must match pattern: dum0, dum1, dum2, …</p>
+              <p className="text-xs text-muted-foreground">
+                {isEdit
+                  ? "Interface name cannot be changed."
+                  : "Must match pattern: dum0, dum1, dum2, …"}
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -394,8 +491,10 @@ export function CreateDummyModal({
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Creating...
+                {isEdit ? "Saving..." : "Creating..."}
               </>
+            ) : isEdit ? (
+              "Save Changes"
             ) : (
               "Create Interface"
             )}

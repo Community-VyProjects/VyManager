@@ -35,8 +35,7 @@ import { bondingService, bondingVlanService, bondingVlanCapabilities, bondVifToV
 import { BondingModal } from "@/components/bonding/BondingModal";
 import { DeleteBondingModal } from "@/components/bonding/DeleteBondingModal";
 import { dummyService, type DummyInterface, type DummyCapabilities } from "@/lib/api/dummy";
-import { CreateDummyModal } from "@/components/dummy/CreateDummyModal";
-import { EditDummyModal } from "@/components/dummy/EditDummyModal";
+import { DummyModal } from "@/components/dummy/DummyModal";
 import { DeleteDummyModal } from "@/components/dummy/DeleteDummyModal";
 import { geneveService, type GeneveInterface, type GeneveCapabilities } from "@/lib/api/geneve";
 import { CreateGeneveModal } from "@/components/geneve/CreateGeneveModal";
@@ -4227,22 +4226,21 @@ function InterfacesPageInner() {
         interfaceData={deletingTunnel}
       />
       {/* Dummy Modals */}
-      <CreateDummyModal
-        open={isCreateDummyModalOpen}
-        onOpenChange={setIsCreateDummyModalOpen}
-        onSuccess={loadData}
-        capabilities={dummyCapabilities}
-        existingInterfaces={dummyInterfaces.map((i) => i.name)}
-      />
-      <EditDummyModal
-        open={!!editingDummy}
-        onOpenChange={(open) => !open && setEditingDummy(null)}
+      <DummyModal
+        open={isCreateDummyModalOpen || !!editingDummy}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsCreateDummyModalOpen(false);
+            setEditingDummy(null);
+          }
+        }}
         onSuccess={() => {
           setEditingDummy(null);
           loadData();
         }}
         capabilities={dummyCapabilities}
-        interfaceData={editingDummy}
+        existingInterfaces={dummyInterfaces.map((i) => i.name)}
+        existing={editingDummy}
       />
       <DeleteDummyModal
         open={!!deletingDummy}
