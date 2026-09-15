@@ -63,6 +63,7 @@ class MatchConditions(BaseModel):
     # TCP flags are valueless child nodes in VyOS (e.g. "syn", "not fin"),
     # so this is a normalized list like ["syn", "not fin"], matching the firewall.
     tcp_flags: Optional[List[str]] = None
+    tcp_mss: Optional[str] = None
     
     # ICMP (IPv4)
     icmp_code: Optional[str] = None
@@ -412,6 +413,7 @@ def parse_match_conditions(rule_data: dict, match: MatchConditions):
         elif isinstance(flags_data, str):
             tcp_flags = [flags_data]
         match.tcp_flags = tcp_flags if tcp_flags else None
+        match.tcp_mss = get_value(rule_data["tcp"], "mss")
 
     # ICMP (IPv4)
     if "icmp" in rule_data:
@@ -928,6 +930,10 @@ def _recreate_match_conditions(builder, policy_type: str, policy_name: str, rule
                     builder.set_match_tcp_flags(policy_type, policy_name, rule_num, flag_key)
         elif isinstance(flags_data, str) and flags_data:
             builder.set_match_tcp_flags(policy_type, policy_name, rule_num, flags_data)
+    if "tcp" in rule_data and "mss" in rule_data["tcp"]:
+        mss = _get_value(rule_data["tcp"], "mss")
+        if mss:
+            builder.set_match_tcp_mss(policy_type, policy_name, rule_num, mss)
 
     # ICMP
     if "icmp" in rule_data:

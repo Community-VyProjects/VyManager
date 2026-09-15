@@ -52,6 +52,7 @@ export function RouteRuleRow({ rule, onEdit, onDelete }: RouteRuleRowProps) {
     destination_port: "Dst Port",
     protocol: "Protocol",
     tcp_flags: "TCP Flags",
+    tcp_mss: "TCP MSS",
     icmp_code: "ICMP Code",
     icmp_type: "ICMP Type",
     icmp_type_name: "ICMP Name",

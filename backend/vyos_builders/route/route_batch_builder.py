@@ -265,6 +265,16 @@ class RouteBatchBuilder(BatchBuilder):
         path = self.mappers[self.mapper_key].get_match_tcp_flags_delete(policy_type, name, rule)
         return self.add_delete(path)
 
+    def set_match_tcp_mss(self, policy_type: str, name: str, rule: str, mss: str) -> "RouteBatchBuilder":
+        """Match TCP MSS."""
+        path = self.mappers[self.mapper_key].get_match_tcp_mss(policy_type, name, rule, mss)
+        return self.add_set(path)
+
+    def delete_match_tcp_mss(self, policy_type: str, name: str, rule: str) -> "RouteBatchBuilder":
+        """Delete TCP MSS match."""
+        path = self.mappers[self.mapper_key].get_match_tcp_mss_delete(policy_type, name, rule)
+        return self.add_delete(path)
+
     # ========================================================================
     # Match - ICMP (IPv4)
     # ========================================================================
@@ -569,6 +579,11 @@ class RouteBatchBuilder(BatchBuilder):
         except ValueError:
             geoip_matching = False
         try:
+            mapper.get_match_tcp_mss("route", "FOO", "10", "1400")
+            tcp_mss_matching = True
+        except ValueError:
+            tcp_mss_matching = False
+        try:
             mapper.get_match_ipsec("route", "FOO", "10", "match-ipsec")
             ipsec_classic = True
         except ValueError:
@@ -593,6 +608,10 @@ class RouteBatchBuilder(BatchBuilder):
                 "geoip_matching": {
                     "supported": geoip_matching,
                     "description": "Source and destination GeoIP country matching",
+                },
+                "tcp_mss_matching": {
+                    "supported": tcp_mss_matching,
+                    "description": "TCP MSS matching",
                 },
                 "ipsec_matching": {
                     "supported": ipsec_classic or ipsec_directional,
