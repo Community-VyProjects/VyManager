@@ -347,23 +347,32 @@ pull_image() {
 }
 
 apply_config() {
-  # script-template replaces bash 'set'. Do not use set -e after sourcing it.
+  # The script starts with set -eu. script-template and vyatta aliases
+  # (set/commit/save) are incompatible with nounset/errexit, and aliases
+  # do not expand inside this function body. Drop both and call the
+  # vyatta runner directly.
+  set +eu
   # shellcheck disable=SC1091
   source /opt/vyatta/etc/functions/script-template
+  shopt -s expand_aliases
+  echo "  > Opening configure session"
   configure
+  echo "  > Applying set commands"
   # shellcheck disable=SC1090
   if ! source "$CMDFILE"; then
     echo "  x Failed while applying set commands. Discarding." >&2
     discard
     exit 1
   fi
-  if ! commit; then
+  echo "  > commit (containers can take several minutes, no further output)"
+  if ! vyatta_cfg_run commit; then
     echo "  x commit failed. Discarding." >&2
     discard
     echo "  Pulled images, if any, were left in place." >&2
     exit 1
   fi
-  save
+  echo "  > save"
+  vyatta_cfg_run save
 }
 
 SELF="$0"
@@ -376,6 +385,7 @@ if [ "${1:-}" = "--apply" ]; then
   CMDFILE="${VYMANAGER_INSTALL_CMDS:-}"
   [ -n "$CMDFILE" ] && [ -f "$CMDFILE" ] || fail "Internal error: missing command file"
   if [ "$(id -g -n)" != "vyattacfg" ]; then
+    trap - EXIT
     exec sg vyattacfg -c "/bin/vbash \"${SELF}\" --apply"
   fi
   apply_config
