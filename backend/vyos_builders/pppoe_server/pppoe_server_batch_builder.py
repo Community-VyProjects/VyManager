@@ -32,6 +32,11 @@ class PPPoEServerBatchBuilder(BatchBuilder):
             auth_any_login = True
         except ValueError:
             auth_any_login = False
+        try:
+            mapper.get_interface_vpp_cp("eth0")
+            vpp_cp = True
+        except ValueError:
+            vpp_cp = False
         return {
             "version": self.version,
             "features": {
@@ -45,6 +50,7 @@ class PPPoEServerBatchBuilder(BatchBuilder):
                 "client_ipv6_pools": True,
                 "interfaces": True,
                 "vlan_mon": is_1_5,
+                "vpp_cp": vpp_cp,
                 "ppp_options": True,
                 "pado_delay": True,
                 "session_control": True,
@@ -645,6 +651,12 @@ class PPPoEServerBatchBuilder(BatchBuilder):
 
     def delete_interface_vlan_mon(self, iface: str) -> "PPPoEServerBatchBuilder":
         return self.add_delete(self.mappers[self.mapper_key].get_interface_vlan_mon(iface))
+
+    def set_interface_vpp_cp(self, iface: str) -> "PPPoEServerBatchBuilder":
+        return self.add_set(self.mappers[self.mapper_key].get_interface_vpp_cp(iface))
+
+    def delete_interface_vpp_cp(self, iface: str) -> "PPPoEServerBatchBuilder":
+        return self.add_delete(self.mappers[self.mapper_key].get_interface_vpp_cp(iface))
 
     def set_interface_combined(self, iface: str, value: str) -> "PPPoEServerBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_interface_combined(iface, value))

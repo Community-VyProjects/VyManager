@@ -889,6 +889,7 @@ function PPPoEPageInner() {
                           <TableHead>Interface</TableHead>
                           <TableHead>VLANs</TableHead>
                           <TableHead>VLAN Mon</TableHead>
+                          {(capabilities?.features.vpp_cp ?? false) && <TableHead>VPP-CP</TableHead>}
                           <TableHead>Combined</TableHead>
                           {hasWrite && <TableHead className="text-right">Actions</TableHead>}
                         </TableRow>
@@ -913,6 +914,13 @@ function PPPoEPageInner() {
                                 <Badge variant="secondary" className="bg-green-500/10 text-green-600">Yes</Badge>
                               ) : "-"}
                             </TableCell>
+                            {(capabilities?.features.vpp_cp ?? false) && (
+                              <TableCell>
+                                {iface.vpp_cp ? (
+                                  <Badge variant="secondary" className="bg-green-500/10 text-green-600">Yes</Badge>
+                                ) : "-"}
+                              </TableCell>
+                            )}
                             <TableCell>{iface.combined || "-"}</TableCell>
                             {hasWrite && (
                               <TableCell className="text-right">

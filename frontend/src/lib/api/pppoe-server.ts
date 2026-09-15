@@ -111,6 +111,7 @@ export interface PPPoEInterface {
   interface: string;
   vlans?: string[];
   vlan_mon?: boolean;
+  vpp_cp?: boolean;
   combined?: string | null;
 }
 
@@ -222,6 +223,7 @@ export interface PPPoECapabilities {
     client_ipv6_pools: boolean;
     interfaces: boolean;
     vlan_mon: boolean;
+    vpp_cp: boolean;
     ppp_options: boolean;
     pado_delay: boolean;
     session_control: boolean;
@@ -684,6 +686,7 @@ class PPPoEServerService {
   async createInterface(iface: string, opts: {
     vlans?: string[];
     vlan_mon?: boolean;
+    vpp_cp?: boolean;
     combined?: string;
   }): Promise<VyOSResponse> {
     const ops: BatchOperation[] = [{ op: "create_interface" }];
@@ -691,6 +694,7 @@ class PPPoEServerService {
       ops.push({ op: "set_interface_vlan", value: vlan });
     }
     if (opts.vlan_mon) ops.push({ op: "set_interface_vlan_mon" });
+    if (opts.vpp_cp) ops.push({ op: "set_interface_vpp_cp" });
     if (opts.combined) ops.push({ op: "set_interface_combined", value: opts.combined });
     return this.batchConfigure(iface, ops);
   }
@@ -698,6 +702,7 @@ class PPPoEServerService {
   async updateInterface(iface: string, current: PPPoEInterface, opts: {
     vlans?: string[];
     vlan_mon?: boolean;
+    vpp_cp?: boolean;
     combined?: string;
   }): Promise<VyOSResponse> {
     const ops: BatchOperation[] = [];
@@ -711,6 +716,10 @@ class PPPoEServerService {
     if (opts.vlan_mon !== undefined) {
       if (opts.vlan_mon) ops.push({ op: "set_interface_vlan_mon" });
       else if (current.vlan_mon) ops.push({ op: "delete_interface_vlan_mon" });
+    }
+    if (opts.vpp_cp !== undefined) {
+      if (opts.vpp_cp) ops.push({ op: "set_interface_vpp_cp" });
+      else if (current.vpp_cp) ops.push({ op: "delete_interface_vpp_cp" });
     }
     if (opts.combined !== undefined) {
       if (opts.combined) ops.push({ op: "set_interface_combined", value: opts.combined });

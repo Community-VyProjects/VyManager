@@ -555,6 +555,9 @@ class PPPoEServerMapper(BaseFeatureMapper):
     def get_interface_vlan_mon(self, iface: str) -> List[str]:
         return BASE + ["interface", iface, "vlan-mon"]
 
+    def get_interface_vpp_cp(self, iface: str) -> List[str]:
+        return BASE + ["interface", iface, "vpp-cp"]
+
     def get_interface_combined(self, iface: str, value: str) -> List[str]:
         return BASE + ["interface", iface, "combined", value]
 
@@ -807,6 +810,7 @@ class PPPoEServerMapper(BaseFeatureMapper):
                 "interface": iface,
                 "vlans": self._normalize_to_list(iface_cfg.get("vlan")),
                 "vlan_mon": "vlan-mon" in iface_cfg,
+                "vpp_cp": "vpp-cp" in iface_cfg,
                 "combined": iface_cfg.get("combined"),
             }
         return interfaces
