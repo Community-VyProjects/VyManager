@@ -52,7 +52,7 @@ The script fills in defaults. Override them when they are wrong.
 1. **Family:** 1.4 or 1.5 (detected).
 2. **IP for the web UI:** one address already on this router, not `0.0.0.0`. This becomes `http://<ip>:<port>`. You do not type a URL.
 3. **UI port:** default `3000`. Cannot be `8000` or the HTTPS API port. If something on the box already owns 3000, pick another port.
-4. **Inbound interface for dest NAT:** the interface that owns that IP (`eth1`, `bond0`, ...).
+4. **Inbound interface for dest NAT:** the NIC your browser traffic arrives on. Default is the interface that owns the UI IP.
 5. **Two dest NAT rule numbers:** labels in the NAT table. Defaults start at 9000 if those numbers are free. They must differ, and they must not already exist.
 6. **VRF:** only if `ghcr.io` is unreachable from the default table. That VRF is used for the image pull and the container network.
 
@@ -77,6 +77,8 @@ Example: UI IP `10.10.10.1`, inbound `eth1`, UI port `3000`.
 
 - You open `http://10.10.10.1:3000`. Dest NAT sends that session to the frontend container.
 - The browser also uses `10.10.10.1:8000` for websockets. Dest NAT sends that to the backend container.
+
+Which interface to pick: the one the packet hits the router on. Opening the UI from the LAN that owns that IP: keep the default. Reaching it through VPN or another NIC: select that interface. Wrong interface means the NAT rule never matches and the page hangs. One install covers one arrival path.
 
 What dest NAT is **not**:
 
