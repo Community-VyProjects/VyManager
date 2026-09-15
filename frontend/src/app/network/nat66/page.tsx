@@ -402,30 +402,12 @@ export default function NAT66Page() {
                               <code className="text-xs bg-muted/50 px-2 py-1 rounded font-mono">
                                 {sourceDisplay}
                               </code>
-                              {groupsSupported && rule.source?.group && (
-                                <div className="flex flex-wrap gap-1 mt-1">
-                                  {rule.source.group.network_group && (
-                                    <GroupBadgeWithTooltip label="net" groupName={rule.source.group.network_group} groupType="net" />
-                                  )}
-                                  {rule.source.group.address_group && (
-                                    <GroupBadgeWithTooltip label="addr" groupName={rule.source.group.address_group} groupType="addr" />
-                                  )}
-                                  {rule.source.group.mac_group && (
-                                    <GroupBadgeWithTooltip label="mac" groupName={rule.source.group.mac_group} groupType="mac" />
-                                  )}
-                                  {rule.source.group.domain_group && (
-                                    <GroupBadgeWithTooltip label="domain" groupName={rule.source.group.domain_group} groupType="domain" />
-                                  )}
-                                </div>
-                              )}
                             </TableCell>
                             <TableCell>
                               {rule.source?.port ? (
                                 <code className="text-xs bg-muted/50 px-2 py-1 rounded font-mono">
                                   {rule.source.port}
                                 </code>
-                              ) : rule.source?.group?.port_group ? (
-                                <GroupBadgeWithTooltip label="port" groupName={rule.source.group.port_group} groupType="port" />
                               ) : (
                                 <span className="text-xs text-muted-foreground">-</span>
                               )}

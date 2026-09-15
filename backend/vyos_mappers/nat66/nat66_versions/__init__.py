@@ -5,7 +5,7 @@ from ..nat66 import NAT66Mapper
 def get_nat66_mapper(version: str) -> NAT66Mapper:
     """Factory to get version-specific NAT66 mapper.
 
-    VyOS 1.5 adds firewall group support (source/destination group subtree)
+    VyOS 1.5 adds firewall group support (destination group subtree)
     on both source and destination rules.
     """
     if "1.5" in version:

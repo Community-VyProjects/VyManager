@@ -14,7 +14,6 @@ export interface NAT66RuleSource {
   address?: string | null;
   prefix?: string | null;
   port?: string | null;
-  group?: NAT66RuleGroup | null;
 }
 
 export interface NAT66RuleDestination {

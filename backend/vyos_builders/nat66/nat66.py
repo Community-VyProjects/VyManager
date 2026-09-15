@@ -101,13 +101,7 @@ class NAT66BatchBuilder(BatchBuilder):
     def delete_source_rule_translation_port(self, rule_number: int) -> "NAT66BatchBuilder":
         return self.add_delete(self.mappers[self.mapper_key].get_source_rule_translation_port_path(rule_number))
 
-    # Source rule - groups (VyOS 1.5 only, mapper will have the method)
-    def set_source_rule_source_group(self, rule_number: int, group_type: str, value: str) -> "NAT66BatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_source_rule_source_group(rule_number, group_type, value))
-
-    def delete_source_rule_source_group(self, rule_number: int, group_type: str) -> "NAT66BatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_source_rule_source_group_path(rule_number, group_type))
-
+    # Source rule - destination groups (VyOS 1.5 only, mapper will have the method)
     def set_source_rule_destination_group(self, rule_number: int, group_type: str, value: str) -> "NAT66BatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_source_rule_destination_group(rule_number, group_type, value))
 
@@ -197,13 +191,7 @@ class NAT66BatchBuilder(BatchBuilder):
     def delete_destination_rule_translation_port(self, rule_number: int) -> "NAT66BatchBuilder":
         return self.add_delete(self.mappers[self.mapper_key].get_destination_rule_translation_port_path(rule_number))
 
-    # Destination rule - groups (VyOS 1.5 only)
-    def set_destination_rule_source_group(self, rule_number: int, group_type: str, value: str) -> "NAT66BatchBuilder":
-        return self.add_set(self.mappers[self.mapper_key].get_destination_rule_source_group(rule_number, group_type, value))
-
-    def delete_destination_rule_source_group(self, rule_number: int, group_type: str) -> "NAT66BatchBuilder":
-        return self.add_delete(self.mappers[self.mapper_key].get_destination_rule_source_group_path(rule_number, group_type))
-
+    # Destination rule - destination groups (VyOS 1.5 only)
     def set_destination_rule_destination_group(self, rule_number: int, group_type: str, value: str) -> "NAT66BatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_destination_rule_destination_group(rule_number, group_type, value))
 
@@ -237,7 +225,7 @@ class NAT66BatchBuilder(BatchBuilder):
                 },
                 "groups": {
                     "supported": is_v1_5,
-                    "description": "Firewall group references in source/destination match (VyOS 1.5+)",
+                    "description": "Firewall group references in destination match (VyOS 1.5+)",
                 },
             },
             "operations": {
