@@ -34,6 +34,10 @@ export function CreateLocalRouteModal({
   const [source, setSource] = useState("");
   const [destination, setDestination] = useState("");
   const [inboundInterface, setInboundInterface] = useState("");
+  const [fwmark, setFwmark] = useState("");
+  const [protocol, setProtocol] = useState("");
+  const [sourcePort, setSourcePort] = useState("");
+  const [destinationPort, setDestinationPort] = useState("");
   const [routingType, setRoutingType] = useState<"table" | "vrf">("table");
   const [table, setTable] = useState("");
   const [vrf, setVrf] = useState("");
@@ -106,6 +110,10 @@ export function CreateLocalRouteModal({
     setSource("");
     setDestination("");
     setInboundInterface("");
+    setFwmark("");
+    setProtocol("");
+    setSourcePort("");
+    setDestinationPort("");
     setRoutingType("table");
     setTable("");
     setVrf("");
@@ -202,8 +210,8 @@ export function CreateLocalRouteModal({
     }
 
     // At least one matching criterion must be specified
-    if (!source && !destination && !inboundInterface) {
-      setError("At least one matching criterion is required (source, destination, or inbound interface)");
+    if (!source && !destination && !inboundInterface && !fwmark && !protocol && !sourcePort && !destinationPort) {
+      setError("At least one matching criterion is required (source, destination, interface, protocol, port, or fwmark)");
       return;
     }
 
@@ -225,6 +233,30 @@ export function CreateLocalRouteModal({
       }
     }
 
+    if (fwmark) {
+      const mark = parseInt(fwmark, 10);
+      if (isNaN(mark) || mark < 1 || mark > 2147483647) {
+        setError("Fwmark must be a number between 1 and 2147483647");
+        return;
+      }
+    }
+
+    if (sourcePort) {
+      const port = parseInt(sourcePort, 10);
+      if (isNaN(port) || port < 1 || port > 65535) {
+        setError("Source port must be a number between 1 and 65535");
+        return;
+      }
+    }
+
+    if (destinationPort) {
+      const port = parseInt(destinationPort, 10);
+      if (isNaN(port) || port < 1 || port > 65535) {
+        setError("Destination port must be a number between 1 and 65535");
+        return;
+      }
+    }
+
     setLoading(true);
 
     try {
@@ -232,6 +264,10 @@ export function CreateLocalRouteModal({
         source: source || undefined,
         destination: destination || undefined,
         inbound_interface: inboundInterface || undefined,
+        fwmark: fwmark || undefined,
+        protocol: protocol.trim() || undefined,
+        source_port: sourcePort || undefined,
+        destination_port: destinationPort || undefined,
         // Only send the selected routing type
         table: routingType === "table" ? table : undefined,
         vrf: routingType === "vrf" ? vrf : undefined,
@@ -318,6 +354,73 @@ export function CreateLocalRouteModal({
             </p>
           </div>
 
+          {capabilities?.features.protocol_matching?.supported !== false && (
+            <div className="space-y-2">
+              <Label htmlFor="protocol">Protocol</Label>
+              <Input
+                id="protocol"
+                value={protocol}
+                onChange={(e) => setProtocol(e.target.value)}
+                placeholder="e.g. tcp, udp, or 6"
+                disabled={loading}
+              />
+              <p className="text-xs text-muted-foreground">
+                Match this IP protocol name or number (optional)
+              </p>
+            </div>
+          )}
+
+          {capabilities?.features.source_port_matching?.supported !== false && (
+            <div className="space-y-2">
+              <Label htmlFor="source-port">Source Port</Label>
+              <Input
+                id="source-port"
+                type="number"
+                min={1}
+                max={65535}
+                value={sourcePort}
+                onChange={(e) => setSourcePort(e.target.value)}
+                placeholder="1-65535"
+                disabled={loading}
+              />
+            </div>
+          )}
+
+          {capabilities?.features.destination_port_matching?.supported !== false && (
+            <div className="space-y-2">
+              <Label htmlFor="destination-port">Destination Port</Label>
+              <Input
+                id="destination-port"
+                type="number"
+                min={1}
+                max={65535}
+                value={destinationPort}
+                onChange={(e) => setDestinationPort(e.target.value)}
+                placeholder="1-65535"
+                disabled={loading}
+              />
+            </div>
+          )}
+
+          {capabilities?.features.fwmark_matching?.supported !== false && (
+            <div className="space-y-2">
+              <Label htmlFor="fwmark">Fwmark</Label>
+              <Input
+                id="fwmark"
+                type="number"
+                min={1}
+                max={2147483647}
+                value={fwmark}
+                onChange={(e) => setFwmark(e.target.value)}
+                placeholder="1-2147483647"
+                disabled={loading}
+              />
+              <p className="text-xs text-muted-foreground">
+                Match this firewall mark (optional)
+              </p>
+            </div>
+          )}
+
           {/* Routing Selection - Table or VRF */}
           <div className="space-y-3 border border-border rounded-lg p-4">
             <Label>Routing Destination *</Label>
@@ -394,7 +497,7 @@ export function CreateLocalRouteModal({
               <div className="text-sm text-muted-foreground">
                 <p className="font-medium text-foreground mb-1">Policy-Based Routing</p>
                 <ul className="space-y-1 text-xs">
-                  <li>• At least one matching criterion (source, destination, or interface) is required</li>
+                  <li>• At least one matching criterion (address, port, protocol, interface, or fwmark) is required</li>
                   <li>• Choose either Routing Table OR VRF - you cannot specify both</li>
                   {capabilities?.features.vrf_support.supported ? (
                     <li>• VRF option is available on this device</li>

@@ -104,6 +104,70 @@ class LocalRouteBatchBuilder(BatchBuilder):
         ].get_local_route_rule_inbound_interface_path(rule_number)
         return self.add_delete(path)
 
+    def set_local_route_rule_fwmark(
+        self, rule_number: int, fwmark: str
+    ) -> "LocalRouteBatchBuilder":
+        path = self.mappers[self.mapper_key].get_local_route_rule_fwmark(
+            rule_number, fwmark
+        )
+        return self.add_set(path)
+
+    def delete_local_route_rule_fwmark(
+        self, rule_number: int
+    ) -> "LocalRouteBatchBuilder":
+        path = self.mappers[self.mapper_key].get_local_route_rule_fwmark_path(
+            rule_number
+        )
+        return self.add_delete(path)
+
+    def set_local_route_rule_protocol(
+        self, rule_number: int, protocol: str
+    ) -> "LocalRouteBatchBuilder":
+        path = self.mappers[self.mapper_key].get_local_route_rule_protocol(
+            rule_number, protocol
+        )
+        return self.add_set(path)
+
+    def delete_local_route_rule_protocol(
+        self, rule_number: int
+    ) -> "LocalRouteBatchBuilder":
+        path = self.mappers[self.mapper_key].get_local_route_rule_protocol_path(
+            rule_number
+        )
+        return self.add_delete(path)
+
+    def set_local_route_rule_source_port(
+        self, rule_number: int, port: str
+    ) -> "LocalRouteBatchBuilder":
+        path = self.mappers[self.mapper_key].get_local_route_rule_source_port(
+            rule_number, port
+        )
+        return self.add_set(path)
+
+    def delete_local_route_rule_source_port(
+        self, rule_number: int
+    ) -> "LocalRouteBatchBuilder":
+        path = self.mappers[self.mapper_key].get_local_route_rule_source_port_path(
+            rule_number
+        )
+        return self.add_delete(path)
+
+    def set_local_route_rule_destination_port(
+        self, rule_number: int, port: str
+    ) -> "LocalRouteBatchBuilder":
+        path = self.mappers[self.mapper_key].get_local_route_rule_destination_port(
+            rule_number, port
+        )
+        return self.add_set(path)
+
+    def delete_local_route_rule_destination_port(
+        self, rule_number: int
+    ) -> "LocalRouteBatchBuilder":
+        path = self.mappers[self.mapper_key].get_local_route_rule_destination_port_path(
+            rule_number
+        )
+        return self.add_delete(path)
+
     def set_local_route_rule_set_table(
         self, rule_number: int, table: str
     ) -> "LocalRouteBatchBuilder":
@@ -212,6 +276,70 @@ class LocalRouteBatchBuilder(BatchBuilder):
         ].get_local_route6_rule_inbound_interface_path(rule_number)
         return self.add_delete(path)
 
+    def set_local_route6_rule_fwmark(
+        self, rule_number: int, fwmark: str
+    ) -> "LocalRouteBatchBuilder":
+        path = self.mappers[self.mapper_key].get_local_route6_rule_fwmark(
+            rule_number, fwmark
+        )
+        return self.add_set(path)
+
+    def delete_local_route6_rule_fwmark(
+        self, rule_number: int
+    ) -> "LocalRouteBatchBuilder":
+        path = self.mappers[self.mapper_key].get_local_route6_rule_fwmark_path(
+            rule_number
+        )
+        return self.add_delete(path)
+
+    def set_local_route6_rule_protocol(
+        self, rule_number: int, protocol: str
+    ) -> "LocalRouteBatchBuilder":
+        path = self.mappers[self.mapper_key].get_local_route6_rule_protocol(
+            rule_number, protocol
+        )
+        return self.add_set(path)
+
+    def delete_local_route6_rule_protocol(
+        self, rule_number: int
+    ) -> "LocalRouteBatchBuilder":
+        path = self.mappers[self.mapper_key].get_local_route6_rule_protocol_path(
+            rule_number
+        )
+        return self.add_delete(path)
+
+    def set_local_route6_rule_source_port(
+        self, rule_number: int, port: str
+    ) -> "LocalRouteBatchBuilder":
+        path = self.mappers[self.mapper_key].get_local_route6_rule_source_port(
+            rule_number, port
+        )
+        return self.add_set(path)
+
+    def delete_local_route6_rule_source_port(
+        self, rule_number: int
+    ) -> "LocalRouteBatchBuilder":
+        path = self.mappers[self.mapper_key].get_local_route6_rule_source_port_path(
+            rule_number
+        )
+        return self.add_delete(path)
+
+    def set_local_route6_rule_destination_port(
+        self, rule_number: int, port: str
+    ) -> "LocalRouteBatchBuilder":
+        path = self.mappers[self.mapper_key].get_local_route6_rule_destination_port(
+            rule_number, port
+        )
+        return self.add_set(path)
+
+    def delete_local_route6_rule_destination_port(
+        self, rule_number: int
+    ) -> "LocalRouteBatchBuilder":
+        path = self.mappers[self.mapper_key].get_local_route6_rule_destination_port_path(
+            rule_number
+        )
+        return self.add_delete(path)
+
     def set_local_route6_rule_set_table(
         self, rule_number: int, table: str
     ) -> "LocalRouteBatchBuilder":
@@ -279,6 +407,28 @@ class LocalRouteBatchBuilder(BatchBuilder):
                 "inbound_interface_matching": {
                     "supported": True,
                     "description": "Match based on inbound interface",
+                },
+                "fwmark_matching": {
+                    "supported": True,
+                    "description": "Match based on firewall mark",
+                    "min": 1,
+                    "max": 2147483647,
+                },
+                "protocol_matching": {
+                    "supported": True,
+                    "description": "Match based on IP protocol name or number",
+                },
+                "source_port_matching": {
+                    "supported": True,
+                    "description": "Match based on source port",
+                    "min": 1,
+                    "max": 65535,
+                },
+                "destination_port_matching": {
+                    "supported": True,
+                    "description": "Match based on destination port",
+                    "min": 1,
+                    "max": 65535,
                 },
                 "routing_table_selection": {
                     "supported": True,

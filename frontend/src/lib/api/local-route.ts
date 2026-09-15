@@ -10,6 +10,10 @@ export interface LocalRouteRule {
   source?: string | null;
   destination?: string | null;
   inbound_interface?: string | null;
+  fwmark?: string | null;
+  protocol?: string | null;
+  source_port?: string | null;
+  destination_port?: string | null;
   table?: string | null;
   vrf?: string | null;
 }
@@ -43,6 +47,28 @@ export interface LocalRouteCapabilitiesResponse {
     inbound_interface_matching: {
       supported: boolean;
       description: string;
+    };
+    fwmark_matching?: {
+      supported: boolean;
+      description: string;
+      min?: number;
+      max?: number;
+    };
+    protocol_matching?: {
+      supported: boolean;
+      description: string;
+    };
+    source_port_matching?: {
+      supported: boolean;
+      description: string;
+      min?: number;
+      max?: number;
+    };
+    destination_port_matching?: {
+      supported: boolean;
+      description: string;
+      min?: number;
+      max?: number;
     };
     routing_table_selection: {
       supported: boolean;
@@ -158,6 +184,34 @@ class LocalRouteService {
       });
     }
 
+    if (config.fwmark) {
+      operations.push({
+        op: ruleType === "ipv4" ? "set_local_route_rule_fwmark" : "set_local_route6_rule_fwmark",
+        value: config.fwmark
+      });
+    }
+
+    if (config.protocol) {
+      operations.push({
+        op: ruleType === "ipv4" ? "set_local_route_rule_protocol" : "set_local_route6_rule_protocol",
+        value: config.protocol
+      });
+    }
+
+    if (config.source_port) {
+      operations.push({
+        op: ruleType === "ipv4" ? "set_local_route_rule_source_port" : "set_local_route6_rule_source_port",
+        value: config.source_port
+      });
+    }
+
+    if (config.destination_port) {
+      operations.push({
+        op: ruleType === "ipv4" ? "set_local_route_rule_destination_port" : "set_local_route6_rule_destination_port",
+        value: config.destination_port
+      });
+    }
+
     // Set table (required - unless VRF is set)
     if (config.table) {
       operations.push({
@@ -213,6 +267,30 @@ class LocalRouteService {
       });
     }
 
+    if (config.fwmark !== undefined && !config.fwmark) {
+      operations.push({
+        op: ruleType === "ipv4" ? "delete_local_route_rule_fwmark" : "delete_local_route6_rule_fwmark"
+      });
+    }
+
+    if (config.protocol !== undefined && !config.protocol) {
+      operations.push({
+        op: ruleType === "ipv4" ? "delete_local_route_rule_protocol" : "delete_local_route6_rule_protocol"
+      });
+    }
+
+    if (config.source_port !== undefined && !config.source_port) {
+      operations.push({
+        op: ruleType === "ipv4" ? "delete_local_route_rule_source_port" : "delete_local_route6_rule_source_port"
+      });
+    }
+
+    if (config.destination_port !== undefined && !config.destination_port) {
+      operations.push({
+        op: ruleType === "ipv4" ? "delete_local_route_rule_destination_port" : "delete_local_route6_rule_destination_port"
+      });
+    }
+
     if (config.vrf !== undefined && !config.vrf) {
       operations.push({
         op: ruleType === "ipv4" ? "delete_local_route_rule_set_vrf" : "delete_local_route6_rule_set_vrf"
@@ -238,6 +316,34 @@ class LocalRouteService {
       operations.push({
         op: ruleType === "ipv4" ? "set_local_route_rule_inbound_interface" : "set_local_route6_rule_inbound_interface",
         value: config.inbound_interface
+      });
+    }
+
+    if (config.fwmark !== undefined && config.fwmark) {
+      operations.push({
+        op: ruleType === "ipv4" ? "set_local_route_rule_fwmark" : "set_local_route6_rule_fwmark",
+        value: config.fwmark
+      });
+    }
+
+    if (config.protocol !== undefined && config.protocol) {
+      operations.push({
+        op: ruleType === "ipv4" ? "set_local_route_rule_protocol" : "set_local_route6_rule_protocol",
+        value: config.protocol
+      });
+    }
+
+    if (config.source_port !== undefined && config.source_port) {
+      operations.push({
+        op: ruleType === "ipv4" ? "set_local_route_rule_source_port" : "set_local_route6_rule_source_port",
+        value: config.source_port
+      });
+    }
+
+    if (config.destination_port !== undefined && config.destination_port) {
+      operations.push({
+        op: ruleType === "ipv4" ? "set_local_route_rule_destination_port" : "set_local_route6_rule_destination_port",
+        value: config.destination_port
       });
     }
 

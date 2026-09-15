@@ -39,8 +39,8 @@ class LocalRouteMapper(BaseFeatureMapper):
         return ["policy", "local-route", "rule", str(rule_number), "source", "address", source]
 
     def get_local_route_rule_source_path(self, rule_number: int) -> List[str]:
-        """Get command path for IPv4 rule source (for deletion)."""
-        return ["policy", "local-route", "rule", str(rule_number), "source"]
+        """Delete source address only so source port is kept."""
+        return ["policy", "local-route", "rule", str(rule_number), "source", "address"]
 
     def get_local_route_rule_destination(
         self, rule_number: int, destination: str
@@ -57,8 +57,15 @@ class LocalRouteMapper(BaseFeatureMapper):
         ]
 
     def get_local_route_rule_destination_path(self, rule_number: int) -> List[str]:
-        """Get command path for IPv4 rule destination (for deletion)."""
-        return ["policy", "local-route", "rule", str(rule_number), "destination"]
+        """Delete destination address only so destination port is kept."""
+        return [
+            "policy",
+            "local-route",
+            "rule",
+            str(rule_number),
+            "destination",
+            "address",
+        ]
 
     def get_local_route_rule_inbound_interface(
         self, rule_number: int, interface: str
@@ -78,6 +85,40 @@ class LocalRouteMapper(BaseFeatureMapper):
     ) -> List[str]:
         """Get command path for IPv4 rule inbound interface (for deletion)."""
         return ["policy", "local-route", "rule", str(rule_number), "inbound-interface"]
+
+    def get_local_route_rule_fwmark(self, rule_number: int, fwmark: str) -> List[str]:
+        return ["policy", "local-route", "rule", str(rule_number), "fwmark", fwmark]
+
+    def get_local_route_rule_fwmark_path(self, rule_number: int) -> List[str]:
+        return ["policy", "local-route", "rule", str(rule_number), "fwmark"]
+
+    def get_local_route_rule_protocol(self, rule_number: int, protocol: str) -> List[str]:
+        return ["policy", "local-route", "rule", str(rule_number), "protocol", protocol]
+
+    def get_local_route_rule_protocol_path(self, rule_number: int) -> List[str]:
+        return ["policy", "local-route", "rule", str(rule_number), "protocol"]
+
+    def get_local_route_rule_source_port(self, rule_number: int, port: str) -> List[str]:
+        return ["policy", "local-route", "rule", str(rule_number), "source", "port", port]
+
+    def get_local_route_rule_source_port_path(self, rule_number: int) -> List[str]:
+        return ["policy", "local-route", "rule", str(rule_number), "source", "port"]
+
+    def get_local_route_rule_destination_port(
+        self, rule_number: int, port: str
+    ) -> List[str]:
+        return [
+            "policy",
+            "local-route",
+            "rule",
+            str(rule_number),
+            "destination",
+            "port",
+            port,
+        ]
+
+    def get_local_route_rule_destination_port_path(self, rule_number: int) -> List[str]:
+        return ["policy", "local-route", "rule", str(rule_number), "destination", "port"]
 
     def get_local_route_rule_set_table(
         self, rule_number: int, table: str
@@ -122,8 +163,8 @@ class LocalRouteMapper(BaseFeatureMapper):
         return ["policy", "local-route6", "rule", str(rule_number), "source", "address", source]
 
     def get_local_route6_rule_source_path(self, rule_number: int) -> List[str]:
-        """Get command path for IPv6 rule source (for deletion)."""
-        return ["policy", "local-route6", "rule", str(rule_number), "source"]
+        """Delete source address only so source port is kept."""
+        return ["policy", "local-route6", "rule", str(rule_number), "source", "address"]
 
     def get_local_route6_rule_destination(
         self, rule_number: int, destination: str
@@ -140,8 +181,15 @@ class LocalRouteMapper(BaseFeatureMapper):
         ]
 
     def get_local_route6_rule_destination_path(self, rule_number: int) -> List[str]:
-        """Get command path for IPv6 rule destination (for deletion)."""
-        return ["policy", "local-route6", "rule", str(rule_number), "destination"]
+        """Delete destination address only so destination port is kept."""
+        return [
+            "policy",
+            "local-route6",
+            "rule",
+            str(rule_number),
+            "destination",
+            "address",
+        ]
 
     def get_local_route6_rule_inbound_interface(
         self, rule_number: int, interface: str
@@ -161,6 +209,44 @@ class LocalRouteMapper(BaseFeatureMapper):
     ) -> List[str]:
         """Get command path for IPv6 rule inbound interface (for deletion)."""
         return ["policy", "local-route6", "rule", str(rule_number), "inbound-interface"]
+
+    def get_local_route6_rule_fwmark(self, rule_number: int, fwmark: str) -> List[str]:
+        return ["policy", "local-route6", "rule", str(rule_number), "fwmark", fwmark]
+
+    def get_local_route6_rule_fwmark_path(self, rule_number: int) -> List[str]:
+        return ["policy", "local-route6", "rule", str(rule_number), "fwmark"]
+
+    def get_local_route6_rule_protocol(
+        self, rule_number: int, protocol: str
+    ) -> List[str]:
+        return ["policy", "local-route6", "rule", str(rule_number), "protocol", protocol]
+
+    def get_local_route6_rule_protocol_path(self, rule_number: int) -> List[str]:
+        return ["policy", "local-route6", "rule", str(rule_number), "protocol"]
+
+    def get_local_route6_rule_source_port(
+        self, rule_number: int, port: str
+    ) -> List[str]:
+        return ["policy", "local-route6", "rule", str(rule_number), "source", "port", port]
+
+    def get_local_route6_rule_source_port_path(self, rule_number: int) -> List[str]:
+        return ["policy", "local-route6", "rule", str(rule_number), "source", "port"]
+
+    def get_local_route6_rule_destination_port(
+        self, rule_number: int, port: str
+    ) -> List[str]:
+        return [
+            "policy",
+            "local-route6",
+            "rule",
+            str(rule_number),
+            "destination",
+            "port",
+            port,
+        ]
+
+    def get_local_route6_rule_destination_port_path(self, rule_number: int) -> List[str]:
+        return ["policy", "local-route6", "rule", str(rule_number), "destination", "port"]
 
     def get_local_route6_rule_set_table(
         self, rule_number: int, table: str
