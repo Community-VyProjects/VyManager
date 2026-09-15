@@ -311,11 +311,12 @@ async def get_pppoe_sessions(
 ):
     """Return active PPPoE sessions with per-session packet counters and PPS.
 
-    Sessions and kernel MTUs are read in one GraphQL POST (``ShowSessionsAccelppp``
-    plus ``ShowInterfaces``). PPS is derived from the counter deltas between
-    polls. If the structured session operation is unavailable, the endpoint falls
-    back to parsing the ``show pppoe-server sessions`` text table, which has no
-    packet counters, so PPS is left unset.
+    Session counters come from ``ShowSessionsAccelppp``. Live MTUs come from a
+    separate ``ShowInterfaces`` GraphQL lookup and are joined by PPP interface.
+    PPS is derived from the counter deltas between polls. If the structured
+    session operation is unavailable, the endpoint falls back to parsing the
+    ``show pppoe-server sessions`` text table, which has no packet counters, so
+    PPS is left unset.
 
     Live consumers should prefer the dashboard SSE ``pppoe-sessions`` event;
     this REST path remains for a one-shot refresh.

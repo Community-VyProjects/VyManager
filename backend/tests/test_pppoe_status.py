@@ -86,6 +86,7 @@ def test_parse_accel_ppp_sessions_reads_packet_counters_and_bytes():
             "tx_bytes_raw": "3870",
             "rx_pkts": "29",
             "tx_pkts": "25",
+            "mtu": "1480",
         }
     ]
 
@@ -101,6 +102,7 @@ def test_parse_accel_ppp_sessions_reads_packet_counters_and_bytes():
     assert s.tx_bytes == 3870
     assert s.rx_packets == 29
     assert s.tx_packets == 25
+    assert s.mtu == 1480
     assert s.uptime == "00:00:30"
     # Empty accel-ppp fields become None, not "".
     assert s.ipv6 is None
@@ -162,15 +164,16 @@ def test_accel_ppp_sessions_query_requests_sessions_only():
     assert "ShowInterfaces" not in query
 
 
-def test_pppoe_server_mtu_from_config():
-    from pppoe_status import apply_configured_mtu, pppoe_server_mtu_from_config
+def test_apply_interface_mtus_preserves_distinct_live_values_per_session():
+    sessions = [
+        PPPoESession(interface="ppp0", username="u1", state="active"),
+        PPPoESession(interface="ppp1", username="u2", state="active"),
+    ]
 
-    assert pppoe_server_mtu_from_config({"service": {"pppoe-server": {"mtu": "1492"}}}) == 1492
-    assert pppoe_server_mtu_from_config({"service": {}}) is None
+    apply_interface_mtus(sessions, {"ppp0": 1480, "ppp1": 1492})
 
-    sessions = [PPPoESession(interface="ppp0", username="u", state="active")]
-    apply_configured_mtu(sessions, 1492)
-    assert sessions[0].mtu == 1492
+    assert sessions[0].mtu == 1480
+    assert sessions[1].mtu == 1492
 
 
 def test_parse_accel_ppp_sessions_accepts_json_encoded_string_result():
@@ -354,9 +357,14 @@ def test_load_pppoe_sessions_skips_rest_show_when_graphql_succeeds():
 
     import pppoe_status as mod
     original = mod.fetch_accel_ppp_sessions
+    original_mtus = mod.fetch_interface_mtus
     mod.fetch_accel_ppp_sessions = fake_fetch
+    async def fake_fetch_mtus(_service):
+        return {"ppp0": 1480}
+    mod.fetch_interface_mtus = fake_fetch_mtus
     try:
         loaded = asyncio.run(load_pppoe_sessions(service))
-        assert loaded[0].mtu == 1492
+        assert loaded[0].mtu == 1480
     finally:
         mod.fetch_accel_ppp_sessions = original
+        mod.fetch_interface_mtus = original_mtus

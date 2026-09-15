@@ -110,11 +110,23 @@ function sessionLabelMatches(session: SessionWithRates, label: PPPoESessionLabel
   return false;
 }
 
-function sessionRecognizedLabels(session: SessionWithRates, labels: PPPoESessionLabelDefinition[]): string[] {
+function sessionRecognizedLabels(
+  session: SessionWithRates,
+  labels: PPPoESessionLabelDefinition[],
+): PPPoESessionLabelDefinition[] {
   return labels
     .filter((label) => label.enabled !== false)
-    .filter((label) => sessionLabelMatches(session, label))
-    .map((label) => label.name);
+    .filter((label) => sessionLabelMatches(session, label));
+}
+
+function sessionLabelClass(severity?: string): string {
+  if (severity === "danger") {
+    return "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-300";
+  }
+  if (severity === "warning") {
+    return "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300";
+  }
+  return "border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300";
 }
 
 const PPPOE_SESSION_COLUMNS: ColumnDef[] = [
@@ -433,7 +445,7 @@ function PPPoEPageInner() {
     if (ipv6Filter === "yes" && !session.ipv6) return false;
     if (ipv6Filter === "no" && session.ipv6) return false;
     if (mtuFilter && String(session.mtu ?? "") !== mtuFilter.trim()) return false;
-    if (sessionLabelFilter && !sessionRecognizedLabels(session, sessionLabels).includes(sessionLabelFilter)) return false;
+    if (sessionLabelFilter && !sessionRecognizedLabels(session, sessionLabels).some((label) => label.name === sessionLabelFilter)) return false;
     return true;
   });
 
@@ -768,7 +780,25 @@ function PPPoEPageInner() {
                                 if (column.id === "txRate") return <TableCell key={column.id}>{formatRate(session.txRate)} <span className="text-xs text-muted-foreground">/ {formatPps(session.txPps)}</span></TableCell>;
                                 if (column.id === "rx_bytes") return <TableCell key={column.id} className="text-right whitespace-nowrap">{formatBytes(session.rx_bytes)} RX</TableCell>;
                                 if (column.id === "tx_bytes") return <TableCell key={column.id} className="text-right whitespace-nowrap">{formatBytes(session.tx_bytes)} TX</TableCell>;
-                                return <TableCell key={column.id}>{labels.length ? labels.join(" ") : "-"}</TableCell>;
+                                return (
+                                  <TableCell key={column.id}>
+                                    {labels.length > 0 ? (
+                                      <div className="flex flex-wrap gap-1">
+                                        {labels.map((label) => (
+                                          <span
+                                            key={label.code}
+                                            className={cn(
+                                              "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium",
+                                              sessionLabelClass(label.severity),
+                                            )}
+                                          >
+                                            {label.name}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    ) : "-"}
+                                  </TableCell>
+                                );
                               })}
                               <TableCell className="text-right whitespace-nowrap">
                                 <Button variant="ghost" size="icon" className="h-8 w-8" title={`Graph statistics for ${session.username}`} onClick={() => setSelectedStatsKey(sessionKey(session))}>

@@ -5,6 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -144,28 +151,34 @@ export function SessionLabelRegistryDialog({
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5">
                         <Label htmlFor={`label-severity-${index}`}>Severity</Label>
-                        <select
-                          id={`label-severity-${index}`}
+                        <Select
                           value={label.severity ?? "info"}
-                          onChange={(e) => updateAt(index, { severity: e.target.value })}
-                          className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+                          onValueChange={(value) => updateAt(index, { severity: value })}
                         >
-                          <option value="info">info</option>
-                          <option value="warning">warning</option>
-                          <option value="danger">danger</option>
-                        </select>
+                          <SelectTrigger id={`label-severity-${index}`} className="w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="info">Info</SelectItem>
+                            <SelectItem value="warning">Warning</SelectItem>
+                            <SelectItem value="danger">Danger</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div className="space-y-1.5">
                         <Label htmlFor={`label-enabled-${index}`}>Enabled</Label>
-                        <select
-                          id={`label-enabled-${index}`}
+                        <Select
                           value={label.enabled === false ? "false" : "true"}
-                          onChange={(e) => updateAt(index, { enabled: e.target.value === "true" })}
-                          className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+                          onValueChange={(value) => updateAt(index, { enabled: value === "true" })}
                         >
-                          <option value="true">Yes</option>
-                          <option value="false">No</option>
-                        </select>
+                          <SelectTrigger id={`label-enabled-${index}`} className="w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="true">Yes</SelectItem>
+                            <SelectItem value="false">No</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
                   </div>
@@ -187,56 +200,58 @@ export function SessionLabelRegistryDialog({
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                     <div className="space-y-1.5">
                       <Label>Numerator</Label>
-                      <select
+                      <Select
                         value={label.rules?.numerator ?? "rx_bytes"}
-                        onChange={(e) =>
+                        onValueChange={(value) =>
                           updateRuleAt(index, {
-                            numerator: e.target.value as PPPoESessionLabelRule["numerator"],
+                            numerator: value as PPPoESessionLabelRule["numerator"],
                           })
                         }
-                        className="h-9 w-full rounded-md border bg-background px-2 text-sm"
                       >
-                        {METRIC_OPTIONS.map((opt) => (
-                          <option key={opt.value} value={opt.value}>
-                            {opt.label}
-                          </option>
-                        ))}
-                      </select>
+                        <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {METRIC_OPTIONS.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="space-y-1.5">
                       <Label>Denominator</Label>
-                      <select
+                      <Select
                         value={label.rules?.denominator ?? "tx_bytes"}
-                        onChange={(e) =>
+                        onValueChange={(value) =>
                           updateRuleAt(index, {
-                            denominator: e.target.value as PPPoESessionLabelRule["denominator"],
+                            denominator: value as PPPoESessionLabelRule["denominator"],
                           })
                         }
-                        className="h-9 w-full rounded-md border bg-background px-2 text-sm"
                       >
-                        {METRIC_OPTIONS.map((opt) => (
-                          <option key={opt.value} value={opt.value}>
-                            {opt.label}
-                          </option>
-                        ))}
-                      </select>
+                        <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {METRIC_OPTIONS.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="space-y-1.5">
                       <Label>Operator</Label>
-                      <select
+                      <Select
                         value={label.rules?.operator ?? ">"}
-                        onChange={(e) =>
+                        onValueChange={(value) =>
                           updateRuleAt(index, {
-                            operator: e.target.value as PPPoESessionLabelRule["operator"],
+                            operator: value as PPPoESessionLabelRule["operator"],
                           })
                         }
-                        className="h-9 w-full rounded-md border bg-background px-2 text-sm"
                       >
-                        <option value=">">&gt;</option>
-                        <option value=">=">&ge;</option>
-                        <option value="<">&lt;</option>
-                        <option value="<=">&le;</option>
-                      </select>
+                        <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value=">">&gt;</SelectItem>
+                          <SelectItem value=">=">&ge;</SelectItem>
+                          <SelectItem value="<">&lt;</SelectItem>
+                          <SelectItem value="<=">&le;</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="space-y-1.5">
                       <Label>Factor</Label>
