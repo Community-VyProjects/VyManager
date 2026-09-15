@@ -106,6 +106,7 @@ If SSH is missing, it enables `service ssh` and stops there for SSH. If HTTPS is
 1. Open the printed URL (`http://<ip>:3000`).
 2. Create the first local admin. That is the only onboarding step. No site, no host form. Registration closes after that.
 3. Login lands on the dashboard and connects to this router.
+4. Console, monitoring, and containers need SSH. Administration, This router, Edit instance, Generate SSH Keypair. That installs the public key on this device over the API. The installer does not do this. Config UI still works without it.
 
 Users, OIDC, API tokens, backup, and this router's instance settings (API key, version, SSH, commit-confirm, timeout) live under **Administration**. Instance timeout defaults to 300 seconds so large commits do not look like a hang.
 
