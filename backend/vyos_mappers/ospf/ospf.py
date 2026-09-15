@@ -296,6 +296,18 @@ class OspfMapper(BaseFeatureMapper):
     def get_interface_ldp_sync_delete(self, iface: str) -> List[str]:
         return self._interface(iface) + ["ldp-sync"]
 
+    def get_interface_ldp_sync_disable(self, iface: str) -> List[str]:
+        return self._interface(iface) + ["ldp-sync", "disable"]
+
+    def get_interface_ldp_sync_disable_delete(self, iface: str) -> List[str]:
+        return self._interface(iface) + ["ldp-sync", "disable"]
+
+    def get_interface_ldp_sync_holddown(self, iface: str, value: str) -> List[str]:
+        return self._interface(iface) + ["ldp-sync", "holddown", value]
+
+    def get_interface_ldp_sync_holddown_delete(self, iface: str) -> List[str]:
+        return self._interface(iface) + ["ldp-sync", "holddown"]
+
     # ========================================================================
     # Redistribute
     # ========================================================================

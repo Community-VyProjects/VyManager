@@ -93,6 +93,8 @@ class OspfInterface(BaseModel):
     hello_multiplier: Optional[int] = None
     authentication: OspfInterfaceAuthentication = OspfInterfaceAuthentication()
     ldp_sync: bool = False
+    ldp_sync_disable: bool = False
+    ldp_sync_holddown: Optional[int] = None
 
 
 class OspfRedistribute(BaseModel):
@@ -467,6 +469,10 @@ def parse_interfaces(raw: dict) -> List[OspfInterface]:
             else:
                 passive = True
 
+        ldp_raw = config.get("ldp-sync")
+        ldp_sync_disable = isinstance(ldp_raw, dict) and "disable" in ldp_raw
+        ldp_sync_holddown = _safe_int(ldp_raw.get("holddown")) if isinstance(ldp_raw, dict) else None
+
         interfaces.append(OspfInterface(
             name=iface_name,
             area=config.get("area"),
@@ -489,6 +495,8 @@ def parse_interfaces(raw: dict) -> List[OspfInterface]:
                 plaintext_password=auth_raw.get("plaintext-password") if isinstance(auth_raw, dict) else None,
             ),
             ldp_sync="ldp-sync" in config,
+            ldp_sync_disable=ldp_sync_disable,
+            ldp_sync_holddown=ldp_sync_holddown,
         ))
 
     return interfaces

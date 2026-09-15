@@ -275,6 +275,18 @@ class OspfBatchBuilder(BatchBuilder):
     def delete_interface_ldp_sync(self, iface: str) -> "OspfBatchBuilder":
         return self.add_delete(self.m.get_interface_ldp_sync_delete(iface))
 
+    def set_interface_ldp_sync_disable(self, iface: str) -> "OspfBatchBuilder":
+        return self.add_set(self.m.get_interface_ldp_sync_disable(iface))
+
+    def delete_interface_ldp_sync_disable(self, iface: str) -> "OspfBatchBuilder":
+        return self.add_delete(self.m.get_interface_ldp_sync_disable_delete(iface))
+
+    def set_interface_ldp_sync_holddown(self, iface: str, value: str) -> "OspfBatchBuilder":
+        return self.add_set(self.m.get_interface_ldp_sync_holddown(iface, value))
+
+    def delete_interface_ldp_sync_holddown(self, iface: str) -> "OspfBatchBuilder":
+        return self.add_delete(self.m.get_interface_ldp_sync_holddown_delete(iface))
+
     # ========================================================================
     # Redistribute
     # ========================================================================
