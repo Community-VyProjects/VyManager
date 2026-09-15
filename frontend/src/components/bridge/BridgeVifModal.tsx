@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -15,24 +15,27 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertCircle, Loader2 } from "lucide-react";
-import { bridgeService } from "@/lib/api/bridge";
+import { bridgeService, type BridgeVifConfig } from "@/lib/api/bridge";
 import { ApiError } from "@/lib/types/api";
 
-interface CreateBridgeVifModalProps {
+interface BridgeVifModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   interfaceName: string;
   existingVlanIds: string[];
+  existing?: BridgeVifConfig | null;
 }
 
-export function CreateBridgeVifModal({
+export function BridgeVifModal({
   open,
   onOpenChange,
   onSuccess,
   interfaceName,
   existingVlanIds,
-}: CreateBridgeVifModalProps) {
+  existing,
+}: BridgeVifModalProps) {
+  const isEdit = !!existing;
   const [vlanId, setVlanId] = useState("");
   const [addresses, setAddresses] = useState("");
   const [description, setDescription] = useState("");
@@ -52,12 +55,63 @@ export function CreateBridgeVifModal({
     setError(null);
   };
 
+  const populateForm = (vif: BridgeVifConfig) => {
+    setVlanId(vif.vlan_id);
+    setAddresses(vif.addresses.join(", "));
+    setDescription(vif.description || "");
+    setMtu(vif.mtu || "");
+    setVrf(vif.vrf || "");
+    setDisabled(vif.disable);
+    setError(null);
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    if (existing) {
+      populateForm(existing);
+    } else {
+      reset();
+    }
+  }, [open, existing]);
+
   const handleOpenChange = (next: boolean) => {
     if (!next) reset();
     onOpenChange(next);
   };
 
+  const submitUpdate = async () => {
+    if (!existing) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const addrList = addresses.split(/[,\n]/).map((a) => a.trim()).filter(Boolean);
+      const result = await bridgeService.updateVif(interfaceName, existing, {
+        addresses: addrList,
+        description: description.trim() || null,
+        mtu: mtu.trim() || null,
+        vrf: vrf.trim() || null,
+        disabled,
+      });
+
+      if (result.success) {
+        onOpenChange(false);
+        onSuccess();
+      } else {
+        setError(result.error || "Failed to update VIF");
+      }
+    } catch (err) {
+      setError((err as ApiError).message || "Failed to update VIF");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async () => {
+    if (isEdit) {
+      await submitUpdate();
+      return;
+    }
+
     const vid = vlanId.trim();
     if (!vid) {
       setError("VLAN ID is required.");
@@ -103,26 +157,34 @@ export function CreateBridgeVifModal({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Add VIF to {interfaceName}</DialogTitle>
+          <DialogTitle>
+            {isEdit ? `Edit VIF ${existing.vlan_id} on ${interfaceName}` : `Add VIF to ${interfaceName}`}
+          </DialogTitle>
           <DialogDescription>
-            Create a VLAN sub-interface (802.1Q) on this bridge.
+            {isEdit
+              ? "Modify VLAN sub-interface configuration."
+              : "Create a VLAN sub-interface (802.1Q) on this bridge."}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="vif-vlan-id">
-              VLAN ID <span className="text-destructive">*</span>
+              VLAN ID {isEdit ? null : <span className="text-destructive">*</span>}
             </Label>
             <Input
               id="vif-vlan-id"
-              value={vlanId}
+              value={isEdit ? existing.vlan_id : vlanId}
               onChange={(e) => setVlanId(e.target.value)}
               placeholder="1–4094"
               type="number"
               min={1}
               max={4094}
+              disabled={isEdit}
             />
+            {isEdit ? (
+              <p className="text-xs text-muted-foreground">VLAN ID cannot be changed.</p>
+            ) : null}
           </div>
 
           <div className="space-y-2">
@@ -193,8 +255,10 @@ export function CreateBridgeVifModal({
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Creating...
+                {isEdit ? "Saving..." : "Creating..."}
               </>
+            ) : isEdit ? (
+              "Save Changes"
             ) : (
               "Create VIF"
             )}
