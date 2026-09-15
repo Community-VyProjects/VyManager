@@ -6,7 +6,8 @@ import { Loader2, Plus, Save, Edit3, X } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Github, Globe, MessageCircle, Sparkles, ArrowUpCircle, Tag } from "lucide-react";
-import { useSession } from "@/lib/auth-client";
+import { authClient, useSession } from "@/lib/auth-client";
+import { confirmLoggedIn } from "@/lib/session-ready";
 import { useSessionStore } from "@/store/session-store";
 import { sessionService } from "@/lib/api/session";
 import { shouldRedirectToSites } from "@/lib/appliance";
@@ -181,7 +182,7 @@ export default function Home() {
         return;
       }
 
-      if (!session?.user) {
+      if (!(await confirmLoggedIn(session, () => authClient.getSession()))) {
         try {
           const data = await sessionService.getOnboardingStatus();
 
