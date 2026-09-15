@@ -36,6 +36,8 @@ export function RouteRuleRow({ rule, onEdit, onDelete }: RouteRuleRowProps) {
     destination_address: "Dst Addr",
     source_mac_address: "Src MAC",
     destination_mac_address: "Dst MAC",
+    source_geoip: "Src GeoIP",
+    destination_geoip: "Dst GeoIP",
     source_group_address: "Src Group Addr",
     source_group_domain: "Src Group Domain",
     source_group_mac: "Src Group MAC",
@@ -94,10 +96,28 @@ export function RouteRuleRow({ rule, onEdit, onDelete }: RouteRuleRowProps) {
     vrf: "VRF",
   };
 
+  const formatMatchValue = (key: string, value: unknown): string => {
+    if ((key === "source_geoip" || key === "destination_geoip") && value && typeof value === "object") {
+      const geoip = value as { country_code?: string[] | null; inverse_match?: boolean | null };
+      const codes = (geoip.country_code || []).join(",");
+      return `${geoip.inverse_match ? "!" : ""}${codes}`;
+    }
+    if (Array.isArray(value)) {
+      return value.join(",");
+    }
+    return String(value);
+  };
+
   const activeMatchConditions = rule.match
-    ? Object.entries(rule.match).filter(
-        ([, value]) => value !== null && value !== undefined && value !== false && value !== ""
-      )
+    ? Object.entries(rule.match).filter(([, value]) => {
+        if (value === null || value === undefined || value === false || value === "") return false;
+        if (Array.isArray(value) && value.length === 0) return false;
+        if (typeof value === "object") {
+          const geoip = value as { country_code?: string[] | null; inverse_match?: boolean | null };
+          return Boolean((geoip.country_code && geoip.country_code.length > 0) || geoip.inverse_match);
+        }
+        return true;
+      })
     : [];
 
   const activeSetActions = rule.set
@@ -145,7 +165,7 @@ export function RouteRuleRow({ rule, onEdit, onDelete }: RouteRuleRowProps) {
                   {activeMatchConditions.map(([key, value]) => (
                     <div key={key} className="contents">
                       <span className="text-xs text-muted-foreground whitespace-nowrap">{MATCH_LABELS[key] ?? key}:</span>
-                      <span className="text-xs font-mono truncate">{String(value)}</span>
+                      <span className="text-xs font-mono truncate">{formatMatchValue(key, value)}</span>
                     </div>
                   ))}
                 </div>

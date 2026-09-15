@@ -26,6 +26,12 @@ router = APIRouter(prefix="/vyos/route", tags=["route"])
 # Pydantic Models - Match Conditions
 # ============================================================================
 
+class GeoIPMatch(BaseModel):
+    """GeoIP country match (source or destination)."""
+    country_code: Optional[List[str]] = None
+    inverse_match: bool = False
+
+
 class MatchConditions(BaseModel):
     """Match conditions for a policy route rule."""
     # Address
@@ -33,6 +39,8 @@ class MatchConditions(BaseModel):
     destination_address: Optional[str] = None
     source_mac_address: Optional[str] = None
     destination_mac_address: Optional[str] = None
+    source_geoip: Optional[GeoIPMatch] = None
+    destination_geoip: Optional[GeoIPMatch] = None
     
     # Groups
     source_group_address: Optional[str] = None
@@ -359,6 +367,8 @@ def parse_match_conditions(rule_data: dict, match: MatchConditions):
             match.source_group_network = get_value(grp, "network-group")
             match.source_group_port = get_value(grp, "port-group")
 
+        match.source_geoip = _geoip_match(src.get("geoip"))
+
     # Destination
     if "destination" in rule_data:
         dst = rule_data["destination"]
@@ -373,6 +383,8 @@ def parse_match_conditions(rule_data: dict, match: MatchConditions):
             match.destination_group_mac = get_value(grp, "mac-group")
             match.destination_group_network = get_value(grp, "network-group")
             match.destination_group_port = get_value(grp, "port-group")
+
+        match.destination_geoip = _geoip_match(dst.get("geoip"))
 
     # Protocol (can be string or list)
     protocol_value = rule_data.get("protocol")
@@ -726,6 +738,8 @@ async def route_batch_configure(http_request: Request, body: RouteBatchRequest):
         )
     except HTTPException:
         raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.exception("Unhandled error")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -741,6 +755,50 @@ def _get_value(data, key):
     if isinstance(value, list):
         return value[0] if value else None
     return value
+
+
+def _geoip_country_codes(geoip_data) -> List[str]:
+    """Normalize country-code from list, dict keys, or a single string."""
+    if not isinstance(geoip_data, dict):
+        return []
+    raw = geoip_data.get("country-code")
+    if isinstance(raw, dict):
+        return [str(code) for code in raw.keys()]
+    if isinstance(raw, list):
+        return [str(code) for code in raw if code]
+    if raw:
+        return [str(raw)]
+    return []
+
+
+def _geoip_inverse(geoip_data) -> bool:
+    if not isinstance(geoip_data, dict):
+        return False
+    return "inverse-match" in geoip_data or geoip_data.get("inverse-match") == ""
+
+
+def _geoip_match(geoip_data) -> Optional[GeoIPMatch]:
+    codes = _geoip_country_codes(geoip_data)
+    inverse = _geoip_inverse(geoip_data)
+    if not codes and not inverse:
+        return None
+    return GeoIPMatch(country_code=codes or None, inverse_match=inverse)
+
+
+def _recreate_geoip(builder, policy_type: str, policy_name: str, rule_num: str, side: str, geoip_data):
+    """Recreate source or destination GeoIP leaves during reorder."""
+    codes = _geoip_country_codes(geoip_data)
+    inverse = _geoip_inverse(geoip_data)
+    if side == "source":
+        for code in codes:
+            builder.set_match_source_geoip_country(policy_type, policy_name, rule_num, code)
+        if inverse:
+            builder.set_match_source_geoip_inverse(policy_type, policy_name, rule_num)
+    else:
+        for code in codes:
+            builder.set_match_destination_geoip_country(policy_type, policy_name, rule_num, code)
+        if inverse:
+            builder.set_match_destination_geoip_inverse(policy_type, policy_name, rule_num)
 
 
 def _recreate_match_conditions(builder, policy_type: str, policy_name: str, rule_num: str, rule_data: dict):
@@ -787,6 +845,8 @@ def _recreate_match_conditions(builder, policy_type: str, policy_name: str, rule
                 g = _get_value(grp, "port-group")
                 if g:
                     builder.set_match_source_group_port(policy_type, policy_name, rule_num, g)
+        if "geoip" in src:
+            _recreate_geoip(builder, policy_type, policy_name, rule_num, "source", src["geoip"])
 
     # Destination conditions
     if "destination" in rule_data:
@@ -825,6 +885,8 @@ def _recreate_match_conditions(builder, policy_type: str, policy_name: str, rule
                 g = _get_value(grp, "port-group")
                 if g:
                     builder.set_match_destination_group_port(policy_type, policy_name, rule_num, g)
+        if "geoip" in dst:
+            _recreate_geoip(builder, policy_type, policy_name, rule_num, "destination", dst["geoip"])
 
     # Protocol
     if "protocol" in rule_data:

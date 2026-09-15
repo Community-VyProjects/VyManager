@@ -13,6 +13,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { AlertCircle } from "lucide-react";
 import { routeService, RouteCapabilitiesResponse, MatchConditions, SetActions } from "@/lib/api/route";
 import { firewallGroupsService, FirewallGroup } from "@/lib/api/firewall-groups";
+import { CountryMultiSelect } from "@/components/firewall/CountryMultiSelect";
 
 import { ApiError } from "@/lib/types/api";
 
@@ -84,6 +85,10 @@ export function CreateRouteRuleModal({
   const [sourceMacInvert, setSourceMacInvert] = useState(false);
   const [destMac, setDestMac] = useState("");
   const [destMacInvert, setDestMacInvert] = useState(false);
+  const [sourceGeoipCountry, setSourceGeoipCountry] = useState<string[]>([]);
+  const [sourceGeoipInverse, setSourceGeoipInverse] = useState(false);
+  const [destGeoipCountry, setDestGeoipCountry] = useState<string[]>([]);
+  const [destGeoipInverse, setDestGeoipInverse] = useState(false);
 
   // Match Conditions - Groups (address/network/domain are mutually exclusive, mac and port are independent)
   const [sourceAddressDomainType, setSourceAddressDomainType] = useState<string>("none");
@@ -242,6 +247,18 @@ export function CreateRouteRuleModal({
       }
       if (destMac) {
         match.destination_mac_address = destMacInvert ? `!${destMac}` : destMac;
+      }
+      if (sourceGeoipCountry.length > 0 || sourceGeoipInverse) {
+        match.source_geoip = {
+          country_code: sourceGeoipCountry.length > 0 ? sourceGeoipCountry : undefined,
+          inverse_match: sourceGeoipInverse || undefined,
+        };
+      }
+      if (destGeoipCountry.length > 0 || destGeoipInverse) {
+        match.destination_geoip = {
+          country_code: destGeoipCountry.length > 0 ? destGeoipCountry : undefined,
+          inverse_match: destGeoipInverse || undefined,
+        };
       }
 
       // Match - Groups
@@ -630,6 +647,52 @@ export function CreateRouteRuleModal({
                 </div>
               </div>
             </div>
+
+            {capabilities?.features.geoip_matching?.supported && (
+              <div className="space-y-4">
+                <h3 className="font-semibold text-sm">GeoIP Matching</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <CountryMultiSelect
+                      id="sourceGeoipCountry"
+                      label="Source GeoIP Countries"
+                      value={sourceGeoipCountry}
+                      onChange={setSourceGeoipCountry}
+                    />
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="sourceGeoipInverse"
+                        checked={sourceGeoipInverse}
+                        onCheckedChange={(checked) => setSourceGeoipInverse(checked as boolean)}
+                        disabled={loading}
+                      />
+                      <Label htmlFor="sourceGeoipInverse" className="text-sm font-normal cursor-pointer">
+                        Exclude countries (inverse match)
+                      </Label>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <CountryMultiSelect
+                      id="destGeoipCountry"
+                      label="Destination GeoIP Countries"
+                      value={destGeoipCountry}
+                      onChange={setDestGeoipCountry}
+                    />
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="destGeoipInverse"
+                        checked={destGeoipInverse}
+                        onCheckedChange={(checked) => setDestGeoipInverse(checked as boolean)}
+                        disabled={loading}
+                      />
+                      <Label htmlFor="destGeoipInverse" className="text-sm font-normal cursor-pointer">
+                        Exclude countries (inverse match)
+                      </Label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Groups Section */}
             <div className="space-y-4">
