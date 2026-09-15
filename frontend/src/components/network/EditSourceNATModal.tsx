@@ -602,6 +602,7 @@ export function EditSourceNATModal({ open, onOpenChange, rule, onSuccess }: Edit
   const getAddressGroups = () => (groups || []).filter(g => g.type === "address-group" || g.type === "ipv6-address-group");
   const getNetworkGroups = () => (groups || []).filter(g => g.type === "network-group" || g.type === "ipv6-network-group");
   const getDomainGroups = () => (groups || []).filter(g => g.type === "domain-group");
+  const getMacGroups = () => (groups || []).filter(g => g.type === "mac-group");
   const getInterfaceGroups = () => (groups || []).filter(g => g.type === "interface-group");
   const getPortGroups = () => (groups || []).filter(g => g.type === "port-group");
 
@@ -939,6 +940,7 @@ export function EditSourceNATModal({ open, onOpenChange, rule, onSuccess }: Edit
                         <SelectItem value="address-group">Address Group</SelectItem>
                         <SelectItem value="network-group">Network Group</SelectItem>
                         <SelectItem value="domain-group">Domain Group</SelectItem>
+                        <SelectItem value="mac-group">MAC Group</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -956,6 +958,9 @@ export function EditSourceNATModal({ open, onOpenChange, rule, onSuccess }: Edit
                           <SelectItem key={group.name} value={group.name}>{group.name}</SelectItem>
                         ))}
                         {sourceGroupType === "domain-group" && getDomainGroups().map((group) => (
+                          <SelectItem key={group.name} value={group.name}>{group.name}</SelectItem>
+                        ))}
+                        {sourceGroupType === "mac-group" && getMacGroups().map((group) => (
                           <SelectItem key={group.name} value={group.name}>{group.name}</SelectItem>
                         ))}
                       </SelectContent>
@@ -1071,6 +1076,7 @@ export function EditSourceNATModal({ open, onOpenChange, rule, onSuccess }: Edit
                         <SelectItem value="address-group">Address Group</SelectItem>
                         <SelectItem value="network-group">Network Group</SelectItem>
                         <SelectItem value="domain-group">Domain Group</SelectItem>
+                        <SelectItem value="mac-group">MAC Group</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -1088,6 +1094,9 @@ export function EditSourceNATModal({ open, onOpenChange, rule, onSuccess }: Edit
                           <SelectItem key={group.name} value={group.name}>{group.name}</SelectItem>
                         ))}
                         {destinationGroupType === "domain-group" && getDomainGroups().map((group) => (
+                          <SelectItem key={group.name} value={group.name}>{group.name}</SelectItem>
+                        ))}
+                        {destinationGroupType === "mac-group" && getMacGroups().map((group) => (
                           <SelectItem key={group.name} value={group.name}>{group.name}</SelectItem>
                         ))}
                       </SelectContent>
