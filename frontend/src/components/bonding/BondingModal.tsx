@@ -23,11 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { AlertCircle, Loader2, Link2, X, Plus } from "lucide-react";
-import {
-  bondingService,
-  type BondingCapabilities,
-  type BondingInterface,
-} from "@/lib/api/bonding";
+import { bondingService, type BondingCapabilities, type BondingInterface } from "@/lib/api/bonding";
 import { showService, type InterfaceName } from "@/lib/api/show";
 import { InterfaceSelect } from "@/components/ui/interface-select";
 import { ApiError } from "@/lib/types/api";
@@ -42,22 +38,26 @@ const LACP_RATE_MODE = "802.3ad";
 const PRIMARY_MODE = "active-backup";
 const SYSTEM_MAC_MODE = "802.3ad";
 
-interface EditBondingModalProps {
+interface BondingModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   capabilities: BondingCapabilities | null;
-  interfaceData: BondingInterface | null;
+  existingInterfaces: string[];
+  existing?: BondingInterface | null;
 }
 
-export function EditBondingModal({
+export function BondingModal({
   open,
   onOpenChange,
   onSuccess,
   capabilities,
-  interfaceData,
-}: EditBondingModalProps) {
+  existingInterfaces,
+  existing,
+}: BondingModalProps) {
+  const isEdit = !!existing;
   // Basic
+  const [name, setName] = useState("bond0");
   const [description, setDescription] = useState("");
   const [mode, setMode] = useState("802.3ad");
   const [hashPolicy, setHashPolicy] = useState("");
@@ -102,26 +102,26 @@ export function EditBondingModal({
   const [ipv6AddressEui64, setIpv6AddressEui64] = useState("");
   const [ipv6AddressInterfaceIdentifier, setIpv6AddressInterfaceIdentifier] = useState("");
 
-  // ARP Monitor
+  // Advanced - ARP Monitor
   const [arpMonitorInterval, setArpMonitorInterval] = useState("");
   const [arpMonitorTargets, setArpMonitorTargets] = useState("");
 
-  // EVPN
+  // Advanced - EVPN
   const [evpnEsDfPref, setEvpnEsDfPref] = useState("");
   const [evpnEsId, setEvpnEsId] = useState("");
   const [evpnEsSysMac, setEvpnEsSysMac] = useState("");
   const [evpnUplink, setEvpnUplink] = useState(false);
 
-  // Mirror
+  // Advanced - Mirror
   const [mirrorIngress, setMirrorIngress] = useState("");
   const [mirrorEgress, setMirrorEgress] = useState("");
 
-  // EAPoL
+  // Advanced - EAPoL
   const [eapolCaCert, setEapolCaCert] = useState("");
   const [eapolCert, setEapolCert] = useState("");
   const [eapolPassphrase, setEapolPassphrase] = useState("");
 
-  // DHCP Options
+  // Advanced - DHCP Options
   const [dhcpClientId, setDhcpClientId] = useState("");
   const [dhcpDefaultRouteDistance, setDhcpDefaultRouteDistance] = useState("");
   const [dhcpHostName, setDhcpHostName] = useState("");
@@ -131,7 +131,7 @@ export function EditBondingModal({
   const [dhcpNoDefaultRoute, setDhcpNoDefaultRoute] = useState(false);
   const [dhcpReject, setDhcpReject] = useState("");
 
-  // DHCPv6 Options
+  // Advanced - DHCPv6 Options
   const [dhcpv6Duid, setDhcpv6Duid] = useState("");
   const [dhcpv6NoRelease, setDhcpv6NoRelease] = useState(false);
   const [dhcpv6ParametersOnly, setDhcpv6ParametersOnly] = useState(false);
@@ -140,12 +140,12 @@ export function EditBondingModal({
   const [dhcpv6NoRequestDns, setDhcpv6NoRequestDns] = useState(false);
   const [dhcpv6NoRequestDomainName, setDhcpv6NoRequestDomainName] = useState(false);
 
-  // Interface Options
+  // Advanced - Interface Options
   const [redirect, setRedirect] = useState("");
   const [disabled, setDisabled] = useState(false);
   const [disableLinkDetect, setDisableLinkDetect] = useState(false);
 
-  // Available interfaces
+  // Available interfaces for member selection
   const [availableInterfaces, setAvailableInterfaces] = useState<InterfaceName[]>([]);
 
   // UI state
@@ -153,100 +153,181 @@ export function EditBondingModal({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (open) {
-      showService.getAllInterfaces().then((res) => setAvailableInterfaces(res.interfaces)).catch(() => {});
+    if (!open) return;
+    showService.getAllInterfaces().then((res) => setAvailableInterfaces(res.interfaces)).catch(() => {});
+    if (existing) {
+      populateForm(existing);
+    } else {
+      resetForm();
     }
-  }, [open]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, existing]);
 
-  useEffect(() => {
-    if (open && interfaceData) {
-      setDescription(interfaceData.description || "");
-      setMode(interfaceData.mode || "802.3ad");
-      setHashPolicy(interfaceData.hash_policy || "");
-      setLacpRate(interfaceData.lacp_rate || "");
-      setMinLinks(interfaceData.min_links || "");
-      setMiiMonInterval(interfaceData.mii_mon_interval || "");
-      setPrimary(interfaceData.primary || "");
-      setSystemMac(interfaceData.system_mac || "");
-      setMembers([...interfaceData.members]);
-      setMemberToAdd("");
-      setAddresses(interfaceData.addresses.join(", "));
-      setMtu(interfaceData.mtu || "");
-      setVrf(interfaceData.vrf || "");
-      setMac(interfaceData.mac || "");
-      setRedirect(interfaceData.redirect || "");
-      setDisabled(interfaceData.disable);
-      setDisableLinkDetect(interfaceData.disable_link_detect);
-
-      // IP
-      setIpAdjustMss(interfaceData.ip.adjust_mss || "");
-      setIpArpCacheTimeout(interfaceData.ip.arp_cache_timeout || "");
-      setIpSourceValidation(interfaceData.ip.source_validation || "");
-      setIpDisableArpFilter(interfaceData.ip.disable_arp_filter);
-      setIpDisableForwarding(interfaceData.ip.disable_forwarding);
-      setIpEnableArpAccept(interfaceData.ip.enable_arp_accept);
-      setIpEnableArpAnnounce(interfaceData.ip.enable_arp_announce);
-      setIpEnableArpIgnore(interfaceData.ip.enable_arp_ignore);
-      setIpEnableDirectedBroadcast(interfaceData.ip.enable_directed_broadcast);
-      setIpEnableProxyArp(interfaceData.ip.enable_proxy_arp);
-      setIpProxyArpPvlan(interfaceData.ip.proxy_arp_pvlan);
-
-      // IPv6
-      setIpv6AcceptDad(interfaceData.ipv6.accept_dad || "");
-      setIpv6AdjustMss(interfaceData.ipv6.adjust_mss || "");
-      setIpv6BaseReachableTime(interfaceData.ipv6.base_reachable_time || "");
-      setIpv6DupAddrDetectTransmits(interfaceData.ipv6.dup_addr_detect_transmits || "");
-      setIpv6SourceValidation(interfaceData.ipv6.source_validation || "");
-      setIpv6DisableForwarding(interfaceData.ipv6.disable_forwarding);
-      setIpv6AddressAutoconf(interfaceData.ipv6.address_autoconf);
-      setIpv6AddressNoDefaultLinkLocal(interfaceData.ipv6.address_no_default_link_local);
-      setIpv6AddressEui64(interfaceData.ipv6.address_eui64.join(", "));
-      setIpv6AddressInterfaceIdentifier(interfaceData.ipv6.address_interface_identifier || "");
-
-      // ARP Monitor
-      setArpMonitorInterval(interfaceData.arp_monitor?.interval || "");
-      setArpMonitorTargets(interfaceData.arp_monitor?.targets?.join(", ") || "");
-
-      // EVPN
-      setEvpnEsDfPref(interfaceData.evpn?.es_df_pref || "");
-      setEvpnEsId(interfaceData.evpn?.es_id || "");
-      setEvpnEsSysMac(interfaceData.evpn?.es_sys_mac || "");
-      setEvpnUplink(interfaceData.evpn?.uplink ?? false);
-
-      // Mirror
-      setMirrorIngress(interfaceData.mirror?.ingress || "");
-      setMirrorEgress(interfaceData.mirror?.egress || "");
-
-      // EAPoL
-      setEapolCaCert(interfaceData.eapol?.ca_certificate || "");
-      setEapolCert(interfaceData.eapol?.certificate || "");
-      setEapolPassphrase(interfaceData.eapol?.passphrase || "");
-
-      // DHCP
-      setDhcpClientId(interfaceData.dhcp_options?.client_id || "");
-      setDhcpDefaultRouteDistance(interfaceData.dhcp_options?.default_route_distance || "");
-      setDhcpHostName(interfaceData.dhcp_options?.host_name || "");
-      setDhcpUserClass(interfaceData.dhcp_options?.user_class || "");
-      setDhcpVendorClassId(interfaceData.dhcp_options?.vendor_class_id || "");
-      setDhcpMtu(interfaceData.dhcp_options?.mtu ?? false);
-      setDhcpNoDefaultRoute(interfaceData.dhcp_options?.no_default_route ?? false);
-      setDhcpReject(interfaceData.dhcp_options?.reject?.join(", ") || "");
-
-      // DHCPv6
-      setDhcpv6Duid(interfaceData.dhcpv6_options?.duid || "");
-      setDhcpv6NoRelease(interfaceData.dhcpv6_options?.no_release ?? false);
-      setDhcpv6ParametersOnly(interfaceData.dhcpv6_options?.parameters_only ?? false);
-      setDhcpv6RapidCommit(interfaceData.dhcpv6_options?.rapid_commit ?? false);
-      setDhcpv6Temporary(interfaceData.dhcpv6_options?.temporary ?? false);
-      setDhcpv6NoRequestDns(interfaceData.dhcpv6_options?.no_request_dns ?? false);
-      setDhcpv6NoRequestDomainName(interfaceData.dhcpv6_options?.no_request_domain_name ?? false);
-
-      setError(null);
+  const getNextInterfaceName = (): string => {
+    let i = 0;
+    while (existingInterfaces.includes(`bond${i}`)) {
+      i++;
     }
-  }, [open, interfaceData]);
+    return `bond${i}`;
+  };
 
-  const handleSubmit = async () => {
-    if (!interfaceData) return;
+  const resetForm = () => {
+    setName(getNextInterfaceName());
+    setDescription("");
+    setMode("802.3ad");
+    setHashPolicy("");
+    setLacpRate("");
+    setMinLinks("");
+    setMiiMonInterval("");
+    setPrimary("");
+    setSystemMac("");
+    setMembers([]);
+    setMemberToAdd("");
+    setAddresses("");
+    setMtu("");
+    setVrf("");
+    setMac("");
+    setIpAdjustMss("");
+    setIpArpCacheTimeout("");
+    setIpSourceValidation("");
+    setIpDisableArpFilter(false);
+    setIpDisableForwarding(false);
+    setIpEnableArpAccept(false);
+    setIpEnableArpAnnounce(false);
+    setIpEnableArpIgnore(false);
+    setIpEnableDirectedBroadcast(false);
+    setIpEnableProxyArp(false);
+    setIpProxyArpPvlan(false);
+    setIpv6AcceptDad("");
+    setIpv6AdjustMss("");
+    setIpv6BaseReachableTime("");
+    setIpv6DupAddrDetectTransmits("");
+    setIpv6SourceValidation("");
+    setIpv6DisableForwarding(false);
+    setIpv6AddressAutoconf(false);
+    setIpv6AddressNoDefaultLinkLocal(false);
+    setIpv6AddressEui64("");
+    setIpv6AddressInterfaceIdentifier("");
+    setArpMonitorInterval("");
+    setArpMonitorTargets("");
+    setEvpnEsDfPref("");
+    setEvpnEsId("");
+    setEvpnEsSysMac("");
+    setEvpnUplink(false);
+    setMirrorIngress("");
+    setMirrorEgress("");
+    setEapolCaCert("");
+    setEapolCert("");
+    setEapolPassphrase("");
+    setDhcpClientId("");
+    setDhcpDefaultRouteDistance("");
+    setDhcpHostName("");
+    setDhcpUserClass("");
+    setDhcpVendorClassId("");
+    setDhcpMtu(false);
+    setDhcpNoDefaultRoute(false);
+    setDhcpReject("");
+    setDhcpv6Duid("");
+    setDhcpv6NoRelease(false);
+    setDhcpv6ParametersOnly(false);
+    setDhcpv6RapidCommit(false);
+    setDhcpv6Temporary(false);
+    setDhcpv6NoRequestDns(false);
+    setDhcpv6NoRequestDomainName(false);
+    setRedirect("");
+    setDisabled(false);
+    setDisableLinkDetect(false);
+    setError(null);
+  };
+
+  const populateForm = (interfaceData: BondingInterface) => {
+    setName(interfaceData.name);
+    setDescription(interfaceData.description || "");
+    setMode(interfaceData.mode || "802.3ad");
+    setHashPolicy(interfaceData.hash_policy || "");
+    setLacpRate(interfaceData.lacp_rate || "");
+    setMinLinks(interfaceData.min_links || "");
+    setMiiMonInterval(interfaceData.mii_mon_interval || "");
+    setPrimary(interfaceData.primary || "");
+    setSystemMac(interfaceData.system_mac || "");
+    setMembers([...interfaceData.members]);
+    setMemberToAdd("");
+    setAddresses(interfaceData.addresses.join(", "));
+    setMtu(interfaceData.mtu || "");
+    setVrf(interfaceData.vrf || "");
+    setMac(interfaceData.mac || "");
+    setRedirect(interfaceData.redirect || "");
+    setDisabled(interfaceData.disable);
+    setDisableLinkDetect(interfaceData.disable_link_detect);
+
+    setIpAdjustMss(interfaceData.ip.adjust_mss || "");
+    setIpArpCacheTimeout(interfaceData.ip.arp_cache_timeout || "");
+    setIpSourceValidation(interfaceData.ip.source_validation || "");
+    setIpDisableArpFilter(interfaceData.ip.disable_arp_filter);
+    setIpDisableForwarding(interfaceData.ip.disable_forwarding);
+    setIpEnableArpAccept(interfaceData.ip.enable_arp_accept);
+    setIpEnableArpAnnounce(interfaceData.ip.enable_arp_announce);
+    setIpEnableArpIgnore(interfaceData.ip.enable_arp_ignore);
+    setIpEnableDirectedBroadcast(interfaceData.ip.enable_directed_broadcast);
+    setIpEnableProxyArp(interfaceData.ip.enable_proxy_arp);
+    setIpProxyArpPvlan(interfaceData.ip.proxy_arp_pvlan);
+
+    setIpv6AcceptDad(interfaceData.ipv6.accept_dad || "");
+    setIpv6AdjustMss(interfaceData.ipv6.adjust_mss || "");
+    setIpv6BaseReachableTime(interfaceData.ipv6.base_reachable_time || "");
+    setIpv6DupAddrDetectTransmits(interfaceData.ipv6.dup_addr_detect_transmits || "");
+    setIpv6SourceValidation(interfaceData.ipv6.source_validation || "");
+    setIpv6DisableForwarding(interfaceData.ipv6.disable_forwarding);
+    setIpv6AddressAutoconf(interfaceData.ipv6.address_autoconf);
+    setIpv6AddressNoDefaultLinkLocal(interfaceData.ipv6.address_no_default_link_local);
+    setIpv6AddressEui64(interfaceData.ipv6.address_eui64.join(", "));
+    setIpv6AddressInterfaceIdentifier(interfaceData.ipv6.address_interface_identifier || "");
+
+    setArpMonitorInterval(interfaceData.arp_monitor?.interval || "");
+    setArpMonitorTargets(interfaceData.arp_monitor?.targets?.join(", ") || "");
+
+    setEvpnEsDfPref(interfaceData.evpn?.es_df_pref || "");
+    setEvpnEsId(interfaceData.evpn?.es_id || "");
+    setEvpnEsSysMac(interfaceData.evpn?.es_sys_mac || "");
+    setEvpnUplink(interfaceData.evpn?.uplink ?? false);
+
+    setMirrorIngress(interfaceData.mirror?.ingress || "");
+    setMirrorEgress(interfaceData.mirror?.egress || "");
+
+    setEapolCaCert(interfaceData.eapol?.ca_certificate || "");
+    setEapolCert(interfaceData.eapol?.certificate || "");
+    setEapolPassphrase(interfaceData.eapol?.passphrase || "");
+
+    setDhcpClientId(interfaceData.dhcp_options?.client_id || "");
+    setDhcpDefaultRouteDistance(interfaceData.dhcp_options?.default_route_distance || "");
+    setDhcpHostName(interfaceData.dhcp_options?.host_name || "");
+    setDhcpUserClass(interfaceData.dhcp_options?.user_class || "");
+    setDhcpVendorClassId(interfaceData.dhcp_options?.vendor_class_id || "");
+    setDhcpMtu(interfaceData.dhcp_options?.mtu ?? false);
+    setDhcpNoDefaultRoute(interfaceData.dhcp_options?.no_default_route ?? false);
+    setDhcpReject(interfaceData.dhcp_options?.reject?.join(", ") || "");
+
+    setDhcpv6Duid(interfaceData.dhcpv6_options?.duid || "");
+    setDhcpv6NoRelease(interfaceData.dhcpv6_options?.no_release ?? false);
+    setDhcpv6ParametersOnly(interfaceData.dhcpv6_options?.parameters_only ?? false);
+    setDhcpv6RapidCommit(interfaceData.dhcpv6_options?.rapid_commit ?? false);
+    setDhcpv6Temporary(interfaceData.dhcpv6_options?.temporary ?? false);
+    setDhcpv6NoRequestDns(interfaceData.dhcpv6_options?.no_request_dns ?? false);
+    setDhcpv6NoRequestDomainName(interfaceData.dhcpv6_options?.no_request_domain_name ?? false);
+
+    setError(null);
+  };
+
+  const validateForm = (): string | null => {
+    if (!name.trim()) return "Interface name is required";
+    if (!/^bond\d+$/.test(name)) return "Name must be bond0, bond1, etc.";
+    if (existingInterfaces.includes(name)) return `Interface ${name} already exists`;
+    if (!mode) return "Bonding mode is required";
+    return null;
+  };
+
+  const submitUpdate = async () => {
+    if (!existing) return;
 
     setLoading(true);
     setError(null);
@@ -256,62 +337,62 @@ export function EditBondingModal({
 
       // Simple string fields
       const desc = description.trim() || null;
-      if (desc !== (interfaceData.description || null)) updated.description = desc;
+      if (desc !== (existing.description || null)) updated.description = desc;
 
       const newMode = mode || null;
-      if (newMode !== (interfaceData.mode || null)) updated.mode = newMode;
+      if (newMode !== (existing.mode || null)) updated.mode = newMode;
 
       const hp = hashPolicy || null;
-      if (hp !== (interfaceData.hash_policy || null)) updated.hash_policy = hp;
+      if (hp !== (existing.hash_policy || null)) updated.hash_policy = hp;
 
       const lr = lacpRate || null;
-      if (lr !== (interfaceData.lacp_rate || null)) updated.lacp_rate = lr;
+      if (lr !== (existing.lacp_rate || null)) updated.lacp_rate = lr;
 
       const ml = minLinks.trim() || null;
-      if (ml !== (interfaceData.min_links || null)) updated.min_links = ml;
+      if (ml !== (existing.min_links || null)) updated.min_links = ml;
 
       const mmi = miiMonInterval.trim() || null;
-      if (mmi !== (interfaceData.mii_mon_interval || null)) updated.mii_mon_interval = mmi;
+      if (mmi !== (existing.mii_mon_interval || null)) updated.mii_mon_interval = mmi;
 
       const pri = primary.trim() || null;
-      if (pri !== (interfaceData.primary || null)) updated.primary = pri;
+      if (pri !== (existing.primary || null)) updated.primary = pri;
 
       const sm = systemMac.trim() || null;
-      if (sm !== (interfaceData.system_mac || null)) updated.system_mac = sm;
+      if (sm !== (existing.system_mac || null)) updated.system_mac = sm;
 
       const newMtu = mtu.trim() || null;
-      if (newMtu !== (interfaceData.mtu || null)) updated.mtu = newMtu;
+      if (newMtu !== (existing.mtu || null)) updated.mtu = newMtu;
 
       const newVrf = vrf.trim() || null;
-      if (newVrf !== (interfaceData.vrf || null)) updated.vrf = newVrf;
+      if (newVrf !== (existing.vrf || null)) updated.vrf = newVrf;
 
       const newMac = mac.trim() || null;
-      if (newMac !== (interfaceData.mac || null)) updated.mac = newMac;
+      if (newMac !== (existing.mac || null)) updated.mac = newMac;
 
       const newRedirect = redirect.trim() || null;
-      if (newRedirect !== (interfaceData.redirect || null)) updated.redirect = newRedirect;
+      if (newRedirect !== (existing.redirect || null)) updated.redirect = newRedirect;
 
       // Booleans
-      if (disabled !== interfaceData.disable) updated.disabled = disabled;
-      if (disableLinkDetect !== interfaceData.disable_link_detect) updated.disable_link_detect = disableLinkDetect;
+      if (disabled !== existing.disable) updated.disabled = disabled;
+      if (disableLinkDetect !== existing.disable_link_detect) updated.disable_link_detect = disableLinkDetect;
 
       // Addresses
       const addrList = addresses.split(/[,\n]/).map((a) => a.trim()).filter(Boolean);
-      const currentAddrs = interfaceData.addresses;
+      const currentAddrs = existing.addresses;
       if (JSON.stringify(addrList.sort()) !== JSON.stringify([...currentAddrs].sort())) {
         updated.addresses = addrList;
       }
 
       // Members
-      if (JSON.stringify(members.sort()) !== JSON.stringify([...interfaceData.members].sort())) {
+      if (JSON.stringify(members.sort()) !== JSON.stringify([...existing.members].sort())) {
         updated.members = members;
       }
 
       // ARP Monitor
       const newArpInterval = arpMonitorInterval.trim() || null;
       const newArpTargets = arpMonitorTargets.split(/[,\n]/).map((a) => a.trim()).filter(Boolean);
-      const currentArpTargets = interfaceData.arp_monitor?.targets || [];
-      if (newArpInterval !== (interfaceData.arp_monitor?.interval || null) ||
+      const currentArpTargets = existing.arp_monitor?.targets || [];
+      if (newArpInterval !== (existing.arp_monitor?.interval || null) ||
           JSON.stringify(newArpTargets.sort()) !== JSON.stringify([...currentArpTargets].sort())) {
         updated.arp_monitor = {
           interval: newArpInterval,
@@ -323,10 +404,10 @@ export function EditBondingModal({
       const newEvpnDf = evpnEsDfPref.trim() || null;
       const newEvpnId = evpnEsId.trim() || null;
       const newEvpnSysMac = evpnEsSysMac.trim() || null;
-      if (newEvpnDf !== (interfaceData.evpn?.es_df_pref || null) ||
-          newEvpnId !== (interfaceData.evpn?.es_id || null) ||
-          newEvpnSysMac !== (interfaceData.evpn?.es_sys_mac || null) ||
-          evpnUplink !== (interfaceData.evpn?.uplink ?? false)) {
+      if (newEvpnDf !== (existing.evpn?.es_df_pref || null) ||
+          newEvpnId !== (existing.evpn?.es_id || null) ||
+          newEvpnSysMac !== (existing.evpn?.es_sys_mac || null) ||
+          evpnUplink !== (existing.evpn?.uplink ?? false)) {
         updated.evpn = {
           es_df_pref: newEvpnDf,
           es_id: newEvpnId,
@@ -338,8 +419,8 @@ export function EditBondingModal({
       // Mirror
       const newMirrorIn = mirrorIngress.trim() || null;
       const newMirrorOut = mirrorEgress.trim() || null;
-      if (newMirrorIn !== (interfaceData.mirror?.ingress || null) ||
-          newMirrorOut !== (interfaceData.mirror?.egress || null)) {
+      if (newMirrorIn !== (existing.mirror?.ingress || null) ||
+          newMirrorOut !== (existing.mirror?.egress || null)) {
         updated.mirror = {
           ingress: newMirrorIn,
           egress: newMirrorOut,
@@ -350,9 +431,9 @@ export function EditBondingModal({
       const newEapolCa = eapolCaCert.trim() || null;
       const newEapolCert = eapolCert.trim() || null;
       const newEapolPass = eapolPassphrase.trim() || null;
-      if (newEapolCa !== (interfaceData.eapol?.ca_certificate || null) ||
-          newEapolCert !== (interfaceData.eapol?.certificate || null) ||
-          newEapolPass !== (interfaceData.eapol?.passphrase || null)) {
+      if (newEapolCa !== (existing.eapol?.ca_certificate || null) ||
+          newEapolCert !== (existing.eapol?.certificate || null) ||
+          newEapolPass !== (existing.eapol?.passphrase || null)) {
         updated.eapol = {
           ca_certificate: newEapolCa,
           certificate: newEapolCert,
@@ -374,7 +455,7 @@ export function EditBondingModal({
         enable_proxy_arp: ipEnableProxyArp,
         proxy_arp_pvlan: ipProxyArpPvlan,
       };
-      const curIp = interfaceData.ip;
+      const curIp = existing.ip;
       if (newIp.adjust_mss !== (curIp.adjust_mss || null) ||
           newIp.arp_cache_timeout !== (curIp.arp_cache_timeout || null) ||
           newIp.source_validation !== (curIp.source_validation || null) ||
@@ -403,7 +484,7 @@ export function EditBondingModal({
         address_no_default_link_local: ipv6AddressNoDefaultLinkLocal,
         address_interface_identifier: ipv6AddressInterfaceIdentifier.trim() || null,
       };
-      const curIpv6 = interfaceData.ipv6;
+      const curIpv6 = existing.ipv6;
       if (newIpv6.accept_dad !== (curIpv6.accept_dad || null) ||
           newIpv6.adjust_mss !== (curIpv6.adjust_mss || null) ||
           newIpv6.base_reachable_time !== (curIpv6.base_reachable_time || null) ||
@@ -429,7 +510,7 @@ export function EditBondingModal({
         no_default_route: dhcpNoDefaultRoute,
         reject: dhcpRejectList,
       };
-      const curDhcp = interfaceData.dhcp_options;
+      const curDhcp = existing.dhcp_options;
       if (newDhcp.client_id !== (curDhcp?.client_id || null) ||
           newDhcp.default_route_distance !== (curDhcp?.default_route_distance || null) ||
           newDhcp.host_name !== (curDhcp?.host_name || null) ||
@@ -451,7 +532,7 @@ export function EditBondingModal({
         no_request_dns: dhcpv6NoRequestDns,
         no_request_domain_name: dhcpv6NoRequestDomainName,
       };
-      const curDhcpv6 = interfaceData.dhcpv6_options;
+      const curDhcpv6 = existing.dhcpv6_options;
       if (newDhcpv6.duid !== (curDhcpv6?.duid || null) ||
           newDhcpv6.no_release !== (curDhcpv6?.no_release ?? false) ||
           newDhcpv6.parameters_only !== (curDhcpv6?.parameters_only ?? false) ||
@@ -463,8 +544,8 @@ export function EditBondingModal({
       }
 
       const result = await bondingService.updateInterface(
-        interfaceData.name,
-        interfaceData,
+        existing.name,
+        existing,
         updated
       );
 
@@ -481,7 +562,159 @@ export function EditBondingModal({
     }
   };
 
-  if (!interfaceData) return null;
+  const handleSubmit = async () => {
+    if (isEdit) {
+      await submitUpdate();
+      return;
+    }
+
+    const validationError = validateForm();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const addrList = addresses.split(/[,\n]/).map((a) => a.trim()).filter(Boolean);
+      const eui64List = ipv6AddressEui64.split(/[,\n]/).map((a) => a.trim()).filter(Boolean);
+      const arpTargetList = arpMonitorTargets.split(/[,\n]/).map((a) => a.trim()).filter(Boolean);
+      const dhcpRejectList = dhcpReject.split(/[,\n]/).map((a) => a.trim()).filter(Boolean);
+
+      const config: Parameters<typeof bondingService.createInterface>[0] = {
+        name,
+        mode,
+      };
+
+      if (description.trim()) config.description = description.trim();
+      if (addrList.length > 0) config.addresses = addrList;
+      if (members.length > 0) config.members = members;
+      if (hashPolicy && HASH_POLICY_MODES.includes(mode)) config.hash_policy = hashPolicy;
+      if (lacpRate && mode === LACP_RATE_MODE) config.lacp_rate = lacpRate;
+      if (minLinks.trim()) config.min_links = minLinks.trim();
+      if (miiMonInterval.trim()) config.mii_mon_interval = miiMonInterval.trim();
+      if (primary.trim() && mode === PRIMARY_MODE) config.primary = primary.trim();
+      if (systemMac.trim() && mode === SYSTEM_MAC_MODE) config.system_mac = systemMac.trim();
+      if (mtu.trim()) config.mtu = mtu.trim();
+      if (vrf.trim()) config.vrf = vrf.trim();
+      if (mac.trim()) config.mac = mac.trim();
+      if (redirect.trim()) config.redirect = redirect.trim();
+      if (disabled) config.disabled = true;
+      if (disableLinkDetect) config.disable_link_detect = true;
+
+      // ARP Monitor
+      if (arpMonitorInterval.trim() || arpTargetList.length > 0) {
+        config.arp_monitor = {};
+        if (arpMonitorInterval.trim()) config.arp_monitor.interval = arpMonitorInterval.trim();
+        if (arpTargetList.length > 0) config.arp_monitor.targets = arpTargetList;
+      }
+
+      // EVPN
+      if (evpnEsDfPref.trim() || evpnEsId.trim() || evpnEsSysMac.trim() || evpnUplink) {
+        config.evpn = {};
+        if (evpnEsDfPref.trim()) config.evpn.es_df_pref = evpnEsDfPref.trim();
+        if (evpnEsId.trim()) config.evpn.es_id = evpnEsId.trim();
+        if (evpnEsSysMac.trim()) config.evpn.es_sys_mac = evpnEsSysMac.trim();
+        if (evpnUplink) config.evpn.uplink = true;
+      }
+
+      // Mirror
+      if (mirrorIngress.trim() || mirrorEgress.trim()) {
+        config.mirror = {};
+        if (mirrorIngress.trim()) config.mirror.ingress = mirrorIngress.trim();
+        if (mirrorEgress.trim()) config.mirror.egress = mirrorEgress.trim();
+      }
+
+      // EAPoL
+      if (capabilities?.features.eapol?.supported && (eapolCaCert.trim() || eapolCert.trim() || eapolPassphrase.trim())) {
+        config.eapol = {};
+        if (eapolCaCert.trim()) config.eapol.ca_certificate = eapolCaCert.trim();
+        if (eapolCert.trim()) config.eapol.certificate = eapolCert.trim();
+        if (eapolPassphrase.trim()) config.eapol.passphrase = eapolPassphrase.trim();
+      }
+
+      // IP
+      if (ipAdjustMss || ipArpCacheTimeout || ipSourceValidation || ipDisableArpFilter ||
+          ipDisableForwarding || ipEnableArpAccept || ipEnableArpAnnounce || ipEnableArpIgnore ||
+          ipEnableDirectedBroadcast || ipEnableProxyArp || ipProxyArpPvlan) {
+        config.ip = {
+          adjust_mss: ipAdjustMss.trim() || undefined,
+          arp_cache_timeout: ipArpCacheTimeout.trim() || undefined,
+          source_validation: ipSourceValidation || undefined,
+          disable_arp_filter: ipDisableArpFilter || undefined,
+          disable_forwarding: ipDisableForwarding || undefined,
+          enable_arp_accept: ipEnableArpAccept || undefined,
+          enable_arp_announce: ipEnableArpAnnounce || undefined,
+          enable_arp_ignore: ipEnableArpIgnore || undefined,
+          enable_directed_broadcast: ipEnableDirectedBroadcast || undefined,
+          enable_proxy_arp: ipEnableProxyArp || undefined,
+          proxy_arp_pvlan: ipProxyArpPvlan || undefined,
+        };
+      }
+
+      // IPv6
+      if (ipv6AcceptDad || ipv6AdjustMss || ipv6BaseReachableTime || ipv6DupAddrDetectTransmits ||
+          ipv6SourceValidation || ipv6DisableForwarding || ipv6AddressAutoconf || eui64List.length > 0 ||
+          ipv6AddressNoDefaultLinkLocal || ipv6AddressInterfaceIdentifier) {
+        config.ipv6 = {
+          accept_dad: ipv6AcceptDad.trim() || undefined,
+          adjust_mss: ipv6AdjustMss.trim() || undefined,
+          base_reachable_time: ipv6BaseReachableTime.trim() || undefined,
+          dup_addr_detect_transmits: ipv6DupAddrDetectTransmits.trim() || undefined,
+          source_validation: ipv6SourceValidation || undefined,
+          disable_forwarding: ipv6DisableForwarding || undefined,
+          address_autoconf: ipv6AddressAutoconf || undefined,
+          address_eui64: eui64List.length > 0 ? eui64List : undefined,
+          address_no_default_link_local: ipv6AddressNoDefaultLinkLocal || undefined,
+          address_interface_identifier: ipv6AddressInterfaceIdentifier.trim() || undefined,
+        };
+      }
+
+      // DHCP Options
+      if (dhcpClientId || dhcpDefaultRouteDistance || dhcpHostName || dhcpUserClass ||
+          dhcpVendorClassId || dhcpMtu || dhcpNoDefaultRoute || dhcpRejectList.length > 0) {
+        config.dhcp_options = {
+          client_id: dhcpClientId.trim() || undefined,
+          default_route_distance: dhcpDefaultRouteDistance.trim() || undefined,
+          host_name: dhcpHostName.trim() || undefined,
+          user_class: dhcpUserClass.trim() || undefined,
+          vendor_class_id: dhcpVendorClassId.trim() || undefined,
+          mtu: dhcpMtu || undefined,
+          no_default_route: dhcpNoDefaultRoute || undefined,
+          reject: dhcpRejectList.length > 0 ? dhcpRejectList : undefined,
+        };
+      }
+
+      // DHCPv6 Options
+      if (dhcpv6Duid || dhcpv6NoRelease || dhcpv6ParametersOnly || dhcpv6RapidCommit ||
+          dhcpv6Temporary || dhcpv6NoRequestDns || dhcpv6NoRequestDomainName) {
+        config.dhcpv6_options = {
+          duid: dhcpv6Duid.trim() || undefined,
+          no_release: dhcpv6NoRelease || undefined,
+          parameters_only: dhcpv6ParametersOnly || undefined,
+          rapid_commit: dhcpv6RapidCommit || undefined,
+          temporary: dhcpv6Temporary || undefined,
+          no_request_dns: dhcpv6NoRequestDns || undefined,
+          no_request_domain_name: dhcpv6NoRequestDomainName || undefined,
+        };
+      }
+
+      const result = await bondingService.createInterface(config);
+
+      if (result.success) {
+        onOpenChange(false);
+        onSuccess();
+      } else {
+        setError(result.error || "Failed to create bonding interface");
+      }
+    } catch (err) {
+      setError((err as ApiError).message || "Failed to create bonding interface");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const ethernetInterfaces = availableInterfaces.filter(
     (i) => i.name.startsWith("eth") && !members.includes(i.name)
@@ -498,10 +731,12 @@ export function EditBondingModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Link2 className="h-5 w-5" />
-            Edit Bonding Interface: {interfaceData.name}
+            {isEdit ? `Edit Bonding Interface: ${existing.name}` : "Create Bonding Interface"}
           </DialogTitle>
           <DialogDescription>
-            Modify bonding interface configuration
+            {isEdit
+              ? "Modify bonding interface configuration"
+              : "Create a new link aggregation (bonding) interface"}
           </DialogDescription>
         </DialogHeader>
 
@@ -518,12 +753,23 @@ export function EditBondingModal({
           <TabsContent value="basic" className="space-y-4 mt-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Interface Name</Label>
-                <Input value={interfaceData.name} disabled />
+                <Label htmlFor="name">Interface Name</Label>
+                <Input
+                  id="name"
+                  value={isEdit ? existing.name : name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="bond0"
+                  disabled={isEdit}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {isEdit
+                    ? "Interface name cannot be changed."
+                    : "Must be bond0, bond1, etc."}
+                </p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-description">Description</Label>
-                <Input id="edit-description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional description" />
+                <Label htmlFor="description">Description</Label>
+                <Input id="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional description" />
               </div>
             </div>
 
@@ -568,26 +814,28 @@ export function EditBondingModal({
                 </div>
               )}
               <div className="space-y-2">
-                <Label htmlFor="edit-min-links">Min Links</Label>
-                <Input id="edit-min-links" value={minLinks} onChange={(e) => setMinLinks(e.target.value)} placeholder="0" />
+                <Label htmlFor="min-links">Min Links</Label>
+                <Input id="min-links" value={minLinks} onChange={(e) => setMinLinks(e.target.value)} placeholder="0" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-mii-mon">MII Monitor Interval (ms)</Label>
-                <Input id="edit-mii-mon" value={miiMonInterval} onChange={(e) => setMiiMonInterval(e.target.value)} placeholder="100" />
+                <Label htmlFor="mii-mon">MII Monitor Interval (ms)</Label>
+                <Input id="mii-mon" value={miiMonInterval} onChange={(e) => setMiiMonInterval(e.target.value)} placeholder="100" />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               {showPrimary && (
                 <div className="space-y-2">
-                  <Label htmlFor="edit-primary">Primary Interface</Label>
-                  <Input id="edit-primary" value={primary} onChange={(e) => setPrimary(e.target.value)} placeholder="e.g. eth0" />
+                  <Label htmlFor="primary">Primary Interface</Label>
+                  <Input id="primary" value={primary} onChange={(e) => setPrimary(e.target.value)} placeholder="e.g. eth0" />
+                  <p className="text-xs text-muted-foreground">Only for active-backup mode</p>
                 </div>
               )}
               {showSystemMac && (
                 <div className="space-y-2">
-                  <Label htmlFor="edit-system-mac">System MAC</Label>
-                  <Input id="edit-system-mac" value={systemMac} onChange={(e) => setSystemMac(e.target.value)} placeholder="xx:xx:xx:xx:xx:xx" />
+                  <Label htmlFor="system-mac">System MAC</Label>
+                  <Input id="system-mac" value={systemMac} onChange={(e) => setSystemMac(e.target.value)} placeholder="xx:xx:xx:xx:xx:xx" />
+                  <p className="text-xs text-muted-foreground">Only for 802.3ad mode</p>
                 </div>
               )}
             </div>
@@ -598,7 +846,7 @@ export function EditBondingModal({
             <div className="space-y-2">
               <Label>Member Interfaces</Label>
               <p className="text-sm text-muted-foreground">
-                Select ethernet interfaces to include in this bonding group.
+                Select ethernet interfaces to include in this bonding group. Members will be enslaved to the bond interface.
               </p>
             </div>
 
@@ -638,7 +886,7 @@ export function EditBondingModal({
               </div>
             ) : (
               <div className="rounded-lg border border-dashed p-6 text-center">
-                <p className="text-sm text-muted-foreground">No members selected.</p>
+                <p className="text-sm text-muted-foreground">No members selected. Add ethernet interfaces above.</p>
               </div>
             )}
           </TabsContent>
@@ -646,22 +894,22 @@ export function EditBondingModal({
           {/* Addresses Tab */}
           <TabsContent value="addresses" className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label htmlFor="edit-addresses">IP Addresses</Label>
-              <Input id="edit-addresses" value={addresses} onChange={(e) => setAddresses(e.target.value)} placeholder="192.168.1.1/24, 10.0.0.1/24" />
+              <Label htmlFor="addresses">IP Addresses</Label>
+              <Input id="addresses" value={addresses} onChange={(e) => setAddresses(e.target.value)} placeholder="192.168.1.1/24, 10.0.0.1/24" />
               <p className="text-xs text-muted-foreground">Comma-separated CIDR addresses</p>
             </div>
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="edit-mtu">MTU</Label>
-                <Input id="edit-mtu" value={mtu} onChange={(e) => setMtu(e.target.value)} placeholder="1500" />
+                <Label htmlFor="mtu">MTU</Label>
+                <Input id="mtu" value={mtu} onChange={(e) => setMtu(e.target.value)} placeholder="1500" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-vrf">VRF</Label>
-                <VrfSelect id="edit-vrf" value={vrf} onValueChange={setVrf} />
+                <Label htmlFor="vrf">VRF</Label>
+                <VrfSelect id="vrf" value={vrf} onValueChange={setVrf} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-mac">MAC Override</Label>
-                <Input id="edit-mac" value={mac} onChange={(e) => setMac(e.target.value)} placeholder="xx:xx:xx:xx:xx:xx" />
+                <Label htmlFor="mac">MAC Override</Label>
+                <Input id="mac" value={mac} onChange={(e) => setMac(e.target.value)} placeholder="xx:xx:xx:xx:xx:xx" />
               </div>
             </div>
           </TabsContent>
@@ -968,10 +1216,12 @@ export function EditBondingModal({
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
+                {isEdit ? "Saving..." : "Creating..."}
               </>
-            ) : (
+            ) : isEdit ? (
               "Save Changes"
+            ) : (
+              "Create Bond"
             )}
           </Button>
         </DialogFooter>

@@ -32,8 +32,7 @@ import { CreateTunnelModal } from "@/components/tunnel/CreateTunnelModal";
 import { EditTunnelModal } from "@/components/tunnel/EditTunnelModal";
 import { DeleteTunnelModal } from "@/components/tunnel/DeleteTunnelModal";
 import { bondingService, bondingVlanService, bondingVlanCapabilities, bondVifToVlanShape, type BondingInterface, type BondingCapabilities } from "@/lib/api/bonding";
-import { CreateBondingModal } from "@/components/bonding/CreateBondingModal";
-import { EditBondingModal } from "@/components/bonding/EditBondingModal";
+import { BondingModal } from "@/components/bonding/BondingModal";
 import { DeleteBondingModal } from "@/components/bonding/DeleteBondingModal";
 import { dummyService, type DummyInterface, type DummyCapabilities } from "@/lib/api/dummy";
 import { CreateDummyModal } from "@/components/dummy/CreateDummyModal";
@@ -4391,22 +4390,21 @@ function InterfacesPageInner() {
         interfaceData={deletingMacsec}
       />
       {/* Bonding Modals */}
-      <CreateBondingModal
-        open={isCreateBondingModalOpen}
-        onOpenChange={setIsCreateBondingModalOpen}
-        onSuccess={loadData}
-        capabilities={bondingCapabilities}
-        existingInterfaces={bondingInterfaces.map((i) => i.name)}
-      />
-      <EditBondingModal
-        open={!!editingBonding}
-        onOpenChange={(open) => !open && setEditingBonding(null)}
+      <BondingModal
+        open={isCreateBondingModalOpen || !!editingBonding}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsCreateBondingModalOpen(false);
+            setEditingBonding(null);
+          }
+        }}
         onSuccess={() => {
           setEditingBonding(null);
           loadData();
         }}
         capabilities={bondingCapabilities}
-        interfaceData={editingBonding}
+        existingInterfaces={bondingInterfaces.map((i) => i.name)}
+        existing={editingBonding}
       />
       <DeleteBondingModal
         open={!!deletingBonding}
