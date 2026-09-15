@@ -57,6 +57,8 @@ export function OspfInterfaceModal({
   const [bfd, setBfd] = useState(false);
   const [mtuIgnore, setMtuIgnore] = useState(false);
   const [ldpSync, setLdpSync] = useState(false);
+  const [ldpSyncDisable, setLdpSyncDisable] = useState(false);
+  const [ldpSyncHolddown, setLdpSyncHolddown] = useState("");
   const [bandwidth, setBandwidth] = useState("");
 
   // Authentication
@@ -94,6 +96,8 @@ export function OspfInterfaceModal({
         setBfd(existingInterface.bfd);
         setMtuIgnore(existingInterface.mtu_ignore);
         setLdpSync(existingInterface.ldp_sync);
+        setLdpSyncDisable(existingInterface.ldp_sync_disable);
+        setLdpSyncHolddown(existingInterface.ldp_sync_holddown != null ? String(existingInterface.ldp_sync_holddown) : "");
         setBandwidth(existingInterface.bandwidth != null ? String(existingInterface.bandwidth) : "");
         setPlaintextPassword(existingInterface.authentication.plaintext_password || "");
         const keys = Object.entries(existingInterface.authentication.md5_key_ids).map(
@@ -121,6 +125,8 @@ export function OspfInterfaceModal({
     setBfd(false);
     setMtuIgnore(false);
     setLdpSync(false);
+    setLdpSyncDisable(false);
+    setLdpSyncHolddown("");
     setBandwidth("");
     setMd5Keys([]);
     setPlaintextPassword("");
@@ -155,6 +161,10 @@ export function OspfInterfaceModal({
     if (priority.trim()) {
       const val = parseInt(priority.trim(), 10);
       if (isNaN(val) || val < 0 || val > 255) return "Priority must be between 0 and 255";
+    }
+    if (ldpSyncHolddown.trim()) {
+      const val = parseInt(ldpSyncHolddown.trim(), 10);
+      if (isNaN(val) || val < 0 || val > 10000) return "LDP sync holddown must be between 0 and 10000";
     }
     for (const key of md5Keys) {
       if (key.keyId && !key.keyValue) return "MD5 key value is required for each key ID";
@@ -207,6 +217,8 @@ export function OspfInterfaceModal({
           plaintext_password: plaintextPassword.trim() || null,
         },
         ldp_sync: ldpSync,
+        ldp_sync_disable: ldpSyncDisable,
+        ldp_sync_holddown: ldpSyncHolddown.trim() ? parseInt(ldpSyncHolddown.trim(), 10) : null,
       };
 
       await onSubmit(config);
@@ -422,6 +434,28 @@ export function OspfInterfaceModal({
                     LDP Sync
                   </Label>
                 </div>
+                <div className="flex items-center space-x-3 rounded-lg border p-3">
+                  <Checkbox
+                    id="ospf-iface-ldp-sync-disable"
+                    checked={ldpSyncDisable}
+                    onCheckedChange={(checked) => setLdpSyncDisable(checked === true)}
+                  />
+                  <Label htmlFor="ospf-iface-ldp-sync-disable" className="cursor-pointer text-sm">
+                    Disable LDP Sync
+                  </Label>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="ospf-iface-ldp-sync-holddown">LDP Sync Holddown (s)</Label>
+                <Input
+                  id="ospf-iface-ldp-sync-holddown"
+                  type="number"
+                  value={ldpSyncHolddown}
+                  onChange={(e) => setLdpSyncHolddown(e.target.value)}
+                  placeholder="seconds"
+                  min={0}
+                  max={10000}
+                />
               </div>
             </div>
 

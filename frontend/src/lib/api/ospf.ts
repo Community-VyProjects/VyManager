@@ -65,6 +65,8 @@ export interface OspfInterface {
   hello_multiplier?: number | null;
   authentication: OspfInterfaceAuthentication;
   ldp_sync: boolean;
+  ldp_sync_disable: boolean;
+  ldp_sync_holddown?: number | null;
 }
 
 export interface OspfRedistribute {
@@ -467,6 +469,8 @@ class OspfService {
     if (iface.bfd) ops.push({ op: "set_interface_bfd", value: iface.name });
     if (iface.mtu_ignore) ops.push({ op: "set_interface_mtu_ignore", value: iface.name });
     if (iface.ldp_sync) ops.push({ op: "set_interface_ldp_sync", value: iface.name });
+    if (iface.ldp_sync_disable) ops.push({ op: "set_interface_ldp_sync_disable", value: iface.name });
+    if (iface.ldp_sync_holddown != null) ops.push({ op: "set_interface_ldp_sync_holddown", value: `${iface.name},${iface.ldp_sync_holddown}` });
     if (iface.bandwidth != null) ops.push({ op: "set_interface_bandwidth", value: `${iface.name},${iface.bandwidth}` });
 
     // Authentication
@@ -567,6 +571,22 @@ class OspfService {
     }
     if (updated.ldp_sync !== original.ldp_sync) {
       ops.push({ op: updated.ldp_sync ? "set_interface_ldp_sync" : "delete_interface_ldp_sync", value: name });
+    }
+    const ldpContainerDeleted = original.ldp_sync && !updated.ldp_sync;
+    if (!ldpContainerDeleted) {
+      if (updated.ldp_sync_disable !== original.ldp_sync_disable) {
+        ops.push({
+          op: updated.ldp_sync_disable ? "set_interface_ldp_sync_disable" : "delete_interface_ldp_sync_disable",
+          value: name,
+        });
+      }
+      if (updated.ldp_sync_holddown !== original.ldp_sync_holddown) {
+        if (updated.ldp_sync_holddown != null) {
+          ops.push({ op: "set_interface_ldp_sync_holddown", value: `${name},${updated.ldp_sync_holddown}` });
+        } else {
+          ops.push({ op: "delete_interface_ldp_sync_holddown", value: name });
+        }
+      }
     }
     if (updated.bandwidth !== original.bandwidth) {
       if (updated.bandwidth != null) {
