@@ -79,12 +79,15 @@ def format_flow(flow: dict) -> str:
     ).strip()
 
 
-def parse_conntrack_result(result: Any, address: str) -> list[str]:
+def parse_conntrack_result(result: Any, address: str | None = None) -> list[str]:
     if isinstance(result, str):
         try:
             result = json.loads(result)
         except json.JSONDecodeError:
-            return [line.strip() for line in result.splitlines() if address in line]
+            lines = [line.strip() for line in result.splitlines() if line.strip()]
+            if address is None:
+                return lines
+            return [line for line in lines if address in line]
     if not isinstance(result, dict):
         return []
     conntrack = result.get("conntrack") or {}
@@ -95,9 +98,56 @@ def parse_conntrack_result(result: Any, address: str) -> list[str]:
         flows = [flows]
     lines = []
     for flow in flows:
-        if isinstance(flow, dict) and flow_touches_ip(flow, address):
+        if isinstance(flow, dict) and (address is None or flow_touches_ip(flow, address)):
             lines.append(format_flow(flow))
     return lines
+
+
+def show_conntrack_snapshot_query(api_key: str) -> str:
+    key = json.dumps(api_key)
+    return (
+        "{ v4: ShowConntrack(data: {key: "
+        + key
+        + ", family: inet}) { success errors data { result } } "
+        "v6: ShowConntrack(data: {key: "
+        + key
+        + ", family: inet6}) { success errors data { result } } }"
+    )
+
+
+def snapshot_from_graphql_body(body: dict) -> list[str]:
+    if body.get("errors"):
+        raise ConntrackUnavailable("VyOS reported an error")
+    data = body.get("data") or {}
+    if not data:
+        raise ConntrackUnavailable("Unable to read conntrack entries")
+    lines: list[str] = []
+    any_ok = False
+    for alias in ("v4", "v6"):
+        node = data.get(alias) or {}
+        if not node.get("success"):
+            continue
+        any_ok = True
+        lines.extend(parse_conntrack_result((node.get("data") or {}).get("result"), None))
+    if not any_ok:
+        raise ConntrackUnavailable("Unable to read conntrack entries")
+    return lines
+
+
+async def fetch_conntrack_snapshot(service) -> list[str]:
+    """Both address families in one GraphQL POST for the SSE sidecar."""
+    api_key = str(service.config.apikey)
+    url = f"{service.config.protocol}://{service.config.hostname}:{service.config.port}/graphql"
+    query = show_conntrack_snapshot_query(api_key)
+    try:
+        async with httpx.AsyncClient(verify=service.config.verify, timeout=15.0) as client:
+            resp = await client.post(url, json={"query": query}, auth=("vyos", api_key))
+    except Exception as exc:
+        logger.exception("ShowConntrack snapshot request failed")
+        raise ConntrackUnavailable("VyOS GraphQL request failed") from exc
+    if resp.status_code != 200:
+        raise ConntrackUnavailable("VyOS GraphQL request failed")
+    return snapshot_from_graphql_body(resp.json())
 
 
 def connections_from_graphql_body(body: dict, address: str) -> list[str]:

@@ -36,6 +36,7 @@ from bgp_status import bgp_configured, bgp_gql_fields, build_bgp_status
 from ipsec_status import ipsec_configured, ipsec_gql_fields, build_ipsec_status
 from hardware_status import HardwareSensorsResponse, parse_hardware_sensors, hardware_gql_fields, build_hardware_status
 from pppoe_status import load_pppoe_sessions, pppoe_configured
+from pppoe_connections import fetch_conntrack_snapshot
 import logging
 logger = logging.getLogger(__name__)
 
@@ -1058,7 +1059,7 @@ _FAST_INTERVAL = 3.0     # seconds between fast cycles (interface counters)
 _SLOW_EVERY = 5          # emit system-info / WG every N fast cycles (= every 15 s)
 _WG_MIN_INTERVAL = 15.0  # minimum seconds between WireGuard status queries
 _OPENVPN_MIN_INTERVAL = 6.0  # minimum seconds between (slow, erratic) OpenVPN status queries
-_STREAM_INTERESTS = frozenset({"pppoe-sessions"})
+_STREAM_INTERESTS = frozenset({"pppoe-sessions", "pppoe-connections"})
 
 
 class DeviceDataBroadcaster:
@@ -1101,6 +1102,7 @@ class DeviceDataBroadcaster:
         # Whether service pppoe-server is configured (gates the sessions fetch).
         self._pppoe_configured: bool = False
         self._pppoe_task: Optional[asyncio.Task] = None
+        self._conntrack_task: Optional[asyncio.Task] = None
 
     # ------------------------------------------------------------------
     # Public API
@@ -1128,6 +1130,9 @@ class DeviceDataBroadcaster:
         if not self._has_interest("pppoe-sessions") and self._pppoe_task and not self._pppoe_task.done():
             self._pppoe_task.cancel()
             self._pppoe_task = None
+        if not self._has_interest("pppoe-connections") and self._conntrack_task and not self._conntrack_task.done():
+            self._conntrack_task.cancel()
+            self._conntrack_task = None
         if not self._subscribers:
             if self._task and not self._task.done():
                 self._task.cancel()
@@ -1137,6 +1142,8 @@ class DeviceDataBroadcaster:
                 self._openvpn_task.cancel()
             if self._pppoe_task and not self._pppoe_task.done():
                 self._pppoe_task.cancel()
+            if self._conntrack_task and not self._conntrack_task.done():
+                self._conntrack_task.cancel()
             _broadcasters.pop(self._key, None)
 
     def _has_interest(self, name: str) -> bool:
@@ -1372,6 +1379,43 @@ class DeviceDataBroadcaster:
             logger.exception("Broadcaster: pppoe-sessions error")
             self._push_to_all({"type": "error", "data": {"channel": "pppoe-sessions", "message": "Failed to fetch"}})
 
+    def _handle_conntrack_cycle(self, *, start: bool) -> None:
+        """Sidecar ShowConntrack dump on the 3s cycle when a viewer asked for it.
+
+        Not folded into the shared dashboard query. Interest-gated. Catch
+        CancelledError so a departing subscriber does not kill the loop.
+        """
+        try:
+            if self._conntrack_task is not None and self._conntrack_task.done():
+                try:
+                    connections = self._conntrack_task.result() or []
+                except asyncio.CancelledError:
+                    self._conntrack_task = None
+                    return
+                except Exception:
+                    logger.exception("Broadcaster: pppoe-connections fetch error")
+                    self._conntrack_task = None
+                    self._push_to_all({
+                        "type": "error",
+                        "data": {"channel": "pppoe-connections", "message": "Failed to fetch"},
+                    })
+                    return
+                self._conntrack_task = None
+                self._push_to_all({
+                    "type": "pppoe-connections",
+                    "data": {"connections": connections, "total": len(connections)},
+                })
+
+            if not start:
+                return
+            if not self._has_interest("pppoe-connections"):
+                return
+            if self._conntrack_task is None:
+                self._conntrack_task = asyncio.create_task(fetch_conntrack_snapshot(self._service))
+        except Exception:
+            logger.exception("Broadcaster: pppoe-connections error")
+            self._push_to_all({"type": "error", "data": {"channel": "pppoe-connections", "message": "Failed to fetch"}})
+
     def _on_task_done(self, fut: asyncio.Future) -> None:
         """Clean up if _run() exits unexpectedly."""
         if fut.cancelled():
@@ -1386,6 +1430,8 @@ class DeviceDataBroadcaster:
                 self._openvpn_task.cancel()
             if self._pppoe_task and not self._pppoe_task.done():
                 self._pppoe_task.cancel()
+            if self._conntrack_task and not self._conntrack_task.done():
+                self._conntrack_task.cancel()
 
     # ------------------------------------------------------------------
     # Main loop
@@ -1436,6 +1482,7 @@ class DeviceDataBroadcaster:
                 # PPPoE traffic history needs a sample on every 3-second cycle.
                 # The in-flight task guard prevents overlapping session queries.
                 self._handle_pppoe_cycle(start=True)
+                self._handle_conntrack_cycle(start=True)
 
                 cycle += 1
                 await asyncio.sleep(_FAST_INTERVAL)
@@ -1448,6 +1495,8 @@ class DeviceDataBroadcaster:
                 self._openvpn_task.cancel()
             if self._pppoe_task and not self._pppoe_task.done():
                 self._pppoe_task.cancel()
+            if self._conntrack_task and not self._conntrack_task.done():
+                self._conntrack_task.cancel()
 
 
 # Global broadcaster registry: instance_id -> DeviceDataBroadcaster
@@ -1482,11 +1531,14 @@ async def dashboard_stream(
     Fast data  (interface counters): every 3 s.
     Slow data  (system info and WG config): every 15 s.
     PPPoE sessions when requested: every 3 s.
+    PPPoE conntrack when requested: every 3 s (sidecar ShowConntrack).
     WG live peers: background task, 15 s minimum between queries.
 
     Pass ``interest=pppoe-sessions`` to have the broadcaster fetch PPPoE session
-    counters. The fetch is skipped unless pppoe-server is configured and at least
-    one current subscriber requested that interest.
+    counters. Pass ``interest=pppoe-connections`` for the conntrack dump used by
+    the session connections dialog. Those fetches are skipped unless at least
+    one current subscriber requested that interest. Sessions also require
+    pppoe-server to be configured.
     """
     service = get_session_vyos_service(request)
     include_wireguard = await has_permission(request, FeatureGroup.WIREGUARD, PermissionLevel.READ)
@@ -1501,6 +1553,7 @@ async def dashboard_stream(
     requested = {name for name in (interest or []) if name in _STREAM_INTERESTS}
     if not include_pppoe:
         requested.discard("pppoe-sessions")
+        requested.discard("pppoe-connections")
 
     async def event_generator():
         from routers.events import _has_active_session
@@ -1533,6 +1586,8 @@ async def dashboard_stream(
                 if event["type"] == "bgp-status" and not include_bgp:
                     continue
                 if event["type"] == "pppoe-sessions" and not include_pppoe:
+                    continue
+                if event["type"] == "pppoe-connections" and not include_pppoe:
                     continue
                 if event["type"] == "hardware-sensors" and not include_hardware:
                     continue

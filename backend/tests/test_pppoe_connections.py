@@ -15,6 +15,8 @@ from pppoe_connections import (
     conntrack_family,
     parse_conntrack_result,
     show_conntrack_query,
+    show_conntrack_snapshot_query,
+    snapshot_from_graphql_body,
 )
 
 REPO = Path(__file__).resolve().parents[2]
@@ -97,3 +99,28 @@ def test_page_reads_api_error_message():
     text = PAGE.read_text()
     assert "thrownMessage" in text
     assert 'err instanceof Error ? err.message : "Failed to load connections"' not in text
+    assert '"pppoe-connections"' in text
+    assert "connectionLineMatchesIp" in text
+
+
+def test_snapshot_query_asks_both_families():
+    query = show_conntrack_snapshot_query('k"ey')
+    assert "v4: ShowConntrack" in query
+    assert "v6: ShowConntrack" in query
+    assert json.dumps('k"ey') in query
+    assert "family: inet" in query
+    assert "family: inet6" in query
+
+
+def test_snapshot_body_merges_families_and_skips_empty():
+    body = {
+        "data": {
+            "v4": {"success": True, "data": {"result": {"conntrack": {"flow": [FLOW]}}}},
+            "v6": {"success": True, "data": {"result": {"conntrack": {"error": True, "reason": "entries not found"}}}},
+        }
+    }
+    lines = snapshot_from_graphql_body(body)
+    assert len(lines) == 1
+    assert "100.127.200.187:51234" in lines[0]
+    with pytest.raises(ConntrackUnavailable):
+        snapshot_from_graphql_body({"errors": [{"message": "nope"}]})
