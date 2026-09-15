@@ -9,21 +9,10 @@ export function postLoginPath(appliance: boolean): string {
 }
 
 /**
- * Login/OAuth landing. `/sites` still becomes `/` in appliance.
- * `null` means mode unknown (status fetch failed): default `/` so appliance
- * auto-connect can run. VPS then redirects to /sites from AppLayout.
+ * Login/OAuth landing. Appliance or unknown mode is `/`. VPS is `/sites`.
  */
-export function afterLoginPath(from: string, appliance: boolean | null): string {
-  if (appliance === false) {
-    if (!from || from === "/login" || from === "/onboarding") {
-      return "/sites";
-    }
-    return from === "/sites" ? "/sites" : from;
-  }
-  if (!from || from === "/login" || from === "/onboarding" || from === "/sites") {
-    return "/";
-  }
-  return from;
+export function afterLoginPath(appliance: boolean | null): string {
+  return appliance === false ? "/sites" : "/";
 }
 
 export function shouldRedirectToSites(appliance: boolean, hasSession: boolean): boolean {

@@ -18,7 +18,6 @@ import { WELL_KNOWN_PROVIDERS } from "@/lib/api/oauth";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [from, setFrom] = useState<string>("/sites");
   const [appliance, setAppliance] = useState<boolean | null>(null);
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
 
@@ -37,7 +36,11 @@ export default function LoginPage() {
         }
         const applianceMode = data.appliance === true;
         setAppliance(applianceMode);
-        setFrom((prev) => afterLoginPath(prev, applianceMode));
+        const existing = await authClient.getSession();
+        if (existing.data?.user) {
+          router.replace(afterLoginPath(applianceMode));
+          return;
+        }
         console.log("[LoginPage] Onboarding complete - showing login");
       } catch (err) {
         console.error("[LoginPage] Failed to check onboarding status:", err);
@@ -54,10 +57,6 @@ export default function LoginPage() {
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search);
-      const f = params.get("from");
-      if (f && f !== "/login" && f !== "/onboarding") {
-        setFrom(f);
-      }
       // A failed OAuth callback redirects back here with ?error=oauth.
       if (params.get("error")) {
         setError(
@@ -126,7 +125,7 @@ export default function LoginPage() {
       }
 
       // No other sessions, proceed to redirect
-      router.push(afterLoginPath(from, appliance));
+      router.push(afterLoginPath(appliance));
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
       setIsLoading(false);
@@ -141,7 +140,7 @@ export default function LoginPage() {
       }
 
       // Proceed to redirect
-      router.push(afterLoginPath(from, appliance));
+      router.push(afterLoginPath(appliance));
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to revoke other sessions";
       throw new Error(errorMessage);
@@ -154,7 +153,7 @@ export default function LoginPage() {
     try {
       await authClient.signIn.oauth2({
         providerId,
-        callbackURL: afterLoginPath(from, appliance),
+        callbackURL: afterLoginPath(appliance),
         // On a failed callback (e.g. role mapping denies access because the
         // account is in no permitted group) return to the login page with a
         // friendly message instead of a raw 500.

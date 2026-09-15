@@ -28,9 +28,10 @@ export default async function proxy(request: NextRequest) {
   const session = await auth.api.getSession({ headers: request.headers });
 
   if (!session) {
-    const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("from", pathname);
-    return NextResponse.redirect(loginUrl);
+    // Bare /login. ?from=<deep-link> after idle timeout skips reconnect
+    // (/ or /sites) and sign-in on that URL fails; /login without the
+    // query works.
+    return NextResponse.redirect(new URL("/login", request.url));
   }
 
   return NextResponse.next();

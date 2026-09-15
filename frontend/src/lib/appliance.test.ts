@@ -22,22 +22,16 @@ describe("isApplianceMode", () => {
 });
 
 describe("afterLoginPath", () => {
-  it("lands on dashboard in appliance even if from is /sites", () => {
-    assert.equal(afterLoginPath("/sites", true), "/");
-    assert.equal(afterLoginPath("", true), "/");
-    assert.equal(afterLoginPath("/firewall/policies", true), "/firewall/policies");
+  it("lands on dashboard in appliance", () => {
+    assert.equal(afterLoginPath(true), "/");
   });
 
   it("keeps /sites as the VPS default", () => {
-    assert.equal(afterLoginPath("/sites", false), "/sites");
-    assert.equal(afterLoginPath("", false), "/sites");
-    assert.equal(afterLoginPath("/firewall/policies", false), "/firewall/policies");
+    assert.equal(afterLoginPath(false), "/sites");
   });
 
   it("defaults to dashboard when mode is unknown", () => {
-    assert.equal(afterLoginPath("/sites", null), "/");
-    assert.equal(afterLoginPath("", null), "/");
-    assert.equal(afterLoginPath("/firewall/policies", null), "/firewall/policies");
+    assert.equal(afterLoginPath(null), "/");
   });
 });
 
