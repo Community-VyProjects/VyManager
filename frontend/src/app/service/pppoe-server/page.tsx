@@ -49,6 +49,9 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useColumnVisibility, type ColumnDef } from "@/hooks/useColumnVisibility";
+import { ColumnToggleButton } from "@/components/column-toggle/ColumnToggleButton";
+import { SessionLabelRegistryDialog } from "@/components/pppoe-server/SessionLabelRegistryDialog";
 import {
   pppoeServerService,
   type PPPoEConfigResponse,
@@ -107,12 +110,38 @@ function sessionLabelMatches(session: SessionWithRates, label: PPPoESessionLabel
   return false;
 }
 
-function sessionRecognizedLabels(session: SessionWithRates, labels: PPPoESessionLabelDefinition[]): string[] {
+function sessionRecognizedLabels(
+  session: SessionWithRates,
+  labels: PPPoESessionLabelDefinition[],
+): PPPoESessionLabelDefinition[] {
   return labels
     .filter((label) => label.enabled !== false)
-    .filter((label) => sessionLabelMatches(session, label))
-    .map((label) => label.name);
+    .filter((label) => sessionLabelMatches(session, label));
 }
+
+function sessionLabelClass(severity?: string): string {
+  if (severity === "danger") {
+    return "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-300";
+  }
+  if (severity === "warning") {
+    return "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300";
+  }
+  return "border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300";
+}
+
+const PPPOE_SESSION_COLUMNS: ColumnDef[] = [
+  { id: "username", label: "User" },
+  { id: "interface", label: "Interface" },
+  { id: "ip", label: "IP address" },
+  { id: "mtu", label: "MTU" },
+  { id: "calling_sid", label: "Calling SID" },
+  { id: "uptime", label: "Uptime" },
+  { id: "rxRate", label: "RX rate (upload)" },
+  { id: "txRate", label: "TX rate (download)" },
+  { id: "rx_bytes", label: "RX total (upload)" },
+  { id: "tx_bytes", label: "TX total (download)" },
+  { id: "labels", label: "Labels" },
+];
 
 function PPPoEPageInner() {
   const searchParams = useSearchParams();
@@ -147,10 +176,18 @@ function PPPoEPageInner() {
   const [maxRxBytes, setMaxRxBytes] = useState("");
   const [minTxBytes, setMinTxBytes] = useState("");
   const [maxTxBytes, setMaxTxBytes] = useState("");
+  const [sessionLabelFilter, setSessionLabelFilter] = useState("");
   const [sessionSortField, setSessionSortField] = useState<SessionSortField>("username");
   const [sessionSortDirection, setSessionSortDirection] = useState<"asc" | "desc">("asc");
   const [sessionPage, setSessionPage] = useState(1);
   const sessionPageSize = 50;
+  const {
+    visibleColumns,
+    toggleColumn,
+    orderedColumns,
+    reorderColumns,
+    resetToDefault,
+  } = useColumnVisibility("pppoe-session-columns", PPPOE_SESSION_COLUMNS);
   const [connectionDialog, setConnectionDialog] = useState<{
     username: string;
     interfaceName: string;
@@ -408,6 +445,7 @@ function PPPoEPageInner() {
     if (ipv6Filter === "yes" && !session.ipv6) return false;
     if (ipv6Filter === "no" && session.ipv6) return false;
     if (mtuFilter && String(session.mtu ?? "") !== mtuFilter.trim()) return false;
+    if (sessionLabelFilter && !sessionRecognizedLabels(session, sessionLabels).some((label) => label.name === sessionLabelFilter)) return false;
     return true;
   });
 
@@ -690,12 +728,17 @@ function PPPoEPageInner() {
                       <option value="no">IPv6: Absent</option>
                     </select>
                     <Input value={mtuFilter} onChange={(event) => setMtuFilter(event.target.value)} inputMode="numeric" placeholder="MTU" className="h-8 w-20 text-xs" />
-                    <Input value={minRxBytes} onChange={(event) => setMinRxBytes(event.target.value)} inputMode="numeric" placeholder="Min RX bytes" className="h-8 w-28 text-xs" />
-                    <Input value={maxRxBytes} onChange={(event) => setMaxRxBytes(event.target.value)} inputMode="numeric" placeholder="Max RX bytes" className="h-8 w-28 text-xs" />
-                    <Input value={minTxBytes} onChange={(event) => setMinTxBytes(event.target.value)} inputMode="numeric" placeholder="Min TX bytes" className="h-8 w-28 text-xs" />
-                    <Input value={maxTxBytes} onChange={(event) => setMaxTxBytes(event.target.value)} inputMode="numeric" placeholder="Max TX bytes" className="h-8 w-28 text-xs" />
-                    {(sessionSearch || minPps || maxPps || ipv6Filter !== "all" || mtuFilter || minRxBytes || maxRxBytes || minTxBytes || maxTxBytes) && (
-                      <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => { setSessionSearch(""); setMinPps(""); setMaxPps(""); setIpv6Filter("all"); setMtuFilter(""); setMinRxBytes(""); setMaxRxBytes(""); setMinTxBytes(""); setMaxTxBytes(""); }}>
+                    <Input value={minRxBytes} onChange={(event) => setMinRxBytes(event.target.value)} inputMode="numeric" placeholder="Min RX upload bytes" className="h-8 w-32 text-xs" />
+                    <Input value={maxRxBytes} onChange={(event) => setMaxRxBytes(event.target.value)} inputMode="numeric" placeholder="Max RX upload bytes" className="h-8 w-32 text-xs" />
+                    <Input value={minTxBytes} onChange={(event) => setMinTxBytes(event.target.value)} inputMode="numeric" placeholder="Min TX download bytes" className="h-8 w-32 text-xs" />
+                    <Input value={maxTxBytes} onChange={(event) => setMaxTxBytes(event.target.value)} inputMode="numeric" placeholder="Max TX download bytes" className="h-8 w-32 text-xs" />
+                    <select value={sessionLabelFilter} onChange={(event) => setSessionLabelFilter(event.target.value)} className="h-8 rounded-md border bg-background px-2 text-xs">
+                      <option value="">Labels: All</option>
+                      {sessionLabels.map((label) => <option key={label.code} value={label.name}>{label.name}</option>)}
+                    </select>
+                    <ColumnToggleButton columns={orderedColumns} visibleColumns={visibleColumns} onToggle={toggleColumn} onReorder={reorderColumns} onReset={resetToDefault} />
+                    {(sessionSearch || minPps || maxPps || ipv6Filter !== "all" || mtuFilter || minRxBytes || maxRxBytes || minTxBytes || maxTxBytes || sessionLabelFilter) && (
+                      <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => { setSessionSearch(""); setMinPps(""); setMaxPps(""); setIpv6Filter("all"); setMtuFilter(""); setMinRxBytes(""); setMaxRxBytes(""); setMinTxBytes(""); setMaxTxBytes(""); setSessionLabelFilter(""); }}>
                         <X className="h-3.5 w-3.5 mr-1" /> Clear
                       </Button>
                     )}
@@ -713,43 +756,50 @@ function PPPoEPageInner() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead><button className="font-medium" onClick={() => handleSessionSort("username")}>User {sessionSortLabel("username")}</button></TableHead>
-                          <TableHead><button className="font-medium" onClick={() => handleSessionSort("interface")}>Interface {sessionSortLabel("interface")}</button></TableHead>
-                          <TableHead><button className="font-medium" onClick={() => handleSessionSort("ip")}>IP address {sessionSortLabel("ip")}</button></TableHead>
-                          <TableHead><button className="font-medium" onClick={() => handleSessionSort("mtu")}>MTU {sessionSortLabel("mtu")}</button></TableHead>
-                          <TableHead><button className="font-medium" onClick={() => handleSessionSort("calling_sid")}>Calling SID {sessionSortLabel("calling_sid")}</button></TableHead>
-                          <TableHead><button className="font-medium" onClick={() => handleSessionSort("uptime")}>Uptime {sessionSortLabel("uptime")}</button></TableHead>
-                          <TableHead><button className="font-medium" onClick={() => handleSessionSort("rxRate")}>RX Rate (UPL) {sessionSortLabel("rxRate")}</button></TableHead>
-                          <TableHead><button className="font-medium" onClick={() => handleSessionSort("txRate")}>TX Rate (DOWN) {sessionSortLabel("txRate")}</button></TableHead>
-                          <TableHead><button className="font-medium text-right" onClick={() => handleSessionSort("rx_bytes")}>Traffic total {sessionSortLabel("rx_bytes")}</button></TableHead>
+                          {orderedColumns.filter((column) => visibleColumns.has(column.id)).map((column) => (
+                            <TableHead key={column.id} className={column.id.includes("bytes") ? "text-right" : undefined}>
+                              {column.id === "labels" ? column.label : <button className="font-medium" onClick={() => handleSessionSort(column.id as SessionSortField)}>{column.label} {sessionSortLabel(column.id as SessionSortField)}</button>}
+                            </TableHead>
+                          ))}
                           <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {sortedSessions.slice((sessionPage - 1) * sessionPageSize, sessionPage * sessionPageSize).map((session) => {
-                          const appliedLabels = sessionRecognizedLabels(session, sessionLabels);
                           return (
                             <TableRow key={`${session.interface}:${session.username}:${session.calling_sid ?? ""}`}>
-                              <TableCell className="font-medium">{session.username}</TableCell>
-                              <TableCell className="font-mono">{session.interface}</TableCell>
-                              <TableCell className="font-mono">
-                                <div>{session.ip || "-"}</div>
-                                {session.ipv6 && <div className="text-xs text-muted-foreground">{session.ipv6}</div>}
-                                {session.ipv6_delegated && <div className="text-xs text-muted-foreground">PD: {session.ipv6_delegated}</div>}
-                              </TableCell>
-                              <TableCell>{session.mtu || "-"}</TableCell>
-                              <TableCell className="font-mono text-xs">{session.calling_sid || "-"}</TableCell>
-                              <TableCell>{session.uptime || "-"}</TableCell>
-                              <TableCell>{formatRate(session.rxRate)} <span className="text-xs text-muted-foreground">/ {formatPps(session.rxPps)}</span></TableCell>
-                              <TableCell>{formatRate(session.txRate)} <span className="text-xs text-muted-foreground">/ {formatPps(session.txPps)}</span></TableCell>
-                              <TableCell className="text-right whitespace-nowrap">
-                                <span>{formatBytes(session.rx_bytes)} RX / {formatBytes(session.tx_bytes)} TX</span>
-                                {appliedLabels.length > 0 && (
-                                  <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-700">
-                                    {appliedLabels.map((label) => label).join(" ")}
-                                  </span>
-                                )}
-                              </TableCell>
+                              {orderedColumns.filter((column) => visibleColumns.has(column.id)).map((column) => {
+                                const labels = sessionRecognizedLabels(session, sessionLabels);
+                                if (column.id === "username") return <TableCell key={column.id} className="font-medium">{session.username}</TableCell>;
+                                if (column.id === "interface") return <TableCell key={column.id} className="font-mono">{session.interface}</TableCell>;
+                                if (column.id === "ip") return <TableCell key={column.id} className="font-mono"><div>{session.ip || "-"}</div>{session.ipv6 && <div className="text-xs text-muted-foreground">{session.ipv6}</div>}{session.ipv6_delegated && <div className="text-xs text-muted-foreground">PD: {session.ipv6_delegated}</div>}</TableCell>;
+                                if (column.id === "mtu") return <TableCell key={column.id}>{session.mtu || "-"}</TableCell>;
+                                if (column.id === "calling_sid") return <TableCell key={column.id} className="font-mono text-xs">{session.calling_sid || "-"}</TableCell>;
+                                if (column.id === "uptime") return <TableCell key={column.id}>{session.uptime || "-"}</TableCell>;
+                                if (column.id === "rxRate") return <TableCell key={column.id}>{formatRate(session.rxRate)} <span className="text-xs text-muted-foreground">/ {formatPps(session.rxPps)}</span></TableCell>;
+                                if (column.id === "txRate") return <TableCell key={column.id}>{formatRate(session.txRate)} <span className="text-xs text-muted-foreground">/ {formatPps(session.txPps)}</span></TableCell>;
+                                if (column.id === "rx_bytes") return <TableCell key={column.id} className="text-right whitespace-nowrap">{formatBytes(session.rx_bytes)} RX</TableCell>;
+                                if (column.id === "tx_bytes") return <TableCell key={column.id} className="text-right whitespace-nowrap">{formatBytes(session.tx_bytes)} TX</TableCell>;
+                                return (
+                                  <TableCell key={column.id}>
+                                    {labels.length > 0 ? (
+                                      <div className="flex flex-wrap gap-1">
+                                        {labels.map((label) => (
+                                          <span
+                                            key={label.code}
+                                            className={cn(
+                                              "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium",
+                                              sessionLabelClass(label.severity),
+                                            )}
+                                          >
+                                            {label.name}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    ) : "-"}
+                                  </TableCell>
+                                );
+                              })}
                               <TableCell className="text-right whitespace-nowrap">
                                 <Button variant="ghost" size="icon" className="h-8 w-8" title={`Graph statistics for ${session.username}`} onClick={() => setSelectedStatsKey(sessionKey(session))}>
                                   <Activity className="h-4 w-4" />
@@ -1347,7 +1397,20 @@ function PPPoEPageInner() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showLabelEditor} onOpenChange={(open) => {
+      <SessionLabelRegistryDialog
+        open={showLabelEditor}
+        onOpenChange={(open) => {
+          setShowLabelEditor(open);
+          if (!open) setLabelError(null);
+        }}
+        draft={labelDraft}
+        onDraftChange={setLabelDraft}
+        onSave={() => void saveLabelEditor()}
+        saving={labelSaving}
+        error={labelError}
+      />
+
+      {false && <Dialog open={showLabelEditor} onOpenChange={(open) => {
         if (!open) {
           setShowLabelEditor(false);
           setLabelError(null);
@@ -1479,7 +1542,7 @@ function PPPoEPageInner() {
             </div>
           </div>
         </DialogContent>
-      </Dialog>
+      </Dialog>}
 
       <Dialog open={!!connectionDialog} onOpenChange={(open) => { if (!open) setConnectionDialog(null); }}>
         <DialogContent className="max-w-4xl">

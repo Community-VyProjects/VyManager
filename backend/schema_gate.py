@@ -34,6 +34,7 @@ REQUIRED_TABLES = (
     "user_feature_permissions",
     "active_sessions",
     "audit_logs",
+    "pppoe_session_label_definitions",
 )
 
 
