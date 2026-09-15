@@ -47,8 +47,7 @@ import { l2tpv3Service, type L2TPv3Interface, type L2TPv3Capabilities } from "@/
 import { L2TPv3Modal } from "@/components/l2tpv3/L2TPv3Modal";
 import { DeleteL2TPv3Modal } from "@/components/l2tpv3/DeleteL2TPv3Modal";
 import { loopbackService, type LoopbackInterface, type LoopbackCapabilities } from "@/lib/api/loopback";
-import { CreateLoopbackModal } from "@/components/loopback/CreateLoopbackModal";
-import { EditLoopbackModal } from "@/components/loopback/EditLoopbackModal";
+import { LoopbackModal } from "@/components/loopback/LoopbackModal";
 import { DeleteLoopbackModal } from "@/components/loopback/DeleteLoopbackModal";
 import { macsecService, type MacsecInterface, type MacsecCapabilities } from "@/lib/api/macsec";
 import { CreateMacsecModal } from "@/components/macsec/CreateMacsecModal";
@@ -4327,21 +4326,20 @@ function InterfacesPageInner() {
         interfaceData={deletingL2tpv3}
       />
       {/* Loopback Modals */}
-      <CreateLoopbackModal
-        open={isCreateLoopbackModalOpen}
-        onOpenChange={setIsCreateLoopbackModalOpen}
-        onSuccess={loadData}
-        capabilities={loopbackCapabilities}
-      />
-      <EditLoopbackModal
-        open={!!editingLoopback}
-        onOpenChange={(open) => !open && setEditingLoopback(null)}
+      <LoopbackModal
+        open={isCreateLoopbackModalOpen || !!editingLoopback}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsCreateLoopbackModalOpen(false);
+            setEditingLoopback(null);
+          }
+        }}
         onSuccess={() => {
           setEditingLoopback(null);
           loadData();
         }}
         capabilities={loopbackCapabilities}
-        interfaceData={editingLoopback}
+        existing={editingLoopback}
       />
       <DeleteLoopbackModal
         open={!!deletingLoopback}
