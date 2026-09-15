@@ -422,18 +422,18 @@ def parse_graceful_restart(raw: dict) -> Ospfv3GracefulRestart:
 
     helper_raw = raw.get("helper", {}) or {}
 
-    # Parse helper enable - can be a flag or have router-id sub-keys
+    # Parse helper enable - can be a flag or have router-id values
     enable_raw = helper_raw.get("enable", {})
     helper_enable = False
     router_ids = []
     if enable_raw is not None:
         helper_enable = True
         if isinstance(enable_raw, dict):
-            rid_raw = enable_raw.get("router-id", {})
+            rid_raw = enable_raw.get("router-id")
             if isinstance(rid_raw, dict):
-                router_ids = list(rid_raw.keys())
-            elif isinstance(rid_raw, str):
-                router_ids = [rid_raw]
+                router_ids = [str(k) for k in rid_raw.keys()]
+            else:
+                router_ids = _to_list(rid_raw)
 
     return Ospfv3GracefulRestart(
         enabled=bool(raw),

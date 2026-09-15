@@ -110,6 +110,7 @@ export interface OspfMaxMetricRouterLsa {
 
 export interface OspfGracefulRestartHelper {
   enable: boolean;
+  router_ids: string[];
   no_strict_lsa_checking: boolean;
   planned_only: boolean;
   supported_grace_time?: number | null;
@@ -895,6 +896,18 @@ class OspfService {
     if (updated.helper.supported_grace_time !== original.helper.supported_grace_time) {
       if (updated.helper.supported_grace_time != null) {
         ops.push({ op: "set_graceful_restart_helper_supported_grace_time", value: String(updated.helper.supported_grace_time) });
+      }
+    }
+    const origRids = new Set(original.helper.router_ids || []);
+    const nextRids = new Set(updated.helper.router_ids || []);
+    for (const id of nextRids) {
+      if (!origRids.has(id)) {
+        ops.push({ op: "set_graceful_restart_helper_enable_router_id", value: id });
+      }
+    }
+    for (const id of origRids) {
+      if (!nextRids.has(id)) {
+        ops.push({ op: "delete_graceful_restart_helper_enable_router_id", value: id });
       }
     }
 

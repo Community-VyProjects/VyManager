@@ -435,6 +435,12 @@ class OspfMapper(BaseFeatureMapper):
     def get_graceful_restart_helper_enable(self) -> List[str]:
         return self._ospf() + ["graceful-restart", "helper", "enable"]
 
+    def get_graceful_restart_helper_enable_router_id(self, value: str) -> List[str]:
+        return self._ospf() + ["graceful-restart", "helper", "enable", "router-id", value]
+
+    def get_graceful_restart_helper_enable_router_id_delete(self, value: str) -> List[str]:
+        return self._ospf() + ["graceful-restart", "helper", "enable", "router-id", value]
+
     def get_graceful_restart_helper_no_strict_lsa_checking(self) -> List[str]:
         return self._ospf() + ["graceful-restart", "helper", "no-strict-lsa-checking"]
 

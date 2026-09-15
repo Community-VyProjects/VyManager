@@ -604,6 +604,18 @@ class Ospfv3Service {
         ops.push({ op: "set_graceful_restart_helper_supported_grace_time", value: String(updated.helper.supported_grace_time) });
       }
     }
+    const origRids = new Set(original.helper.router_ids || []);
+    const nextRids = new Set(updated.helper.router_ids || []);
+    for (const id of nextRids) {
+      if (!origRids.has(id)) {
+        ops.push({ op: "set_graceful_restart_helper_enable_router_id", value: id });
+      }
+    }
+    for (const id of origRids) {
+      if (!nextRids.has(id)) {
+        ops.push({ op: "delete_graceful_restart_helper_enable_router_id", value: id });
+      }
+    }
 
     if (ops.length === 0) {
       return { success: true, data: { message: "No changes" } };
