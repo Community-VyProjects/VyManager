@@ -41,6 +41,11 @@ import {
   HASH_ALGORITHMS,
   TLS_VERSIONS,
 } from "./constants";
+import {
+  openvpnLockedName,
+  openvpnModalIsEdit,
+  openvpnWriteKind,
+} from "./openvpn-modal-mode";
 
 interface OpenvpnModalProps {
   open: boolean;
@@ -79,7 +84,7 @@ export function OpenvpnModal({
   existingNames,
   existing,
 }: OpenvpnModalProps) {
-  const isEdit = !!existing;
+  const isEdit = openvpnModalIsEdit(existing);
   const is15 = capabilities?.version_info.is_1_5 ?? false;
 
   // Basic
@@ -727,13 +732,14 @@ export function OpenvpnModal({
   };
 
   const handleSubmit = async () => {
-    if (isEdit) {
+    const write = openvpnWriteKind(existing);
+    if (write.kind === "update") {
       if (!existing) return;
       setError(null);
       setLoading(true);
       try {
         const result = await openvpnService.updateInterface(
-          existing.name,
+          write.name,
           existing,
           buildUpdate()
         );
@@ -819,10 +825,10 @@ export function OpenvpnModal({
                 <Label htmlFor="name">Interface Name {isEdit ? null : "*"}</Label>
                 <Input
                   id="name"
-                  value={isEdit ? existing.name : name}
+                  value={openvpnLockedName(existing, name).value}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="vtun0"
-                  disabled={isEdit}
+                  disabled={openvpnLockedName(existing, name).disabled}
                 />
                 {isEdit ? (
                   <p className="text-xs text-muted-foreground mt-1">

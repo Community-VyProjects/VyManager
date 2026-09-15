@@ -16,20 +16,17 @@ def test_cloned_create_edit_files_are_gone():
     assert not (COMP / "EditOpenvpnModal.tsx").exists()
 
 
-def test_unified_modal_has_existing_and_both_ops():
-    text = (COMP / "OpenvpnModal.tsx").read_text()
-    assert "existing?: OpenvpnInterface | null" in text
-    assert "const isEdit = !!existing" in text
-    assert "createInterface" in text
-    assert "updateInterface" in text
-    assert "Interface name cannot be changed." in text
-    assert "disabled={isEdit}" in text
-
-
 def test_openvpn_page_uses_unified_modal():
     page = PAGE.read_text()
-    assert "OpenvpnModal" in page
+    assert 'from "@/components/openvpn/OpenvpnModal"' in page
+    assert "<OpenvpnModal" in page
     assert 'from "@/components/openvpn/CreateOpenvpnModal"' not in page
     assert "<CreateOpenvpnModal" not in page
     assert 'from "@/components/openvpn/EditOpenvpnModal"' not in page
     assert "<EditOpenvpnModal" not in page
+
+
+def test_wizard_is_not_folded_into_the_modal():
+    assert (COMP / "OpenvpnWizard.tsx").exists()
+    page = PAGE.read_text()
+    assert "<OpenvpnWizard" in page
