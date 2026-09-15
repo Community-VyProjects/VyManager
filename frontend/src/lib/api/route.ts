@@ -5,12 +5,19 @@ import { VyOSResponse } from "@/lib/types/api";
 // TypeScript Interfaces - Match Conditions
 // ============================================================================
 
+export interface GeoIPMatch {
+  country_code?: string[] | null;
+  inverse_match?: boolean | null;
+}
+
 export interface MatchConditions {
   // Address
   source_address?: string | null;
   destination_address?: string | null;
   source_mac_address?: string | null;
   destination_mac_address?: string | null;
+  source_geoip?: GeoIPMatch | null;
+  destination_geoip?: GeoIPMatch | null;
   
   // Groups
   source_group_address?: string | null;
@@ -127,6 +134,10 @@ export interface RouteCapabilitiesResponse {
       description: string;
     };
     ipv6_policy_route: {
+      supported: boolean;
+      description: string;
+    };
+    geoip_matching: {
       supported: boolean;
       description: string;
     };
@@ -438,6 +449,23 @@ class RouteService {
     if (match.destination_address) operations.push({ op: "set_match_destination_address", value: match.destination_address });
     if (match.source_mac_address) operations.push({ op: "set_match_source_mac_address", value: match.source_mac_address });
     if (match.destination_mac_address) operations.push({ op: "set_match_destination_mac_address", value: match.destination_mac_address });
+
+    if (match.source_geoip) {
+      for (const code of match.source_geoip.country_code || []) {
+        if (code) operations.push({ op: "set_match_source_geoip_country", value: code.toLowerCase() });
+      }
+      if (match.source_geoip.inverse_match) {
+        operations.push({ op: "set_match_source_geoip_inverse" });
+      }
+    }
+    if (match.destination_geoip) {
+      for (const code of match.destination_geoip.country_code || []) {
+        if (code) operations.push({ op: "set_match_destination_geoip_country", value: code.toLowerCase() });
+      }
+      if (match.destination_geoip.inverse_match) {
+        operations.push({ op: "set_match_destination_geoip_inverse" });
+      }
+    }
     
     // Groups
     if (match.source_group_address) operations.push({ op: "set_match_source_group_address", value: match.source_group_address });

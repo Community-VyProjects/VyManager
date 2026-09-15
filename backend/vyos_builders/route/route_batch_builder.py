@@ -125,6 +125,60 @@ class RouteBatchBuilder(BatchBuilder):
         return self.add_set(path)
 
     # ========================================================================
+    # Match - GeoIP
+    # ========================================================================
+
+    def set_match_source_geoip_country(self, policy_type: str, name: str, rule: str, country_code: str) -> "RouteBatchBuilder":
+        """Match source GeoIP country-code."""
+        path = self.mappers[self.mapper_key].get_match_source_geoip_country(policy_type, name, rule, country_code)
+        return self.add_set(path)
+
+    def delete_match_source_geoip_country(self, policy_type: str, name: str, rule: str) -> "RouteBatchBuilder":
+        """Delete source GeoIP country-code."""
+        path = self.mappers[self.mapper_key].get_match_source_geoip_country_path(policy_type, name, rule)
+        return self.add_delete(path)
+
+    def set_match_source_geoip_inverse(self, policy_type: str, name: str, rule: str) -> "RouteBatchBuilder":
+        """Match source GeoIP inverse-match."""
+        path = self.mappers[self.mapper_key].get_match_source_geoip_inverse(policy_type, name, rule)
+        return self.add_set(path)
+
+    def delete_match_source_geoip_inverse(self, policy_type: str, name: str, rule: str) -> "RouteBatchBuilder":
+        """Delete source GeoIP inverse-match."""
+        path = self.mappers[self.mapper_key].get_match_source_geoip_inverse(policy_type, name, rule)
+        return self.add_delete(path)
+
+    def delete_match_source_geoip(self, policy_type: str, name: str, rule: str) -> "RouteBatchBuilder":
+        """Delete the source GeoIP node."""
+        path = self.mappers[self.mapper_key].get_match_source_geoip_path(policy_type, name, rule)
+        return self.add_delete(path)
+
+    def set_match_destination_geoip_country(self, policy_type: str, name: str, rule: str, country_code: str) -> "RouteBatchBuilder":
+        """Match destination GeoIP country-code."""
+        path = self.mappers[self.mapper_key].get_match_destination_geoip_country(policy_type, name, rule, country_code)
+        return self.add_set(path)
+
+    def delete_match_destination_geoip_country(self, policy_type: str, name: str, rule: str) -> "RouteBatchBuilder":
+        """Delete destination GeoIP country-code."""
+        path = self.mappers[self.mapper_key].get_match_destination_geoip_country_path(policy_type, name, rule)
+        return self.add_delete(path)
+
+    def set_match_destination_geoip_inverse(self, policy_type: str, name: str, rule: str) -> "RouteBatchBuilder":
+        """Match destination GeoIP inverse-match."""
+        path = self.mappers[self.mapper_key].get_match_destination_geoip_inverse(policy_type, name, rule)
+        return self.add_set(path)
+
+    def delete_match_destination_geoip_inverse(self, policy_type: str, name: str, rule: str) -> "RouteBatchBuilder":
+        """Delete destination GeoIP inverse-match."""
+        path = self.mappers[self.mapper_key].get_match_destination_geoip_inverse(policy_type, name, rule)
+        return self.add_delete(path)
+
+    def delete_match_destination_geoip(self, policy_type: str, name: str, rule: str) -> "RouteBatchBuilder":
+        """Delete the destination GeoIP node."""
+        path = self.mappers[self.mapper_key].get_match_destination_geoip_path(policy_type, name, rule)
+        return self.add_delete(path)
+
+    # ========================================================================
     # Match - Groups
     # ========================================================================
 
@@ -498,6 +552,12 @@ class RouteBatchBuilder(BatchBuilder):
     def get_capabilities(self) -> Dict[str, Any]:
         """Get capabilities for the current VyOS version."""
         supports_vrf = "1.5" in self.version or "latest" in self.version
+        mapper = self.mappers[self.mapper_key]
+        try:
+            mapper.get_match_source_geoip_country("route", "FOO", "10", "US")
+            geoip_matching = True
+        except ValueError:
+            geoip_matching = False
 
         return {
             "version": self.version,
@@ -509,6 +569,10 @@ class RouteBatchBuilder(BatchBuilder):
                 "ipv6_policy_route": {
                     "supported": True,
                     "description": "IPv6 policy route6 support",
+                },
+                "geoip_matching": {
+                    "supported": geoip_matching,
+                    "description": "Source and destination GeoIP country matching",
                 },
                 "vrf_routing": {
                     "supported": supports_vrf,

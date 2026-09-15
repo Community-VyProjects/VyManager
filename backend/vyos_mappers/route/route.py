@@ -81,6 +81,54 @@ class RouteMapper(BaseFeatureMapper):
         return ["policy", policy_type, name, "rule", rule, "destination", "mac-address", mac]
 
     # ========================================================================
+    # Match Conditions - GeoIP (1.5 only)
+    # ========================================================================
+
+    def _require_geoip(self) -> None:
+        if "1.4" in self.version:
+            raise ValueError("policy route geoip is not supported on this device")
+
+    def get_match_source_geoip_country(self, policy_type: str, name: str, rule: str, country_code: str) -> List[str]:
+        """Match source GeoIP country-code."""
+        self._require_geoip()
+        return ["policy", policy_type, name, "rule", rule, "source", "geoip", "country-code", country_code]
+
+    def get_match_source_geoip_country_path(self, policy_type: str, name: str, rule: str) -> List[str]:
+        """Delete path for source GeoIP country-code."""
+        self._require_geoip()
+        return ["policy", policy_type, name, "rule", rule, "source", "geoip", "country-code"]
+
+    def get_match_source_geoip_inverse(self, policy_type: str, name: str, rule: str) -> List[str]:
+        """Match source GeoIP inverse-match."""
+        self._require_geoip()
+        return ["policy", policy_type, name, "rule", rule, "source", "geoip", "inverse-match"]
+
+    def get_match_source_geoip_path(self, policy_type: str, name: str, rule: str) -> List[str]:
+        """Delete path for the source GeoIP node."""
+        self._require_geoip()
+        return ["policy", policy_type, name, "rule", rule, "source", "geoip"]
+
+    def get_match_destination_geoip_country(self, policy_type: str, name: str, rule: str, country_code: str) -> List[str]:
+        """Match destination GeoIP country-code."""
+        self._require_geoip()
+        return ["policy", policy_type, name, "rule", rule, "destination", "geoip", "country-code", country_code]
+
+    def get_match_destination_geoip_country_path(self, policy_type: str, name: str, rule: str) -> List[str]:
+        """Delete path for destination GeoIP country-code."""
+        self._require_geoip()
+        return ["policy", policy_type, name, "rule", rule, "destination", "geoip", "country-code"]
+
+    def get_match_destination_geoip_inverse(self, policy_type: str, name: str, rule: str) -> List[str]:
+        """Match destination GeoIP inverse-match."""
+        self._require_geoip()
+        return ["policy", policy_type, name, "rule", rule, "destination", "geoip", "inverse-match"]
+
+    def get_match_destination_geoip_path(self, policy_type: str, name: str, rule: str) -> List[str]:
+        """Delete path for the destination GeoIP node."""
+        self._require_geoip()
+        return ["policy", policy_type, name, "rule", rule, "destination", "geoip"]
+
+    # ========================================================================
     # Match Conditions - Groups
     # ========================================================================
 
