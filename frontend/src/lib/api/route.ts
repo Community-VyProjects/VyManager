@@ -60,6 +60,8 @@ export interface MatchConditions {
   // State & marks
   state?: string | null;
   ipsec?: string | null;
+  ipsec_in?: string | null;
+  ipsec_out?: string | null;
   mark?: string | null;
   connection_mark?: string | null;
   
@@ -138,6 +140,14 @@ export interface RouteCapabilitiesResponse {
       description: string;
     };
     geoip_matching: {
+      supported: boolean;
+      description: string;
+    };
+    ipsec_matching: {
+      supported: boolean;
+      description: string;
+    };
+    ipsec_directional: {
       supported: boolean;
       description: string;
     };
@@ -377,6 +387,9 @@ class RouteService {
     if (config.originalMatch?.state) {
       operations.push({ op: "delete_match_state" });
     }
+    if (config.originalMatch?.ipsec || config.originalMatch?.ipsec_in || config.originalMatch?.ipsec_out) {
+      operations.push({ op: "delete_match_ipsec_node" });
+    }
 
     // Basic config - Description
     if (config.description !== undefined) {
@@ -512,6 +525,8 @@ class RouteService {
     // State & marks
     if (match.state) operations.push({ op: "set_match_state", value: match.state });
     if (match.ipsec) operations.push({ op: "set_match_ipsec", value: match.ipsec });
+    if (match.ipsec_in) operations.push({ op: "set_match_ipsec", value: match.ipsec_in });
+    if (match.ipsec_out) operations.push({ op: "set_match_ipsec", value: match.ipsec_out });
     if (match.mark) operations.push({ op: "set_match_mark", value: match.mark });
     if (match.connection_mark) operations.push({ op: "set_match_connection_mark", value: match.connection_mark });
     

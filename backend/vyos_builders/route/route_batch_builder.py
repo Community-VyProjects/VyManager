@@ -368,6 +368,16 @@ class RouteBatchBuilder(BatchBuilder):
         path = self.mappers[self.mapper_key].get_match_ipsec(policy_type, name, rule, value)
         return self.add_set(path)
 
+    def delete_match_ipsec(self, policy_type: str, name: str, rule: str, value: str) -> "RouteBatchBuilder":
+        """Delete one IPsec match leaf."""
+        path = self.mappers[self.mapper_key].get_match_ipsec(policy_type, name, rule, value)
+        return self.add_delete(path)
+
+    def delete_match_ipsec_node(self, policy_type: str, name: str, rule: str) -> "RouteBatchBuilder":
+        """Delete the IPsec match container."""
+        path = self.mappers[self.mapper_key].get_match_ipsec_delete(policy_type, name, rule)
+        return self.add_delete(path)
+
     def set_match_mark(self, policy_type: str, name: str, rule: str, mark: str) -> "RouteBatchBuilder":
         """Match firewall mark."""
         path = self.mappers[self.mapper_key].get_match_mark(policy_type, name, rule, mark)
@@ -558,6 +568,16 @@ class RouteBatchBuilder(BatchBuilder):
             geoip_matching = True
         except ValueError:
             geoip_matching = False
+        try:
+            mapper.get_match_ipsec("route", "FOO", "10", "match-ipsec")
+            ipsec_classic = True
+        except ValueError:
+            ipsec_classic = False
+        try:
+            mapper.get_match_ipsec("route", "FOO", "10", "match-ipsec-in")
+            ipsec_directional = True
+        except ValueError:
+            ipsec_directional = False
 
         return {
             "version": self.version,
@@ -573,6 +593,14 @@ class RouteBatchBuilder(BatchBuilder):
                 "geoip_matching": {
                     "supported": geoip_matching,
                     "description": "Source and destination GeoIP country matching",
+                },
+                "ipsec_matching": {
+                    "supported": ipsec_classic or ipsec_directional,
+                    "description": "IPsec traffic matching",
+                },
+                "ipsec_directional": {
+                    "supported": ipsec_directional,
+                    "description": "Directional IPsec matching",
                 },
                 "vrf_routing": {
                     "supported": supports_vrf,

@@ -84,7 +84,9 @@ class MatchConditions(BaseModel):
     
     # State & marks
     state: Optional[str] = None  # established, invalid, new, related
-    ipsec: Optional[str] = None  # match-ipsec or match-none
+    ipsec: Optional[str] = None  # match-ipsec or match-none (1.4)
+    ipsec_in: Optional[str] = None  # match-ipsec-in or match-none-in (1.5)
+    ipsec_out: Optional[str] = None  # match-ipsec-out or match-none-out (1.5)
     mark: Optional[str] = None
     connection_mark: Optional[str] = None
     
@@ -518,7 +520,7 @@ def parse_match_conditions(rule_data: dict, match: MatchConditions):
     else:
         match.state = state_value
 
-    match.ipsec = rule_data.get("ipsec")
+    _parse_ipsec(rule_data.get("ipsec"), match)
 
     # Handle mark (can be string or list)
     mark_value = rule_data.get("mark")
@@ -801,6 +803,26 @@ def _recreate_geoip(builder, policy_type: str, policy_name: str, rule_num: str, 
             builder.set_match_destination_geoip_inverse(policy_type, policy_name, rule_num)
 
 
+def _parse_ipsec(ipsec_data, match: MatchConditions) -> None:
+    """Parse classic and directional IPsec match leaves from VyOS config."""
+    if isinstance(ipsec_data, dict):
+        if "match-ipsec" in ipsec_data:
+            match.ipsec = "match-ipsec"
+        elif "match-none" in ipsec_data:
+            match.ipsec = "match-none"
+        if "match-ipsec-in" in ipsec_data:
+            match.ipsec_in = "match-ipsec-in"
+        elif "match-none-in" in ipsec_data:
+            match.ipsec_in = "match-none-in"
+        if "match-ipsec-out" in ipsec_data:
+            match.ipsec_out = "match-ipsec-out"
+        elif "match-none-out" in ipsec_data:
+            match.ipsec_out = "match-none-out"
+        return
+    if isinstance(ipsec_data, str) and ipsec_data:
+        match.ipsec = ipsec_data
+
+
 def _recreate_match_conditions(builder, policy_type: str, policy_name: str, rule_num: str, rule_data: dict):
     """Recreate all match conditions for a rule during reorder.
 
@@ -1008,9 +1030,14 @@ def _recreate_match_conditions(builder, policy_type: str, policy_name: str, rule
 
     # IPsec
     if "ipsec" in rule_data:
-        ipsec = _get_value(rule_data, "ipsec")
-        if ipsec:
-            builder.set_match_ipsec(policy_type, policy_name, rule_num, ipsec)
+        ipsec = rule_data["ipsec"]
+        tokens = []
+        if isinstance(ipsec, dict):
+            tokens = [str(key) for key in ipsec.keys()]
+        elif isinstance(ipsec, str) and ipsec:
+            tokens = [ipsec]
+        for token in tokens:
+            builder.set_match_ipsec(policy_type, policy_name, rule_num, token)
 
     # Marks
     if "mark" in rule_data:
