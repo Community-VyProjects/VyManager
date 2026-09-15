@@ -6,7 +6,7 @@ from routers.show import DeviceDataBroadcaster, _STREAM_INTERESTS
 
 
 def test_stream_interests_allowlist():
-    assert _STREAM_INTERESTS == frozenset({"pppoe-sessions"})
+    assert _STREAM_INTERESTS == frozenset({"pppoe-sessions", "pppoe-connections"})
 
 
 def test_has_interest_false_until_a_viewer_subscribes():
@@ -112,5 +112,50 @@ def test_pppoe_cycle_failed_fetch_emits_error_not_empty_sessions():
             for event in pushed
         )
         assert broadcaster._pppoe_task is None
+
+    asyncio.run(scenario())
+
+
+def test_conntrack_cycle_does_not_start_without_interest():
+    broadcaster = DeviceDataBroadcaster("instance", service=object())
+    broadcaster._handle_conntrack_cycle(start=True)
+    assert broadcaster._conntrack_task is None
+
+
+def test_conntrack_cycle_does_not_start_without_session_ip():
+    broadcaster = DeviceDataBroadcaster("instance", service=object())
+    queue = asyncio.Queue()
+    broadcaster._subscribers.append((queue, frozenset({"pppoe-connections"})))
+    broadcaster._handle_conntrack_cycle(start=True)
+    assert broadcaster._conntrack_task is None
+
+
+def test_conntrack_cycle_swallows_cancelled_task_without_killing_the_loop():
+    async def scenario():
+        broadcaster = DeviceDataBroadcaster("instance", service=object())
+        task = asyncio.create_task(asyncio.sleep(60))
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+        broadcaster._conntrack_task = task
+        broadcaster._handle_conntrack_cycle(start=False)
+        assert broadcaster._conntrack_task is None
+
+    asyncio.run(scenario())
+
+
+def test_unsubscribe_clears_in_flight_conntrack_task():
+    async def scenario():
+        broadcaster = DeviceDataBroadcaster("instance", service=object())
+        queue = asyncio.Queue()
+        other = asyncio.Queue()
+        broadcaster._subscribers.append((queue, frozenset({"pppoe-connections"})))
+        broadcaster._subscribers.append((other, frozenset()))
+        broadcaster._conntrack_task = asyncio.create_task(asyncio.sleep(60))
+        broadcaster.unsubscribe(queue)
+        assert broadcaster._conntrack_task is None
+        assert broadcaster._subscribers == [(other, frozenset())]
 
     asyncio.run(scenario())

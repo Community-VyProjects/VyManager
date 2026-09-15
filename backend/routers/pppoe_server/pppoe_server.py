@@ -22,6 +22,7 @@ from pppoe_status import (
     PPPoESessionsUnavailable,
     load_pppoe_sessions,
 )
+from pppoe_connections import ConntrackUnavailable, fetch_session_connections
 import inspect
 import logging
 import uuid
@@ -386,19 +387,8 @@ async def get_pppoe_session_connections(
 
     try:
         service = get_session_vyos_service(http_request)
-        response = await run_in_threadpool(service.device.show, path=["conntrack"])
-        if response.status != 200:
-            raise HTTPException(
-                status_code=502,
-                detail=response.error or "Unable to read conntrack entries",
-            )
-        output = response.result.get("data", "") if isinstance(response.result, dict) else response.result
+        connections = await fetch_session_connections(service, ip)
         address = str(ipaddress.ip_interface(ip).ip)
-        connections = [
-            line.strip()
-            for line in (output or "").splitlines()
-            if address in line
-        ]
         return PPPoEConnectionsResponse(
             interface=interface,
             ip=address,
@@ -407,6 +397,8 @@ async def get_pppoe_session_connections(
         )
     except HTTPException:
         raise
+    except ConntrackUnavailable as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
     except Exception:
         logger.exception("Unhandled error reading PPPoE connections for %s", interface)
         raise HTTPException(status_code=500, detail="Internal server error")

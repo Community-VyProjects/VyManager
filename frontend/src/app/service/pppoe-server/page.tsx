@@ -68,6 +68,8 @@ import {
 import { usePermissions } from "@/hooks/usePermissions";
 import { useDashboardSSE } from "@/hooks/useDashboardSSE";
 import { FeatureGroup } from "@/lib/api/user-management";
+import { thrownMessage } from "@/lib/api-error";
+import { connectionLineMatchesIp } from "@/lib/pppoe-connections";
 import {
   DeleteConfirmModal,
   GeneralSettingsModal,
@@ -303,7 +305,11 @@ function PPPoEPageInner() {
 
   const liveSessions = hasRead && !sessionPaused;
   const { data: sessionStream, error: sessionStreamError, status: sessionStreamStatus } = useDashboardSSE({
-    interests: ["pppoe-sessions"],
+    interests: [
+      "pppoe-sessions",
+      ...(liveSessions && connectionDialog?.ip ? ["pppoe-connections"] as const : []),
+    ],
+    conntrackIp: liveSessions ? connectionDialog?.ip : undefined,
     enabled: liveSessions,
   });
 
@@ -409,16 +415,36 @@ function PPPoEPageInner() {
     setConnectionDialog({ username: session.username, interfaceName: session.interface, ip: session.ip });
     setConnections([]);
     setConnectionsError(null);
+    if (liveSessions) {
+      setConnectionsLoading(sessionStream.pppoeConnections == null);
+      return;
+    }
     setConnectionsLoading(true);
     try {
       const result = await pppoeServerService.getSessionConnections(session.interface, session.ip);
       setConnections(result.connections);
     } catch (err) {
-      setConnectionsError(err instanceof Error ? err.message : "Failed to load connections");
+      setConnectionsError(thrownMessage(err));
     } finally {
       setConnectionsLoading(false);
     }
   };
+
+  const streamConn = sessionStream.pppoeConnections;
+  const dialogIp = connectionDialog?.ip;
+  const liveDialogConnections =
+    dialogIp && streamConn
+      ? streamConn.connections.filter((line) => connectionLineMatchesIp(line, dialogIp)).slice(0, 500)
+      : null;
+  const dialogConnections = liveSessions && liveDialogConnections ? liveDialogConnections : connections;
+  const dialogLoading = Boolean(
+    connectionDialog &&
+      (liveSessions ? streamConn == null && sessionStreamStatus !== "error" : connectionsLoading),
+  );
+  const dialogError =
+    liveSessions && sessionStreamError?.startsWith("pppoe-connections:")
+      ? sessionStreamError.replace(/^pppoe-connections:\s*/, "") || "Failed to load connections"
+      : connectionsError;
 
   const parseOptionalNumber = (value: string) => {
     const parsed = Number(value);
@@ -1560,14 +1586,14 @@ function PPPoEPageInner() {
               Conntrack entries matching {connectionDialog?.ip} on {connectionDialog?.interfaceName}.
             </DialogDescription>
           </DialogHeader>
-          {connectionsLoading ? (
+          {dialogLoading ? (
             <div className="py-8 text-center text-sm text-muted-foreground">Loading connections...</div>
-          ) : connectionsError ? (
-            <div className="rounded-md border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">{connectionsError}</div>
-          ) : connections.length === 0 ? (
+          ) : dialogError ? (
+            <div className="rounded-md border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">{dialogError}</div>
+          ) : dialogConnections.length === 0 ? (
             <div className="py-8 text-center text-sm text-muted-foreground">No tracked connections found.</div>
           ) : (
-            <pre className="max-h-[60vh] overflow-auto rounded-md bg-muted p-4 text-xs leading-5 whitespace-pre-wrap">{connections.join("\n")}</pre>
+            <pre className="max-h-[60vh] overflow-auto rounded-md bg-muted p-4 text-xs leading-5 whitespace-pre-wrap">{dialogConnections.join("\n")}</pre>
           )}
         </DialogContent>
       </Dialog>
