@@ -23,11 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { AlertCircle, Loader2, Network, X, Plus } from "lucide-react";
-import {
-  bridgeService,
-  type BridgeCapabilities,
-  type BridgeInterface,
-} from "@/lib/api/bridge";
+import { bridgeService, type BridgeCapabilities, type BridgeInterface } from "@/lib/api/bridge";
 import { showService, type InterfaceName } from "@/lib/api/show";
 import { InterfaceSelect } from "@/components/ui/interface-select";
 import { ApiError } from "@/lib/types/api";
@@ -43,22 +39,26 @@ interface MemberFormState {
   root_guard: boolean;
 }
 
-interface EditBridgeModalProps {
+interface BridgeModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   capabilities: BridgeCapabilities | null;
-  interfaceData: BridgeInterface | null;
+  existingInterfaces: string[];
+  existing?: BridgeInterface | null;
 }
 
-export function EditBridgeModal({
+export function BridgeModal({
   open,
   onOpenChange,
   onSuccess,
   capabilities,
-  interfaceData,
-}: EditBridgeModalProps) {
+  existingInterfaces,
+  existing,
+}: BridgeModalProps) {
+  const isEdit = !!existing;
   // Basic
+  const [name, setName] = useState("br0");
   const [description, setDescription] = useState("");
   const [stp, setStp] = useState(false);
   const [protocol, setProtocol] = useState("");
@@ -136,95 +136,177 @@ export function EditBridgeModal({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (open) {
-      showService.getAllInterfaces().then((res) => setAvailableInterfaces(res.interfaces)).catch(() => {});
+    if (!open) return;
+    showService.getAllInterfaces().then((res) => setAvailableInterfaces(res.interfaces)).catch(() => {});
+    if (existing) {
+      populateForm(existing);
+    } else {
+      resetForm();
     }
-  }, [open]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, existing]);
 
-  useEffect(() => {
-    if (interfaceData && open) {
-      setDescription(interfaceData.description || "");
-      setStp(interfaceData.stp);
-      setProtocol(interfaceData.protocol || "");
-      setAging(interfaceData.aging || "");
-      setForwardingDelay(interfaceData.forwarding_delay || "");
-      setHelloTime(interfaceData.hello_time || "");
-      setMaxAge(interfaceData.max_age || "");
-      setBridgePriority(interfaceData.priority || "");
-      setIgmpSnooping(interfaceData.igmp?.snooping || false);
-      setIgmpQuerier(interfaceData.igmp?.querier || false);
-      setEnableVlan(interfaceData.enable_vlan);
-      setMembers(interfaceData.members.map((m) => ({
-        name: m.name,
-        cost: m.cost || "",
-        priority: m.priority || "",
-        isolated: m.isolated,
-        native_vlan: m.native_vlan || "",
-        allowed_vlan: m.allowed_vlan.join(", "),
-        bpdu_guard: m.bpdu_guard,
-        root_guard: m.root_guard,
-      })));
-      setMemberToAdd("");
-      setAddresses(interfaceData.addresses.join(", "));
-      setMtu(interfaceData.mtu || "");
-      setVrf(interfaceData.vrf || "");
-      setMac(interfaceData.mac || "");
-      setMirrorIngress(interfaceData.mirror?.ingress || "");
-      setMirrorEgress(interfaceData.mirror?.egress || "");
-      setRedirect(interfaceData.redirect || "");
-      setDisabled(interfaceData.disable || false);
-      setDisableLinkDetect(interfaceData.disable_link_detect);
-
-      // IP
-      setIpAdjustMss(interfaceData.ip?.adjust_mss || "");
-      setIpArpCacheTimeout(interfaceData.ip?.arp_cache_timeout || "");
-      setIpSourceValidation(interfaceData.ip?.source_validation || "");
-      setIpDisableArpFilter(interfaceData.ip?.disable_arp_filter || false);
-      setIpDisableForwarding(interfaceData.ip?.disable_forwarding || false);
-      setIpEnableArpAccept(interfaceData.ip?.enable_arp_accept || false);
-      setIpEnableArpAnnounce(interfaceData.ip?.enable_arp_announce || false);
-      setIpEnableArpIgnore(interfaceData.ip?.enable_arp_ignore || false);
-      setIpEnableDirectedBroadcast(interfaceData.ip?.enable_directed_broadcast || false);
-      setIpEnableProxyArp(interfaceData.ip?.enable_proxy_arp || false);
-      setIpProxyArpPvlan(interfaceData.ip?.proxy_arp_pvlan || false);
-
-      // IPv6
-      setIpv6AcceptDad(interfaceData.ipv6?.accept_dad || "");
-      setIpv6AdjustMss(interfaceData.ipv6?.adjust_mss || "");
-      setIpv6BaseReachableTime(interfaceData.ipv6?.base_reachable_time || "");
-      setIpv6DupAddrDetectTransmits(interfaceData.ipv6?.dup_addr_detect_transmits || "");
-      setIpv6SourceValidation(interfaceData.ipv6?.source_validation || "");
-      setIpv6DisableForwarding(interfaceData.ipv6?.disable_forwarding || false);
-      setIpv6AddressAutoconf(interfaceData.ipv6?.address_autoconf || false);
-      setIpv6AddressNoDefaultLinkLocal(interfaceData.ipv6?.address_no_default_link_local || false);
-      setIpv6AddressEui64(interfaceData.ipv6?.address_eui64?.join(", ") || "");
-      setIpv6AddressInterfaceIdentifier(interfaceData.ipv6?.address_interface_identifier || "");
-
-      // DHCP
-      setDhcpClientId(interfaceData.dhcp_options?.client_id || "");
-      setDhcpDefaultRouteDistance(interfaceData.dhcp_options?.default_route_distance || "");
-      setDhcpHostName(interfaceData.dhcp_options?.host_name || "");
-      setDhcpUserClass(interfaceData.dhcp_options?.user_class || "");
-      setDhcpVendorClassId(interfaceData.dhcp_options?.vendor_class_id || "");
-      setDhcpMtu(interfaceData.dhcp_options?.mtu || false);
-      setDhcpNoDefaultRoute(interfaceData.dhcp_options?.no_default_route || false);
-      setDhcpReject(interfaceData.dhcp_options?.reject?.join(", ") || "");
-
-      // DHCPv6
-      setDhcpv6Duid(interfaceData.dhcpv6_options?.duid || "");
-      setDhcpv6NoRelease(interfaceData.dhcpv6_options?.no_release || false);
-      setDhcpv6ParametersOnly(interfaceData.dhcpv6_options?.parameters_only || false);
-      setDhcpv6RapidCommit(interfaceData.dhcpv6_options?.rapid_commit || false);
-      setDhcpv6Temporary(interfaceData.dhcpv6_options?.temporary || false);
-      setDhcpv6NoRequestDns(interfaceData.dhcpv6_options?.no_request_dns || false);
-      setDhcpv6NoRequestDomainName(interfaceData.dhcpv6_options?.no_request_domain_name || false);
-
-      setError(null);
+  const getNextInterfaceName = (): string => {
+    let i = 0;
+    while (existingInterfaces.includes(`br${i}`)) {
+      i++;
     }
-  }, [interfaceData, open]);
+    return `br${i}`;
+  };
 
-  const handleSubmit = async () => {
-    if (!interfaceData) return;
+  const resetForm = () => {
+    setName(getNextInterfaceName());
+    setDescription("");
+    setStp(false);
+    setProtocol("");
+    setAging("");
+    setForwardingDelay("");
+    setHelloTime("");
+    setMaxAge("");
+    setBridgePriority("");
+    setIgmpSnooping(false);
+    setIgmpQuerier(false);
+    setEnableVlan(false);
+    setMembers([]);
+    setMemberToAdd("");
+    setAddresses("");
+    setMtu("");
+    setVrf("");
+    setMac("");
+    setMirrorIngress("");
+    setMirrorEgress("");
+    setIpAdjustMss("");
+    setIpArpCacheTimeout("");
+    setIpSourceValidation("");
+    setIpDisableArpFilter(false);
+    setIpDisableForwarding(false);
+    setIpEnableArpAccept(false);
+    setIpEnableArpAnnounce(false);
+    setIpEnableArpIgnore(false);
+    setIpEnableDirectedBroadcast(false);
+    setIpEnableProxyArp(false);
+    setIpProxyArpPvlan(false);
+    setIpv6AcceptDad("");
+    setIpv6AdjustMss("");
+    setIpv6BaseReachableTime("");
+    setIpv6DupAddrDetectTransmits("");
+    setIpv6SourceValidation("");
+    setIpv6DisableForwarding(false);
+    setIpv6AddressAutoconf(false);
+    setIpv6AddressNoDefaultLinkLocal(false);
+    setIpv6AddressEui64("");
+    setIpv6AddressInterfaceIdentifier("");
+    setRedirect("");
+    setDisabled(false);
+    setDisableLinkDetect(false);
+    setDhcpClientId("");
+    setDhcpDefaultRouteDistance("");
+    setDhcpHostName("");
+    setDhcpUserClass("");
+    setDhcpVendorClassId("");
+    setDhcpMtu(false);
+    setDhcpNoDefaultRoute(false);
+    setDhcpReject("");
+    setDhcpv6Duid("");
+    setDhcpv6NoRelease(false);
+    setDhcpv6ParametersOnly(false);
+    setDhcpv6RapidCommit(false);
+    setDhcpv6Temporary(false);
+    setDhcpv6NoRequestDns(false);
+    setDhcpv6NoRequestDomainName(false);
+    setError(null);
+  };
+
+  const populateForm = (interfaceData: BridgeInterface) => {
+    setName(interfaceData.name);
+    setDescription(interfaceData.description || "");
+    setStp(interfaceData.stp);
+    setProtocol(interfaceData.protocol || "");
+    setAging(interfaceData.aging || "");
+    setForwardingDelay(interfaceData.forwarding_delay || "");
+    setHelloTime(interfaceData.hello_time || "");
+    setMaxAge(interfaceData.max_age || "");
+    setBridgePriority(interfaceData.priority || "");
+    setIgmpSnooping(interfaceData.igmp?.snooping || false);
+    setIgmpQuerier(interfaceData.igmp?.querier || false);
+    setEnableVlan(interfaceData.enable_vlan);
+    setMembers(interfaceData.members.map((m) => ({
+      name: m.name,
+      cost: m.cost || "",
+      priority: m.priority || "",
+      isolated: m.isolated,
+      native_vlan: m.native_vlan || "",
+      allowed_vlan: m.allowed_vlan.join(", "),
+      bpdu_guard: m.bpdu_guard,
+      root_guard: m.root_guard,
+    })));
+    setMemberToAdd("");
+    setAddresses(interfaceData.addresses.join(", "));
+    setMtu(interfaceData.mtu || "");
+    setVrf(interfaceData.vrf || "");
+    setMac(interfaceData.mac || "");
+    setMirrorIngress(interfaceData.mirror?.ingress || "");
+    setMirrorEgress(interfaceData.mirror?.egress || "");
+    setRedirect(interfaceData.redirect || "");
+    setDisabled(interfaceData.disable || false);
+    setDisableLinkDetect(interfaceData.disable_link_detect);
+
+    // IP
+    setIpAdjustMss(interfaceData.ip?.adjust_mss || "");
+    setIpArpCacheTimeout(interfaceData.ip?.arp_cache_timeout || "");
+    setIpSourceValidation(interfaceData.ip?.source_validation || "");
+    setIpDisableArpFilter(interfaceData.ip?.disable_arp_filter || false);
+    setIpDisableForwarding(interfaceData.ip?.disable_forwarding || false);
+    setIpEnableArpAccept(interfaceData.ip?.enable_arp_accept || false);
+    setIpEnableArpAnnounce(interfaceData.ip?.enable_arp_announce || false);
+    setIpEnableArpIgnore(interfaceData.ip?.enable_arp_ignore || false);
+    setIpEnableDirectedBroadcast(interfaceData.ip?.enable_directed_broadcast || false);
+    setIpEnableProxyArp(interfaceData.ip?.enable_proxy_arp || false);
+    setIpProxyArpPvlan(interfaceData.ip?.proxy_arp_pvlan || false);
+
+    // IPv6
+    setIpv6AcceptDad(interfaceData.ipv6?.accept_dad || "");
+    setIpv6AdjustMss(interfaceData.ipv6?.adjust_mss || "");
+    setIpv6BaseReachableTime(interfaceData.ipv6?.base_reachable_time || "");
+    setIpv6DupAddrDetectTransmits(interfaceData.ipv6?.dup_addr_detect_transmits || "");
+    setIpv6SourceValidation(interfaceData.ipv6?.source_validation || "");
+    setIpv6DisableForwarding(interfaceData.ipv6?.disable_forwarding || false);
+    setIpv6AddressAutoconf(interfaceData.ipv6?.address_autoconf || false);
+    setIpv6AddressNoDefaultLinkLocal(interfaceData.ipv6?.address_no_default_link_local || false);
+    setIpv6AddressEui64(interfaceData.ipv6?.address_eui64?.join(", ") || "");
+    setIpv6AddressInterfaceIdentifier(interfaceData.ipv6?.address_interface_identifier || "");
+
+    // DHCP
+    setDhcpClientId(interfaceData.dhcp_options?.client_id || "");
+    setDhcpDefaultRouteDistance(interfaceData.dhcp_options?.default_route_distance || "");
+    setDhcpHostName(interfaceData.dhcp_options?.host_name || "");
+    setDhcpUserClass(interfaceData.dhcp_options?.user_class || "");
+    setDhcpVendorClassId(interfaceData.dhcp_options?.vendor_class_id || "");
+    setDhcpMtu(interfaceData.dhcp_options?.mtu || false);
+    setDhcpNoDefaultRoute(interfaceData.dhcp_options?.no_default_route || false);
+    setDhcpReject(interfaceData.dhcp_options?.reject?.join(", ") || "");
+
+    // DHCPv6
+    setDhcpv6Duid(interfaceData.dhcpv6_options?.duid || "");
+    setDhcpv6NoRelease(interfaceData.dhcpv6_options?.no_release || false);
+    setDhcpv6ParametersOnly(interfaceData.dhcpv6_options?.parameters_only || false);
+    setDhcpv6RapidCommit(interfaceData.dhcpv6_options?.rapid_commit || false);
+    setDhcpv6Temporary(interfaceData.dhcpv6_options?.temporary || false);
+    setDhcpv6NoRequestDns(interfaceData.dhcpv6_options?.no_request_dns || false);
+    setDhcpv6NoRequestDomainName(interfaceData.dhcpv6_options?.no_request_domain_name || false);
+
+    setError(null);
+  };
+
+  const validateForm = (): string | null => {
+    if (!name.trim()) return "Interface name is required";
+    if (!/^br\d+$/.test(name)) return "Name must be br0, br1, etc.";
+    if (existingInterfaces.includes(name)) return `Interface ${name} already exists`;
+    return null;
+  };
+
+  const submitUpdate = async () => {
+    if (!existing) return;
 
     setLoading(true);
     setError(null);
@@ -249,8 +331,8 @@ export function EditBridgeModal({
       });
 
       const result = await bridgeService.updateInterface(
-        interfaceData.name,
-        interfaceData,
+        existing.name,
+        existing,
         {
           description: description.trim() || null,
           addresses: addrList,
@@ -335,6 +417,156 @@ export function EditBridgeModal({
     }
   };
 
+  const handleSubmit = async () => {
+    if (isEdit) {
+      await submitUpdate();
+      return;
+    }
+
+    const validationError = validateForm();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const addrList = addresses.split(/[,\n]/).map((a) => a.trim()).filter(Boolean);
+      const eui64List = ipv6AddressEui64.split(/[,\n]/).map((a) => a.trim()).filter(Boolean);
+      const dhcpRejectList = dhcpReject.split(/[,\n]/).map((a) => a.trim()).filter(Boolean);
+
+      const config: Parameters<typeof bridgeService.createInterface>[0] = {
+        name,
+      };
+
+      if (description.trim()) config.description = description.trim();
+      if (addrList.length > 0) config.addresses = addrList;
+      if (mtu.trim()) config.mtu = mtu.trim();
+      if (vrf.trim()) config.vrf = vrf.trim();
+      if (mac.trim()) config.mac = mac.trim();
+      if (redirect.trim()) config.redirect = redirect.trim();
+      if (disabled) config.disabled = true;
+      if (disableLinkDetect) config.disable_link_detect = true;
+
+      // Bridge-specific
+      if (stp) config.stp = true;
+      if (enableVlan) config.enable_vlan = true;
+      if (protocol && stp) config.protocol = protocol;
+      if (aging.trim() && stp) config.aging = aging.trim();
+      if (forwardingDelay.trim() && stp) config.forwarding_delay = forwardingDelay.trim();
+      if (helloTime.trim() && stp) config.hello_time = helloTime.trim();
+      if (maxAge.trim() && stp) config.max_age = maxAge.trim();
+      if (bridgePriority.trim() && stp) config.priority = bridgePriority.trim();
+      if (igmpSnooping) config.igmp_snooping = true;
+      if (igmpQuerier) config.igmp_querier = true;
+
+      // Members
+      if (members.length > 0) {
+        config.members = members.map((m) => {
+          const member: NonNullable<typeof config.members>[0] = { name: m.name };
+          if (m.cost.trim()) member.cost = m.cost.trim();
+          if (m.priority.trim()) member.priority = m.priority.trim();
+          if (m.isolated) member.isolated = true;
+          if (m.native_vlan.trim() && enableVlan) member.native_vlan = m.native_vlan.trim();
+          if (m.allowed_vlan.trim() && enableVlan) {
+            member.allowed_vlan = m.allowed_vlan.split(/[,\n]/).map((v) => v.trim()).filter(Boolean);
+          }
+          if (m.bpdu_guard) member.bpdu_guard = true;
+          if (m.root_guard) member.root_guard = true;
+          return member;
+        });
+      }
+
+      // Mirror
+      if (mirrorIngress.trim() || mirrorEgress.trim()) {
+        config.mirror = {};
+        if (mirrorIngress.trim()) config.mirror.ingress = mirrorIngress.trim();
+        if (mirrorEgress.trim()) config.mirror.egress = mirrorEgress.trim();
+      }
+
+      // IP
+      if (ipAdjustMss || ipArpCacheTimeout || ipSourceValidation || ipDisableArpFilter ||
+          ipDisableForwarding || ipEnableArpAccept || ipEnableArpAnnounce || ipEnableArpIgnore ||
+          ipEnableDirectedBroadcast || ipEnableProxyArp || ipProxyArpPvlan) {
+        config.ip = {
+          adjust_mss: ipAdjustMss.trim() || undefined,
+          arp_cache_timeout: ipArpCacheTimeout.trim() || undefined,
+          source_validation: ipSourceValidation || undefined,
+          disable_arp_filter: ipDisableArpFilter || undefined,
+          disable_forwarding: ipDisableForwarding || undefined,
+          enable_arp_accept: ipEnableArpAccept || undefined,
+          enable_arp_announce: ipEnableArpAnnounce || undefined,
+          enable_arp_ignore: ipEnableArpIgnore || undefined,
+          enable_directed_broadcast: ipEnableDirectedBroadcast || undefined,
+          enable_proxy_arp: ipEnableProxyArp || undefined,
+          proxy_arp_pvlan: ipProxyArpPvlan || undefined,
+        };
+      }
+
+      // IPv6
+      if (ipv6AcceptDad || ipv6AdjustMss || ipv6BaseReachableTime || ipv6DupAddrDetectTransmits ||
+          ipv6SourceValidation || ipv6DisableForwarding || ipv6AddressAutoconf || eui64List.length > 0 ||
+          ipv6AddressNoDefaultLinkLocal || ipv6AddressInterfaceIdentifier) {
+        config.ipv6 = {
+          accept_dad: ipv6AcceptDad.trim() || undefined,
+          adjust_mss: ipv6AdjustMss.trim() || undefined,
+          base_reachable_time: ipv6BaseReachableTime.trim() || undefined,
+          dup_addr_detect_transmits: ipv6DupAddrDetectTransmits.trim() || undefined,
+          source_validation: ipv6SourceValidation || undefined,
+          disable_forwarding: ipv6DisableForwarding || undefined,
+          address_autoconf: ipv6AddressAutoconf || undefined,
+          address_eui64: eui64List.length > 0 ? eui64List : undefined,
+          address_no_default_link_local: ipv6AddressNoDefaultLinkLocal || undefined,
+          address_interface_identifier: ipv6AddressInterfaceIdentifier.trim() || undefined,
+        };
+      }
+
+      // DHCP Options
+      if (dhcpClientId || dhcpDefaultRouteDistance || dhcpHostName || dhcpUserClass ||
+          dhcpVendorClassId || dhcpMtu || dhcpNoDefaultRoute || dhcpRejectList.length > 0) {
+        config.dhcp_options = {
+          client_id: dhcpClientId.trim() || undefined,
+          default_route_distance: dhcpDefaultRouteDistance.trim() || undefined,
+          host_name: dhcpHostName.trim() || undefined,
+          user_class: dhcpUserClass.trim() || undefined,
+          vendor_class_id: dhcpVendorClassId.trim() || undefined,
+          mtu: dhcpMtu || undefined,
+          no_default_route: dhcpNoDefaultRoute || undefined,
+          reject: dhcpRejectList.length > 0 ? dhcpRejectList : undefined,
+        };
+      }
+
+      // DHCPv6 Options
+      if (dhcpv6Duid || dhcpv6NoRelease || dhcpv6ParametersOnly || dhcpv6RapidCommit ||
+          dhcpv6Temporary || dhcpv6NoRequestDns || dhcpv6NoRequestDomainName) {
+        config.dhcpv6_options = {
+          duid: dhcpv6Duid.trim() || undefined,
+          no_release: dhcpv6NoRelease || undefined,
+          parameters_only: dhcpv6ParametersOnly || undefined,
+          rapid_commit: dhcpv6RapidCommit || undefined,
+          temporary: dhcpv6Temporary || undefined,
+          no_request_dns: dhcpv6NoRequestDns || undefined,
+          no_request_domain_name: dhcpv6NoRequestDomainName || undefined,
+        };
+      }
+
+      const result = await bridgeService.createInterface(config);
+
+      if (result.success) {
+        onOpenChange(false);
+        onSuccess();
+      } else {
+        setError(result.error || "Failed to create bridge interface");
+      }
+    } catch (err) {
+      setError((err as ApiError).message || "Failed to create bridge interface");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const selectableInterfaces = availableInterfaces.filter(
     (i) => (i.name.startsWith("eth") || i.name.startsWith("vxlan") || i.name.startsWith("tun") || i.name.startsWith("wg") || i.name.startsWith("bond")) && !members.some((m) => m.name === i.name)
   );
@@ -363,18 +595,18 @@ export function EditBridgeModal({
     setMembers(members.filter((_, i) => i !== index));
   };
 
-  if (!interfaceData) return null;
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Network className="h-5 w-5" />
-            Edit Bridge: {interfaceData.name}
+            {isEdit ? `Edit Bridge: ${existing.name}` : "Create Bridge Interface"}
           </DialogTitle>
           <DialogDescription>
-            Modify bridge interface configuration
+            {isEdit
+              ? "Modify bridge interface configuration"
+              : "Create a new bridge interface for layer-2 network bridging"}
           </DialogDescription>
         </DialogHeader>
 
@@ -391,12 +623,23 @@ export function EditBridgeModal({
           <TabsContent value="basic" className="space-y-4 mt-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Interface Name</Label>
-                <Input value={interfaceData.name} disabled />
+                <Label htmlFor="name">Interface Name</Label>
+                <Input
+                  id="name"
+                  value={isEdit ? existing.name : name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="br0"
+                  disabled={isEdit}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {isEdit
+                    ? "Interface name cannot be changed."
+                    : "Must be br0, br1, etc."}
+                </p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-description">Description</Label>
-                <Input id="edit-description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional description" />
+                <Label htmlFor="description">Description</Label>
+                <Input id="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional description" />
               </div>
             </div>
 
@@ -431,26 +674,26 @@ export function EditBridgeModal({
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="edit-bridge-priority">Priority</Label>
-                      <Input id="edit-bridge-priority" value={bridgePriority} onChange={(e) => setBridgePriority(e.target.value)} placeholder="32768" />
+                      <Label htmlFor="bridge-priority">Priority</Label>
+                      <Input id="bridge-priority" value={bridgePriority} onChange={(e) => setBridgePriority(e.target.value)} placeholder="32768" />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="edit-aging">Aging (seconds)</Label>
-                      <Input id="edit-aging" value={aging} onChange={(e) => setAging(e.target.value)} placeholder="300" />
+                      <Label htmlFor="aging">Aging (seconds)</Label>
+                      <Input id="aging" value={aging} onChange={(e) => setAging(e.target.value)} placeholder="300" />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="edit-forwarding-delay">Forwarding Delay (seconds)</Label>
-                      <Input id="edit-forwarding-delay" value={forwardingDelay} onChange={(e) => setForwardingDelay(e.target.value)} placeholder="15" />
+                      <Label htmlFor="forwarding-delay">Forwarding Delay (seconds)</Label>
+                      <Input id="forwarding-delay" value={forwardingDelay} onChange={(e) => setForwardingDelay(e.target.value)} placeholder="15" />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="edit-hello-time">Hello Time (seconds)</Label>
-                      <Input id="edit-hello-time" value={helloTime} onChange={(e) => setHelloTime(e.target.value)} placeholder="2" />
+                      <Label htmlFor="hello-time">Hello Time (seconds)</Label>
+                      <Input id="hello-time" value={helloTime} onChange={(e) => setHelloTime(e.target.value)} placeholder="2" />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="edit-max-age">Max Age (seconds)</Label>
-                      <Input id="edit-max-age" value={maxAge} onChange={(e) => setMaxAge(e.target.value)} placeholder="20" />
+                      <Label htmlFor="max-age">Max Age (seconds)</Label>
+                      <Input id="max-age" value={maxAge} onChange={(e) => setMaxAge(e.target.value)} placeholder="20" />
                     </div>
                   </div>
                 </>
@@ -559,22 +802,22 @@ export function EditBridgeModal({
           {/* Addresses Tab */}
           <TabsContent value="addresses" className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label htmlFor="edit-addresses">IP Addresses</Label>
-              <Input id="edit-addresses" value={addresses} onChange={(e) => setAddresses(e.target.value)} placeholder="192.168.1.1/24, 10.0.0.1/24" />
+              <Label htmlFor="addresses">IP Addresses</Label>
+              <Input id="addresses" value={addresses} onChange={(e) => setAddresses(e.target.value)} placeholder="192.168.1.1/24, 10.0.0.1/24" />
               <p className="text-xs text-muted-foreground">Comma-separated CIDR addresses</p>
             </div>
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="edit-mtu">MTU</Label>
-                <Input id="edit-mtu" value={mtu} onChange={(e) => setMtu(e.target.value)} placeholder="1500" />
+                <Label htmlFor="mtu">MTU</Label>
+                <Input id="mtu" value={mtu} onChange={(e) => setMtu(e.target.value)} placeholder="1500" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-vrf">VRF</Label>
-                <VrfSelect id="edit-vrf" value={vrf} onValueChange={setVrf} />
+                <Label htmlFor="vrf">VRF</Label>
+                <VrfSelect id="vrf" value={vrf} onValueChange={setVrf} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-mac">MAC Override</Label>
-                <Input id="edit-mac" value={mac} onChange={(e) => setMac(e.target.value)} placeholder="xx:xx:xx:xx:xx:xx" />
+                <Label htmlFor="mac">MAC Override</Label>
+                <Input id="mac" value={mac} onChange={(e) => setMac(e.target.value)} placeholder="xx:xx:xx:xx:xx:xx" />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -694,6 +937,7 @@ export function EditBridgeModal({
 
           {/* Advanced Tab */}
           <TabsContent value="advanced" className="space-y-6 mt-4">
+            {/* Redirect */}
             <div>
               <h4 className="font-medium mb-3">Interface Options</h4>
               <div className="grid grid-cols-2 gap-4">
@@ -704,6 +948,7 @@ export function EditBridgeModal({
               </div>
             </div>
 
+            {/* DHCP Options */}
             <div>
               <h4 className="font-medium mb-3">DHCP Options</h4>
               <div className="grid grid-cols-2 gap-4">
@@ -744,6 +989,7 @@ export function EditBridgeModal({
               </div>
             </div>
 
+            {/* DHCPv6 Options */}
             <div>
               <h4 className="font-medium mb-3">DHCPv6 Options</h4>
               <div className="grid grid-cols-2 gap-4">
@@ -801,10 +1047,12 @@ export function EditBridgeModal({
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
+                {isEdit ? "Saving..." : "Creating..."}
               </>
-            ) : (
+            ) : isEdit ? (
               "Save Changes"
+            ) : (
+              "Create Bridge"
             )}
           </Button>
         </DialogFooter>

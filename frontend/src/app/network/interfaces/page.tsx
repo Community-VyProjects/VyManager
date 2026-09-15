@@ -59,11 +59,9 @@ import { CreateMacsecModal } from "@/components/macsec/CreateMacsecModal";
 import { EditMacsecModal } from "@/components/macsec/EditMacsecModal";
 import { DeleteMacsecModal } from "@/components/macsec/DeleteMacsecModal";
 import { bridgeService, type BridgeInterface, type BridgeCapabilities, type BridgeVifConfig } from "@/lib/api/bridge";
-import { CreateBridgeModal } from "@/components/bridge/CreateBridgeModal";
-import { EditBridgeModal } from "@/components/bridge/EditBridgeModal";
+import { BridgeModal } from "@/components/bridge/BridgeModal";
 import { DeleteBridgeModal } from "@/components/bridge/DeleteBridgeModal";
-import { CreateBridgeVifModal } from "@/components/bridge/CreateBridgeVifModal";
-import { EditBridgeVifModal } from "@/components/bridge/EditBridgeVifModal";
+import { BridgeVifModal } from "@/components/bridge/BridgeVifModal";
 import { DeleteBridgeVifModal } from "@/components/bridge/DeleteBridgeVifModal";
 import { pppoeService, type PppoeInterface, type PppoeCapabilities } from "@/lib/api/pppoe";
 import { CreatePppoeModal } from "@/components/pppoe/CreatePppoeModal";
@@ -4632,22 +4630,21 @@ function InterfacesPageInner() {
         interfaceData={deletingWwan}
       />
       {/* Bridge Modals */}
-      <CreateBridgeModal
-        open={isCreateBridgeModalOpen}
-        onOpenChange={setIsCreateBridgeModalOpen}
-        onSuccess={loadData}
-        capabilities={bridgeCapabilities}
-        existingInterfaces={bridgeInterfaces.map((i) => i.name)}
-      />
-      <EditBridgeModal
-        open={!!editingBridge}
-        onOpenChange={(open) => !open && setEditingBridge(null)}
+      <BridgeModal
+        open={isCreateBridgeModalOpen || !!editingBridge}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsCreateBridgeModalOpen(false);
+            setEditingBridge(null);
+          }
+        }}
         onSuccess={() => {
           setEditingBridge(null);
           loadData();
         }}
         capabilities={bridgeCapabilities}
-        interfaceData={editingBridge}
+        existingInterfaces={bridgeInterfaces.map((i) => i.name)}
+        existing={editingBridge}
       />
       <DeleteBridgeModal
         open={!!deletingBridge}
@@ -4658,19 +4655,22 @@ function InterfacesPageInner() {
         }}
         interfaceData={deletingBridge}
       />
-      <CreateBridgeVifModal
-        open={!!createVifForBridge}
-        onOpenChange={(open) => { if (!open) setCreateVifForBridge(null); }}
-        onSuccess={() => { setCreateVifForBridge(null); loadData(); }}
-        interfaceName={createVifForBridge ?? ""}
-        existingVlanIds={bridgeInterfaces.find((b) => b.name === createVifForBridge)?.vifs?.map((v) => v.vlan_id) ?? []}
-      />
-      <EditBridgeVifModal
-        open={!!editingVif}
-        onOpenChange={(open) => { if (!open) setEditingVif(null); }}
-        onSuccess={() => { setEditingVif(null); loadData(); }}
-        interfaceName={editingVif?.bridge ?? ""}
-        vif={editingVif?.vif ?? null}
+      <BridgeVifModal
+        open={!!createVifForBridge || !!editingVif}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCreateVifForBridge(null);
+            setEditingVif(null);
+          }
+        }}
+        onSuccess={() => {
+          setCreateVifForBridge(null);
+          setEditingVif(null);
+          loadData();
+        }}
+        interfaceName={editingVif?.bridge ?? createVifForBridge ?? ""}
+        existingVlanIds={bridgeInterfaces.find((b) => b.name === (editingVif?.bridge ?? createVifForBridge))?.vifs?.map((v) => v.vlan_id) ?? []}
+        existing={editingVif?.vif ?? null}
       />
       <DeleteBridgeVifModal
         open={!!deletingVif}
