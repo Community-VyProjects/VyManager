@@ -5,7 +5,9 @@ import {
   isDisconnectError,
   stackRestartOrder,
   thrownMessage,
+  uiIsReachable,
   waitForBackend,
+  waitForUi,
 } from "./api-error";
 
 describe("thrownMessage", () => {
@@ -23,6 +25,10 @@ describe("isDisconnectError", () => {
       isDisconnectError({ message: "Failed to proxy request to backend" }),
       true,
     );
+  });
+
+  it("treats Internal Server Error as a drop", () => {
+    assert.equal(isDisconnectError({ message: "Internal Server Error" }), true);
   });
 });
 
@@ -56,6 +62,18 @@ describe("backendIsReachable", () => {
   });
 });
 
+describe("uiIsReachable", () => {
+  it("treats 500 as down", async () => {
+    const fetcher = async () => ({ status: 500, json: async () => ({}) });
+    assert.equal(await uiIsReachable(fetcher), false);
+  });
+
+  it("treats 200 as up", async () => {
+    const fetcher = async () => ({ status: 200, json: async () => ({}) });
+    assert.equal(await uiIsReachable(fetcher), true);
+  });
+});
+
 describe("waitForBackend", () => {
   it("returns true once a probe succeeds", async () => {
     let n = 0;
@@ -74,5 +92,23 @@ describe("waitForBackend", () => {
     });
     assert.equal(ok, true);
     assert.equal(n, 3);
+  });
+});
+
+describe("waitForUi", () => {
+  it("keeps waiting while the UI returns 500", async () => {
+    let n = 0;
+    const fetcher = async () => {
+      n += 1;
+      return { status: n < 2 ? 500 : 200, json: async () => ({}) };
+    };
+    const ok = await waitForUi({
+      fetcher,
+      timeoutMs: 5_000,
+      intervalMs: 1,
+      sleep: async () => undefined,
+    });
+    assert.equal(ok, true);
+    assert.equal(n, 2);
   });
 });

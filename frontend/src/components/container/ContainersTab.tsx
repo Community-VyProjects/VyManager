@@ -34,7 +34,7 @@ import {
 } from "@/lib/api/container";
 import { APP_CATALOG } from "@/lib/apps-catalog";
 import { isProtectedStackContainer } from "@/lib/appliance";
-import { isDisconnectError, stackRestartOrder, thrownMessage, waitForBackend } from "@/lib/api-error";
+import { isDisconnectError, stackRestartOrder, thrownMessage, waitForBackend, waitForUi } from "@/lib/api-error";
 import { useSessionStore } from "@/store/session-store";
 import { ContainerModal } from "./ContainerModal";
 import { ContainerFilesModal } from "./ContainerFilesModal";
@@ -177,6 +177,18 @@ export function ContainersTab({ config, capabilities, hasWritePermission, onRelo
               ? "API is back"
               : "API not answering yet; continuing";
             show(true);
+          } else {
+            lines.push("Waiting for the UI…");
+            show(true);
+            const up = await waitForUi();
+            lines[lines.length - 1] = up
+              ? "UI is back"
+              : "UI not answering yet; refresh in a few seconds";
+            show(true);
+            if (!up) {
+              show(false, { success: true });
+              return;
+            }
           }
         }
         lines.push("Reloading…");
@@ -184,9 +196,15 @@ export function ContainersTab({ config, capabilities, hasWritePermission, onRelo
         window.location.reload();
       } catch (err: unknown) {
         if (isDisconnectError(err)) {
-          lines.push("Reloading…");
+          lines.push("Waiting for the UI…");
           show(true);
-          window.location.reload();
+          const up = await waitForUi();
+          if (up) {
+            window.location.reload();
+            return;
+          }
+          lines.push("Refresh the page in a few seconds");
+          show(false, { success: true });
           return;
         }
         show(false, { success: false, error: thrownMessage(err) });
