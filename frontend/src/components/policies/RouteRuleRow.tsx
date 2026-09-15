@@ -66,6 +66,8 @@ export function RouteRuleRow({ rule, onEdit, onDelete }: RouteRuleRowProps) {
     dscp_exclude: "DSCP Excl",
     state: "State",
     ipsec: "IPsec",
+    ipsec_in: "IPsec In",
+    ipsec_out: "IPsec Out",
     mark: "Mark",
     connection_mark: "Conn Mark",
     ttl_eq: "TTL =",

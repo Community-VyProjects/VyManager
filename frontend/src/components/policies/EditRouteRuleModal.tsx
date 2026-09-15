@@ -135,6 +135,8 @@ export function EditRouteRuleModal({
   // Match Conditions - State & Marks
   const [connectionState, setConnectionState] = useState<string[]>([]);
   const [ipsec, setIpsec] = useState<boolean | null>(null);
+  const [ipsecInbound, setIpsecInbound] = useState<"none" | "match-ipsec" | "match-none">("none");
+  const [ipsecOutbound, setIpsecOutbound] = useState<"none" | "match-ipsec" | "match-none">("none");
   const [connectionMark, setConnectionMark] = useState("");
   const [mark, setMark] = useState("");
 
@@ -337,11 +339,16 @@ export function EditRouteRuleModal({
     // Match - State & Marks
     setConnectionState(match.state ? match.state.split(",") : []);
     if (match.ipsec !== undefined && match.ipsec !== null) {
-      // Convert string from backend to boolean for UI
       setIpsec(match.ipsec === "match-ipsec");
     } else {
       setIpsec(null);
     }
+    if (match.ipsec_in === "match-ipsec-in") setIpsecInbound("match-ipsec");
+    else if (match.ipsec_in === "match-none-in") setIpsecInbound("match-none");
+    else setIpsecInbound("none");
+    if (match.ipsec_out === "match-ipsec-out") setIpsecOutbound("match-ipsec");
+    else if (match.ipsec_out === "match-none-out") setIpsecOutbound("match-none");
+    else setIpsecOutbound("none");
     setConnectionMark(match.connection_mark || "");
     setMark(match.mark || "");
 
@@ -533,8 +540,12 @@ export function EditRouteRuleModal({
 
       // Match - State & Marks
       if (connectionState.length > 0) match.state = connectionState.join(",");
-      if (ipsec !== null) {
-        // Convert boolean to string expected by backend
+      if (capabilities?.features.ipsec_directional?.supported) {
+        if (ipsecInbound === "match-ipsec") match.ipsec_in = "match-ipsec-in";
+        else if (ipsecInbound === "match-none") match.ipsec_in = "match-none-in";
+        if (ipsecOutbound === "match-ipsec") match.ipsec_out = "match-ipsec-out";
+        else if (ipsecOutbound === "match-none") match.ipsec_out = "match-none-out";
+      } else if (ipsec !== null) {
         match.ipsec = ipsec ? "match-ipsec" : "match-none";
       }
       if (connectionMark) match.connection_mark = connectionMark;
@@ -1377,30 +1388,61 @@ export function EditRouteRuleModal({
 
                 <div className="space-y-2">
                   <Label>IPsec Status</Label>
-                  <div className="flex gap-4">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="ipsec-match"
-                        checked={ipsec === true}
-                        onCheckedChange={(checked) => setIpsec(checked ? true : null)}
-                        disabled={loading}
-                      />
-                      <Label htmlFor="ipsec-match" className="text-sm font-normal cursor-pointer">
-                        Match IPsec
-                      </Label>
+                  {capabilities?.features.ipsec_directional?.supported ? (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-ipsecInbound">Inbound</Label>
+                        <Select value={ipsecInbound} onValueChange={(v: "none" | "match-ipsec" | "match-none") => setIpsecInbound(v)} disabled={loading}>
+                          <SelectTrigger id="edit-ipsecInbound">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">No match</SelectItem>
+                            <SelectItem value="match-ipsec">Match IPsec</SelectItem>
+                            <SelectItem value="match-none">Match non-IPsec</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-ipsecOutbound">Outbound</Label>
+                        <Select value={ipsecOutbound} onValueChange={(v: "none" | "match-ipsec" | "match-none") => setIpsecOutbound(v)} disabled={loading}>
+                          <SelectTrigger id="edit-ipsecOutbound">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">No match</SelectItem>
+                            <SelectItem value="match-ipsec">Match IPsec</SelectItem>
+                            <SelectItem value="match-none">Match non-IPsec</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="ipsec-exclude"
-                        checked={ipsec === false}
-                        onCheckedChange={(checked) => setIpsec(checked ? false : null)}
-                        disabled={loading}
-                      />
-                      <Label htmlFor="ipsec-exclude" className="text-sm font-normal cursor-pointer">
-                        Exclude IPsec
-                      </Label>
+                  ) : (
+                    <div className="flex gap-4">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="ipsec-match"
+                          checked={ipsec === true}
+                          onCheckedChange={(checked) => setIpsec(checked ? true : null)}
+                          disabled={loading}
+                        />
+                        <Label htmlFor="ipsec-match" className="text-sm font-normal cursor-pointer">
+                          Match IPsec
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="ipsec-exclude"
+                          checked={ipsec === false}
+                          onCheckedChange={(checked) => setIpsec(checked ? false : null)}
+                          disabled={loading}
+                        />
+                        <Label htmlFor="ipsec-exclude" className="text-sm font-normal cursor-pointer">
+                          Exclude IPsec
+                        </Label>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
 
                 <div className="space-y-2">

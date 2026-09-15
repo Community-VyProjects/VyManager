@@ -289,9 +289,28 @@ class RouteMapper(BaseFeatureMapper):
         """Delete all matched connection states for a rule."""
         return ["policy", policy_type, name, "rule", rule, "state"]
 
+    _IPSEC_CLASSIC = frozenset({"match-ipsec", "match-none"})
+    _IPSEC_DIRECTIONAL = frozenset({
+        "match-ipsec-in",
+        "match-ipsec-out",
+        "match-none-in",
+        "match-none-out",
+    })
+
+    def _ipsec_tokens(self):
+        if "1.4" in self.version:
+            return self._IPSEC_CLASSIC
+        return self._IPSEC_DIRECTIONAL
+
     def get_match_ipsec(self, policy_type: str, name: str, rule: str, value: str) -> List[str]:
-        """Match IPsec (match-ipsec or match-none)."""
+        """Match IPsec. 1.4 uses match-ipsec/match-none; 1.5 uses in/out leaves."""
+        if value not in self._ipsec_tokens():
+            raise ValueError(f"policy route ipsec {value} is not supported on this device")
         return ["policy", policy_type, name, "rule", rule, "ipsec", value]
+
+    def get_match_ipsec_delete(self, policy_type: str, name: str, rule: str) -> List[str]:
+        """Delete the ipsec match container."""
+        return ["policy", policy_type, name, "rule", rule, "ipsec"]
 
     def get_match_mark(self, policy_type: str, name: str, rule: str, mark: str) -> List[str]:
         """Match firewall mark."""
