@@ -48,8 +48,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { FeatureGroup } from "@/lib/api/user-management";
 import { OpenvpnDetailsDrawer } from "@/components/openvpn/OpenvpnDetailsDrawer";
 import { OpenvpnWizard } from "@/components/openvpn/OpenvpnWizard";
-import { CreateOpenvpnModal } from "@/components/openvpn/CreateOpenvpnModal";
-import { EditOpenvpnModal } from "@/components/openvpn/EditOpenvpnModal";
+import { OpenvpnModal } from "@/components/openvpn/OpenvpnModal";
 import { DeleteOpenvpnModal } from "@/components/openvpn/DeleteOpenvpnModal";
 import { ClientExportModal } from "@/components/openvpn/ClientExportModal";
 
@@ -439,25 +438,20 @@ export default function OpenvpnPage() {
         />
       )}
 
-      {/* Advanced Create Modal */}
+      {/* Advanced Create / Edit Modal */}
       {hasWrite && (
-        <CreateOpenvpnModal
-          open={showAdvancedCreate}
-          onOpenChange={setShowAdvancedCreate}
+        <OpenvpnModal
+          open={showAdvancedCreate || !!editingInterface}
+          onOpenChange={(open) => {
+            if (!open) {
+              setShowAdvancedCreate(false);
+              setEditingInterface(null);
+            }
+          }}
           onSuccess={handleSuccess}
           capabilities={capabilities}
           existingNames={existingNames}
-        />
-      )}
-
-      {/* Edit Modal */}
-      {hasWrite && editingInterface && (
-        <EditOpenvpnModal
-          open={true}
-          onOpenChange={(open) => !open && setEditingInterface(null)}
-          onSuccess={handleSuccess}
-          capabilities={capabilities}
-          interfaceData={editingInterface}
+          existing={editingInterface}
         />
       )}
 

@@ -29,6 +29,7 @@ import {
   openvpnService,
   type OpenvpnCapabilities,
   type OpenvpnCreateConfig,
+  type OpenvpnInterface,
 } from "@/lib/api/openvpn";
 import { pkiService, type PKIConfigResponse } from "@/lib/api/pki";
 import { showService, type InterfaceName } from "@/lib/api/show";
@@ -40,13 +41,19 @@ import {
   HASH_ALGORITHMS,
   TLS_VERSIONS,
 } from "./constants";
+import {
+  openvpnLockedName,
+  openvpnModalIsEdit,
+  openvpnWriteKind,
+} from "./openvpn-modal-mode";
 
-interface CreateOpenvpnModalProps {
+interface OpenvpnModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   capabilities: OpenvpnCapabilities | null;
   existingNames: string[];
+  existing?: OpenvpnInterface | null;
 }
 
 interface PushRouteEntry {
@@ -67,13 +74,17 @@ interface LocalAddressEntry {
   subnet_mask: string;
 }
 
-export function CreateOpenvpnModal({
+
+const joinLines = (arr: string[]): string => arr.join("\n");
+export function OpenvpnModal({
   open,
   onOpenChange,
   onSuccess,
   capabilities,
   existingNames,
-}: CreateOpenvpnModalProps) {
+  existing,
+}: OpenvpnModalProps) {
+  const isEdit = openvpnModalIsEdit(existing);
   const is15 = capabilities?.version_info.is_1_5 ?? false;
 
   // Basic
@@ -189,15 +200,18 @@ export function CreateOpenvpnModal({
   const [activeTab, setActiveTab] = useState("basic");
 
   useEffect(() => {
-    if (open) {
-      pkiService.getConfig().then(setPki).catch(() => {});
-      showService
-        .getAllInterfaces()
-        .then((res) => setAvailableInterfaces(res.interfaces))
-        .catch(() => {});
+    if (!open) return;
+    pkiService.getConfig().then(setPki).catch(() => {});
+    showService
+      .getAllInterfaces()
+      .then((res) => setAvailableInterfaces(res.interfaces))
+      .catch(() => {});
+    if (existing) {
+      populateForm(existing);
+    } else {
       resetForm();
     }
-  }, [open]);
+  }, [open, existing]);
 
   const resetForm = () => {
     setName("vtun0");
@@ -284,6 +298,120 @@ export function CreateOpenvpnModal({
     setIpv6SourceValidation("");
     setMirrorIngress("");
     setMirrorEgress("");
+    setError(null);
+    setActiveTab("basic");
+  };
+
+  const populateForm = (i: OpenvpnInterface) => {
+    setName(i.name);
+    setDescription(i.description ?? "");
+    setMode(i.mode ?? "");
+    setDeviceType(i.device_type ?? "");
+    setProtocol(i.protocol ?? "");
+    setVrf(i.vrf ?? "");
+    setDisabled(i.disabled);
+    setPersistentTunnel(i.persistent_tunnel);
+    setUseLzo(i.use_lzo_compression);
+    setOffloadDco(i.offload_dco);
+    setRedirect(i.redirect ?? "");
+    setReplaceDefaultRoute(i.replace_default_route?.enabled ?? false);
+    setReplaceDefaultRouteLocal(i.replace_default_route?.local ?? false);
+    setOpenvpnOptionsText(joinLines(i.openvpn_options));
+
+    setLocalHost(i.local_host ?? "");
+    setLocalPort(i.local_port ?? "");
+    setRemotePort(i.remote_port ?? "");
+    setLocalAddresses(
+      i.local_addresses.map((la) => ({
+        address: la.address,
+        subnet_mask: la.subnet_mask ?? "",
+      }))
+    );
+    setRemoteAddressText(joinLines(i.remote_address));
+    setRemoteHostText(joinLines(i.remote_host));
+    setKeepAliveInterval(i.keep_alive?.interval ?? "");
+    setKeepAliveFailure(i.keep_alive?.failure_count ?? "");
+
+    setCipher(i.encryption?.cipher ?? "");
+    setDataCiphers(i.encryption?.data_ciphers ?? []);
+    setDataCiphersFallback(i.encryption?.data_ciphers_fallback ?? "");
+    setHash(i.hash ?? "");
+
+    setTlsCas(i.tls?.ca_certificates ?? []);
+    setTlsCert(i.tls?.certificate ?? "");
+    setTlsDh(i.tls?.dh_params ?? "");
+    setTlsAuthKey(i.tls?.auth_key ?? "");
+    setTlsCryptKey(i.tls?.crypt_key ?? "");
+    setTlsRole(i.tls?.role ?? "");
+    setTlsVersionMin(i.tls?.tls_version_min ?? "");
+    setTlsFingerprintsText(joinLines(i.tls?.peer_fingerprints ?? []));
+    setSharedSecretKey(i.shared_secret_key ?? "");
+
+    const s = i.server;
+    setServerSubnetText(joinLines(s?.subnet ?? []));
+    setServerTopology(s?.topology ?? "");
+    setServerDomainName(s?.domain_name ?? "");
+    setServerMaxConnections(s?.max_connections ?? "");
+    setServerNameServersText(joinLines(s?.name_server ?? []));
+    setServerRejectUnconfigured(s?.reject_unconfigured_clients ?? false);
+    setServerPushRoutes(
+      (s?.push_route ?? []).map((pr) => ({ route: pr.route, metric: pr.metric ?? "" }))
+    );
+    setServerClientIpPoolStart(s?.client_ip_pool?.start ?? "");
+    setServerClientIpPoolStop(s?.client_ip_pool?.stop ?? "");
+    setServerClientIpPoolMask(s?.client_ip_pool?.subnet_mask ?? "");
+    setServerClientIpPoolDisable(s?.client_ip_pool?.disable ?? false);
+    setServerClientIpv6PoolBase(s?.client_ipv6_pool?.base ?? "");
+    setServerClientIpv6PoolDisable(s?.client_ipv6_pool?.disable ?? false);
+    setServerClients(
+      (s?.clients ?? []).map((c) => ({
+        name: c.name,
+        disable: c.disable,
+        ip: (c.ip ?? []).join(", "),
+        subnet: joinLines(c.subnet),
+        push_route: joinLines(c.push_route),
+      }))
+    );
+    setServerBridgeGateway(s?.bridge?.gateway ?? "");
+    setServerBridgeStart(s?.bridge?.start ?? "");
+    setServerBridgeStop(s?.bridge?.stop ?? "");
+    setServerBridgeMask(s?.bridge?.subnet_mask ?? "");
+    setServerBridgeDisable(s?.bridge?.disable ?? false);
+    setMfaChallenge(s?.mfa_totp?.challenge ?? "");
+    setMfaDigits(s?.mfa_totp?.digits ?? "");
+    setMfaDrift(s?.mfa_totp?.drift ?? "");
+    setMfaSlop(s?.mfa_totp?.slop ?? "");
+    setMfaStep(s?.mfa_totp?.step ?? "");
+
+    setAuthUsername(i.authentication?.username ?? "");
+    setAuthPassword(i.authentication?.password ?? "");
+
+    setIpAdjustMss(i.ip?.adjust_mss ?? "");
+    setIpArpCacheTimeout(i.ip?.arp_cache_timeout ?? "");
+    setIpDisableArpFilter(i.ip?.disable_arp_filter ?? false);
+    setIpDisableForwarding(i.ip?.disable_forwarding ?? false);
+    setIpEnableArpAccept(i.ip?.enable_arp_accept ?? false);
+    setIpEnableArpAnnounce(i.ip?.enable_arp_announce ?? false);
+    setIpEnableArpIgnore(i.ip?.enable_arp_ignore ?? false);
+    setIpEnableDirectedBroadcast(i.ip?.enable_directed_broadcast ?? false);
+    setIpEnableProxyArp(i.ip?.enable_proxy_arp ?? false);
+    setIpProxyArpPvlan(i.ip?.proxy_arp_pvlan ?? false);
+    setIpSourceValidation(i.ip?.source_validation ?? "");
+
+    setIpv6AcceptDad(i.ipv6?.accept_dad ?? "");
+    setIpv6AddressAutoconf(i.ipv6?.address_autoconf ?? false);
+    setIpv6AddressEui64(i.ipv6?.address_eui64 ?? "");
+    setIpv6AddressNoDefaultLinkLocal(i.ipv6?.address_no_default_link_local ?? false);
+    setIpv6AdjustMss(i.ipv6?.adjust_mss ?? "");
+    setIpv6BaseReachableTime(i.ipv6?.base_reachable_time ?? "");
+    setIpv6DupAddrDetectTransmits(i.ipv6?.dup_addr_detect_transmits ?? "");
+    setIpv6DisableForwarding(i.ipv6?.disable_forwarding ?? false);
+    setIpv6InterfaceIdentifier(i.ipv6?.address_interface_identifier ?? "");
+    setIpv6SourceValidation(i.ipv6?.source_validation ?? "");
+
+    setMirrorIngress(i.mirror_ingress ?? "");
+    setMirrorEgress(i.mirror_egress ?? "");
+
     setError(null);
     setActiveTab("basic");
   };
@@ -465,7 +593,170 @@ export function CreateOpenvpnModal({
     return config;
   };
 
+
+  const buildUpdate = (): Partial<OpenvpnCreateConfig> => {
+    const update: Partial<OpenvpnCreateConfig> = {};
+    update.description = description;
+    update.mode = mode;
+    update.device_type = deviceType;
+    update.protocol = protocol;
+    update.vrf = vrf;
+    update.disabled = disabled;
+    update.persistent_tunnel = persistentTunnel;
+    update.use_lzo_compression = useLzo;
+    update.offload_dco = offloadDco;
+    update.redirect = redirect;
+    update.replace_default_route = {
+      enabled: replaceDefaultRoute,
+      local: replaceDefaultRouteLocal,
+    };
+    update.openvpn_options = splitLines(openvpnOptionsText);
+
+    update.local_host = localHost;
+    update.local_port = localPort;
+    update.remote_port = remotePort;
+    update.local_addresses = localAddresses
+      .filter((la) => la.address)
+      .map((la) => ({
+        address: la.address,
+        subnet_mask: la.subnet_mask || undefined,
+      }));
+    update.remote_address = splitLines(remoteAddressText);
+    update.remote_host = splitLines(remoteHostText);
+    update.keep_alive = {
+      interval: keepAliveInterval,
+      failure_count: keepAliveFailure,
+    };
+
+    update.encryption = {
+      cipher,
+      data_ciphers: dataCiphers,
+      // data-ciphers-fallback is a VyOS 1.5-only node; omit it entirely on 1.4
+      // so the diff never emits an unsupported set/delete operation.
+      ...(is15 ? { data_ciphers_fallback: dataCiphersFallback } : {}),
+    };
+    update.hash = hash;
+    update.shared_secret_key = sharedSecretKey;
+
+    update.tls = {
+      ca_certificates: tlsCas,
+      certificate: tlsCert,
+      dh_params: tlsDh,
+      auth_key: tlsAuthKey,
+      crypt_key: tlsCryptKey,
+      role: tlsRole,
+      tls_version_min: tlsVersionMin,
+      peer_fingerprints: splitLines(tlsFingerprintsText),
+    };
+
+    if (mode === "server") {
+      update.server = {
+        subnet: splitLines(serverSubnetText),
+        topology: serverTopology,
+        domain_name: serverDomainName,
+        max_connections: serverMaxConnections,
+        name_server: splitLines(serverNameServersText),
+        reject_unconfigured_clients: serverRejectUnconfigured,
+        push_route: serverPushRoutes
+          .filter((pr) => pr.route)
+          .map((pr) => ({ route: pr.route, metric: pr.metric || undefined })),
+        client_ip_pool: {
+          start: serverClientIpPoolStart,
+          stop: serverClientIpPoolStop,
+          subnet_mask: serverClientIpPoolMask,
+          disable: serverClientIpPoolDisable,
+        },
+        client_ipv6_pool: {
+          base: serverClientIpv6PoolBase,
+          disable: serverClientIpv6PoolDisable,
+        },
+        bridge: {
+          gateway: serverBridgeGateway,
+          start: serverBridgeStart,
+          stop: serverBridgeStop,
+          subnet_mask: serverBridgeMask,
+          disable: serverBridgeDisable,
+        },
+        mfa_totp: {
+          challenge: mfaChallenge,
+          digits: mfaDigits,
+          drift: mfaDrift,
+          slop: mfaSlop,
+          step: mfaStep,
+        },
+        clients: serverClients
+          .filter((c) => c.name)
+          .map((c) => ({
+            name: c.name,
+            disable: c.disable,
+            ip: c.ip ? c.ip.split(/[\s,]+/).filter(Boolean) : undefined,
+            subnet: c.subnet ? splitLines(c.subnet) : undefined,
+            push_route: c.push_route ? splitLines(c.push_route) : undefined,
+          })),
+      };
+    }
+
+    update.authentication = { username: authUsername, password: authPassword };
+
+    update.ip = {
+      adjust_mss: ipAdjustMss,
+      arp_cache_timeout: ipArpCacheTimeout,
+      disable_arp_filter: ipDisableArpFilter,
+      disable_forwarding: ipDisableForwarding,
+      enable_arp_accept: ipEnableArpAccept,
+      enable_arp_announce: ipEnableArpAnnounce,
+      enable_arp_ignore: ipEnableArpIgnore,
+      enable_directed_broadcast: ipEnableDirectedBroadcast,
+      enable_proxy_arp: ipEnableProxyArp,
+      proxy_arp_pvlan: ipProxyArpPvlan,
+      source_validation: ipSourceValidation,
+    };
+    update.ipv6 = {
+      accept_dad: ipv6AcceptDad,
+      address_autoconf: ipv6AddressAutoconf,
+      address_eui64: ipv6AddressEui64,
+      address_no_default_link_local: ipv6AddressNoDefaultLinkLocal,
+      adjust_mss: ipv6AdjustMss,
+      base_reachable_time: ipv6BaseReachableTime,
+      disable_forwarding: ipv6DisableForwarding,
+      dup_addr_detect_transmits: ipv6DupAddrDetectTransmits,
+      // address interface-identifier is a VyOS 1.5-only node; omit it on 1.4.
+      ...(is15 ? { address_interface_identifier: ipv6InterfaceIdentifier } : {}),
+      source_validation: ipv6SourceValidation,
+    };
+
+    update.mirror_ingress = mirrorIngress;
+    update.mirror_egress = mirrorEgress;
+
+    return update;
+  };
+
   const handleSubmit = async () => {
+    const write = openvpnWriteKind(existing);
+    if (write.kind === "update") {
+      if (!existing) return;
+      setError(null);
+      setLoading(true);
+      try {
+        const result = await openvpnService.updateInterface(
+          write.name,
+          existing,
+          buildUpdate()
+        );
+        if (result.success) {
+          onOpenChange(false);
+          onSuccess();
+        } else {
+          setError(result.error || "Failed to update OpenVPN interface");
+        }
+      } catch (err) {
+        setError((err as ApiError).message || "Failed to update OpenVPN interface");
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     setError(null);
     if (!name.trim()) {
       setError("Interface name is required");
@@ -496,9 +787,20 @@ export function CreateOpenvpnModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create OpenVPN Interface</DialogTitle>
+          <DialogTitle>
+            {isEdit ? "Edit OpenVPN Interface" : "Create OpenVPN Interface"}
+          </DialogTitle>
           <DialogDescription>
-            Advanced configuration. All fields are optional except the name.
+            {isEdit ? (
+              <>
+                Editing interface{" "}
+                <code className="rounded bg-muted px-1 py-0.5 font-mono text-sm">
+                  {existing.name}
+                </code>
+              </>
+            ) : (
+              "Advanced configuration. All fields are optional except the name."
+            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -520,13 +822,19 @@ export function CreateOpenvpnModal({
           <TabsContent value="basic" className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="name">Interface Name *</Label>
+                <Label htmlFor="name">Interface Name {isEdit ? null : "*"}</Label>
                 <Input
                   id="name"
-                  value={name}
+                  value={openvpnLockedName(existing, name).value}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="vtun0"
+                  disabled={openvpnLockedName(existing, name).disabled}
                 />
+                {isEdit ? (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Interface name cannot be changed.
+                  </p>
+                ) : null}
               </div>
               <div>
                 <Label htmlFor="mode">Mode</Label>
@@ -1554,8 +1862,10 @@ export function CreateOpenvpnModal({
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Creating...
+                {isEdit ? "Saving..." : "Creating..."}
               </>
+            ) : isEdit ? (
+              "Save Changes"
             ) : (
               "Create Interface"
             )}
