@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { AlertCircle, Key, Loader2 } from "lucide-react";
-import { pppoeServerService, PPPoEAuthentication } from "@/lib/api/pppoe-server";
+import { pppoeServerService, PPPoEAuthentication, PPPoECapabilities } from "@/lib/api/pppoe-server";
 import { ApiError } from "@/lib/types/api";
 
 const ALL_PROTOCOLS = ["pap", "chap", "mschap", "mschap-v2"];
@@ -30,18 +30,23 @@ interface AuthSettingsModalProps {
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   currentAuth: PPPoEAuthentication;
+  capabilities: PPPoECapabilities | null;
 }
 
-export function AuthSettingsModal({ open, onOpenChange, onSuccess, currentAuth }: AuthSettingsModalProps) {
+export function AuthSettingsModal({ open, onOpenChange, onSuccess, currentAuth, capabilities }: AuthSettingsModalProps) {
   const [mode, setMode] = useState("local");
   const [protocols, setProtocols] = useState<string[]>([]);
+  const [anyLogin, setAnyLogin] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const showAnyLogin = capabilities?.features.auth_any_login ?? false;
 
   useEffect(() => {
     if (open) {
       setMode(currentAuth.mode || "local");
       setProtocols(currentAuth.protocols || []);
+      setAnyLogin(currentAuth.any_login || false);
       setError(null);
     }
   }, [open, currentAuth]);
@@ -57,6 +62,7 @@ export function AuthSettingsModal({ open, onOpenChange, onSuccess, currentAuth }
       const result = await pppoeServerService.updateAuthSettings(currentAuth, {
         mode,
         protocols: mode === "local" ? protocols : undefined,
+        any_login: showAnyLogin ? anyLogin : undefined,
       });
       if (result.success) {
         onOpenChange(false);
@@ -110,6 +116,19 @@ export function AuthSettingsModal({ open, onOpenChange, onSuccess, currentAuth }
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {showAnyLogin && (
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="pppoe-auth-any-login"
+                checked={anyLogin}
+                onCheckedChange={(checked) => setAnyLogin(checked === true)}
+              />
+              <Label htmlFor="pppoe-auth-any-login" className="cursor-pointer text-sm">
+                Any login
+              </Label>
             </div>
           )}
         </div>

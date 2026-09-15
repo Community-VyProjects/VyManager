@@ -26,6 +26,12 @@ class PPPoEServerBatchBuilder(BatchBuilder):
     def get_capabilities(self) -> Dict[str, Any]:
         is_1_4 = "1.4" in self.version
         is_1_5 = not is_1_4
+        mapper = self.mappers[self.mapper_key]
+        try:
+            mapper.get_auth_any_login()
+            auth_any_login = True
+        except ValueError:
+            auth_any_login = False
         return {
             "version": self.version,
             "features": {
@@ -33,6 +39,7 @@ class PPPoEServerBatchBuilder(BatchBuilder):
                 "auth_radius": True,
                 "auth_noauth": True,
                 "auth_protocols": True,
+                "auth_any_login": auth_any_login,
                 "local_users": True,
                 "client_ip_pools": True,
                 "client_ipv6_pools": True,
@@ -348,6 +355,12 @@ class PPPoEServerBatchBuilder(BatchBuilder):
 
     def delete_auth_mode(self, _unused: str) -> "PPPoEServerBatchBuilder":
         return self.add_delete(self.mappers[self.mapper_key].get_auth_mode_delete())
+
+    def set_auth_any_login(self, _unused: str) -> "PPPoEServerBatchBuilder":
+        return self.add_set(self.mappers[self.mapper_key].get_auth_any_login())
+
+    def delete_auth_any_login(self, _unused: str) -> "PPPoEServerBatchBuilder":
+        return self.add_delete(self.mappers[self.mapper_key].get_auth_any_login_delete())
 
     def set_auth_protocol(self, _unused: str, protocol: str) -> "PPPoEServerBatchBuilder":
         return self.add_set(self.mappers[self.mapper_key].get_auth_protocols(protocol))

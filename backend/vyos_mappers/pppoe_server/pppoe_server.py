@@ -288,6 +288,12 @@ class PPPoEServerMapper(BaseFeatureMapper):
     def get_auth_mode_delete(self) -> List[str]:
         return BASE + ["authentication", "mode"]
 
+    def get_auth_any_login(self) -> List[str]:
+        return BASE + ["authentication", "any-login"]
+
+    def get_auth_any_login_delete(self) -> List[str]:
+        return BASE + ["authentication", "any-login"]
+
     def get_auth_protocols(self, protocol: str) -> List[str]:
         return BASE + ["authentication", "protocols", protocol]
 
@@ -714,6 +720,7 @@ class PPPoEServerMapper(BaseFeatureMapper):
         return {
             "mode": cfg.get("mode"),
             "protocols": self._normalize_to_list(cfg.get("protocols")),
+            "any_login": "any-login" in cfg,
             "local_users": local_users,
             "radius": self._parse_radius(cfg.get("radius", {})),
         }

@@ -7,7 +7,6 @@ API endpoints for managing VyOS PPPoE server configuration.
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
-import asyncio
 import ipaddress
 import json
 from urllib.parse import unquote
@@ -453,6 +452,8 @@ async def pppoe_batch_configure(http_request: Request, body: PPPoEBatchRequest):
         )
     except HTTPException:
         raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception:
         logger.exception("Unhandled error in pppoe batch")
         raise HTTPException(status_code=500, detail="Internal server error")
