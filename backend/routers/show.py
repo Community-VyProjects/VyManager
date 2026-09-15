@@ -315,32 +315,23 @@ async def _fetch_gql_wg_status(service, iface_names: List[str]) -> dict:
 def parse_gql_memory(ram: dict) -> dict:
     """Convert GraphQL RAM dict (bytes) to human-readable strings.
 
-    The GraphQL ``used`` field equals ``total - free`` (Linux kernel definition),
-    which includes reclaimable buffers and page cache.  We subtract those so the
-    displayed value matches what ``free -h`` / ``show system memory`` reports as
-    the application-level used memory.
-
-    ``free`` is reported as the truly *available* amount (raw free + reclaimable
-    buffers + cache) so that ``used + free ≈ total`` from the user's perspective.
+    VyOS memory.show(raw=True) exposes MemAvailable as ``free`` and
+    MemTotal - MemAvailable as ``used``. Buffers and cache are already
+    accounted for; adjusting these fields again double-counts them.
     """
     if not ram:
         return {"total": None, "free": None, "used": None}
 
-    total   = ram.get("total")   or 0
-    free    = ram.get("free")    or 0
-    raw_used = ram.get("used")   or (total - free)
-    buffers = ram.get("buffers") or 0
-    cached  = ram.get("cached")  or 0
-
-    # Application memory: strip reclaimable buffers + page cache
-    app_used  = max(0, raw_used - buffers - cached)
-    # Available: raw free + everything the kernel can reclaim on demand
-    available = free + buffers + cached
+    total = ram.get("total") or 0
+    available = ram.get("free") or 0
+    used = ram.get("used")
+    if used is None:
+        used = max(0, total - available)
 
     return {
-        "total": _format_bytes(total)     if total     else None,
-        "used":  _format_bytes(app_used)  if total     else None,
-        "free":  _format_bytes(available) if available else None,
+        "total": _format_bytes(total) if total else None,
+        "used": _format_bytes(used) if total else None,
+        "free": _format_bytes(available) if total else None,
     }
 
 
