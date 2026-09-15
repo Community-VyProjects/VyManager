@@ -40,8 +40,7 @@ import {
 } from "@/lib/api/firewall-flowtables";
 import { cn } from "@/lib/utils";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { CreateFlowtableModal } from "@/components/firewall/CreateFlowtableModal";
-import { EditFlowtableModal } from "@/components/firewall/EditFlowtableModal";
+import { FlowtableModal } from "@/components/firewall/FlowtableModal";
 import { DeleteFlowtableModal } from "@/components/firewall/DeleteFlowtableModal";
 
 export default function FlowtablesPage() {
@@ -295,18 +294,17 @@ export default function FlowtablesPage() {
       </div>
 
       {/* Modals */}
-      <CreateFlowtableModal
-        open={createModalOpen}
-        onOpenChange={setCreateModalOpen}
+      <FlowtableModal
+        open={createModalOpen || !!editingFlowtable}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCreateModalOpen(false);
+            setEditingFlowtable(null);
+          }
+        }}
         onSuccess={() => fetchConfig(true)}
         existingFlowtables={flowtables}
-      />
-
-      <EditFlowtableModal
-        open={!!editingFlowtable}
-        onOpenChange={(open) => !open && setEditingFlowtable(null)}
-        onSuccess={() => fetchConfig(true)}
-        flowtable={editingFlowtable}
+        existing={editingFlowtable}
       />
 
       <DeleteFlowtableModal

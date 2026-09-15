@@ -27,19 +27,22 @@ import { flowtablesService, type Flowtable } from "@/lib/api/firewall-flowtables
 import { ethernetService } from "@/lib/api/ethernet";
 import type { EthernetInterface } from "@/lib/api/types/ethernet";
 
-interface CreateFlowtableModalProps {
+interface FlowtableModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   existingFlowtables: Flowtable[];
+  existing?: Flowtable | null;
 }
 
-export function CreateFlowtableModal({
+export function FlowtableModal({
   open,
   onOpenChange,
   onSuccess,
   existingFlowtables,
-}: CreateFlowtableModalProps) {
+  existing,
+}: FlowtableModalProps) {
+  const isEdit = !!existing;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -53,19 +56,30 @@ export function CreateFlowtableModal({
   const [availableInterfaces, setAvailableInterfaces] = useState<EthernetInterface[]>([]);
   const [selectedInterface, setSelectedInterface] = useState<string>("");
 
-  // Reset form when modal opens
   useEffect(() => {
-    if (open) {
+    if (!open) return;
+    loadInterfaces();
+    if (existing) {
+      populateForm(existing);
+    } else {
       resetForm();
-      loadInterfaces();
     }
-  }, [open]);
+  }, [open, existing]);
 
   const resetForm = () => {
     setName("");
     setDescription("");
     setInterfaces([]);
     setOffload("software");
+    setSelectedInterface("");
+    setError(null);
+  };
+
+  const populateForm = (ft: Flowtable) => {
+    setName(ft.name);
+    setDescription(ft.description || "");
+    setInterfaces(ft.interfaces || []);
+    setOffload(ft.offload || "software");
     setSelectedInterface("");
     setError(null);
   };
@@ -103,7 +117,43 @@ export function CreateFlowtableModal({
     return null;
   };
 
+  const submitUpdate = async () => {
+    if (!existing) return;
+
+    if (interfaces.length === 0) {
+      setError("At least one interface is required");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      await flowtablesService.updateFlowtable(
+        existing.name,
+        {
+          description: description.trim() || undefined,
+          interfaces,
+          offload,
+        },
+        existing
+      );
+
+      onSuccess();
+      onOpenChange(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update flowtable");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async () => {
+    if (isEdit) {
+      await submitUpdate();
+      return;
+    }
+
     const nameError = validateName(name);
     if (nameError) {
       setError(nameError);
@@ -138,9 +188,13 @@ export function CreateFlowtableModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Create Flowtable</DialogTitle>
+          <DialogTitle>
+            {isEdit ? `Edit Flowtable: ${existing.name}` : "Create Flowtable"}
+          </DialogTitle>
           <DialogDescription>
-            Create a new flowtable for fast-path packet offloading.
+            {isEdit
+              ? "Modify the flowtable configuration."
+              : "Create a new flowtable for fast-path packet offloading."}
           </DialogDescription>
         </DialogHeader>
 
@@ -152,24 +206,25 @@ export function CreateFlowtableModal({
             </div>
           )}
 
-          {/* Name */}
           <div className="space-y-2">
             <Label htmlFor="name">
-              Name <span className="text-destructive">*</span>
+              Name {isEdit ? null : <span className="text-destructive">*</span>}
             </Label>
             <Input
               id="name"
-              value={name}
+              value={isEdit ? existing.name : name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g., FT_LAN"
-              className="font-mono"
+              className={isEdit ? "font-mono bg-muted" : "font-mono"}
+              disabled={isEdit}
             />
             <p className="text-xs text-muted-foreground">
-              Must start with a letter. Use letters, numbers, hyphens, and underscores.
+              {isEdit
+                ? "Flowtable name cannot be changed. Delete and recreate to rename."
+                : "Must start with a letter. Use letters, numbers, hyphens, and underscores."}
             </p>
           </div>
 
-          {/* Description */}
           <div className="space-y-2">
             <Label htmlFor="description">Description</Label>
             <Textarea
@@ -181,7 +236,6 @@ export function CreateFlowtableModal({
             />
           </div>
 
-          {/* Interfaces */}
           <div className="space-y-2">
             <Label>
               Interfaces <span className="text-destructive">*</span>
@@ -227,7 +281,6 @@ export function CreateFlowtableModal({
             </p>
           </div>
 
-          {/* Offload Type */}
           <div className="space-y-2">
             <Label htmlFor="offload">Offload Type</Label>
             <Select value={offload} onValueChange={setOffload}>
@@ -251,7 +304,13 @@ export function CreateFlowtableModal({
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? "Creating..." : "Create Flowtable"}
+            {loading
+              ? isEdit
+                ? "Saving..."
+                : "Creating..."
+              : isEdit
+                ? "Save Changes"
+                : "Create Flowtable"}
           </Button>
         </DialogFooter>
       </DialogContent>
