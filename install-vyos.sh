@@ -13,8 +13,10 @@
 #
 # Walks through SSH, HTTPS API, GraphQL, and the three containers.
 # Prints the exact set list and requires yes before commit; save.
-# Does not write firewall, NAT, or zone-policy.
-# On failure the configure session is discarded. Pulled images may stay.
+# Does not write firewall, source NAT, or zone-policy.
+# Writes dest NAT (not container ports): VyOS cannot publish ports on a
+# user-defined container network. On failure the configure session is
+# discarded. Pulled images may stay.
 
 if [ -n "${BASH_VERSION:-}" ]; then
   set -eu
@@ -73,6 +75,41 @@ exists_active() {
 
 active_value() {
   /bin/cli-shell-api returnActiveValue "$@" 2>/dev/null || true
+}
+
+iface_owning_ip() {
+  ip -o addr show 2>/dev/null | awk -v ip="$1" '$4 ~ ("^" ip "/") { gsub(/@.*$/, "", $2); print $2; exit }'
+}
+
+load_nat_dest_rules() {
+  NAT_USED_RULES="$(/bin/cli-shell-api listNodes nat destination rule 2>/dev/null | tr -s '[:space:]' ' ')"
+}
+
+nat_rule_taken() {
+  echo " ${NAT_USED_RULES} " | grep -q " ${1} "
+}
+
+next_free_nat_rule() {
+  local n=9000
+  while [ "$n" -le 9999 ]; do
+    if ! nat_rule_taken "$n"; then
+      echo "$n"
+      return 0
+    fi
+    n=$((n + 1))
+  done
+  return 1
+}
+
+add_dest_nat() {
+  local rule="$1" desc="$2" dport="$3" xaddr="$4" xport="$5"
+  add_set "nat destination rule ${rule} description $(quote_val "$desc")"
+  add_set "nat destination rule ${rule} destination address $(quote_val "$UI_IP")"
+  add_set "nat destination rule ${rule} destination port ${dport}"
+  add_set "nat destination rule ${rule} inbound-interface name $(quote_val "$NAT_IF")"
+  add_set "nat destination rule ${rule} protocol tcp"
+  add_set "nat destination rule ${rule} translation address $(quote_val "$xaddr")"
+  add_set "nat destination rule ${rule} translation port ${xport}"
 }
 
 rand_hex() {
@@ -452,6 +489,9 @@ if [ "${1:-}" = "--self-test" ]; then
   add_https_rest_if_15
   add_network_gateway_if_15 172.31.255.1
   [ "${#SET_CMDS[@]}" -eq 2 ] || fail "1.5 missing rest or gateway"
+  NAT_USED_RULES="9000 9001"
+  got="$(next_free_nat_rule)"
+  [ "$got" = "9002" ] || fail "next_free_nat_rule"
   echo "self-test ok"
   exit 0
 fi
@@ -461,7 +501,7 @@ require_vyos
 echo
 echo "  VyManager on-box installer"
 echo "  SSH, HTTPS API, GraphQL, then containers."
-echo "  Firewall, NAT, and zone-policy are left untouched."
+echo "  Dest NAT publishes the UI. No firewall, source NAT, or zone-policy."
 echo
 
 FAMILY="$(detect_vyos_family)"
@@ -525,6 +565,49 @@ fi
 if [ "$UI_PORT" = "$HTTPS_PORT" ]; then
   fail "UI port ${UI_PORT} is the VyOS API port. Pick another port."
 fi
+if [ "$UI_PORT" = "8000" ]; then
+  fail "UI port 8000 is reserved for the VyManager API websocket DNAT."
+fi
+if iputil is-v6 "$UI_IP"; then
+  fail "Use an IPv4 address for the web UI. Dest NAT for IPv6 is not emitted."
+fi
+
+NAT_IF="$(iface_owning_ip "$UI_IP")"
+prompt NAT_IF "Inbound interface for dest NAT" "${NAT_IF:-}"
+[ -n "$NAT_IF" ] || fail "Inbound interface is required"
+case "$NAT_IF" in
+  *[!a-zA-Z0-9._-]*) fail "Inbound interface name is invalid" ;;
+esac
+
+load_nat_dest_rules
+NAT_USED_RULES="${NAT_USED_RULES:-}"
+DEF_NAT_UI="$(next_free_nat_rule)" || fail "No free dest NAT rule number in 9000-9999"
+NAT_USED_RULES="${NAT_USED_RULES} ${DEF_NAT_UI}"
+DEF_NAT_API="$(next_free_nat_rule)" || fail "No free dest NAT rule number in 9000-9999"
+prompt NAT_RULE_UI "Dest NAT rule number for the web UI" "$DEF_NAT_UI"
+prompt NAT_RULE_API "Dest NAT rule number for the API websocket (port 8000)" "$DEF_NAT_API"
+case "$NAT_RULE_UI" in
+  ''|*[!0-9]*) fail "NAT rule number must be an integer" ;;
+esac
+case "$NAT_RULE_API" in
+  ''|*[!0-9]*) fail "NAT rule number must be an integer" ;;
+esac
+if [ "$NAT_RULE_UI" -lt 1 ] || [ "$NAT_RULE_UI" -gt 9999 ]; then
+  fail "NAT rule number out of range"
+fi
+if [ "$NAT_RULE_API" -lt 1 ] || [ "$NAT_RULE_API" -gt 9999 ]; then
+  fail "NAT rule number out of range"
+fi
+if [ "$NAT_RULE_UI" = "$NAT_RULE_API" ]; then
+  fail "UI and API dest NAT rule numbers must differ"
+fi
+load_nat_dest_rules
+if nat_rule_taken "$NAT_RULE_UI"; then
+  fail "Dest NAT rule ${NAT_RULE_UI} already exists"
+fi
+if nat_rule_taken "$NAT_RULE_API"; then
+  fail "Dest NAT rule ${NAT_RULE_API} already exists"
+fi
 
 APP_URL="$(build_app_url "$UI_IP" "$UI_PORT")"
 LISTEN_FMT="$(iputil listen-fmt "$UI_IP" "$UI_PORT")"
@@ -548,10 +631,10 @@ NET_VRF="${PULL_VRF:-}"
 
 echo
 info "Open ${APP_URL} after commit."
-info "The UI listens on ${LISTEN_FMT} only."
+info "The UI is reachable at ${LISTEN_FMT} via dest NAT."
 info "Postgres data stays on persistent disk under ${VOL_PG}."
 echo
-info "This installer does not write firewall, NAT, or zone-policy."
+info "No firewall, source NAT, or zone-policy is written."
 echo
 
 # --- SSH: enable only if missing; never change listen-address, port, or keys
@@ -646,10 +729,6 @@ if [ "$STACK_EXISTS" -eq 0 ]; then
   if [ "$NET_HAS_V6" -eq 1 ]; then
     add_set "container name vymanager-backend network ${NET_NAME} address $(quote_val "$V6_BE")"
   fi
-  add_set "container name vymanager-backend port api source 8000"
-  add_set "container name vymanager-backend port api destination 8000"
-  add_set "container name vymanager-backend port api protocol tcp"
-  add_set "container name vymanager-backend port api listen-address $(quote_val "$UI_IP")"
   add_set "container name vymanager-backend environment NODE_ENV value production"
   add_set "container name vymanager-backend environment VYMANAGER_MODE value appliance"
   add_set "container name vymanager-backend environment VYMANAGER_APPLIANCE_HOST value $(quote_val "$UI_IP")"
@@ -667,10 +746,6 @@ if [ "$STACK_EXISTS" -eq 0 ]; then
   add_set "container name vymanager-frontend image $(quote_val "$FRONTEND_IMAGE")"
   add_set "container name vymanager-frontend restart always"
   add_set "container name vymanager-frontend network ${NET_NAME} address $(quote_val "$FE_ADDR")"
-  add_set "container name vymanager-frontend port ui source $(quote_val "$UI_PORT")"
-  add_set "container name vymanager-frontend port ui destination 3000"
-  add_set "container name vymanager-frontend port ui protocol tcp"
-  add_set "container name vymanager-frontend port ui listen-address $(quote_val "$UI_IP")"
   add_set "container name vymanager-frontend environment NODE_ENV value production"
   add_set "container name vymanager-frontend environment DATABASE_URL value $(quote_val "$DB_URL")"
   add_set "container name vymanager-frontend environment BETTER_AUTH_SECRET value $(quote_val "$AUTH_SECRET")"
@@ -681,6 +756,9 @@ if [ "$STACK_EXISTS" -eq 0 ]; then
   WS_PUBLIC="ws${WS_PUBLIC#http}"
   add_set "container name vymanager-frontend environment PUBLIC_WS_URL value $(quote_val "$WS_PUBLIC")"
   add_set "container name vymanager-frontend environment TRUSTED_ORIGINS value $(quote_val "$APP_URL")"
+
+  add_dest_nat "$NAT_RULE_UI" "VyManager UI" "$UI_PORT" "$FE_ADDR" 3000
+  add_dest_nat "$NAT_RULE_API" "VyManager API" 8000 "$BE_ADDR" 8000
 fi
 
 echo
