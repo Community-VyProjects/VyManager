@@ -34,14 +34,20 @@ import {
   type PppoePdInterfaceInput,
 } from "@/lib/api/pppoe";
 import { ApiError } from "@/lib/types/api";
+import {
+  pppoeLockedName,
+  pppoeModalIsEdit,
+  pppoeWriteKind,
+} from "./pppoe-modal-mode";
 
-interface EditPppoeModalProps {
+interface PppoeModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   capabilities: PppoeCapabilities | null;
-  interfaceData: PppoeInterface | null;
+  existingInterfaces: string[];
   availableEthernet?: string[];
+  existing?: PppoeInterface | null;
 }
 
 interface PdInstanceForm {
@@ -56,17 +62,23 @@ const SOURCE_VALIDATION_OPTIONS = [
   { value: "disable", label: "Disable" },
 ];
 
-export function EditPppoeModal({
+const PPPOE_NAME_RE = /^pppoe[0-9]+$/;
+
+export function PppoeModal({
   open,
   onOpenChange,
   onSuccess,
   capabilities,
-  interfaceData,
+  existingInterfaces,
   availableEthernet,
-}: EditPppoeModalProps) {
+  existing,
+}: PppoeModalProps) {
+  const isEdit = pppoeModalIsEdit(existing);
   const feat = (key: string) =>
     capabilities?.features?.[key]?.supported ?? false;
 
+  // Basic
+  const [name, setName] = useState("pppoe0");
   const [description, setDescription] = useState("");
   const [disabled, setDisabled] = useState(false);
   const [sourceInterface, setSourceInterface] = useState("");
@@ -75,6 +87,7 @@ export function EditPppoeModal({
   const [vrf, setVrf] = useState("");
   const [redirect, setRedirect] = useState("");
 
+  // PPP
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [mtu, setMtu] = useState("");
@@ -85,16 +98,19 @@ export function EditPppoeModal({
   const [idleTimeout, setIdleTimeout] = useState("");
   const [hostUniq, setHostUniq] = useState("");
 
+  // Routing
   const [connectOnDemand, setConnectOnDemand] = useState(false);
   const [noDefaultRoute, setNoDefaultRoute] = useState(false);
   const [defaultRouteDistance, setDefaultRouteDistance] = useState("");
   const [noPeerDns, setNoPeerDns] = useState(false);
 
+  // IP
   const [ipAdjustMss, setIpAdjustMss] = useState("");
   const [ipAdjustMssClamp, setIpAdjustMssClamp] = useState(false);
   const [ipDisableForwarding, setIpDisableForwarding] = useState(false);
   const [ipSourceValidation, setIpSourceValidation] = useState("");
 
+  // IPv6
   const [ipv6AddressAutoconf, setIpv6AddressAutoconf] = useState(false);
   const [ipv6AddressDhcpv6, setIpv6AddressDhcpv6] = useState(false);
   const [ipv6AdjustMss, setIpv6AdjustMss] = useState("");
@@ -102,6 +118,7 @@ export function EditPppoeModal({
   const [ipv6DisableForwarding, setIpv6DisableForwarding] = useState(false);
   const [ipv6InterfaceIdentifier, setIpv6InterfaceIdentifier] = useState("");
 
+  // DHCPv6
   const [dhcpv6Duid, setDhcpv6Duid] = useState("");
   const [dhcpv6NoRelease, setDhcpv6NoRelease] = useState(false);
   const [dhcpv6NoRequestDns, setDhcpv6NoRequestDns] = useState(false);
@@ -111,15 +128,60 @@ export function EditPppoeModal({
   const [dhcpv6Temporary, setDhcpv6Temporary] = useState(false);
   const [pdInstances, setPdInstances] = useState<PdInstanceForm[]>([]);
 
+  // Mirror
   const [mirrorIngress, setMirrorIngress] = useState("");
   const [mirrorEgress, setMirrorEgress] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!open || !interfaceData) return;
+  const resetForm = () => {
+    setName("pppoe0");
+    setDescription("");
+    setDisabled(false);
+    setSourceInterface("");
+    setAccessConcentrator("");
+    setServiceName("");
+    setVrf("");
+    setRedirect("");
+    setUsername("");
+    setPassword("");
+    setMtu("");
+    setMru("");
+    setLocalAddress("");
+    setRemoteAddress("");
+    setHoldoff("");
+    setIdleTimeout("");
+    setHostUniq("");
+    setConnectOnDemand(false);
+    setNoDefaultRoute(false);
+    setDefaultRouteDistance("");
+    setNoPeerDns(false);
+    setIpAdjustMss("");
+    setIpAdjustMssClamp(false);
+    setIpDisableForwarding(false);
+    setIpSourceValidation("");
+    setIpv6AddressAutoconf(false);
+    setIpv6AddressDhcpv6(false);
+    setIpv6AdjustMss("");
+    setIpv6AdjustMssClamp(false);
+    setIpv6DisableForwarding(false);
+    setIpv6InterfaceIdentifier("");
+    setDhcpv6Duid("");
+    setDhcpv6NoRelease(false);
+    setDhcpv6NoRequestDns(false);
+    setDhcpv6NoRequestDomainName(false);
+    setDhcpv6ParametersOnly(false);
+    setDhcpv6RapidCommit(false);
+    setDhcpv6Temporary(false);
+    setPdInstances([]);
+    setMirrorIngress("");
+    setMirrorEgress("");
+    setError(null);
+  };
 
+  const populateForm = (interfaceData: PppoeInterface) => {
+    setName(interfaceData.name);
     setDescription(interfaceData.description ?? "");
     setDisabled(!!interfaceData.disabled);
     setSourceInterface(interfaceData.source_interface ?? "");
@@ -187,7 +249,16 @@ export function EditPppoeModal({
     setMirrorEgress(interfaceData.mirror_egress ?? "");
 
     setError(null);
-  }, [open, interfaceData]);
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    if (existing) {
+      populateForm(existing);
+    } else {
+      resetForm();
+    }
+  }, [open, existing]);
 
   const addPdInstance = () => {
     setPdInstances((prev) => [
@@ -251,7 +322,7 @@ export function EditPppoeModal({
     );
   };
 
-  const validate = (): string | null => {
+  const validateShared = (): string | null => {
     if (mtu) {
       const n = Number(mtu);
       if (!Number.isInteger(n) || n < 68 || n > 1500) {
@@ -287,6 +358,116 @@ export function EditPppoeModal({
       }
     }
     return null;
+  };
+
+  const validateCreate = (): string | null => {
+    const trimmed = name.trim();
+    if (!trimmed) return "Interface name is required.";
+    if (!PPPOE_NAME_RE.test(trimmed)) {
+      return "Interface name must match pattern 'pppoeN' (e.g. pppoe0).";
+    }
+    if (existingInterfaces.includes(trimmed)) {
+      return `Interface '${trimmed}' already exists.`;
+    }
+    return validateShared();
+  };
+
+  const buildConfig = (): PppoeCreateConfig => {
+    const pd: PppoePdInstanceInput[] = pdInstances.map((row) => ({
+      instance: row.instance.trim(),
+      length: row.length || undefined,
+      interfaces: row.interfaces
+        .filter((di) => di.name?.trim())
+        .map((di) => ({
+          name: di.name.trim(),
+          address: di.address?.trim() || undefined,
+          sla_id: di.sla_id?.trim() || undefined,
+        })),
+    }));
+
+    const auth =
+      username.trim() || password
+        ? { username: username.trim() || undefined, password: password || undefined }
+        : undefined;
+
+    const hasDhcpv6 =
+      dhcpv6Duid.trim() ||
+      dhcpv6NoRelease ||
+      dhcpv6NoRequestDns ||
+      dhcpv6NoRequestDomainName ||
+      dhcpv6ParametersOnly ||
+      dhcpv6RapidCommit ||
+      dhcpv6Temporary ||
+      pd.length > 0;
+
+    const hasIp =
+      ipAdjustMss.trim() ||
+      ipAdjustMssClamp ||
+      ipDisableForwarding ||
+      !!ipSourceValidation;
+
+    const hasIpv6 =
+      ipv6AddressAutoconf ||
+      ipv6AddressDhcpv6 ||
+      ipv6AdjustMss.trim() ||
+      ipv6AdjustMssClamp ||
+      ipv6DisableForwarding ||
+      ipv6InterfaceIdentifier.trim();
+
+    return {
+      name: name.trim(),
+      description: description.trim() || undefined,
+      disabled: disabled || undefined,
+      source_interface: sourceInterface || undefined,
+      access_concentrator: accessConcentrator.trim() || undefined,
+      service_name: serviceName.trim() || undefined,
+      vrf: vrf.trim() || undefined,
+      redirect: redirect.trim() || undefined,
+      connect_on_demand: connectOnDemand || undefined,
+      default_route_distance: defaultRouteDistance.trim() || undefined,
+      no_default_route: noDefaultRoute || undefined,
+      no_peer_dns: noPeerDns || undefined,
+      holdoff: holdoff.trim() || undefined,
+      idle_timeout: idleTimeout.trim() || undefined,
+      host_uniq: hostUniq.trim() || undefined,
+      mtu: mtu.trim() || undefined,
+      mru: mru.trim() || undefined,
+      local_address: localAddress.trim() || undefined,
+      remote_address: remoteAddress.trim() || undefined,
+      authentication: auth,
+      dhcpv6_options: hasDhcpv6
+        ? {
+            duid: dhcpv6Duid.trim() || undefined,
+            no_release: dhcpv6NoRelease || undefined,
+            no_request_dns: dhcpv6NoRequestDns || undefined,
+            no_request_domain_name: dhcpv6NoRequestDomainName || undefined,
+            parameters_only: dhcpv6ParametersOnly || undefined,
+            rapid_commit: dhcpv6RapidCommit || undefined,
+            temporary: dhcpv6Temporary || undefined,
+            pd: pd.length > 0 ? pd : undefined,
+          }
+        : undefined,
+      ip: hasIp
+        ? {
+            adjust_mss: ipAdjustMssClamp ? undefined : ipAdjustMss.trim() || undefined,
+            adjust_mss_clamp_to_pmtu: ipAdjustMssClamp || undefined,
+            disable_forwarding: ipDisableForwarding || undefined,
+            source_validation: ipSourceValidation || undefined,
+          }
+        : undefined,
+      ipv6: hasIpv6
+        ? {
+            address_autoconf: ipv6AddressAutoconf || undefined,
+            address_dhcpv6: ipv6AddressDhcpv6 || undefined,
+            adjust_mss: ipv6AdjustMssClamp ? undefined : ipv6AdjustMss.trim() || undefined,
+            adjust_mss_clamp_to_pmtu: ipv6AdjustMssClamp || undefined,
+            disable_forwarding: ipv6DisableForwarding || undefined,
+            address_interface_identifier: ipv6InterfaceIdentifier.trim() || undefined,
+          }
+        : undefined,
+      mirror_ingress: mirrorIngress || undefined,
+      mirror_egress: mirrorEgress || undefined,
+    };
   };
 
   const buildUpdate = (): Partial<PppoeCreateConfig> => {
@@ -352,8 +533,37 @@ export function EditPppoeModal({
   };
 
   const handleSubmit = async () => {
-    if (!interfaceData) return;
-    const clientError = validate();
+    const write = pppoeWriteKind(existing);
+    if (write.kind === "update") {
+      if (!existing) return;
+      const clientError = validateShared();
+      if (clientError) {
+        setError(clientError);
+        return;
+      }
+      setError(null);
+      setLoading(true);
+      try {
+        const result = await pppoeService.updateInterface(
+          write.name,
+          existing,
+          buildUpdate(),
+        );
+        if (result.success) {
+          onOpenChange(false);
+          onSuccess();
+        } else {
+          setError(result.error || "Failed to update PPPoE interface");
+        }
+      } catch (err) {
+        setError((err as ApiError).message || "Failed to update PPPoE interface");
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    const clientError = validateCreate();
     if (clientError) {
       setError(clientError);
       return;
@@ -361,35 +571,41 @@ export function EditPppoeModal({
     setError(null);
     setLoading(true);
     try {
-      const result = await pppoeService.updateInterface(
-        interfaceData.name,
-        interfaceData,
-        buildUpdate(),
-      );
+      const result = await pppoeService.createInterface(buildConfig());
       if (result.success) {
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to update PPPoE interface");
+        setError(result.error || "Failed to create PPPoE interface");
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to update PPPoE interface");
+      setError((err as ApiError).message || "Failed to create PPPoE interface");
     } finally {
       setLoading(false);
     }
   };
 
-  if (!interfaceData) return null;
-
   const sourceOptions = availableEthernet ?? [];
+  const lockedName = pppoeLockedName(existing, name);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Edit PPPoE Interface: {interfaceData.name}</DialogTitle>
+          <DialogTitle>
+            {isEdit ? "Edit PPPoE Interface" : "Create PPPoE Interface"}
+          </DialogTitle>
           <DialogDescription>
-            Update this PPPoE session&apos;s configuration. Changes commit atomically.
+            {isEdit ? (
+              <>
+                Editing interface{" "}
+                <code className="rounded bg-muted px-1 py-0.5 font-mono text-sm">
+                  {existing.name}
+                </code>
+              </>
+            ) : (
+              "Dial up to an upstream access concentrator over an Ethernet source interface."
+            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -406,61 +622,91 @@ export function EditPppoeModal({
 
           {/* Basic */}
           <TabsContent value="basic" className="space-y-4">
-            <div>
-              <Label htmlFor="edit-pppoe-desc">Description</Label>
-              <Input
-                id="edit-pppoe-desc"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="pppoe-name">
+                  Interface Name {isEdit ? null : "*"}
+                </Label>
+                <Input
+                  id="pppoe-name"
+                  value={lockedName.value}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="pppoe0"
+                  disabled={lockedName.disabled}
+                />
+                {isEdit ? (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Interface name cannot be changed.
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Must match pattern pppoeN.
+                  </p>
+                )}
+              </div>
+              <div>
+                <Label htmlFor="pppoe-desc">Description</Label>
+                <Input
+                  id="pppoe-desc"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="ISP uplink"
+                />
+              </div>
             </div>
 
             <div>
-              <Label htmlFor="edit-pppoe-source">Source Interface</Label>
+              <Label htmlFor="pppoe-source">Source Interface {isEdit ? null : "*"}</Label>
               <InterfaceSelect
                 value={sourceInterface || "__none__"}
                 onValueChange={(v) => setSourceInterface(v === "__none__" ? "" : v)}
-                id="edit-pppoe-source"
+                id="pppoe-source"
                 interfaces={sourceOptions.map((n) => ({ name: n, type: "", description: null }))}
                 noneOption={{ label: "None", value: "__none__" }}
                 placeholder="Select ethernet or VLAN"
               />
+              <p className="text-xs text-muted-foreground mt-1">
+                Underlying interface used to establish the session.
+              </p>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="edit-pppoe-ac">Access Concentrator</Label>
+                <Label htmlFor="pppoe-ac">Access Concentrator</Label>
                 <Input
-                  id="edit-pppoe-ac"
+                  id="pppoe-ac"
                   value={accessConcentrator}
                   onChange={(e) => setAccessConcentrator(e.target.value)}
+                  placeholder="optional AC name"
                 />
               </div>
               <div>
-                <Label htmlFor="edit-pppoe-service">Service Name</Label>
+                <Label htmlFor="pppoe-service">Service Name</Label>
                 <Input
-                  id="edit-pppoe-service"
+                  id="pppoe-service"
                   value={serviceName}
                   onChange={(e) => setServiceName(e.target.value)}
+                  placeholder="only connect to ACs advertising this service"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="edit-pppoe-vrf">VRF</Label>
+                <Label htmlFor="pppoe-vrf">VRF</Label>
                 <VrfSelect
-                  id="edit-pppoe-vrf"
+                  id="pppoe-vrf"
                   value={vrf}
                   onValueChange={setVrf}
                 />
               </div>
               <div>
-                <Label htmlFor="edit-pppoe-redirect">Redirect Interface</Label>
+                <Label htmlFor="pppoe-redirect">Redirect Interface</Label>
                 <Input
-                  id="edit-pppoe-redirect"
+                  id="pppoe-redirect"
                   value={redirect}
                   onChange={(e) => setRedirect(e.target.value)}
+                  placeholder="destination interface for incoming packets"
                 />
               </div>
             </div>
@@ -478,18 +724,18 @@ export function EditPppoeModal({
           <TabsContent value="ppp" className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="edit-pppoe-user">PAP/CHAP Username</Label>
+                <Label htmlFor="pppoe-user">PAP/CHAP Username</Label>
                 <Input
-                  id="edit-pppoe-user"
+                  id="pppoe-user"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   autoComplete="off"
                 />
               </div>
               <div>
-                <Label htmlFor="edit-pppoe-pass">PAP/CHAP Password</Label>
+                <Label htmlFor="pppoe-pass">PAP/CHAP Password</Label>
                 <Input
-                  id="edit-pppoe-pass"
+                  id="pppoe-pass"
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -502,18 +748,18 @@ export function EditPppoeModal({
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="edit-pppoe-mtu">MTU</Label>
+                <Label htmlFor="pppoe-mtu">MTU</Label>
                 <Input
-                  id="edit-pppoe-mtu"
+                  id="pppoe-mtu"
                   value={mtu}
                   onChange={(e) => setMtu(e.target.value)}
                   placeholder="68-1500"
                 />
               </div>
               <div>
-                <Label htmlFor="edit-pppoe-mru">MRU</Label>
+                <Label htmlFor="pppoe-mru">MRU</Label>
                 <Input
-                  id="edit-pppoe-mru"
+                  id="pppoe-mru"
                   value={mru}
                   onChange={(e) => setMru(e.target.value)}
                   placeholder="128-16384"
@@ -523,46 +769,50 @@ export function EditPppoeModal({
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="edit-pppoe-local">Local Address (IPv4)</Label>
+                <Label htmlFor="pppoe-local">Local Address (IPv4)</Label>
                 <Input
-                  id="edit-pppoe-local"
+                  id="pppoe-local"
                   value={localAddress}
                   onChange={(e) => setLocalAddress(e.target.value)}
+                  placeholder="e.g. 10.0.0.1"
                 />
               </div>
               <div>
-                <Label htmlFor="edit-pppoe-remote">Remote Address (IPv4)</Label>
+                <Label htmlFor="pppoe-remote">Remote Address (IPv4)</Label>
                 <Input
-                  id="edit-pppoe-remote"
+                  id="pppoe-remote"
                   value={remoteAddress}
                   onChange={(e) => setRemoteAddress(e.target.value)}
+                  placeholder="e.g. 10.0.0.2"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-3 gap-4">
               <div>
-                <Label htmlFor="edit-pppoe-holdoff">Holdoff (s)</Label>
+                <Label htmlFor="pppoe-holdoff">Holdoff (seconds)</Label>
                 <Input
-                  id="edit-pppoe-holdoff"
+                  id="pppoe-holdoff"
                   value={holdoff}
                   onChange={(e) => setHoldoff(e.target.value)}
+                  placeholder="re-dial delay"
                 />
               </div>
               <div>
-                <Label htmlFor="edit-pppoe-idle">Idle Timeout (s)</Label>
+                <Label htmlFor="pppoe-idle">Idle Timeout (seconds)</Label>
                 <Input
-                  id="edit-pppoe-idle"
+                  id="pppoe-idle"
                   value={idleTimeout}
                   onChange={(e) => setIdleTimeout(e.target.value)}
                 />
               </div>
               <div>
-                <Label htmlFor="edit-pppoe-hostuniq">Host-Uniq (hex)</Label>
+                <Label htmlFor="pppoe-hostuniq">Host-Uniq (hex)</Label>
                 <Input
-                  id="edit-pppoe-hostuniq"
+                  id="pppoe-hostuniq"
                   value={hostUniq}
                   onChange={(e) => setHostUniq(e.target.value)}
+                  placeholder="RFC2516 host-uniq"
                 />
               </div>
             </div>
@@ -575,7 +825,7 @@ export function EditPppoeModal({
                 checked={connectOnDemand}
                 onCheckedChange={(v) => setConnectOnDemand(!!v)}
               />
-              <span>Connect on demand</span>
+              <span>Connect on demand (dial only when traffic is sent)</span>
             </label>
             <label className="flex items-center gap-2">
               <Checkbox
@@ -585,9 +835,9 @@ export function EditPppoeModal({
               <span>Do not install a default route</span>
             </label>
             <div>
-              <Label htmlFor="edit-pppoe-drd">Default Route Distance</Label>
+              <Label htmlFor="pppoe-drd">Default Route Distance</Label>
               <Input
-                id="edit-pppoe-drd"
+                id="pppoe-drd"
                 value={defaultRouteDistance}
                 onChange={(e) => setDefaultRouteDistance(e.target.value)}
                 placeholder="1-255"
@@ -628,17 +878,17 @@ export function EditPppoeModal({
                 checked={ipDisableForwarding}
                 onCheckedChange={(v) => setIpDisableForwarding(!!v)}
               />
-              <span>Disable IPv4 forwarding</span>
+              <span>Disable IPv4 forwarding on this interface</span>
             </label>
             <div>
-              <Label htmlFor="edit-pppoe-srcval">Source Validation</Label>
+              <Label htmlFor="pppoe-srcval">Source Validation</Label>
               <Select
                 value={ipSourceValidation || "__none__"}
                 onValueChange={(v) =>
                   setIpSourceValidation(v === "__none__" ? "" : v)
                 }
               >
-                <SelectTrigger id="edit-pppoe-srcval">
+                <SelectTrigger id="pppoe-srcval">
                   <SelectValue placeholder="Not set" />
                 </SelectTrigger>
                 <SelectContent>
@@ -695,15 +945,16 @@ export function EditPppoeModal({
                 checked={ipv6DisableForwarding}
                 onCheckedChange={(v) => setIpv6DisableForwarding(!!v)}
               />
-              <span>Disable IPv6 forwarding</span>
+              <span>Disable IPv6 forwarding on this interface</span>
             </label>
             {feat("ipv6_address_interface_identifier") && (
               <div>
-                <Label htmlFor="edit-pppoe-ipv6-iid">Interface Identifier</Label>
+                <Label htmlFor="pppoe-ipv6-iid">Interface Identifier</Label>
                 <Input
-                  id="edit-pppoe-ipv6-iid"
+                  id="pppoe-ipv6-iid"
                   value={ipv6InterfaceIdentifier}
                   onChange={(e) => setIpv6InterfaceIdentifier(e.target.value)}
+                  placeholder="manual SLAAC identifier"
                 />
               </div>
             )}
@@ -712,13 +963,15 @@ export function EditPppoeModal({
           {/* DHCPv6 */}
           <TabsContent value="dhcpv6" className="space-y-4">
             <div>
-              <Label htmlFor="edit-pppoe-duid">DUID</Label>
+              <Label htmlFor="pppoe-duid">DUID</Label>
               <Input
-                id="edit-pppoe-duid"
+                id="pppoe-duid"
                 value={dhcpv6Duid}
                 onChange={(e) => setDhcpv6Duid(e.target.value)}
+                placeholder="DHCP Unique Identifier"
               />
             </div>
+
             <div className="grid grid-cols-2 gap-3">
               <label className="flex items-center gap-2">
                 <Checkbox
@@ -806,6 +1059,7 @@ export function EditPppoeModal({
                       onChange={(e) =>
                         updatePdInstance(idx, { instance: e.target.value })
                       }
+                      placeholder="instance id"
                     />
                   </div>
                   <div>
@@ -860,6 +1114,7 @@ export function EditPppoeModal({
                               name: e.target.value,
                             })
                           }
+                          placeholder="eth1"
                         />
                       </div>
                       <div>
@@ -871,6 +1126,7 @@ export function EditPppoeModal({
                               address: e.target.value,
                             })
                           }
+                          placeholder="optional"
                         />
                       </div>
                       <div>
@@ -882,6 +1138,7 @@ export function EditPppoeModal({
                               sla_id: e.target.value,
                             })
                           }
+                          placeholder="optional"
                         />
                       </div>
                       <Button
@@ -903,22 +1160,22 @@ export function EditPppoeModal({
           {/* Mirror */}
           <TabsContent value="mirror" className="space-y-4">
             <div>
-              <Label htmlFor="edit-pppoe-mirror-in">Ingress Mirror Interface</Label>
+              <Label htmlFor="pppoe-mirror-in">Ingress Mirror Interface</Label>
               <InterfaceSelect
                 value={mirrorIngress || "__none__"}
                 onValueChange={(v) => setMirrorIngress(v === "__none__" ? "" : v)}
-                id="edit-pppoe-mirror-in"
+                id="pppoe-mirror-in"
                 interfaces={sourceOptions.map((n) => ({ name: n, type: "", description: null }))}
                 noneOption={{ label: "None", value: "__none__" }}
                 placeholder="Select interface"
               />
             </div>
             <div>
-              <Label htmlFor="edit-pppoe-mirror-out">Egress Mirror Interface</Label>
+              <Label htmlFor="pppoe-mirror-out">Egress Mirror Interface</Label>
               <InterfaceSelect
                 value={mirrorEgress || "__none__"}
                 onValueChange={(v) => setMirrorEgress(v === "__none__" ? "" : v)}
-                id="edit-pppoe-mirror-out"
+                id="pppoe-mirror-out"
                 interfaces={sourceOptions.map((n) => ({ name: n, type: "", description: null }))}
                 noneOption={{ label: "None", value: "__none__" }}
                 placeholder="Select interface"
@@ -945,10 +1202,12 @@ export function EditPppoeModal({
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
+                {isEdit ? "Saving..." : "Creating..."}
               </>
-            ) : (
+            ) : isEdit ? (
               "Save Changes"
+            ) : (
+              "Create Interface"
             )}
           </Button>
         </DialogFooter>

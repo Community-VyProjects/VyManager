@@ -58,8 +58,7 @@ import { DeleteBridgeModal } from "@/components/bridge/DeleteBridgeModal";
 import { BridgeVifModal } from "@/components/bridge/BridgeVifModal";
 import { DeleteBridgeVifModal } from "@/components/bridge/DeleteBridgeVifModal";
 import { pppoeService, type PppoeInterface, type PppoeCapabilities } from "@/lib/api/pppoe";
-import { CreatePppoeModal } from "@/components/pppoe/CreatePppoeModal";
-import { EditPppoeModal } from "@/components/pppoe/EditPppoeModal";
+import { PppoeModal } from "@/components/pppoe/PppoeModal";
 import { DeletePppoeModal } from "@/components/pppoe/DeletePppoeModal";
 import { pseudoEthernetService, type PseudoEthernetInterface, type PseudoEthernetCapabilities } from "@/lib/api/pseudo-ethernet";
 import { CreatePseudoEthernetModal } from "@/components/pseudo-ethernet/CreatePseudoEthernetModal";
@@ -4402,24 +4401,22 @@ function InterfacesPageInner() {
         interfaceData={deletingBonding}
       />
       {/* PPPoE Modals */}
-      <CreatePppoeModal
-        open={isCreatePppoeModalOpen}
-        onOpenChange={setIsCreatePppoeModalOpen}
-        onSuccess={loadData}
-        capabilities={pppoeCapabilities}
-        existingInterfaces={pppoeInterfaces.map((i) => i.name)}
-        availableEthernet={interfaces.map((i) => i.name)}
-      />
-      <EditPppoeModal
-        open={!!editingPppoe}
-        onOpenChange={(open) => !open && setEditingPppoe(null)}
+      <PppoeModal
+        open={isCreatePppoeModalOpen || !!editingPppoe}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsCreatePppoeModalOpen(false);
+            setEditingPppoe(null);
+          }
+        }}
         onSuccess={() => {
           setEditingPppoe(null);
           loadData();
         }}
         capabilities={pppoeCapabilities}
-        interfaceData={editingPppoe}
+        existingInterfaces={pppoeInterfaces.map((i) => i.name)}
         availableEthernet={interfaces.map((i) => i.name)}
+        existing={editingPppoe}
       />
       <DeletePppoeModal
         open={!!deletingPppoe}
