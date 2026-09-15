@@ -32,12 +32,12 @@ Run it as the `vyos` user (SSH or local console). It walks through SSH, the HTTP
 
 - Enables `service ssh` only when it is missing. It never changes an existing SSH listen-address, port, or keys, and it never disables SSH.
 - Enables the HTTPS API, GraphQL, and (on devices that have it) REST. A new API key is a long random value, not a well-known string. If HTTPS is new, API listen-address is the web UI IP you picked, not `0.0.0.0`. Existing listen-address and port are left alone.
-- Creates `vymanager-postgres`, `vymanager-backend`, and `vymanager-frontend` on a private container network. Postgres data is `/config/containers/vymanager-postgres` (persistent disk under `/config`, same layout as Apps).
-- Binds the web UI to one host IP (not every interface). It builds `http://<that-ip>:<port>` for you; you do not type a URL.
+- Creates `vymanager-postgres`, `vymanager-backend`, and `vymanager-frontend` on a private container network with static IPs. Postgres data is `/config/containers/vymanager-postgres` (persistent disk under `/config`, same layout as Apps). VyOS cannot publish container ports on that network, so the installer writes destination NAT (UI port to the frontend container, 8000 to the backend) instead of `container ... port`. You pick the inbound interface and rule numbers; it suggests the interface that owns the UI IP and free rule numbers from 9000.
+- Binds reachability to one host IP (not every interface). It builds `http://<that-ip>:<port>` for you; you do not type a URL.
 - Sets appliance env: `VYMANAGER_MODE=appliance`, generated database and auth secrets, `SSH_ENCRYPTION_KEY`, `TRUSTED_ORIGINS` from that URL, and `VYMANAGER_APPLIANCE_HOST` as the same IP so containers can reach the HTTPS API (not `127.0.0.1` inside a container netns).
 - Pulls `postgres:16-alpine` and the `ghcr.io/community-vyprojects/vymanager-*:beta` images. If the default routing table cannot reach ghcr.io, it asks for a VRF.
 
-It does **not** write firewall, NAT, or zone-policy. Topologies differ too much. You still need the UI IP reachable from your browser.
+It does **not** write firewall, source NAT, or zone-policy. Destination NAT for the UI and API websocket is in the same `set` list you approve.
 
 On failure it discards the configure session. Images that already pulled may stay.
 
