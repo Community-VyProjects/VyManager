@@ -365,7 +365,7 @@ export function ContainersTab({ config, capabilities, hasWritePermission, onRelo
         success={ssh.success}
         output={ssh.output}
         error={ssh.error}
-        busyLabel="Pulling images and restarting. This page will reload."
+        busyLabel="Update in progress..."
       />
 
       {ssh.loading && (
