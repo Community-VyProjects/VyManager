@@ -3,9 +3,9 @@
  * Export all NAT-related modal components
  */
 
-export { CreateSourceNATModal } from "./CreateSourceNATModal";
-export { CreateDestinationNATModal } from "./CreateDestinationNATModal";
-export { CreateStaticNATModal } from "./CreateStaticNATModal";
+export { SourceNATModal } from "./SourceNATModal";
+export { DestinationNATModal } from "./DestinationNATModal";
+export { StaticNATModal } from "./StaticNATModal";
 export { DeleteNATModal } from "./DeleteNATModal";
 
 // Re-export ethernet modals for convenience
