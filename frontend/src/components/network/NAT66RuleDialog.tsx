@@ -65,15 +65,9 @@ export function NAT66RuleDialog({
   const [protocol, setProtocol] = useState("all");
   const [interfaceName, setInterfaceName] = useState("");
 
-  // Source - radio toggle: user input vs firewall group
-  const [sourceType, setSourceType] = useState<"input" | "group">("input");
+  // Source
   const [sourceValue, setSourceValue] = useState("");
-  const [sourceGroupType, setSourceGroupType] = useState("");
-  const [sourceGroupName, setSourceGroupName] = useState("");
-  // Source port - radio toggle: user input vs port group
-  const [sourcePortType, setSourcePortType] = useState<"input" | "group">("input");
   const [sourcePort, setSourcePort] = useState("");
-  const [sourcePortGroupName, setSourcePortGroupName] = useState("");
 
   // Destination - radio toggle: user input vs firewall group
   const [destinationType, setDestinationType] = useState<"input" | "group">("input");
@@ -145,13 +139,8 @@ export function NAT66RuleDialog({
     setDescription("");
     setProtocol("all");
     setInterfaceName("");
-    setSourceType("input");
     setSourceValue("");
-    setSourceGroupType("");
-    setSourceGroupName("");
-    setSourcePortType("input");
     setSourcePort("");
-    setSourcePortGroupName("");
     setDestinationType("input");
     setDestinationValue("");
     setDestinationGroupType("");
@@ -182,36 +171,8 @@ export function NAT66RuleDialog({
         if (isSource) {
           const rule = editingRule as NAT66SourceRule;
           setInterfaceName(rule.outbound_interface || "");
-          // Determine source type: address group or user input
-          const srcGroup = rule.source?.group;
-          const srcHasAddrGroup = srcGroup && (srcGroup.address_group || srcGroup.network_group || srcGroup.domain_group || srcGroup.mac_group);
-          if (srcHasAddrGroup) {
-            setSourceType("group");
-            if (srcGroup.address_group) { setSourceGroupType("address-group"); setSourceGroupName(srcGroup.address_group); }
-            else if (srcGroup.network_group) { setSourceGroupType("network-group"); setSourceGroupName(srcGroup.network_group); }
-            else if (srcGroup.domain_group) { setSourceGroupType("domain-group"); setSourceGroupName(srcGroup.domain_group); }
-            else if (srcGroup.mac_group) { setSourceGroupType("mac-group"); setSourceGroupName(srcGroup.mac_group); }
-            setSourceValue("");
-          } else {
-            setSourceType("input");
-            setSourceValue(rule.source?.prefix || "");
-            setSourceGroupType("");
-            setSourceGroupName("");
-          }
-          // Source port: port group or user input
-          if (srcGroup?.port_group) {
-            setSourcePortType("group");
-            setSourcePortGroupName(srcGroup.port_group);
-            setSourcePort("");
-          } else if (rule.source?.port) {
-            setSourcePortType("input");
-            setSourcePort(rule.source.port);
-            setSourcePortGroupName("");
-          } else {
-            setSourcePortType("input");
-            setSourcePort("");
-            setSourcePortGroupName("");
-          }
+          setSourceValue(rule.source?.prefix || "");
+          setSourcePort(rule.source?.port || "");
           // Destination address group or user input
           const dstGroup = rule.destination?.group;
           const dstHasAddrGroup = dstGroup && (dstGroup.address_group || dstGroup.network_group || dstGroup.domain_group || dstGroup.mac_group);
@@ -245,36 +206,8 @@ export function NAT66RuleDialog({
         } else {
           const rule = editingRule as NAT66DestinationRule;
           setInterfaceName(rule.inbound_interface || "");
-          // Source address group or user input
-          const srcGroup = rule.source?.group;
-          const srcHasAddrGroup = srcGroup && (srcGroup.address_group || srcGroup.network_group || srcGroup.domain_group || srcGroup.mac_group);
-          if (srcHasAddrGroup) {
-            setSourceType("group");
-            if (srcGroup.address_group) { setSourceGroupType("address-group"); setSourceGroupName(srcGroup.address_group); }
-            else if (srcGroup.network_group) { setSourceGroupType("network-group"); setSourceGroupName(srcGroup.network_group); }
-            else if (srcGroup.domain_group) { setSourceGroupType("domain-group"); setSourceGroupName(srcGroup.domain_group); }
-            else if (srcGroup.mac_group) { setSourceGroupType("mac-group"); setSourceGroupName(srcGroup.mac_group); }
-            setSourceValue("");
-          } else {
-            setSourceType("input");
-            setSourceValue(rule.source?.address || "");
-            setSourceGroupType("");
-            setSourceGroupName("");
-          }
-          // Source port
-          if (srcGroup?.port_group) {
-            setSourcePortType("group");
-            setSourcePortGroupName(srcGroup.port_group);
-            setSourcePort("");
-          } else if (rule.source?.port) {
-            setSourcePortType("input");
-            setSourcePort(rule.source.port);
-            setSourcePortGroupName("");
-          } else {
-            setSourcePortType("input");
-            setSourcePort("");
-            setSourcePortGroupName("");
-          }
+          setSourceValue(rule.source?.address || "");
+          setSourcePort(rule.source?.port || "");
           // Destination address group or user input
           const dstGroup = rule.destination?.group;
           const dstHasAddrGroup = dstGroup && (dstGroup.address_group || dstGroup.network_group || dstGroup.domain_group || dstGroup.mac_group);
@@ -327,10 +260,9 @@ export function NAT66RuleDialog({
           : translationAddress || undefined;
 
       // Determine source/dest values based on radio selection
-      const effectiveSourceValue = sourceType === "input" ? sourceValue : undefined;
+      const effectiveSourceValue = sourceValue;
       const effectiveDestValue = destinationType === "input" ? destinationValue : undefined;
-      // Port is only sent when user picked "input" for port
-      const effectiveSourcePort = sourcePortType === "input" ? sourcePort : undefined;
+      const effectiveSourcePort = sourcePort;
       const effectiveDestPort = destPortType === "input" ? destinationPort : undefined;
 
       if (isSource) {
@@ -371,22 +303,6 @@ export function NAT66RuleDialog({
           });
         }
 
-        // Handle source address groups
-        if (sourceType === "group" && sourceGroupType && sourceGroupName && groupsSupported) {
-          await nat66Service.batchConfigure(
-            isEditing ? editingRule!.rule_number : nextRuleNumber,
-            "source",
-            [{ op: "set_source_rule_source_group", value: `${sourceGroupType}:${sourceGroupName}` }]
-          );
-        }
-        // Handle source port group
-        if (sourcePortType === "group" && sourcePortGroupName && groupsSupported) {
-          await nat66Service.batchConfigure(
-            isEditing ? editingRule!.rule_number : nextRuleNumber,
-            "source",
-            [{ op: "set_source_rule_source_group", value: `port-group:${sourcePortGroupName}` }]
-          );
-        }
         // Handle destination address groups
         if (destinationType === "group" && destinationGroupType && destinationGroupName && groupsSupported) {
           await nat66Service.batchConfigure(
@@ -441,22 +357,6 @@ export function NAT66RuleDialog({
           });
         }
 
-        // Handle source address groups
-        if (sourceType === "group" && sourceGroupType && sourceGroupName && groupsSupported) {
-          await nat66Service.batchConfigure(
-            isEditing ? editingRule!.rule_number : nextRuleNumber,
-            "destination",
-            [{ op: "set_destination_rule_source_group", value: `${sourceGroupType}:${sourceGroupName}` }]
-          );
-        }
-        // Handle source port group
-        if (sourcePortType === "group" && sourcePortGroupName && groupsSupported) {
-          await nat66Service.batchConfigure(
-            isEditing ? editingRule!.rule_number : nextRuleNumber,
-            "destination",
-            [{ op: "set_destination_rule_source_group", value: `port-group:${sourcePortGroupName}` }]
-          );
-        }
         // Handle destination address groups
         if (destinationType === "group" && destinationGroupType && destinationGroupName && groupsSupported) {
           await nat66Service.batchConfigure(
@@ -624,97 +524,26 @@ export function NAT66RuleDialog({
 
             {/* Source Tab */}
             <TabsContent value="source" className="space-y-4">
-              {/* Source address/prefix vs firewall group — independent of port */}
-              <div className="space-y-3">
-                <Label className="text-base font-medium">{isSource ? "Source Prefix" : "Source Address"}</Label>
-                <RadioGroup value={sourceType} onValueChange={(v) => setSourceType(v as "input" | "group")}>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="input" id="nat66-source-input-radio" />
-                    <Label htmlFor="nat66-source-input-radio">Address/Network</Label>
-                  </div>
-                  {groupsSupported && (
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="group" id="nat66-source-group-radio" />
-                      <Label htmlFor="nat66-source-group-radio">Firewall Group</Label>
-                    </div>
-                  )}
-                </RadioGroup>
-
-                {sourceType === "input" ? (
-                  <Input
-                    id="nat66-source-input"
-                    value={sourceValue}
-                    onChange={(e) => setSourceValue(e.target.value)}
-                    placeholder={isSource ? "fd00::/64" : "fd00::1"}
-                    className="font-mono"
-                  />
-                ) : (
-                  <div className="space-y-2">
-                    <Select value={sourceGroupType} onValueChange={(v) => { setSourceGroupType(v); setSourceGroupName(""); }}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select group type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="address-group">IPv6 Address Group</SelectItem>
-                        <SelectItem value="network-group">IPv6 Network Group</SelectItem>
-                        <SelectItem value="domain-group">Domain Group</SelectItem>
-                        <SelectItem value="mac-group">MAC Group</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Select value={sourceGroupName} onValueChange={setSourceGroupName}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select group" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {getGroupsByType(sourceGroupType).map((g) => (
-                          <SelectItem key={g.name} value={g.name}>{g.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
+              <div className="space-y-2">
+                <Label htmlFor="nat66-source-input">{isSource ? "Source Prefix" : "Source Address"}</Label>
+                <Input
+                  id="nat66-source-input"
+                  value={sourceValue}
+                  onChange={(e) => setSourceValue(e.target.value)}
+                  placeholder={isSource ? "fd00::/64" : "fd00::1"}
+                  className="font-mono"
+                />
               </div>
 
-              {/* Source port vs port group — independent of address */}
-              <div className="space-y-3">
-                <Label className="text-base font-medium">Source Port</Label>
-                <RadioGroup value={sourcePortType} onValueChange={(v) => {
-                  setSourcePortType(v as "input" | "group");
-                  if (v === "input") setSourcePortGroupName("");
-                  if (v === "group") setSourcePort("");
-                }}>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="input" id="nat66-source-port-input-radio" />
-                    <Label htmlFor="nat66-source-port-input-radio">Port</Label>
-                  </div>
-                  {groupsSupported && (
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="group" id="nat66-source-port-group-radio" />
-                      <Label htmlFor="nat66-source-port-group-radio">Port Group</Label>
-                    </div>
-                  )}
-                </RadioGroup>
-
-                {sourcePortType === "input" ? (
-                  <Input
-                    id="nat66-source-port"
-                    value={sourcePort}
-                    onChange={(e) => setSourcePort(e.target.value)}
-                    placeholder="e.g., 80, 443, 1024-65535"
-                    className="font-mono"
-                  />
-                ) : (
-                  <Select value={sourcePortGroupName} onValueChange={setSourcePortGroupName}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select port group" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {getPortGroups().map((g) => (
-                        <SelectItem key={g.name} value={g.name}>{g.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
+              <div className="space-y-2">
+                <Label htmlFor="nat66-source-port">Source Port</Label>
+                <Input
+                  id="nat66-source-port"
+                  value={sourcePort}
+                  onChange={(e) => setSourcePort(e.target.value)}
+                  placeholder="e.g., 80, 443, 1024-65535"
+                  className="font-mono"
+                />
               </div>
             </TabsContent>
 

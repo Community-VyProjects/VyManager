@@ -74,7 +74,6 @@ class NAT66RuleSource(BaseModel):
     address: Optional[str] = None
     prefix: Optional[str] = None
     port: Optional[str] = None
-    group: Optional[NAT66RuleGroup] = None
 
 
 class NAT66RuleDestination(BaseModel):
@@ -175,7 +174,6 @@ def _parse_source_rules(rules_config: dict) -> List[NAT66SourceRule]:
         source = NAT66RuleSource(
             prefix=source_config.get("prefix"),
             port=source_config.get("port"),
-            group=_parse_group(source_config.get("group", {})),
         ) if source_config else None
 
         destination = NAT66RuleDestination(
@@ -224,7 +222,6 @@ def _parse_destination_rules(rules_config: dict) -> List[NAT66DestinationRule]:
         source = NAT66RuleSource(
             address=source_config.get("address"),
             port=source_config.get("port"),
-            group=_parse_group(source_config.get("group", {})),
         ) if source_config else None
 
         destination = NAT66RuleDestination(
