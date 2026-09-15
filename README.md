@@ -141,7 +141,15 @@ The script will:
 
 ### On-box (VyOS appliance)
 
-To run VyManager as containers on the router it manages, copy `install-vyos.sh` from the `beta` branch, read it, then run `vbash install-vyos.sh` as the `vyos` user. Do not pipe curl into vbash. Details: [On-box VyOS install](https://docs.vyprojects.org/getting-started/install-vyos).
+Run VyManager on the router it manages. Save the script, read it, then run it as `vyos`. Do not pipe curl into vbash.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Community-VyProjects/VyManager/beta/install-vyos.sh -o install-vyos.sh
+less install-vyos.sh
+vbash install-vyos.sh
+```
+
+Details (prompts, dest NAT, WAN warning): [On-box VyOS install](https://docs.vyprojects.org/getting-started/install-vyos).
 
 <!--
 > [!NOTE]  

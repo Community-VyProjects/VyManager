@@ -16,7 +16,7 @@ For the standard Docker deployment you need:
 
 The interactive installer (`install.sh`) supports Ubuntu, Debian, Fedora, CentOS/RHEL/Rocky/Alma, Arch and openSUSE, and installs Docker for you if it is missing.
 
-To run the stack on the VyOS router itself, use [`install-vyos.sh`](install-vyos) on the router (download, read, `vbash`). That path does not use Docker Compose.
+To run the stack on the VyOS router itself, use [`install-vyos.sh`](install-vyos) on the router (download, read, `vbash`). That path does not use Docker Compose. Plan on about 4 GB RAM and persistent disk under `/config/containers/vymanager-postgres`.
 
 For a manual (non-Docker) install you need:
 
