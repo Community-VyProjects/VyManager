@@ -147,6 +147,12 @@ class OspfBatchBuilder(BatchBuilder):
     def set_area_virtual_link_retransmit_interval(self, area_id: str, address: str, value: str) -> "OspfBatchBuilder":
         return self.add_set(self.m.get_area_virtual_link_retransmit_interval(area_id, address, value))
 
+    def set_area_virtual_link_retransmit_window(self, area_id: str, address: str, value: str) -> "OspfBatchBuilder":
+        return self.add_set(self.m.get_area_virtual_link_retransmit_window(area_id, address, value))
+
+    def delete_area_virtual_link_retransmit_window(self, area_id: str, address: str) -> "OspfBatchBuilder":
+        return self.add_delete(self.m.get_area_virtual_link_retransmit_window_delete(area_id, address))
+
     def set_area_virtual_link_transmit_delay(self, area_id: str, address: str, value: str) -> "OspfBatchBuilder":
         return self.add_set(self.m.get_area_virtual_link_transmit_delay(area_id, address, value))
 
@@ -198,6 +204,12 @@ class OspfBatchBuilder(BatchBuilder):
 
     def delete_interface_retransmit_interval(self, iface: str) -> "OspfBatchBuilder":
         return self.add_delete(self.m.get_interface_retransmit_interval_delete(iface))
+
+    def set_interface_retransmit_window(self, iface: str, value: str) -> "OspfBatchBuilder":
+        return self.add_set(self.m.get_interface_retransmit_window(iface, value))
+
+    def delete_interface_retransmit_window(self, iface: str) -> "OspfBatchBuilder":
+        return self.add_delete(self.m.get_interface_retransmit_window_delete(iface))
 
     def set_interface_transmit_delay(self, iface: str, value: str) -> "OspfBatchBuilder":
         return self.add_set(self.m.get_interface_transmit_delay(iface, value))

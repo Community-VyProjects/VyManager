@@ -48,6 +48,7 @@ class OspfVirtualLink(BaseModel):
     dead_interval: Optional[int] = None
     hello_interval: Optional[int] = None
     retransmit_interval: Optional[int] = None
+    retransmit_window: Optional[int] = None
     transmit_delay: Optional[int] = None
 
 
@@ -81,6 +82,7 @@ class OspfInterface(BaseModel):
     hello_interval: Optional[int] = None
     dead_interval: Optional[int] = None
     retransmit_interval: Optional[int] = None
+    retransmit_window: Optional[int] = None
     transmit_delay: Optional[int] = None
     network: Optional[str] = None
     passive: Optional[bool] = None
@@ -415,6 +417,7 @@ def parse_areas(raw: dict) -> List[OspfArea]:
                 dead_interval=_safe_int(vl_config.get("dead-interval")),
                 hello_interval=_safe_int(vl_config.get("hello-interval")),
                 retransmit_interval=_safe_int(vl_config.get("retransmit-interval")),
+                retransmit_window=_safe_int(vl_config.get("retransmit-window")),
                 transmit_delay=_safe_int(vl_config.get("transmit-delay")),
             ))
 
@@ -472,6 +475,7 @@ def parse_interfaces(raw: dict) -> List[OspfInterface]:
             hello_interval=_safe_int(config.get("hello-interval")),
             dead_interval=_safe_int(config.get("dead-interval")),
             retransmit_interval=_safe_int(config.get("retransmit-interval")),
+            retransmit_window=_safe_int(config.get("retransmit-window")),
             transmit_delay=_safe_int(config.get("transmit-delay")),
             network=config.get("network"),
             passive=passive,
