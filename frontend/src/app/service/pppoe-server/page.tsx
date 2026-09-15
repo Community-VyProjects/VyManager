@@ -68,6 +68,7 @@ import {
 import { usePermissions } from "@/hooks/usePermissions";
 import { useDashboardSSE } from "@/hooks/useDashboardSSE";
 import { FeatureGroup } from "@/lib/api/user-management";
+import { thrownMessage } from "@/lib/api-error";
 import {
   DeleteConfirmModal,
   GeneralSettingsModal,
@@ -414,7 +415,7 @@ function PPPoEPageInner() {
       const result = await pppoeServerService.getSessionConnections(session.interface, session.ip);
       setConnections(result.connections);
     } catch (err) {
-      setConnectionsError(err instanceof Error ? err.message : "Failed to load connections");
+      setConnectionsError(thrownMessage(err));
     } finally {
       setConnectionsLoading(false);
     }

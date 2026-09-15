@@ -22,6 +22,7 @@ from pppoe_status import (
     PPPoESessionsUnavailable,
     load_pppoe_sessions,
 )
+from pppoe_connections import conntrack_show_path
 import inspect
 import logging
 import uuid
@@ -386,7 +387,9 @@ async def get_pppoe_session_connections(
 
     try:
         service = get_session_vyos_service(http_request)
-        response = await run_in_threadpool(service.device.show, path=["conntrack"])
+        response = await run_in_threadpool(
+            service.device.show, path=conntrack_show_path(ip)
+        )
         if response.status != 200:
             raise HTTPException(
                 status_code=502,
