@@ -50,8 +50,11 @@ export function LocalRouteRuleRow({ rule, onEdit, onDelete }: LocalRouteRuleRowP
 
       {/* Source */}
       <TableCell>
-        {rule.source ? (
-          <span className="font-mono text-sm">{rule.source}</span>
+        {rule.source || rule.source_port ? (
+          <span className="font-mono text-sm">
+            {rule.source || "any"}
+            {rule.source_port ? ` port ${rule.source_port}` : ""}
+          </span>
         ) : (
           <span className="text-muted-foreground text-sm">—</span>
         )}
@@ -59,8 +62,29 @@ export function LocalRouteRuleRow({ rule, onEdit, onDelete }: LocalRouteRuleRowP
 
       {/* Destination */}
       <TableCell>
-        {rule.destination ? (
-          <span className="font-mono text-sm">{rule.destination}</span>
+        {rule.destination || rule.destination_port ? (
+          <span className="font-mono text-sm">
+            {rule.destination || "any"}
+            {rule.destination_port ? ` port ${rule.destination_port}` : ""}
+          </span>
+        ) : (
+          <span className="text-muted-foreground text-sm">—</span>
+        )}
+      </TableCell>
+
+      {/* Protocol */}
+      <TableCell>
+        {rule.protocol ? (
+          <span className="font-mono text-sm">{rule.protocol}</span>
+        ) : (
+          <span className="text-muted-foreground text-sm">—</span>
+        )}
+      </TableCell>
+
+      {/* Fwmark */}
+      <TableCell>
+        {rule.fwmark ? (
+          <span className="font-mono text-sm">{rule.fwmark}</span>
         ) : (
           <span className="text-muted-foreground text-sm">—</span>
         )}

@@ -84,6 +84,10 @@ function LocalRoutePageInner() {
       rule.source?.toLowerCase().includes(query) ||
       rule.destination?.toLowerCase().includes(query) ||
       rule.inbound_interface?.toLowerCase().includes(query) ||
+      rule.protocol?.toLowerCase().includes(query) ||
+      rule.fwmark?.toLowerCase().includes(query) ||
+      rule.source_port?.toLowerCase().includes(query) ||
+      rule.destination_port?.toLowerCase().includes(query) ||
       rule.table?.toLowerCase().includes(query)
     );
   });
@@ -320,6 +324,8 @@ function LocalRoutePageInner() {
                           <TableHead className="w-24">Rule</TableHead>
                           <TableHead>Source</TableHead>
                           <TableHead>Destination</TableHead>
+                          <TableHead>Protocol</TableHead>
+                          <TableHead>Fwmark</TableHead>
                           <TableHead>Interface</TableHead>
                           <TableHead>Table</TableHead>
                           <TableHead>VRF</TableHead>
@@ -387,6 +393,8 @@ function LocalRoutePageInner() {
                           <TableHead className="w-24">Rule</TableHead>
                           <TableHead>Source</TableHead>
                           <TableHead>Destination</TableHead>
+                          <TableHead>Protocol</TableHead>
+                          <TableHead>Fwmark</TableHead>
                           <TableHead>Interface</TableHead>
                           <TableHead>Table</TableHead>
                           <TableHead>VRF</TableHead>

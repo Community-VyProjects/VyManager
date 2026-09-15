@@ -33,6 +33,10 @@ class LocalRouteRule(BaseModel):
     source: Optional[str] = Field(None, description="Source address or prefix")
     destination: Optional[str] = Field(None, description="Destination address or prefix")
     inbound_interface: Optional[str] = Field(None, description="Inbound interface name")
+    fwmark: Optional[str] = Field(None, description="Firewall mark to match")
+    protocol: Optional[str] = Field(None, description="IP protocol name or number")
+    source_port: Optional[str] = Field(None, description="Source port")
+    destination_port: Optional[str] = Field(None, description="Destination port")
     table: Optional[str] = Field(None, description="Routing table (1-200 or 'main')")
     vrf: Optional[str] = Field(None, description="VRF instance name (VyOS 1.5+ only)")
 
@@ -137,8 +141,48 @@ def parse_address_field(value):
         # VyOS returns {'address': ['10.2.4.5']}
         addresses = value["address"]
         if isinstance(addresses, list) and len(addresses) > 0:
-            return addresses[0]
+            return str(addresses[0])
+        if isinstance(addresses, str):
+            return addresses
     return None
+
+
+def parse_leaf(value) -> Optional[str]:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return value
+    if isinstance(value, (int, float)):
+        return str(value)
+    if isinstance(value, list) and value:
+        return parse_leaf(value[0])
+    if isinstance(value, dict) and value:
+        return str(next(iter(value.keys())))
+    return None
+
+
+def parse_container_leaf(container, key: str) -> Optional[str]:
+    if not isinstance(container, dict):
+        return None
+    return parse_leaf(container.get(key))
+
+
+def _parse_rule(rule_num_str, rule_data) -> LocalRouteRule:
+    source = rule_data.get("source")
+    destination = rule_data.get("destination")
+    set_data = rule_data.get("set") if isinstance(rule_data.get("set"), dict) else {}
+    return LocalRouteRule(
+        rule_number=int(rule_num_str),
+        source=parse_address_field(source),
+        destination=parse_address_field(destination),
+        inbound_interface=parse_leaf(rule_data.get("inbound-interface")),
+        fwmark=parse_leaf(rule_data.get("fwmark")),
+        protocol=parse_leaf(rule_data.get("protocol")),
+        source_port=parse_container_leaf(source, "port"),
+        destination_port=parse_container_leaf(destination, "port"),
+        table=parse_leaf(set_data.get("table")),
+        vrf=parse_leaf(set_data.get("vrf")),
+    )
 
 
 @router.get("/config", response_model=LocalRouteConfigResponse)
@@ -167,30 +211,14 @@ async def get_local_route_config(http_request: Request, refresh: bool = False):
             local_route_config = full_config["policy"]["local-route"]
             if "rule" in local_route_config:
                 for rule_num_str, rule_data in local_route_config["rule"].items():
-                    rule = LocalRouteRule(
-                        rule_number=int(rule_num_str),
-                        source=parse_address_field(rule_data.get("source")),
-                        destination=parse_address_field(rule_data.get("destination")),
-                        inbound_interface=rule_data.get("inbound-interface"),
-                        table=rule_data.get("set", {}).get("table") if "set" in rule_data else None,
-                        vrf=rule_data.get("set", {}).get("vrf") if "set" in rule_data else None,
-                    )
-                    ipv4_rules.append(rule)
+                    ipv4_rules.append(_parse_rule(rule_num_str, rule_data))
 
         # Parse IPv6 local-route6 rules
         if "policy" in full_config and "local-route6" in full_config["policy"]:
             local_route6_config = full_config["policy"]["local-route6"]
             if "rule" in local_route6_config:
                 for rule_num_str, rule_data in local_route6_config["rule"].items():
-                    rule = LocalRouteRule(
-                        rule_number=int(rule_num_str),
-                        source=parse_address_field(rule_data.get("source")),
-                        destination=parse_address_field(rule_data.get("destination")),
-                        inbound_interface=rule_data.get("inbound-interface"),
-                        table=rule_data.get("set", {}).get("table") if "set" in rule_data else None,
-                        vrf=rule_data.get("set", {}).get("vrf") if "set" in rule_data else None,
-                    )
-                    ipv6_rules.append(rule)
+                    ipv6_rules.append(_parse_rule(rule_num_str, rule_data))
 
         # Sort by rule number
         ipv4_rules.sort(key=lambda x: x.rule_number)
@@ -285,6 +313,10 @@ async def local_route_reorder_rules(http_request: Request, body: LocalRouteReord
             source_op = "set_local_route_rule_source"
             dest_op = "set_local_route_rule_destination"
             interface_op = "set_local_route_rule_inbound_interface"
+            fwmark_op = "set_local_route_rule_fwmark"
+            protocol_op = "set_local_route_rule_protocol"
+            source_port_op = "set_local_route_rule_source_port"
+            dest_port_op = "set_local_route_rule_destination_port"
             table_op = "set_local_route_rule_set_table"
             vrf_op = "set_local_route_rule_set_vrf"
         else:  # ipv6
@@ -293,6 +325,10 @@ async def local_route_reorder_rules(http_request: Request, body: LocalRouteReord
             source_op = "set_local_route6_rule_source"
             dest_op = "set_local_route6_rule_destination"
             interface_op = "set_local_route6_rule_inbound_interface"
+            fwmark_op = "set_local_route6_rule_fwmark"
+            protocol_op = "set_local_route6_rule_protocol"
+            source_port_op = "set_local_route6_rule_source_port"
+            dest_port_op = "set_local_route6_rule_destination_port"
             table_op = "set_local_route6_rule_set_table"
             vrf_op = "set_local_route6_rule_set_vrf"
 
@@ -316,6 +352,14 @@ async def local_route_reorder_rules(http_request: Request, body: LocalRouteReord
                 getattr(builder, dest_op)(new_num, rule_data["destination"])
             if rule_data.get("inbound_interface"):
                 getattr(builder, interface_op)(new_num, rule_data["inbound_interface"])
+            if rule_data.get("fwmark"):
+                getattr(builder, fwmark_op)(new_num, rule_data["fwmark"])
+            if rule_data.get("protocol"):
+                getattr(builder, protocol_op)(new_num, rule_data["protocol"])
+            if rule_data.get("source_port"):
+                getattr(builder, source_port_op)(new_num, rule_data["source_port"])
+            if rule_data.get("destination_port"):
+                getattr(builder, dest_port_op)(new_num, rule_data["destination_port"])
             if rule_data.get("table"):
                 getattr(builder, table_op)(new_num, rule_data["table"])
             if rule_data.get("vrf"):

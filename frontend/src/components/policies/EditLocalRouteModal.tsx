@@ -35,6 +35,10 @@ export function EditLocalRouteModal({
   const [source, setSource] = useState("");
   const [destination, setDestination] = useState("");
   const [inboundInterface, setInboundInterface] = useState("");
+  const [fwmark, setFwmark] = useState("");
+  const [protocol, setProtocol] = useState("");
+  const [sourcePort, setSourcePort] = useState("");
+  const [destinationPort, setDestinationPort] = useState("");
   const [routingType, setRoutingType] = useState<"table" | "vrf">("table");
   const [table, setTable] = useState("");
   const [vrf, setVrf] = useState("");
@@ -47,6 +51,10 @@ export function EditLocalRouteModal({
       setSource(rule.source || "");
       setDestination(rule.destination || "");
       setInboundInterface(rule.inbound_interface || "");
+      setFwmark(rule.fwmark || "");
+      setProtocol(rule.protocol || "");
+      setSourcePort(rule.source_port || "");
+      setDestinationPort(rule.destination_port || "");
       setTable(rule.table || "");
       setVrf(rule.vrf || "");
       // Set routing type based on what the rule has
@@ -96,6 +104,10 @@ export function EditLocalRouteModal({
     setSource("");
     setDestination("");
     setInboundInterface("");
+    setFwmark("");
+    setProtocol("");
+    setSourcePort("");
+    setDestinationPort("");
     setRoutingType("table");
     setTable("");
     setVrf("");
@@ -192,8 +204,8 @@ export function EditLocalRouteModal({
     }
 
     // At least one matching criterion must be specified
-    if (!source && !destination && !inboundInterface) {
-      setError("At least one matching criterion is required (source, destination, or inbound interface)");
+    if (!source && !destination && !inboundInterface && !fwmark && !protocol && !sourcePort && !destinationPort) {
+      setError("At least one matching criterion is required (source, destination, interface, protocol, port, or fwmark)");
       return;
     }
 
@@ -215,6 +227,30 @@ export function EditLocalRouteModal({
       }
     }
 
+    if (fwmark) {
+      const mark = parseInt(fwmark, 10);
+      if (isNaN(mark) || mark < 1 || mark > 2147483647) {
+        setError("Fwmark must be a number between 1 and 2147483647");
+        return;
+      }
+    }
+
+    if (sourcePort) {
+      const port = parseInt(sourcePort, 10);
+      if (isNaN(port) || port < 1 || port > 65535) {
+        setError("Source port must be a number between 1 and 65535");
+        return;
+      }
+    }
+
+    if (destinationPort) {
+      const port = parseInt(destinationPort, 10);
+      if (isNaN(port) || port < 1 || port > 65535) {
+        setError("Destination port must be a number between 1 and 65535");
+        return;
+      }
+    }
+
     setLoading(true);
 
     try {
@@ -222,6 +258,10 @@ export function EditLocalRouteModal({
         source: source || null,
         destination: destination || null,
         inbound_interface: inboundInterface === "__none__" ? null : (inboundInterface || null),
+        fwmark: fwmark || null,
+        protocol: protocol.trim() || null,
+        source_port: sourcePort || null,
+        destination_port: destinationPort || null,
         // Only send the selected routing type, send null for the other to clear it
         table: routingType === "table" ? table : null,
         vrf: routingType === "vrf" ? vrf : null,
@@ -308,6 +348,73 @@ export function EditLocalRouteModal({
             </p>
           </div>
 
+          {capabilities?.features.protocol_matching?.supported !== false && (
+            <div className="space-y-2">
+              <Label htmlFor="protocol">Protocol</Label>
+              <Input
+                id="protocol"
+                value={protocol}
+                onChange={(e) => setProtocol(e.target.value)}
+                placeholder="e.g. tcp, udp, or 6"
+                disabled={loading}
+              />
+              <p className="text-xs text-muted-foreground">
+                Match this IP protocol name or number (leave empty to remove)
+              </p>
+            </div>
+          )}
+
+          {capabilities?.features.source_port_matching?.supported !== false && (
+            <div className="space-y-2">
+              <Label htmlFor="source-port">Source Port</Label>
+              <Input
+                id="source-port"
+                type="number"
+                min={1}
+                max={65535}
+                value={sourcePort}
+                onChange={(e) => setSourcePort(e.target.value)}
+                placeholder="1-65535"
+                disabled={loading}
+              />
+            </div>
+          )}
+
+          {capabilities?.features.destination_port_matching?.supported !== false && (
+            <div className="space-y-2">
+              <Label htmlFor="destination-port">Destination Port</Label>
+              <Input
+                id="destination-port"
+                type="number"
+                min={1}
+                max={65535}
+                value={destinationPort}
+                onChange={(e) => setDestinationPort(e.target.value)}
+                placeholder="1-65535"
+                disabled={loading}
+              />
+            </div>
+          )}
+
+          {capabilities?.features.fwmark_matching?.supported !== false && (
+            <div className="space-y-2">
+              <Label htmlFor="fwmark">Fwmark</Label>
+              <Input
+                id="fwmark"
+                type="number"
+                min={1}
+                max={2147483647}
+                value={fwmark}
+                onChange={(e) => setFwmark(e.target.value)}
+                placeholder="1-2147483647"
+                disabled={loading}
+              />
+              <p className="text-xs text-muted-foreground">
+                Match this firewall mark (leave empty to remove)
+              </p>
+            </div>
+          )}
+
           {/* Routing Selection - Table or VRF */}
           <div className="space-y-3 border border-border rounded-lg p-4">
             <Label>Routing Destination *</Label>
@@ -384,7 +491,7 @@ export function EditLocalRouteModal({
               <div className="text-sm text-muted-foreground">
                 <p className="font-medium text-foreground mb-1">Update Rule</p>
                 <ul className="space-y-1 text-xs">
-                  <li>• At least one matching criterion (source, destination, or interface) is required</li>
+                  <li>• At least one matching criterion (address, port, protocol, interface, or fwmark) is required</li>
                   <li>• Choose either Routing Table OR VRF - you cannot specify both</li>
                   <li>• Switching between Table and VRF will clear the other field</li>
                   {capabilities?.features.vrf_support.supported ? (
