@@ -68,8 +68,8 @@ describe("uiIsReachable", () => {
     assert.equal(await uiIsReachable(fetcher), false);
   });
 
-  it("treats 307 as up", async () => {
-    const fetcher = async () => ({ status: 307, json: async () => ({}) });
+  it("treats 200 as up", async () => {
+    const fetcher = async () => ({ status: 200, json: async () => ({}) });
     assert.equal(await uiIsReachable(fetcher), true);
   });
 });

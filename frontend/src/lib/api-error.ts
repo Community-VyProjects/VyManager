@@ -77,7 +77,7 @@ export async function backendIsReachable(fetcher: FetchLike = fetch): Promise<bo
 
 export async function uiIsReachable(fetcher: FetchLike = fetch): Promise<boolean> {
   try {
-    const res = await fetcher("/", { method: "GET", credentials: "include", redirect: "manual" });
+    const res = await fetcher("/", { method: "GET", credentials: "include" });
     return res.status > 0 && res.status < 500;
   } catch {
     return false;
