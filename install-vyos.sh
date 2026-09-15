@@ -356,18 +356,18 @@ apply_config() {
   source /opt/vyatta/etc/functions/script-template
   shopt -s expand_aliases
   echo "  > Opening configure session"
-  configure
+  eval "$(vyatta_configure)"
   echo "  > Applying set commands"
   # shellcheck disable=SC1090
   if ! source "$CMDFILE"; then
     echo "  x Failed while applying set commands. Discarding." >&2
-    discard
+    vyatta_cfg_run discard
     exit 1
   fi
   echo "  > commit (containers can take several minutes, no further output)"
   if ! vyatta_cfg_run commit; then
     echo "  x commit failed. Discarding." >&2
-    discard
+    vyatta_cfg_run discard
     echo "  Pulled images, if any, were left in place." >&2
     exit 1
   fi
