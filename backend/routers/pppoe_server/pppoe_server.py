@@ -60,7 +60,6 @@ class PPPoEConnectionsResponse(BaseModel):
 
 
 class PPPoESessionLabelDefinitionResponse(BaseModel):
-    session_label: str = "*"
     code: str
     name: str
     description: Optional[str] = None
@@ -72,7 +71,6 @@ class PPPoESessionLabelDefinitionResponse(BaseModel):
 
 DEFAULT_PPPoE_SESSION_LABELS: List[Dict[str, Any]] = [
     {
-        "session_label": "*",
         "code": "traffic-skew",
         "name": "Traffic skew",
         "description": "Flag a session when upload (RX) bytes exceed 10% of download (TX) bytes, as a generic traffic-skew indicator.",
@@ -90,56 +88,11 @@ DEFAULT_PPPoE_SESSION_LABELS: List[Dict[str, Any]] = [
 ]
 
 
-async def _ensure_pppoe_label_table(conn) -> None:
-    """Keep older deployments usable while Prisma applies the label migration."""
-    await conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS pppoe_session_label_definitions (
-            id TEXT PRIMARY KEY,
-            "sessionLabel" TEXT NOT NULL DEFAULT '*',
-            code VARCHAR(80) NOT NULL,
-            name VARCHAR(120) NOT NULL,
-            description TEXT,
-            severity VARCHAR(40) NOT NULL DEFAULT 'info',
-            priority INTEGER NOT NULL DEFAULT 10,
-            enabled BOOLEAN NOT NULL DEFAULT TRUE,
-            rules JSONB NOT NULL DEFAULT '{}'::jsonb,
-            "createdAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(),
-            "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT NOW()
-        )
-        """
-    )
-    await conn.execute(
-        """
-        ALTER TABLE pppoe_session_label_definitions
-        ADD COLUMN IF NOT EXISTS "sessionLabel" TEXT NOT NULL DEFAULT '*'
-        """
-    )
-    await conn.execute(
-        """
-        CREATE UNIQUE INDEX IF NOT EXISTS
-        pppoe_session_label_definitions_session_label_code_key
-        ON pppoe_session_label_definitions ("sessionLabel", code)
-        """
-    )
-
-
-async def _ensure_default_pppoe_labels(conn) -> None:
-    """Upsert shipped default label definitions (e.g. traffic-skew) when missing."""
-    await _ensure_pppoe_label_table(conn)
-    for label in DEFAULT_PPPoE_SESSION_LABELS:
-        await conn.execute(
-            """
-            INSERT INTO pppoe_session_label_definitions
-            (id, "sessionLabel", code, name, description, severity, priority, enabled, rules, "createdAt", "updatedAt")
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, NOW(), NOW())
-            ON CONFLICT ("sessionLabel", code) DO NOTHING
-            """,
-            str(uuid.uuid4()), label.get("session_label") or "*",
-            label["code"], label["name"], label.get("description"),
-            label.get("severity") or "info", int(label.get("priority") or 10),
-            bool(label.get("enabled", True)), json.dumps(label.get("rules") or {}),
-        )
+def _require_instance(request: Request) -> str:
+    instance = getattr(request.state, "instance", None)
+    if not instance:
+        raise HTTPException(status_code=404, detail="No active instance")
+    return instance["id"]
 
 
 def _row_to_label_response(row) -> PPPoESessionLabelDefinitionResponse:
@@ -150,7 +103,6 @@ def _row_to_label_response(row) -> PPPoESessionLabelDefinitionResponse:
         except Exception:
             rules = {}
     return PPPoESessionLabelDefinitionResponse(
-        session_label=row["sessionLabel"] or "*",
         code=row["code"],
         name=row["name"],
         description=row["description"],
@@ -161,89 +113,98 @@ def _row_to_label_response(row) -> PPPoESessionLabelDefinitionResponse:
     )
 
 
+async def _fetch_labels(conn, instance_id: str) -> List[PPPoESessionLabelDefinitionResponse]:
+    rows = await conn.fetch(
+        """
+        SELECT code, name, description, severity, priority, enabled, rules
+        FROM pppoe_session_label_definitions
+        WHERE "instanceId" = $1
+        ORDER BY priority ASC, code ASC
+        """,
+        instance_id,
+    )
+    return [_row_to_label_response(row) for row in rows]
+
+
+async def _seed_default_labels(conn, instance_id: str) -> None:
+    """Insert shipped defaults only when this instance has no rows yet."""
+    count = await conn.fetchval(
+        'SELECT count(*) FROM pppoe_session_label_definitions WHERE "instanceId" = $1',
+        instance_id,
+    )
+    if count:
+        return
+    for label in DEFAULT_PPPoE_SESSION_LABELS:
+        await conn.execute(
+            """
+            INSERT INTO pppoe_session_label_definitions
+            (id, "instanceId", code, name, description, severity, priority, enabled, rules, "createdAt", "updatedAt")
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, NOW(), NOW())
+            ON CONFLICT ("instanceId", code) DO NOTHING
+            """,
+            str(uuid.uuid4()), instance_id,
+            label["code"], label["name"], label.get("description"),
+            label.get("severity") or "info", int(label.get("priority") or 10),
+            bool(label.get("enabled", True)), json.dumps(label.get("rules") or {}),
+        )
+
+
 # ========================================================================
 # Endpoint 0: Session labels
 # ========================================================================
 
 @router.get("/labels", response_model=List[PPPoESessionLabelDefinitionResponse])
 async def get_pppoe_session_labels(request: Request):
-    """Return the Postgres-backed PPPoE session label registry.
+    """Return the instance-scoped PPPoE session label registry.
 
-    The first read from an empty registry table seeds the shipped default
-    traffic-skew entry into database
+    Overlay metadata stored by Prisma, not VyOS config. An empty catalog for
+    this instance is seeded with the shipped traffic-skew default once.
     """
     await require_read_permission(request, FeatureGroup.PPPOE)
+    instance_id = _require_instance(request)
     try:
         async with request_scoped_conn(request) as conn:
-            await _ensure_default_pppoe_labels(conn)
-            rows = await conn.fetch(
-                """
-                SELECT "sessionLabel", code, name, description, severity, priority, enabled, rules
-                FROM pppoe_session_label_definitions
-                ORDER BY priority ASC, code ASC
-                """
-            )
-            return [_row_to_label_response(row) for row in rows]
+            await _seed_default_labels(conn, instance_id)
+            return await _fetch_labels(conn, instance_id)
 
     except HTTPException:
         raise
     except Exception:
         logger.exception("Unhandled error in PPPoE session label lookup")
-        return []
+        raise HTTPException(status_code=500, detail="Unable to read PPPoE session label registry")
 
 
 @router.post("/labels", response_model=List[PPPoESessionLabelDefinitionResponse])
 async def save_pppoe_session_labels(request: Request, body: List[PPPoESessionLabelDefinitionResponse]):
-    """Persist the authoritative PPPoE session label registry in Postgres.
+    """Replace this instance's PPPoE session label catalog.
 
-    The request body is the full desired label catalog. The route replaces the
-    stored registry table with the new list so the frontend editor and the API
-    remain in a single canonical state.
+    The request body is the full desired list. Defaults are not re-inserted, so
+    an operator can delete the shipped traffic-skew entry.
     """
     await require_write_permission(request, FeatureGroup.PPPOE)
+    instance_id = _require_instance(request)
     try:
-        labels = []
-        for item in body:
-            if not item.code or not item.name:
-                continue
-            labels.append(item)
+        labels = [item for item in body if item.code and item.name]
 
         async with request_scoped_conn(request) as conn:
-            await _ensure_pppoe_label_table(conn)
-            await conn.execute(
-                'DELETE FROM pppoe_session_label_definitions WHERE "sessionLabel" = $1', "*"
-            )
-            for label in labels:
+            async with conn.transaction():
                 await conn.execute(
-                    """
-                    INSERT INTO pppoe_session_label_definitions
-                    (id, "sessionLabel", code, name, description, severity, priority, enabled, rules)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb)
-                    ON CONFLICT ("sessionLabel", code)
-                    DO UPDATE SET
-                        name = EXCLUDED.name,
-                        description = EXCLUDED.description,
-                        severity = EXCLUDED.severity,
-                        priority = EXCLUDED.priority,
-                        enabled = EXCLUDED.enabled,
-                        rules = EXCLUDED.rules,
-                        "updatedAt" = NOW()
-                    """,
-                    str(uuid.uuid4()), label.session_label or "*", label.code, label.name, label.description,
-                    label.severity or "info", int(label.priority or 10),
-                    bool(label.enabled if label.enabled is not None else True), json.dumps(label.rules or {}),
+                    'DELETE FROM pppoe_session_label_definitions WHERE "instanceId" = $1',
+                    instance_id,
                 )
+                for label in labels:
+                    await conn.execute(
+                        """
+                        INSERT INTO pppoe_session_label_definitions
+                        (id, "instanceId", code, name, description, severity, priority, enabled, rules, "createdAt", "updatedAt")
+                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, NOW(), NOW())
+                        """,
+                        str(uuid.uuid4()), instance_id, label.code, label.name, label.description,
+                        label.severity or "info", int(label.priority or 10),
+                        bool(label.enabled if label.enabled is not None else True), json.dumps(label.rules or {}),
+                    )
 
-            await _ensure_default_pppoe_labels(conn)
-
-            rows = await conn.fetch(
-                """
-                SELECT "sessionLabel", code, name, description, severity, priority, enabled, rules
-                FROM pppoe_session_label_definitions
-                ORDER BY priority ASC, code ASC
-                """
-            )
-            return [_row_to_label_response(row) for row in rows]
+                return await _fetch_labels(conn, instance_id)
 
     except HTTPException:
         raise
@@ -311,8 +272,8 @@ async def get_pppoe_sessions(
 ):
     """Return active PPPoE sessions with per-session packet counters and PPS.
 
-    Session counters come from ``ShowSessionsAccelppp``. Live MTUs come from a
-    separate ``ShowInterfaces`` GraphQL lookup and are joined by PPP interface.
+    Session counters come from ``ShowSessionsAccelppp``. Live MTUs come from
+    ``ShowInterfaces`` on the same GraphQL POST and are joined by PPP interface.
     PPS is derived from the counter deltas between polls. If the structured
     session operation is unavailable, the endpoint falls back to parsing the
     ``show pppoe-server sessions`` text table, which has no packet counters, so

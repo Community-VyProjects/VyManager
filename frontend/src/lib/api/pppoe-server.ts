@@ -200,7 +200,6 @@ export interface PPPoESessionLabelRule {
 
 export interface PPPoESessionLabelDefinition {
   id?: string;
-  session_label?: string;
   code: string;
   name: string;
   description?: string | null;
