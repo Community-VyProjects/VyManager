@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -101,6 +102,7 @@ function GlobalSettingsDialog({
   const [enableLocalTraffic, setEnableLocalTraffic] = useState(false);
   const [flushConnections, setFlushConnections] = useState(false);
   const [stickyInbound, setStickyInbound] = useState(false);
+  const [hook, setHook] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -110,6 +112,7 @@ function GlobalSettingsDialog({
       setEnableLocalTraffic(wan.enable_local_traffic);
       setFlushConnections(wan.flush_connections);
       setStickyInbound(wan.sticky_connections.inbound);
+      setHook(wan.hook ?? "");
       setError(null);
     }
   }, [open, wan]);
@@ -123,6 +126,7 @@ function GlobalSettingsDialog({
         enable_local_traffic: enableLocalTraffic,
         flush_connections: flushConnections,
         sticky_inbound: stickyInbound,
+        hook: hook.trim() || null,
       });
       onSuccess();
       onOpenChange(false);
@@ -199,6 +203,18 @@ function GlobalSettingsDialog({
               </p>
             </div>
           </label>
+
+          <div className="space-y-1.5">
+            <Label>Hook script</Label>
+            <Input
+              value={hook}
+              onChange={(e) => setHook(e.target.value)}
+              placeholder="/config/scripts/wan-lb"
+            />
+            <p className="text-xs text-muted-foreground">
+              Optional script run on WAN load-balancing events.
+            </p>
+          </div>
         </div>
 
         {error && (

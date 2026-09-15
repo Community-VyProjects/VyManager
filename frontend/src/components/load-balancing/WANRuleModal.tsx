@@ -38,18 +38,33 @@ interface FormState {
   per_packet_balancing: boolean;
   exclude: boolean;
   interfaces: IfaceForm[];
+  limit_burst: string;
+  limit_period: string;
+  limit_rate: string;
+  limit_threshold: string;
   source_address: string;
   source_port: string;
+  source_address_group: string;
+  source_network_group: string;
+  source_domain_group: string;
+  source_port_group: string;
   destination_address: string;
   destination_port: string;
+  destination_address_group: string;
+  destination_network_group: string;
+  destination_domain_group: string;
+  destination_port_group: string;
 }
 
 const emptyForm = (): FormState => ({
   rule_id: "", description: "", inbound_interface: "", protocol: "",
   failover: false, per_packet_balancing: false, exclude: false,
   interfaces: [{ interface: "", weight: "" }],
+  limit_burst: "", limit_period: "", limit_rate: "", limit_threshold: "",
   source_address: "", source_port: "",
+  source_address_group: "", source_network_group: "", source_domain_group: "", source_port_group: "",
   destination_address: "", destination_port: "",
+  destination_address_group: "", destination_network_group: "", destination_domain_group: "", destination_port_group: "",
 });
 
 function ruleToForm(r: WANRule): FormState {
@@ -64,10 +79,32 @@ function ruleToForm(r: WANRule): FormState {
     interfaces: r.interfaces.length > 0
       ? r.interfaces.map((i) => ({ interface: i.interface, weight: i.weight ?? "" }))
       : [{ interface: "", weight: "" }],
+    limit_burst: r.limit?.burst ?? "",
+    limit_period: r.limit?.period ?? "",
+    limit_rate: r.limit?.rate ?? "",
+    limit_threshold: r.limit?.threshold ?? "",
     source_address: r.source?.address ?? "",
     source_port: r.source?.port ?? "",
+    source_address_group: r.source?.group?.address_group ?? "",
+    source_network_group: r.source?.group?.network_group ?? "",
+    source_domain_group: r.source?.group?.domain_group ?? "",
+    source_port_group: r.source?.group?.port_group ?? "",
     destination_address: r.destination?.address ?? "",
     destination_port: r.destination?.port ?? "",
+    destination_address_group: r.destination?.group?.address_group ?? "",
+    destination_network_group: r.destination?.group?.network_group ?? "",
+    destination_domain_group: r.destination?.group?.domain_group ?? "",
+    destination_port_group: r.destination?.group?.port_group ?? "",
+  };
+}
+
+function formGroup(address: string, network: string, domain: string, port: string) {
+  if (!address && !network && !domain && !port) return null;
+  return {
+    address_group: address || null,
+    network_group: network || null,
+    domain_group: domain || null,
+    port_group: port || null,
   };
 }
 
@@ -76,8 +113,15 @@ function formToRule(f: FormState): WANRule {
     .filter((i) => i.interface.trim())
     .map((i) => ({ interface: i.interface.trim(), weight: i.weight || null }));
 
-  const hasSrc = !!(f.source_address || f.source_port);
-  const hasDst = !!(f.destination_address || f.destination_port);
+  const srcGroup = formGroup(
+    f.source_address_group, f.source_network_group, f.source_domain_group, f.source_port_group,
+  );
+  const dstGroup = formGroup(
+    f.destination_address_group, f.destination_network_group, f.destination_domain_group, f.destination_port_group,
+  );
+  const hasSrc = !!(f.source_address || f.source_port || srcGroup);
+  const hasDst = !!(f.destination_address || f.destination_port || dstGroup);
+  const hasLimit = !!(f.limit_burst || f.limit_period || f.limit_rate || f.limit_threshold);
 
   return {
     rule_id: f.rule_id.trim(),
@@ -88,16 +132,21 @@ function formToRule(f: FormState): WANRule {
     per_packet_balancing: f.per_packet_balancing,
     exclude: f.exclude,
     interfaces: ifaces,
-    limit: null,
+    limit: hasLimit ? {
+      burst: f.limit_burst || null,
+      period: f.limit_period || null,
+      rate: f.limit_rate || null,
+      threshold: f.limit_threshold || null,
+    } : null,
     source: hasSrc ? {
       address: f.source_address || null,
       port: f.source_port || null,
-      group: null,
+      group: srcGroup,
     } : null,
     destination: hasDst ? {
       address: f.destination_address || null,
       port: f.destination_port || null,
-      group: null,
+      group: dstGroup,
     } : null,
   };
 }
@@ -119,8 +168,9 @@ interface Props {
 // Component
 // ============================================================================
 
-export function WANRuleModal({ open, onOpenChange, rule, interfaceHealth, onSuccess }: Props) {
+export function WANRuleModal({ open, onOpenChange, rule, interfaceHealth, capabilities, onSuccess }: Props) {
   const isEdit = !!rule;
+  const groupsSupported = capabilities?.features.wan_rule_groups?.supported === true;
 
   const [form, setForm] = useState<FormState>(emptyForm);
   const [loading, setLoading] = useState(false);
@@ -319,6 +369,46 @@ export function WANRuleModal({ open, onOpenChange, rule, interfaceHealth, onSucc
 
           <Separator />
 
+          <div className="space-y-3">
+            <Label className="text-sm font-semibold">Rate Limit</Label>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-sm">Burst</Label>
+                <Input
+                  value={form.limit_burst}
+                  onChange={(e) => set("limit_burst", e.target.value)}
+                  placeholder="Optional"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-sm">Period</Label>
+                <Input
+                  value={form.limit_period}
+                  onChange={(e) => set("limit_period", e.target.value)}
+                  placeholder="Optional"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-sm">Rate</Label>
+                <Input
+                  value={form.limit_rate}
+                  onChange={(e) => set("limit_rate", e.target.value)}
+                  placeholder="Optional"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-sm">Threshold</Label>
+                <Input
+                  value={form.limit_threshold}
+                  onChange={(e) => set("limit_threshold", e.target.value)}
+                  placeholder="Optional"
+                />
+              </div>
+            </div>
+          </div>
+
+          <Separator />
+
           {/* Match criteria */}
           <Collapsible open={matchOpen} onOpenChange={setMatchOpen}>
             <CollapsibleTrigger className="flex w-full items-center justify-between py-1 text-sm font-semibold hover:text-foreground text-muted-foreground transition-colors">
@@ -345,6 +435,42 @@ export function WANRuleModal({ open, onOpenChange, rule, interfaceHealth, onSucc
                   />
                 </div>
               </div>
+              {groupsSupported && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-sm">Address Group</Label>
+                    <Input
+                      value={form.source_address_group}
+                      onChange={(e) => set("source_address_group", e.target.value)}
+                      placeholder="Group name"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-sm">Network Group</Label>
+                    <Input
+                      value={form.source_network_group}
+                      onChange={(e) => set("source_network_group", e.target.value)}
+                      placeholder="Group name"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-sm">Domain Group</Label>
+                    <Input
+                      value={form.source_domain_group}
+                      onChange={(e) => set("source_domain_group", e.target.value)}
+                      placeholder="Group name"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-sm">Port Group</Label>
+                    <Input
+                      value={form.source_port_group}
+                      onChange={(e) => set("source_port_group", e.target.value)}
+                      placeholder="Group name"
+                    />
+                  </div>
+                </div>
+              )}
 
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide pt-1">Destination</p>
               <div className="grid grid-cols-2 gap-3">
@@ -365,6 +491,42 @@ export function WANRuleModal({ open, onOpenChange, rule, interfaceHealth, onSucc
                   />
                 </div>
               </div>
+              {groupsSupported && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-sm">Address Group</Label>
+                    <Input
+                      value={form.destination_address_group}
+                      onChange={(e) => set("destination_address_group", e.target.value)}
+                      placeholder="Group name"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-sm">Network Group</Label>
+                    <Input
+                      value={form.destination_network_group}
+                      onChange={(e) => set("destination_network_group", e.target.value)}
+                      placeholder="Group name"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-sm">Domain Group</Label>
+                    <Input
+                      value={form.destination_domain_group}
+                      onChange={(e) => set("destination_domain_group", e.target.value)}
+                      placeholder="Group name"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-sm">Port Group</Label>
+                    <Input
+                      value={form.destination_port_group}
+                      onChange={(e) => set("destination_port_group", e.target.value)}
+                      placeholder="Group name"
+                    />
+                  </div>
+                </div>
+              )}
             </CollapsibleContent>
           </Collapsible>
         </div>
