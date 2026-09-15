@@ -102,7 +102,7 @@ def test_parse_accel_ppp_sessions_reads_packet_counters_and_bytes():
     assert s.tx_bytes == 3870
     assert s.rx_packets == 29
     assert s.tx_packets == 25
-    assert s.mtu == 1480
+    assert s.mtu is None
     assert s.uptime == "00:00:30"
     # Empty accel-ppp fields become None, not "".
     assert s.ipv6 is None
@@ -155,13 +155,14 @@ def test_apply_interface_mtus_joins_on_session_ifname():
     assert sessions[0].mtu == 1492
 
 
-def test_accel_ppp_sessions_query_requests_sessions_only():
+def test_accel_ppp_sessions_query_joins_interfaces_on_same_post():
     from pppoe_status import _accel_ppp_sessions_query
 
     query = _accel_ppp_sessions_query("k")["query"]
 
     assert "ShowSessionsAccelppp" in query
-    assert "ShowInterfaces" not in query
+    assert "ShowInterfaces" in query
+    assert query.count("ShowInterfaces") == 1
 
 
 def test_apply_interface_mtus_preserves_distinct_live_values_per_session():
@@ -206,6 +207,14 @@ def test_parse_accel_ppp_sessions_missing_counters_leave_pps_unknown():
     assert s.tx_packets is None
     assert s.rx_bytes == 0
     assert s.tx_bytes == 0
+
+
+def test_parse_accel_ppp_sessions_ignores_mtu_on_the_session_row():
+    result = [{"ifname": "ppp0", "username": "u", "state": "active", "mtu": "1492"}]
+
+    s = parse_accel_ppp_sessions(result)[0]
+
+    assert s.mtu is None
 
 
 # ----------------------------------------------------------------------------
@@ -350,18 +359,19 @@ def test_load_pppoe_sessions_skips_rest_show_when_graphql_succeeds():
         device=SimpleNamespace(show=boom_show),
         get_full_config=lambda refresh=False: {"service": {"pppoe-server": {"mtu": "1492"}}},
     )
-    sessions = [PPPoESession(interface="ppp0", username="u", state="active")]
+    sessions = [PPPoESession(interface="ppp0", username="u", state="active", mtu=1480)]
 
     async def fake_fetch(_service, protocol="pppoe"):
         return sessions
+
+    async def boom_mtus(_service):
+        raise AssertionError("ShowInterfaces must ride the sessions POST")
 
     import pppoe_status as mod
     original = mod.fetch_accel_ppp_sessions
     original_mtus = mod.fetch_interface_mtus
     mod.fetch_accel_ppp_sessions = fake_fetch
-    async def fake_fetch_mtus(_service):
-        return {"ppp0": 1480}
-    mod.fetch_interface_mtus = fake_fetch_mtus
+    mod.fetch_interface_mtus = boom_mtus
     try:
         loaded = asyncio.run(load_pppoe_sessions(service))
         assert loaded[0].mtu == 1480

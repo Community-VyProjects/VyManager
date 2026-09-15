@@ -1,9 +1,8 @@
 """Parsing helpers for VyOS PPPoE server operational status.
 
-Active PPPoE sessions are read from a GraphQL POST to
-``ShowSessionsAccelppp`` (structured per-session counters). Each session MTU is
-looked up from the live ``ShowInterfaces`` GraphQL result by its PPP interface;
-the configured server MTU is never used as a substitute. Packets-per-second is
+Active PPPoE sessions are read from one GraphQL POST that asks for
+``ShowSessionsAccelppp`` (structured per-session counters) and
+``ShowInterfaces`` (kernel MTU keyed by ``ifname``). Packets-per-second is
 derived from the counter deltas between polls by ``PPPoEPpsTracker``.
 
 VyOS does not return a per-session VLAN on either operation.
@@ -198,7 +197,7 @@ def _format_uptime(seconds: Optional[str]) -> Optional[str]:
 
 
 def _accel_ppp_sessions_query(api_key: str, protocol: str = "pppoe") -> Dict[str, str]:
-    """Build one GraphQL body for structured accel-ppp sessions."""
+    """Build one GraphQL body: sessions plus kernel interface MTUs."""
     key = json.dumps(api_key)
     proto = json.dumps(protocol)
     query = (
@@ -206,6 +205,9 @@ def _accel_ppp_sessions_query(api_key: str, protocol: str = "pppoe") -> Dict[str
         + key
         + ", protocol: "
         + proto
+        + "}) { success errors data { result } } "
+        "ShowInterfaces(data: {key: "
+        + key
         + "}) { success errors data { result } } }"
     )
     return {"query": query}
@@ -249,7 +251,6 @@ def parse_accel_ppp_sessions(result: Any) -> List[PPPoESession]:
             tx_bytes=_parse_counter(entry.get("tx_bytes_raw")) or 0,
             rx_packets=_parse_counter(entry.get("rx_pkts")),
             tx_packets=_parse_counter(entry.get("tx_pkts")),
-            mtu=_parse_int_like(entry.get("mtu")),
         ))
     return sessions
 
@@ -287,13 +288,13 @@ def apply_interface_mtus(sessions: List[PPPoESession], mtus: Dict[str, int]) -> 
 
 
 async def fetch_accel_ppp_sessions(service, protocol: str = "pppoe") -> Optional[List[PPPoESession]]:
-    """Fetch structured accel-ppp sessions via GraphQL.
+    """Fetch sessions and kernel MTUs in one GraphQL POST.
 
     Returns the parsed session list (possibly empty) on success, or ``None`` when
     ``ShowSessionsAccelppp`` is unavailable so the caller can fall back to the
     text-table path. A ``success: false`` op-mode error (e.g. pppoe-server not
     configured) is treated as unavailable rather than an empty session set, so the
-    fallback decides the final answer.
+    fallback decides the final answer. ``ShowInterfaces`` failure leaves MTU unset.
     """
     api_key = str(service.config.apikey)
     url = f"{service.config.protocol}://{service.config.hostname}:{service.config.port}/graphql"
@@ -312,7 +313,12 @@ async def fetch_accel_ppp_sessions(service, protocol: str = "pppoe") -> Optional
         if not node.get("success"):
             return None
         result = (node.get("data") or {}).get("result")
-        return parse_accel_ppp_sessions(result)
+        sessions = parse_accel_ppp_sessions(result)
+        iface_node = data.get("ShowInterfaces") or {}
+        if iface_node.get("success"):
+            mtus = parse_interface_mtus((iface_node.get("data") or {}).get("result"))
+            apply_interface_mtus(sessions, mtus)
+        return sessions
     except Exception:
         logger.exception("ShowSessionsAccelppp fetch failed")
         return None
@@ -361,10 +367,12 @@ def pppoe_configured(full_config) -> bool:
 
 
 async def load_pppoe_sessions(service) -> List[PPPoESession]:
-    """Load sessions and annotate each with its live interface MTU/PPS.
+    """Load sessions from one GraphQL POST (sessions plus interface MTUs).
 
     Raises ``PPPoESessionsUnavailable`` when both the structured op and the
-    text-table fallback fail. The REST endpoint maps that to HTTP 502.
+    text-table fallback fail. The REST endpoint maps that to HTTP 502. The
+    text-table path has no MTU column, so it issues a separate ShowInterfaces
+    POST to annotate live MTU.
     """
     sessions = await fetch_accel_ppp_sessions(service)
     if sessions is None:
@@ -385,8 +393,8 @@ async def load_pppoe_sessions(service) -> List[PPPoESession]:
             else response.result
         )
         sessions = parse_pppoe_sessions(output or "")
+        apply_interface_mtus(sessions, await fetch_interface_mtus(service))
 
-    apply_interface_mtus(sessions, await fetch_interface_mtus(service))
     PPPOE_PPS_TRACKER.annotate_sessions(str(id(service.device)), sessions)
     return sessions
 

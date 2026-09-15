@@ -61,3 +61,8 @@ def test_connection_errors_keep_polling_then_time_out(monkeypatch):
 
     monkeypatch.setattr(schema_gate, "_schema_status", down)
     assert _run(schema_gate.wait_for_schema("postgres://unused")) is False
+
+
+def test_feature_overlay_tables_are_not_boot_required():
+    assert "pppoe_session_label_definitions" not in schema_gate.REQUIRED_TABLES
+    assert "firewall_separators" not in schema_gate.REQUIRED_TABLES

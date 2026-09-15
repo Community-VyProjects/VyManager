@@ -21,9 +21,9 @@ import time
 
 import asyncpg
 
-# Tables the backend queries unconditionally (middleware, org scoping,
-# RBAC, auditing). Extend this list when a migration adds a table the
-# backend reads at request time.
+# Tables the backend needs before it can authenticate or scope a request.
+# Feature overlay tables (firewall separators, PPPoE session labels) are
+# created by Prisma migrate and are not a boot gate.
 REQUIRED_TABLES = (
     "users",
     "sites",
@@ -34,7 +34,6 @@ REQUIRED_TABLES = (
     "user_feature_permissions",
     "active_sessions",
     "audit_logs",
-    "pppoe_session_label_definitions",
 )
 
 

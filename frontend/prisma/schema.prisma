@@ -207,7 +207,7 @@ model AuditLog {
 
 model PPPoESessionLabelDefinition {
   id          String   @id @default(cuid())
-  sessionLabel String  @default("*") @db.VarChar(120)
+  instanceId  String
   code        String   @db.VarChar(80)
   name        String   @db.VarChar(120)
   description String?  @db.Text
@@ -218,10 +218,8 @@ model PPPoESessionLabelDefinition {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  @@index([enabled])
-  @@index([priority])
-  @@index([sessionLabel])
-  @@unique([sessionLabel, code])
+  @@unique([instanceId, code])
+  @@index([instanceId])
   @@map("pppoe_session_label_definitions")
 }
 
