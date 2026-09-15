@@ -50,6 +50,7 @@ export function OspfInterfaceModal({
   const [helloInterval, setHelloInterval] = useState("");
   const [deadInterval, setDeadInterval] = useState("");
   const [retransmitInterval, setRetransmitInterval] = useState("");
+  const [retransmitWindow, setRetransmitWindow] = useState("");
   const [transmitDelay, setTransmitDelay] = useState("");
   const [network, setNetwork] = useState("");
   const [passive, setPassive] = useState(false);
@@ -86,6 +87,7 @@ export function OspfInterfaceModal({
         setHelloInterval(existingInterface.hello_interval != null ? String(existingInterface.hello_interval) : "");
         setDeadInterval(existingInterface.dead_interval != null ? String(existingInterface.dead_interval) : "");
         setRetransmitInterval(existingInterface.retransmit_interval != null ? String(existingInterface.retransmit_interval) : "");
+        setRetransmitWindow(existingInterface.retransmit_window != null ? String(existingInterface.retransmit_window) : "");
         setTransmitDelay(existingInterface.transmit_delay != null ? String(existingInterface.transmit_delay) : "");
         setNetwork(existingInterface.network || "");
         setPassive(existingInterface.passive === true);
@@ -112,6 +114,7 @@ export function OspfInterfaceModal({
     setHelloInterval("");
     setDeadInterval("");
     setRetransmitInterval("");
+    setRetransmitWindow("");
     setTransmitDelay("");
     setNetwork("");
     setPassive(false);
@@ -160,6 +163,8 @@ export function OspfInterfaceModal({
     return null;
   };
 
+  const showRetransmitWindow = capabilities?.features?.retransmit_window?.supported === true;
+
   const handleSubmit = async () => {
     const validationError = validateForm();
     if (validationError) {
@@ -186,6 +191,9 @@ export function OspfInterfaceModal({
         hello_interval: helloInterval.trim() ? parseInt(helloInterval.trim(), 10) : null,
         dead_interval: deadInterval.trim() ? parseInt(deadInterval.trim(), 10) : null,
         retransmit_interval: retransmitInterval.trim() ? parseInt(retransmitInterval.trim(), 10) : null,
+        retransmit_window: showRetransmitWindow
+          ? (retransmitWindow.trim() ? parseInt(retransmitWindow.trim(), 10) : null)
+          : (existingInterface?.retransmit_window ?? null),
         transmit_delay: transmitDelay.trim() ? parseInt(transmitDelay.trim(), 10) : null,
         network: network || null,
         passive: passive || null,
@@ -345,6 +353,18 @@ export function OspfInterfaceModal({
                     placeholder="seconds"
                   />
                 </div>
+                {showRetransmitWindow && (
+                  <div className="space-y-2">
+                    <Label htmlFor="ospf-iface-retransmit-window">Retransmit Window</Label>
+                    <Input
+                      id="ospf-iface-retransmit-window"
+                      type="number"
+                      value={retransmitWindow}
+                      onChange={(e) => setRetransmitWindow(e.target.value)}
+                      placeholder="packets"
+                    />
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label htmlFor="ospf-iface-transmit-delay">Transmit Delay</Label>
                   <Input

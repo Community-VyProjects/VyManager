@@ -23,6 +23,7 @@ export interface OspfVirtualLink {
   dead_interval?: number | null;
   hello_interval?: number | null;
   retransmit_interval?: number | null;
+  retransmit_window?: number | null;
   transmit_delay?: number | null;
 }
 
@@ -53,6 +54,7 @@ export interface OspfInterface {
   hello_interval?: number | null;
   dead_interval?: number | null;
   retransmit_interval?: number | null;
+  retransmit_window?: number | null;
   transmit_delay?: number | null;
   network?: string | null;
   passive?: boolean | null;
@@ -291,6 +293,9 @@ class OspfService {
       if (vl.retransmit_interval != null) {
         ops.push({ op: "set_area_virtual_link_retransmit_interval", value: `${area.area_id},${vl.address},${vl.retransmit_interval}` });
       }
+      if (vl.retransmit_window != null) {
+        ops.push({ op: "set_area_virtual_link_retransmit_window", value: `${area.area_id},${vl.address},${vl.retransmit_window}` });
+      }
       if (vl.transmit_delay != null) {
         ops.push({ op: "set_area_virtual_link_transmit_delay", value: `${area.area_id},${vl.address},${vl.transmit_delay}` });
       }
@@ -419,6 +424,9 @@ class OspfService {
       if (vl.retransmit_interval != null) {
         ops.push({ op: "set_area_virtual_link_retransmit_interval", value: `${id},${vl.address},${vl.retransmit_interval}` });
       }
+      if (vl.retransmit_window != null) {
+        ops.push({ op: "set_area_virtual_link_retransmit_window", value: `${id},${vl.address},${vl.retransmit_window}` });
+      }
       if (vl.transmit_delay != null) {
         ops.push({ op: "set_area_virtual_link_transmit_delay", value: `${id},${vl.address},${vl.transmit_delay}` });
       }
@@ -452,6 +460,7 @@ class OspfService {
     if (iface.hello_interval != null) ops.push({ op: "set_interface_hello_interval", value: `${iface.name},${iface.hello_interval}` });
     if (iface.dead_interval != null) ops.push({ op: "set_interface_dead_interval", value: `${iface.name},${iface.dead_interval}` });
     if (iface.retransmit_interval != null) ops.push({ op: "set_interface_retransmit_interval", value: `${iface.name},${iface.retransmit_interval}` });
+    if (iface.retransmit_window != null) ops.push({ op: "set_interface_retransmit_window", value: `${iface.name},${iface.retransmit_window}` });
     if (iface.transmit_delay != null) ops.push({ op: "set_interface_transmit_delay", value: `${iface.name},${iface.transmit_delay}` });
     if (iface.network) ops.push({ op: "set_interface_network", value: `${iface.name},${iface.network}` });
     if (iface.passive) ops.push({ op: "set_interface_passive", value: iface.name });
@@ -518,6 +527,13 @@ class OspfService {
         ops.push({ op: "set_interface_retransmit_interval", value: `${name},${updated.retransmit_interval}` });
       } else {
         ops.push({ op: "delete_interface_retransmit_interval", value: name });
+      }
+    }
+    if (updated.retransmit_window !== original.retransmit_window) {
+      if (updated.retransmit_window != null) {
+        ops.push({ op: "set_interface_retransmit_window", value: `${name},${updated.retransmit_window}` });
+      } else {
+        ops.push({ op: "delete_interface_retransmit_window", value: name });
       }
     }
     if (updated.transmit_delay !== original.transmit_delay) {
