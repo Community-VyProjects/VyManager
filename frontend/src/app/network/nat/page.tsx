@@ -39,12 +39,9 @@ import { firewallGroupsService } from "@/lib/api/firewall-groups";
 import type { FirewallGroup } from "@/lib/api/types/firewall-groups";
 import { cn } from "@/lib/utils";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { CreateSourceNATModal } from "@/components/network/CreateSourceNATModal";
-import { CreateDestinationNATModal } from "@/components/network/CreateDestinationNATModal";
-import { CreateStaticNATModal } from "@/components/network/CreateStaticNATModal";
-import { EditSourceNATModal } from "@/components/network/EditSourceNATModal";
-import { EditDestinationNATModal } from "@/components/network/EditDestinationNATModal";
-import { EditStaticNATModal } from "@/components/network/EditStaticNATModal";
+import { SourceNATModal } from "@/components/network/SourceNATModal";
+import { DestinationNATModal } from "@/components/network/DestinationNATModal";
+import { StaticNATModal } from "@/components/network/StaticNATModal";
 import { DeleteNATModal } from "@/components/network/DeleteNATModal";
 import { NATRuleRow } from "@/components/network/NATRuleRow";
 import { NATReorderBanner } from "@/components/network/NATReorderBanner";
@@ -940,37 +937,37 @@ function NATPageInner() {
       )}
 
       {/* Modals */}
-      <CreateSourceNATModal
-        open={createSourceOpen}
-        onOpenChange={setCreateSourceOpen}
+      <SourceNATModal
+        open={createSourceOpen || !!editingSourceRule}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCreateSourceOpen(false);
+            setEditingSourceRule(null);
+          }
+        }}
+        existing={editingSourceRule}
         onSuccess={() => fetchConfig(true)}
       />
-      <CreateDestinationNATModal
-        open={createDestOpen}
-        onOpenChange={setCreateDestOpen}
+      <DestinationNATModal
+        open={createDestOpen || !!editingDestRule}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCreateDestOpen(false);
+            setEditingDestRule(null);
+          }
+        }}
+        existing={editingDestRule}
         onSuccess={() => fetchConfig(true)}
       />
-      <CreateStaticNATModal
-        open={createStaticOpen}
-        onOpenChange={setCreateStaticOpen}
-        onSuccess={() => fetchConfig(true)}
-      />
-      <EditSourceNATModal
-        open={!!editingSourceRule}
-        onOpenChange={(open) => !open && setEditingSourceRule(null)}
-        rule={editingSourceRule}
-        onSuccess={() => fetchConfig(true)}
-      />
-      <EditDestinationNATModal
-        open={!!editingDestRule}
-        onOpenChange={(open) => !open && setEditingDestRule(null)}
-        rule={editingDestRule}
-        onSuccess={() => fetchConfig(true)}
-      />
-      <EditStaticNATModal
-        open={!!editingStaticRule}
-        onOpenChange={(open) => !open && setEditingStaticRule(null)}
-        rule={editingStaticRule}
+      <StaticNATModal
+        open={createStaticOpen || !!editingStaticRule}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCreateStaticOpen(false);
+            setEditingStaticRule(null);
+          }
+        }}
+        existing={editingStaticRule}
         onSuccess={() => fetchConfig(true)}
       />
       <DeleteNATModal

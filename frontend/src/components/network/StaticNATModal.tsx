@@ -9,63 +9,69 @@ import { InterfaceSelect } from "@/components/ui/interface-select";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertCircle } from "lucide-react";
 import { natService } from "@/lib/api/nat";
+import type { StaticNATRule } from "@/lib/api/nat";
 
-interface CreateStaticNATModalProps {
+interface StaticNATModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  existing?: StaticNATRule | null;
   onSuccess: () => void;
 }
 
-export function CreateStaticNATModal({ open, onOpenChange, onSuccess }: CreateStaticNATModalProps) {
+export function StaticNATModal({ open, onOpenChange, existing, onSuccess }: StaticNATModalProps) {
+  const isEdit = !!existing;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Dropdown data
-
-  // Auto-calculated rule number
   const [ruleNumber, setRuleNumber] = useState<number>(10);
-
-  // Form fields
   const [description, setDescription] = useState("");
   const [destinationAddress, setDestinationAddress] = useState("");
   const [inboundInterface, setInboundInterface] = useState("");
   const [translationAddress, setTranslationAddress] = useState("");
 
-  // Load interfaces and calculate next rule number on mount
   useEffect(() => {
-    if (open) {
-      // Reset form to ensure clean state when opening
-      resetForm();
-      calculateNextRuleNumber();
+    if (!open) return;
+    resetForm();
+    if (existing) {
+      populateForm(existing);
+    } else {
+      void calculateNextRuleNumber();
     }
-  }, [open]);
+  }, [open, existing]);
 
   const calculateNextRuleNumber = async () => {
     try {
       const config = await natService.getConfig();
-
-      // Find the maximum rule number for STATIC NAT rules only
-      const staticRuleNumbers = config.static_rules.map(r => r.rule_number);
-
+      const staticRuleNumbers = config.static_rules.map((r) => r.rule_number);
       if (staticRuleNumbers.length === 0) {
-        setRuleNumber(100); // Start at 100 if no static rules exist
+        setRuleNumber(100);
       } else {
-        const maxRuleNumber = Math.max(...staticRuleNumbers);
-        setRuleNumber(maxRuleNumber + 1);
+        setRuleNumber(Math.max(...staticRuleNumbers) + 1);
       }
     } catch (err) {
       console.error("Failed to calculate next rule number:", err);
-      setRuleNumber(100); // Default to 100 on error
+      setRuleNumber(100);
     }
   };
 
   const resetForm = () => {
-    // Don't reset ruleNumber - it's auto-calculated
     setDescription("");
     setDestinationAddress("");
     setInboundInterface("");
     setTranslationAddress("");
     setError(null);
+  };
+
+  const populateForm = (rule: StaticNATRule) => {
+    setDescription(rule.description || "");
+    if (rule.destination?.address) {
+      setDestinationAddress(rule.destination.address);
+    }
+    if (rule.inbound_interface) {
+      setInboundInterface(rule.inbound_interface);
+    }
+    if (rule.translation?.address) {
+      setTranslationAddress(rule.translation.address);
+    }
   };
 
   const handleClose = () => {
@@ -74,12 +80,10 @@ export function CreateStaticNATModal({ open, onOpenChange, onSuccess }: CreateSt
   };
 
   const handleSubmit = async () => {
-    // Validation
     if (!destinationAddress.trim()) {
       setError("Destination address is required");
       return;
     }
-
     if (!translationAddress.trim()) {
       setError("Translation address is required");
       return;
@@ -89,27 +93,25 @@ export function CreateStaticNATModal({ open, onOpenChange, onSuccess }: CreateSt
     setError(null);
 
     try {
-      const config: Record<string, unknown> = {};
-
-      if (description.trim()) {
-        config.description = description.trim();
-      }
-
+      const config: Record<string, string> = {};
+      config.description = description.trim();
       config.destination_address = destinationAddress.trim();
-
       if (inboundInterface) {
         config.inbound_interface = inboundInterface;
       }
-
       config.translation_address = translationAddress.trim();
 
-      // Use auto-calculated rule number
-      await natService.createStaticRule(ruleNumber, config);
+      if (isEdit) {
+        if (!existing) return;
+        await natService.updateStaticRule(existing.rule_number, config);
+      } else {
+        await natService.createStaticRule(ruleNumber, config);
+      }
 
       handleClose();
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create static NAT rule");
+      setError(err instanceof Error ? err.message : isEdit ? "Failed to update static NAT rule" : "Failed to create static NAT rule");
     } finally {
       setLoading(false);
     }
@@ -119,14 +121,17 @@ export function CreateStaticNATModal({ open, onOpenChange, onSuccess }: CreateSt
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create Static NAT Rule</DialogTitle>
+          <DialogTitle>
+            {isEdit ? `Edit Static NAT Rule ${existing?.rule_number}` : "Create Static NAT Rule"}
+          </DialogTitle>
           <DialogDescription>
-            Create a new static NAT rule for one-to-one address translation.
+            {isEdit
+              ? "Modify the static NAT rule configuration (1:1 mapping)."
+              : "Create a new static NAT rule for one-to-one address translation."}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          {/* Error Alert */}
           {error && (
             <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex items-start gap-2">
               <AlertCircle className="h-5 w-5 text-destructive mt-0.5 flex-shrink-0" />
@@ -136,18 +141,18 @@ export function CreateStaticNATModal({ open, onOpenChange, onSuccess }: CreateSt
             </div>
           )}
 
-          {/* Rule Number (Auto-calculated) */}
           <div className="space-y-2 bg-muted/30 border border-muted rounded-lg p-4">
-            <Label htmlFor="rule-number">Rule Number (Auto-assigned)</Label>
+            <Label htmlFor="rule-number">{isEdit ? "Rule Number" : "Rule Number (Auto-assigned)"}</Label>
             <div className="text-2xl font-mono font-bold text-primary">
-              {ruleNumber}
+              {isEdit ? existing?.rule_number : ruleNumber}
             </div>
-            <p className="text-xs text-muted-foreground">
-              This rule will be automatically assigned number {ruleNumber}
-            </p>
+            {!isEdit && (
+              <p className="text-xs text-muted-foreground">
+                This rule will be automatically assigned number {ruleNumber}
+              </p>
+            )}
           </div>
 
-          {/* Description */}
           <div className="space-y-2">
             <Label htmlFor="description">Description</Label>
             <Textarea
@@ -159,10 +164,9 @@ export function CreateStaticNATModal({ open, onOpenChange, onSuccess }: CreateSt
             />
           </div>
 
-          {/* Destination Address */}
           <div className="space-y-2">
             <Label htmlFor="destination-address">
-              Destination Address <span className="text-destructive">*</span>
+              Destination Address {isEdit ? "(External)" : <span className="text-destructive">*</span>}
             </Label>
             <Input
               id="destination-address"
@@ -172,28 +176,40 @@ export function CreateStaticNATModal({ open, onOpenChange, onSuccess }: CreateSt
               className="font-mono"
             />
             <p className="text-xs text-muted-foreground">
-              The external/public IP address to translate from
+              {isEdit ? "The external/public IP address" : "The external/public IP address to translate from"}
             </p>
           </div>
 
-          {/* Inbound Interface */}
           <div className="space-y-2">
-            <Label htmlFor="inbound-interface">Inbound Interface</Label>
+            <Label htmlFor="inbound-interface">
+              {isEdit ? "Inbound Interface (Optional)" : "Inbound Interface"}
+            </Label>
             <InterfaceSelect
               value={inboundInterface}
               onValueChange={setInboundInterface}
               id="inbound-interface"
-              placeholder="Select interface"
+              placeholder={isEdit ? "Select interface (optional)" : "Select interface"}
             />
-            <p className="text-xs text-muted-foreground">
-              The interface on which the traffic arrives
-            </p>
+            {isEdit && inboundInterface && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setInboundInterface("")}
+                className="h-6 text-xs text-muted-foreground hover:text-foreground"
+              >
+                Clear selection
+              </Button>
+            )}
+            {!isEdit && (
+              <p className="text-xs text-muted-foreground">
+                The interface on which the traffic arrives
+              </p>
+            )}
           </div>
 
-          {/* Translation Address */}
           <div className="space-y-2">
             <Label htmlFor="translation-address">
-              Translation Address <span className="text-destructive">*</span>
+              Translation Address {isEdit ? "(Internal)" : <span className="text-destructive">*</span>}
             </Label>
             <Input
               id="translation-address"
@@ -207,17 +223,18 @@ export function CreateStaticNATModal({ open, onOpenChange, onSuccess }: CreateSt
             </p>
           </div>
 
-          {/* Info Box */}
-          <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 space-y-2">
-            <p className="text-sm font-semibold text-blue-500">Static NAT Mapping</p>
-            <p className="text-xs text-muted-foreground">
-              Static NAT creates a one-to-one mapping between external and internal IP addresses.
-              Traffic arriving at the destination address will be translated to the translation address.
-            </p>
-            <p className="text-xs text-muted-foreground font-mono">
-              {destinationAddress || "203.0.113.10"} → {translationAddress || "192.168.1.10"}
-            </p>
-          </div>
+          {!isEdit && (
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 space-y-2">
+              <p className="text-sm font-semibold text-blue-500">Static NAT Mapping</p>
+              <p className="text-xs text-muted-foreground">
+                Static NAT creates a one-to-one mapping between external and internal IP addresses.
+                Traffic arriving at the destination address will be translated to the translation address.
+              </p>
+              <p className="text-xs text-muted-foreground font-mono">
+                {destinationAddress || "203.0.113.10"} → {translationAddress || "192.168.1.10"}
+              </p>
+            </div>
+          )}
         </div>
 
         <DialogFooter>
@@ -225,7 +242,7 @@ export function CreateStaticNATModal({ open, onOpenChange, onSuccess }: CreateSt
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? "Creating..." : "Create Rule"}
+            {loading ? (isEdit ? "Updating..." : "Creating...") : isEdit ? "Update Rule" : "Create Rule"}
           </Button>
         </DialogFooter>
       </DialogContent>

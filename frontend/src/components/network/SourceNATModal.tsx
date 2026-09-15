@@ -15,17 +15,20 @@ import { AlertCircle } from "lucide-react";
 import { natService } from "@/lib/api/nat";
 import { firewallGroupsService } from "@/lib/api/firewall-groups";
 import type { FirewallGroup } from "@/lib/api/types/firewall-groups";
-import type { DestinationNATRule } from "@/lib/api/nat";
+import type { SourceNATRule } from "@/lib/api/nat";
 
-interface EditDestinationNATModalProps {
+interface SourceNATModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  rule: DestinationNATRule | null;
+  existing?: SourceNATRule | null;
   onSuccess: () => void;
 }
 
-export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }: EditDestinationNATModalProps) {
+export function SourceNATModal({ open, onOpenChange, existing, onSuccess }: SourceNATModalProps) {
+  const isEdit = !!existing;
+
   const [loading, setLoading] = useState(false);
+  const [ruleNumber, setRuleNumber] = useState<number>(10);
   const [error, setError] = useState<string | null>(null);
 
   // Dropdown data
@@ -58,17 +61,18 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
   const [destPortType, setDestPortType] = useState<"input" | "group">("input");
   const [destPortGroupName, setDestPortGroupName] = useState("");
 
-  // Inbound interface
-  const [inboundInterfaceType, setInboundInterfaceType] = useState<"name" | "group">("name");
-  const [inboundInterfaceName, setInboundInterfaceName] = useState("");
-  const [inboundInterfaceGroup, setInboundInterfaceGroup] = useState("");
-  const [inboundInterfaceInvert, setInboundInterfaceInvert] = useState(false);
+  // Outbound interface
+  const [outboundInterfaceType, setOutboundInterfaceType] = useState<"name" | "group">("name");
+  const [outboundInterfaceName, setOutboundInterfaceName] = useState("");
+  const [outboundInterfaceGroup, setOutboundInterfaceGroup] = useState("");
+  const [outboundInterfaceInvert, setOutboundInterfaceInvert] = useState(false);
 
   // Protocol and packet type
   const [protocol, setProtocol] = useState("");
   const [packetType, setPacketType] = useState("");
 
   // Translation
+  const [translationType, setTranslationType] = useState<"ip" | "cidr" | "range" | "masquerade">("masquerade");
   const [translationAddress, setTranslationAddress] = useState("");
   const [translationPort, setTranslationPort] = useState("");
   const [translationPortMapping, setTranslationPortMapping] = useState(false);
@@ -98,9 +102,10 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
   const [originalDestinationPort, setOriginalDestinationPort] = useState("");
   const [originalDestinationGroup, setOriginalDestinationGroup] = useState(false);
   const [originalDestinationFqdn, setOriginalDestinationFqdn] = useState("");
-  const [originalInboundInterfaceType, setOriginalInboundInterfaceType] = useState<"name" | "group" | null>(null);
-  const [originalSourcePortGroup, setOriginalSourcePortGroup] = useState(false);
-  const [originalDestPortGroup, setOriginalDestPortGroup] = useState(false);
+  const [originalOutboundInterfaceType, setOriginalOutboundInterfaceType] = useState<"name" | "group" | null>(null);
+  const [originalSourcePortGroup, setOriginalSourcePortGroup] = useState("");
+  const [originalDestPortGroup, setOriginalDestPortGroup] = useState("");
+  const [originalTranslationPort, setOriginalTranslationPort] = useState("");
   const [originalTranslationPortMapping, setOriginalTranslationPortMapping] = useState(false);
   const [originalTranslationAddressMapping, setOriginalTranslationAddressMapping] = useState(false);
 
@@ -113,18 +118,23 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
     setSourcePort("");
     setSourceGroupType("");
     setSourceGroupName("");
+    setSourcePortType("input");
+    setSourcePortGroupName("");
     setDestinationType("address");
     setDestinationAddress("");
     setDestinationInvert(false);
     setDestinationPort("");
     setDestinationGroupType("");
     setDestinationGroupName("");
-    setInboundInterfaceType("name");
-    setInboundInterfaceName("");
-    setInboundInterfaceGroup("");
-    setInboundInterfaceInvert(false);
+    setDestPortType("input");
+    setDestPortGroupName("");
+    setOutboundInterfaceType("name");
+    setOutboundInterfaceName("");
+    setOutboundInterfaceGroup("");
+    setOutboundInterfaceInvert(false);
     setProtocol("");
     setPacketType("");
+    setTranslationType("masquerade");
     setTranslationAddress("");
     setTranslationPort("");
     setTranslationPortMapping(false);
@@ -147,37 +157,29 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
     setOriginalDestinationPort("");
     setOriginalDestinationGroup(false);
     setOriginalDestinationFqdn("");
-    setOriginalInboundInterfaceType(null);
-    setSourcePortType("input");
-    setSourcePortGroupName("");
-    setDestPortType("input");
-    setDestPortGroupName("");
-    setOriginalSourcePortGroup(false);
-    setOriginalDestPortGroup(false);
+    setOriginalOutboundInterfaceType(null);
+    setOriginalSourcePortGroup("");
+    setOriginalDestPortGroup("");
+    setOriginalTranslationPort("");
     setOriginalTranslationPortMapping(false);
     setOriginalTranslationAddressMapping(false);
     setError(null);
   };
 
-  // Load groups and interfaces on mount
   useEffect(() => {
-    if (open) {
-      loadGroups();
+    if (!open) return;
+    loadGroups();
+    resetForm();
+    if (existing) {
+      populateForm(existing);
+    } else {
+      void calculateNextRuleNumber();
     }
-  }, [open]);
-
-  // Populate form when rule changes
-  useEffect(() => {
-    if (rule && open) {
-      // Reset form first to clear any stale data from previous rule
-      resetForm();
-      populateForm(rule);
-    }
-  }, [rule, open]);
+  }, [open, existing]);
 
   // Auto-adjust protocol when ports are used
   useEffect(() => {
-    const hasPort = sourcePort.trim() || destinationPort.trim() || translationPort.trim() || sourcePortGroupName || destPortGroupName;
+    const hasPort = sourcePort.trim() || destinationPort.trim() || sourcePortGroupName || destPortGroupName;
     const portCompatibleProtocols = ["tcp", "udp", "tcp_udp"];
 
     if (hasPort && !portCompatibleProtocols.includes(protocol)) {
@@ -187,9 +189,9 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
       // Switch back to "all" when ports are cleared
       setProtocol("all");
     }
-  }, [sourcePort, destinationPort, translationPort, sourcePortGroupName, destPortGroupName, protocol]);
+  }, [sourcePort, destinationPort, sourcePortGroupName, destPortGroupName, protocol]);
 
-  const populateForm = (rule: DestinationNATRule) => {
+  const populateForm = (rule: SourceNATRule) => {
     // Description
     setDescription(rule.description || "");
 
@@ -227,13 +229,13 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
       setSourcePortGroupName(rule.source.group["port-group"]);
       setSourcePort("");
       setOriginalSourcePort("");
-      setOriginalSourcePortGroup(true);
+      setOriginalSourcePortGroup(rule.source.group["port-group"]);
     } else {
       setSourcePortType("input");
       setSourcePort(rule.source?.port || "");
       setSourcePortGroupName("");
       setOriginalSourcePort(rule.source?.port || "");
-      setOriginalSourcePortGroup(false);
+      setOriginalSourcePortGroup("");
     }
 
     // Destination
@@ -270,32 +272,32 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
       setDestPortGroupName(rule.destination.group["port-group"]);
       setDestinationPort("");
       setOriginalDestinationPort("");
-      setOriginalDestPortGroup(true);
+      setOriginalDestPortGroup(rule.destination.group["port-group"]);
     } else {
       setDestPortType("input");
       setDestinationPort(rule.destination?.port || "");
       setDestPortGroupName("");
       setOriginalDestinationPort(rule.destination?.port || "");
-      setOriginalDestPortGroup(false);
+      setOriginalDestPortGroup("");
     }
 
-    // Inbound interface
-    if (rule.inbound_interface) {
-      const interfaceEntries = Object.entries(rule.inbound_interface);
+    // Outbound interface
+    if (rule.outbound_interface) {
+      const interfaceEntries = Object.entries(rule.outbound_interface);
       if (interfaceEntries.length > 0) {
         const [type, value] = interfaceEntries[0];
-        setInboundInterfaceType(type as "name" | "group");
-        setOriginalInboundInterfaceType(type as "name" | "group");
+        setOutboundInterfaceType(type as "name" | "group");
+        setOriginalOutboundInterfaceType(type as "name" | "group");
 
         // Check for inverted interface (starts with !)
         const isInverted = value.startsWith("!");
-        setInboundInterfaceInvert(isInverted);
+        setOutboundInterfaceInvert(isInverted);
         const cleanValue = isInverted ? value.substring(1) : value;
 
         if (type === "name") {
-          setInboundInterfaceName(cleanValue);
+          setOutboundInterfaceName(cleanValue);
         } else {
-          setInboundInterfaceGroup(cleanValue);
+          setOutboundInterfaceGroup(cleanValue);
         }
       }
     }
@@ -304,9 +306,26 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
     setProtocol(rule.protocol || "all");
     setPacketType(rule.packet_type || "");
 
-    // Translation
-    setTranslationAddress(rule.translation?.address || "");
-    setTranslationPort(rule.translation?.port || "");
+    // Translation - detect type
+    const transAddr = rule.translation?.address || "";
+    if (transAddr === "masquerade") {
+      setTranslationType("masquerade");
+      setTranslationAddress("");
+    } else if (transAddr.includes("/")) {
+      setTranslationType("cidr");
+      setTranslationAddress(transAddr);
+    } else if (transAddr.includes("-")) {
+      setTranslationType("range");
+      setTranslationAddress(transAddr);
+    } else if (transAddr) {
+      setTranslationType("ip");
+      setTranslationAddress(transAddr);
+    }
+
+    // Translation port and options
+    const tPort = rule.translation?.port || "";
+    setTranslationPort(tPort);
+    setOriginalTranslationPort(tPort);
     const pm = rule.translation?.options?.port_mapping === "random";
     setTranslationPortMapping(pm);
     setOriginalTranslationPortMapping(pm);
@@ -348,13 +367,147 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
     }
   };
 
+  const calculateNextRuleNumber = async () => {
+    try {
+      const config = await natService.getConfig();
+
+      // Find the maximum rule number for SOURCE NAT rules only
+      const sourceRuleNumbers = config.source_rules.map(r => r.rule_number);
+
+      if (sourceRuleNumbers.length === 0) {
+        setRuleNumber(100); // Start at 100 if no source rules exist
+      } else {
+        const maxRuleNumber = Math.max(...sourceRuleNumbers);
+        setRuleNumber(maxRuleNumber + 1);
+      }
+    } catch (err) {
+      console.error("Failed to calculate next rule number:", err);
+      setRuleNumber(100); // Default to 100 on error
+    }
+  };
+
+
   const handleClose = () => {
-    setError(null);
+    resetForm();
     onOpenChange(false);
   };
 
+  const submitCreate = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const config: Record<string, unknown> = {};
+
+      if (description.trim()) {
+        config.description = description.trim();
+      }
+
+      // Source
+      if (sourceType === "address" && sourceAddress.trim()) {
+        config.source_address = sourceAddress.trim();
+        config.source_address_invert = sourceInvert;
+      } else if (sourceType === "group" && sourceGroupType && sourceGroupName) {
+        config.source_group_type = sourceGroupType;
+        config.source_group_name = sourceGroupName;
+        config.source_group_invert = sourceInvert;
+      } else if (sourceType === "fqdn" && sourceFqdn.trim()) {
+        config.source_fqdn = sourceFqdn.trim();
+      }
+      if (sourcePortType === "input" && sourcePort.trim()) {
+        config.source_port = sourcePort.trim();
+      } else if (sourcePortType === "group" && sourcePortGroupName) {
+        config.source_port_group_name = sourcePortGroupName;
+      }
+
+      // Destination
+      if (destinationType === "address" && destinationAddress.trim()) {
+        config.destination_address = destinationAddress.trim();
+        config.destination_address_invert = destinationInvert;
+      } else if (destinationType === "group" && destinationGroupType && destinationGroupName) {
+        config.destination_group_type = destinationGroupType;
+        config.destination_group_name = destinationGroupName;
+        config.destination_group_invert = destinationInvert;
+      } else if (destinationType === "fqdn" && destinationFqdn.trim()) {
+        config.destination_fqdn = destinationFqdn.trim();
+      }
+      if (destPortType === "input" && destinationPort.trim()) {
+        config.destination_port = destinationPort.trim();
+      } else if (destPortType === "group" && destPortGroupName) {
+        config.destination_port_group_name = destPortGroupName;
+      }
+
+      // Outbound interface
+      if (outboundInterfaceType === "name" && outboundInterfaceName) {
+        config.outbound_interface_type = "name";
+        config.outbound_interface_value = outboundInterfaceName;
+        config.outbound_interface_invert = outboundInterfaceInvert;
+      } else if (outboundInterfaceType === "group" && outboundInterfaceGroup) {
+        config.outbound_interface_type = "group";
+        config.outbound_interface_value = outboundInterfaceGroup;
+        config.outbound_interface_invert = outboundInterfaceInvert;
+      }
+
+      // Protocol (don't send "all" - VyOS treats no protocol as all protocols)
+      if (protocol && protocol !== "all") {
+        config.protocol = protocol;
+      }
+
+      // Packet type
+      if (packetType) {
+        config.packet_type = packetType;
+      }
+
+      // Translation
+      if (translationType === "masquerade") {
+        // Masquerade is set by: "set nat source rule X translation address masquerade"
+        config.translation_address = "masquerade";
+      } else if (translationAddress.trim()) {
+        config.translation_address = translationAddress.trim();
+      }
+      if (translationPort.trim()) {
+        config.translation_port = translationPort.trim();
+      }
+      if (translationPortMapping) config.translation_port_mapping = true;
+      if (translationAddressMapping) config.translation_address_mapping = true;
+
+      // Load balance
+      if (loadBalancingEnabled) {
+        if (loadBalanceHash) {
+          config.load_balance_hash = loadBalanceHash;
+        }
+        if (loadBalanceBackend.trim()) {
+          config.load_balance_backend = loadBalanceBackend.trim();
+        }
+        if (loadBalanceBackendWeight.trim()) {
+          config.load_balance_backend_weight = loadBalanceBackendWeight.trim();
+        }
+      }
+
+      // Flags
+      config.disable = disable;
+      config.exclude = exclude;
+      config.log = log;
+
+      // Use auto-calculated rule number
+      await natService.createSourceRule(ruleNumber, config);
+
+      handleClose();
+      onSuccess();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create source NAT rule");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
   const handleSubmit = async () => {
-    if (!rule) return;
+    if (!isEdit) {
+      await submitCreate();
+      return;
+    }
+    if (!existing) return;
 
     setLoading(true);
     setError(null);
@@ -414,15 +567,18 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
         } else if (originalSourcePort) {
           config.delete_source_port = true;
         }
-        // If switching from port group to manual port, delete the port group
         if (originalSourcePortGroup) {
           config.delete_source_port_group = true;
         }
-      } else if (sourcePortType === "group" && sourcePortGroupName) {
-        config.source_port_group_name = sourcePortGroupName;
-        // If switching from manual port to port group, delete the port
+      } else if (sourcePortType === "group") {
+        if (sourcePortGroupName) {
+          config.source_port_group_name = sourcePortGroupName;
+        }
         if (originalSourcePort) {
           config.delete_source_port = true;
+        }
+        if (originalSourcePortGroup && !sourcePortGroupName) {
+          config.delete_source_port_group = true;
         }
       }
 
@@ -474,39 +630,42 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
         } else if (originalDestinationPort) {
           config.delete_destination_port = true;
         }
-        // If switching from port group to manual port, delete the port group
         if (originalDestPortGroup) {
           config.delete_destination_port_group = true;
         }
-      } else if (destPortType === "group" && destPortGroupName) {
-        config.destination_port_group_name = destPortGroupName;
-        // If switching from manual port to port group, delete the port
+      } else if (destPortType === "group") {
+        if (destPortGroupName) {
+          config.destination_port_group_name = destPortGroupName;
+        }
         if (originalDestinationPort) {
           config.delete_destination_port = true;
         }
+        if (originalDestPortGroup && !destPortGroupName) {
+          config.delete_destination_port_group = true;
+        }
       }
 
-      // Inbound interface - delete the old type when switching between name and group
-      if (inboundInterfaceType === "name" && inboundInterfaceName) {
-        if (originalInboundInterfaceType === "group") {
-          config.delete_inbound_interface_group = true;
+      // Outbound interface - delete the old type when switching between name and group
+      if (outboundInterfaceType === "name" && outboundInterfaceName) {
+        if (originalOutboundInterfaceType === "group") {
+          config.delete_outbound_interface_group = true;
         }
-        config.inbound_interface_type = "name";
-        config.inbound_interface_value = inboundInterfaceName;
-        config.inbound_interface_invert = inboundInterfaceInvert;
-      } else if (inboundInterfaceType === "group" && inboundInterfaceGroup) {
-        if (originalInboundInterfaceType === "name") {
-          config.delete_inbound_interface_name = true;
+        config.outbound_interface_type = "name";
+        config.outbound_interface_value = outboundInterfaceName;
+        config.outbound_interface_invert = outboundInterfaceInvert;
+      } else if (outboundInterfaceType === "group" && outboundInterfaceGroup) {
+        if (originalOutboundInterfaceType === "name") {
+          config.delete_outbound_interface_name = true;
         }
-        config.inbound_interface_type = "group";
-        config.inbound_interface_value = inboundInterfaceGroup;
-        config.inbound_interface_invert = inboundInterfaceInvert;
+        config.outbound_interface_type = "group";
+        config.outbound_interface_value = outboundInterfaceGroup;
+        config.outbound_interface_invert = outboundInterfaceInvert;
       }
 
       // Protocol (don't send "all" - VyOS treats no protocol as all protocols)
       if (protocol && protocol !== "all") {
         config.protocol = protocol;
-      } else if (protocol === "all" && rule.protocol) {
+      } else if (protocol === "all" && existing.protocol) {
         // If changing from a specific protocol to "all", we need to delete the protocol
         config.delete_protocol = true;
       }
@@ -517,10 +676,16 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
       }
 
       // Translation
-      if (translationAddress.trim()) {
+      config.translation_type = translationType;
+      if (translationType === "masquerade") {
+        config.translation_address = "masquerade";
+      } else if (translationAddress.trim()) {
         config.translation_address = translationAddress.trim();
       }
-      if (translationPort.trim()) {
+
+      if (!translationPort.trim() && originalTranslationPort) {
+        config.delete_translation_port = true;
+      } else if (translationPort.trim()) {
         config.translation_port = translationPort.trim();
       }
 
@@ -555,12 +720,12 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
       config.log = log;
 
       // Update the rule
-      await natService.updateDestinationRule(rule.rule_number, config);
+      await natService.updateSourceRule(existing.rule_number, config);
 
       handleClose();
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update destination NAT rule");
+      setError(err instanceof Error ? err.message : "Failed to update source NAT rule");
     } finally {
       setLoading(false);
     }
@@ -573,15 +738,13 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
   const getInterfaceGroups = () => (groups || []).filter(g => g.type === "interface-group");
   const getPortGroups = () => (groups || []).filter(g => g.type === "port-group");
 
-  if (!rule) return null;
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Edit Destination NAT Rule {rule.rule_number}</DialogTitle>
+          <DialogTitle>{isEdit ? `Edit Source NAT Rule ${existing?.rule_number}` : "Create Source NAT Rule"}</DialogTitle>
           <DialogDescription>
-            Modify the destination NAT rule configuration.
+            {isEdit ? "Modify the source NAT rule configuration." : "Create a new source NAT rule for outbound traffic translation."}
           </DialogDescription>
         </DialogHeader>
 
@@ -595,6 +758,15 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
               </div>
             </div>
           )}
+
+          <div className="flex items-center gap-2 bg-muted/30 border border-muted rounded-md px-3 py-2">
+            <span className="text-xs text-muted-foreground">
+              {isEdit ? "Rule number:" : "Rule number (auto-assigned):"}
+            </span>
+            <span className="font-mono font-semibold text-sm text-primary">
+              {isEdit ? existing?.rule_number : ruleNumber}
+            </span>
+          </div>
 
           {/* Description */}
           <div className="space-y-2">
@@ -618,36 +790,36 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
 
             {/* Basic Tab */}
             <TabsContent value="basic" className="space-y-4">
-              {/* Inbound Interface */}
+              {/* Outbound Interface */}
               <div className="space-y-2">
-                <Label>Inbound Interface Type</Label>
-                <RadioGroup value={inboundInterfaceType} onValueChange={(v) => setInboundInterfaceType(v as "name" | "group")}>
+                <Label>Outbound Interface Type</Label>
+                <RadioGroup value={outboundInterfaceType} onValueChange={(v) => setOutboundInterfaceType(v as "name" | "group")}>
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="name" id="inbound-name" />
-                    <Label htmlFor="inbound-name">Interface Name</Label>
+                    <RadioGroupItem value="name" id="outbound-name" />
+                    <Label htmlFor="outbound-name">Interface Name</Label>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="group" id="inbound-group" />
-                    <Label htmlFor="inbound-group">Interface Group</Label>
+                    <RadioGroupItem value="group" id="outbound-group" />
+                    <Label htmlFor="outbound-group">Interface Group</Label>
                   </div>
                 </RadioGroup>
               </div>
 
-              {inboundInterfaceType === "name" ? (
+              {outboundInterfaceType === "name" ? (
                 <div className="space-y-2">
-                  <Label htmlFor="inbound-interface-name">Inbound Interface Name</Label>
+                  <Label htmlFor="outbound-interface-name">Outbound Interface Name</Label>
                   <InterfaceSelect
-                    value={inboundInterfaceName}
-                    onValueChange={setInboundInterfaceName}
-                    id="inbound-interface-name"
+                    value={outboundInterfaceName}
+                    onValueChange={setOutboundInterfaceName}
+                    id="outbound-interface-name"
                     placeholder="Select interface"
                   />
                 </div>
               ) : (
                 <div className="space-y-2">
-                  <Label htmlFor="inbound-interface-group">Inbound Interface Group</Label>
-                  <Select value={inboundInterfaceGroup} onValueChange={setInboundInterfaceGroup}>
-                    <SelectTrigger id="inbound-interface-group">
+                  <Label htmlFor="outbound-interface-group">Outbound Interface Group</Label>
+                  <Select value={outboundInterfaceGroup} onValueChange={setOutboundInterfaceGroup}>
+                    <SelectTrigger id="outbound-interface-group">
                       <SelectValue placeholder="Select interface group" />
                     </SelectTrigger>
                     <SelectContent>
@@ -663,38 +835,72 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
 
               <div className="flex items-center space-x-2">
                 <Checkbox
-                  id="inbound-invert"
-                  checked={inboundInterfaceInvert}
-                  onCheckedChange={(checked) => setInboundInterfaceInvert(checked === true)}
+                  id="outbound-invert"
+                  checked={outboundInterfaceInvert}
+                  onCheckedChange={(checked) => setOutboundInterfaceInvert(checked === true)}
                 />
-                <Label htmlFor="inbound-invert" className="text-sm font-normal">
+                <Label htmlFor="outbound-invert" className="text-sm font-normal">
                   Invert match (all except this interface)
                 </Label>
               </div>
 
               {/* Translation */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Translation Type</Label>
+                <RadioGroup value={translationType} onValueChange={(v) => setTranslationType(v as "ip" | "cidr" | "range" | "masquerade")}>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="masquerade" id="trans-masquerade" />
+                    <Label htmlFor="trans-masquerade">Masquerade (use outbound interface address)</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="ip" id="trans-ip" />
+                    <Label htmlFor="trans-ip">IP Address</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="cidr" id="trans-cidr" />
+                    <Label htmlFor="trans-cidr">CIDR Block</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="range" id="trans-range" />
+                    <Label htmlFor="trans-range">IP Range</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              {translationType !== "masquerade" && (
                 <div className="space-y-2">
-                  <Label htmlFor="translation-address">Translation Address</Label>
+                  <Label htmlFor="translation-address">
+                    Translation Address
+                    {translationType === "cidr" && " (e.g., 192.168.1.0/24)"}
+                    {translationType === "range" && " (e.g., 192.168.1.10-192.168.1.20)"}
+                    {translationType === "ip" && " (e.g., 203.0.113.10)"}
+                  </Label>
                   <Input
                     id="translation-address"
                     value={translationAddress}
                     onChange={(e) => setTranslationAddress(e.target.value)}
-                    placeholder="e.g., 192.168.1.10"
+                    placeholder={
+                      translationType === "cidr" ? "192.168.1.0/24"
+                        : translationType === "range" ? "192.168.1.10-192.168.1.20"
+                          : "203.0.113.10"
+                    }
                     className="font-mono"
                   />
                 </div>
+              )}
+
+              {translationType !== "masquerade" && (
                 <div className="space-y-2">
                   <Label htmlFor="translation-port">Translation Port</Label>
                   <Input
                     id="translation-port"
                     value={translationPort}
                     onChange={(e) => setTranslationPort(e.target.value)}
-                    placeholder="e.g., 8080"
+                    placeholder="e.g., 8080 or 1024-65535"
                     className="font-mono"
                   />
                 </div>
-              </div>
+              )}
 
               {/* Translation Options */}
               <div className="space-y-2">
@@ -739,7 +945,7 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
                   <SelectTrigger id="protocol">
                     <SelectValue />
                   </SelectTrigger>
-                  {(sourcePort.trim() || destinationPort.trim() || translationPort.trim() || sourcePortGroupName || destPortGroupName) ? (
+                  {(sourcePort.trim() || destinationPort.trim() || sourcePortGroupName || destPortGroupName) ? (
                     // When ports are specified, only allow TCP/UDP protocols
                     <SelectContent>
                       <SelectItem value="tcp">TCP</SelectItem>
@@ -809,7 +1015,7 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
                     </SelectContent>
                   )}
                 </Select>
-                {(sourcePort.trim() || destinationPort.trim() || translationPort.trim() || sourcePortGroupName || destPortGroupName) && (
+                {(sourcePort.trim() || destinationPort.trim() || sourcePortGroupName || destPortGroupName) && (
                   <p className="text-xs text-muted-foreground">
                     Only TCP/UDP protocols are available when using ports
                   </p>
@@ -837,6 +1043,19 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
                 </RadioGroup>
               </div>
 
+              {sourceType === "fqdn" && (
+                <div className="space-y-2">
+                  <Label htmlFor="source-fqdn-input">Source FQDN</Label>
+                  <Input
+                    id="source-fqdn-input"
+                    value={sourceFqdn}
+                    onChange={(e) => setSourceFqdn(e.target.value)}
+                    placeholder="e.g., example.com"
+                    className="font-mono"
+                  />
+                </div>
+              )}
+
               {sourceType === "address" ? (
                 <div className="space-y-2">
                   <Label htmlFor="source-address-input">Source Address</Label>
@@ -848,18 +1067,7 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
                     className="font-mono"
                   />
                 </div>
-              ) : sourceType === "fqdn" ? (
-                <div className="space-y-2">
-                  <Label htmlFor="source-fqdn-input">Source FQDN</Label>
-                  <Input
-                    id="source-fqdn-input"
-                    value={sourceFqdn}
-                    onChange={(e) => setSourceFqdn(e.target.value)}
-                    placeholder="e.g., example.com"
-                    className="font-mono"
-                  />
-                </div>
-              ) : (
+              ) : sourceType === "fqdn" ? null : (
                 <>
                   <div className="space-y-2">
                     <Label htmlFor="source-group-type">Source Group Type</Label>
@@ -971,18 +1179,7 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
                 </RadioGroup>
               </div>
 
-              {destinationType === "address" ? (
-                <div className="space-y-2">
-                  <Label htmlFor="destination-address-input">Destination Address</Label>
-                  <Input
-                    id="destination-address-input"
-                    value={destinationAddress}
-                    onChange={(e) => setDestinationAddress(e.target.value)}
-                    placeholder="e.g., 203.0.113.10"
-                    className="font-mono"
-                  />
-                </div>
-              ) : destinationType === "fqdn" ? (
+              {destinationType === "fqdn" && (
                 <div className="space-y-2">
                   <Label htmlFor="destination-fqdn-input">Destination FQDN</Label>
                   <Input
@@ -993,7 +1190,20 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
                     className="font-mono"
                   />
                 </div>
-              ) : (
+              )}
+
+              {destinationType === "address" ? (
+                <div className="space-y-2">
+                  <Label htmlFor="destination-address-input">Destination Address</Label>
+                  <Input
+                    id="destination-address-input"
+                    value={destinationAddress}
+                    onChange={(e) => setDestinationAddress(e.target.value)}
+                    placeholder="e.g., 203.0.113.0/24"
+                    className="font-mono"
+                  />
+                </div>
+              ) : destinationType === "fqdn" ? null : (
                 <>
                   <div className="space-y-2">
                     <Label htmlFor="destination-group-type">Destination Group Type</Label>
@@ -1162,12 +1372,12 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
                       </p>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="load-balance-weight">Backend Weight (optional)</Label>
+                      <Label htmlFor="load-balance-weight">Backend Weight</Label>
                       <Input
                         id="load-balance-weight"
                         value={loadBalanceBackendWeight}
                         onChange={(e) => setLoadBalanceBackendWeight(e.target.value)}
-                        placeholder="e.g., 10 (relative weight)"
+                        placeholder="e.g., 10 (optional, relative weight)"
                         className="font-mono"
                       />
                       <p className="text-xs text-muted-foreground">
@@ -1223,7 +1433,7 @@ export function EditDestinationNATModal({ open, onOpenChange, rule, onSuccess }:
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? "Updating..." : "Update Rule"}
+            {loading ? (isEdit ? "Updating..." : "Creating...") : isEdit ? "Update Rule" : "Create Rule"}
           </Button>
         </DialogFooter>
       </DialogContent>

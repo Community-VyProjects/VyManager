@@ -15,64 +15,69 @@ import { AlertCircle } from "lucide-react";
 import { natService } from "@/lib/api/nat";
 import { firewallGroupsService } from "@/lib/api/firewall-groups";
 import type { FirewallGroup } from "@/lib/api/types/firewall-groups";
+import type { DestinationNATRule } from "@/lib/api/nat";
 
-interface CreateSourceNATModalProps {
+interface DestinationNATModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  existing?: DestinationNATRule | null;
   onSuccess: () => void;
 }
 
-export function CreateSourceNATModal({ open, onOpenChange, onSuccess }: CreateSourceNATModalProps) {
+export function DestinationNATModal({ open, onOpenChange, existing, onSuccess }: DestinationNATModalProps) {
+  const isEdit = !!existing;
+
   const [loading, setLoading] = useState(false);
+  const [ruleNumber, setRuleNumber] = useState<number>(10);
   const [error, setError] = useState<string | null>(null);
 
   // Dropdown data
   const [groups, setGroups] = useState<FirewallGroup[]>([]);
 
-  // Auto-calculated rule number
-  const [ruleNumber, setRuleNumber] = useState<number>(10);
-
-  // Form fields
+  // Form fields - Description
   const [description, setDescription] = useState("");
 
-  // Source
+  // Source fields
   const [sourceType, setSourceType] = useState<"address" | "group" | "fqdn">("address");
   const [sourceAddress, setSourceAddress] = useState("");
   const [sourceInvert, setSourceInvert] = useState(false);
+  const [sourcePort, setSourcePort] = useState("");
   const [sourceGroupType, setSourceGroupType] = useState("");
   const [sourceGroupName, setSourceGroupName] = useState("");
-  const [sourcePort, setSourcePort] = useState("");
+
+  // Source port type (input vs group)
   const [sourcePortType, setSourcePortType] = useState<"input" | "group">("input");
   const [sourcePortGroupName, setSourcePortGroupName] = useState("");
 
-  // Destination
+  // Destination fields
   const [destinationType, setDestinationType] = useState<"address" | "group" | "fqdn">("address");
   const [destinationAddress, setDestinationAddress] = useState("");
   const [destinationInvert, setDestinationInvert] = useState(false);
+  const [destinationPort, setDestinationPort] = useState("");
   const [destinationGroupType, setDestinationGroupType] = useState("");
   const [destinationGroupName, setDestinationGroupName] = useState("");
-  const [destinationPort, setDestinationPort] = useState("");
+
+  // Destination port type (input vs group)
   const [destPortType, setDestPortType] = useState<"input" | "group">("input");
   const [destPortGroupName, setDestPortGroupName] = useState("");
 
-  // Outbound interface
-  const [outboundInterfaceType, setOutboundInterfaceType] = useState<"name" | "group">("name");
-  const [outboundInterfaceName, setOutboundInterfaceName] = useState("");
-  const [outboundInterfaceGroup, setOutboundInterfaceGroup] = useState("");
-  const [outboundInterfaceInvert, setOutboundInterfaceInvert] = useState(false);
+  // Inbound interface
+  const [inboundInterfaceType, setInboundInterfaceType] = useState<"name" | "group">("name");
+  const [inboundInterfaceName, setInboundInterfaceName] = useState("");
+  const [inboundInterfaceGroup, setInboundInterfaceGroup] = useState("");
+  const [inboundInterfaceInvert, setInboundInterfaceInvert] = useState(false);
 
-  // Protocol & Packet Type
-  const [protocol, setProtocol] = useState("all");
+  // Protocol and packet type
+  const [protocol, setProtocol] = useState("");
   const [packetType, setPacketType] = useState("");
 
   // Translation
-  const [translationType, setTranslationType] = useState<"ip" | "cidr" | "range" | "masquerade">("masquerade");
   const [translationAddress, setTranslationAddress] = useState("");
   const [translationPort, setTranslationPort] = useState("");
   const [translationPortMapping, setTranslationPortMapping] = useState(false);
   const [translationAddressMapping, setTranslationAddressMapping] = useState(false);
 
-  // Load Balance
+  // Load balance
   const [loadBalancingEnabled, setLoadBalancingEnabled] = useState(false);
   const [loadBalanceHash, setLoadBalanceHash] = useState("");
   const [loadBalanceBackend, setLoadBalanceBackend] = useState("");
@@ -87,19 +92,90 @@ export function CreateSourceNATModal({ open, onOpenChange, onSuccess }: CreateSo
   const [exclude, setExclude] = useState(false);
   const [log, setLog] = useState(false);
 
-  // Load groups and calculate next rule number on mount
+  // Track original values to detect when fields are cleared
+  const [originalSourceAddress, setOriginalSourceAddress] = useState("");
+  const [originalSourcePort, setOriginalSourcePort] = useState("");
+  const [originalSourceGroup, setOriginalSourceGroup] = useState(false);
+  const [originalSourceFqdn, setOriginalSourceFqdn] = useState("");
+  const [originalDestinationAddress, setOriginalDestinationAddress] = useState("");
+  const [originalDestinationPort, setOriginalDestinationPort] = useState("");
+  const [originalDestinationGroup, setOriginalDestinationGroup] = useState(false);
+  const [originalDestinationFqdn, setOriginalDestinationFqdn] = useState("");
+  const [originalInboundInterfaceType, setOriginalInboundInterfaceType] = useState<"name" | "group" | null>(null);
+  const [originalSourcePortGroup, setOriginalSourcePortGroup] = useState(false);
+  const [originalDestPortGroup, setOriginalDestPortGroup] = useState(false);
+  const [originalTranslationPortMapping, setOriginalTranslationPortMapping] = useState(false);
+  const [originalTranslationAddressMapping, setOriginalTranslationAddressMapping] = useState(false);
+
+  // Reset all form fields to defaults
+  const resetForm = () => {
+    setDescription("");
+    setSourceType("address");
+    setSourceAddress("");
+    setSourceInvert(false);
+    setSourcePort("");
+    setSourceGroupType("");
+    setSourceGroupName("");
+    setDestinationType("address");
+    setDestinationAddress("");
+    setDestinationInvert(false);
+    setDestinationPort("");
+    setDestinationGroupType("");
+    setDestinationGroupName("");
+    setInboundInterfaceType("name");
+    setInboundInterfaceName("");
+    setInboundInterfaceGroup("");
+    setInboundInterfaceInvert(false);
+    setProtocol("");
+    setPacketType("");
+    setTranslationAddress("");
+    setTranslationPort("");
+    setTranslationPortMapping(false);
+    setTranslationAddressMapping(false);
+    setLoadBalancingEnabled(false);
+    setLoadBalanceHash("");
+    setLoadBalanceBackend("");
+    setLoadBalanceBackendWeight("");
+    setSourceFqdn("");
+    setDestinationFqdn("");
+    setDisable(false);
+    setExclude(false);
+    setLog(false);
+    // Reset original tracking values
+    setOriginalSourceAddress("");
+    setOriginalSourcePort("");
+    setOriginalSourceGroup(false);
+    setOriginalSourceFqdn("");
+    setOriginalDestinationAddress("");
+    setOriginalDestinationPort("");
+    setOriginalDestinationGroup(false);
+    setOriginalDestinationFqdn("");
+    setOriginalInboundInterfaceType(null);
+    setSourcePortType("input");
+    setSourcePortGroupName("");
+    setDestPortType("input");
+    setDestPortGroupName("");
+    setOriginalSourcePortGroup(false);
+    setOriginalDestPortGroup(false);
+    setOriginalTranslationPortMapping(false);
+    setOriginalTranslationAddressMapping(false);
+    setError(null);
+  };
+
   useEffect(() => {
-    if (open) {
-      // Reset form to ensure clean state when opening
-      resetForm();
-      loadGroups();
-      calculateNextRuleNumber();
+    if (!open) return;
+    loadGroups();
+    resetForm();
+    if (existing) {
+      populateForm(existing);
+    } else {
+      void calculateNextRuleNumber();
     }
-  }, [open]);
+  }, [open, existing]);
 
   // Auto-adjust protocol when ports are used
   useEffect(() => {
-    const hasPort = sourcePort.trim() || destinationPort.trim() || sourcePortGroupName || destPortGroupName;
+    const hasPort = sourcePort.trim() || destinationPort.trim() || translationPort.trim() || sourcePortGroupName || destPortGroupName;
     const portCompatibleProtocols = ["tcp", "udp", "tcp_udp"];
 
     if (hasPort && !portCompatibleProtocols.includes(protocol)) {
@@ -109,7 +185,145 @@ export function CreateSourceNATModal({ open, onOpenChange, onSuccess }: CreateSo
       // Switch back to "all" when ports are cleared
       setProtocol("all");
     }
-  }, [sourcePort, destinationPort, sourcePortGroupName, destPortGroupName, protocol]);
+  }, [sourcePort, destinationPort, translationPort, sourcePortGroupName, destPortGroupName, protocol]);
+
+  const populateForm = (rule: DestinationNATRule) => {
+    // Description
+    setDescription(rule.description || "");
+
+    // Source
+    if (rule.source?.address) {
+      setSourceType("address");
+      const srcAddrInverted = rule.source.address.startsWith("!");
+      setSourceInvert(srcAddrInverted);
+      const cleanSrcAddr = srcAddrInverted ? rule.source.address.substring(1) : rule.source.address;
+      setSourceAddress(cleanSrcAddr);
+      setOriginalSourceAddress(cleanSrcAddr);
+    } else if (rule.source?.group) {
+      setSourceType("group");
+      const groupEntries = Object.entries(rule.source.group).filter(([t]) => t !== "port-group");
+      if (groupEntries.length > 0) {
+        const [type, name] = groupEntries[0];
+        const srcGrpInverted = name.startsWith("!");
+        setSourceInvert(srcGrpInverted);
+        setSourceGroupType(type);
+        setSourceGroupName(srcGrpInverted ? name.substring(1) : name);
+        setOriginalSourceGroup(true);
+      }
+    } else if (rule.source?.fqdn) {
+      setSourceType("fqdn");
+      setSourceFqdn(rule.source.fqdn);
+      setOriginalSourceFqdn(rule.source.fqdn);
+      setSourceInvert(false);
+    } else {
+      setSourceInvert(false);
+      setOriginalSourceAddress("");
+      setOriginalSourceGroup(false);
+    }
+    if (rule.source?.group?.["port-group"]) {
+      setSourcePortType("group");
+      setSourcePortGroupName(rule.source.group["port-group"]);
+      setSourcePort("");
+      setOriginalSourcePort("");
+      setOriginalSourcePortGroup(true);
+    } else {
+      setSourcePortType("input");
+      setSourcePort(rule.source?.port || "");
+      setSourcePortGroupName("");
+      setOriginalSourcePort(rule.source?.port || "");
+      setOriginalSourcePortGroup(false);
+    }
+
+    // Destination
+    if (rule.destination?.address) {
+      setDestinationType("address");
+      const dstAddrInverted = rule.destination.address.startsWith("!");
+      setDestinationInvert(dstAddrInverted);
+      const cleanDstAddr = dstAddrInverted ? rule.destination.address.substring(1) : rule.destination.address;
+      setDestinationAddress(cleanDstAddr);
+      setOriginalDestinationAddress(cleanDstAddr);
+    } else if (rule.destination?.group) {
+      setDestinationType("group");
+      const groupEntries = Object.entries(rule.destination.group).filter(([t]) => t !== "port-group");
+      if (groupEntries.length > 0) {
+        const [type, name] = groupEntries[0];
+        const dstGrpInverted = name.startsWith("!");
+        setDestinationInvert(dstGrpInverted);
+        setDestinationGroupType(type);
+        setDestinationGroupName(dstGrpInverted ? name.substring(1) : name);
+        setOriginalDestinationGroup(true);
+      }
+    } else if (rule.destination?.fqdn) {
+      setDestinationType("fqdn");
+      setDestinationFqdn(rule.destination.fqdn);
+      setOriginalDestinationFqdn(rule.destination.fqdn);
+      setDestinationInvert(false);
+    } else {
+      setDestinationInvert(false);
+      setOriginalDestinationAddress("");
+      setOriginalDestinationGroup(false);
+    }
+    if (rule.destination?.group?.["port-group"]) {
+      setDestPortType("group");
+      setDestPortGroupName(rule.destination.group["port-group"]);
+      setDestinationPort("");
+      setOriginalDestinationPort("");
+      setOriginalDestPortGroup(true);
+    } else {
+      setDestPortType("input");
+      setDestinationPort(rule.destination?.port || "");
+      setDestPortGroupName("");
+      setOriginalDestinationPort(rule.destination?.port || "");
+      setOriginalDestPortGroup(false);
+    }
+
+    // Inbound interface
+    if (rule.inbound_interface) {
+      const interfaceEntries = Object.entries(rule.inbound_interface);
+      if (interfaceEntries.length > 0) {
+        const [type, value] = interfaceEntries[0];
+        setInboundInterfaceType(type as "name" | "group");
+        setOriginalInboundInterfaceType(type as "name" | "group");
+
+        // Check for inverted interface (starts with !)
+        const isInverted = value.startsWith("!");
+        setInboundInterfaceInvert(isInverted);
+        const cleanValue = isInverted ? value.substring(1) : value;
+
+        if (type === "name") {
+          setInboundInterfaceName(cleanValue);
+        } else {
+          setInboundInterfaceGroup(cleanValue);
+        }
+      }
+    }
+
+    // Protocol and packet type
+    setProtocol(rule.protocol || "all");
+    setPacketType(rule.packet_type || "");
+
+    // Translation
+    setTranslationAddress(rule.translation?.address || "");
+    setTranslationPort(rule.translation?.port || "");
+    const pm = rule.translation?.options?.port_mapping === "random";
+    setTranslationPortMapping(pm);
+    setOriginalTranslationPortMapping(pm);
+    const am = rule.translation?.options?.address_mapping === "persistent";
+    setTranslationAddressMapping(am);
+    setOriginalTranslationAddressMapping(am);
+
+    // Load balance
+    const hasLoadBalancing = !!(rule.load_balance?.hash || rule.load_balance?.backends?.[0]);
+    setLoadBalancingEnabled(hasLoadBalancing);
+    setLoadBalanceHash(rule.load_balance?.hash || "");
+    setLoadBalanceBackend(rule.load_balance?.backends?.[0]?.name || "");
+    setLoadBalanceBackendWeight(rule.load_balance?.backends?.[0]?.weight || "");
+
+    // Flags
+    setDisable(rule.disable);
+    setExclude(rule.exclude);
+    setLog(rule.log);
+  };
 
   const loadGroups = async () => {
     try {
@@ -132,18 +346,17 @@ export function CreateSourceNATModal({ open, onOpenChange, onSuccess }: CreateSo
     }
   };
 
-
   const calculateNextRuleNumber = async () => {
     try {
       const config = await natService.getConfig();
 
-      // Find the maximum rule number for SOURCE NAT rules only
-      const sourceRuleNumbers = config.source_rules.map(r => r.rule_number);
+      // Find the maximum rule number for DESTINATION NAT rules only
+      const destinationRuleNumbers = config.destination_rules.map(r => r.rule_number);
 
-      if (sourceRuleNumbers.length === 0) {
-        setRuleNumber(100); // Start at 100 if no source rules exist
+      if (destinationRuleNumbers.length === 0) {
+        setRuleNumber(100); // Start at 100 if no destination rules exist
       } else {
-        const maxRuleNumber = Math.max(...sourceRuleNumbers);
+        const maxRuleNumber = Math.max(...destinationRuleNumbers);
         setRuleNumber(maxRuleNumber + 1);
       }
     } catch (err) {
@@ -152,53 +365,13 @@ export function CreateSourceNATModal({ open, onOpenChange, onSuccess }: CreateSo
     }
   };
 
-  const resetForm = () => {
-    // Don't reset ruleNumber - it's auto-calculated
-    setDescription("");
-    setSourceType("address");
-    setSourceAddress("");
-    setSourceInvert(false);
-    setSourceGroupType("");
-    setSourceGroupName("");
-    setSourcePort("");
-    setDestinationType("address");
-    setDestinationAddress("");
-    setDestinationInvert(false);
-    setDestinationGroupType("");
-    setDestinationGroupName("");
-    setDestinationPort("");
-    setSourcePortType("input");
-    setSourcePortGroupName("");
-    setDestPortType("input");
-    setDestPortGroupName("");
-    setOutboundInterfaceType("name");
-    setOutboundInterfaceName("");
-    setOutboundInterfaceGroup("");
-    setOutboundInterfaceInvert(false);
-    setProtocol("all");
-    setPacketType("");
-    setTranslationType("masquerade");
-    setTranslationAddress("");
-    setTranslationPort("");
-    setTranslationPortMapping(false);
-    setTranslationAddressMapping(false);
-    setLoadBalanceHash("");
-    setLoadBalanceBackend("");
-    setLoadBalanceBackendWeight("");
-    setSourceFqdn("");
-    setDestinationFqdn("");
-    setDisable(false);
-    setExclude(false);
-    setLog(false);
-    setError(null);
-  };
 
   const handleClose = () => {
     resetForm();
     onOpenChange(false);
   };
 
-  const handleSubmit = async () => {
+  const submitCreate = async () => {
     setLoading(true);
     setError(null);
 
@@ -243,15 +416,15 @@ export function CreateSourceNATModal({ open, onOpenChange, onSuccess }: CreateSo
         config.destination_port_group_name = destPortGroupName;
       }
 
-      // Outbound interface
-      if (outboundInterfaceType === "name" && outboundInterfaceName) {
-        config.outbound_interface_type = "name";
-        config.outbound_interface_value = outboundInterfaceName;
-        config.outbound_interface_invert = outboundInterfaceInvert;
-      } else if (outboundInterfaceType === "group" && outboundInterfaceGroup) {
-        config.outbound_interface_type = "group";
-        config.outbound_interface_value = outboundInterfaceGroup;
-        config.outbound_interface_invert = outboundInterfaceInvert;
+      // Inbound interface
+      if (inboundInterfaceType === "name" && inboundInterfaceName) {
+        config.inbound_interface_type = "name";
+        config.inbound_interface_value = inboundInterfaceName;
+        config.inbound_interface_invert = inboundInterfaceInvert;
+      } else if (inboundInterfaceType === "group" && inboundInterfaceGroup) {
+        config.inbound_interface_type = "group";
+        config.inbound_interface_value = inboundInterfaceGroup;
+        config.inbound_interface_invert = inboundInterfaceInvert;
       }
 
       // Protocol (don't send "all" - VyOS treats no protocol as all protocols)
@@ -265,10 +438,7 @@ export function CreateSourceNATModal({ open, onOpenChange, onSuccess }: CreateSo
       }
 
       // Translation
-      if (translationType === "masquerade") {
-        // Masquerade is set by: "set nat source rule X translation address masquerade"
-        config.translation_address = "masquerade";
-      } else if (translationAddress.trim()) {
+      if (translationAddress.trim()) {
         config.translation_address = translationAddress.trim();
       }
       if (translationPort.trim()) {
@@ -296,12 +466,230 @@ export function CreateSourceNATModal({ open, onOpenChange, onSuccess }: CreateSo
       config.log = log;
 
       // Use auto-calculated rule number
-      await natService.createSourceRule(ruleNumber, config);
+      await natService.createDestinationRule(ruleNumber, config);
 
       handleClose();
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create source NAT rule");
+      setError(err instanceof Error ? err.message : "Failed to create destination NAT rule");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+  const handleSubmit = async () => {
+    if (!isEdit) {
+      await submitCreate();
+      return;
+    }
+    if (!existing) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const config: Record<string, unknown> = {};
+
+      if (description.trim()) {
+        config.description = description.trim();
+      }
+
+      // Source - handle both setting new values and deleting cleared values
+      if (sourceType === "address") {
+        if (sourceAddress.trim()) {
+          config.source_address = sourceAddress.trim();
+          config.source_address_invert = sourceInvert;
+        } else if (originalSourceAddress) {
+          // Address was cleared - need to delete it
+          config.delete_source_address = true;
+        }
+        // If switching from group to address with no value, delete the group
+        if (originalSourceGroup) {
+          config.delete_source_group = true;
+        }
+        if (originalSourceFqdn) {
+          config.delete_source_fqdn = true;
+        }
+      } else if (sourceType === "group") {
+        if (sourceGroupType && sourceGroupName) {
+          config.source_group_type = sourceGroupType;
+          config.source_group_name = sourceGroupName;
+          config.source_group_invert = sourceInvert;
+        } else if (originalSourceGroup) {
+          // Group was cleared - need to delete it
+          config.delete_source_group = true;
+        }
+        // If switching from address to group with no value, delete the address
+        if (originalSourceAddress) {
+          config.delete_source_address = true;
+        }
+        if (originalSourceFqdn) {
+          config.delete_source_fqdn = true;
+        }
+      } else if (sourceType === "fqdn") {
+        if (sourceFqdn.trim()) {
+          config.source_fqdn = sourceFqdn.trim();
+        } else if (originalSourceFqdn) {
+          config.delete_source_fqdn = true;
+        }
+        if (originalSourceAddress) config.delete_source_address = true;
+        if (originalSourceGroup) config.delete_source_group = true;
+      }
+
+      if (sourcePortType === "input") {
+        if (sourcePort.trim()) {
+          config.source_port = sourcePort.trim();
+        } else if (originalSourcePort) {
+          config.delete_source_port = true;
+        }
+        // If switching from port group to manual port, delete the port group
+        if (originalSourcePortGroup) {
+          config.delete_source_port_group = true;
+        }
+      } else if (sourcePortType === "group" && sourcePortGroupName) {
+        config.source_port_group_name = sourcePortGroupName;
+        // If switching from manual port to port group, delete the port
+        if (originalSourcePort) {
+          config.delete_source_port = true;
+        }
+      }
+
+      // Destination - handle both setting new values and deleting cleared values
+      if (destinationType === "address") {
+        if (destinationAddress.trim()) {
+          config.destination_address = destinationAddress.trim();
+          config.destination_address_invert = destinationInvert;
+        } else if (originalDestinationAddress) {
+          // Address was cleared - need to delete it
+          config.delete_destination_address = true;
+        }
+        // If switching from group to address with no value, delete the group
+        if (originalDestinationGroup) {
+          config.delete_destination_group = true;
+        }
+        if (originalDestinationFqdn) {
+          config.delete_destination_fqdn = true;
+        }
+      } else if (destinationType === "group") {
+        if (destinationGroupType && destinationGroupName) {
+          config.destination_group_type = destinationGroupType;
+          config.destination_group_name = destinationGroupName;
+          config.destination_group_invert = destinationInvert;
+        } else if (originalDestinationGroup) {
+          // Group was cleared - need to delete it
+          config.delete_destination_group = true;
+        }
+        // If switching from address to group with no value, delete the address
+        if (originalDestinationAddress) {
+          config.delete_destination_address = true;
+        }
+        if (originalDestinationFqdn) {
+          config.delete_destination_fqdn = true;
+        }
+      } else if (destinationType === "fqdn") {
+        if (destinationFqdn.trim()) {
+          config.destination_fqdn = destinationFqdn.trim();
+        } else if (originalDestinationFqdn) {
+          config.delete_destination_fqdn = true;
+        }
+        if (originalDestinationAddress) config.delete_destination_address = true;
+        if (originalDestinationGroup) config.delete_destination_group = true;
+      }
+
+      if (destPortType === "input") {
+        if (destinationPort.trim()) {
+          config.destination_port = destinationPort.trim();
+        } else if (originalDestinationPort) {
+          config.delete_destination_port = true;
+        }
+        // If switching from port group to manual port, delete the port group
+        if (originalDestPortGroup) {
+          config.delete_destination_port_group = true;
+        }
+      } else if (destPortType === "group" && destPortGroupName) {
+        config.destination_port_group_name = destPortGroupName;
+        // If switching from manual port to port group, delete the port
+        if (originalDestinationPort) {
+          config.delete_destination_port = true;
+        }
+      }
+
+      // Inbound interface - delete the old type when switching between name and group
+      if (inboundInterfaceType === "name" && inboundInterfaceName) {
+        if (originalInboundInterfaceType === "group") {
+          config.delete_inbound_interface_group = true;
+        }
+        config.inbound_interface_type = "name";
+        config.inbound_interface_value = inboundInterfaceName;
+        config.inbound_interface_invert = inboundInterfaceInvert;
+      } else if (inboundInterfaceType === "group" && inboundInterfaceGroup) {
+        if (originalInboundInterfaceType === "name") {
+          config.delete_inbound_interface_name = true;
+        }
+        config.inbound_interface_type = "group";
+        config.inbound_interface_value = inboundInterfaceGroup;
+        config.inbound_interface_invert = inboundInterfaceInvert;
+      }
+
+      // Protocol (don't send "all" - VyOS treats no protocol as all protocols)
+      if (protocol && protocol !== "all") {
+        config.protocol = protocol;
+      } else if (protocol === "all" && existing.protocol) {
+        // If changing from a specific protocol to "all", we need to delete the protocol
+        config.delete_protocol = true;
+      }
+
+      // Packet type
+      if (packetType) {
+        config.packet_type = packetType;
+      }
+
+      // Translation
+      if (translationAddress.trim()) {
+        config.translation_address = translationAddress.trim();
+      }
+      if (translationPort.trim()) {
+        config.translation_port = translationPort.trim();
+      }
+
+      if (!translationPortMapping && originalTranslationPortMapping) {
+        config.delete_translation_port_mapping = true;
+      } else if (translationPortMapping) {
+        config.translation_port_mapping = true;
+      }
+
+      if (!translationAddressMapping && originalTranslationAddressMapping) {
+        config.delete_translation_address_mapping = true;
+      } else if (translationAddressMapping) {
+        config.translation_address_mapping = true;
+      }
+
+      // Load balance
+      if (loadBalancingEnabled) {
+        if (loadBalanceHash) {
+          config.load_balance_hash = loadBalanceHash;
+        }
+        if (loadBalanceBackend.trim()) {
+          config.load_balance_backend = loadBalanceBackend.trim();
+        }
+        if (loadBalanceBackendWeight.trim()) {
+          config.load_balance_backend_weight = loadBalanceBackendWeight.trim();
+        }
+      }
+
+      // Flags
+      config.disable = disable;
+      config.exclude = exclude;
+      config.log = log;
+
+      // Update the rule
+      await natService.updateDestinationRule(existing.rule_number, config);
+
+      handleClose();
+      onSuccess();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update destination NAT rule");
     } finally {
       setLoading(false);
     }
@@ -318,9 +706,9 @@ export function CreateSourceNATModal({ open, onOpenChange, onSuccess }: CreateSo
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create Source NAT Rule</DialogTitle>
+          <DialogTitle>{isEdit ? `Edit Destination NAT Rule ${existing?.rule_number}` : "Create Destination NAT Rule"}</DialogTitle>
           <DialogDescription>
-            Create a new source NAT rule for outbound traffic translation.
+            {isEdit ? "Modify the destination NAT rule configuration." : "Create a new destination NAT rule for inbound traffic translation."}
           </DialogDescription>
         </DialogHeader>
 
@@ -335,10 +723,13 @@ export function CreateSourceNATModal({ open, onOpenChange, onSuccess }: CreateSo
             </div>
           )}
 
-          {/* Rule Number (Auto-calculated) */}
           <div className="flex items-center gap-2 bg-muted/30 border border-muted rounded-md px-3 py-2">
-            <span className="text-xs text-muted-foreground">Rule number (auto-assigned):</span>
-            <span className="font-mono font-semibold text-sm text-primary">{ruleNumber}</span>
+            <span className="text-xs text-muted-foreground">
+              {isEdit ? "Rule number:" : "Rule number (auto-assigned):"}
+            </span>
+            <span className="font-mono font-semibold text-sm text-primary">
+              {isEdit ? existing?.rule_number : ruleNumber}
+            </span>
           </div>
 
           {/* Description */}
@@ -363,36 +754,36 @@ export function CreateSourceNATModal({ open, onOpenChange, onSuccess }: CreateSo
 
             {/* Basic Tab */}
             <TabsContent value="basic" className="space-y-4">
-              {/* Outbound Interface */}
+              {/* Inbound Interface */}
               <div className="space-y-2">
-                <Label>Outbound Interface Type</Label>
-                <RadioGroup value={outboundInterfaceType} onValueChange={(v) => setOutboundInterfaceType(v as "name" | "group")}>
+                <Label>Inbound Interface Type</Label>
+                <RadioGroup value={inboundInterfaceType} onValueChange={(v) => setInboundInterfaceType(v as "name" | "group")}>
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="name" id="outbound-name" />
-                    <Label htmlFor="outbound-name">Interface Name</Label>
+                    <RadioGroupItem value="name" id="inbound-name" />
+                    <Label htmlFor="inbound-name">Interface Name</Label>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="group" id="outbound-group" />
-                    <Label htmlFor="outbound-group">Interface Group</Label>
+                    <RadioGroupItem value="group" id="inbound-group" />
+                    <Label htmlFor="inbound-group">Interface Group</Label>
                   </div>
                 </RadioGroup>
               </div>
 
-              {outboundInterfaceType === "name" ? (
+              {inboundInterfaceType === "name" ? (
                 <div className="space-y-2">
-                  <Label htmlFor="outbound-interface-name">Outbound Interface Name</Label>
+                  <Label htmlFor="inbound-interface-name">Inbound Interface Name</Label>
                   <InterfaceSelect
-                    value={outboundInterfaceName}
-                    onValueChange={setOutboundInterfaceName}
-                    id="outbound-interface-name"
+                    value={inboundInterfaceName}
+                    onValueChange={setInboundInterfaceName}
+                    id="inbound-interface-name"
                     placeholder="Select interface"
                   />
                 </div>
               ) : (
                 <div className="space-y-2">
-                  <Label htmlFor="outbound-interface-group">Outbound Interface Group</Label>
-                  <Select value={outboundInterfaceGroup} onValueChange={setOutboundInterfaceGroup}>
-                    <SelectTrigger id="outbound-interface-group">
+                  <Label htmlFor="inbound-interface-group">Inbound Interface Group</Label>
+                  <Select value={inboundInterfaceGroup} onValueChange={setInboundInterfaceGroup}>
+                    <SelectTrigger id="inbound-interface-group">
                       <SelectValue placeholder="Select interface group" />
                     </SelectTrigger>
                     <SelectContent>
@@ -408,72 +799,38 @@ export function CreateSourceNATModal({ open, onOpenChange, onSuccess }: CreateSo
 
               <div className="flex items-center space-x-2">
                 <Checkbox
-                  id="outbound-invert"
-                  checked={outboundInterfaceInvert}
-                  onCheckedChange={(checked) => setOutboundInterfaceInvert(checked === true)}
+                  id="inbound-invert"
+                  checked={inboundInterfaceInvert}
+                  onCheckedChange={(checked) => setInboundInterfaceInvert(checked === true)}
                 />
-                <Label htmlFor="outbound-invert" className="text-sm font-normal">
+                <Label htmlFor="inbound-invert" className="text-sm font-normal">
                   Invert match (all except this interface)
                 </Label>
               </div>
 
               {/* Translation */}
-              <div className="space-y-2">
-                <Label>Translation Type</Label>
-                <RadioGroup value={translationType} onValueChange={(v) => setTranslationType(v as "ip" | "cidr" | "range" | "masquerade")}>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="masquerade" id="trans-masquerade" />
-                    <Label htmlFor="trans-masquerade">Masquerade (use outbound interface address)</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="ip" id="trans-ip" />
-                    <Label htmlFor="trans-ip">IP Address</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="cidr" id="trans-cidr" />
-                    <Label htmlFor="trans-cidr">CIDR Block</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="range" id="trans-range" />
-                    <Label htmlFor="trans-range">IP Range</Label>
-                  </div>
-                </RadioGroup>
-              </div>
-
-              {translationType !== "masquerade" && (
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="translation-address">
-                    Translation Address
-                    {translationType === "cidr" && " (e.g., 192.168.1.0/24)"}
-                    {translationType === "range" && " (e.g., 192.168.1.10-192.168.1.20)"}
-                    {translationType === "ip" && " (e.g., 203.0.113.10)"}
-                  </Label>
+                  <Label htmlFor="translation-address">Translation Address</Label>
                   <Input
                     id="translation-address"
                     value={translationAddress}
                     onChange={(e) => setTranslationAddress(e.target.value)}
-                    placeholder={
-                      translationType === "cidr" ? "192.168.1.0/24"
-                        : translationType === "range" ? "192.168.1.10-192.168.1.20"
-                          : "203.0.113.10"
-                    }
+                    placeholder="e.g., 192.168.1.10"
                     className="font-mono"
                   />
                 </div>
-              )}
-
-              {translationType !== "masquerade" && (
                 <div className="space-y-2">
                   <Label htmlFor="translation-port">Translation Port</Label>
                   <Input
                     id="translation-port"
                     value={translationPort}
                     onChange={(e) => setTranslationPort(e.target.value)}
-                    placeholder="e.g., 8080 or 1024-65535"
+                    placeholder="e.g., 8080"
                     className="font-mono"
                   />
                 </div>
-              )}
+              </div>
 
               {/* Translation Options */}
               <div className="space-y-2">
@@ -518,7 +875,7 @@ export function CreateSourceNATModal({ open, onOpenChange, onSuccess }: CreateSo
                   <SelectTrigger id="protocol">
                     <SelectValue />
                   </SelectTrigger>
-                  {(sourcePort.trim() || destinationPort.trim() || sourcePortGroupName || destPortGroupName) ? (
+                  {(sourcePort.trim() || destinationPort.trim() || translationPort.trim() || sourcePortGroupName || destPortGroupName) ? (
                     // When ports are specified, only allow TCP/UDP protocols
                     <SelectContent>
                       <SelectItem value="tcp">TCP</SelectItem>
@@ -588,7 +945,7 @@ export function CreateSourceNATModal({ open, onOpenChange, onSuccess }: CreateSo
                     </SelectContent>
                   )}
                 </Select>
-                {(sourcePort.trim() || destinationPort.trim() || sourcePortGroupName || destPortGroupName) && (
+                {(sourcePort.trim() || destinationPort.trim() || translationPort.trim() || sourcePortGroupName || destPortGroupName) && (
                   <p className="text-xs text-muted-foreground">
                     Only TCP/UDP protocols are available when using ports
                   </p>
@@ -616,19 +973,6 @@ export function CreateSourceNATModal({ open, onOpenChange, onSuccess }: CreateSo
                 </RadioGroup>
               </div>
 
-              {sourceType === "fqdn" && (
-                <div className="space-y-2">
-                  <Label htmlFor="source-fqdn-input">Source FQDN</Label>
-                  <Input
-                    id="source-fqdn-input"
-                    value={sourceFqdn}
-                    onChange={(e) => setSourceFqdn(e.target.value)}
-                    placeholder="e.g., example.com"
-                    className="font-mono"
-                  />
-                </div>
-              )}
-
               {sourceType === "address" ? (
                 <div className="space-y-2">
                   <Label htmlFor="source-address-input">Source Address</Label>
@@ -640,7 +984,18 @@ export function CreateSourceNATModal({ open, onOpenChange, onSuccess }: CreateSo
                     className="font-mono"
                   />
                 </div>
-              ) : sourceType === "fqdn" ? null : (
+              ) : sourceType === "fqdn" ? (
+                <div className="space-y-2">
+                  <Label htmlFor="source-fqdn-input">Source FQDN</Label>
+                  <Input
+                    id="source-fqdn-input"
+                    value={sourceFqdn}
+                    onChange={(e) => setSourceFqdn(e.target.value)}
+                    placeholder="e.g., example.com"
+                    className="font-mono"
+                  />
+                </div>
+              ) : (
                 <>
                   <div className="space-y-2">
                     <Label htmlFor="source-group-type">Source Group Type</Label>
@@ -663,17 +1018,17 @@ export function CreateSourceNATModal({ open, onOpenChange, onSuccess }: CreateSo
                         <SelectValue placeholder="Select group" />
                       </SelectTrigger>
                       <SelectContent>
-                        {sourceGroupType === "address-group" && getAddressGroups().map((g) => (
-                          <SelectItem key={g.name} value={g.name}>{g.name}</SelectItem>
+                        {sourceGroupType === "address-group" && getAddressGroups().map((group) => (
+                          <SelectItem key={group.name} value={group.name}>{group.name}</SelectItem>
                         ))}
-                        {sourceGroupType === "network-group" && getNetworkGroups().map((g) => (
-                          <SelectItem key={g.name} value={g.name}>{g.name}</SelectItem>
+                        {sourceGroupType === "network-group" && getNetworkGroups().map((group) => (
+                          <SelectItem key={group.name} value={group.name}>{group.name}</SelectItem>
                         ))}
-                        {sourceGroupType === "domain-group" && getDomainGroups().map((g) => (
-                          <SelectItem key={g.name} value={g.name}>{g.name}</SelectItem>
+                        {sourceGroupType === "domain-group" && getDomainGroups().map((group) => (
+                          <SelectItem key={group.name} value={group.name}>{group.name}</SelectItem>
                         ))}
-                        {sourceGroupType === "mac-group" && getMacGroups().map((g) => (
-                          <SelectItem key={g.name} value={g.name}>{g.name}</SelectItem>
+                        {sourceGroupType === "mac-group" && getMacGroups().map((group) => (
+                          <SelectItem key={group.name} value={group.name}>{group.name}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -752,7 +1107,18 @@ export function CreateSourceNATModal({ open, onOpenChange, onSuccess }: CreateSo
                 </RadioGroup>
               </div>
 
-              {destinationType === "fqdn" && (
+              {destinationType === "address" ? (
+                <div className="space-y-2">
+                  <Label htmlFor="destination-address-input">Destination Address</Label>
+                  <Input
+                    id="destination-address-input"
+                    value={destinationAddress}
+                    onChange={(e) => setDestinationAddress(e.target.value)}
+                    placeholder="e.g., 203.0.113.10"
+                    className="font-mono"
+                  />
+                </div>
+              ) : destinationType === "fqdn" ? (
                 <div className="space-y-2">
                   <Label htmlFor="destination-fqdn-input">Destination FQDN</Label>
                   <Input
@@ -763,20 +1129,7 @@ export function CreateSourceNATModal({ open, onOpenChange, onSuccess }: CreateSo
                     className="font-mono"
                   />
                 </div>
-              )}
-
-              {destinationType === "address" ? (
-                <div className="space-y-2">
-                  <Label htmlFor="destination-address-input">Destination Address</Label>
-                  <Input
-                    id="destination-address-input"
-                    value={destinationAddress}
-                    onChange={(e) => setDestinationAddress(e.target.value)}
-                    placeholder="e.g., 203.0.113.0/24"
-                    className="font-mono"
-                  />
-                </div>
-              ) : destinationType === "fqdn" ? null : (
+              ) : (
                 <>
                   <div className="space-y-2">
                     <Label htmlFor="destination-group-type">Destination Group Type</Label>
@@ -799,17 +1152,17 @@ export function CreateSourceNATModal({ open, onOpenChange, onSuccess }: CreateSo
                         <SelectValue placeholder="Select group" />
                       </SelectTrigger>
                       <SelectContent>
-                        {destinationGroupType === "address-group" && getAddressGroups().map((g) => (
-                          <SelectItem key={g.name} value={g.name}>{g.name}</SelectItem>
+                        {destinationGroupType === "address-group" && getAddressGroups().map((group) => (
+                          <SelectItem key={group.name} value={group.name}>{group.name}</SelectItem>
                         ))}
-                        {destinationGroupType === "network-group" && getNetworkGroups().map((g) => (
-                          <SelectItem key={g.name} value={g.name}>{g.name}</SelectItem>
+                        {destinationGroupType === "network-group" && getNetworkGroups().map((group) => (
+                          <SelectItem key={group.name} value={group.name}>{group.name}</SelectItem>
                         ))}
-                        {destinationGroupType === "domain-group" && getDomainGroups().map((g) => (
-                          <SelectItem key={g.name} value={g.name}>{g.name}</SelectItem>
+                        {destinationGroupType === "domain-group" && getDomainGroups().map((group) => (
+                          <SelectItem key={group.name} value={group.name}>{group.name}</SelectItem>
                         ))}
-                        {destinationGroupType === "mac-group" && getMacGroups().map((g) => (
-                          <SelectItem key={g.name} value={g.name}>{g.name}</SelectItem>
+                        {destinationGroupType === "mac-group" && getMacGroups().map((group) => (
+                          <SelectItem key={group.name} value={group.name}>{group.name}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -945,12 +1298,12 @@ export function CreateSourceNATModal({ open, onOpenChange, onSuccess }: CreateSo
                       </p>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="load-balance-weight">Backend Weight</Label>
+                      <Label htmlFor="load-balance-weight">Backend Weight (optional)</Label>
                       <Input
                         id="load-balance-weight"
                         value={loadBalanceBackendWeight}
                         onChange={(e) => setLoadBalanceBackendWeight(e.target.value)}
-                        placeholder="e.g., 10 (optional, relative weight)"
+                        placeholder="e.g., 10 (relative weight)"
                         className="font-mono"
                       />
                       <p className="text-xs text-muted-foreground">
@@ -1006,7 +1359,7 @@ export function CreateSourceNATModal({ open, onOpenChange, onSuccess }: CreateSo
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? "Creating..." : "Create Rule"}
+            {loading ? (isEdit ? "Updating..." : "Creating...") : isEdit ? "Update Rule" : "Create Rule"}
           </Button>
         </DialogFooter>
       </DialogContent>
