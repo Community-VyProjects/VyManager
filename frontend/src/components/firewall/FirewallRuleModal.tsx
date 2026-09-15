@@ -44,25 +44,37 @@ import {
   getPortError,
 } from "@/lib/validators/firewall";
 
-interface EditFirewallRuleModalProps {
+interface FirewallRuleModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
-  rule: FirewallRule;
+  chain: string;
+  isCustomChain: boolean;
+  existingRules: FirewallRule[];
   protocol?: "ipv4" | "ipv6";
   capabilities?: FirewallCapabilitiesResponse | null;
+  cloneRule?: FirewallRule;
+  existing?: FirewallRule | null;
 }
 
-export function EditFirewallRuleModal({
+export function FirewallRuleModal({
   open,
   onOpenChange,
   onSuccess,
-  rule,
+  chain,
+  isCustomChain,
+  existingRules,
   protocol = "ipv4",
   capabilities,
-}: EditFirewallRuleModalProps) {
+  cloneRule,
+  existing,
+}: FirewallRuleModalProps) {
+  const isEdit = !!existing;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Rule number
+  const [ruleNumber, setRuleNumber] = useState(100);
 
   // Basic fields
   const [description, setDescription] = useState("");
@@ -85,7 +97,6 @@ export function EditFirewallRuleModal({
   const [sourceGroupInvert, setSourceGroupInvert] = useState(false);
   const [sourceFqdn, setSourceFqdn] = useState("");
   const [sourceAddressMask, setSourceAddressMask] = useState("");
-  const [sourcePortGroupInvert, setSourcePortGroupInvert] = useState(false);
 
   // Destination fields
   const [destMode, setDestMode] = useState<"any" | "address" | "group" | "geoip" | "fqdn" | "mac">("any");
@@ -113,7 +124,36 @@ export function EditFirewallRuleModal({
   const [destFqdn, setDestFqdn] = useState("");
   const [destAddressMask, setDestAddressMask] = useState("");
   const [destMacAddress, setDestMacAddress] = useState("");
+  const [sourcePortGroupInvert, setSourcePortGroupInvert] = useState(false);
   const [destPortGroupInvert, setDestPortGroupInvert] = useState(false);
+
+  // State fields
+  const [stateEstablished, setStateEstablished] = useState(false);
+  const [stateNew, setStateNew] = useState(false);
+  const [stateRelated, setStateRelated] = useState(false);
+  const [stateInvalid, setStateInvalid] = useState(false);
+
+  // Interface fields
+  const [inboundInterface, setInboundInterface] = useState("");
+  const [outboundInterface, setOutboundInterface] = useState("");
+
+  // Advanced fields
+  const [tcpFlags, setTcpFlags] = useState<Record<string, "disabled" | "enabled" | "not">>({
+    syn: "disabled",
+    ack: "disabled",
+    fin: "disabled",
+    rst: "disabled",
+    psh: "disabled",
+    urg: "disabled",
+    ecn: "disabled",
+    cwr: "disabled",
+  });
+  const [icmpTypeName, setIcmpTypeName] = useState("");
+  const [jumpTarget, setJumpTarget] = useState("");
+  const [offloadTarget, setOffloadTarget] = useState("");
+  const [dscp, setDscp] = useState("");
+  const [mark, setMark] = useState("");
+  const [ttl, setTtl] = useState("");
 
   // Matching fields
   const [connectionMark, setConnectionMark] = useState("");
@@ -166,34 +206,6 @@ export function EditFirewallRuleModal({
   const [addAddrToGroupDstGroup, setAddAddrToGroupDstGroup] = useState("");
   const [addAddrToGroupDstTimeout, setAddAddrToGroupDstTimeout] = useState("");
 
-  // State fields
-  const [stateEstablished, setStateEstablished] = useState(false);
-  const [stateNew, setStateNew] = useState(false);
-  const [stateRelated, setStateRelated] = useState(false);
-  const [stateInvalid, setStateInvalid] = useState(false);
-
-  // Interface fields
-  const [inboundInterface, setInboundInterface] = useState("");
-  const [outboundInterface, setOutboundInterface] = useState("");
-
-  // Advanced fields
-  const [tcpFlags, setTcpFlags] = useState<Record<string, "disabled" | "enabled" | "not">>({
-    syn: "disabled",
-    ack: "disabled",
-    fin: "disabled",
-    rst: "disabled",
-    psh: "disabled",
-    urg: "disabled",
-    ecn: "disabled",
-    cwr: "disabled",
-  });
-  const [icmpTypeName, setIcmpTypeName] = useState("");
-  const [jumpTarget, setJumpTarget] = useState("");
-  const [offloadTarget, setOffloadTarget] = useState("");
-  const [dscp, setDscp] = useState("");
-  const [mark, setMark] = useState("");
-  const [ttl, setTtl] = useState("");
-
   // Flags
   const [disable, setDisable] = useState(false);
   const [log, setLog] = useState(false);
@@ -210,6 +222,15 @@ export function EditFirewallRuleModal({
   const [interfaces, setInterfaces] = useState<NetworkInterface[]>([]);
   const [customChains, setCustomChains] = useState<string[]>([]);
   const [flowtables, setFlowtables] = useState<Flowtable[]>([]);
+
+  const calculateNextRuleNumber = () => {
+    if (existingRules.length === 0) {
+      setRuleNumber(100);
+    } else {
+      const maxRule = Math.max(...existingRules.map((r) => r.rule_number));
+      setRuleNumber(maxRule + 1);
+    }
+  };
 
   const loadGroups = async () => {
     try {
@@ -289,15 +310,24 @@ export function EditFirewallRuleModal({
   };
 
   useEffect(() => {
-    if (open && rule) {
+    if (open) {
       loadGroups();
       loadInterfaces();
       loadCustomChains();
       loadFlowtables();
-      loadRuleData();
+      if (existing) {
+        populateFromClone(existing);
+      } else {
+        calculateNextRuleNumber();
+        if (cloneRule) {
+          populateFromClone(cloneRule);
+        } else {
+          resetForm();
+        }
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, rule]);
+  }, [open, cloneRule, existing]);
 
   // Auto-clear TCP flags when protocol changes away from TCP
   useEffect(() => {
@@ -328,11 +358,10 @@ export function EditFirewallRuleModal({
     }
   }, [ruleProtocol, icmpTypeName]);
 
-  const loadRuleData = () => {
+  const populateFromClone = (rule: FirewallRule) => {
     setDescription(rule.description || "");
     setAction(rule.action || "accept");
 
-    // Parse protocol and check for inversion
     const proto = rule.protocol || "";
     if (proto.startsWith("!")) {
       setRuleProtocol(proto.substring(1));
@@ -342,8 +371,6 @@ export function EditFirewallRuleModal({
       setProtocolInvert(false);
     }
 
-    // Source - determine mode and parse address/port
-    // Reset defaults
     setSourceMode("any");
     setSourceAddress("");
     setSourceAddressInvert(false);
@@ -360,22 +387,17 @@ export function EditFirewallRuleModal({
     setSourceFqdn("");
     setSourceAddressMask("");
 
-    // Determine source mode based on what's present
     if (rule.source_fqdn) {
-      // FQDN mode
       setSourceMode("fqdn");
       setSourceFqdn(rule.source_fqdn);
     } else if (rule.source?.mac_address) {
-      // MAC address mode
       setSourceMode("mac");
       setSourceMac(rule.source.mac_address);
     } else if (rule.source?.geoip && rule.source.geoip.country_code && rule.source.geoip.country_code.length > 0) {
-      // GeoIP mode
       setSourceMode("geoip");
       setSourceGeoipCountry(rule.source.geoip.country_code);
       setSourceGeoipInverse(rule.source.geoip.inverse_match || false);
     } else if (rule.source?.address) {
-      // Address mode
       setSourceMode("address");
       const addr = rule.source.address;
       if (addr.startsWith("!")) {
@@ -386,12 +408,10 @@ export function EditFirewallRuleModal({
         setSourceAddressInvert(false);
       }
     } else if (rule.source?.group) {
-      // Check if it's an address/network group (not port group)
       const entries = Object.entries(rule.source.group);
       let hasAddressGroup = false;
       for (const [type, name] of entries) {
         if (type !== "port-group") {
-          // Address/network/domain/mac group
           setSourceMode("group");
           setSourceGroupType(type);
           if (name.startsWith("!")) {
@@ -405,18 +425,11 @@ export function EditFirewallRuleModal({
           break;
         }
       }
-      if (!hasAddressGroup) {
-        // Only port group present, keep mode as "any"
-        setSourceMode("any");
-      }
+      if (!hasAddressGroup) setSourceMode("any");
     }
 
-    // Source address mask
-    if (rule.source_address_mask) {
-      setSourceAddressMask(rule.source_address_mask);
-    }
+    if (rule.source_address_mask) setSourceAddressMask(rule.source_address_mask);
 
-    // Handle port separately (can coexist with any address mode)
     if (rule.source?.port) {
       setSourcePortMode("port");
       setSourcePort(rule.source.port);
@@ -434,8 +447,6 @@ export function EditFirewallRuleModal({
       setSourcePortMode("any");
     }
 
-    // Destination - determine mode and parse address/port
-    // Reset defaults
     setDestMode("any");
     setDestAddress("");
     setDestAddressInvert(false);
@@ -452,22 +463,17 @@ export function EditFirewallRuleModal({
     setDestAddressMask("");
     setDestMacAddress("");
 
-    // Determine destination mode based on what's present
     if (rule.destination_fqdn) {
-      // FQDN mode
       setDestMode("fqdn");
       setDestFqdn(rule.destination_fqdn);
     } else if (rule.destination_mac_address) {
-      // MAC address mode
       setDestMode("mac");
       setDestMacAddress(rule.destination_mac_address);
     } else if (rule.destination?.geoip && rule.destination.geoip.country_code && rule.destination.geoip.country_code.length > 0) {
-      // GeoIP mode
       setDestMode("geoip");
       setDestGeoipCountry(rule.destination.geoip.country_code);
       setDestGeoipInverse(rule.destination.geoip.inverse_match || false);
     } else if (rule.destination?.address) {
-      // Address mode
       setDestMode("address");
       const addr = rule.destination.address;
       if (addr.startsWith("!")) {
@@ -478,12 +484,10 @@ export function EditFirewallRuleModal({
         setDestAddressInvert(false);
       }
     } else if (rule.destination?.group) {
-      // Check if it's an address/network group (not port group)
       const entries = Object.entries(rule.destination.group);
       let hasAddressGroup = false;
       for (const [type, name] of entries) {
         if (type !== "port-group") {
-          // Address/network/domain group
           setDestMode("group");
           setDestGroupType(type);
           if (name.startsWith("!")) {
@@ -497,13 +501,9 @@ export function EditFirewallRuleModal({
           break;
         }
       }
-      if (!hasAddressGroup) {
-        // Only port group present, keep mode as "any"
-        setDestMode("any");
-      }
+      if (!hasAddressGroup) setDestMode("any");
     }
 
-    // Handle port separately (can coexist with any address mode)
     if (rule.destination?.port) {
       setDestPortMode("port");
       setDestPort(rule.destination.port);
@@ -521,12 +521,8 @@ export function EditFirewallRuleModal({
       setDestPortMode("any");
     }
 
-    // Destination address mask
-    if (rule.destination_address_mask) {
-      setDestAddressMask(rule.destination_address_mask);
-    }
+    if (rule.destination_address_mask) setDestAddressMask(rule.destination_address_mask);
 
-    // Matching fields
     setConnectionMark(rule.connection_mark || "");
     setConnectionStatusNat(rule.connection_status?.nat || "");
     setConntrackHelper(rule.conntrack_helper || "");
@@ -546,17 +542,14 @@ export function EditFirewallRuleModal({
     if (rule.gre?.flags_sequence_unset) newGreFlags.sequence_unset = true;
     setGreFlags(newGreFlags);
 
-    // IPsec mode detection
     setIpsecMode("none");
     setIpsecInbound("none");
     setIpsecOutbound("none");
     if (rule.ipsec) {
-      // Directional IPsec (1.5+)
       if (rule.ipsec.match_ipsec_in) setIpsecInbound("match-ipsec");
       else if (rule.ipsec.match_none_in) setIpsecInbound("match-none");
       if (rule.ipsec.match_ipsec_out) setIpsecOutbound("match-ipsec");
       else if (rule.ipsec.match_none_out) setIpsecOutbound("match-none");
-      // Non-directional IPsec (1.4)
       if (rule.ipsec.match_ipsec) setIpsecMode("match-ipsec");
       else if (rule.ipsec.match_none) setIpsecMode("match-none");
     }
@@ -570,7 +563,6 @@ export function EditFirewallRuleModal({
     setTtlGt(rule.ttl_match?.gt || "");
     setTtlLt(rule.ttl_match?.lt || "");
 
-    // Limits & Time
     setLimitRate(rule.limit?.rate || "");
     setLimitBurst(rule.limit?.burst || "");
     setRecentCount(rule.recent?.count || "");
@@ -581,7 +573,6 @@ export function EditFirewallRuleModal({
     setTimeStoptime(rule.time?.stoptime || "");
     setTimeWeekdays(rule.time?.weekdays || "");
 
-    // Actions
     setLogOptionsGroup(rule.log_options?.group || "");
     setLogOptionsLevel(rule.log_options?.level || "");
     setLogOptionsQueueThreshold(rule.log_options?.queue_threshold || "");
@@ -597,18 +588,89 @@ export function EditFirewallRuleModal({
     setAddAddrToGroupDstGroup(rule.add_address_to_group?.destination_address_group || "");
     setAddAddrToGroupDstTimeout(rule.add_address_to_group?.destination_timeout || "");
 
-    // State
     setStateEstablished(rule.state?.established || false);
     setStateNew(rule.state?.new || false);
     setStateRelated(rule.state?.related || false);
     setStateInvalid(rule.state?.invalid || false);
 
-    // Interface
     setInboundInterface(rule.interface?.inbound || "");
     setOutboundInterface(rule.interface?.outbound || "");
 
-    // Advanced - TCP Flags
     const newTcpFlags: Record<string, "disabled" | "enabled" | "not"> = {
+      syn: "disabled", ack: "disabled", fin: "disabled", rst: "disabled",
+      psh: "disabled", urg: "disabled", ecn: "disabled", cwr: "disabled",
+    };
+    if (rule.tcp_flags) {
+      if (Array.isArray(rule.tcp_flags)) {
+        rule.tcp_flags.forEach((flag: string) => {
+          if (flag.startsWith("!")) {
+            const cleanFlag = flag.substring(1);
+            if (cleanFlag in newTcpFlags) newTcpFlags[cleanFlag] = "not";
+          } else if (flag in newTcpFlags) {
+            newTcpFlags[flag] = "enabled";
+          }
+        });
+      } else {
+        Object.entries(rule.tcp_flags).forEach(([flag, state]) => {
+          if (flag in newTcpFlags) newTcpFlags[flag] = state as "disabled" | "enabled" | "not";
+        });
+      }
+    }
+    setTcpFlags(newTcpFlags);
+
+    setIcmpTypeName(rule.icmp_type_name || "");
+    setJumpTarget(rule.jump_target || "");
+    setOffloadTarget(rule.offload_target || "");
+    setDscp(rule.packet_mods?.dscp || "");
+    setMark(rule.packet_mods?.mark || "");
+    setTtl(rule.packet_mods?.ttl || "");
+    setDisable(rule.disable);
+    setLog(rule.log);
+    setError(null);
+  };
+
+  const resetForm = () => {
+    setDescription("");
+    setAction("accept");
+    setRuleProtocol("");
+    setProtocolInvert(false);
+    setSourceMode("any");
+    setSourceAddress("");
+    setSourceAddressInvert(false);
+    setSourcePortMode("any");
+    setSourcePort("");
+    setSourcePortGroup("");
+    setSourceMac("");
+    setSourceGeoipCountry([]);
+    setSourceGeoipInverse(false);
+    setSourceGroupType("");
+    setSourceGroupName("");
+    setSourceGroupInvert(false);
+    setSourceFqdn("");
+    setSourceAddressMask("");
+    setSourcePortGroupInvert(false);
+    setDestMode("any");
+    setDestAddress("");
+    setDestAddressInvert(false);
+    setDestPortMode("any");
+    setDestPort("");
+    setDestPortGroup("");
+    setDestPortGroupInvert(false);
+    setDestGeoipCountry([]);
+    setDestGeoipInverse(false);
+    setDestGroupType("");
+    setDestGroupName("");
+    setDestGroupInvert(false);
+    setDestFqdn("");
+    setDestAddressMask("");
+    setDestMacAddress("");
+    setStateEstablished(false);
+    setStateNew(false);
+    setStateRelated(false);
+    setStateInvalid(false);
+    setInboundInterface("");
+    setOutboundInterface("");
+    setTcpFlags({
       syn: "disabled",
       ack: "disabled",
       fin: "disabled",
@@ -617,52 +679,73 @@ export function EditFirewallRuleModal({
       urg: "disabled",
       ecn: "disabled",
       cwr: "disabled",
-    };
-    if (rule.tcp_flags) {
-      // Handle both old array format and new object format
-      if (Array.isArray(rule.tcp_flags)) {
-        // Old format: ["syn", "ack", "!fin"]
-        rule.tcp_flags.forEach((flag: string) => {
-          if (flag.startsWith("!")) {
-            const cleanFlag = flag.substring(1);
-            if (cleanFlag in newTcpFlags) {
-              newTcpFlags[cleanFlag] = "not";
-            }
-          } else if (flag in newTcpFlags) {
-            newTcpFlags[flag] = "enabled";
-          }
-        });
-      } else {
-        // New format: {"syn": "enabled", "ack": "not"}
-        Object.entries(rule.tcp_flags).forEach(([flag, state]) => {
-          if (flag in newTcpFlags) {
-            newTcpFlags[flag] = state as "disabled" | "enabled" | "not";
-          }
-        });
-      }
-    }
-    setTcpFlags(newTcpFlags);
-
-    // ICMP Type
-    setIcmpTypeName(rule.icmp_type_name || "");
-    setJumpTarget(rule.jump_target || "");
-    setOffloadTarget(rule.offload_target || "");
-    setDscp(rule.packet_mods?.dscp || "");
-    setMark(rule.packet_mods?.mark || "");
-    setTtl(rule.packet_mods?.ttl || "");
-
-    // Flags
-    setDisable(rule.disable);
-    setLog(rule.log);
-
+    });
+    setIcmpTypeName("");
+    setJumpTarget("");
+    setOffloadTarget("");
+    setDscp("");
+    setMark("");
+    setTtl("");
+    // Matching fields
+    setConnectionMark("");
+    setConnectionStatusNat("");
+    setConntrackHelper("");
+    setDscpMatch("");
+    setDscpExclude("");
+    setFragmentMatchFrag(false);
+    setFragmentMatchNonFrag(false);
+    setGreKey("");
+    setGreVersion("");
+    setGreInnerProto("");
+    setGreFlags({});
+    setIpsecMode("none");
+    setIpsecInbound("none");
+    setIpsecOutbound("none");
+    setMarkMatch("");
+    setPacketLength("");
+    setPacketLengthExclude("");
+    setPacketType("");
+    setTcpMssMatch("");
+    setTtlEq("");
+    setTtlGt("");
+    setTtlLt("");
+    // Limits & Time
+    setLimitRate("");
+    setLimitBurst("");
+    setRecentCount("");
+    setRecentTime("");
+    setTimeStartdate("");
+    setTimeStarttime("");
+    setTimeStopdate("");
+    setTimeStoptime("");
+    setTimeWeekdays("");
+    // Actions
+    setLogOptionsGroup("");
+    setLogOptionsLevel("");
+    setLogOptionsQueueThreshold("");
+    setLogOptionsSnapshotLength("");
+    setQueueNumber("");
+    setQueueOptions("");
+    setSynproxyTcpMss("");
+    setSynproxyTcpWindowScale("");
+    setModSetConnectionMark("");
+    setModSetTcpMss("");
+    setAddAddrToGroupSrcGroup("");
+    setAddAddrToGroupSrcTimeout("");
+    setAddAddrToGroupDstGroup("");
+    setAddAddrToGroupDstTimeout("");
+    setDisable(false);
+    setLog(false);
     setError(null);
   };
 
   const handleClose = () => {
+    resetForm();
     onOpenChange(false);
   };
 
-  const handleSubmit = async () => {
+  const submitUpdate = async () => {
+    if (!existing) return;
     // Clear previous validation errors
     setSourceAddressError(null);
     setDestAddressError(null);
@@ -733,15 +816,15 @@ export function EditFirewallRuleModal({
 
       if (ruleProtocol && ruleProtocol !== "all") {
         config.protocol = protocolInvert ? `!${ruleProtocol}` : ruleProtocol;
-      } else if ((ruleProtocol === "all" || ruleProtocol === "") && rule.protocol) {
-        // Protocol changed to "all" or empty, but rule previously had a protocol - delete it
+      } else if ((ruleProtocol === "all" || ruleProtocol === "") && existing.protocol) {
+        // Protocol changed to "all" or empty, but existing previously had a protocol - delete it
         config.protocol = null;
       }
 
       // Source FQDN (set at top level, not inside source object)
       if (sourceMode === "fqdn" && sourceFqdn.trim()) {
         config.source_fqdn = sourceFqdn.trim();
-      } else if (rule.source_fqdn) {
+      } else if (existing.source_fqdn) {
         config.source_fqdn = null;
       }
 
@@ -759,12 +842,12 @@ export function EditFirewallRuleModal({
 
       const hasSource = hasSourceAddress || hasSourcePort;
 
-      // Check if we need to clear source (switching to "any" mode when rule had source before)
-      const hadSource = rule.source && (
-        rule.source.address ||
-        rule.source.mac_address ||
-        rule.source.geoip ||
-        (rule.source.group && Object.keys(rule.source.group).some(k => k !== "port-group"))
+      // Check if we need to clear source (switching to "any" mode when existing had source before)
+      const hadSource = existing.source && (
+        existing.source.address ||
+        existing.source.mac_address ||
+        existing.source.geoip ||
+        (existing.source.group && Object.keys(existing.source.group).some(k => k !== "port-group"))
       );
 
       if (hasSource || (sourceMode === "any" && hadSource)) {
@@ -791,7 +874,7 @@ export function EditFirewallRuleModal({
 
         if (sourceMode === "address" && sourceAddressMask.trim()) {
           config.source_address_mask = sourceAddressMask.trim();
-        } else if (rule.source_address_mask) {
+        } else if (existing.source_address_mask) {
           config.source_address_mask = null;
         }
 
@@ -810,13 +893,13 @@ export function EditFirewallRuleModal({
       // Destination FQDN (set at top level)
       if (destMode === "fqdn" && destFqdn.trim()) {
         config.destination_fqdn = destFqdn.trim();
-      } else if (rule.destination_fqdn) {
+      } else if (existing.destination_fqdn) {
         config.destination_fqdn = null;
       }
       // Destination MAC address (set at top level)
       if (destMode === "mac" && destMacAddress.trim()) {
         config.destination_mac_address = destMacAddress.trim();
-      } else if (rule.destination_mac_address) {
+      } else if (existing.destination_mac_address) {
         config.destination_mac_address = null;
       }
 
@@ -834,11 +917,11 @@ export function EditFirewallRuleModal({
 
       const hasDest = hasDestAddress || hasDestPort;
 
-      // Check if we need to clear destination (switching to "any" mode when rule had destination before)
-      const hadDest = rule.destination && (
-        rule.destination.address ||
-        rule.destination.geoip ||
-        (rule.destination.group && Object.keys(rule.destination.group).some(k => k !== "port-group"))
+      // Check if we need to clear destination (switching to "any" mode when existing had destination before)
+      const hadDest = existing.destination && (
+        existing.destination.address ||
+        existing.destination.geoip ||
+        (existing.destination.group && Object.keys(existing.destination.group).some(k => k !== "port-group"))
       );
 
       if (hasDest || (destMode === "any" && hadDest)) {
@@ -862,7 +945,7 @@ export function EditFirewallRuleModal({
 
         if (destMode === "address" && destAddressMask.trim()) {
           config.destination_address_mask = destAddressMask.trim();
-        } else if (rule.destination_address_mask) {
+        } else if (existing.destination_address_mask) {
           config.destination_address_mask = null;
         }
 
@@ -922,11 +1005,11 @@ export function EditFirewallRuleModal({
       // ICMP type - only applicable for ICMP protocol
       if ((ruleProtocol === "icmp" || ruleProtocol === "ipv6-icmp") && icmpTypeName) {
         config.icmp_type_name = icmpTypeName;
-      } else if ((ruleProtocol === "icmp" || ruleProtocol === "ipv6-icmp") && !icmpTypeName && rule.icmp_type_name) {
+      } else if ((ruleProtocol === "icmp" || ruleProtocol === "ipv6-icmp") && !icmpTypeName && existing.icmp_type_name) {
         // User cleared ICMP type while protocol is still ICMP - delete it
         config.icmp_type_name = null;
-      } else if (ruleProtocol !== "icmp" && ruleProtocol !== "ipv6-icmp" && rule.icmp_type_name) {
-        // Protocol changed away from ICMP but rule previously had ICMP type - delete it
+      } else if (ruleProtocol !== "icmp" && ruleProtocol !== "ipv6-icmp" && existing.icmp_type_name) {
+        // Protocol changed away from ICMP but existing previously had ICMP type - delete it
         config.icmp_type_name = null;
       }
 
@@ -935,8 +1018,8 @@ export function EditFirewallRuleModal({
         if (jumpTarget) {
           config.jump_target = jumpTarget;
         }
-      } else if (rule.jump_target) {
-        // Action is not jump but rule previously had a jump target - delete it
+      } else if (existing.jump_target) {
+        // Action is not jump but existing previously had a jump target - delete it
         config.jump_target = null;
       }
 
@@ -945,35 +1028,35 @@ export function EditFirewallRuleModal({
         if (offloadTarget) {
           config.offload_target = offloadTarget;
         }
-      } else if (rule.offload_target) {
-        // Action is not offload but rule previously had an offload target - delete it
+      } else if (existing.offload_target) {
+        // Action is not offload but existing previously had an offload target - delete it
         config.offload_target = null;
       }
 
       // Matching fields
       if (connectionMark.trim()) {
         config.connection_mark = connectionMark.trim();
-      } else if (rule.connection_mark) {
+      } else if (existing.connection_mark) {
         config.connection_mark = null;
       }
       if (connectionStatusNat) {
         config.connection_status = { nat: connectionStatusNat };
-      } else if (rule.connection_status) {
+      } else if (existing.connection_status) {
         config.connection_status = null;
       }
       if (conntrackHelper.trim()) {
         config.conntrack_helper = conntrackHelper.trim();
-      } else if (rule.conntrack_helper) {
+      } else if (existing.conntrack_helper) {
         config.conntrack_helper = null;
       }
       if (dscpMatch.trim()) {
         config.dscp_match = dscpMatch.trim();
-      } else if (rule.dscp_match) {
+      } else if (existing.dscp_match) {
         config.dscp_match = null;
       }
       if (dscpExclude.trim()) {
         config.dscp_exclude = dscpExclude.trim();
-      } else if (rule.dscp_exclude) {
+      } else if (existing.dscp_exclude) {
         config.dscp_exclude = null;
       }
       if (fragmentMatchFrag || fragmentMatchNonFrag) {
@@ -981,7 +1064,7 @@ export function EditFirewallRuleModal({
           match_frag: fragmentMatchFrag || undefined,
           match_non_frag: fragmentMatchNonFrag || undefined,
         };
-      } else if (rule.fragment) {
+      } else if (existing.fragment) {
         config.fragment = null;
       }
       if (greKey || greVersion || greInnerProto || Object.values(greFlags).some(Boolean)) {
@@ -995,7 +1078,7 @@ export function EditFirewallRuleModal({
         if (greFlags.key_unset) config.gre.flags_key_unset = true;
         if (greFlags.sequence) config.gre.flags_sequence = true;
         if (greFlags.sequence_unset) config.gre.flags_sequence_unset = true;
-      } else if (rule.gre) {
+      } else if (existing.gre) {
         config.gre = null;
       }
 
@@ -1009,33 +1092,33 @@ export function EditFirewallRuleModal({
         if (ipsecInbound === "match-none") config.ipsec.match_none_in = true;
         if (ipsecOutbound === "match-ipsec") config.ipsec.match_ipsec_out = true;
         if (ipsecOutbound === "match-none") config.ipsec.match_none_out = true;
-      } else if (rule.ipsec) {
+      } else if (existing.ipsec) {
         config.ipsec = null;
       }
 
       if (markMatch.trim()) {
         config.mark_match = markMatch.trim();
-      } else if (rule.mark_match) {
+      } else if (existing.mark_match) {
         config.mark_match = null;
       }
       if (packetLength.trim()) {
         config.packet_length = packetLength.trim();
-      } else if (rule.packet_length) {
+      } else if (existing.packet_length) {
         config.packet_length = null;
       }
       if (packetLengthExclude.trim()) {
         config.packet_length_exclude = packetLengthExclude.trim();
-      } else if (rule.packet_length_exclude) {
+      } else if (existing.packet_length_exclude) {
         config.packet_length_exclude = null;
       }
       if (packetType) {
         config.packet_type = packetType;
-      } else if (rule.packet_type) {
+      } else if (existing.packet_type) {
         config.packet_type = null;
       }
       if (tcpMssMatch.trim()) {
         config.tcp_mss = tcpMssMatch.trim();
-      } else if (rule.tcp_mss) {
+      } else if (existing.tcp_mss) {
         config.tcp_mss = null;
       }
       if (ttlEq || ttlGt || ttlLt) {
@@ -1043,7 +1126,7 @@ export function EditFirewallRuleModal({
         if (ttlEq) config.ttl_match.eq = ttlEq;
         if (ttlGt) config.ttl_match.gt = ttlGt;
         if (ttlLt) config.ttl_match.lt = ttlLt;
-      } else if (rule.ttl_match) {
+      } else if (existing.ttl_match) {
         config.ttl_match = null;
       }
 
@@ -1052,14 +1135,14 @@ export function EditFirewallRuleModal({
         config.limit = {};
         if (limitRate) config.limit.rate = limitRate;
         if (limitBurst) config.limit.burst = limitBurst;
-      } else if (rule.limit) {
+      } else if (existing.limit) {
         config.limit = null;
       }
       if (recentCount || recentTime) {
         config.recent = {};
         if (recentCount) config.recent.count = recentCount;
         if (recentTime) config.recent.time = recentTime;
-      } else if (rule.recent) {
+      } else if (existing.recent) {
         config.recent = null;
       }
       if (timeStartdate || timeStarttime || timeStopdate || timeStoptime || timeWeekdays) {
@@ -1069,7 +1152,7 @@ export function EditFirewallRuleModal({
         if (timeStopdate) config.time.stopdate = timeStopdate;
         if (timeStoptime) config.time.stoptime = timeStoptime;
         if (timeWeekdays) config.time.weekdays = timeWeekdays;
-      } else if (rule.time) {
+      } else if (existing.time) {
         config.time = null;
       }
 
@@ -1080,34 +1163,34 @@ export function EditFirewallRuleModal({
         if (logOptionsLevel) config.log_options.level = logOptionsLevel;
         if (logOptionsQueueThreshold) config.log_options.queue_threshold = logOptionsQueueThreshold;
         if (logOptionsSnapshotLength) config.log_options.snapshot_length = logOptionsSnapshotLength;
-      } else if (rule.log_options) {
+      } else if (existing.log_options) {
         config.log_options = null;
       }
       if (queueNumber) {
         config.queue_number = queueNumber;
-      } else if (rule.queue_number) {
+      } else if (existing.queue_number) {
         config.queue_number = null;
       }
       if (queueOptions) {
         config.queue_options = queueOptions;
-      } else if (rule.queue_options) {
+      } else if (existing.queue_options) {
         config.queue_options = null;
       }
       if (synproxyTcpMss || synproxyTcpWindowScale) {
         config.synproxy_config = {};
         if (synproxyTcpMss) config.synproxy_config.tcp_mss = synproxyTcpMss;
         if (synproxyTcpWindowScale) config.synproxy_config.tcp_window_scale = synproxyTcpWindowScale;
-      } else if (rule.synproxy_config) {
+      } else if (existing.synproxy_config) {
         config.synproxy_config = null;
       }
       if (modSetConnectionMark) {
         config.set_connection_mark = modSetConnectionMark;
-      } else if (rule.set_connection_mark) {
+      } else if (existing.set_connection_mark) {
         config.set_connection_mark = null;
       }
       if (modSetTcpMss) {
         config.set_tcp_mss = modSetTcpMss;
-      } else if (rule.set_tcp_mss) {
+      } else if (existing.set_tcp_mss) {
         config.set_tcp_mss = null;
       }
       if (addAddrToGroupSrcGroup || addAddrToGroupDstGroup) {
@@ -1116,7 +1199,7 @@ export function EditFirewallRuleModal({
         if (addAddrToGroupSrcTimeout) config.add_address_to_group.source_timeout = addAddrToGroupSrcTimeout;
         if (addAddrToGroupDstGroup) config.add_address_to_group.destination_address_group = addAddrToGroupDstGroup;
         if (addAddrToGroupDstTimeout) config.add_address_to_group.destination_timeout = addAddrToGroupDstTimeout;
-      } else if (rule.add_address_to_group) {
+      } else if (existing.add_address_to_group) {
         config.add_address_to_group = null;
       }
 
@@ -1126,17 +1209,383 @@ export function EditFirewallRuleModal({
       // Update rule
       const service = protocol === "ipv4" ? firewallIPv4Service : firewallIPv6Service;
       await service.updateRule(
-        rule.chain,
-        rule.rule_number,
-        rule.is_custom_chain,
+        existing.chain,
+        existing.rule_number,
+        existing.is_custom_chain,
         config,
-        rule
+        existing
       );
 
       handleClose();
       onSuccess();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update rule");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (isEdit) {
+      await submitUpdate();
+      return;
+    }
+    // Clear previous validation errors
+    setSourceAddressError(null);
+    setDestAddressError(null);
+    setSourceMacError(null);
+    setSourcePortError(null);
+    setDestPortError(null);
+
+    // Validate inputs
+    let hasValidationError = false;
+
+    if (sourceMode === "address" && sourceAddress.trim()) {
+      const error = getIPAddressError(sourceAddress.trim(), protocol);
+      if (error) {
+        setSourceAddressError(error);
+        hasValidationError = true;
+      }
+    }
+
+    if (destMode === "address" && destAddress.trim()) {
+      const error = getIPAddressError(destAddress.trim(), protocol);
+      if (error) {
+        setDestAddressError(error);
+        hasValidationError = true;
+      }
+    }
+
+    if (sourceMac.trim()) {
+      const error = getMACAddressError(sourceMac.trim());
+      if (error) {
+        setSourceMacError(error);
+        hasValidationError = true;
+      }
+    }
+
+    if (sourcePortMode === "port" && sourcePort.trim()) {
+      const error = getPortError(sourcePort.trim());
+      if (error) {
+        setSourcePortError(error);
+        hasValidationError = true;
+      }
+    }
+
+    if (destPortMode === "port" && destPort.trim()) {
+      const error = getPortError(destPort.trim());
+      if (error) {
+        setDestPortError(error);
+        hasValidationError = true;
+      }
+    }
+
+    // Stop if validation failed
+    if (hasValidationError) {
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Build config object
+      const config: Partial<FirewallRule> = {
+        action,
+      };
+
+      if (description.trim()) {
+        config.description = description.trim();
+      }
+
+      if (ruleProtocol && ruleProtocol !== "all") {
+        config.protocol = protocolInvert ? `!${ruleProtocol}` : ruleProtocol;
+      }
+
+      // Source
+      const hasSource =
+        (sourceMode === "address" && sourceAddress.trim()) ||
+        (sourceMode === "group" && sourceGroupType && sourceGroupName) ||
+        (sourceMode === "geoip" && sourceGeoipCountry.length > 0) ||
+        (sourceMode === "mac" && sourceMac.trim()) ||
+        (sourceMode === "fqdn" && sourceFqdn.trim()) ||
+        (sourcePortMode === "port" && sourcePort.trim()) ||
+        (sourcePortMode === "group" && sourcePortGroup.trim());
+
+      // Source FQDN (set at top level, not inside source object)
+      if (sourceMode === "fqdn" && sourceFqdn.trim()) {
+        config.source_fqdn = sourceFqdn.trim();
+      }
+
+      if (hasSource) {
+        config.source = {};
+
+        // Handle address mode - mutually exclusive with group, geoip, and mac
+        if (sourceMode === "address" && sourceAddress.trim()) {
+          const addr = sourceAddress.trim();
+          config.source.address = sourceAddressInvert ? `!${addr}` : addr;
+        } else if (sourceMode === "group" && sourceGroupType && sourceGroupName) {
+          // Address or network group - mutually exclusive with address, geoip, and mac
+          config.source.group = { [sourceGroupType]: sourceGroupInvert ? `!${sourceGroupName}` : sourceGroupName };
+        } else if (sourceMode === "geoip" && sourceGeoipCountry.length > 0) {
+          // GeoIP - mutually exclusive with address, group, and mac
+          config.source.geoip = {
+            country_code: sourceGeoipCountry,
+            inverse_match: sourceGeoipInverse || undefined,
+          };
+        } else if (sourceMode === "mac" && sourceMac.trim()) {
+          // MAC address - mutually exclusive with address, group, and geoip
+          config.source.mac_address = sourceMac.trim();
+        }
+
+        if (sourceMode === "address" && sourceAddressMask.trim()) {
+          config.source_address_mask = sourceAddressMask.trim();
+        }
+
+        // Handle port - either direct port or port group (separate from address/group/geoip/mac)
+        if (sourcePortMode === "port" && sourcePort.trim()) {
+          config.source.port = sourcePort.trim();
+        } else if (sourcePortMode === "group" && sourcePortGroup.trim()) {
+          // Port group - this is separate from address group
+          if (!config.source.group) {
+            config.source.group = {};
+          }
+          config.source.group["port-group"] = sourcePortGroupInvert ? `!${sourcePortGroup}` : sourcePortGroup;
+        }
+      }
+
+      // Destination FQDN (set at top level)
+      if (destMode === "fqdn" && destFqdn.trim()) {
+        config.destination_fqdn = destFqdn.trim();
+      }
+      // Destination MAC address (set at top level)
+      if (destMode === "mac" && destMacAddress.trim()) {
+        config.destination_mac_address = destMacAddress.trim();
+      }
+
+      // Destination
+      const hasDest =
+        (destMode === "address" && destAddress.trim()) ||
+        (destMode === "group" && destGroupType && destGroupName) ||
+        (destMode === "geoip" && destGeoipCountry.length > 0) ||
+        (destMode === "fqdn" && destFqdn.trim()) ||
+        (destMode === "mac" && destMacAddress.trim()) ||
+        (destPortMode === "port" && destPort.trim()) ||
+        (destPortMode === "group" && destPortGroup.trim());
+
+      if (hasDest) {
+        config.destination = {};
+
+        // Handle address mode - mutually exclusive with group and geoip
+        if (destMode === "address" && destAddress.trim()) {
+          const addr = destAddress.trim();
+          config.destination.address = destAddressInvert ? `!${addr}` : addr;
+        } else if (destMode === "group" && destGroupType && destGroupName) {
+          // Address or network group - mutually exclusive with address and geoip
+          config.destination.group = { [destGroupType]: destGroupInvert ? `!${destGroupName}` : destGroupName };
+        } else if (destMode === "geoip" && destGeoipCountry.length > 0) {
+          // GeoIP - mutually exclusive with address and group
+          config.destination.geoip = {
+            country_code: destGeoipCountry,
+            inverse_match: destGeoipInverse || undefined,
+          };
+        }
+
+        if (destMode === "address" && destAddressMask.trim()) {
+          config.destination_address_mask = destAddressMask.trim();
+        }
+
+        // Handle port - either direct port or port group (separate from address/group/geoip)
+        if (destPortMode === "port" && destPort.trim()) {
+          config.destination.port = destPort.trim();
+        } else if (destPortMode === "group" && destPortGroup.trim()) {
+          // Port group - this is separate from address group
+          if (!config.destination.group) {
+            config.destination.group = {};
+          }
+          config.destination.group["port-group"] = destPortGroupInvert ? `!${destPortGroup}` : destPortGroup;
+        }
+      }
+
+      // State
+      if (stateEstablished || stateNew || stateRelated || stateInvalid) {
+        config.state = {
+          established: stateEstablished || undefined,
+          new: stateNew || undefined,
+          related: stateRelated || undefined,
+          invalid: stateInvalid || undefined,
+        };
+      }
+
+      // Interface
+      if ((inboundInterface && inboundInterface !== "any") || (outboundInterface && outboundInterface !== "any")) {
+        config.interface = {};
+        if (inboundInterface && inboundInterface !== "any") config.interface.inbound = inboundInterface;
+        if (outboundInterface && outboundInterface !== "any") config.interface.outbound = outboundInterface;
+      }
+
+      // Packet mods
+      if (dscp || mark || ttl) {
+        config.packet_mods = {};
+        if (dscp) config.packet_mods.dscp = dscp;
+        if (mark) config.packet_mods.mark = mark;
+        if (ttl) config.packet_mods.ttl = ttl;
+      }
+
+      // Advanced - TCP Flags
+      const activeTcpFlags = Object.fromEntries(
+        Object.entries(tcpFlags).filter(([, state]) => state !== "disabled")
+      );
+      if (Object.keys(activeTcpFlags).length > 0) {
+        config.tcp_flags = activeTcpFlags;
+      }
+
+      // ICMP Type
+      if (icmpTypeName) {
+        config.icmp_type_name = icmpTypeName;
+      }
+
+      if (jumpTarget) {
+        config.jump_target = jumpTarget;
+      }
+
+      if (offloadTarget) {
+        config.offload_target = offloadTarget;
+      }
+
+      // Matching fields
+      if (connectionMark.trim()) {
+        config.connection_mark = connectionMark.trim();
+      }
+      if (connectionStatusNat) {
+        config.connection_status = { nat: connectionStatusNat };
+      }
+      if (conntrackHelper.trim()) {
+        config.conntrack_helper = conntrackHelper.trim();
+      }
+      if (dscpMatch.trim()) {
+        config.dscp_match = dscpMatch.trim();
+      }
+      if (dscpExclude.trim()) {
+        config.dscp_exclude = dscpExclude.trim();
+      }
+      if (fragmentMatchFrag || fragmentMatchNonFrag) {
+        config.fragment = {
+          match_frag: fragmentMatchFrag || undefined,
+          match_non_frag: fragmentMatchNonFrag || undefined,
+        };
+      }
+      if (greKey || greVersion || greInnerProto || Object.values(greFlags).some(Boolean)) {
+        config.gre = {};
+        if (greKey) config.gre.key = greKey;
+        if (greVersion) config.gre.version = greVersion;
+        if (greInnerProto) config.gre.inner_proto = greInnerProto;
+        if (greFlags.checksum) config.gre.flags_checksum = true;
+        if (greFlags.checksum_unset) config.gre.flags_checksum_unset = true;
+        if (greFlags.key) config.gre.flags_key = true;
+        if (greFlags.key_unset) config.gre.flags_key_unset = true;
+        if (greFlags.sequence) config.gre.flags_sequence = true;
+        if (greFlags.sequence_unset) config.gre.flags_sequence_unset = true;
+      }
+
+      // IPsec
+      const hasIpsec = ipsecMode !== "none" || ipsecInbound !== "none" || ipsecOutbound !== "none";
+      if (hasIpsec) {
+        config.ipsec = {};
+        if (ipsecMode === "match-ipsec") config.ipsec.match_ipsec = true;
+        if (ipsecMode === "match-none") config.ipsec.match_none = true;
+        if (ipsecInbound === "match-ipsec") config.ipsec.match_ipsec_in = true;
+        if (ipsecInbound === "match-none") config.ipsec.match_none_in = true;
+        if (ipsecOutbound === "match-ipsec") config.ipsec.match_ipsec_out = true;
+        if (ipsecOutbound === "match-none") config.ipsec.match_none_out = true;
+      }
+
+      if (markMatch.trim()) {
+        config.mark_match = markMatch.trim();
+      }
+      if (packetLength.trim()) {
+        config.packet_length = packetLength.trim();
+      }
+      if (packetLengthExclude.trim()) {
+        config.packet_length_exclude = packetLengthExclude.trim();
+      }
+      if (packetType) {
+        config.packet_type = packetType;
+      }
+      if (tcpMssMatch.trim()) {
+        config.tcp_mss = tcpMssMatch.trim();
+      }
+      if (ttlEq || ttlGt || ttlLt) {
+        config.ttl_match = {};
+        if (ttlEq) config.ttl_match.eq = ttlEq;
+        if (ttlGt) config.ttl_match.gt = ttlGt;
+        if (ttlLt) config.ttl_match.lt = ttlLt;
+      }
+
+      // Limits & Time
+      if (limitRate || limitBurst) {
+        config.limit = {};
+        if (limitRate) config.limit.rate = limitRate;
+        if (limitBurst) config.limit.burst = limitBurst;
+      }
+      if (recentCount || recentTime) {
+        config.recent = {};
+        if (recentCount) config.recent.count = recentCount;
+        if (recentTime) config.recent.time = recentTime;
+      }
+      if (timeStartdate || timeStarttime || timeStopdate || timeStoptime || timeWeekdays) {
+        config.time = {};
+        if (timeStartdate) config.time.startdate = timeStartdate;
+        if (timeStarttime) config.time.starttime = timeStarttime;
+        if (timeStopdate) config.time.stopdate = timeStopdate;
+        if (timeStoptime) config.time.stoptime = timeStoptime;
+        if (timeWeekdays) config.time.weekdays = timeWeekdays;
+      }
+
+      // Actions / modifications
+      if (logOptionsGroup || logOptionsLevel || logOptionsQueueThreshold || logOptionsSnapshotLength) {
+        config.log_options = {};
+        if (logOptionsGroup) config.log_options.group = logOptionsGroup;
+        if (logOptionsLevel) config.log_options.level = logOptionsLevel;
+        if (logOptionsQueueThreshold) config.log_options.queue_threshold = logOptionsQueueThreshold;
+        if (logOptionsSnapshotLength) config.log_options.snapshot_length = logOptionsSnapshotLength;
+      }
+      if (queueNumber) {
+        config.queue_number = queueNumber;
+      }
+      if (queueOptions) {
+        config.queue_options = queueOptions;
+      }
+      if (synproxyTcpMss || synproxyTcpWindowScale) {
+        config.synproxy_config = {};
+        if (synproxyTcpMss) config.synproxy_config.tcp_mss = synproxyTcpMss;
+        if (synproxyTcpWindowScale) config.synproxy_config.tcp_window_scale = synproxyTcpWindowScale;
+      }
+      if (modSetConnectionMark) {
+        config.set_connection_mark = modSetConnectionMark;
+      }
+      if (modSetTcpMss) {
+        config.set_tcp_mss = modSetTcpMss;
+      }
+      if (addAddrToGroupSrcGroup || addAddrToGroupDstGroup) {
+        config.add_address_to_group = {};
+        if (addAddrToGroupSrcGroup) config.add_address_to_group.source_address_group = addAddrToGroupSrcGroup;
+        if (addAddrToGroupSrcTimeout) config.add_address_to_group.source_timeout = addAddrToGroupSrcTimeout;
+        if (addAddrToGroupDstGroup) config.add_address_to_group.destination_address_group = addAddrToGroupDstGroup;
+        if (addAddrToGroupDstTimeout) config.add_address_to_group.destination_timeout = addAddrToGroupDstTimeout;
+      }
+
+      config.disable = disable;
+      config.log = log;
+
+      // Create rule
+      const service = protocol === "ipv4" ? firewallIPv4Service : firewallIPv6Service;
+      await service.createRule(chain, ruleNumber, isCustomChain, config);
+
+      handleClose();
+      onSuccess();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create rule");
     } finally {
       setLoading(false);
     }
@@ -1179,10 +1628,18 @@ export function EditFirewallRuleModal({
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            Edit Firewall Rule {rule.rule_number} - {rule.chain.charAt(0).toUpperCase() + rule.chain.slice(1)} Chain
+            {isEdit
+              ? `Edit Firewall Rule ${existing?.rule_number} - ${(existing?.chain || chain).charAt(0).toUpperCase() + (existing?.chain || chain).slice(1)} Chain`
+              : cloneRule
+              ? `Clone Rule ${cloneRule.rule_number} - ${chain.charAt(0).toUpperCase() + chain.slice(1)} Chain`
+              : `Create Firewall Rule - ${chain.charAt(0).toUpperCase() + chain.slice(1)} Chain`}
           </DialogTitle>
           <DialogDescription>
-            Modify the configuration for rule {rule.rule_number}
+            {isEdit
+              ? `Modify the configuration for rule ${existing?.rule_number}`
+              : cloneRule
+              ? `Cloning rule ${cloneRule.rule_number}. A new rule will be created with the next available number.`
+              : `Configure a new firewall rule for the ${chain} chain`}
           </DialogDescription>
         </DialogHeader>
 
@@ -1209,19 +1666,34 @@ export function EditFirewallRuleModal({
 
           {/* Basic Tab */}
           <TabsContent value="basic" className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="ruleNumber">Rule Number</Label>
-              <Input
-                id="ruleNumber"
-                type="number"
-                value={rule.rule_number}
-                disabled
-                className="bg-muted"
-              />
-              <p className="text-xs text-muted-foreground">
-                Rule number cannot be changed
-              </p>
-            </div>
+            {isEdit ? (
+              <div className="space-y-2">
+                <Label htmlFor="ruleNumber">Rule Number</Label>
+                <Input
+                  id="ruleNumber"
+                  type="number"
+                  value={existing?.rule_number}
+                  disabled
+                  className="bg-muted"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Rule number cannot be changed
+                </p>
+              </div>
+            ) : !cloneRule ? (
+              <div className="space-y-2">
+                <Label htmlFor="ruleNumber">Rule Number</Label>
+                <Input
+                  id="ruleNumber"
+                  type="number"
+                  value={ruleNumber}
+                  onChange={(e) => setRuleNumber(parseInt(e.target.value) || 100)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Auto-calculated based on existing rules
+                </p>
+              </div>
+            ) : null}
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -1297,9 +1769,9 @@ export function EditFirewallRuleModal({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="ruleProtocol">Protocol</Label>
+              <Label htmlFor="protocol">Protocol</Label>
               <Select value={ruleProtocol} onValueChange={setRuleProtocol}>
-                <SelectTrigger id="ruleProtocol">
+                <SelectTrigger id="protocol">
                   <SelectValue placeholder="Any protocol" />
                 </SelectTrigger>
                 {(sourcePort.trim() || destPort.trim() || sourcePortGroup.trim() || destPortGroup.trim()) ? (
@@ -1613,12 +2085,12 @@ export function EditFirewallRuleModal({
                     </Select>
                     )}
                   </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox id="sourceGroupInvert" checked={sourceGroupInvert} onCheckedChange={(c) => setSourceGroupInvert(!!c)} />
-                  <Label htmlFor="sourceGroupInvert" className="cursor-pointer font-normal text-sm">
-                    Invert (match packets NOT in this group)
-                  </Label>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox id="sourceGroupInvert" checked={sourceGroupInvert} onCheckedChange={(c) => setSourceGroupInvert(!!c)} />
+                    <Label htmlFor="sourceGroupInvert" className="cursor-pointer font-normal text-sm">
+                      Invert (match packets NOT in this group)
+                    </Label>
+                  </div>
                 </div>
               </div>
             )}
@@ -1679,20 +2151,20 @@ export function EditFirewallRuleModal({
               <Label>Source Port</Label>
               <RadioGroup value={sourcePortMode} onValueChange={(value: "any" | "port" | "group") => setSourcePortMode(value)}>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="any" id="edit-source-port-any-mode" />
-                  <Label htmlFor="edit-source-port-any-mode" className="cursor-pointer font-normal">
+                  <RadioGroupItem value="any" id="source-port-any-mode" />
+                  <Label htmlFor="source-port-any-mode" className="cursor-pointer font-normal">
                     Any (no port restriction)
                   </Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="port" id="edit-source-port-mode" />
-                  <Label htmlFor="edit-source-port-mode" className="cursor-pointer font-normal">
+                  <RadioGroupItem value="port" id="source-port-mode" />
+                  <Label htmlFor="source-port-mode" className="cursor-pointer font-normal">
                     Port Number/Range
                   </Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="group" id="edit-source-port-group-mode" />
-                  <Label htmlFor="edit-source-port-group-mode" className="cursor-pointer font-normal">
+                  <RadioGroupItem value="group" id="source-port-group-mode" />
+                  <Label htmlFor="source-port-group-mode" className="cursor-pointer font-normal">
                     Port Group
                   </Label>
                 </div>
@@ -1951,12 +2423,12 @@ export function EditFirewallRuleModal({
                     </Select>
                     )}
                   </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox id="destGroupInvert" checked={destGroupInvert} onCheckedChange={(c) => setDestGroupInvert(!!c)} />
-                  <Label htmlFor="destGroupInvert" className="cursor-pointer font-normal text-sm">
-                    Invert (match packets NOT in this group)
-                  </Label>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox id="destGroupInvert" checked={destGroupInvert} onCheckedChange={(c) => setDestGroupInvert(!!c)} />
+                    <Label htmlFor="destGroupInvert" className="cursor-pointer font-normal text-sm">
+                      Invert (match packets NOT in this group)
+                    </Label>
+                  </div>
                 </div>
               </div>
             )}
@@ -2006,20 +2478,20 @@ export function EditFirewallRuleModal({
               <Label>Destination Port</Label>
               <RadioGroup value={destPortMode} onValueChange={(value: "any" | "port" | "group") => setDestPortMode(value)}>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="any" id="edit-dest-port-any-mode" />
-                  <Label htmlFor="edit-dest-port-any-mode" className="cursor-pointer font-normal">
+                  <RadioGroupItem value="any" id="dest-port-any-mode" />
+                  <Label htmlFor="dest-port-any-mode" className="cursor-pointer font-normal">
                     Any (no port restriction)
                   </Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="port" id="edit-dest-port-mode" />
-                  <Label htmlFor="edit-dest-port-mode" className="cursor-pointer font-normal">
+                  <RadioGroupItem value="port" id="dest-port-mode" />
+                  <Label htmlFor="dest-port-mode" className="cursor-pointer font-normal">
                     Port Number/Range
                   </Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="group" id="edit-dest-port-group-mode" />
-                  <Label htmlFor="edit-dest-port-group-mode" className="cursor-pointer font-normal">
+                  <RadioGroupItem value="group" id="dest-port-group-mode" />
+                  <Label htmlFor="dest-port-group-mode" className="cursor-pointer font-normal">
                     Port Group
                   </Label>
                 </div>
@@ -2085,6 +2557,9 @@ export function EditFirewallRuleModal({
           <TabsContent value="state" className="space-y-4">
             <div className="space-y-4">
               <Label>Connection State Matching</Label>
+              <p className="text-sm text-muted-foreground">
+                Match packets based on their connection tracking state
+              </p>
 
               <div className="space-y-3">
                 <div className="flex items-center space-x-2">
@@ -2094,7 +2569,7 @@ export function EditFirewallRuleModal({
                     onCheckedChange={(checked) => setStateEstablished(checked as boolean)}
                   />
                   <Label htmlFor="stateEstablished" className="cursor-pointer">
-                    Established
+                    Established - Match established connections
                   </Label>
                 </div>
 
@@ -2105,7 +2580,7 @@ export function EditFirewallRuleModal({
                     onCheckedChange={(checked) => setStateNew(checked as boolean)}
                   />
                   <Label htmlFor="stateNew" className="cursor-pointer">
-                    New
+                    New - Match new connections
                   </Label>
                 </div>
 
@@ -2116,7 +2591,7 @@ export function EditFirewallRuleModal({
                     onCheckedChange={(checked) => setStateRelated(checked as boolean)}
                   />
                   <Label htmlFor="stateRelated" className="cursor-pointer">
-                    Related
+                    Related - Match related connections
                   </Label>
                 </div>
 
@@ -2127,7 +2602,7 @@ export function EditFirewallRuleModal({
                     onCheckedChange={(checked) => setStateInvalid(checked as boolean)}
                   />
                   <Label htmlFor="stateInvalid" className="cursor-pointer">
-                    Invalid
+                    Invalid - Match invalid packets
                   </Label>
                 </div>
               </div>
@@ -2730,10 +3205,12 @@ export function EditFirewallRuleModal({
             {loading ? (
               <>
                 <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                Updating...
+                {isEdit ? "Updating..." : "Creating..."}
               </>
-            ) : (
+            ) : isEdit ? (
               "Update Rule"
+            ) : (
+              "Create Rule"
             )}
           </Button>
         </DialogFooter>

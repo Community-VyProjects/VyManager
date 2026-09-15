@@ -60,8 +60,7 @@ import { firewallIPv6Service } from "@/lib/api/firewall-ipv6";
 import { firewallGroupsService, type FirewallGroup } from "@/lib/api/firewall-groups";
 import { cn } from "@/lib/utils";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { CreateFirewallRuleModal } from "@/components/firewall/CreateFirewallRuleModal";
-import { EditFirewallRuleModal } from "@/components/firewall/EditFirewallRuleModal";
+import { FirewallRuleModal } from "@/components/firewall/FirewallRuleModal";
 import { DeleteFirewallRuleModal } from "@/components/firewall/DeleteFirewallRuleModal";
 import { CreateCustomChainModal } from "@/components/firewall/CreateCustomChainModal";
 import { DeleteCustomChainModal } from "@/components/firewall/DeleteCustomChainModal";
@@ -1574,9 +1573,15 @@ function FirewallPoliciesPageInner() {
       )}
 
       {/* Modals */}
-      <CreateFirewallRuleModal
-        open={createModalOpen}
-        onOpenChange={(open) => { setCreateModalOpen(open); if (!open) setCloningRule(null); }}
+      <FirewallRuleModal
+        open={createModalOpen || !!editingRule}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCreateModalOpen(false);
+            setCloningRule(null);
+            setEditingRule(null);
+          }
+        }}
         onSuccess={() => selectedProtocol === "ipv4" ? fetchConfig(true) : fetchConfigIPv6(true)}
         chain={(selectedProtocol === "ipv4" ? selectedChain : selectedChainIPv6) as string}
         isCustomChain={selectedProtocol === "ipv4" ? isCustomChain : isCustomChainIPv6}
@@ -1584,18 +1589,8 @@ function FirewallPoliciesPageInner() {
         protocol={selectedProtocol}
         capabilities={selectedProtocol === "ipv4" ? capabilities : capabilitiesIPv6}
         cloneRule={cloningRule ?? undefined}
+        existing={editingRule}
       />
-
-      {editingRule && (
-        <EditFirewallRuleModal
-          open={!!editingRule}
-          onOpenChange={(open) => !open && setEditingRule(null)}
-          onSuccess={() => selectedProtocol === "ipv4" ? fetchConfig(true) : fetchConfigIPv6(true)}
-          rule={editingRule}
-          protocol={selectedProtocol}
-          capabilities={selectedProtocol === "ipv4" ? capabilities : capabilitiesIPv6}
-        />
-      )}
 
       {deletingRule && (
         <DeleteFirewallRuleModal
