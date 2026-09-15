@@ -153,14 +153,24 @@ def test_apply_interface_mtus_joins_on_session_ifname():
     assert sessions[0].mtu == 1492
 
 
-def test_accel_ppp_sessions_query_is_one_post_with_sessions_and_interfaces():
+def test_accel_ppp_sessions_query_requests_sessions_only():
     from pppoe_status import _accel_ppp_sessions_query
 
     query = _accel_ppp_sessions_query("k")["query"]
 
     assert "ShowSessionsAccelppp" in query
-    assert "ShowInterfaces" in query
-    assert query.count("{") >= 2
+    assert "ShowInterfaces" not in query
+
+
+def test_pppoe_server_mtu_from_config():
+    from pppoe_status import apply_configured_mtu, pppoe_server_mtu_from_config
+
+    assert pppoe_server_mtu_from_config({"service": {"pppoe-server": {"mtu": "1492"}}}) == 1492
+    assert pppoe_server_mtu_from_config({"service": {}}) is None
+
+    sessions = [PPPoESession(interface="ppp0", username="u", state="active")]
+    apply_configured_mtu(sessions, 1492)
+    assert sessions[0].mtu == 1492
 
 
 def test_parse_accel_ppp_sessions_accepts_json_encoded_string_result():
@@ -230,7 +240,7 @@ ppp0 | test-user | 192.0.2.10 | 2001:db8::10/64 | 2001:db8:1::/56 | 02:00:00:00:
     assert sessions[0].tx_bytes == 1_000_000
 
 
-def test_parse_optional_mtu_column():
+def test_parse_text_table_does_not_read_operational_mtu_column():
     output = """
 ifname | username | ip | mtu | state | rx-bytes | tx-bytes
 ppp0 | test-user | 192.0.2.10 | 1492 | active | 1 KiB | 2 KiB
@@ -238,7 +248,7 @@ ppp0 | test-user | 192.0.2.10 | 1492 | active | 1 KiB | 2 KiB
 
     session = parse_pppoe_sessions(output)[0]
 
-    assert session.mtu == 1492
+    assert session.mtu is None
 
 
 def test_parse_per_session_packet_counters_without_interface_fallback():
@@ -335,8 +345,9 @@ def test_load_pppoe_sessions_skips_rest_show_when_graphql_succeeds():
             apikey="k", protocol="https", hostname="127.0.0.1", port=1, verify=False
         ),
         device=SimpleNamespace(show=boom_show),
+        get_full_config=lambda refresh=False: {"service": {"pppoe-server": {"mtu": "1492"}}},
     )
-    sessions = [PPPoESession(interface="ppp0", username="u", state="active", mtu=1492)]
+    sessions = [PPPoESession(interface="ppp0", username="u", state="active")]
 
     async def fake_fetch(_service, protocol="pppoe"):
         return sessions

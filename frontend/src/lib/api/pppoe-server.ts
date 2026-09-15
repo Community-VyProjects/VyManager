@@ -199,6 +199,7 @@ export interface PPPoESessionLabelRule {
 
 export interface PPPoESessionLabelDefinition {
   id?: string;
+  session_label?: string;
   code: string;
   name: string;
   description?: string | null;
@@ -270,10 +271,17 @@ class PPPoEServerService {
     });
   }
 
-  async getSessions(limit = 500, offset = 0): Promise<PPPoESessionsResponse> {
+  async getSessions(
+    limit = 500,
+    offset = 0,
+    filters: Record<string, string | number | undefined> = {},
+  ): Promise<PPPoESessionsResponse> {
     return apiClient.get<PPPoESessionsResponse>("/vyos/pppoe-server/sessions", {
       limit: String(limit),
       offset: String(offset),
+      ...Object.fromEntries(
+        Object.entries(filters).filter(([, value]) => value !== undefined && value !== ""),
+      ),
     });
   }
 

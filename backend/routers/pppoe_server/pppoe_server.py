@@ -59,6 +59,7 @@ class PPPoEConnectionsResponse(BaseModel):
 
 
 class PPPoESessionLabelDefinitionResponse(BaseModel):
+    session_label: str = "*"
     code: str
     name: str
     description: Optional[str] = None
@@ -70,6 +71,7 @@ class PPPoESessionLabelDefinitionResponse(BaseModel):
 
 DEFAULT_PPPoE_SESSION_LABELS: List[Dict[str, Any]] = [
     {
+        "session_label": "*",
         "code": "traffic-skew",
         "name": "Traffic skew",
         "description": "Flag a session when upload (RX) bytes exceed 10% of download (TX) bytes, as a generic traffic-skew indicator.",
@@ -87,37 +89,40 @@ DEFAULT_PPPoE_SESSION_LABELS: List[Dict[str, Any]] = [
 ]
 
 
-async def _seed_default_pppoe_labels(conn) -> None:
-    """Seed the table with the shipped default registry if the DB is empty."""
-    row = await conn.fetchrow("SELECT COUNT(*) AS count FROM pppoe_session_label_definitions")
-    existing = int(row["count"] or 0) if row else 0
-    if existing > 0:
-        return
-
+async def _ensure_default_pppoe_labels(conn) -> None:
+    """Upsert shipped default label definitions (e.g. traffic-skew) when missing."""
     for label in DEFAULT_PPPoE_SESSION_LABELS:
         await conn.execute(
             """
             INSERT INTO pppoe_session_label_definitions
-            (code, name, description, severity, priority, enabled, rules, "createdAt", "updatedAt")
-            VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, NOW(), NOW())
-            ON CONFLICT (code)
-            DO UPDATE SET
-                name = EXCLUDED.name,
-                description = EXCLUDED.description,
-                severity = EXCLUDED.severity,
-                priority = EXCLUDED.priority,
-                enabled = EXCLUDED.enabled,
-                rules = EXCLUDED.rules,
-                "updatedAt" = NOW()
+            ("sessionLabel", code, name, description, severity, priority, enabled, rules, "createdAt", "updatedAt")
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, NOW(), NOW())
+            ON CONFLICT ("sessionLabel", code) DO NOTHING
             """,
-            label["code"],
-            label["name"],
-            label.get("description"),
-            label.get("severity") or "info",
-            int(label.get("priority") or 10),
-            bool(label.get("enabled", True)),
-            json.dumps(label.get("rules") or {}),
+            label.get("session_label") or "*",
+            label["code"], label["name"], label.get("description"),
+            label.get("severity") or "info", int(label.get("priority") or 10),
+            bool(label.get("enabled", True)), json.dumps(label.get("rules") or {}),
         )
+
+
+def _row_to_label_response(row) -> PPPoESessionLabelDefinitionResponse:
+    rules = row["rules"]
+    if isinstance(rules, str):
+        try:
+            rules = json.loads(rules)
+        except Exception:
+            rules = {}
+    return PPPoESessionLabelDefinitionResponse(
+        session_label=row["sessionLabel"] or "*",
+        code=row["code"],
+        name=row["name"],
+        description=row["description"],
+        severity=row["severity"] or "info",
+        priority=int(row["priority"] or 10),
+        enabled=row["enabled"] if row["enabled"] is not None else True,
+        rules=rules if isinstance(rules, dict) else {},
+    )
 
 
 # ========================================================================
@@ -134,46 +139,15 @@ async def get_pppoe_session_labels(request: Request):
     await require_read_permission(request, FeatureGroup.PPPOE)
     try:
         async with request_scoped_conn(request) as conn:
+            await _ensure_default_pppoe_labels(conn)
             rows = await conn.fetch(
                 """
-                SELECT code, name, description, severity, priority, enabled, rules
+                SELECT "sessionLabel", code, name, description, severity, priority, enabled, rules
                 FROM pppoe_session_label_definitions
-                WHERE enabled = TRUE
                 ORDER BY priority ASC, code ASC
                 """
             )
-            if not rows:
-                await _seed_default_pppoe_labels(conn)
-                rows = await conn.fetch(
-                    """
-                    SELECT code, name, description, severity, priority, enabled, rules
-                    FROM pppoe_session_label_definitions
-                    WHERE enabled = TRUE
-                    ORDER BY priority ASC, code ASC
-                    """
-                )
-
-            labels = []
-            for row in rows:
-                rules = row["rules"]
-                if isinstance(rules, str):
-                    try:
-                        rules = json.loads(rules)
-                    except Exception:
-                        rules = {}
-                labels.append(
-                    PPPoESessionLabelDefinitionResponse(
-                        code=row["code"],
-                        name=row["name"],
-                        description=row["description"],
-                        severity=row["severity"] or "info",
-                        priority=int(row["priority"] or 10),
-                        enabled=row["enabled"] if row["enabled"] is not None else True,
-                        rules=rules if isinstance(rules, dict) else {},
-                    )
-                )
-
-            return labels
+            return [_row_to_label_response(row) for row in rows]
 
     except HTTPException:
         raise
@@ -199,14 +173,16 @@ async def save_pppoe_session_labels(request: Request, body: List[PPPoESessionLab
             labels.append(item)
 
         async with request_scoped_conn(request) as conn:
-            await conn.execute("DELETE FROM pppoe_session_label_definitions")
+            await conn.execute(
+                'DELETE FROM pppoe_session_label_definitions WHERE "sessionLabel" = $1', "*"
+            )
             for label in labels:
                 await conn.execute(
                     """
                     INSERT INTO pppoe_session_label_definitions
-                    (code, name, description, severity, priority, enabled, rules)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
-                    ON CONFLICT (code)
+                    ("sessionLabel", code, name, description, severity, priority, enabled, rules)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb)
+                    ON CONFLICT ("sessionLabel", code)
                     DO UPDATE SET
                         name = EXCLUDED.name,
                         description = EXCLUDED.description,
@@ -216,35 +192,21 @@ async def save_pppoe_session_labels(request: Request, body: List[PPPoESessionLab
                         rules = EXCLUDED.rules,
                         "updatedAt" = NOW()
                     """,
-                    label.code,
-                    label.name,
-                    label.description,
-                    label.severity or "info",
-                    int(label.priority or 10),
-                    bool(label.enabled if label.enabled is not None else True),
-                    json.dumps(label.rules or {}),
+                    label.session_label or "*", label.code, label.name, label.description,
+                    label.severity or "info", int(label.priority or 10),
+                    bool(label.enabled if label.enabled is not None else True), json.dumps(label.rules or {}),
                 )
+
+            await _ensure_default_pppoe_labels(conn)
 
             rows = await conn.fetch(
                 """
-                SELECT code, name, description, severity, priority, enabled, rules
+                SELECT "sessionLabel", code, name, description, severity, priority, enabled, rules
                 FROM pppoe_session_label_definitions
-                WHERE enabled = TRUE
                 ORDER BY priority ASC, code ASC
                 """
             )
-            return [
-                PPPoESessionLabelDefinitionResponse(
-                    code=row["code"],
-                    name=row["name"],
-                    description=row["description"],
-                    severity=row["severity"] or "info",
-                    priority=int(row["priority"] or 10),
-                    enabled=row["enabled"] if row["enabled"] is not None else True,
-                    rules=row["rules"] if isinstance(row["rules"], dict) else {},
-                )
-                for row in rows
-            ]
+            return [_row_to_label_response(row) for row in rows]
 
     except HTTPException:
         raise
@@ -301,6 +263,14 @@ async def get_pppoe_sessions(
     http_request: Request,
     limit: int = Query(default=500, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),
+    search: str = Query(default="", max_length=200),
+    min_rx_bytes: Optional[int] = Query(default=None, ge=0),
+    max_rx_bytes: Optional[int] = Query(default=None, ge=0),
+    min_tx_bytes: Optional[int] = Query(default=None, ge=0),
+    max_tx_bytes: Optional[int] = Query(default=None, ge=0),
+    mtu: Optional[int] = Query(default=None, ge=1),
+    sort: str = Query(default="username", max_length=40),
+    direction: str = Query(default="asc", pattern="^(asc|desc)$"),
 ):
     """Return active PPPoE sessions with per-session packet counters and PPS.
 
@@ -321,6 +291,37 @@ async def get_pppoe_sessions(
         except PPPoESessionsUnavailable as exc:
             raise HTTPException(status_code=502, detail=exc.detail) from exc
 
+        needle = search.strip().lower()
+        if needle:
+            sessions = [
+                session for session in sessions
+                if needle in " ".join(str(value or "") for value in (
+                    session.username, session.interface, session.ip,
+                    session.ipv6, session.calling_sid,
+                )).lower()
+            ]
+        if min_rx_bytes is not None:
+            sessions = [session for session in sessions if session.rx_bytes >= min_rx_bytes]
+        if max_rx_bytes is not None:
+            sessions = [session for session in sessions if session.rx_bytes <= max_rx_bytes]
+        if min_tx_bytes is not None:
+            sessions = [session for session in sessions if session.tx_bytes >= min_tx_bytes]
+        if max_tx_bytes is not None:
+            sessions = [session for session in sessions if session.tx_bytes <= max_tx_bytes]
+        if mtu is not None:
+            sessions = [session for session in sessions if session.mtu == mtu]
+        sort_values = {
+            "username": lambda session: session.username.lower(),
+            "interface": lambda session: session.interface.lower(),
+            "ip": lambda session: session.ip or "",
+            "rx_bytes": lambda session: session.rx_bytes,
+            "tx_bytes": lambda session: session.tx_bytes,
+            "mtu": lambda session: session.mtu or 0,
+        }
+        sessions.sort(
+            key=sort_values.get(sort, sort_values["username"]),
+            reverse=direction == "desc",
+        )
         total = len(sessions)
         page = sessions[offset:offset + limit]
         return PPPoESessionsResponse(
