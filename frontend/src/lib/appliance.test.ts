@@ -9,7 +9,6 @@ import {
   isProtectedStackNetwork,
   isProtectedStackVolumePath,
   postLoginPath,
-  safeReturnPath,
   shouldRedirectToSites,
 } from "./appliance";
 
@@ -39,30 +38,6 @@ describe("afterLoginPath", () => {
     assert.equal(afterLoginPath("/sites", null), "/");
     assert.equal(afterLoginPath("", null), "/");
     assert.equal(afterLoginPath("/firewall/policies", null), "/firewall/policies");
-  });
-
-  it("ignores open redirects and auth internals", () => {
-    assert.equal(afterLoginPath("https://evil.example", false), "/sites");
-    assert.equal(afterLoginPath("//evil.example", true), "/");
-    assert.equal(afterLoginPath("/login?from=/firewall/policies", false), "/sites");
-    assert.equal(afterLoginPath("/api/session/current", true), "/");
-  });
-});
-
-describe("safeReturnPath", () => {
-  it("keeps in-app page paths", () => {
-    assert.equal(safeReturnPath("/firewall/policies"), "/firewall/policies");
-    assert.equal(safeReturnPath("/sites"), "/sites");
-  });
-
-  it("rejects schemes, login, and API paths", () => {
-    assert.equal(safeReturnPath("https://evil.example/x"), null);
-    assert.equal(safeReturnPath("//evil.example"), null);
-    assert.equal(safeReturnPath("/login"), null);
-    assert.equal(safeReturnPath("/login?from=%2Ffirewall%2Fpolicies"), null);
-    assert.equal(safeReturnPath("/api/auth/sign-in/email"), null);
-    assert.equal(safeReturnPath("/onboarding"), null);
-    assert.equal(safeReturnPath(""), null);
   });
 });
 

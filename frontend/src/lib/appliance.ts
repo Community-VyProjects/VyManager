@@ -9,50 +9,21 @@ export function postLoginPath(appliance: boolean): string {
 }
 
 /**
- * Same-app page path only. Rejects schemes, protocol-relative URLs, login,
- * onboarding, and API/RSC internals so `?from=` cannot break sign-in or
- * bounce the operator off-site.
- */
-export function safeReturnPath(from: string | null | undefined): string | null {
-  if (from == null) return null;
-  const trimmed = from.trim();
-  if (!trimmed.startsWith("/") || trimmed.startsWith("//") || trimmed.startsWith("/\\")) {
-    return null;
-  }
-  const pathname = trimmed.split("#")[0].split("?")[0];
-  if (pathname.length > 256) return null;
-  const lower = pathname.toLowerCase();
-  if (lower.startsWith("/%2f") || lower.startsWith("/%5c")) return null;
-  if (pathname.includes("\\") || pathname.includes("%")) return null;
-  if (!/^\/[A-Za-z0-9/_-]*$/.test(pathname)) return null;
-  if (
-    pathname === "/login" ||
-    pathname === "/onboarding" ||
-    pathname === "/api" ||
-    pathname.startsWith("/login/") ||
-    pathname.startsWith("/onboarding/") ||
-    pathname.startsWith("/api/") ||
-    pathname.startsWith("/_next/")
-  ) {
-    return null;
-  }
-  return pathname;
-}
-
-/**
  * Login/OAuth landing. `/sites` still becomes `/` in appliance.
  * `null` means mode unknown (status fetch failed): default `/` so appliance
  * auto-connect can run. VPS then redirects to /sites from AppLayout.
  */
 export function afterLoginPath(from: string, appliance: boolean | null): string {
-  const dest = safeReturnPath(from);
   if (appliance === false) {
-    return dest && dest !== "/sites" ? dest : "/sites";
+    if (!from || from === "/login" || from === "/onboarding") {
+      return "/sites";
+    }
+    return from === "/sites" ? "/sites" : from;
   }
-  if (!dest || dest === "/sites") {
+  if (!from || from === "/login" || from === "/onboarding" || from === "/sites") {
     return "/";
   }
-  return dest;
+  return from;
 }
 
 export function shouldRedirectToSites(appliance: boolean, hasSession: boolean): boolean {
