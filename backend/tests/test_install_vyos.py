@@ -48,6 +48,7 @@ def test_install_vyos_appliance_shape():
     assert "port api source 8000" in text
     assert "PUBLIC_WS_URL" in text
     assert "vyatta_cfg_run commit" in text
+    assert 'eval "$(vyatta_configure)"' in text
     assert "set +eu" in text
     assert "build_app_url" in text
     assert "URL you will type in the browser" not in text
