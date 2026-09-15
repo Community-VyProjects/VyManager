@@ -225,7 +225,7 @@ class NAT66BatchBuilder(BatchBuilder):
                 },
                 "groups": {
                     "supported": is_v1_5,
-                    "description": "Firewall group references in source/destination match (VyOS 1.5+)",
+                    "description": "Firewall group references in destination match (VyOS 1.5+)",
                 },
             },
             "operations": {
