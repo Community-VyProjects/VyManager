@@ -145,6 +145,7 @@ class OspfMaxMetricRouterLsa(BaseModel):
 class OspfGracefulRestartHelper(BaseModel):
     """OSPF graceful restart helper settings."""
     enable: bool = False
+    router_ids: List[str] = []
     no_strict_lsa_checking: bool = False
     planned_only: bool = False
     supported_grace_time: Optional[int] = None
@@ -591,16 +592,27 @@ def parse_max_metric(ospf_config: dict) -> OspfMaxMetricRouterLsa:
     )
 
 
+def _helper_router_ids(enable_raw) -> List[str]:
+    if not isinstance(enable_raw, dict):
+        return []
+    rid_raw = enable_raw.get("router-id")
+    if isinstance(rid_raw, dict):
+        return [str(k) for k in rid_raw.keys()]
+    return _to_list(rid_raw)
+
+
 def parse_graceful_restart(raw: dict) -> OspfGracefulRestart:
     if not raw:
         return OspfGracefulRestart()
 
     helper_raw = raw.get("helper", {}) or {}
+    enable_raw = helper_raw.get("enable")
     return OspfGracefulRestart(
         enabled=bool(raw),
         grace_period=_safe_int(raw.get("grace-period")),
         helper=OspfGracefulRestartHelper(
             enable="enable" in helper_raw,
+            router_ids=_helper_router_ids(enable_raw),
             no_strict_lsa_checking="no-strict-lsa-checking" in helper_raw,
             planned_only="planned-only" in helper_raw,
             supported_grace_time=_safe_int(helper_raw.get("supported-grace-time")),

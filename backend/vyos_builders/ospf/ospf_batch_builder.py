@@ -410,6 +410,12 @@ class OspfBatchBuilder(BatchBuilder):
     def set_graceful_restart_helper_enable(self) -> "OspfBatchBuilder":
         return self.add_set(self.m.get_graceful_restart_helper_enable())
 
+    def set_graceful_restart_helper_enable_router_id(self, value: str) -> "OspfBatchBuilder":
+        return self.add_set(self.m.get_graceful_restart_helper_enable_router_id(value))
+
+    def delete_graceful_restart_helper_enable_router_id(self, value: str) -> "OspfBatchBuilder":
+        return self.add_delete(self.m.get_graceful_restart_helper_enable_router_id_delete(value))
+
     def set_graceful_restart_helper_no_strict_lsa_checking(self) -> "OspfBatchBuilder":
         return self.add_set(self.m.get_graceful_restart_helper_no_strict_lsa_checking())
 

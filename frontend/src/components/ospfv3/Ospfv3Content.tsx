@@ -117,6 +117,8 @@ export function Ospfv3Content() {
   const [grEnabled, setGrEnabled] = useState(false);
   const [grPeriod, setGrPeriod] = useState("");
   const [grHelperEnable, setGrHelperEnable] = useState(false);
+  const [grHelperRouterIds, setGrHelperRouterIds] = useState<string[]>([]);
+  const [grHelperRouterIdDraft, setGrHelperRouterIdDraft] = useState("");
   const [grHelperLsaCheck, setGrHelperLsaCheck] = useState(false);
   const [grHelperPlannedOnly, setGrHelperPlannedOnly] = useState(false);
   const [grHelperGraceTime, setGrHelperGraceTime] = useState("");
@@ -310,6 +312,8 @@ export function Ospfv3Content() {
     setGrEnabled(config.graceful_restart.enabled);
     setGrPeriod(config.graceful_restart.grace_period != null ? String(config.graceful_restart.grace_period) : "");
     setGrHelperEnable(config.graceful_restart.helper.enable);
+    setGrHelperRouterIds([...(config.graceful_restart.helper.router_ids || [])]);
+    setGrHelperRouterIdDraft("");
     setGrHelperLsaCheck(config.graceful_restart.helper.lsa_check_disable);
     setGrHelperPlannedOnly(config.graceful_restart.helper.planned_only);
     setGrHelperGraceTime(config.graceful_restart.helper.supported_grace_time != null ? String(config.graceful_restart.helper.supported_grace_time) : "");
@@ -339,7 +343,7 @@ export function Ospfv3Content() {
         grace_period: grPeriod.trim() ? parseInt(grPeriod.trim(), 10) : null,
         helper: {
           enable: grHelperEnable,
-          router_ids: config.graceful_restart.helper.router_ids,
+          router_ids: grHelperRouterIds,
           lsa_check_disable: grHelperLsaCheck,
           planned_only: grHelperPlannedOnly,
           supported_grace_time: grHelperGraceTime.trim() ? parseInt(grHelperGraceTime.trim(), 10) : null,
@@ -1166,6 +1170,51 @@ export function Ospfv3Content() {
                           onCheckedChange={(checked) => setGrHelperEnable(!!checked)}
                         />
                         <Label htmlFor="ospfv3-gr-helper">Enable Helper</Label>
+                      </div>
+                      <div>
+                        <Label className="text-sm">Helper Router IDs</Label>
+                        <div className="space-y-2 mt-1">
+                          {(advancedEditing ? grHelperRouterIds : (config?.graceful_restart.helper.router_ids || [])).map((id) => (
+                            <div key={id} className="flex items-center gap-2">
+                              <span className="text-sm font-mono">{id}</span>
+                              {advancedEditing && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setGrHelperRouterIds((ids) => ids.filter((x) => x !== id))}
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              )}
+                            </div>
+                          ))}
+                          {advancedEditing && (
+                            <div className="flex items-center gap-2">
+                              <Input
+                                id="ospfv3-gr-helper-router-id"
+                                value={grHelperRouterIdDraft}
+                                onChange={(e) => setGrHelperRouterIdDraft(e.target.value)}
+                                placeholder="192.0.2.1"
+                              />
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  const id = grHelperRouterIdDraft.trim();
+                                  const parts = id.split(".");
+                                  const valid = parts.length === 4 && parts.every((p) => /^\d{1,3}$/.test(p) && Number(p) <= 255);
+                                  if (!valid || grHelperRouterIds.includes(id)) return;
+                                  setGrHelperRouterIds([...grHelperRouterIds, id]);
+                                  setGrHelperRouterIdDraft("");
+                                }}
+                              >
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
                       </div>
                       <div className="flex items-center gap-3">
                         <Checkbox
