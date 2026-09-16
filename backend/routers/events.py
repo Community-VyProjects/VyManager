@@ -207,6 +207,7 @@ async def _gather_banner_state(request: Request) -> Dict[str, Any]:
 async def _get_config_diff_state(request: Request) -> Dict[str, Any]:
     """Get config diff state without going through the HTTP endpoint."""
     from routers.config.config import _saved_config_snapshots, deep_diff
+    from config_state import accept_external_changes, has_external_changes, set_saved_config
 
     try:
         service = get_session_vyos_service(request)
@@ -214,20 +215,25 @@ async def _get_config_diff_state(request: Request) -> Dict[str, Any]:
         current_config = await run_in_threadpool(service.get_full_config, refresh=True)
 
         if instance_id not in _saved_config_snapshots:
-            _saved_config_snapshots[instance_id] = current_config
+            set_saved_config(instance_id, current_config)
             return {
                 "has_changes": False,
+                "external_changes": False,
                 "added": {},
                 "removed": {},
                 "modified": {},
                 "summary": {"added": 0, "removed": 0, "modified": 0},
             }
 
+        if has_external_changes(instance_id, current_config):
+            accept_external_changes(instance_id, current_config)
+
         added, removed, modified = deep_diff(current_config, _saved_config_snapshots[instance_id])
         has_changes = bool(added or removed or modified)
 
         return {
             "has_changes": has_changes,
+            "external_changes": False,
             "added": added,
             "removed": removed,
             "modified": modified,
@@ -321,6 +327,7 @@ async def _poll_banner_state_for_instance(
     only if the state has changed since the last poll.
     """
     from routers.config.config import _saved_config_snapshots, deep_diff
+    from config_state import accept_external_changes, has_external_changes
 
     # --- Config diff ---
     try:
@@ -328,19 +335,24 @@ async def _poll_banner_state_for_instance(
         current_config = await run_in_threadpool(service.get_full_config, refresh=True)
 
         if instance_id not in _saved_config_snapshots:
-            _saved_config_snapshots[instance_id] = current_config
+            from config_state import set_saved_config
+            set_saved_config(instance_id, current_config)
             config_diff_data = {
                 "has_changes": False,
+                "external_changes": False,
                 "added": {},
                 "removed": {},
                 "modified": {},
                 "summary": {"added": 0, "removed": 0, "modified": 0},
             }
         else:
+            if has_external_changes(instance_id, current_config):
+                accept_external_changes(instance_id, current_config)
             added, removed, modified = deep_diff(current_config, _saved_config_snapshots[instance_id])
             has_changes = bool(added or removed or modified)
             config_diff_data = {
                 "has_changes": has_changes,
+                "external_changes": False,
                 "added": added,
                 "removed": removed,
                 "modified": modified,
