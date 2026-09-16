@@ -75,8 +75,7 @@ import { CreateVppModal } from "@/components/vpp/CreateVppModal";
 import { EditVppModal } from "@/components/vpp/EditVppModal";
 import { DeleteVppModal } from "@/components/vpp/DeleteVppModal";
 import { vtiService, type VtiInterface, type VtiCapabilities } from "@/lib/api/vti";
-import { CreateVtiModal } from "@/components/vti/CreateVtiModal";
-import { EditVtiModal } from "@/components/vti/EditVtiModal";
+import { VtiModal } from "@/components/vti/VtiModal";
 import { DeleteVtiModal } from "@/components/vti/DeleteVtiModal";
 import { wirelessService, type WirelessInterface, type WirelessCapabilitiesResponse } from "@/lib/api/wireless";
 import { CreateWirelessModal } from "@/components/wireless/CreateWirelessModal";
@@ -4528,22 +4527,21 @@ function InterfacesPageInner() {
         subType={deletingVpp?.subType ?? null}
       />
       {/* VTI Modals */}
-      <CreateVtiModal
-        open={isCreateVtiModalOpen}
-        onOpenChange={setIsCreateVtiModalOpen}
-        onSuccess={loadData}
-        capabilities={vtiCapabilities}
-        existingInterfaces={vtiInterfaces.map((i) => i.name)}
-      />
-      <EditVtiModal
-        open={!!editingVti}
-        onOpenChange={(open) => !open && setEditingVti(null)}
+      <VtiModal
+        open={isCreateVtiModalOpen || !!editingVti}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsCreateVtiModalOpen(false);
+            setEditingVti(null);
+          }
+        }}
         onSuccess={() => {
           setEditingVti(null);
           loadData();
         }}
         capabilities={vtiCapabilities}
-        interfaceData={editingVti}
+        existingInterfaces={vtiInterfaces.map((i) => i.name)}
+        existing={editingVti}
       />
       <DeleteVtiModal
         open={!!deletingVti}
