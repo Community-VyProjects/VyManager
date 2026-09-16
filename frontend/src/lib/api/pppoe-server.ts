@@ -184,13 +184,6 @@ export interface PPPoESessionsResponse {
   total: number;
 }
 
-export interface PPPoEConnectionsResponse {
-  interface: string;
-  ip: string;
-  connections: string[];
-  total: number;
-}
-
 export interface PPPoESessionLabelRule {
   type?: "ratio";
   numerator?: "tx_bytes" | "rx_bytes" | "txRate" | "rxRate";
@@ -291,13 +284,6 @@ class PPPoEServerService {
   async resetSession(username: string): Promise<VyOSResponse> {
     return apiClient.post<VyOSResponse>(
       `/vyos/pppoe-server/sessions/${encodeURIComponent(username)}/reset`,
-    );
-  }
-
-  async getSessionConnections(interfaceName: string, ip: string, limit = 500): Promise<PPPoEConnectionsResponse> {
-    return apiClient.get<PPPoEConnectionsResponse>(
-      `/vyos/pppoe-server/sessions/${encodeURIComponent(interfaceName)}/connections`,
-      { ip, limit: String(limit) },
     );
   }
 

@@ -5,7 +5,7 @@ import { InterfaceCounter } from "@/lib/api/show";
 import { QoSStatsResponse } from "@/lib/api/qos";
 import { OpenVpnStatus } from "@/lib/api/openvpn";
 import { IPSecStatus } from "@/lib/api/ipsec";
-import { PPPoESessionsResponse, PPPoEConnectionsResponse } from "@/lib/api/pppoe-server";
+import { PPPoESessionsResponse } from "@/lib/api/pppoe-server";
 import { HardwareSensorsResponse } from "@/lib/api/show";
 
 // ============================================================================
@@ -144,7 +144,6 @@ export interface DashboardSSEData {
   bgpStatus: BgpStatusData | null;
   ipsecStatus: IPSecStatus | null;
   pppoeSessions: PPPoESessionsResponse | null;
-  pppoeConnections: Pick<PPPoEConnectionsResponse, "connections" | "total"> | null;
   hardwareSensors: HardwareSensorsResponse | null;
 }
 
@@ -161,12 +160,10 @@ export interface DashboardSSEState {
 export function useDashboardSSE(options?: {
   interests?: string[];
   enabled?: boolean;
-  conntrackIp?: string | null;
 }): DashboardSSEState {
   const interests = options?.interests ?? [];
   const enabled = options?.enabled ?? true;
-  const conntrackIp = options?.conntrackIp ?? "";
-  const interestsKey = `${interests.join(",")}|${conntrackIp}`;
+  const interestsKey = interests.join(",");
   const [status, setStatus] = useState<SSEStatus>("disconnected");
   const [data, setData] = useState<DashboardSSEData>({
     interfaceCounters: null,
@@ -178,7 +175,6 @@ export function useDashboardSSE(options?: {
     bgpStatus: null,
     ipsecStatus: null,
     pppoeSessions: null,
-    pppoeConnections: null,
     hardwareSensors: null,
   });
   const [error, setError] = useState<string | null>(null);
@@ -193,9 +189,6 @@ export function useDashboardSSE(options?: {
     const params = new URLSearchParams();
     for (const name of interests) {
       params.append("interest", name);
-    }
-    if (conntrackIp) {
-      params.set("conntrack_ip", conntrackIp);
     }
     const qs = params.toString();
     const es = new EventSource(qs ? `/api/vyos/show/stream?${qs}` : "/api/vyos/show/stream");
@@ -282,15 +275,6 @@ export function useDashboardSSE(options?: {
       try {
         const payload = JSON.parse(event.data) as PPPoESessionsResponse;
         setData((prev) => ({ ...prev, pppoeSessions: payload }));
-      } catch {
-        // Ignore malformed payloads
-      }
-    });
-
-    es.addEventListener("pppoe-connections", (event: MessageEvent) => {
-      try {
-        const payload = JSON.parse(event.data) as Pick<PPPoEConnectionsResponse, "connections" | "total">;
-        setData((prev) => ({ ...prev, pppoeConnections: payload }));
       } catch {
         // Ignore malformed payloads
       }

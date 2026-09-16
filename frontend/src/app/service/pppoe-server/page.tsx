@@ -39,7 +39,6 @@ import {
   User,
   Activity,
   RotateCcw,
-  Cable,
   ChevronLeft,
   ChevronRight,
   Pause,
@@ -68,8 +67,6 @@ import {
 import { usePermissions } from "@/hooks/usePermissions";
 import { useDashboardSSE } from "@/hooks/useDashboardSSE";
 import { FeatureGroup } from "@/lib/api/user-management";
-import { thrownMessage } from "@/lib/api-error";
-import { connectionLineMatchesIp } from "@/lib/pppoe-connections";
 import {
   DeleteConfirmModal,
   GeneralSettingsModal,
@@ -190,14 +187,6 @@ function PPPoEPageInner() {
     reorderColumns,
     resetToDefault,
   } = useColumnVisibility("pppoe-session-columns", PPPOE_SESSION_COLUMNS);
-  const [connectionDialog, setConnectionDialog] = useState<{
-    username: string;
-    interfaceName: string;
-    ip: string;
-  } | null>(null);
-  const [connections, setConnections] = useState<string[]>([]);
-  const [connectionsLoading, setConnectionsLoading] = useState(false);
-  const [connectionsError, setConnectionsError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("overview");
 
   // Modal state
@@ -305,11 +294,7 @@ function PPPoEPageInner() {
 
   const liveSessions = hasRead && !sessionPaused;
   const { data: sessionStream, error: sessionStreamError, status: sessionStreamStatus } = useDashboardSSE({
-    interests: [
-      "pppoe-sessions",
-      ...(liveSessions && connectionDialog?.ip ? ["pppoe-connections"] as const : []),
-    ],
-    conntrackIp: liveSessions ? connectionDialog?.ip : undefined,
+    interests: ["pppoe-sessions"],
     enabled: liveSessions,
   });
 
@@ -409,42 +394,6 @@ function PPPoEPageInner() {
   const onSuccess = () => fetchConfig(true);
   const onSessionReset = () => { void fetchSessions(); };
   const sessionKey = (session: SessionWithRates) => `${session.interface}:${session.username}:${session.calling_sid ?? ""}`;
-
-  const inspectConnections = async (session: SessionWithRates) => {
-    if (!session.ip) return;
-    setConnectionDialog({ username: session.username, interfaceName: session.interface, ip: session.ip });
-    setConnections([]);
-    setConnectionsError(null);
-    if (liveSessions) {
-      setConnectionsLoading(sessionStream.pppoeConnections == null);
-      return;
-    }
-    setConnectionsLoading(true);
-    try {
-      const result = await pppoeServerService.getSessionConnections(session.interface, session.ip);
-      setConnections(result.connections);
-    } catch (err) {
-      setConnectionsError(thrownMessage(err));
-    } finally {
-      setConnectionsLoading(false);
-    }
-  };
-
-  const streamConn = sessionStream.pppoeConnections;
-  const dialogIp = connectionDialog?.ip;
-  const liveDialogConnections =
-    dialogIp && streamConn
-      ? streamConn.connections.filter((line) => connectionLineMatchesIp(line, dialogIp)).slice(0, 500)
-      : null;
-  const dialogConnections = liveSessions && liveDialogConnections ? liveDialogConnections : connections;
-  const dialogLoading = Boolean(
-    connectionDialog &&
-      (liveSessions ? streamConn == null && sessionStreamStatus !== "error" : connectionsLoading),
-  );
-  const dialogError =
-    liveSessions && sessionStreamError?.startsWith("pppoe-connections:")
-      ? sessionStreamError.replace(/^pppoe-connections:\s*/, "") || "Failed to load connections"
-      : connectionsError;
 
   const parseOptionalNumber = (value: string) => {
     const parsed = Number(value);
@@ -827,18 +776,14 @@ function PPPoEPageInner() {
                                 );
                               })}
                               <TableCell className="text-right whitespace-nowrap">
-                                <Button variant="ghost" size="icon" className="h-8 w-8" title={`Graph statistics for ${session.username}`} onClick={() => setSelectedStatsKey(sessionKey(session))}>
-                                  <Activity className="h-4 w-4" />
-                                </Button>
                                 <Button
                                   variant="ghost"
                                   size="icon"
                                   className="h-8 w-8"
-                                  title={`Inspect connections for ${session.username}`}
-                                  onClick={() => void inspectConnections(session)}
-                                  disabled={!session.ip}
+                                  title={`Graph statistics for ${session.username}`}
+                                  onClick={() => setSelectedStatsKey(sessionKey(session))}
                                 >
-                                  <Cable className="h-4 w-4" />
+                                  <Activity className="h-4 w-4" />
                                 </Button>
                               {hasWrite && (
                                   <Button
@@ -1577,26 +1522,6 @@ function PPPoEPageInner() {
           </div>
         </DialogContent>
       </Dialog>}
-
-      <Dialog open={!!connectionDialog} onOpenChange={(open) => { if (!open) setConnectionDialog(null); }}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>Connections for {connectionDialog?.username}</DialogTitle>
-            <DialogDescription>
-              Conntrack entries matching {connectionDialog?.ip} on {connectionDialog?.interfaceName}.
-            </DialogDescription>
-          </DialogHeader>
-          {dialogLoading ? (
-            <div className="py-8 text-center text-sm text-muted-foreground">Loading connections...</div>
-          ) : dialogError ? (
-            <div className="rounded-md border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">{dialogError}</div>
-          ) : dialogConnections.length === 0 ? (
-            <div className="py-8 text-center text-sm text-muted-foreground">No tracked connections found.</div>
-          ) : (
-            <pre className="max-h-[60vh] overflow-auto rounded-md bg-muted p-4 text-xs leading-5 whitespace-pre-wrap">{dialogConnections.join("\n")}</pre>
-          )}
-        </DialogContent>
-      </Dialog>
 
       {/* Modals */}
       {config && (
