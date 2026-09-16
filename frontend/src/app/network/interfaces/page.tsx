@@ -86,8 +86,7 @@ import { wwanService, type WwanInterface, type WwanCapabilities } from "@/lib/ap
 import { CreateWwanModal } from "@/components/wwan/CreateWwanModal";
 import { EditWwanModal } from "@/components/wwan/EditWwanModal";
 import { DeleteWwanModal } from "@/components/wwan/DeleteWwanModal";
-import { CreateVxlanModal } from "@/components/vxlan/CreateVxlanModal";
-import { EditVxlanModal } from "@/components/vxlan/EditVxlanModal";
+import { VxlanModal } from "@/components/vxlan/VxlanModal";
 import { DeleteVxlanModal } from "@/components/vxlan/DeleteVxlanModal";
 import { ComprehensiveEthernetModal } from "@/components/network/ComprehensiveEthernetModal";
 import { ComprehensiveVLANModal } from "@/components/network/ComprehensiveVLANModal";
@@ -4164,22 +4163,21 @@ function InterfacesPageInner() {
       )}
 
       {/* VXLAN Modals */}
-      <CreateVxlanModal
-        open={isCreateVxlanModalOpen}
-        onOpenChange={setIsCreateVxlanModalOpen}
-        onSuccess={loadData}
-        capabilities={vxlanCapabilities}
-        existingInterfaces={vxlanInterfaces.map((i) => i.name)}
-      />
-      <EditVxlanModal
-        open={!!editingVxlan}
-        onOpenChange={(open) => !open && setEditingVxlan(null)}
+      <VxlanModal
+        open={isCreateVxlanModalOpen || !!editingVxlan}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsCreateVxlanModalOpen(false);
+            setEditingVxlan(null);
+          }
+        }}
         onSuccess={() => {
           setEditingVxlan(null);
           loadData();
         }}
         capabilities={vxlanCapabilities}
-        interfaceData={editingVxlan}
+        existingInterfaces={vxlanInterfaces.map((i) => i.name)}
+        existing={editingVxlan}
       />
       <DeleteVxlanModal
         open={!!deletingVxlan}
