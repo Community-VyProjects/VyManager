@@ -8,7 +8,6 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 import asyncio
-import ipaddress
 import json
 from urllib.parse import unquote
 from session_vyos_service import get_session_vyos_service
@@ -22,7 +21,6 @@ from pppoe_status import (
     PPPoESessionsUnavailable,
     load_pppoe_sessions,
 )
-from pppoe_connections import ConntrackUnavailable, fetch_session_connections
 import inspect
 import logging
 import uuid
@@ -51,13 +49,6 @@ class VyOSResponse(BaseModel):
     success: bool
     data: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
-
-
-class PPPoEConnectionsResponse(BaseModel):
-    interface: str
-    ip: str
-    connections: List[str]
-    total: int
 
 
 class PPPoESessionLabelDefinitionResponse(BaseModel):
@@ -366,41 +357,6 @@ async def reset_pppoe_session(http_request: Request, username: str):
         raise
     except Exception:
         logger.exception("Unhandled error resetting PPPoE sessions for %s", username)
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-@router.get("/sessions/{interface}/connections", response_model=PPPoEConnectionsResponse)
-async def get_pppoe_session_connections(
-    http_request: Request,
-    interface: str,
-    ip: str,
-    limit: int = Query(default=500, ge=1, le=2000),
-):
-    """Return conntrack entries containing the selected PPPoE client's IP."""
-    await require_read_permission(http_request, FeatureGroup.PPPOE)
-    try:
-        ipaddress.ip_interface(ip)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail="Invalid PPPoE session IP") from exc
-    if not interface or any(char in interface for char in "\r\n|;"):
-        raise HTTPException(status_code=400, detail="Invalid PPPoE session interface")
-
-    try:
-        service = get_session_vyos_service(http_request)
-        connections = await fetch_session_connections(service, ip)
-        address = str(ipaddress.ip_interface(ip).ip)
-        return PPPoEConnectionsResponse(
-            interface=interface,
-            ip=address,
-            connections=connections[:limit],
-            total=len(connections),
-        )
-    except HTTPException:
-        raise
-    except ConntrackUnavailable as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
-    except Exception:
-        logger.exception("Unhandled error reading PPPoE connections for %s", interface)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
