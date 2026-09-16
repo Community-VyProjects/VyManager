@@ -40,7 +40,6 @@ class ConfigSnapshotResponse(BaseModel):
 class ConfigDiffResponse(BaseModel):
     """Response containing configuration differences."""
     has_changes: bool
-    external_changes: bool = False
     added: Dict[str, Any] = {}
     removed: Dict[str, Any] = {}
     modified: Dict[str, Any] = {}
@@ -206,7 +205,6 @@ async def get_config_diff(request: Request):
             set_saved_config(instance_id, current_config)
             return ConfigDiffResponse(
                 has_changes=False,
-                external_changes=False,
                 summary={"added": 0, "removed": 0, "modified": 0}
             )
 
@@ -223,7 +221,6 @@ async def get_config_diff(request: Request):
 
         return ConfigDiffResponse(
             has_changes=has_changes,
-            external_changes=False,
             added=added,
             removed=removed,
             modified=modified,

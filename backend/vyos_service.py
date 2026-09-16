@@ -7,12 +7,15 @@ Much cleaner and easier to maintain!
 
 from typing import Optional, Union, Dict, Any, List
 import json
+import logging
 import requests as _requests
 
 from pyvyos import VyDevice
 from pyvyos.core.rest_client import ApiResponse
 import commit_confirm_state
-from config_state import set_managed_config
+from config_state import clear_managed_config, set_managed_config
+
+logger = logging.getLogger(__name__)
 from events.event_manager import event_manager, EVENT_CONFIG_DIFF, EVENT_COMMIT_CONFIRM
 from vyos_builders import (
     EthernetBatchBuilder,
@@ -279,8 +282,11 @@ class VyOSService:
                     self.get_full_config(refresh=True),
                 )
             except Exception:
-                # The mutation succeeded; a later banner poll can reconcile state.
-                pass
+                clear_managed_config(self.config.instance_id)
+                logger.exception(
+                    "Unable to record managed config after mutation for instance %s",
+                    self.config.instance_id,
+                )
             event_manager.emit(self.config.instance_id, EVENT_CONFIG_DIFF, None)
         return response
 
@@ -359,7 +365,11 @@ class VyOSService:
         try:
             set_managed_config(instance_id, self.get_full_config(refresh=True))
         except Exception:
-            pass
+            clear_managed_config(instance_id)
+            logger.exception(
+                "Unable to record managed config after commit-confirm for instance %s",
+                instance_id,
+            )
         event_manager.emit(instance_id, EVENT_CONFIG_DIFF, None)
         event_manager.emit(instance_id, EVENT_COMMIT_CONFIRM, None)
         return ApiResponse(status=200, request={}, result=body.get("data") or {}, error=False)
@@ -480,7 +490,11 @@ class VyOSService:
                                 self.get_full_config(refresh=True),
                             )
                         except Exception:
-                            pass
+                            clear_managed_config(self.config.instance_id)
+                            logger.exception(
+                                "Unable to record managed config after mutation for instance %s",
+                                self.config.instance_id,
+                            )
                     # Handle empty string responses from VyOS
                     result_data = response.result if response.result and response.result != '' else None
                     return {"success": True, "data": result_data}

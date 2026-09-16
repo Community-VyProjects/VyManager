@@ -218,7 +218,6 @@ async def _get_config_diff_state(request: Request) -> Dict[str, Any]:
             set_saved_config(instance_id, current_config)
             return {
                 "has_changes": False,
-                "external_changes": False,
                 "added": {},
                 "removed": {},
                 "modified": {},
@@ -233,7 +232,6 @@ async def _get_config_diff_state(request: Request) -> Dict[str, Any]:
 
         return {
             "has_changes": has_changes,
-            "external_changes": False,
             "added": added,
             "removed": removed,
             "modified": modified,
@@ -339,7 +337,6 @@ async def _poll_banner_state_for_instance(
             set_saved_config(instance_id, current_config)
             config_diff_data = {
                 "has_changes": False,
-                "external_changes": False,
                 "added": {},
                 "removed": {},
                 "modified": {},
@@ -352,7 +349,6 @@ async def _poll_banner_state_for_instance(
             has_changes = bool(added or removed or modified)
             config_diff_data = {
                 "has_changes": has_changes,
-                "external_changes": False,
                 "added": added,
                 "removed": removed,
                 "modified": modified,

@@ -21,6 +21,11 @@ def set_managed_config(instance_id: str, config: Dict[str, Any]) -> None:
     _managed_config_snapshots[instance_id] = deepcopy(config)
 
 
+def clear_managed_config(instance_id: str) -> None:
+    """Remove the managed marker when a post-mutation read cannot be trusted."""
+    _managed_config_snapshots.pop(instance_id, None)
+
+
 def get_saved_config(instance_id: str) -> Dict[str, Any] | None:
     return _saved_config_snapshots.get(instance_id)
 
@@ -36,34 +41,35 @@ def has_external_changes(instance_id: str, current: Dict[str, Any]) -> bool:
 
 
 def _merge_external_changes(saved: Any, managed: Any, current: Any) -> Any:
-    """Accept external changes while preserving VyManager-owned changes."""
+    """Accept external changes while preserving VyManager-owned changes.
+
+    The three states are compared in this order:
+    - ``current == managed``: no external change; keep the old baseline.
+    - ``managed == saved``: VyManager did not change this value; accept live state.
+    - otherwise: both sides changed or the values conflict; keep the old baseline.
+
+    ``_MISSING`` is used only as an internal return value and is never copied
+    into a configuration snapshot.
+    """
+    if current == managed:
+        return _MISSING if saved is _MISSING else deepcopy(saved)
     if managed == saved:
-        return deepcopy(current)
+        return _MISSING if current is _MISSING else deepcopy(current)
 
     if isinstance(saved, dict) and isinstance(managed, dict) and isinstance(current, dict):
         merged: Dict[str, Any] = {}
-        for key in set(saved) | set(managed) | set(current):
-            saved_value = saved.get(key, _MISSING)
-            managed_value = managed.get(key, _MISSING)
-            current_value = current.get(key, _MISSING)
-
-            if current_value is _MISSING:
-                if managed_value != saved_value:
-                    merged[key] = deepcopy(saved_value)
-                continue
-            if saved_value is _MISSING:
-                if managed_value == saved_value:
-                    merged[key] = deepcopy(current_value)
-                else:
-                    merged[key] = deepcopy(saved_value) if saved_value is not _MISSING else {}
-                continue
-
-            value = _merge_external_changes(saved_value, managed_value, current_value)
+        keys = set(saved) | set(managed) | set(current)
+        for key in keys:
+            value = _merge_external_changes(
+                saved.get(key, _MISSING),
+                managed.get(key, _MISSING),
+                current.get(key, _MISSING),
+            )
             if value is not _MISSING:
                 merged[key] = value
         return merged
 
-    return deepcopy(saved)
+    return _MISSING if saved is _MISSING else deepcopy(saved)
 
 
 def accept_external_changes(instance_id: str, current: Dict[str, Any]) -> None:
