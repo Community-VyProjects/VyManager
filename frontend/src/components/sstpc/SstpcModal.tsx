@@ -23,26 +23,39 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircle, Eye, EyeOff, Loader2 } from "lucide-react";
-import { sstpcService, type SstpcCapabilities, type SstpcCreateConfig } from "@/lib/api/sstpc";
+import {
+  sstpcService,
+  type SstpcCapabilities,
+  type SstpcCreateConfig,
+  type SstpcInterface,
+} from "@/lib/api/sstpc";
 import { pkiService, type PKIConfigResponse } from "@/lib/api/pki";
 import { ApiError } from "@/lib/types/api";
+import {
+  sstpcLockedName,
+  sstpcModalIsEdit,
+  sstpcWriteKind,
+} from "./sstpc-modal-mode";
 
-interface CreateSstpcModalProps {
+interface SstpcModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   capabilities: SstpcCapabilities | null;
   existingInterfaces: string[];
+  existing?: SstpcInterface | null;
 }
 
 const SSTPC_NAME_RE = /^sstpc[0-9]+$/;
 
-export function CreateSstpcModal({
+export function SstpcModal({
   open,
   onOpenChange,
   onSuccess,
   existingInterfaces,
-}: CreateSstpcModalProps) {
+  existing,
+}: SstpcModalProps) {
+  const isEdit = sstpcModalIsEdit(existing);
   // Basic
   const [name, setName] = useState("sstpc0");
   const [description, setDescription] = useState("");
@@ -68,8 +81,7 @@ export function CreateSstpcModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!open) return;
+  const resetForm = () => {
     setName("sstpc0");
     setDescription("");
     setDisabled(false);
@@ -85,14 +97,37 @@ export function CreateSstpcModal({
     setMtu("");
     setVrf("");
     setError(null);
-    pkiService.getConfig().then(setPki).catch(() => {});
-  }, [open]);
+  };
 
-  const validate = (): string | null => {
-    const n = name.trim();
-    if (!n) return "Interface name is required.";
-    if (!SSTPC_NAME_RE.test(n)) return "Interface name must be in the format 'sstpcN' (e.g. sstpc0).";
-    if (existingInterfaces.includes(n)) return `Interface '${n}' already exists.`;
+  const populateForm = (interfaceData: SstpcInterface) => {
+    setName(interfaceData.name);
+    setDescription(interfaceData.description ?? "");
+    setDisabled(interfaceData.disabled);
+    setServer(interfaceData.server ?? "");
+    setPort(interfaceData.port ?? "");
+    setUsername(interfaceData.authentication?.username ?? "");
+    setPassword("");
+    setShowPassword(false);
+    setSslCaCertificate(interfaceData.ssl?.ca_certificate ?? "");
+    setDefaultRouteDistance(interfaceData.default_route_distance ?? "");
+    setNoDefaultRoute(interfaceData.no_default_route);
+    setNoPeerDns(interfaceData.no_peer_dns);
+    setMtu(interfaceData.mtu ?? "");
+    setVrf(interfaceData.vrf ?? "");
+    setError(null);
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    if (existing) {
+      populateForm(existing);
+    } else {
+      resetForm();
+    }
+    pkiService.getConfig().then(setPki).catch(() => {});
+  }, [open, existing]);
+
+  const validateShared = (): string | null => {
     if (!server.trim()) return "Server address is required.";
     if (port) {
       const p = Number(port);
@@ -109,8 +144,77 @@ export function CreateSstpcModal({
     return null;
   };
 
+  const validateCreate = (): string | null => {
+    const n = name.trim();
+    if (!n) return "Interface name is required.";
+    if (!SSTPC_NAME_RE.test(n)) return "Interface name must be in the format 'sstpcN' (e.g. sstpc0).";
+    if (existingInterfaces.includes(n)) return `Interface '${n}' already exists.`;
+    return validateShared();
+  };
+
   const handleSubmit = async () => {
-    const validationError = validate();
+    const write = sstpcWriteKind(existing);
+    if (write.kind === "update") {
+      if (!existing) return;
+      const validationError = validateShared();
+      if (validationError) { setError(validationError); return; }
+
+      setLoading(true);
+      setError(null);
+
+      try {
+        const updated: Partial<SstpcCreateConfig> = {};
+
+        const trimOrNull = (v: string) => v.trim() || "";
+
+        const descVal = trimOrNull(description);
+        if (descVal !== (existing.description ?? "")) updated.description = descVal;
+
+        if (disabled !== existing.disabled) updated.disabled = disabled;
+
+        const serverVal = trimOrNull(server);
+        if (serverVal !== (existing.server ?? "")) updated.server = serverVal;
+
+        const portVal = trimOrNull(port);
+        if (portVal !== (existing.port ?? "")) updated.port = portVal;
+
+        const usernameVal = trimOrNull(username);
+        if (usernameVal !== (existing.authentication?.username ?? "")) updated.username = usernameVal;
+
+        // Password: only send if user typed something new
+        if (password) updated.password = password;
+
+        const caVal = sslCaCertificate;
+        if (caVal !== (existing.ssl?.ca_certificate ?? "")) updated.ssl_ca_certificate = caVal;
+
+        const drdVal = trimOrNull(defaultRouteDistance);
+        if (drdVal !== (existing.default_route_distance ?? "")) updated.default_route_distance = drdVal;
+
+        if (noDefaultRoute !== existing.no_default_route) updated.no_default_route = noDefaultRoute;
+        if (noPeerDns !== existing.no_peer_dns) updated.no_peer_dns = noPeerDns;
+
+        const mtuVal = trimOrNull(mtu);
+        if (mtuVal !== (existing.mtu ?? "")) updated.mtu = mtuVal;
+
+        const vrfVal = trimOrNull(vrf);
+        if (vrfVal !== (existing.vrf ?? "")) updated.vrf = vrfVal;
+
+        const result = await sstpcService.updateInterface(write.name, existing, updated);
+        if (result.success) {
+          onOpenChange(false);
+          onSuccess();
+        } else {
+          setError(result.error || "Operation failed");
+        }
+      } catch (err) {
+        setError((err as ApiError).message || "Failed to update interface");
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    const validationError = validateCreate();
     if (validationError) { setError(validationError); return; }
 
     setLoading(true);
@@ -147,13 +251,19 @@ export function CreateSstpcModal({
     }
   };
 
+  const lockedName = sstpcLockedName(existing, name);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Create SSTPC Interface</DialogTitle>
+          <DialogTitle>
+            {isEdit ? `Edit SSTPC Interface: ${existing.name}` : "Create SSTPC Interface"}
+          </DialogTitle>
           <DialogDescription>
-            Configure a new Secure Socket Tunneling Protocol client interface.
+            {isEdit
+              ? "Update the configuration for this SSTP client interface."
+              : "Configure a new Secure Socket Tunneling Protocol client interface."}
           </DialogDescription>
         </DialogHeader>
 
@@ -167,19 +277,25 @@ export function CreateSstpcModal({
           {/* ── Tab 1: Basic ── */}
           <TabsContent value="basic" className="space-y-4 pt-2">
             <div className="space-y-2">
-              <Label htmlFor="name">Interface Name</Label>
+              <Label htmlFor="sstpc-name">Interface Name</Label>
               <Input
-                id="name"
-                value={name}
+                id="sstpc-name"
+                value={lockedName.value}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="sstpc0"
+                disabled={lockedName.disabled}
               />
+              {isEdit ? (
+                <p className="text-xs text-muted-foreground">
+                  Interface name cannot be changed.
+                </p>
+              ) : null}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="server">Server <span className="text-destructive">*</span></Label>
+              <Label htmlFor="sstpc-server">Server <span className="text-destructive">*</span></Label>
               <Input
-                id="server"
+                id="sstpc-server"
                 value={server}
                 onChange={(e) => setServer(e.target.value)}
                 placeholder="vpn.example.com or 192.0.2.1"
@@ -188,9 +304,9 @@ export function CreateSstpcModal({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="port">Port</Label>
+              <Label htmlFor="sstpc-port">Port</Label>
               <Input
-                id="port"
+                id="sstpc-port"
                 value={port}
                 onChange={(e) => setPort(e.target.value)}
                 placeholder="443"
@@ -201,9 +317,9 @@ export function CreateSstpcModal({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="sstpc-description">Description</Label>
               <Input
-                id="description"
+                id="sstpc-description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Optional description"
@@ -212,11 +328,11 @@ export function CreateSstpcModal({
 
             <div className="flex items-center gap-2">
               <Checkbox
-                id="disabled"
+                id="sstpc-disabled"
                 checked={disabled}
                 onCheckedChange={(v) => setDisabled(!!v)}
               />
-              <Label htmlFor="disabled" className="cursor-pointer">
+              <Label htmlFor="sstpc-disabled" className="cursor-pointer">
                 Administratively disable this interface
               </Label>
             </div>
@@ -225,9 +341,9 @@ export function CreateSstpcModal({
           {/* ── Tab 2: Authentication & SSL ── */}
           <TabsContent value="auth" className="space-y-4 pt-2">
             <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
+              <Label htmlFor="sstpc-username">Username</Label>
               <Input
-                id="username"
+                id="sstpc-username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="VPN username"
@@ -236,14 +352,14 @@ export function CreateSstpcModal({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="sstpc-password">Password</Label>
               <div className="relative">
                 <Input
-                  id="password"
+                  id="sstpc-password"
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="VPN password"
+                  placeholder={isEdit ? "Leave blank to keep existing password" : "VPN password"}
                   autoComplete="new-password"
                   className="pr-9"
                 />
@@ -259,9 +375,9 @@ export function CreateSstpcModal({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="sslCa">CA Certificate</Label>
+              <Label htmlFor="sstpc-sslCa">CA Certificate</Label>
               <Select value={sslCaCertificate} onValueChange={setSslCaCertificate}>
-                <SelectTrigger id="sslCa">
+                <SelectTrigger id="sstpc-sslCa">
                   <SelectValue placeholder={pki?.ca && pki.ca.length > 0 ? "Select CA certificate" : "No CA certificates in PKI"} />
                 </SelectTrigger>
                 <SelectContent>
@@ -287,9 +403,9 @@ export function CreateSstpcModal({
           {/* ── Tab 3: Routing & Network ── */}
           <TabsContent value="routing" className="space-y-4 pt-2">
             <div className="space-y-2">
-              <Label htmlFor="defaultRouteDistance">Default Route Distance</Label>
+              <Label htmlFor="sstpc-defaultRouteDistance">Default Route Distance</Label>
               <Input
-                id="defaultRouteDistance"
+                id="sstpc-defaultRouteDistance"
                 value={defaultRouteDistance}
                 onChange={(e) => setDefaultRouteDistance(e.target.value)}
                 placeholder="210"
@@ -302,30 +418,30 @@ export function CreateSstpcModal({
 
             <div className="flex items-center gap-2">
               <Checkbox
-                id="noDefaultRoute"
+                id="sstpc-noDefaultRoute"
                 checked={noDefaultRoute}
                 onCheckedChange={(v) => setNoDefaultRoute(!!v)}
               />
-              <Label htmlFor="noDefaultRoute" className="cursor-pointer">
+              <Label htmlFor="sstpc-noDefaultRoute" className="cursor-pointer">
                 Do not install default route to system
               </Label>
             </div>
 
             <div className="flex items-center gap-2">
               <Checkbox
-                id="noPeerDns"
+                id="sstpc-noPeerDns"
                 checked={noPeerDns}
                 onCheckedChange={(v) => setNoPeerDns(!!v)}
               />
-              <Label htmlFor="noPeerDns" className="cursor-pointer">
+              <Label htmlFor="sstpc-noPeerDns" className="cursor-pointer">
                 Do not use DNS servers provided by the peer
               </Label>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="mtu">MTU</Label>
+              <Label htmlFor="sstpc-mtu">MTU</Label>
               <Input
-                id="mtu"
+                id="sstpc-mtu"
                 value={mtu}
                 onChange={(e) => setMtu(e.target.value)}
                 placeholder="1452"
@@ -337,9 +453,9 @@ export function CreateSstpcModal({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="vrf">VRF</Label>
+              <Label htmlFor="sstpc-vrf">VRF</Label>
               <VrfSelect
-                id="vrf"
+                id="sstpc-vrf"
                 value={vrf}
                 onValueChange={setVrf}
               />
@@ -362,8 +478,10 @@ export function CreateSstpcModal({
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Creating...
+                {isEdit ? "Saving..." : "Creating..."}
               </>
+            ) : isEdit ? (
+              "Save Changes"
             ) : (
               "Create Interface"
             )}

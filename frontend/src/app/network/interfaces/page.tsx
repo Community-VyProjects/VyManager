@@ -65,8 +65,7 @@ import { CreatePseudoEthernetModal } from "@/components/pseudo-ethernet/CreatePs
 import { EditPseudoEthernetModal } from "@/components/pseudo-ethernet/EditPseudoEthernetModal";
 import { DeletePseudoEthernetModal } from "@/components/pseudo-ethernet/DeletePseudoEthernetModal";
 import { sstpcService, type SstpcInterface, type SstpcCapabilities } from "@/lib/api/sstpc";
-import { CreateSstpcModal } from "@/components/sstpc/CreateSstpcModal";
-import { EditSstpcModal } from "@/components/sstpc/EditSstpcModal";
+import { SstpcModal } from "@/components/sstpc/SstpcModal";
 import { DeleteSstpcModal } from "@/components/sstpc/DeleteSstpcModal";
 import { virtualEthernetService, type VirtualEthernetInterface, type VirtualEthernetCapabilities } from "@/lib/api/virtual-ethernet";
 import { CreateVirtualEthernetModal } from "@/components/virtual-ethernet/CreateVirtualEthernetModal";
@@ -4457,22 +4456,21 @@ function InterfacesPageInner() {
         interfaceData={deletingPseudoEthernet}
       />
       {/* SSTPC Modals */}
-      <CreateSstpcModal
-        open={isCreateSstpcModalOpen}
-        onOpenChange={setIsCreateSstpcModalOpen}
-        onSuccess={loadData}
-        capabilities={sstpcCapabilities}
-        existingInterfaces={sstpcInterfaces.map((i) => i.name)}
-      />
-      <EditSstpcModal
-        open={!!editingSstpc}
-        onOpenChange={(o) => !o && setEditingSstpc(null)}
+      <SstpcModal
+        open={isCreateSstpcModalOpen || !!editingSstpc}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsCreateSstpcModalOpen(false);
+            setEditingSstpc(null);
+          }
+        }}
         onSuccess={() => {
           setEditingSstpc(null);
           loadData();
         }}
-        interfaceData={editingSstpc}
         capabilities={sstpcCapabilities}
+        existingInterfaces={sstpcInterfaces.map((i) => i.name)}
+        existing={editingSstpc}
       />
       <DeleteSstpcModal
         open={!!deletingSstpc}
