@@ -24,30 +24,40 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Signal, Loader2, Eye, EyeOff, X, Plus } from "lucide-react";
-import { wwanService, type WwanCapabilities } from "@/lib/api/wwan";
+import { wwanService, type WwanInterface, type WwanCapabilities } from "@/lib/api/wwan";
 import { showService, type InterfaceName } from "@/lib/api/show";
 import { InterfaceSelect } from "@/components/ui/interface-select";
 import { ApiError } from "@/lib/types/api";
+import { lockedIdentity, modalIsEdit, modalWriteKind } from "@/lib/modal-mode";
 
-interface CreateWwanModalProps {
+interface WwanModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   capabilities: WwanCapabilities | null;
   existingInterfaces: string[];
+  existing?: WwanInterface | null;
 }
 
 const MTU_PRESETS = ["1280", "1400", "1430", "1500"];
 const TIMEOUT_PRESETS = ["30", "60", "300", "600", "3600"];
 const DAD_PRESETS = ["0", "1", "2", "3"];
 
-export function CreateWwanModal({
+const getMssMode = (v: string) => (!v ? "none" : v === "clamp-mss-to-pmtu" ? "clamp" : "custom");
+const getMtuMode = (v: string) => (!v ? "default" : MTU_PRESETS.includes(v) ? v : "custom");
+const getTimeoutMode = (v: string) => (!v ? "none" : TIMEOUT_PRESETS.includes(v) ? v : "custom");
+const getDadMode = (v: string) => (!v ? "default" : DAD_PRESETS.includes(v) ? v : "custom");
+
+export function WwanModal({
   open,
   onOpenChange,
   onSuccess,
   capabilities,
   existingInterfaces,
-}: CreateWwanModalProps) {
+  existing,
+}: WwanModalProps) {
+  const isEdit = modalIsEdit(existing);
+
   // Connection
   const [name, setName] = useState("wwan0");
   const [apn, setApn] = useState("");
@@ -128,12 +138,12 @@ export function CreateWwanModal({
   const supportsNoRequestDomainName = capabilities?.features?.dhcpv6_no_request_domain_name?.supported ?? false;
   const supportsInterfaceIdentifier = capabilities?.features?.ipv6_interface_identifier?.supported ?? false;
 
-  const mtuMode = mtuIsCustom ? "custom" : (!mtu ? "default" : MTU_PRESETS.includes(mtu) ? mtu : "custom");
-  const ipAdjustMssMode = ipAdjustMssIsCustom ? "custom" : (!ipAdjustMss ? "none" : ipAdjustMss === "clamp-mss-to-pmtu" ? "clamp" : "custom");
-  const ipArpCacheTimeoutMode = ipArpCacheTimeoutIsCustom ? "custom" : (!ipArpCacheTimeout ? "none" : TIMEOUT_PRESETS.includes(ipArpCacheTimeout) ? ipArpCacheTimeout : "custom");
-  const ipv6AdjustMssMode = ipv6AdjustMssIsCustom ? "custom" : (!ipv6AdjustMss ? "none" : ipv6AdjustMss === "clamp-mss-to-pmtu" ? "clamp" : "custom");
-  const ipv6BaseReachableTimeMode = ipv6BaseReachableTimeIsCustom ? "custom" : (!ipv6BaseReachableTime ? "none" : TIMEOUT_PRESETS.includes(ipv6BaseReachableTime) ? ipv6BaseReachableTime : "custom");
-  const dadTransmitsMode = dadIsCustom ? "custom" : (!ipv6DupAddrDetectTransmits ? "default" : DAD_PRESETS.includes(ipv6DupAddrDetectTransmits) ? ipv6DupAddrDetectTransmits : "custom");
+  const mtuMode = mtuIsCustom ? "custom" : getMtuMode(mtu);
+  const ipAdjustMssMode = ipAdjustMssIsCustom ? "custom" : getMssMode(ipAdjustMss);
+  const ipArpCacheTimeoutMode = ipArpCacheTimeoutIsCustom ? "custom" : getTimeoutMode(ipArpCacheTimeout);
+  const ipv6AdjustMssMode = ipv6AdjustMssIsCustom ? "custom" : getMssMode(ipv6AdjustMss);
+  const ipv6BaseReachableTimeMode = ipv6BaseReachableTimeIsCustom ? "custom" : getTimeoutMode(ipv6BaseReachableTime);
+  const dadTransmitsMode = dadIsCustom ? "custom" : getDadMode(ipv6DupAddrDetectTransmits);
 
   const getNextInterfaceName = (): string => {
     let i = 0;
@@ -172,22 +182,217 @@ export function CreateWwanModal({
     setError(null);
   };
 
+  const populateForm = (d: WwanInterface) => {
+    setName(d.name);
+    setApn(d.apn ?? "");
+    setAuthUsername(d.auth_username ?? "");
+    setAuthPassword(d.auth_password ?? "");
+    setShowPassword(false);
+    setConnectOnDemand(d.connect_on_demand);
+    setDisableLinkDetect(d.disable_link_detect);
+    setDisable(d.disable);
+    setDescription(d.description ?? "");
+    const iMtu = d.mtu ?? "";
+    setMtu(iMtu);
+    setMtuIsCustom(getMtuMode(iMtu) === "custom");
+    setVrf(d.vrf ?? "");
+    setAddresses(d.addresses.join("\n"));
+    setDhcpClientId(d.dhcp_client_id ?? "");
+    setDhcpDefaultRouteDistance(d.dhcp_default_route_distance ?? "");
+    setDhcpHostName(d.dhcp_host_name ?? "");
+    setDhcpMtu(d.dhcp_mtu ?? "");
+    setDhcpNoDefaultRoute(d.dhcp_no_default_route);
+    setDhcpReject([...(d.dhcp_reject ?? [])]);
+    setDhcpRejectInput("");
+    setDhcpUserClass(d.dhcp_user_class ?? "");
+    setDhcpVendorClassId(d.dhcp_vendor_class_id ?? "");
+    setDhcpv6Duid(d.dhcpv6_duid ?? "");
+    setDhcpv6NoRelease(d.dhcpv6_no_release);
+    setDhcpv6ParametersOnly(d.dhcpv6_parameters_only);
+    setDhcpv6RapidCommit(d.dhcpv6_rapid_commit);
+    setDhcpv6Temporary(d.dhcpv6_temporary);
+    setDhcpv6NoRequestDns(d.dhcpv6_no_request_dns ?? false);
+    setDhcpv6NoRequestDomainName(d.dhcpv6_no_request_domain_name ?? false);
+    setDhcpv6Pd((d.dhcpv6_pd ?? []).map((pd) => pd.id));
+    setDhcpv6PdInput("");
+    setIpv6AddressEui64(d.ipv6_address_eui64.join("\n"));
+    setIpv6AddressAutoconf(d.ipv6_address_autoconf);
+    setIpv6AddressNoDefaultLinkLocal(d.ipv6_address_no_default_link_local);
+    setIpv6AddressInterfaceIdentifier(d.ipv6_address_interface_identifier ?? "");
+    const iaMss = d.ip_adjust_mss ?? "";
+    setIpAdjustMss(iaMss);
+    setIpAdjustMssIsCustom(getMssMode(iaMss) === "custom");
+    const iAct = d.ip_arp_cache_timeout ?? "";
+    setIpArpCacheTimeout(iAct);
+    setIpArpCacheTimeoutIsCustom(getTimeoutMode(iAct) === "custom");
+    setIpSourceValidation(d.ip_source_validation ?? "");
+    setIpDisableArpFilter(d.ip_disable_arp_filter);
+    setIpDisableForwarding(d.ip_disable_forwarding);
+    setIpEnableArpAccept(d.ip_enable_arp_accept);
+    setIpEnableArpAnnounce(d.ip_enable_arp_announce);
+    setIpEnableArpIgnore(d.ip_enable_arp_ignore);
+    setIpEnableDirectedBroadcast(d.ip_enable_directed_broadcast);
+    setIpEnableProxyArp(d.ip_enable_proxy_arp);
+    setIpProxyArpPvlan(d.ip_proxy_arp_pvlan);
+    setIpv6AcceptDad(d.ipv6_accept_dad ?? "");
+    const i6Mss = d.ipv6_adjust_mss ?? "";
+    setIpv6AdjustMss(i6Mss);
+    setIpv6AdjustMssIsCustom(getMssMode(i6Mss) === "custom");
+    const i6Brt = d.ipv6_base_reachable_time ?? "";
+    setIpv6BaseReachableTime(i6Brt);
+    setIpv6BaseReachableTimeIsCustom(getTimeoutMode(i6Brt) === "custom");
+    const i6Dad = d.ipv6_dup_addr_detect_transmits ?? "";
+    setIpv6DupAddrDetectTransmits(i6Dad);
+    setDadIsCustom(getDadMode(i6Dad) === "custom");
+    setIpv6SourceValidation(d.ipv6_source_validation ?? "");
+    setIpv6DisableForwarding(d.ipv6_disable_forwarding);
+    setMirrorIngress(d.mirror_ingress ?? "");
+    setMirrorEgress(d.mirror_egress ?? "");
+    setRedirect(d.redirect ?? "");
+    setError(null);
+  };
+
   useEffect(() => {
-    if (open) {
+    if (!open) return;
+    showService.getAllInterfaces().then((res) => setAvailableInterfaces(res.interfaces)).catch(() => {});
+    if (existing) {
+      populateForm(existing);
+    } else {
       resetForm();
-      showService.getAllInterfaces().then((res) => setAvailableInterfaces(res.interfaces)).catch(() => {});
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, existing]);
+
+  const lockedName = lockedIdentity(existing, (i) => i.name, name);
 
   const validateForm = (): string | null => {
-    if (!name.trim()) return "Interface name is required";
-    if (!/^wwan\d+$/.test(name)) return "Name must be wwan0, wwan1, wwan2, …";
-    if (existingInterfaces.includes(name)) return `Interface ${name} already exists`;
+    if (!isEdit) {
+      if (!name.trim()) return "Interface name is required";
+      if (!/^wwan\d+$/.test(name)) return "Name must be wwan0, wwan1, wwan2, …";
+      if (existingInterfaces.includes(name)) return `Interface ${name} already exists`;
+    }
     return null;
   };
 
+  const splitList = (val: string) => val.split(/[\n,]/).map((a) => a.trim()).filter(Boolean);
+
+  const submitCreate = async () => {
+    const config: Parameters<typeof wwanService.createInterface>[0] = { name };
+    const addrList = splitList(addresses);
+    const eui64List = splitList(ipv6AddressEui64);
+
+    if (apn.trim()) config.apn = apn.trim();
+    if (authUsername.trim()) config.auth_username = authUsername.trim();
+    if (authPassword.trim()) config.auth_password = authPassword.trim();
+    if (connectOnDemand) config.connect_on_demand = true;
+    if (disable) config.disable = true;
+    if (disableLinkDetect) config.disable_link_detect = true;
+    if (description.trim()) config.description = description.trim();
+    if (mtu) config.mtu = mtu;
+    if (vrf.trim()) config.vrf = vrf.trim();
+    if (addrList.length > 0) config.addresses = addrList;
+    if (mirrorIngress.trim()) config.mirror_ingress = mirrorIngress.trim();
+    if (mirrorEgress.trim()) config.mirror_egress = mirrorEgress.trim();
+    if (redirect.trim()) config.redirect = redirect.trim();
+    if (dhcpClientId.trim()) config.dhcp_client_id = dhcpClientId.trim();
+    if (dhcpDefaultRouteDistance.trim()) config.dhcp_default_route_distance = dhcpDefaultRouteDistance.trim();
+    if (dhcpHostName.trim()) config.dhcp_host_name = dhcpHostName.trim();
+    if (dhcpMtu.trim()) config.dhcp_mtu = dhcpMtu.trim();
+    if (dhcpNoDefaultRoute) config.dhcp_no_default_route = true;
+    if (dhcpReject.length > 0) config.dhcp_reject = dhcpReject;
+    if (dhcpUserClass.trim()) config.dhcp_user_class = dhcpUserClass.trim();
+    if (dhcpVendorClassId.trim()) config.dhcp_vendor_class_id = dhcpVendorClassId.trim();
+    if (dhcpv6Duid.trim()) config.dhcpv6_duid = dhcpv6Duid.trim();
+    if (dhcpv6NoRelease) config.dhcpv6_no_release = true;
+    if (dhcpv6ParametersOnly) config.dhcpv6_parameters_only = true;
+    if (dhcpv6RapidCommit) config.dhcpv6_rapid_commit = true;
+    if (dhcpv6Temporary) config.dhcpv6_temporary = true;
+    if (supportsNoRequestDns && dhcpv6NoRequestDns) config.dhcpv6_no_request_dns = true;
+    if (supportsNoRequestDomainName && dhcpv6NoRequestDomainName) config.dhcpv6_no_request_domain_name = true;
+    if (dhcpv6Pd.length > 0) config.dhcpv6_pd = dhcpv6Pd;
+    if (ipAdjustMss) config.ip_adjust_mss = ipAdjustMss;
+    if (ipArpCacheTimeout) config.ip_arp_cache_timeout = ipArpCacheTimeout;
+    if (ipDisableArpFilter) config.ip_disable_arp_filter = true;
+    if (ipDisableForwarding) config.ip_disable_forwarding = true;
+    if (ipEnableArpAccept) config.ip_enable_arp_accept = true;
+    if (ipEnableArpAnnounce) config.ip_enable_arp_announce = true;
+    if (ipEnableArpIgnore) config.ip_enable_arp_ignore = true;
+    if (ipEnableDirectedBroadcast) config.ip_enable_directed_broadcast = true;
+    if (ipEnableProxyArp) config.ip_enable_proxy_arp = true;
+    if (ipProxyArpPvlan) config.ip_proxy_arp_pvlan = true;
+    if (ipSourceValidation) config.ip_source_validation = ipSourceValidation;
+    if (ipv6AcceptDad) config.ipv6_accept_dad = ipv6AcceptDad;
+    if (ipv6AddressAutoconf) config.ipv6_address_autoconf = true;
+    if (eui64List.length > 0) config.ipv6_address_eui64 = eui64List;
+    if (ipv6AddressNoDefaultLinkLocal) config.ipv6_address_no_default_link_local = true;
+    if (supportsInterfaceIdentifier && ipv6AddressInterfaceIdentifier.trim()) config.ipv6_address_interface_identifier = ipv6AddressInterfaceIdentifier.trim();
+    if (ipv6AdjustMss) config.ipv6_adjust_mss = ipv6AdjustMss;
+    if (ipv6BaseReachableTime) config.ipv6_base_reachable_time = ipv6BaseReachableTime;
+    if (ipv6DisableForwarding) config.ipv6_disable_forwarding = true;
+    if (ipv6DupAddrDetectTransmits) config.ipv6_dup_addr_detect_transmits = ipv6DupAddrDetectTransmits;
+    if (ipv6SourceValidation) config.ipv6_source_validation = ipv6SourceValidation;
+
+    return wwanService.createInterface(config);
+  };
+
+  const submitUpdate = async (current: WwanInterface, targetName: string) => {
+    return wwanService.updateInterface(targetName, current, {
+      description: description.trim() || null,
+      apn: apn.trim() || null,
+      auth_username: authUsername.trim() || null,
+      auth_password: authPassword.trim() || null,
+      connect_on_demand: connectOnDemand,
+      disable,
+      disable_link_detect: disableLinkDetect,
+      mtu: mtu || null,
+      vrf: vrf.trim() || null,
+      addresses: splitList(addresses),
+      redirect: redirect.trim() || null,
+      mirror_ingress: mirrorIngress.trim() || null,
+      mirror_egress: mirrorEgress.trim() || null,
+      dhcp_client_id: dhcpClientId.trim() || null,
+      dhcp_default_route_distance: dhcpDefaultRouteDistance.trim() || null,
+      dhcp_host_name: dhcpHostName.trim() || null,
+      dhcp_mtu: dhcpMtu.trim() || null,
+      dhcp_no_default_route: dhcpNoDefaultRoute,
+      dhcp_reject: dhcpReject,
+      dhcp_user_class: dhcpUserClass.trim() || null,
+      dhcp_vendor_class_id: dhcpVendorClassId.trim() || null,
+      dhcpv6_duid: dhcpv6Duid.trim() || null,
+      dhcpv6_no_release: dhcpv6NoRelease,
+      dhcpv6_parameters_only: dhcpv6ParametersOnly,
+      dhcpv6_rapid_commit: dhcpv6RapidCommit,
+      dhcpv6_temporary: dhcpv6Temporary,
+      ...(supportsNoRequestDns ? { dhcpv6_no_request_dns: dhcpv6NoRequestDns } : {}),
+      ...(supportsNoRequestDomainName ? { dhcpv6_no_request_domain_name: dhcpv6NoRequestDomainName } : {}),
+      dhcpv6_pd: dhcpv6Pd,
+      ip_adjust_mss: ipAdjustMss || null,
+      ip_arp_cache_timeout: ipArpCacheTimeout || null,
+      ip_disable_arp_filter: ipDisableArpFilter,
+      ip_disable_forwarding: ipDisableForwarding,
+      ip_enable_arp_accept: ipEnableArpAccept,
+      ip_enable_arp_announce: ipEnableArpAnnounce,
+      ip_enable_arp_ignore: ipEnableArpIgnore,
+      ip_enable_directed_broadcast: ipEnableDirectedBroadcast,
+      ip_enable_proxy_arp: ipEnableProxyArp,
+      ip_proxy_arp_pvlan: ipProxyArpPvlan,
+      ip_source_validation: ipSourceValidation || null,
+      ipv6_accept_dad: ipv6AcceptDad || null,
+      ipv6_address_autoconf: ipv6AddressAutoconf,
+      ipv6_address_eui64: splitList(ipv6AddressEui64),
+      ipv6_address_no_default_link_local: ipv6AddressNoDefaultLinkLocal,
+      ...(supportsInterfaceIdentifier ? { ipv6_address_interface_identifier: ipv6AddressInterfaceIdentifier.trim() || null } : {}),
+      ipv6_adjust_mss: ipv6AdjustMss || null,
+      ipv6_base_reachable_time: ipv6BaseReachableTime || null,
+      ipv6_disable_forwarding: ipv6DisableForwarding,
+      ipv6_dup_addr_detect_transmits: ipv6DupAddrDetectTransmits || null,
+      ipv6_source_validation: ipv6SourceValidation || null,
+    });
+  };
+
   const handleSubmit = async () => {
+    const write = modalWriteKind(existing);
+
     const validationError = validateForm();
     if (validationError) { setError(validationError); return; }
 
@@ -195,68 +400,18 @@ export function CreateWwanModal({
     setError(null);
 
     try {
-      const addrList = addresses.split(/[\n,]/).map((a) => a.trim()).filter(Boolean);
-      const eui64List = ipv6AddressEui64.split(/[\n,]/).map((a) => a.trim()).filter(Boolean);
+      const result =
+        write.kind === "update" && existing
+          ? await submitUpdate(existing, write.name)
+          : await submitCreate();
 
-      const config: Parameters<typeof wwanService.createInterface>[0] = { name };
-
-      if (apn.trim()) config.apn = apn.trim();
-      if (authUsername.trim()) config.auth_username = authUsername.trim();
-      if (authPassword.trim()) config.auth_password = authPassword.trim();
-      if (connectOnDemand) config.connect_on_demand = true;
-      if (disable) config.disable = true;
-      if (disableLinkDetect) config.disable_link_detect = true;
-      if (description.trim()) config.description = description.trim();
-      if (mtu) config.mtu = mtu;
-      if (vrf.trim()) config.vrf = vrf.trim();
-      if (addrList.length > 0) config.addresses = addrList;
-      if (mirrorIngress.trim()) config.mirror_ingress = mirrorIngress.trim();
-      if (mirrorEgress.trim()) config.mirror_egress = mirrorEgress.trim();
-      if (redirect.trim()) config.redirect = redirect.trim();
-      if (dhcpClientId.trim()) config.dhcp_client_id = dhcpClientId.trim();
-      if (dhcpDefaultRouteDistance.trim()) config.dhcp_default_route_distance = dhcpDefaultRouteDistance.trim();
-      if (dhcpHostName.trim()) config.dhcp_host_name = dhcpHostName.trim();
-      if (dhcpMtu.trim()) config.dhcp_mtu = dhcpMtu.trim();
-      if (dhcpNoDefaultRoute) config.dhcp_no_default_route = true;
-      if (dhcpReject.length > 0) config.dhcp_reject = dhcpReject;
-      if (dhcpUserClass.trim()) config.dhcp_user_class = dhcpUserClass.trim();
-      if (dhcpVendorClassId.trim()) config.dhcp_vendor_class_id = dhcpVendorClassId.trim();
-      if (dhcpv6Duid.trim()) config.dhcpv6_duid = dhcpv6Duid.trim();
-      if (dhcpv6NoRelease) config.dhcpv6_no_release = true;
-      if (dhcpv6ParametersOnly) config.dhcpv6_parameters_only = true;
-      if (dhcpv6RapidCommit) config.dhcpv6_rapid_commit = true;
-      if (dhcpv6Temporary) config.dhcpv6_temporary = true;
-      if (supportsNoRequestDns && dhcpv6NoRequestDns) config.dhcpv6_no_request_dns = true;
-      if (supportsNoRequestDomainName && dhcpv6NoRequestDomainName) config.dhcpv6_no_request_domain_name = true;
-      if (dhcpv6Pd.length > 0) config.dhcpv6_pd = dhcpv6Pd;
-      if (ipAdjustMss) config.ip_adjust_mss = ipAdjustMss;
-      if (ipArpCacheTimeout) config.ip_arp_cache_timeout = ipArpCacheTimeout;
-      if (ipDisableArpFilter) config.ip_disable_arp_filter = true;
-      if (ipDisableForwarding) config.ip_disable_forwarding = true;
-      if (ipEnableArpAccept) config.ip_enable_arp_accept = true;
-      if (ipEnableArpAnnounce) config.ip_enable_arp_announce = true;
-      if (ipEnableArpIgnore) config.ip_enable_arp_ignore = true;
-      if (ipEnableDirectedBroadcast) config.ip_enable_directed_broadcast = true;
-      if (ipEnableProxyArp) config.ip_enable_proxy_arp = true;
-      if (ipProxyArpPvlan) config.ip_proxy_arp_pvlan = true;
-      if (ipSourceValidation) config.ip_source_validation = ipSourceValidation;
-      if (ipv6AcceptDad) config.ipv6_accept_dad = ipv6AcceptDad;
-      if (ipv6AddressAutoconf) config.ipv6_address_autoconf = true;
-      if (eui64List.length > 0) config.ipv6_address_eui64 = eui64List;
-      if (ipv6AddressNoDefaultLinkLocal) config.ipv6_address_no_default_link_local = true;
-      if (supportsInterfaceIdentifier && ipv6AddressInterfaceIdentifier.trim()) config.ipv6_address_interface_identifier = ipv6AddressInterfaceIdentifier.trim();
-      if (ipv6AdjustMss) config.ipv6_adjust_mss = ipv6AdjustMss;
-      if (ipv6BaseReachableTime) config.ipv6_base_reachable_time = ipv6BaseReachableTime;
-      if (ipv6DisableForwarding) config.ipv6_disable_forwarding = true;
-      if (ipv6DupAddrDetectTransmits) config.ipv6_dup_addr_detect_transmits = ipv6DupAddrDetectTransmits;
-      if (ipv6SourceValidation) config.ipv6_source_validation = ipv6SourceValidation;
-
-      const result = await wwanService.createInterface(config);
       if (result.success) {
         onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to create WWAN interface");
+        setError(
+          result.error || (isEdit ? "Failed to update WWAN interface" : "Failed to create WWAN interface"),
+        );
       }
     } catch (err) {
       const msg = (err as ApiError).message;
@@ -272,10 +427,17 @@ export function CreateWwanModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Signal className="h-5 w-5" />
-            Create WWAN Interface
+            {isEdit ? "Edit WWAN Interface" : "Create WWAN Interface"}
           </DialogTitle>
           <DialogDescription>
-            Create a new Wireless WAN (cellular modem) interface.
+            {isEdit ? (
+              <>
+                Editing interface{" "}
+                <code className="rounded bg-muted px-1 py-0.5 font-mono text-sm">{existing.name}</code>
+              </>
+            ) : (
+              "Create a new Wireless WAN (cellular modem) interface."
+            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -292,14 +454,22 @@ export function CreateWwanModal({
           {/* Connection Tab */}
           <TabsContent value="connection" className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Interface Name <span className="text-destructive">*</span></Label>
+              <Label htmlFor="name">
+                Interface Name {!isEdit && <span className="text-destructive">*</span>}
+              </Label>
               <Input
                 id="name"
-                value={name}
+                value={lockedName.value}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="wwan0"
+                disabled={lockedName.disabled}
+                className={lockedName.disabled ? "bg-muted font-mono" : undefined}
               />
-              <p className="text-xs text-muted-foreground">Must match pattern: wwan0, wwan1, wwan2, …</p>
+              <p className="text-xs text-muted-foreground">
+                {lockedName.disabled
+                  ? "Interface name cannot be changed."
+                  : "Must match pattern: wwan0, wwan1, wwan2, …"}
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -849,10 +1019,10 @@ export function CreateWwanModal({
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Creating...
+                {isEdit ? "Saving..." : "Creating..."}
               </>
             ) : (
-              "Create Interface"
+              isEdit ? "Save Changes" : "Create Interface"
             )}
           </Button>
         </DialogFooter>

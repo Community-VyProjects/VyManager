@@ -81,8 +81,7 @@ import { wirelessService, type WirelessInterface, type WirelessCapabilitiesRespo
 import { WirelessModal } from "@/components/wireless/WirelessModal";
 import { DeleteWirelessModal } from "@/components/wireless/DeleteWirelessModal";
 import { wwanService, type WwanInterface, type WwanCapabilities } from "@/lib/api/wwan";
-import { CreateWwanModal } from "@/components/wwan/CreateWwanModal";
-import { EditWwanModal } from "@/components/wwan/EditWwanModal";
+import { WwanModal } from "@/components/wwan/WwanModal";
 import { DeleteWwanModal } from "@/components/wwan/DeleteWwanModal";
 import { VxlanModal } from "@/components/vxlan/VxlanModal";
 import { DeleteVxlanModal } from "@/components/vxlan/DeleteVxlanModal";
@@ -4578,22 +4577,21 @@ function InterfacesPageInner() {
         interfaceData={deletingWireless}
       />
       {/* WWAN Modals */}
-      <CreateWwanModal
-        open={isCreateWwanModalOpen}
-        onOpenChange={setIsCreateWwanModalOpen}
-        onSuccess={loadData}
-        capabilities={wwanCapabilities}
-        existingInterfaces={wwanInterfaces.map((i) => i.name)}
-      />
-      <EditWwanModal
-        open={!!editingWwan}
-        onOpenChange={(open) => !open && setEditingWwan(null)}
+      <WwanModal
+        open={isCreateWwanModalOpen || !!editingWwan}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsCreateWwanModalOpen(false);
+            setEditingWwan(null);
+          }
+        }}
         onSuccess={() => {
           setEditingWwan(null);
           loadData();
         }}
         capabilities={wwanCapabilities}
-        interfaceData={editingWwan}
+        existingInterfaces={wwanInterfaces.map((i) => i.name)}
+        existing={editingWwan}
       />
       <DeleteWwanModal
         open={!!deletingWwan}
