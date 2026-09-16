@@ -7,11 +7,13 @@ Much cleaner and easier to maintain!
 
 from typing import Optional, Union, Dict, Any, List
 import json
+import logging
 import requests as _requests
 
 from pyvyos import VyDevice
 from pyvyos.core.rest_client import ApiResponse
 import commit_confirm_state
+from config_state import clear_managed_config, set_managed_config
 from events.event_manager import event_manager, EVENT_CONFIG_DIFF, EVENT_COMMIT_CONFIRM
 from vyos_builders import (
     EthernetBatchBuilder,
@@ -36,6 +38,8 @@ from vyos_builders import (
     WireGuardBatchBuilder,
     SystemPerformanceBatchBuilder,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class VyOSDeviceConfig:
@@ -240,6 +244,26 @@ class VyOSService:
         """
         return SystemPerformanceBatchBuilder(self.config.version)
 
+    def _record_managed_config(self, instance_id: str) -> None:
+        """Record post-mutation live config as VyManager-produced state.
+
+        The mutation already succeeded, so this cannot fail the request. But a
+        stale managed snapshot is not a safe fallback: the next reconcile would
+        see live config differing from it, classify this VyManager edit as
+        external, and fold it into the saved baseline, so the unsaved-changes
+        banner would never show the edit (#855). Drop the snapshot instead,
+        which leaves the baseline untouched and keeps the edit visible.
+        """
+        try:
+            set_managed_config(instance_id, self.get_full_config(refresh=True))
+        except Exception:
+            clear_managed_config(instance_id)
+            logger.exception(
+                "Unable to record managed config after mutation for instance %s; "
+                "dropped the managed snapshot so the change stays in the unsaved banner",
+                instance_id,
+            )
+
     def execute_batch(
         self,
         batch: Union[
@@ -272,6 +296,7 @@ class VyOSService:
         operations = batch.get_operations()
         response = self.device.configure_multiple_op(op_path=operations)
         if response.status == 200 and self.config.instance_id:
+            self._record_managed_config(self.config.instance_id)
             event_manager.emit(self.config.instance_id, EVENT_CONFIG_DIFF, None)
         return response
 
@@ -347,6 +372,7 @@ class VyOSService:
             return ApiResponse(status=503, request={}, result={}, error=str(exc))
 
         commit_confirm_state.set_active(instance_id, confirm_time_minutes, action)
+        self._record_managed_config(instance_id)
         event_manager.emit(instance_id, EVENT_CONFIG_DIFF, None)
         event_manager.emit(instance_id, EVENT_COMMIT_CONFIRM, None)
         return ApiResponse(status=200, request={}, result=body.get("data") or {}, error=False)
@@ -460,6 +486,8 @@ class VyOSService:
                 response = self.device.configure_multiple_op(op_path=operations)
 
                 if response.status == 200:
+                    if self.config.instance_id:
+                        self._record_managed_config(self.config.instance_id)
                     # Handle empty string responses from VyOS
                     result_data = response.result if response.result and response.result != '' else None
                     return {"success": True, "data": result_data}

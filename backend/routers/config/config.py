@@ -15,15 +15,15 @@ from rbac_permissions import FeatureGroup
 import commit_confirm_state
 import logging
 from events.event_manager import event_manager, EVENT_CONFIG_DIFF, EVENT_COMMIT_CONFIRM
+from config_state import (
+    get_saved_config,
+    reconcile_baseline,
+    set_managed_config,
+    set_saved_config,
+)
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vyos/config", tags=["config"])
-
-
-# In-memory storage for saved configuration snapshots per instance
-# Key: instance_id, Value: config snapshot
-# In production, this could be stored in Redis or a database
-_saved_config_snapshots: Dict[str, Dict[str, Any]] = {}
 
 
 # ========================================================================
@@ -156,23 +156,17 @@ async def get_config_snapshot(request: Request):
     """
     await require_read_permission(request, FeatureGroup.CONFIGURATION)
     try:
-        global _saved_config_snapshots
-
         service = get_session_vyos_service(request)
         instance_id = request.state.instance['id']
 
         # If no snapshot exists for this instance, get current config and mark it as saved
-        if instance_id not in _saved_config_snapshots:
-            current_config = await run_in_threadpool(service.get_full_config, refresh=True)
-            _saved_config_snapshots[instance_id] = current_config
-
-            return ConfigSnapshotResponse(
-                config=_saved_config_snapshots[instance_id],
-                saved=True
-            )
+        snapshot = get_saved_config(instance_id)
+        if snapshot is None:
+            snapshot = await run_in_threadpool(service.get_full_config, refresh=True)
+            set_saved_config(instance_id, snapshot)
 
         return ConfigSnapshotResponse(
-            config=_saved_config_snapshots[instance_id],
+            config=snapshot,
             saved=True
         )
     except HTTPException:
@@ -193,23 +187,23 @@ async def get_config_diff(request: Request):
     """
     await require_read_permission(request, FeatureGroup.CONFIGURATION)
     try:
-        global _saved_config_snapshots
-
         service = get_session_vyos_service(request)
         instance_id = request.state.instance['id']
         current_config = await run_in_threadpool(service.get_full_config, refresh=True)
 
-        # If no snapshot exists for this instance, no changes yet
-        if instance_id not in _saved_config_snapshots:
-            # Initialize snapshot with current config
-            _saved_config_snapshots[instance_id] = current_config
+        # Absorb changes made outside VyManager into the baseline so the banner
+        # only reports VyManager's own pending edits. Returns None when this
+        # instance has no baseline yet.
+        baseline = reconcile_baseline(instance_id, current_config)
+        if baseline is None:
+            set_saved_config(instance_id, current_config)
             return ConfigDiffResponse(
                 has_changes=False,
                 summary={"added": 0, "removed": 0, "modified": 0}
             )
 
         # Compare configurations
-        added, removed, modified = deep_diff(current_config, _saved_config_snapshots[instance_id])
+        added, removed, modified = deep_diff(current_config, baseline)
 
         has_changes = bool(added or removed or modified)
 
@@ -243,8 +237,6 @@ async def save_config(request: Request):
     """
     await require_write_permission(request, FeatureGroup.CONFIGURATION)
     try:
-        global _saved_config_snapshots
-
         service = get_session_vyos_service(request)
         instance_id = request.state.instance['id']
 
@@ -260,7 +252,7 @@ async def save_config(request: Request):
 
         # Update snapshot to current config after successful save
         current_config = await run_in_threadpool(service.get_full_config, refresh=True)
-        _saved_config_snapshots[instance_id] = current_config
+        set_saved_config(instance_id, current_config)
 
         # Notify SSE subscribers that diff has changed (now empty after save)
         event_manager.emit(instance_id, EVENT_CONFIG_DIFF, None)
@@ -288,16 +280,18 @@ async def discard_config(request: Request):
     """
     await require_write_permission(request, FeatureGroup.CONFIGURATION)
     try:
-        global _saved_config_snapshots
-
         service = get_session_vyos_service(request)
         instance_id = request.state.instance['id']
         current_config = await run_in_threadpool(service.get_full_config, refresh=True)
 
-        if instance_id not in _saved_config_snapshots:
+        # Reconcile first. Without this, discard diffs against a baseline that
+        # has not absorbed external changes yet, so it also reverts edits made
+        # by SSH or the CLI since the last poll (#855).
+        baseline = reconcile_baseline(instance_id, current_config)
+        if baseline is None:
             return SaveConfigResponse(success=True, message="No changes to discard")
 
-        added, removed, modified = deep_diff(current_config, _saved_config_snapshots[instance_id])
+        added, removed, modified = deep_diff(current_config, baseline)
 
         if not added and not removed and not modified:
             return SaveConfigResponse(success=True, message="No changes to discard")
@@ -315,7 +309,7 @@ async def discard_config(request: Request):
             )
 
         current_config = await run_in_threadpool(service.get_full_config, refresh=True)
-        _saved_config_snapshots[instance_id] = current_config
+        set_saved_config(instance_id, current_config)
         event_manager.emit(instance_id, EVENT_CONFIG_DIFF, None)
 
         return SaveConfigResponse(
@@ -412,7 +406,9 @@ async def confirm_commit(request: Request):
 
         # Refresh the config cache so the unsaved-changes banner reflects
         # the new running config, prompting the user to save when ready.
-        await run_in_threadpool(service.get_full_config, refresh=True)
+        # The confirmed commit is a VyManager change, so record it as managed.
+        current_config = await run_in_threadpool(service.get_full_config, refresh=True)
+        set_managed_config(instance_id, current_config)
 
         # Notify SSE subscribers
         event_manager.emit(instance_id, EVENT_COMMIT_CONFIRM, None)
