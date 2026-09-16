@@ -23,10 +23,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { AlertCircle, Loader2, Waypoints } from "lucide-react";
-import { tunnelService, type TunnelCapabilities } from "@/lib/api/tunnel";
+import { tunnelService, type TunnelCapabilities, type TunnelInterface } from "@/lib/api/tunnel";
 import { showService, type InterfaceName } from "@/lib/api/show";
 import { InterfaceSelect } from "@/components/ui/interface-select";
 import { ApiError } from "@/lib/types/api";
+import { lockedIdentity, modalIsEdit, modalWriteKind } from "@/lib/modal-mode";
 
 const ENCAPSULATION_TYPES = [
   "erspan", "gre", "gretap", "ip6erspan", "ip6gre", "ip6gretap", "ip6ip6", "ipip", "ipip6", "sit",
@@ -36,23 +37,29 @@ const IPV4_ENCAPS = ["gre", "gretap", "ipip", "erspan"];
 const IPV6_ENCAPS = ["ip6gre", "ip6gretap", "ip6ip6", "ipip6", "ip6erspan"];
 const ERSPAN_ENCAPS = ["erspan", "ip6erspan"];
 
-interface CreateTunnelModalProps {
+const NONE = "__none__";
+
+interface TunnelModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   capabilities: TunnelCapabilities | null;
   existingInterfaces: string[];
+  existing?: TunnelInterface | null;
 }
 
-export function CreateTunnelModal({
+export function TunnelModal({
   open,
   onOpenChange,
   onSuccess,
   existingInterfaces,
-}: CreateTunnelModalProps) {
+  existing,
+}: TunnelModalProps) {
+  const isEdit = modalIsEdit(existing);
+
   // Basic
   const [name, setName] = useState("tun0");
-  const [encapsulation, setEncapsulation] = useState("");
+  const [encapsulationDraft, setEncapsulationDraft] = useState("");
   const [sourceAddress, setSourceAddress] = useState("");
   const [remote, setRemote] = useState("");
   const [description, setDescription] = useState("");
@@ -125,12 +132,6 @@ export function CreateTunnelModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (open) {
-      showService.getAllInterfaces().then((res) => setAvailableInterfaces(res.interfaces)).catch(() => {});
-    }
-  }, [open]);
-
   const getNextInterfaceName = (): string => {
     let i = 0;
     while (existingInterfaces.includes(`tun${i}`)) {
@@ -141,7 +142,7 @@ export function CreateTunnelModal({
 
   const resetForm = () => {
     setName(getNextInterfaceName());
-    setEncapsulation("");
+    setEncapsulationDraft("");
     setSourceAddress("");
     setRemote("");
     setDescription("");
@@ -193,16 +194,96 @@ export function CreateTunnelModal({
     setError(null);
   };
 
-  const handleOpenChange = (newOpen: boolean) => {
-    if (newOpen) {
-      setName(getNextInterfaceName());
+  const populateForm = (interfaceData: TunnelInterface) => {
+    setName(interfaceData.name);
+    setEncapsulationDraft(interfaceData.encapsulation || "");
+    setSourceAddress(interfaceData.source_address || "");
+    setRemote(interfaceData.remote || "");
+    setDescription(interfaceData.description || "");
+    setAddresses(interfaceData.addresses.join(", "));
+    setMtu(interfaceData.mtu || "");
+    setVrf(interfaceData.vrf || "");
+    setSourceInterface(interfaceData.source_interface || "");
+    setDisabled(interfaceData.disabled);
+    setDisableLinkDetect(interfaceData.disable_link_detect);
+    setEnableMulticast(interfaceData.enable_multicast);
+
+    // IP
+    setIpAdjustMss(interfaceData.ip.adjust_mss || "");
+    setIpArpCacheTimeout(interfaceData.ip.arp_cache_timeout || "");
+    setIpSourceValidation(interfaceData.ip.source_validation || "");
+    setIpDisableArpFilter(interfaceData.ip.disable_arp_filter);
+    setIpDisableForwarding(interfaceData.ip.disable_forwarding);
+    setIpEnableArpAccept(interfaceData.ip.enable_arp_accept);
+    setIpEnableArpAnnounce(interfaceData.ip.enable_arp_announce);
+    setIpEnableArpIgnore(interfaceData.ip.enable_arp_ignore);
+    setIpEnableDirectedBroadcast(interfaceData.ip.enable_directed_broadcast);
+    setIpEnableProxyArp(interfaceData.ip.enable_proxy_arp);
+    setIpProxyArpPvlan(interfaceData.ip.proxy_arp_pvlan);
+
+    // IPv6
+    setIpv6AcceptDad(interfaceData.ipv6.accept_dad || "");
+    setIpv6AdjustMss(interfaceData.ipv6.adjust_mss || "");
+    setIpv6BaseReachableTime(interfaceData.ipv6.base_reachable_time || "");
+    setIpv6DupAddrDetectTransmits(interfaceData.ipv6.dup_addr_detect_transmits || "");
+    setIpv6SourceValidation(interfaceData.ipv6.source_validation || "");
+    setIpv6DisableForwarding(interfaceData.ipv6.disable_forwarding);
+    setIpv6AddressAutoconf(interfaceData.ipv6.address.autoconf);
+    setIpv6AddressNoDefaultLinkLocal(interfaceData.ipv6.address.no_default_link_local);
+    setIpv6AddressEui64(interfaceData.ipv6.address.eui64.join(", "));
+
+    // Mirror / Redirect
+    setMirrorIngress(interfaceData.mirror.ingress || "");
+    setMirrorEgress(interfaceData.mirror.egress || "");
+    setRedirect(interfaceData.redirect || "");
+
+    // ERSPAN params
+    setErspanDirection(interfaceData.parameters.erspan.direction || "");
+    setErspanHwId(interfaceData.parameters.erspan.hw_id || "");
+    setErspanIndex(interfaceData.parameters.erspan.index || "");
+    setErspanVersion(interfaceData.parameters.erspan.version || "");
+
+    // IP params
+    setParamIpIgnoreDf(interfaceData.parameters.ip.ignore_df);
+    setParamIpKey(interfaceData.parameters.ip.key || "");
+    setParamIpNoPmtuDiscovery(interfaceData.parameters.ip.no_pmtu_discovery);
+    setParamIpTos(interfaceData.parameters.ip.tos || "");
+    setParamIpTtl(interfaceData.parameters.ip.ttl || "");
+
+    // IPv6 params
+    setParamIpv6Encaplimit(interfaceData.parameters.ipv6.encaplimit || "");
+    setParamIpv6Flowlabel(interfaceData.parameters.ipv6.flowlabel || "");
+    setParamIpv6Hoplimit(interfaceData.parameters.ipv6.hoplimit || "");
+    setParamIpv6Tclass(interfaceData.parameters.ipv6.tclass || "");
+
+    // 6rd
+    setSixrdPrefix(interfaceData.sixrd_prefix || "");
+    setSixrdRelayPrefix(interfaceData.sixrd_relay_prefix || "");
+
+    setError(null);
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    showService.getAllInterfaces().then((res) => setAvailableInterfaces(res.interfaces)).catch(() => {});
+    if (existing) {
+      populateForm(existing);
     } else {
       resetForm();
     }
-    onOpenChange(newOpen);
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, existing]);
 
-  const validateForm = (): string | null => {
+  const lockedName = lockedIdentity(existing, (i) => i.name, name);
+  const lockedEncapsulation = lockedIdentity(existing, (i) => i.encapsulation, encapsulationDraft);
+  const encapsulation = lockedEncapsulation.value;
+
+  const showIpParams = IPV4_ENCAPS.includes(encapsulation) || encapsulation === "sit";
+  const showIpv6Params = IPV6_ENCAPS.includes(encapsulation) || encapsulation === "sit";
+  const showErspanParams = ERSPAN_ENCAPS.includes(encapsulation);
+  const showSixrd = encapsulation === "sit";
+
+  const validateCreate = (): string | null => {
     if (!name.trim()) return "Interface name is required";
     if (!/^tun\d+$/.test(name.trim())) return "Name must be in format 'tun0', 'tun1', etc.";
     if (existingInterfaces.includes(name.trim())) return `Interface ${name} already exists`;
@@ -210,15 +291,232 @@ export function CreateTunnelModal({
     return null;
   };
 
-  const showIpParams = IPV4_ENCAPS.includes(encapsulation) || encapsulation === "sit";
-  const showIpv6Params = IPV6_ENCAPS.includes(encapsulation) || encapsulation === "sit";
-  const showErspanParams = ERSPAN_ENCAPS.includes(encapsulation);
-  const showSixrd = encapsulation === "sit";
+  const submitUpdate = async (current: TunnelInterface, targetName: string) => {
+    const updated: Parameters<typeof tunnelService.updateInterface>[2] = {};
+
+    // String fields
+    const desc = description.trim() || null;
+    if (desc !== (current.description || null)) updated.description = desc;
+
+    const src = sourceAddress.trim() || null;
+    if (src !== (current.source_address || null)) updated.source_address = src;
+
+    const srcIf = sourceInterface.trim() || null;
+    if (srcIf !== (current.source_interface || null)) updated.source_interface = srcIf;
+
+    const rem = remote.trim() || null;
+    if (rem !== (current.remote || null)) updated.remote = rem;
+
+    const m = mtu.trim() || null;
+    if (m !== (current.mtu || null)) updated.mtu = m;
+
+    const v = vrf.trim() || null;
+    if (v !== (current.vrf || null)) updated.vrf = v;
+
+    const red = redirect.trim() || null;
+    if (red !== (current.redirect || null)) updated.redirect = red;
+
+    const sp = sixrdPrefix.trim() || null;
+    if (sp !== (current.sixrd_prefix || null)) updated.sixrd_prefix = sp;
+
+    const srp = sixrdRelayPrefix.trim() || null;
+    if (srp !== (current.sixrd_relay_prefix || null)) updated.sixrd_relay_prefix = srp;
+
+    // Booleans
+    if (disabled !== current.disabled) updated.disabled = disabled;
+    if (disableLinkDetect !== current.disable_link_detect) updated.disable_link_detect = disableLinkDetect;
+    if (enableMulticast !== current.enable_multicast) updated.enable_multicast = enableMulticast;
+
+    // Addresses array
+    const newAddresses = addresses.split(",").map((a) => a.trim()).filter(Boolean);
+    if (JSON.stringify(newAddresses) !== JSON.stringify(current.addresses)) {
+      updated.addresses = newAddresses;
+    }
+
+    // Parameters
+    const params: NonNullable<typeof updated.parameters> = {};
+    let hasParamChanges = false;
+
+    const ed = erspanDirection.trim() || null;
+    if (ed !== (current.parameters.erspan.direction || null)) { params.erspan_direction = ed; hasParamChanges = true; }
+    const eh = erspanHwId.trim() || null;
+    if (eh !== (current.parameters.erspan.hw_id || null)) { params.erspan_hw_id = eh; hasParamChanges = true; }
+    const ei = erspanIndex.trim() || null;
+    if (ei !== (current.parameters.erspan.index || null)) { params.erspan_index = ei; hasParamChanges = true; }
+    const ev = erspanVersion.trim() || null;
+    if (ev !== (current.parameters.erspan.version || null)) { params.erspan_version = ev; hasParamChanges = true; }
+
+    if (paramIpIgnoreDf !== current.parameters.ip.ignore_df) { params.ip_ignore_df = paramIpIgnoreDf; hasParamChanges = true; }
+    if (paramIpNoPmtuDiscovery !== current.parameters.ip.no_pmtu_discovery) { params.ip_no_pmtu_discovery = paramIpNoPmtuDiscovery; hasParamChanges = true; }
+
+    const pk = paramIpKey.trim() || null;
+    if (pk !== (current.parameters.ip.key || null)) { params.ip_key = pk; hasParamChanges = true; }
+    const pt = paramIpTos.trim() || null;
+    if (pt !== (current.parameters.ip.tos || null)) { params.ip_tos = pt; hasParamChanges = true; }
+    const pttl = paramIpTtl.trim() || null;
+    if (pttl !== (current.parameters.ip.ttl || null)) { params.ip_ttl = pttl; hasParamChanges = true; }
+
+    const pe = paramIpv6Encaplimit.trim() || null;
+    if (pe !== (current.parameters.ipv6.encaplimit || null)) { params.ipv6_encaplimit = pe; hasParamChanges = true; }
+    const pf = paramIpv6Flowlabel.trim() || null;
+    if (pf !== (current.parameters.ipv6.flowlabel || null)) { params.ipv6_flowlabel = pf; hasParamChanges = true; }
+    const ph = paramIpv6Hoplimit.trim() || null;
+    if (ph !== (current.parameters.ipv6.hoplimit || null)) { params.ipv6_hoplimit = ph; hasParamChanges = true; }
+    const ptc = paramIpv6Tclass.trim() || null;
+    if (ptc !== (current.parameters.ipv6.tclass || null)) { params.ipv6_tclass = ptc; hasParamChanges = true; }
+
+    if (hasParamChanges) updated.parameters = params;
+
+    // Mirror
+    const mi = mirrorIngress.trim() || null;
+    const me = mirrorEgress.trim() || null;
+    if (mi !== (current.mirror.ingress || null) || me !== (current.mirror.egress || null)) {
+      updated.mirror = {};
+      if (mi !== (current.mirror.ingress || null)) updated.mirror.ingress = mi;
+      if (me !== (current.mirror.egress || null)) updated.mirror.egress = me;
+    }
+
+    // IP settings
+    const ipUpdated: NonNullable<typeof updated.ip> = {};
+    let hasIpChanges = false;
+
+    const iam = ipAdjustMss.trim() || null;
+    if (iam !== (current.ip.adjust_mss || null)) { ipUpdated.adjust_mss = iam; hasIpChanges = true; }
+    const iac = ipArpCacheTimeout.trim() || null;
+    if (iac !== (current.ip.arp_cache_timeout || null)) { ipUpdated.arp_cache_timeout = iac; hasIpChanges = true; }
+    const isv = ipSourceValidation.trim() || null;
+    if (isv !== (current.ip.source_validation || null)) { ipUpdated.source_validation = isv; hasIpChanges = true; }
+
+    if (ipDisableArpFilter !== current.ip.disable_arp_filter) { ipUpdated.disable_arp_filter = ipDisableArpFilter; hasIpChanges = true; }
+    if (ipDisableForwarding !== current.ip.disable_forwarding) { ipUpdated.disable_forwarding = ipDisableForwarding; hasIpChanges = true; }
+    if (ipEnableArpAccept !== current.ip.enable_arp_accept) { ipUpdated.enable_arp_accept = ipEnableArpAccept; hasIpChanges = true; }
+    if (ipEnableArpAnnounce !== current.ip.enable_arp_announce) { ipUpdated.enable_arp_announce = ipEnableArpAnnounce; hasIpChanges = true; }
+    if (ipEnableArpIgnore !== current.ip.enable_arp_ignore) { ipUpdated.enable_arp_ignore = ipEnableArpIgnore; hasIpChanges = true; }
+    if (ipEnableDirectedBroadcast !== current.ip.enable_directed_broadcast) { ipUpdated.enable_directed_broadcast = ipEnableDirectedBroadcast; hasIpChanges = true; }
+    if (ipEnableProxyArp !== current.ip.enable_proxy_arp) { ipUpdated.enable_proxy_arp = ipEnableProxyArp; hasIpChanges = true; }
+    if (ipProxyArpPvlan !== current.ip.proxy_arp_pvlan) { ipUpdated.proxy_arp_pvlan = ipProxyArpPvlan; hasIpChanges = true; }
+
+    if (hasIpChanges) updated.ip = ipUpdated;
+
+    // IPv6 settings
+    const ipv6Updated: NonNullable<typeof updated.ipv6> = {};
+    let hasIpv6Changes = false;
+
+    const i6ad = ipv6AcceptDad.trim() || null;
+    if (i6ad !== (current.ipv6.accept_dad || null)) { ipv6Updated.accept_dad = i6ad; hasIpv6Changes = true; }
+    const i6am = ipv6AdjustMss.trim() || null;
+    if (i6am !== (current.ipv6.adjust_mss || null)) { ipv6Updated.adjust_mss = i6am; hasIpv6Changes = true; }
+    const i6br = ipv6BaseReachableTime.trim() || null;
+    if (i6br !== (current.ipv6.base_reachable_time || null)) { ipv6Updated.base_reachable_time = i6br; hasIpv6Changes = true; }
+    const i6dt = ipv6DupAddrDetectTransmits.trim() || null;
+    if (i6dt !== (current.ipv6.dup_addr_detect_transmits || null)) { ipv6Updated.dup_addr_detect_transmits = i6dt; hasIpv6Changes = true; }
+    const i6sv = ipv6SourceValidation.trim() || null;
+    if (i6sv !== (current.ipv6.source_validation || null)) { ipv6Updated.source_validation = i6sv; hasIpv6Changes = true; }
+
+    if (ipv6DisableForwarding !== current.ipv6.disable_forwarding) { ipv6Updated.disable_forwarding = ipv6DisableForwarding; hasIpv6Changes = true; }
+    if (ipv6AddressAutoconf !== current.ipv6.address.autoconf) { ipv6Updated.address_autoconf = ipv6AddressAutoconf; hasIpv6Changes = true; }
+    if (ipv6AddressNoDefaultLinkLocal !== current.ipv6.address.no_default_link_local) { ipv6Updated.address_no_default_link_local = ipv6AddressNoDefaultLinkLocal; hasIpv6Changes = true; }
+
+    const newEui64 = ipv6AddressEui64.split(",").map((a) => a.trim()).filter(Boolean);
+    if (JSON.stringify(newEui64) !== JSON.stringify(current.ipv6.address.eui64)) {
+      ipv6Updated.address_eui64 = newEui64;
+      hasIpv6Changes = true;
+    }
+
+    if (hasIpv6Changes) updated.ipv6 = ipv6Updated;
+
+    return tunnelService.updateInterface(targetName, current, updated);
+  };
+
+  const submitCreate = async () => {
+    const config: Parameters<typeof tunnelService.createInterface>[0] = {
+      name: name.trim(),
+      encapsulation,
+    };
+
+    if (description.trim()) config.description = description.trim();
+    if (sourceAddress.trim()) config.source_address = sourceAddress.trim();
+    if (sourceInterface.trim()) config.source_interface = sourceInterface.trim();
+    if (remote.trim()) config.remote = remote.trim();
+    if (mtu.trim()) config.mtu = mtu.trim();
+    if (vrf.trim()) config.vrf = vrf.trim();
+    if (redirect.trim()) config.redirect = redirect.trim();
+    if (disabled) config.disabled = true;
+    if (disableLinkDetect) config.disable_link_detect = true;
+    if (enableMulticast) config.enable_multicast = true;
+    if (sixrdPrefix.trim()) config.sixrd_prefix = sixrdPrefix.trim();
+    if (sixrdRelayPrefix.trim()) config.sixrd_relay_prefix = sixrdRelayPrefix.trim();
+
+    if (addresses.trim()) {
+      config.addresses = addresses.split(",").map((a) => a.trim()).filter(Boolean);
+    }
+
+    // Parameters
+    const params: NonNullable<typeof config.parameters> = {};
+    if (erspanDirection.trim()) params.erspan_direction = erspanDirection.trim();
+    if (erspanHwId.trim()) params.erspan_hw_id = erspanHwId.trim();
+    if (erspanIndex.trim()) params.erspan_index = erspanIndex.trim();
+    if (erspanVersion.trim()) params.erspan_version = erspanVersion.trim();
+    if (paramIpIgnoreDf) params.ip_ignore_df = true;
+    if (paramIpKey.trim()) params.ip_key = paramIpKey.trim();
+    if (paramIpNoPmtuDiscovery) params.ip_no_pmtu_discovery = true;
+    if (paramIpTos.trim()) params.ip_tos = paramIpTos.trim();
+    if (paramIpTtl.trim()) params.ip_ttl = paramIpTtl.trim();
+    if (paramIpv6Encaplimit.trim()) params.ipv6_encaplimit = paramIpv6Encaplimit.trim();
+    if (paramIpv6Flowlabel.trim()) params.ipv6_flowlabel = paramIpv6Flowlabel.trim();
+    if (paramIpv6Hoplimit.trim()) params.ipv6_hoplimit = paramIpv6Hoplimit.trim();
+    if (paramIpv6Tclass.trim()) params.ipv6_tclass = paramIpv6Tclass.trim();
+    if (Object.keys(params).length > 0) config.parameters = params;
+
+    // Mirror
+    const mirror: NonNullable<typeof config.mirror> = {};
+    if (mirrorIngress.trim()) mirror.ingress = mirrorIngress.trim();
+    if (mirrorEgress.trim()) mirror.egress = mirrorEgress.trim();
+    if (Object.keys(mirror).length > 0) config.mirror = mirror;
+
+    // IP settings
+    const ip: NonNullable<typeof config.ip> = {};
+    if (ipAdjustMss.trim()) ip.adjust_mss = ipAdjustMss.trim();
+    if (ipArpCacheTimeout.trim()) ip.arp_cache_timeout = ipArpCacheTimeout.trim();
+    if (ipSourceValidation.trim()) ip.source_validation = ipSourceValidation.trim();
+    if (ipDisableArpFilter) ip.disable_arp_filter = true;
+    if (ipDisableForwarding) ip.disable_forwarding = true;
+    if (ipEnableArpAccept) ip.enable_arp_accept = true;
+    if (ipEnableArpAnnounce) ip.enable_arp_announce = true;
+    if (ipEnableArpIgnore) ip.enable_arp_ignore = true;
+    if (ipEnableDirectedBroadcast) ip.enable_directed_broadcast = true;
+    if (ipEnableProxyArp) ip.enable_proxy_arp = true;
+    if (ipProxyArpPvlan) ip.proxy_arp_pvlan = true;
+    if (Object.keys(ip).length > 0) config.ip = ip;
+
+    // IPv6 settings
+    const ipv6: NonNullable<typeof config.ipv6> = {};
+    if (ipv6AcceptDad.trim()) ipv6.accept_dad = ipv6AcceptDad.trim();
+    if (ipv6AdjustMss.trim()) ipv6.adjust_mss = ipv6AdjustMss.trim();
+    if (ipv6BaseReachableTime.trim()) ipv6.base_reachable_time = ipv6BaseReachableTime.trim();
+    if (ipv6DupAddrDetectTransmits.trim()) ipv6.dup_addr_detect_transmits = ipv6DupAddrDetectTransmits.trim();
+    if (ipv6SourceValidation.trim()) ipv6.source_validation = ipv6SourceValidation.trim();
+    if (ipv6DisableForwarding) ipv6.disable_forwarding = true;
+    if (ipv6AddressAutoconf) ipv6.address_autoconf = true;
+    if (ipv6AddressNoDefaultLinkLocal) ipv6.address_no_default_link_local = true;
+    if (ipv6AddressEui64.trim()) {
+      ipv6.address_eui64 = ipv6AddressEui64.split(",").map((a) => a.trim()).filter(Boolean);
+    }
+    if (Object.keys(ipv6).length > 0) config.ipv6 = ipv6;
+
+    return tunnelService.createInterface(config);
+  };
 
   const handleSubmit = async () => {
-    const validationError = validateForm();
-    if (validationError) {
-      setError(validationError);
+    const write = modalWriteKind(existing);
+
+    if (write.kind === "create") {
+      const validationError = validateCreate();
+      if (validationError) {
+        setError(validationError);
+        return;
+      }
+    } else if (!existing) {
       return;
     }
 
@@ -226,105 +524,39 @@ export function CreateTunnelModal({
     setError(null);
 
     try {
-      const config: Parameters<typeof tunnelService.createInterface>[0] = {
-        name: name.trim(),
-        encapsulation,
-      };
+      const result =
+        write.kind === "update" && existing
+          ? await submitUpdate(existing, write.name)
+          : await submitCreate();
 
-      if (description.trim()) config.description = description.trim();
-      if (sourceAddress.trim()) config.source_address = sourceAddress.trim();
-      if (sourceInterface.trim()) config.source_interface = sourceInterface.trim();
-      if (remote.trim()) config.remote = remote.trim();
-      if (mtu.trim()) config.mtu = mtu.trim();
-      if (vrf.trim()) config.vrf = vrf.trim();
-      if (redirect.trim()) config.redirect = redirect.trim();
-      if (disabled) config.disabled = true;
-      if (disableLinkDetect) config.disable_link_detect = true;
-      if (enableMulticast) config.enable_multicast = true;
-      if (sixrdPrefix.trim()) config.sixrd_prefix = sixrdPrefix.trim();
-      if (sixrdRelayPrefix.trim()) config.sixrd_relay_prefix = sixrdRelayPrefix.trim();
-
-      if (addresses.trim()) {
-        config.addresses = addresses.split(",").map((a) => a.trim()).filter(Boolean);
-      }
-
-      // Parameters
-      const params: NonNullable<typeof config.parameters> = {};
-      if (erspanDirection.trim()) params.erspan_direction = erspanDirection.trim();
-      if (erspanHwId.trim()) params.erspan_hw_id = erspanHwId.trim();
-      if (erspanIndex.trim()) params.erspan_index = erspanIndex.trim();
-      if (erspanVersion.trim()) params.erspan_version = erspanVersion.trim();
-      if (paramIpIgnoreDf) params.ip_ignore_df = true;
-      if (paramIpKey.trim()) params.ip_key = paramIpKey.trim();
-      if (paramIpNoPmtuDiscovery) params.ip_no_pmtu_discovery = true;
-      if (paramIpTos.trim()) params.ip_tos = paramIpTos.trim();
-      if (paramIpTtl.trim()) params.ip_ttl = paramIpTtl.trim();
-      if (paramIpv6Encaplimit.trim()) params.ipv6_encaplimit = paramIpv6Encaplimit.trim();
-      if (paramIpv6Flowlabel.trim()) params.ipv6_flowlabel = paramIpv6Flowlabel.trim();
-      if (paramIpv6Hoplimit.trim()) params.ipv6_hoplimit = paramIpv6Hoplimit.trim();
-      if (paramIpv6Tclass.trim()) params.ipv6_tclass = paramIpv6Tclass.trim();
-      if (Object.keys(params).length > 0) config.parameters = params;
-
-      // Mirror
-      const mirror: NonNullable<typeof config.mirror> = {};
-      if (mirrorIngress.trim()) mirror.ingress = mirrorIngress.trim();
-      if (mirrorEgress.trim()) mirror.egress = mirrorEgress.trim();
-      if (Object.keys(mirror).length > 0) config.mirror = mirror;
-
-      // IP settings
-      const ip: NonNullable<typeof config.ip> = {};
-      if (ipAdjustMss.trim()) ip.adjust_mss = ipAdjustMss.trim();
-      if (ipArpCacheTimeout.trim()) ip.arp_cache_timeout = ipArpCacheTimeout.trim();
-      if (ipSourceValidation.trim()) ip.source_validation = ipSourceValidation.trim();
-      if (ipDisableArpFilter) ip.disable_arp_filter = true;
-      if (ipDisableForwarding) ip.disable_forwarding = true;
-      if (ipEnableArpAccept) ip.enable_arp_accept = true;
-      if (ipEnableArpAnnounce) ip.enable_arp_announce = true;
-      if (ipEnableArpIgnore) ip.enable_arp_ignore = true;
-      if (ipEnableDirectedBroadcast) ip.enable_directed_broadcast = true;
-      if (ipEnableProxyArp) ip.enable_proxy_arp = true;
-      if (ipProxyArpPvlan) ip.proxy_arp_pvlan = true;
-      if (Object.keys(ip).length > 0) config.ip = ip;
-
-      // IPv6 settings
-      const ipv6: NonNullable<typeof config.ipv6> = {};
-      if (ipv6AcceptDad.trim()) ipv6.accept_dad = ipv6AcceptDad.trim();
-      if (ipv6AdjustMss.trim()) ipv6.adjust_mss = ipv6AdjustMss.trim();
-      if (ipv6BaseReachableTime.trim()) ipv6.base_reachable_time = ipv6BaseReachableTime.trim();
-      if (ipv6DupAddrDetectTransmits.trim()) ipv6.dup_addr_detect_transmits = ipv6DupAddrDetectTransmits.trim();
-      if (ipv6SourceValidation.trim()) ipv6.source_validation = ipv6SourceValidation.trim();
-      if (ipv6DisableForwarding) ipv6.disable_forwarding = true;
-      if (ipv6AddressAutoconf) ipv6.address_autoconf = true;
-      if (ipv6AddressNoDefaultLinkLocal) ipv6.address_no_default_link_local = true;
-      if (ipv6AddressEui64.trim()) {
-        ipv6.address_eui64 = ipv6AddressEui64.split(",").map((a) => a.trim()).filter(Boolean);
-      }
-      if (Object.keys(ipv6).length > 0) config.ipv6 = ipv6;
-
-      const result = await tunnelService.createInterface(config);
       if (result.success) {
-        handleOpenChange(false);
+        onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to create tunnel interface");
+        setError(result.error || (isEdit ? "Failed to update tunnel interface" : "Failed to create tunnel interface"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to create tunnel interface");
+      setError(
+        (err as ApiError).message ||
+          (isEdit ? "Failed to update tunnel interface" : "Failed to create tunnel interface"),
+      );
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Waypoints className="h-5 w-5" />
-            Create Tunnel Interface
+            {isEdit ? `Edit Tunnel Interface: ${existing.name}` : "Create Tunnel Interface"}
           </DialogTitle>
           <DialogDescription>
-            Configure a new tunnel interface with encapsulation settings.
+            {isEdit
+              ? "Modify tunnel interface configuration. Name and encapsulation cannot be changed."
+              : "Configure a new tunnel interface with encapsulation settings."}
           </DialogDescription>
         </DialogHeader>
 
@@ -340,62 +572,80 @@ export function CreateTunnelModal({
           <TabsContent value="basic" className="space-y-4 mt-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Name</Label>
-                <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="tun0" />
-                <p className="text-xs text-muted-foreground">Format: tun0, tun1, etc.</p>
+                <Label htmlFor="tunnel-name">Name</Label>
+                <Input
+                  id="tunnel-name"
+                  value={lockedName.value}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="tun0"
+                  disabled={lockedName.disabled}
+                  className={lockedName.disabled ? "bg-muted" : undefined}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {lockedName.disabled ? "Interface name cannot be changed." : "Format: tun0, tun1, etc."}
+                </p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="encapsulation">Encapsulation *</Label>
-                <Select value={encapsulation} onValueChange={setEncapsulation}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select encapsulation" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ENCAPSULATION_TYPES.map((type) => (
-                      <SelectItem key={type} value={type}>{type}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="tunnel-encapsulation">
+                  Encapsulation {lockedEncapsulation.disabled ? null : "*"}
+                </Label>
+                {lockedEncapsulation.disabled ? (
+                  <>
+                    <Input id="tunnel-encapsulation" value={lockedEncapsulation.value} disabled className="bg-muted" />
+                    <p className="text-xs text-muted-foreground">Encapsulation cannot be changed.</p>
+                  </>
+                ) : (
+                  <Select value={encapsulationDraft} onValueChange={setEncapsulationDraft}>
+                    <SelectTrigger id="tunnel-encapsulation">
+                      <SelectValue placeholder="Select encapsulation" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ENCAPSULATION_TYPES.map((type) => (
+                        <SelectItem key={type} value={type}>{type}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="source-address">Source Address</Label>
-                <Input id="source-address" value={sourceAddress} onChange={(e) => setSourceAddress(e.target.value)} placeholder="e.g., 10.0.0.1" />
+                <Label htmlFor="tunnel-source-address">Source Address</Label>
+                <Input id="tunnel-source-address" value={sourceAddress} onChange={(e) => setSourceAddress(e.target.value)} placeholder="e.g., 10.0.0.1" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="remote">Remote Address</Label>
-                <Input id="remote" value={remote} onChange={(e) => setRemote(e.target.value)} placeholder="e.g., 10.0.0.2" />
+                <Label htmlFor="tunnel-remote">Remote Address</Label>
+                <Input id="tunnel-remote" value={remote} onChange={(e) => setRemote(e.target.value)} placeholder="e.g., 10.0.0.2" />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Input id="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional description" />
+              <Label htmlFor="tunnel-description">Description</Label>
+              <Input id="tunnel-description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional description" />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="addresses">Addresses</Label>
-              <Input id="addresses" value={addresses} onChange={(e) => setAddresses(e.target.value)} placeholder="Comma-separated, e.g., 192.168.1.1/24, 10.0.0.1/30" />
+              <Label htmlFor="tunnel-addresses">Addresses</Label>
+              <Input id="tunnel-addresses" value={addresses} onChange={(e) => setAddresses(e.target.value)} placeholder="Comma-separated, e.g., 192.168.1.1/24, 10.0.0.1/30" />
             </div>
 
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="mtu">MTU</Label>
-                <Input id="mtu" value={mtu} onChange={(e) => setMtu(e.target.value)} placeholder="68-16000" />
+                <Label htmlFor="tunnel-mtu">MTU</Label>
+                <Input id="tunnel-mtu" value={mtu} onChange={(e) => setMtu(e.target.value)} placeholder="68-16000" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="vrf">VRF</Label>
-                <VrfSelect id="vrf" value={vrf} onValueChange={setVrf} />
+                <Label htmlFor="tunnel-vrf">VRF</Label>
+                <VrfSelect id="tunnel-vrf" value={vrf} onValueChange={setVrf} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="source-interface">Source Interface</Label>
+                <Label>Source Interface</Label>
                 <InterfaceSelect
-                  value={sourceInterface || "__none__"}
-                  onValueChange={(v) => setSourceInterface(v === "__none__" ? "" : v)}
+                  value={sourceInterface || NONE}
+                  onValueChange={(v) => setSourceInterface(v === NONE ? "" : v)}
                   interfaces={availableInterfaces}
-                  noneOption={{ label: "None", value: "__none__" }}
+                  noneOption={{ label: "None", value: NONE }}
                   placeholder="None"
                 />
               </div>
@@ -438,12 +688,12 @@ export function CreateTunnelModal({
               </div>
               <div className="space-y-2 mb-3">
                 <Label>Source Validation</Label>
-                <Select value={ipSourceValidation} onValueChange={setIpSourceValidation}>
+                <Select value={ipSourceValidation || NONE} onValueChange={(v) => setIpSourceValidation(v === NONE ? "" : v)}>
                   <SelectTrigger>
                     <SelectValue placeholder="None" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__none__">None</SelectItem>
+                    <SelectItem value={NONE}>None</SelectItem>
                     <SelectItem value="strict">strict</SelectItem>
                     <SelectItem value="loose">loose</SelectItem>
                     <SelectItem value="disable">disable</SelectItem>
@@ -492,12 +742,12 @@ export function CreateTunnelModal({
               </div>
               <div className="space-y-2 mb-3">
                 <Label>Source Validation</Label>
-                <Select value={ipv6SourceValidation} onValueChange={setIpv6SourceValidation}>
+                <Select value={ipv6SourceValidation || NONE} onValueChange={(v) => setIpv6SourceValidation(v === NONE ? "" : v)}>
                   <SelectTrigger>
                     <SelectValue placeholder="None" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__none__">None</SelectItem>
+                    <SelectItem value={NONE}>None</SelectItem>
                     <SelectItem value="strict">strict</SelectItem>
                     <SelectItem value="loose">loose</SelectItem>
                     <SelectItem value="disable">disable</SelectItem>
@@ -531,30 +781,30 @@ export function CreateTunnelModal({
                 <div className="space-y-2">
                   <Label>Mirror Ingress</Label>
                   <InterfaceSelect
-                    value={mirrorIngress || "__none__"}
-                    onValueChange={(v) => setMirrorIngress(v === "__none__" ? "" : v)}
+                    value={mirrorIngress || NONE}
+                    onValueChange={(v) => setMirrorIngress(v === NONE ? "" : v)}
                     interfaces={availableInterfaces}
-                    noneOption={{ label: "None", value: "__none__" }}
+                    noneOption={{ label: "None", value: NONE }}
                     placeholder="None"
                   />
                 </div>
                 <div className="space-y-2">
                   <Label>Mirror Egress</Label>
                   <InterfaceSelect
-                    value={mirrorEgress || "__none__"}
-                    onValueChange={(v) => setMirrorEgress(v === "__none__" ? "" : v)}
+                    value={mirrorEgress || NONE}
+                    onValueChange={(v) => setMirrorEgress(v === NONE ? "" : v)}
                     interfaces={availableInterfaces}
-                    noneOption={{ label: "None", value: "__none__" }}
+                    noneOption={{ label: "None", value: NONE }}
                     placeholder="None"
                   />
                 </div>
                 <div className="space-y-2">
                   <Label>Redirect</Label>
                   <InterfaceSelect
-                    value={redirect || "__none__"}
-                    onValueChange={(v) => setRedirect(v === "__none__" ? "" : v)}
+                    value={redirect || NONE}
+                    onValueChange={(v) => setRedirect(v === NONE ? "" : v)}
                     interfaces={availableInterfaces}
-                    noneOption={{ label: "None", value: "__none__" }}
+                    noneOption={{ label: "None", value: NONE }}
                     placeholder="None"
                   />
                 </div>
@@ -566,7 +816,11 @@ export function CreateTunnelModal({
           <TabsContent value="parameters" className="space-y-6 mt-4">
             {!encapsulation ? (
               <div className="text-center py-8 text-muted-foreground">
-                <p>Select an encapsulation type on the Basic tab to see available parameters.</p>
+                <p>
+                  {isEdit
+                    ? "No encapsulation set for this interface."
+                    : "Select an encapsulation type on the Basic tab to see available parameters."}
+                </p>
               </div>
             ) : (
               <>
@@ -577,12 +831,12 @@ export function CreateTunnelModal({
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label>Direction</Label>
-                        <Select value={erspanDirection} onValueChange={setErspanDirection}>
+                        <Select value={erspanDirection || NONE} onValueChange={(v) => setErspanDirection(v === NONE ? "" : v)}>
                           <SelectTrigger>
                             <SelectValue placeholder="Select direction" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="__none__">None</SelectItem>
+                            <SelectItem value={NONE}>None</SelectItem>
                             <SelectItem value="ingress">ingress</SelectItem>
                             <SelectItem value="egress">egress</SelectItem>
                           </SelectContent>
@@ -598,12 +852,12 @@ export function CreateTunnelModal({
                       </div>
                       <div className="space-y-2">
                         <Label>Version</Label>
-                        <Select value={erspanVersion} onValueChange={setErspanVersion}>
+                        <Select value={erspanVersion || NONE} onValueChange={(v) => setErspanVersion(v === NONE ? "" : v)}>
                           <SelectTrigger>
                             <SelectValue placeholder="Select version" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="__none__">None</SelectItem>
+                            <SelectItem value={NONE}>None</SelectItem>
                             <SelectItem value="1">1</SelectItem>
                             <SelectItem value="2">2</SelectItem>
                           </SelectContent>
@@ -706,15 +960,17 @@ export function CreateTunnelModal({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={loading}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Creating...
+                {isEdit ? "Saving..." : "Creating..."}
               </>
+            ) : isEdit ? (
+              "Save Changes"
             ) : (
               "Create Interface"
             )}

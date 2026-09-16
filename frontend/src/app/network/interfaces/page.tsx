@@ -28,8 +28,7 @@ import type { EthernetInterface, EthernetCapabilities, TransceiverStatus, VIFCon
 import { wireguardService, type WireGuardInterface } from "@/lib/api/wireguard";
 import { vxlanService, type VxlanInterface, type VxlanCapabilities } from "@/lib/api/vxlan";
 import { tunnelService, type TunnelInterface, type TunnelCapabilities } from "@/lib/api/tunnel";
-import { CreateTunnelModal } from "@/components/tunnel/CreateTunnelModal";
-import { EditTunnelModal } from "@/components/tunnel/EditTunnelModal";
+import { TunnelModal } from "@/components/tunnel/TunnelModal";
 import { DeleteTunnelModal } from "@/components/tunnel/DeleteTunnelModal";
 import { bondingService, bondingVlanService, bondingVlanCapabilities, bondVifToVlanShape, type BondingInterface, type BondingCapabilities } from "@/lib/api/bonding";
 import { BondingModal } from "@/components/bonding/BondingModal";
@@ -4192,22 +4191,21 @@ function InterfacesPageInner() {
         interfaceData={deletingVxlan}
       />
       {/* Tunnel Modals */}
-      <CreateTunnelModal
-        open={isCreateTunnelModalOpen}
-        onOpenChange={setIsCreateTunnelModalOpen}
-        onSuccess={loadData}
-        capabilities={tunnelCapabilities}
-        existingInterfaces={tunnelInterfaces.map((i) => i.name)}
-      />
-      <EditTunnelModal
-        open={!!editingTunnel}
-        onOpenChange={(open) => !open && setEditingTunnel(null)}
+      <TunnelModal
+        open={isCreateTunnelModalOpen || !!editingTunnel}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsCreateTunnelModalOpen(false);
+            setEditingTunnel(null);
+          }
+        }}
         onSuccess={() => {
           setEditingTunnel(null);
           loadData();
         }}
         capabilities={tunnelCapabilities}
-        interfaceData={editingTunnel}
+        existingInterfaces={tunnelInterfaces.map((i) => i.name)}
+        existing={editingTunnel}
       />
       <DeleteTunnelModal
         open={!!deletingTunnel}
