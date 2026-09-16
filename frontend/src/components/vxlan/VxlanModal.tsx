@@ -23,17 +23,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { AlertCircle, Boxes, Loader2, Plus, Trash2 } from "lucide-react";
-import { vxlanService, type VxlanCapabilities } from "@/lib/api/vxlan";
+import { vxlanService, type VxlanInterface, type VxlanCapabilities } from "@/lib/api/vxlan";
 import { showService, type InterfaceName } from "@/lib/api/show";
 import { InterfaceSelect } from "@/components/ui/interface-select";
 import { ApiError } from "@/lib/types/api";
+import { lockedIdentity, modalIsEdit, modalWriteKind } from "@/lib/modal-mode";
 
-interface CreateVxlanModalProps {
+interface VxlanModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   capabilities: VxlanCapabilities | null;
   existingInterfaces: string[];
+  existing?: VxlanInterface | null;
 }
 
 interface VlanToVniRow {
@@ -42,13 +44,16 @@ interface VlanToVniRow {
   description: string;
 }
 
-export function CreateVxlanModal({
+export function VxlanModal({
   open,
   onOpenChange,
   onSuccess,
   capabilities,
   existingInterfaces,
-}: CreateVxlanModalProps) {
+  existing,
+}: VxlanModalProps) {
+  const isEdit = modalIsEdit(existing);
+
   // Basic form state
   const [name, setName] = useState("vxlan0");
   const [vni, setVni] = useState("");
@@ -88,12 +93,6 @@ export function CreateVxlanModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (open) {
-      showService.getAllInterfaces().then((res) => setAvailableInterfaces(res.interfaces)).catch(() => {});
-    }
-  }, [open]);
-
   const getNextInterfaceName = (): string => {
     let i = 0;
     while (existingInterfaces.includes(`vxlan${i}`)) {
@@ -132,31 +131,189 @@ export function CreateVxlanModal({
     setError(null);
   };
 
-  const handleClose = () => {
-    resetForm();
-    onOpenChange(false);
+  const populateForm = (interfaceData: VxlanInterface) => {
+    setName(interfaceData.name);
+    setVni(interfaceData.vni || "");
+    setDescription(interfaceData.description || "");
+    setSourceAddress(interfaceData.source_address || "");
+    setSourceInterface(interfaceData.source_interface || "");
+    setGroup(interfaceData.group || "");
+    setRemotes(interfaceData.remotes.join(", "));
+    setPort(interfaceData.port || "");
+    setMtu(interfaceData.mtu || "");
+    setAddresses(interfaceData.addresses.join(", "));
+    setMac(interfaceData.mac || "");
+    setVrf(interfaceData.vrf || "");
+    setRedirect(interfaceData.redirect || "");
+    setDisabled(interfaceData.disabled);
+    setGpe(interfaceData.gpe);
+    setExternal(interfaceData.parameters.external);
+    setNolearning(interfaceData.parameters.nolearning);
+    setNeighborSuppress(interfaceData.parameters.neighbor_suppress);
+    setVniFilter(interfaceData.parameters.vni_filter);
+    setIpDf(interfaceData.parameters.ip.df || "");
+    setIpTos(interfaceData.parameters.ip.tos || "");
+    setIpTtl(interfaceData.parameters.ip.ttl || "");
+    setIpv6Flowlabel(interfaceData.parameters.ipv6.flowlabel || "");
+    setMirrorIngress(interfaceData.mirror.ingress || "");
+    setMirrorEgress(interfaceData.mirror.egress || "");
+    setVlanToVni(
+      interfaceData.vlan_to_vni.map((m) => ({
+        vlan_id: m.vlan_id,
+        vni: m.vni || "",
+        description: m.description || "",
+      }))
+    );
+    setError(null);
   };
 
-  const handleOpenChange = (newOpen: boolean) => {
-    if (newOpen) {
-      setName(getNextInterfaceName());
+  useEffect(() => {
+    if (!open) return;
+    showService.getAllInterfaces().then((res) => setAvailableInterfaces(res.interfaces)).catch(() => {});
+    if (existing) {
+      populateForm(existing);
     } else {
       resetForm();
     }
-    onOpenChange(newOpen);
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, existing]);
 
-  const validateForm = (): string | null => {
+  const lockedName = lockedIdentity(existing, (i) => i.name, name);
+
+  const validateCreate = (): string | null => {
     if (!name.trim()) return "Interface name is required";
     if (!/^vxlan\d+$/.test(name.trim())) return "Name must be in format 'vxlan0', 'vxlan1', etc.";
     if (existingInterfaces.includes(name.trim())) return `Interface ${name} already exists`;
     return null;
   };
 
+  const submitCreate = async () => {
+    const config: Parameters<typeof vxlanService.createInterface>[0] = {
+      name: name.trim(),
+    };
+
+    if (vni.trim()) config.vni = vni.trim();
+    if (description.trim()) config.description = description.trim();
+    if (sourceAddress.trim()) config.source_address = sourceAddress.trim();
+    if (sourceInterface.trim()) config.source_interface = sourceInterface.trim();
+    if (group.trim()) config.group = group.trim();
+    if (port.trim()) config.port = port.trim();
+    if (mtu.trim()) config.mtu = mtu.trim();
+    if (mac.trim()) config.mac = mac.trim();
+    if (vrf.trim()) config.vrf = vrf.trim();
+    if (redirect.trim()) config.redirect = redirect.trim();
+    if (disabled) config.disabled = true;
+    if (gpe) config.gpe = true;
+
+    if (addresses.trim()) {
+      config.addresses = addresses.split(",").map((a) => a.trim()).filter(Boolean);
+    }
+    if (remotes.trim()) {
+      config.remotes = remotes.split(",").map((r) => r.trim()).filter(Boolean);
+    }
+
+    const effectiveIpDf = ipDf === "__none__" ? "" : ipDf;
+    const params: NonNullable<typeof config.parameters> = {};
+    if (external) params.external = true;
+    if (nolearning) params.nolearning = true;
+    if (neighborSuppress) params.neighbor_suppress = true;
+    if (vniFilter) params.vni_filter = true;
+    if (effectiveIpDf.trim()) params.ip_df = effectiveIpDf.trim();
+    if (ipTos.trim()) params.ip_tos = ipTos.trim();
+    if (ipTtl.trim()) params.ip_ttl = ipTtl.trim();
+    if (ipv6Flowlabel.trim()) params.ipv6_flowlabel = ipv6Flowlabel.trim();
+    if (Object.keys(params).length > 0) config.parameters = params;
+
+    const mirror: NonNullable<typeof config.mirror> = {};
+    if (mirrorIngress.trim()) mirror.ingress = mirrorIngress.trim();
+    if (mirrorEgress.trim()) mirror.egress = mirrorEgress.trim();
+    if (Object.keys(mirror).length > 0) config.mirror = mirror;
+
+    const validMappings = vlanToVni.filter((m) => m.vlan_id.trim());
+    if (validMappings.length > 0) {
+      config.vlan_to_vni = validMappings.map((m) => ({
+        vlan_id: m.vlan_id.trim(),
+        vni: m.vni.trim() || "",
+        description: m.description.trim() || undefined,
+      }));
+    }
+
+    return vxlanService.createInterface(config);
+  };
+
+  const submitUpdate = async (current: VxlanInterface, targetName: string) => {
+    const parseList = (val: string) => val.split(",").map((s) => s.trim()).filter(Boolean);
+
+    const updated: Parameters<typeof vxlanService.updateInterface>[2] = {};
+
+    if (vni.trim() !== (current.vni || "")) updated.vni = vni.trim() || null;
+    if (description.trim() !== (current.description || "")) updated.description = description.trim() || null;
+    if (sourceAddress.trim() !== (current.source_address || "")) updated.source_address = sourceAddress.trim() || null;
+    if (sourceInterface.trim() !== (current.source_interface || "")) updated.source_interface = sourceInterface.trim() || null;
+    if (group.trim() !== (current.group || "")) updated.group = group.trim() || null;
+    if (port.trim() !== (current.port || "")) updated.port = port.trim() || null;
+    if (mtu.trim() !== (current.mtu || "")) updated.mtu = mtu.trim() || null;
+    if (mac.trim() !== (current.mac || "")) updated.mac = mac.trim() || null;
+    if (vrf.trim() !== (current.vrf || "")) updated.vrf = vrf.trim() || null;
+    if (redirect.trim() !== (current.redirect || "")) updated.redirect = redirect.trim() || null;
+
+    if (disabled !== current.disabled) updated.disabled = disabled;
+    if (gpe !== current.gpe) updated.gpe = gpe;
+
+    const newAddresses = parseList(addresses);
+    if (JSON.stringify(newAddresses) !== JSON.stringify(current.addresses)) {
+      updated.addresses = newAddresses;
+    }
+    const newRemotes = parseList(remotes);
+    if (JSON.stringify(newRemotes) !== JSON.stringify(current.remotes)) {
+      updated.remotes = newRemotes;
+    }
+
+    const cp = current.parameters;
+    const paramChanges: NonNullable<typeof updated.parameters> = {};
+    if (external !== cp.external) paramChanges.external = external;
+    if (nolearning !== cp.nolearning) paramChanges.nolearning = nolearning;
+    if (neighborSuppress !== cp.neighbor_suppress) paramChanges.neighbor_suppress = neighborSuppress;
+    if (vniFilter !== cp.vni_filter) paramChanges.vni_filter = vniFilter;
+    const effectiveIpDf = ipDf === "__none__" ? "" : ipDf;
+    if (effectiveIpDf.trim() !== (cp.ip.df || "")) paramChanges.ip_df = effectiveIpDf.trim() || null;
+    if (ipTos.trim() !== (cp.ip.tos || "")) paramChanges.ip_tos = ipTos.trim() || null;
+    if (ipTtl.trim() !== (cp.ip.ttl || "")) paramChanges.ip_ttl = ipTtl.trim() || null;
+    if (ipv6Flowlabel.trim() !== (cp.ipv6.flowlabel || "")) paramChanges.ipv6_flowlabel = ipv6Flowlabel.trim() || null;
+    if (Object.keys(paramChanges).length > 0) updated.parameters = paramChanges;
+
+    const mirrorChanges: NonNullable<typeof updated.mirror> = {};
+    if (mirrorIngress.trim() !== (current.mirror.ingress || "")) mirrorChanges.ingress = mirrorIngress.trim() || null;
+    if (mirrorEgress.trim() !== (current.mirror.egress || "")) mirrorChanges.egress = mirrorEgress.trim() || null;
+    if (Object.keys(mirrorChanges).length > 0) updated.mirror = mirrorChanges;
+
+    const validMappings = vlanToVni.filter((m) => m.vlan_id.trim());
+    const currentMappings = current.vlan_to_vni.map((m) => ({
+      vlan_id: m.vlan_id,
+      vni: m.vni || "",
+      description: m.description || "",
+    }));
+    if (JSON.stringify(validMappings) !== JSON.stringify(currentMappings)) {
+      updated.vlan_to_vni = validMappings.map((m) => ({
+        vlan_id: m.vlan_id.trim(),
+        vni: m.vni.trim() || null,
+        description: m.description.trim() || null,
+      }));
+    }
+
+    return vxlanService.updateInterface(targetName, current, updated);
+  };
+
   const handleSubmit = async () => {
-    const validationError = validateForm();
-    if (validationError) {
-      setError(validationError);
+    const write = modalWriteKind(existing);
+
+    if (write.kind === "create") {
+      const validationError = validateCreate();
+      if (validationError) {
+        setError(validationError);
+        return;
+      }
+    } else if (!existing) {
       return;
     }
 
@@ -164,68 +321,22 @@ export function CreateVxlanModal({
     setError(null);
 
     try {
-      const config: Parameters<typeof vxlanService.createInterface>[0] = {
-        name: name.trim(),
-      };
-
-      if (vni.trim()) config.vni = vni.trim();
-      if (description.trim()) config.description = description.trim();
-      if (sourceAddress.trim()) config.source_address = sourceAddress.trim();
-      if (sourceInterface.trim()) config.source_interface = sourceInterface.trim();
-      if (group.trim()) config.group = group.trim();
-      if (port.trim()) config.port = port.trim();
-      if (mtu.trim()) config.mtu = mtu.trim();
-      if (mac.trim()) config.mac = mac.trim();
-      if (vrf.trim()) config.vrf = vrf.trim();
-      if (redirect.trim()) config.redirect = redirect.trim();
-      if (disabled) config.disabled = true;
-      if (gpe) config.gpe = true;
-
-      if (addresses.trim()) {
-        config.addresses = addresses.split(",").map((a) => a.trim()).filter(Boolean);
-      }
-      if (remotes.trim()) {
-        config.remotes = remotes.split(",").map((r) => r.trim()).filter(Boolean);
-      }
-
-      // Parameters
-      const params: NonNullable<typeof config.parameters> = {};
-      if (external) params.external = true;
-      if (nolearning) params.nolearning = true;
-      if (neighborSuppress) params.neighbor_suppress = true;
-      if (vniFilter) params.vni_filter = true;
-      if (ipDf.trim()) params.ip_df = ipDf.trim();
-      if (ipTos.trim()) params.ip_tos = ipTos.trim();
-      if (ipTtl.trim()) params.ip_ttl = ipTtl.trim();
-      if (ipv6Flowlabel.trim()) params.ipv6_flowlabel = ipv6Flowlabel.trim();
-      if (Object.keys(params).length > 0) config.parameters = params;
-
-      // Mirror
-      const mirror: NonNullable<typeof config.mirror> = {};
-      if (mirrorIngress.trim()) mirror.ingress = mirrorIngress.trim();
-      if (mirrorEgress.trim()) mirror.egress = mirrorEgress.trim();
-      if (Object.keys(mirror).length > 0) config.mirror = mirror;
-
-      // VLAN-to-VNI
-      const validMappings = vlanToVni.filter((m) => m.vlan_id.trim());
-      if (validMappings.length > 0) {
-        config.vlan_to_vni = validMappings.map((m) => ({
-          vlan_id: m.vlan_id.trim(),
-          vni: m.vni.trim() || "",
-          description: m.description.trim() || undefined,
-        }));
-      }
-
-      const result = await vxlanService.createInterface(config);
+      const result =
+        write.kind === "update" && existing
+          ? await submitUpdate(existing, write.name)
+          : await submitCreate();
 
       if (result.success) {
-        handleClose();
+        onOpenChange(false);
         onSuccess();
       } else {
-        setError(result.error || "Failed to create VXLAN interface");
+        setError(result.error || (isEdit ? "Failed to update VXLAN interface" : "Failed to create VXLAN interface"));
       }
     } catch (err) {
-      setError((err as ApiError).message || "Failed to create VXLAN interface");
+      setError(
+        (err as ApiError).message ||
+          (isEdit ? "Failed to update VXLAN interface" : "Failed to create VXLAN interface"),
+      );
     } finally {
       setLoading(false);
     }
@@ -248,15 +359,17 @@ export function CreateVxlanModal({
   const supportsVlanDescription = capabilities?.features.vlan_to_vni_description?.supported ?? false;
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Boxes className="h-5 w-5 text-primary" />
-            Create VXLAN Interface
+            {isEdit ? `Edit: ${existing.name}` : "Create VXLAN Interface"}
           </DialogTitle>
           <DialogDescription>
-            Create a new VXLAN tunnel interface for overlay networking.
+            {isEdit
+              ? "Modify VXLAN interface configuration. Changes are applied atomically."
+              : "Create a new VXLAN tunnel interface for overlay networking."}
           </DialogDescription>
         </DialogHeader>
 
@@ -270,30 +383,39 @@ export function CreateVxlanModal({
           <TabsContent value="basic" className="space-y-4 mt-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Interface Name</Label>
-                <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="vxlan0" />
-                <p className="text-xs text-muted-foreground">Format: vxlan0, vxlan1, etc.</p>
+                <Label htmlFor="vxlan-name">Interface Name</Label>
+                <Input
+                  id="vxlan-name"
+                  value={lockedName.value}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="vxlan0"
+                  disabled={lockedName.disabled}
+                  className={lockedName.disabled ? "bg-muted" : undefined}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {lockedName.disabled ? "Interface name cannot be changed." : "Format: vxlan0, vxlan1, etc."}
+                </p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="vni">VNI</Label>
-                <Input id="vni" value={vni} onChange={(e) => setVni(e.target.value)} placeholder="0-16777214" />
+                <Label htmlFor="vxlan-vni">VNI</Label>
+                <Input id="vxlan-vni" value={vni} onChange={(e) => setVni(e.target.value)} placeholder="0-16777214" />
                 <p className="text-xs text-muted-foreground">Virtual Network Identifier</p>
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Input id="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="VXLAN tunnel description" />
+              <Label htmlFor="vxlan-description">Description</Label>
+              <Input id="vxlan-description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="VXLAN tunnel description" />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="sourceAddress">Source Address</Label>
-                <Input id="sourceAddress" value={sourceAddress} onChange={(e) => setSourceAddress(e.target.value)} placeholder="192.168.1.1" />
+                <Label htmlFor="vxlan-sourceAddress">Source Address</Label>
+                <Input id="vxlan-sourceAddress" value={sourceAddress} onChange={(e) => setSourceAddress(e.target.value)} placeholder="192.168.1.1" />
                 <p className="text-xs text-muted-foreground">Local tunnel endpoint IP</p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="sourceInterface">Source Interface</Label>
+                <Label htmlFor="vxlan-sourceInterface">Source Interface</Label>
                 <InterfaceSelect
                   value={sourceInterface || "__none__"}
                   onValueChange={(v) => setSourceInterface(v === "__none__" ? "" : v)}
@@ -305,40 +427,40 @@ export function CreateVxlanModal({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="remotes">Remote Addresses</Label>
-              <Input id="remotes" value={remotes} onChange={(e) => setRemotes(e.target.value)} placeholder="10.0.0.2, 10.0.0.3" />
+              <Label htmlFor="vxlan-remotes">Remote Addresses</Label>
+              <Input id="vxlan-remotes" value={remotes} onChange={(e) => setRemotes(e.target.value)} placeholder="10.0.0.2, 10.0.0.3" />
               <p className="text-xs text-muted-foreground">Comma-separated remote tunnel endpoint IPs</p>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="group">Multicast Group</Label>
-                <Input id="group" value={group} onChange={(e) => setGroup(e.target.value)} placeholder="239.1.1.1" />
+                <Label htmlFor="vxlan-group">Multicast Group</Label>
+                <Input id="vxlan-group" value={group} onChange={(e) => setGroup(e.target.value)} placeholder="239.1.1.1" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="port">UDP Port</Label>
-                <Input id="port" value={port} onChange={(e) => setPort(e.target.value)} placeholder="4789" />
+                <Label htmlFor="vxlan-port">UDP Port</Label>
+                <Input id="vxlan-port" value={port} onChange={(e) => setPort(e.target.value)} placeholder="4789" />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="addresses">IP Addresses</Label>
-              <Input id="addresses" value={addresses} onChange={(e) => setAddresses(e.target.value)} placeholder="10.10.10.1/24, fd00::1/64" />
+              <Label htmlFor="vxlan-addresses">IP Addresses</Label>
+              <Input id="vxlan-addresses" value={addresses} onChange={(e) => setAddresses(e.target.value)} placeholder="10.10.10.1/24, fd00::1/64" />
               <p className="text-xs text-muted-foreground">Comma-separated with CIDR notation</p>
             </div>
 
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="mtu">MTU</Label>
-                <Input id="mtu" value={mtu} onChange={(e) => setMtu(e.target.value)} placeholder="1500" />
+                <Label htmlFor="vxlan-mtu">MTU</Label>
+                <Input id="vxlan-mtu" value={mtu} onChange={(e) => setMtu(e.target.value)} placeholder="1500" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="mac">MAC Address</Label>
-                <Input id="mac" value={mac} onChange={(e) => setMac(e.target.value)} placeholder="00:11:22:33:44:55" />
+                <Label htmlFor="vxlan-mac">MAC Address</Label>
+                <Input id="vxlan-mac" value={mac} onChange={(e) => setMac(e.target.value)} placeholder="00:11:22:33:44:55" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="vrf">VRF</Label>
-                <VrfSelect id="vrf" value={vrf} onValueChange={setVrf} />
+                <Label htmlFor="vxlan-vrf">VRF</Label>
+                <VrfSelect id="vxlan-vrf" value={vrf} onValueChange={setVrf} />
               </div>
             </div>
           </TabsContent>
@@ -348,44 +470,44 @@ export function CreateVxlanModal({
               <Label className="text-sm font-medium">Tunnel Parameters</Label>
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex items-center space-x-2 rounded-lg border p-3">
-                  <Checkbox id="external" checked={external} onCheckedChange={(c) => setExternal(c === true)} />
+                  <Checkbox id="vxlan-external" checked={external} onCheckedChange={(c) => setExternal(c === true)} />
                   <div className="flex-1">
-                    <Label htmlFor="external" className="cursor-pointer text-sm">External</Label>
+                    <Label htmlFor="vxlan-external" className="cursor-pointer text-sm">External</Label>
                     <p className="text-xs text-muted-foreground">Use external control plane</p>
                   </div>
                 </div>
                 <div className="flex items-center space-x-2 rounded-lg border p-3">
-                  <Checkbox id="nolearning" checked={nolearning} onCheckedChange={(c) => setNolearning(c === true)} />
+                  <Checkbox id="vxlan-nolearning" checked={nolearning} onCheckedChange={(c) => setNolearning(c === true)} />
                   <div className="flex-1">
-                    <Label htmlFor="nolearning" className="cursor-pointer text-sm">No Learning</Label>
+                    <Label htmlFor="vxlan-nolearning" className="cursor-pointer text-sm">No Learning</Label>
                     <p className="text-xs text-muted-foreground">Disable MAC learning</p>
                   </div>
                 </div>
                 <div className="flex items-center space-x-2 rounded-lg border p-3">
-                  <Checkbox id="neighborSuppress" checked={neighborSuppress} onCheckedChange={(c) => setNeighborSuppress(c === true)} />
+                  <Checkbox id="vxlan-neighborSuppress" checked={neighborSuppress} onCheckedChange={(c) => setNeighborSuppress(c === true)} />
                   <div className="flex-1">
-                    <Label htmlFor="neighborSuppress" className="cursor-pointer text-sm">Neighbor Suppress</Label>
+                    <Label htmlFor="vxlan-neighborSuppress" className="cursor-pointer text-sm">Neighbor Suppress</Label>
                     <p className="text-xs text-muted-foreground">ARP/ND suppression</p>
                   </div>
                 </div>
                 <div className="flex items-center space-x-2 rounded-lg border p-3">
-                  <Checkbox id="vniFilter" checked={vniFilter} onCheckedChange={(c) => setVniFilter(c === true)} />
+                  <Checkbox id="vxlan-vniFilter" checked={vniFilter} onCheckedChange={(c) => setVniFilter(c === true)} />
                   <div className="flex-1">
-                    <Label htmlFor="vniFilter" className="cursor-pointer text-sm">VNI Filter</Label>
+                    <Label htmlFor="vxlan-vniFilter" className="cursor-pointer text-sm">VNI Filter</Label>
                     <p className="text-xs text-muted-foreground">Enable VNI filtering</p>
                   </div>
                 </div>
                 <div className="flex items-center space-x-2 rounded-lg border p-3">
-                  <Checkbox id="gpe" checked={gpe} onCheckedChange={(c) => setGpe(c === true)} />
+                  <Checkbox id="vxlan-gpe" checked={gpe} onCheckedChange={(c) => setGpe(c === true)} />
                   <div className="flex-1">
-                    <Label htmlFor="gpe" className="cursor-pointer text-sm">GPE</Label>
+                    <Label htmlFor="vxlan-gpe" className="cursor-pointer text-sm">GPE</Label>
                     <p className="text-xs text-muted-foreground">Generic Protocol Extension</p>
                   </div>
                 </div>
                 <div className="flex items-center space-x-2 rounded-lg border p-3">
-                  <Checkbox id="disabled" checked={disabled} onCheckedChange={(c) => setDisabled(c === true)} />
+                  <Checkbox id="vxlan-disabled" checked={disabled} onCheckedChange={(c) => setDisabled(c === true)} />
                   <div className="flex-1">
-                    <Label htmlFor="disabled" className="cursor-pointer text-sm">Disabled</Label>
+                    <Label htmlFor="vxlan-disabled" className="cursor-pointer text-sm">Disabled</Label>
                     <p className="text-xs text-muted-foreground">Administratively disable</p>
                   </div>
                 </div>
@@ -396,8 +518,8 @@ export function CreateVxlanModal({
               <Label className="text-sm font-medium">IP Parameters</Label>
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="ipDf" className="text-xs">Don&apos;t Fragment</Label>
-                  <Select value={ipDf} onValueChange={setIpDf}>
+                  <Label htmlFor="vxlan-ipDf" className="text-xs">Don&apos;t Fragment</Label>
+                  <Select value={ipDf || "__none__"} onValueChange={setIpDf}>
                     <SelectTrigger><SelectValue placeholder="Default" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="__none__">Default</SelectItem>
@@ -408,12 +530,12 @@ export function CreateVxlanModal({
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="ipTos" className="text-xs">Type of Service</Label>
-                  <Input id="ipTos" value={ipTos} onChange={(e) => setIpTos(e.target.value)} placeholder="0-255 or inherit" />
+                  <Label htmlFor="vxlan-ipTos" className="text-xs">Type of Service</Label>
+                  <Input id="vxlan-ipTos" value={ipTos} onChange={(e) => setIpTos(e.target.value)} placeholder="0-255 or inherit" />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="ipTtl" className="text-xs">TTL</Label>
-                  <Input id="ipTtl" value={ipTtl} onChange={(e) => setIpTtl(e.target.value)} placeholder="0-255" />
+                  <Label htmlFor="vxlan-ipTtl" className="text-xs">TTL</Label>
+                  <Input id="vxlan-ipTtl" value={ipTtl} onChange={(e) => setIpTtl(e.target.value)} placeholder="0-255" />
                 </div>
               </div>
             </div>
@@ -421,8 +543,8 @@ export function CreateVxlanModal({
             <div className="space-y-3">
               <Label className="text-sm font-medium">IPv6 Parameters</Label>
               <div className="space-y-2">
-                <Label htmlFor="ipv6Flowlabel" className="text-xs">Flow Label</Label>
-                <Input id="ipv6Flowlabel" value={ipv6Flowlabel} onChange={(e) => setIpv6Flowlabel(e.target.value)} placeholder="0x0-0xfffff" />
+                <Label htmlFor="vxlan-ipv6Flowlabel" className="text-xs">Flow Label</Label>
+                <Input id="vxlan-ipv6Flowlabel" value={ipv6Flowlabel} onChange={(e) => setIpv6Flowlabel(e.target.value)} placeholder="0x0-0xfffff" />
               </div>
             </div>
 
@@ -430,7 +552,7 @@ export function CreateVxlanModal({
               <Label className="text-sm font-medium">Mirror</Label>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="mirrorIngress" className="text-xs">Ingress Interface</Label>
+                  <Label htmlFor="vxlan-mirrorIngress" className="text-xs">Ingress Interface</Label>
                   <InterfaceSelect
                     value={mirrorIngress || "__none__"}
                     onValueChange={(v) => setMirrorIngress(v === "__none__" ? "" : v)}
@@ -440,7 +562,7 @@ export function CreateVxlanModal({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="mirrorEgress" className="text-xs">Egress Interface</Label>
+                  <Label htmlFor="vxlan-mirrorEgress" className="text-xs">Egress Interface</Label>
                   <InterfaceSelect
                     value={mirrorEgress || "__none__"}
                     onValueChange={(v) => setMirrorEgress(v === "__none__" ? "" : v)}
@@ -453,7 +575,7 @@ export function CreateVxlanModal({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="redirect">Redirect Interface</Label>
+              <Label htmlFor="vxlan-redirect">Redirect Interface</Label>
               <InterfaceSelect
                 value={redirect || "__none__"}
                 onValueChange={(v) => setRedirect(v === "__none__" ? "" : v)}
@@ -535,15 +657,15 @@ export function CreateVxlanModal({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleClose} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Creating...
+                {isEdit ? "Saving..." : "Creating..."}
               </>
             ) : (
-              "Create Interface"
+              isEdit ? "Save Changes" : "Create Interface"
             )}
           </Button>
         </DialogFooter>
