@@ -78,8 +78,7 @@ import { vtiService, type VtiInterface, type VtiCapabilities } from "@/lib/api/v
 import { VtiModal } from "@/components/vti/VtiModal";
 import { DeleteVtiModal } from "@/components/vti/DeleteVtiModal";
 import { wirelessService, type WirelessInterface, type WirelessCapabilitiesResponse } from "@/lib/api/wireless";
-import { CreateWirelessModal } from "@/components/wireless/CreateWirelessModal";
-import { EditWirelessModal } from "@/components/wireless/EditWirelessModal";
+import { WirelessModal } from "@/components/wireless/WirelessModal";
 import { DeleteWirelessModal } from "@/components/wireless/DeleteWirelessModal";
 import { wwanService, type WwanInterface, type WwanCapabilities } from "@/lib/api/wwan";
 import { CreateWwanModal } from "@/components/wwan/CreateWwanModal";
@@ -4553,22 +4552,21 @@ function InterfacesPageInner() {
         interfaceData={deletingVti}
       />
       {/* Wireless Modals */}
-      <CreateWirelessModal
-        open={isCreateWirelessModalOpen}
-        onOpenChange={setIsCreateWirelessModalOpen}
-        onSuccess={loadData}
-        capabilities={wirelessCapabilities}
-        existingInterfaces={wirelessInterfaces.map((i) => i.name)}
-      />
-      <EditWirelessModal
-        open={!!editingWireless}
-        onOpenChange={(open) => !open && setEditingWireless(null)}
+      <WirelessModal
+        open={isCreateWirelessModalOpen || !!editingWireless}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsCreateWirelessModalOpen(false);
+            setEditingWireless(null);
+          }
+        }}
         onSuccess={() => {
           setEditingWireless(null);
           loadData();
         }}
         capabilities={wirelessCapabilities}
-        interfaceData={editingWireless}
+        existingInterfaces={wirelessInterfaces.map((i) => i.name)}
+        existing={editingWireless}
       />
       <DeleteWirelessModal
         open={!!deletingWireless}

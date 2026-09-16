@@ -25,14 +25,16 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle, Eye, EyeOff, Loader2, Plus, Trash2, X } from "lucide-react";
-import { wirelessService, type WirelessCapabilitiesResponse, type WpaRadiusServer } from "@/lib/api/wireless";
+import { wirelessService, type WirelessInterface, type WirelessCapabilitiesResponse, type WpaRadiusServer } from "@/lib/api/wireless";
+import { lockedIdentity, modalIsEdit, modalWriteKind } from "@/lib/modal-mode";
 
-interface CreateWirelessModalProps {
+interface WirelessModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   capabilities: WirelessCapabilitiesResponse | null;
   existingInterfaces: string[];
+  existing?: WirelessInterface | null;
 }
 
 const WPA_CIPHERS = ["GCMP-256", "GCMP", "CCMP-256", "CCMP", "TKIP"];
@@ -135,9 +137,10 @@ function RadiusServerRow({ server, onChange, onRemove }: { server: WpaRadiusServ
   );
 }
 
-export function CreateWirelessModal({ open, onOpenChange, onSuccess, capabilities, existingInterfaces }: CreateWirelessModalProps) {
+export function WirelessModal({ open, onOpenChange, onSuccess, capabilities, existingInterfaces, existing }: WirelessModalProps) {
   const hasBssid = capabilities?.features?.bssid?.supported === true;
   const hasCountryCode = capabilities?.features?.country_code?.supported === true;
+  const isEdit = modalIsEdit(existing);
 
   // Basic
   const [name, setName] = useState("wlan0");
@@ -251,20 +254,17 @@ export function CreateWirelessModal({ open, onOpenChange, onSuccess, capabilitie
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (open) {
-      // Auto-suggest next available interface name
-      const nums = existingInterfaces
-        .filter((n) => n.startsWith("wlan"))
-        .map((n) => parseInt(n.replace("wlan", ""), 10))
-        .filter((n) => !isNaN(n));
-      const next = nums.length > 0 ? Math.max(...nums) + 1 : 0;
-      setName(`wlan${next}`);
-    }
-  }, [open, existingInterfaces]);
+  const getNextInterfaceName = (): string => {
+    const nums = existingInterfaces
+      .filter((n) => n.startsWith("wlan"))
+      .map((n) => parseInt(n.replace("wlan", ""), 10))
+      .filter((n) => !isNaN(n));
+    const next = nums.length > 0 ? Math.max(...nums) + 1 : 0;
+    return `wlan${next}`;
+  };
 
   const resetForm = () => {
-    setName("wlan0"); setWirelessType("access-point"); setRadioMode(""); setSsid(""); setChannel("");
+    setName(getNextInterfaceName()); setWirelessType("access-point"); setRadioMode(""); setSsid(""); setChannel("");
     setPhysicalDevice(""); setHwId(""); setMac(""); setDescription(""); setDisable(false); setBssid(""); setCountryCode("");
     setDisableBroadcastSsid(false); setExpungeFailingStations(false); setIsolateStations(false); setPerClientThread(false);
     setReduceTransmitPower(false); setStationaryAp(false); setEnableBfProtection(false); setMaxStations(""); setMgmtFrameProtection("");
@@ -286,124 +286,353 @@ export function CreateWirelessModal({ open, onOpenChange, onSuccess, capabilitie
     setMirrorIngress(""); setMirrorEgress(""); setRedirect(""); setError(null);
   };
 
+  const populateForm = (d: WirelessInterface) => {
+    const sec = d.security;
+    const wpa = sec?.wpa;
+    const cap = d.capabilities;
+    const ht = cap?.ht;
+    const vht = cap?.vht;
+    const he = cap?.he;
+
+    setName(d.name);
+    setWirelessType(d.wireless_type ?? "");
+    setRadioMode(d.mode ?? "");
+    setSsid(d.ssid ?? "");
+    setChannel(d.channel ?? "");
+    setPhysicalDevice(d.physical_device ?? "");
+    setHwId(d.hw_id ?? "");
+    setMac(d.mac ?? "");
+    setDescription(d.description ?? "");
+    setDisable(d.disable ?? false);
+    setBssid(d.bssid ?? "");
+    setCountryCode(d.country_code ?? "");
+
+    setDisableBroadcastSsid(d.disable_broadcast_ssid ?? false);
+    setExpungeFailingStations(d.expunge_failing_stations ?? false);
+    setIsolateStations(d.isolate_stations ?? false);
+    setPerClientThread(d.per_client_thread ?? false);
+    setReduceTransmitPower(d.reduce_transmit_power ?? false);
+    setStationaryAp(d.stationary_ap ?? false);
+    setEnableBfProtection(d.enable_bf_protection ?? false);
+    setMaxStations(d.max_stations ?? "");
+    setMgmtFrameProtection(d.mgmt_frame_protection ?? "");
+
+    setWpaMode(wpa?.mode ?? "");
+    setWpaPassphrase(wpa?.passphrase ?? "");
+    setWpaCiphers(wpa?.cipher ?? []);
+    setWpaGroupCipher(wpa?.group_cipher ?? "");
+    setWpaGroupMgmtCipher(wpa?.group_mgmt_cipher ?? "");
+    setWpaRadiusSource(wpa?.radius_source_address ?? "");
+    setWpaRadiusServers(wpa?.radius_servers ?? []);
+    setWepKeys(sec?.wep?.key ?? []);
+    setStationAddressMode(sec?.station_address?.mode ?? "");
+    setAcceptMacs(sec?.station_address?.accept_mac ?? []);
+    setDenyMacs(sec?.station_address?.deny_mac ?? []);
+
+    setHtEnabled(!!ht);
+    setHtChannelSetWidth(ht?.channel_set_width ?? []);
+    setHtShortGi(ht?.short_gi ?? []);
+    setHtSmps(ht?.smps ?? "");
+    setHtMaxAmsdu(ht?.max_amsdu ?? "");
+    setHtStbcRx(ht?.stbc_rx ?? "");
+    setHt40MhzIncapable(ht?.mhz_incapable_40 ?? false);
+    setHtAutoPowersave(ht?.auto_powersave ?? false);
+    setHtDelayedBlockAck(ht?.delayed_block_ack ?? false);
+    setHtDssCck40(ht?.dsss_cck_40 ?? false);
+    setHtGreenfield(ht?.greenfield ?? false);
+    setHtLdpc(ht?.ldpc ?? false);
+    setHtLsigProtection(ht?.lsig_protection ?? false);
+    setHtStbcTx(ht?.stbc_tx ?? false);
+    setRequireHt(cap?.require_ht ?? false);
+
+    setVhtEnabled(!!vht);
+    setVhtChannelSetWidth(vht?.channel_set_width ?? "");
+    setVhtShortGi(vht?.short_gi ?? []);
+    setVhtBeamform(vht?.beamform ?? []);
+    setVhtCenterFreq1(vht?.center_channel_freq_1 ?? "");
+    setVhtCenterFreq2(vht?.center_channel_freq_2 ?? "");
+    setVhtAntennaCount(vht?.antenna_count ?? "");
+    setVhtMaxMpdu(vht?.max_mpdu ?? "");
+    setVhtMaxMpduExp(vht?.max_mpdu_exp ?? "");
+    setVhtLinkAdaptation(vht?.link_adaptation ?? "");
+    setVhtAntennaPatternFixed(vht?.antenna_pattern_fixed ?? false);
+    setVhtLdpc(vht?.ldpc ?? false);
+    setVhtStbcTx(vht?.stbc_tx ?? false);
+    setVhtTxPowersave(vht?.tx_powersave ?? false);
+    setVhtCf(vht?.vht_cf ?? false);
+    setVhtStbcRx(vht?.stbc_rx ?? "");
+    setRequireVht(cap?.require_vht ?? false);
+
+    setHeEnabled(!!he);
+    setHeChannelSetWidth(he?.channel_set_width ?? "");
+    setHeCodingScheme(he?.coding_scheme ?? "");
+    setHeBssColor(he?.bss_color ?? "");
+    setHeCenterFreq1(he?.center_channel_freq_1 ?? "");
+    setHeCenterFreq2(he?.center_channel_freq_2 ?? "");
+    setHeBeamformMultiUser(he?.beamform?.multi_user_beamformer ?? false);
+    setHeBeamformSuBeamformee(he?.beamform?.single_user_beamformee ?? false);
+    setHeBeamformSuBeamformer(he?.beamform?.single_user_beamformer ?? false);
+    setHeAntennaPatternFixed(he?.antenna_pattern_fixed ?? false);
+    setRequireHe(cap?.require_he ?? false);
+
+    setAddresses(d.addresses ?? []);
+    setMtu(d.mtu ?? "");
+    setVrf(d.vrf ?? "");
+
+    setIpSourceValidation(d.ip_source_validation ?? "");
+    setIpArpCacheTimeout(d.ip_arp_cache_timeout ?? "");
+    setIpDisableForwarding(d.ip_disable_forwarding ?? false);
+    setIpEnableProxyArp(d.ip_enable_proxy_arp ?? false);
+    setIpv6Eui64(d.ipv6_address_eui64 ?? []);
+    setIpv6DisableForwarding(d.ipv6_disable_forwarding ?? false);
+    setIpv6NoDefaultLinkLocal(d.ipv6_address_no_default_link_local ?? false);
+    setMirrorIngress(d.mirror_ingress ?? "");
+    setMirrorEgress(d.mirror_egress ?? "");
+    setRedirect(d.redirect ?? "");
+    setError(null);
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    if (existing) {
+      populateForm(existing);
+    } else {
+      resetForm();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, existing]);
+
+  const lockedName = lockedIdentity(existing, (i) => i.name, name);
+
+  const submitCreate = async () => {
+    return wirelessService.createInterface({
+      name: name.trim(),
+      wireless_type: wirelessType || undefined,
+      mode: radioMode || undefined,
+      ssid: ssid || undefined,
+      channel: channel || undefined,
+      description: description || undefined,
+      disable: disable || undefined,
+      mac: mac || undefined,
+      hw_id: hwId || undefined,
+      physical_device: physicalDevice || undefined,
+      vrf: vrf || undefined,
+      mtu: mtu || undefined,
+      addresses: addresses.length > 0 ? addresses : undefined,
+      disable_broadcast_ssid: disableBroadcastSsid || undefined,
+      expunge_failing_stations: expungeFailingStations || undefined,
+      isolate_stations: isolateStations || undefined,
+      max_stations: maxStations || undefined,
+      mgmt_frame_protection: mgmtFrameProtection || undefined,
+      per_client_thread: perClientThread || undefined,
+      reduce_transmit_power: reduceTransmitPower || undefined,
+      stationary_ap: stationaryAp || undefined,
+      enable_bf_protection: enableBfProtection || undefined,
+      wpa_mode: wpaMode || undefined,
+      wpa_passphrase: wpaPassphrase || undefined,
+      wpa_ciphers: wpaCiphers.length > 0 ? wpaCiphers : undefined,
+      wpa_group_cipher: wpaGroupCipher || undefined,
+      wpa_group_mgmt_cipher: wpaGroupMgmtCipher || undefined,
+      wpa_radius_source_address: wpaRadiusSource || undefined,
+      wpa_radius_servers: wpaRadiusServers.length > 0 ? wpaRadiusServers : undefined,
+      wep_keys: wepKeys.length > 0 ? wepKeys : undefined,
+      station_address_mode: stationAddressMode || undefined,
+      station_accept_macs: acceptMacs.length > 0 ? acceptMacs : undefined,
+      station_deny_macs: denyMacs.length > 0 ? denyMacs : undefined,
+      // HT
+      ...(htEnabled ? {
+        ht_channel_set_width: htChannelSetWidth.length > 0 ? htChannelSetWidth : undefined,
+        ht_short_gi: htShortGi.length > 0 ? htShortGi : undefined,
+        ht_smps: htSmps || undefined,
+        ht_max_amsdu: htMaxAmsdu || undefined,
+        ht_stbc_rx: htStbcRx || undefined,
+        ht_mhz_incapable_40: ht40MhzIncapable || undefined,
+        ht_auto_powersave: htAutoPowersave || undefined,
+        ht_delayed_block_ack: htDelayedBlockAck || undefined,
+        ht_dsss_cck_40: htDssCck40 || undefined,
+        ht_greenfield: htGreenfield || undefined,
+        ht_ldpc: htLdpc || undefined,
+        ht_lsig_protection: htLsigProtection || undefined,
+        ht_stbc_tx: htStbcTx || undefined,
+        require_ht: requireHt || undefined,
+      } : {}),
+      // VHT
+      ...(vhtEnabled ? {
+        vht_channel_set_width: vhtChannelSetWidth || undefined,
+        vht_short_gi: vhtShortGi.length > 0 ? vhtShortGi : undefined,
+        vht_beamform: vhtBeamform.length > 0 ? vhtBeamform : undefined,
+        vht_center_channel_freq_1: vhtCenterFreq1 || undefined,
+        vht_center_channel_freq_2: vhtCenterFreq2 || undefined,
+        vht_antenna_count: vhtAntennaCount || undefined,
+        vht_max_mpdu: vhtMaxMpdu || undefined,
+        vht_max_mpdu_exp: vhtMaxMpduExp || undefined,
+        vht_link_adaptation: vhtLinkAdaptation || undefined,
+        vht_antenna_pattern_fixed: vhtAntennaPatternFixed || undefined,
+        vht_ldpc: vhtLdpc || undefined,
+        vht_stbc_tx: vhtStbcTx || undefined,
+        vht_tx_powersave: vhtTxPowersave || undefined,
+        vht_cf: vhtCf || undefined,
+        vht_stbc_rx: vhtStbcRx || undefined,
+        require_vht: requireVht || undefined,
+      } : {}),
+      // HE
+      ...(heEnabled ? {
+        he_channel_set_width: heChannelSetWidth || undefined,
+        he_coding_scheme: heCodingScheme || undefined,
+        he_bss_color: heBssColor || undefined,
+        he_center_channel_freq_1: heCenterFreq1 || undefined,
+        he_center_channel_freq_2: heCenterFreq2 || undefined,
+        he_beamform_multi_user: heBeamformMultiUser || undefined,
+        he_beamform_su_beamformee: heBeamformSuBeamformee || undefined,
+        he_beamform_su_beamformer: heBeamformSuBeamformer || undefined,
+        he_antenna_pattern_fixed: heAntennaPatternFixed || undefined,
+        require_he: requireHe || undefined,
+      } : {}),
+      ip_source_validation: ipSourceValidation || undefined,
+      ip_arp_cache_timeout: ipArpCacheTimeout || undefined,
+      ip_disable_forwarding: ipDisableForwarding || undefined,
+      ip_enable_proxy_arp: ipEnableProxyArp || undefined,
+      ipv6_address_eui64: ipv6Eui64.length > 0 ? ipv6Eui64 : undefined,
+      ipv6_disable_forwarding: ipv6DisableForwarding || undefined,
+      ipv6_address_no_default_link_local: ipv6NoDefaultLinkLocal || undefined,
+      mirror_ingress: mirrorIngress || undefined,
+      mirror_egress: mirrorEgress || undefined,
+      redirect: redirect || undefined,
+      country_code: countryCode || undefined,
+      bssid: bssid || undefined,
+    });
+  };
+
+  const submitUpdate = async (current: WirelessInterface, targetName: string) => {
+    return wirelessService.updateInterface(targetName, current, {
+      wireless_type: wirelessType || null,
+      mode: radioMode || null,
+      ssid: ssid || null,
+      channel: channel || null,
+      description: description || null,
+      disable,
+      mac: mac || null,
+      hw_id: hwId || null,
+      physical_device: physicalDevice || null,
+      vrf: vrf || null,
+      mtu: mtu || null,
+      addresses,
+      disable_broadcast_ssid: disableBroadcastSsid,
+      expunge_failing_stations: expungeFailingStations,
+      isolate_stations: isolateStations,
+      per_client_thread: perClientThread,
+      reduce_transmit_power: reduceTransmitPower,
+      stationary_ap: stationaryAp,
+      enable_bf_protection: enableBfProtection,
+      max_stations: maxStations || null,
+      mgmt_frame_protection: mgmtFrameProtection || null,
+      wpa_mode: wpaMode || null,
+      wpa_passphrase: wpaPassphrase || null,
+      wpa_ciphers: wpaCiphers,
+      wpa_group_cipher: wpaGroupCipher || null,
+      wpa_group_mgmt_cipher: wpaGroupMgmtCipher || null,
+      wpa_radius_source_address: wpaRadiusSource || null,
+      wpa_radius_servers: wpaRadiusServers,
+      wep_keys: wepKeys,
+      station_address_mode: stationAddressMode || null,
+      station_accept_macs: acceptMacs,
+      station_deny_macs: denyMacs,
+      ht_channel_set_width: htEnabled ? htChannelSetWidth : [],
+      ht_short_gi: htEnabled ? htShortGi : [],
+      ht_smps: htEnabled ? (htSmps || null) : null,
+      ht_max_amsdu: htEnabled ? (htMaxAmsdu || null) : null,
+      ht_stbc_rx: htEnabled ? (htStbcRx || null) : null,
+      ht_mhz_incapable_40: htEnabled ? ht40MhzIncapable : false,
+      ht_auto_powersave: htEnabled ? htAutoPowersave : false,
+      ht_delayed_block_ack: htEnabled ? htDelayedBlockAck : false,
+      ht_dsss_cck_40: htEnabled ? htDssCck40 : false,
+      ht_greenfield: htEnabled ? htGreenfield : false,
+      ht_ldpc: htEnabled ? htLdpc : false,
+      ht_lsig_protection: htEnabled ? htLsigProtection : false,
+      ht_stbc_tx: htEnabled ? htStbcTx : false,
+      require_ht: htEnabled ? requireHt : false,
+      vht_channel_set_width: vhtEnabled ? (vhtChannelSetWidth || null) : null,
+      vht_short_gi: vhtEnabled ? vhtShortGi : [],
+      vht_beamform: vhtEnabled ? vhtBeamform : [],
+      vht_center_channel_freq_1: vhtEnabled ? (vhtCenterFreq1 || null) : null,
+      vht_center_channel_freq_2: vhtEnabled ? (vhtCenterFreq2 || null) : null,
+      vht_antenna_count: vhtEnabled ? (vhtAntennaCount || null) : null,
+      vht_max_mpdu: vhtEnabled ? (vhtMaxMpdu || null) : null,
+      vht_max_mpdu_exp: vhtEnabled ? (vhtMaxMpduExp || null) : null,
+      vht_link_adaptation: vhtEnabled ? (vhtLinkAdaptation || null) : null,
+      vht_antenna_pattern_fixed: vhtEnabled ? vhtAntennaPatternFixed : false,
+      vht_ldpc: vhtEnabled ? vhtLdpc : false,
+      vht_stbc_tx: vhtEnabled ? vhtStbcTx : false,
+      vht_tx_powersave: vhtEnabled ? vhtTxPowersave : false,
+      vht_cf: vhtEnabled ? vhtCf : false,
+      vht_stbc_rx: vhtEnabled ? (vhtStbcRx || null) : null,
+      require_vht: vhtEnabled ? requireVht : false,
+      he_channel_set_width: heEnabled ? (heChannelSetWidth || null) : null,
+      he_coding_scheme: heEnabled ? (heCodingScheme || null) : null,
+      he_bss_color: heEnabled ? (heBssColor || null) : null,
+      he_center_channel_freq_1: heEnabled ? (heCenterFreq1 || null) : null,
+      he_center_channel_freq_2: heEnabled ? (heCenterFreq2 || null) : null,
+      he_beamform_multi_user: heEnabled ? heBeamformMultiUser : false,
+      he_beamform_su_beamformee: heEnabled ? heBeamformSuBeamformee : false,
+      he_beamform_su_beamformer: heEnabled ? heBeamformSuBeamformer : false,
+      he_antenna_pattern_fixed: heEnabled ? heAntennaPatternFixed : false,
+      require_he: heEnabled ? requireHe : false,
+      ip_source_validation: ipSourceValidation || null,
+      ip_arp_cache_timeout: ipArpCacheTimeout || null,
+      ip_disable_forwarding: ipDisableForwarding,
+      ip_enable_proxy_arp: ipEnableProxyArp,
+      ipv6_address_eui64: ipv6Eui64,
+      ipv6_disable_forwarding: ipv6DisableForwarding,
+      ipv6_address_no_default_link_local: ipv6NoDefaultLinkLocal,
+      mirror_ingress: mirrorIngress || null,
+      mirror_egress: mirrorEgress || null,
+      redirect: redirect || null,
+      country_code: countryCode || null,
+      bssid: bssid || null,
+    });
+  };
+
   const handleSubmit = async () => {
-    if (!name.trim()) { setError("Interface name is required"); return; }
+    const write = modalWriteKind(existing);
+    if (write.kind === "create" && !name.trim()) {
+      setError("Interface name is required");
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
-      const result = await wirelessService.createInterface({
-        name: name.trim(),
-        wireless_type: wirelessType || undefined,
-        mode: radioMode || undefined,
-        ssid: ssid || undefined,
-        channel: channel || undefined,
-        description: description || undefined,
-        disable: disable || undefined,
-        mac: mac || undefined,
-        hw_id: hwId || undefined,
-        physical_device: physicalDevice || undefined,
-        vrf: vrf || undefined,
-        mtu: mtu || undefined,
-        addresses: addresses.length > 0 ? addresses : undefined,
-        disable_broadcast_ssid: disableBroadcastSsid || undefined,
-        expunge_failing_stations: expungeFailingStations || undefined,
-        isolate_stations: isolateStations || undefined,
-        max_stations: maxStations || undefined,
-        mgmt_frame_protection: mgmtFrameProtection || undefined,
-        per_client_thread: perClientThread || undefined,
-        reduce_transmit_power: reduceTransmitPower || undefined,
-        stationary_ap: stationaryAp || undefined,
-        enable_bf_protection: enableBfProtection || undefined,
-        wpa_mode: wpaMode || undefined,
-        wpa_passphrase: wpaPassphrase || undefined,
-        wpa_ciphers: wpaCiphers.length > 0 ? wpaCiphers : undefined,
-        wpa_group_cipher: wpaGroupCipher || undefined,
-        wpa_group_mgmt_cipher: wpaGroupMgmtCipher || undefined,
-        wpa_radius_source_address: wpaRadiusSource || undefined,
-        wpa_radius_servers: wpaRadiusServers.length > 0 ? wpaRadiusServers : undefined,
-        wep_keys: wepKeys.length > 0 ? wepKeys : undefined,
-        station_address_mode: stationAddressMode || undefined,
-        station_accept_macs: acceptMacs.length > 0 ? acceptMacs : undefined,
-        station_deny_macs: denyMacs.length > 0 ? denyMacs : undefined,
-        // HT
-        ...(htEnabled ? {
-          ht_channel_set_width: htChannelSetWidth.length > 0 ? htChannelSetWidth : undefined,
-          ht_short_gi: htShortGi.length > 0 ? htShortGi : undefined,
-          ht_smps: htSmps || undefined,
-          ht_max_amsdu: htMaxAmsdu || undefined,
-          ht_stbc_rx: htStbcRx || undefined,
-          ht_mhz_incapable_40: ht40MhzIncapable || undefined,
-          ht_auto_powersave: htAutoPowersave || undefined,
-          ht_delayed_block_ack: htDelayedBlockAck || undefined,
-          ht_dsss_cck_40: htDssCck40 || undefined,
-          ht_greenfield: htGreenfield || undefined,
-          ht_ldpc: htLdpc || undefined,
-          ht_lsig_protection: htLsigProtection || undefined,
-          ht_stbc_tx: htStbcTx || undefined,
-          require_ht: requireHt || undefined,
-        } : {}),
-        // VHT
-        ...(vhtEnabled ? {
-          vht_channel_set_width: vhtChannelSetWidth || undefined,
-          vht_short_gi: vhtShortGi.length > 0 ? vhtShortGi : undefined,
-          vht_beamform: vhtBeamform.length > 0 ? vhtBeamform : undefined,
-          vht_center_channel_freq_1: vhtCenterFreq1 || undefined,
-          vht_center_channel_freq_2: vhtCenterFreq2 || undefined,
-          vht_antenna_count: vhtAntennaCount || undefined,
-          vht_max_mpdu: vhtMaxMpdu || undefined,
-          vht_max_mpdu_exp: vhtMaxMpduExp || undefined,
-          vht_link_adaptation: vhtLinkAdaptation || undefined,
-          vht_antenna_pattern_fixed: vhtAntennaPatternFixed || undefined,
-          vht_ldpc: vhtLdpc || undefined,
-          vht_stbc_tx: vhtStbcTx || undefined,
-          vht_tx_powersave: vhtTxPowersave || undefined,
-          vht_cf: vhtCf || undefined,
-          vht_stbc_rx: vhtStbcRx || undefined,
-          require_vht: requireVht || undefined,
-        } : {}),
-        // HE
-        ...(heEnabled ? {
-          he_channel_set_width: heChannelSetWidth || undefined,
-          he_coding_scheme: heCodingScheme || undefined,
-          he_bss_color: heBssColor || undefined,
-          he_center_channel_freq_1: heCenterFreq1 || undefined,
-          he_center_channel_freq_2: heCenterFreq2 || undefined,
-          he_beamform_multi_user: heBeamformMultiUser || undefined,
-          he_beamform_su_beamformee: heBeamformSuBeamformee || undefined,
-          he_beamform_su_beamformer: heBeamformSuBeamformer || undefined,
-          he_antenna_pattern_fixed: heAntennaPatternFixed || undefined,
-          require_he: requireHe || undefined,
-        } : {}),
-        ip_source_validation: ipSourceValidation || undefined,
-        ip_arp_cache_timeout: ipArpCacheTimeout || undefined,
-        ip_disable_forwarding: ipDisableForwarding || undefined,
-        ip_enable_proxy_arp: ipEnableProxyArp || undefined,
-        ipv6_address_eui64: ipv6Eui64.length > 0 ? ipv6Eui64 : undefined,
-        ipv6_disable_forwarding: ipv6DisableForwarding || undefined,
-        ipv6_address_no_default_link_local: ipv6NoDefaultLinkLocal || undefined,
-        mirror_ingress: mirrorIngress || undefined,
-        mirror_egress: mirrorEgress || undefined,
-        redirect: redirect || undefined,
-        country_code: countryCode || undefined,
-        bssid: bssid || undefined,
-      });
-      if (!result.success) { setError(result.error ?? "Create failed"); return; }
+      const result =
+        write.kind === "update" && existing
+          ? await submitUpdate(existing, write.name)
+          : await submitCreate();
+
+      if (!result.success) {
+        setError(result.error ?? (isEdit ? "Update failed" : "Create failed"));
+        return;
+      }
       onOpenChange(false);
-      resetForm();
+      if (!isEdit) resetForm();
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Create failed");
+      setError(err instanceof Error ? err.message : isEdit ? "Update failed" : "Create failed");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!loading) { if (!o) resetForm(); onOpenChange(o); } }}>
+    <Dialog open={open} onOpenChange={(o) => { if (!loading) { if (!o && !isEdit) resetForm(); setError(null); onOpenChange(o); } }}>
       <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Create Wireless Interface</DialogTitle>
-          <DialogDescription>Configure a new wireless (WiFi) interface on the router.</DialogDescription>
+          <DialogTitle>
+            {isEdit ? <>Edit Wireless Interface — <code className="font-mono">{existing.name}</code></> : "Create Wireless Interface"}
+          </DialogTitle>
+          <DialogDescription>
+            {isEdit
+              ? "Modify the configuration of this wireless interface."
+              : "Configure a new wireless (WiFi) interface on the router."}
+          </DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto px-1">
@@ -421,8 +650,17 @@ export function CreateWirelessModal({ open, onOpenChange, onSuccess, capabilitie
             <TabsContent value="basic" className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label>Interface Name <span className="text-destructive">*</span></Label>
-                  <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="wlan0" className="font-mono" />
+                  <Label>Interface Name {!isEdit && <span className="text-destructive">*</span>}</Label>
+                  <Input
+                    value={lockedName.value}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="wlan0"
+                    className={`font-mono${lockedName.disabled ? " bg-muted" : ""}`}
+                    disabled={lockedName.disabled}
+                  />
+                  {lockedName.disabled && (
+                    <p className="text-xs text-muted-foreground">Interface name cannot be changed.</p>
+                  )}
                 </div>
                 <div className="space-y-1.5">
                   <Label>Wireless Type</Label>
@@ -989,9 +1227,11 @@ export function CreateWirelessModal({ open, onOpenChange, onSuccess, capabilitie
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => { resetForm(); onOpenChange(false); }} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => { if (!isEdit) resetForm(); onOpenChange(false); }} disabled={loading}>Cancel</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Creating…</> : "Create Interface"}
+            {loading
+              ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />{isEdit ? "Saving…" : "Creating…"}</>
+              : isEdit ? "Save Changes" : "Create Interface"}
           </Button>
         </DialogFooter>
       </DialogContent>
