@@ -1,5 +1,13 @@
-"""Parser and response models for VyOS Ethernet transceiver diagnostics."""
+"""Parser and response models for VyOS Ethernet transceiver diagnostics.
 
+Digital diagnostic monitoring (DDM) is a property of a *physical* Ethernet port:
+``show interfaces ethernet <name> transceiver`` runs ``ethtool --module-info``,
+which only a real NIC answers. VLAN sub-interfaces (``eth0.100``, vif/vif-s/vif-c)
+have no module of their own, so they are excluded at the source by
+``physical_ethernet_interfaces`` rather than by a caller-side name filter.
+"""
+
+import json
 import re
 from typing import Dict, List, Optional
 
@@ -156,3 +164,81 @@ def parse_transceiver_output(interface: str, text: str) -> TransceiverStatus:
 
     status.measurements = measurements
     return status
+
+
+# ============================================================================
+# Dashboard SSE channel
+# ============================================================================
+
+# Each alias is one ``ethtool --module-info`` on the router. Measured on the
+# 1.5 lab: ~0.42 s per port, linear in the number of aliases (1/2/8/16 aliases
+# took 0.43/0.84/3.27/6.75 s). A 48-port box is therefore ~20 s for one sweep,
+# which is why this never rides the shared dashboard query and runs as its own
+# task instead.
+_TRANSCEIVER_SECONDS_PER_PORT = 0.42
+
+# Upper bound on ports swept per cycle, so a chassis with a very large port
+# count cannot turn one sweep into a multi-minute request.
+TRANSCEIVER_MAX_PORTS = 64
+
+
+def transceiver_fetch_timeout(port_count: int) -> float:
+    """HTTP timeout for one sweep, scaled by the measured per-port cost.
+
+    A fixed 15-30 s timeout is wrong here: the sweep is linear in port count, so
+    a two-port lab VM and a 48-port switch need very different ceilings. 3x the
+    measured cost plus a 10 s floor absorbs a loaded router without letting a
+    stuck sweep pin the task forever.
+    """
+    ports = max(0, min(port_count, TRANSCEIVER_MAX_PORTS))
+    return max(10.0, ports * _TRANSCEIVER_SECONDS_PER_PORT * 3.0)
+
+
+def physical_ethernet_interfaces(full_config) -> List[str]:
+    """Return configured *physical* Ethernet port names, sorted.
+
+    Only the top-level keys of ``interfaces ethernet`` are physical ports. VLAN
+    sub-interfaces live nested under ``vif`` / ``vif-s`` / ``vif-c`` on their
+    parent and are never returned, because a VLAN has no transceiver of its own
+    (``ethtool --module-info eth0.100`` fails with "No such device").
+    """
+    ethernet = ((full_config or {}).get("interfaces") or {}).get("ethernet") or {}
+    if not isinstance(ethernet, dict):
+        return []
+    return sorted(str(name) for name in ethernet)
+
+
+def transceiver_alias(interface: str) -> str:
+    """Return a GraphQL-safe alias for one interface, e.g. ``Transceiver_eth0``."""
+    return f"Transceiver_{re.sub(r'[^_a-zA-Z0-9]', '_', interface)}"
+
+
+def transceiver_gql_fields(key_literal: str, interfaces: List[str]) -> List[str]:
+    """One aliased ``Show`` field per physical port.
+
+    ``key_literal`` must already be a JSON-encoded API key (``json.dumps(key)``),
+    matching the other ``*_gql_fields`` helpers.
+    """
+    fields = []
+    for interface in interfaces[:TRANSCEIVER_MAX_PORTS]:
+        path = json.dumps(["interfaces", "ethernet", interface, "transceiver"])
+        fields.append(
+            f"{transceiver_alias(interface)}: Show(data: {{key: {key_literal}, path: {path}}}) {{ data {{ result }} }}"
+        )
+    return fields
+
+
+def build_transceiver_status(gql: dict, interfaces: List[str]) -> dict:
+    """Build the ``transceiver-health`` SSE payload from the sidecar GraphQL result.
+
+    ``interfaces`` must be the same list the query was built from so the aliases
+    line up. The raw ``ethtool`` text is dropped: nothing renders it, and it would
+    be re-sent to every subscriber on every cycle.
+    """
+    ports = []
+    for interface in interfaces[:TRANSCEIVER_MAX_PORTS]:
+        node = (gql or {}).get(transceiver_alias(interface)) or {}
+        result = (node.get("data") or {}).get("result")
+        status = parse_transceiver_output(interface, result if isinstance(result, str) else "")
+        ports.append(status.model_dump(exclude={"raw"}))
+    return {"interfaces": ports, "total": len(ports)}

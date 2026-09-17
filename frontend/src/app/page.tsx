@@ -503,6 +503,14 @@ export default function Home() {
     };
   };
 
+  // Extra SSE channels are fetched only while the card that needs them is on
+  // the dashboard: each one costs the router an extra op per cycle. Computed
+  // plainly, not memoized — this sits after Home's early returns, and
+  // useDashboardSSE keys its connection on the joined names, not array identity.
+  const streamInterests: string[] = [];
+  if (cards.some((card) => card.type === "pppoe-statistics")) streamInterests.push("pppoe-sessions");
+  if (cards.some((card) => card.type === "transceiver-health")) streamInterests.push("transceiver-health");
+
   return (
     <AppLayout>
       <div className="p-8">
@@ -635,7 +643,7 @@ export default function Home() {
         </div>
 
         {/* Dashboard Grid */}
-        <DashboardDataProvider interests={cards.some((card) => card.type === "pppoe-statistics") ? ["pppoe-sessions"] : undefined}>
+        <DashboardDataProvider interests={streamInterests}>
         {cards.length === 0 && !editMode ? (
           <div className="text-center py-12">
             <p className="text-muted-foreground mb-4">
